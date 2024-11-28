@@ -50,7 +50,7 @@
 import { ref, onMounted } from "vue";
 import { useTheme } from "vuetify";
 
-import NavPanel from "@/components/nav/NavPanel.vue";
+import NavPanel from "@/components/nav-segmentation/NavPanel.vue";
 import IntroPanel from "@/components/intro/IntroPanel.vue";
 import emitter from "@/plugins/bus";
 

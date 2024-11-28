@@ -7,6 +7,9 @@ import {
 import Login from "@/views/index.vue";
 import Dashboard from "@/views/dashboard/index.vue";
 import ManuallyTumourSegmentation from "@/views/tumour-segmentation-manually/MainPage.vue";
+import ManuallyTumourCalculation from "@/views/tumour-distance-calculation/MainPage.vue";
+import SegmentationLayout from "@/layouts/segmentation-layout/Default.vue";
+import CalculationLayout from "@/layouts/calculation-layout/Default.vue";
 
 const routes = [
   {
@@ -20,16 +23,27 @@ const routes = [
     component: Dashboard,
   },
   {
-    path: "/tumour-manual",
-    component: () => import("@/layouts/default/Default.vue"),
+    path: "/tumour-segmentation-manual",
+    component: SegmentationLayout,
     children: [
       {
-        path: "/tumour-manual",
-        name: "MainPage",
+        path: "/tumour-segmentation-manual",
+        name: "TumourSegmentationStudy",
         // route level code-splitting
         // this generates a separate chunk (about.[hash].js) for this route
         // which is lazy-loaded when the route is visited.
         component: ManuallyTumourSegmentation,
+      },
+    ],
+  },
+  {
+    path: "/tumour-calculation-manual",
+    component: CalculationLayout,
+    children: [
+      {
+        path: "/tumour-calculation-manual",
+        name: "TumourCalaulationStudy",
+        component: ManuallyTumourCalculation,
       },
     ],
   },
