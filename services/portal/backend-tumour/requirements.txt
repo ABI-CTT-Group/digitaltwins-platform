@@ -1,0 +1,11 @@
+fastapi[all]
+Pillow
+numpy
+SimpleITK
+pandas
+openpyxl
+pathlib
+python-dotenv
+pynrrd
+nibabel
+scikit-image
