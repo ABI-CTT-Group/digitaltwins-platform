@@ -23,7 +23,6 @@
                         class="mt-2"
                         text="Sign in"
                         type="submit"
-                        variant="outlined"
                         color="#009688"
                         block
                     ></v-btn>

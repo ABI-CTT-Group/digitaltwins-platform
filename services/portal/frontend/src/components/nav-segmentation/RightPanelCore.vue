@@ -14,7 +14,7 @@
   </template>
   
   <script setup lang="ts">
-  import RightPanelCtl from "@/components/nav/tools/RightPanelCtl.vue";
+  import RightPanelCtl from "./tools/RightPanelCtl.vue";
 
   </script>
   

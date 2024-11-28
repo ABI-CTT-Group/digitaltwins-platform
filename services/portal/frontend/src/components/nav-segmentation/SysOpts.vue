@@ -14,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import SysOptsCtl from "@/components/nav/tools/SysOptsCtl.vue";
+import SysOptsCtl from "./tools/SysOptsCtl.vue";
 import { ref } from "vue";
 </script>
 

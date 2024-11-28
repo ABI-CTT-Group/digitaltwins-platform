@@ -35,7 +35,7 @@
 
                             <v-card-actions>
                                 <v-btn v-if="!study.isEnter" color="green" text="Enter" @click="handleEnter(study)"></v-btn>
-                                <v-btn v-if="study.isEnter" color="orange" text="Begin session"></v-btn>
+                                <v-btn v-if="study.isEnter" color="orange" text="Begin session" @click="handleStartSession(study.session)"></v-btn>
                                 <v-btn v-if="study.isEnter" color="orange" text="Tutorial"></v-btn>
                             </v-card-actions>
                         </v-card>
@@ -56,6 +56,16 @@ const router = useRouter();
 const route = useRoute();
 const { user } = useUser();
 
+type Study = {
+    title: string;
+    subTitle: string;
+    description: string;
+    src: string;
+    status: string;
+    isEnter: boolean;
+    session: string;
+}
+
 const items = ref([
           {
             studies:[
@@ -65,7 +75,8 @@ const items = ref([
                     description: 'Calculate tumour distance to the skin, ribcage, and nipple mannually',
                     src: 'https://cdn.vuetifyjs.com/images/cards/docks.jpg',
                     status: 'active',
-                    isEnter: false
+                    isEnter: false,
+                    session: "TumourCalaulationStudy"
                 },
                 {
                     title: 'Tumour Position & Extent Report',
@@ -73,7 +84,8 @@ const items = ref([
                     description: 'Using tools to segment tumour and generate a report',
                     src: 'https://cdn.vuetifyjs.com/images/cards/sunshine.jpg',
                     status: user.value === 'admin' ? 'active' : 'inactive',
-                    isEnter: false
+                    isEnter: false,
+                    session: "TumourSegmentationStudy"
                 },
             ],
           },
@@ -85,7 +97,8 @@ const items = ref([
                     description: 'This is a description of study 3',
                     src: 'https://cdn.vuetifyjs.com/images/carousel/squirrel.jpg',
                     status: user.value === 'admin' ? 'active' : 'inactive',
-                    isEnter: false
+                    isEnter: false,
+                    session: ""
                 },
                 {
                     title: 'Study 4',
@@ -93,12 +106,14 @@ const items = ref([
                     description: 'This is a description of study 4',
                     src: 'https://cdn.vuetifyjs.com/images/carousel/sky.jpg',
                     status: user.value === 'admin' ? 'active' : 'inactive',
-                    isEnter: false
+                    isEnter: false,
+                    session: ""
                 },
             ],
           }
         ])
-const handleEnter = (study) => {
+
+const handleEnter = (study: Study) => {
     study.isEnter=!study.isEnter
     items.value.forEach(item => {
         item.studies.forEach(s => {
@@ -106,8 +121,12 @@ const handleEnter = (study) => {
                 s.isEnter = false
             }
         })
-    })
-    
+    })   
+}
+
+const handleStartSession = (session: string) => {
+    if (session === "") return;
+    router.push({name: session})
 }
 </script>
 
