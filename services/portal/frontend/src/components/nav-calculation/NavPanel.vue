@@ -17,7 +17,7 @@ import { ref, onMounted } from "vue";
 import ImageCtl from "./tools/NrrdImageCtl.vue";
 import OperationCtl from "./tools/OperationCtl.vue";
 import emitter from "@/plugins/bus";
-const open = ref(["Cases"]);
+const open = ref(["Cases", "Operation", "Calculator"]);
 
 onMounted(()=>{
   manageEmitters();

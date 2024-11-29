@@ -5,7 +5,7 @@
       Tumour Segmentation Panel
     </div>
 
-    <v-card v-show="showCalculatorValue" class="left-value-panel mt-2">
+    <v-card class="left-value-panel mt-2">
       <div class="dts"><span>DTS:</span> <span>{{ dts }} mm</span></div>
       <div class="dtn"><span>DTN:</span> <span>{{ dtn }} mm</span></div>
       <div class="dtr"><span>DTR:</span> <span>{{ dtr }} mm</span></div>
@@ -28,9 +28,9 @@
 </template>
 <script setup lang="ts">
 import { GUI, GUIController } from "dat.gui";
-import * as Copper from "copper3d";
+// import * as Copper from "copper3d";
 import "copper3d/dist/css/style.css";
-// import * as Copper from "@/ts/index";
+import * as Copper from "@/ts/index";
 import loadingGif from "@/assets/loading.svg";
 
 import NavBar from "@/components/commonBar/NavBarCalculation.vue";
@@ -65,7 +65,7 @@ import {
   getCursorUrlsForOffLine,
 } from "@/views/tumour-segmentation-manually/components/tools";
 import emitter from "@/plugins/bus";
-import { convertInitMaskData } from "@/plugins/worker";
+
 
 type Props = {
   panelWidth: number;
@@ -136,8 +136,6 @@ const { cases } = storeToRefs(useFileCountStore());
 const { getFilesNames } = useFileCountStore();
 const { sendInitMask } = useInitMarksStore();
 const { sendReplaceMask } = useReplaceMarksStore();
-const { sendSaveSphere } = useSaveSphereStore();
-const { sendSaveMask } = useSaveMasksStore();
 const { maskBackend } = storeToRefs(useMaskStore());
 const { getMaskDataBackend } = useMaskStore();
 const { clearMaskMeshObj } = useClearMaskMeshStore();
@@ -149,18 +147,8 @@ let regUrls = ref<ICaseUrls>({ nrrdUrls: [], jsonUrl: "" });
 const eraserUrls = getEraserUrlsForOffLine();
 const cursorUrls = getCursorUrlsForOffLine();
 
-const showCalculatorValue = ref(false);
 
 function onEmitter() {
-  emitter.on("open_calculate_box", (val)=>{
-    showCalculatorValue.value = true
-  })
-  emitter.on("close_calculate_box", (val)=>{
-    showCalculatorValue.value = false
-  })
-  emitter.on("toggleTheme", () => {
-    base_container.value?.classList.toggle("dark");
-  });
   emitter.on("caseswitched", async (casename) => {
     await onCaseSwitched(casename as string);
   });
@@ -188,15 +176,11 @@ onMounted(async () => {
     slice_index_container.value as HTMLDivElement
   );
   // for offline working
-
-  // nrrdTools.setBaseCanvasesSize(1.5);
   nrrdTools.setEraserUrls(eraserUrls);
   nrrdTools.setPencilIconUrls(cursorUrls);
-  // nrrdTools.setMainAreaSize(3);
 
   // sphere plan b
   toolsState = nrrdTools.getNrrdToolsSettings();
-  // toolsState.spherePlanB = false;
 
   loadBarMain = Copper.loading(loadingGif);
 
@@ -240,81 +224,6 @@ const getSliceChangedNum = (sliceNum: number) => {
   nrrdTools.setSliceMoving(sliceNum);
 };
 
-
-const sendInitMaskToBackend = async () => {
-  // const masksData = nrrdTools.paintImages.z;
-  const rawMaskData = nrrdTools.getMaskData();
-  const masksData = {
-    label1: rawMaskData.paintImagesLabel1.z,
-    label2: rawMaskData.paintImagesLabel2.z,
-    label3: rawMaskData.paintImagesLabel3.z,
-  };
-  const dimensions = nrrdTools.getCurrentImageDimension();
-  const len = rawMaskData.paintImages.z.length;
-  const width = dimensions[0];
-  const height = dimensions[1];
-  const voxelSpacing = nrrdTools.getVoxelSpacing();
-  const spaceOrigin = nrrdTools.getSpaceOrigin();
-  
-  
-  if (len > 0) {
-    const result = convertInitMaskData({
-      masksData,
-      len,
-      width,
-      height,
-      voxelSpacing,
-      spaceOrigin,
-      msg: "init",
-    });
-    const body = {
-      caseId: currentCaseId,
-      masks: result.masks as IStoredMasks,
-    };
-    await sendInitMask(body);
-  }
-};
-
-const loadJsonMasks = (url: string) => {
-  switchAnimationStatus("flex", "Loading masks data......");
-
-  const xhr = new XMLHttpRequest();
-  xhr.open("GET", url, true);
-  xhr.responseType = "json";
-  xhr.onload = function () {
-    if (xhr.status === 200) {
-      const data = xhr.response;
-      if (data === null) {
-        console.log("data empty init");
-        sendInitMaskToBackend();
-      }
-      nrrdTools.setMasksData(data, loadBarMain);
-    }
-  };
-  xhr.send();
-};
-
-const setMaskData = () => {
-  if (loadedUrls[currentCaseId]) {
-    if (cases.value) {
-      const currentCaseDetail = findCurrentCase(
-        cases.value.details,
-        currentCaseId
-      );
-      if (currentCaseDetail.masked) {
-        if (caseUrls.value)
-          loadJsonMasks(loadedUrls[currentCaseId].jsonUrl as string);
-      } else {
-        sendInitMaskToBackend();
-      }
-    }
-  }
-  setTimeout(() => {
-    // wait for loading mask, give a delay before user start operate
-    switchAnimationStatus("none");
-  }, 1000);
-};
-
 const switchAnimationStatus = (status: "flex" | "none", text?: string) => {
   loadingContainer.style.display = status;
   !!text && (progress.innerText = text);
@@ -328,7 +237,7 @@ function distance3D(x1:number, y1:number, z1:number, x2:number, y2:number, z2:nu
     return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-const getCalculateSpherePositionsData = (tumourSphereOrigin:Copper.ICommXYZ, skinSphereOrigin:Copper.ICommXYZ, ribSphereOrigin:Copper.ICommXYZ, nippleSphereOrigin:Copper.ICommXYZ, aix:"x"|"y"|"z")=>{
+const getCalculateSpherePositionsData = (tumourSphereOrigin:Copper.ICommXYZ | null, skinSphereOrigin:Copper.ICommXYZ | null, ribSphereOrigin:Copper.ICommXYZ | null, nippleSphereOrigin:Copper.ICommXYZ | null, aix:"x"|"y"|"z")=>{
    if(tumourSphereOrigin === null) return;
 
    if (skinSphereOrigin !== null){
@@ -348,31 +257,6 @@ const getCalculateSpherePositionsData = (tumourSphereOrigin:Copper.ICommXYZ, ski
    
 }
 
-const getMaskData = async (
-  image: ImageData,
-  sliceId: number,
-  label: string,
-  width: number,
-  height: number,
-  clearAllFlag?: boolean
-) => {
-  const copyImage = image.data.slice();
-
-  const mask = [...copyImage];
-  const body: IReplaceMask = {
-    caseId: currentCaseId,
-    sliceId,
-    label,
-    mask,
-  };
-
-  if (clearAllFlag) {
-    clearMaskMeshObj(currentCaseId);
-    sendInitMaskToBackend();
-  } else {
-    await sendReplaceMask(body);
-  }
-};
 
 const getContrastMove = (step:number, towards:"horizental"|"vertical") =>{
   if(towards === "horizental"){
@@ -429,7 +313,7 @@ watchEffect(() => {
         nrrdTools.drag({
           getSliceNum,
         });
-        nrrdTools.draw({ getMaskData, getCalculateSpherePositionsData});
+        nrrdTools.draw({ getCalculateSpherePositionsData });
         nrrdTools.setupGUI(gui);
         nrrdTools.enableContrastDragEvents(getContrastMove)
         scene?.addPreRenderCallbackFunction(nrrdTools.start);
@@ -438,10 +322,6 @@ watchEffect(() => {
         emitter.emit("loadcalculatortumour", nrrdTools);
       } else {
         nrrdTools.redrawMianPreOnDisplayCanvas();
-      }
-
-      if (loadCases) {
-        setMaskData();
       }
 
       max.value = nrrdTools.getMaxSliceNum()[1];

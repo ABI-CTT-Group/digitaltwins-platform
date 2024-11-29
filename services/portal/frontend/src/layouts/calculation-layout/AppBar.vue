@@ -24,13 +24,6 @@
 
     <div width="" class="w-50 d-flex flex-row justify-end align-center px-2">
       <IntroPanel />
-      <v-btn
-        color="secondary-font"
-        class="px-5"
-        density="compact"
-        icon="mdi-theme-light-dark"
-        @click="toggleTheme"
-      ></v-btn>
       <v-img
         class="px-5"
         width="250px"
@@ -49,12 +42,10 @@ import NavPanel from "@/components/nav-calculation/NavPanel.vue";
 import IntroPanel from "@/components/intro/IntroPanel.vue";
 import emitter from "@/plugins/bus";
 
-const drawerTheme = ref("dark");
 
 const drawer = ref(false);
 const temporary = ref(true);
 
-const theme = useTheme();
 
 onMounted(() => {
   manageEmitters();
@@ -88,15 +79,5 @@ function toggleDrawer() {
   });
 }
 
-function toggleTheme(value: any) {
-  // theme.global.current.value.dark
-  theme.global.name.value = theme.global.current.value.dark
-    ? "lightTheme"
-    : "darkTheme";
-
-  drawerTheme.value = theme.global.current.value.dark ? "dark" : "light";
-
-  emitter.emit("toggleTheme", theme.global.name.value);
-}
 </script>
 <style></style>
