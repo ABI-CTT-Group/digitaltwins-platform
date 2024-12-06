@@ -1,7 +1,7 @@
 <template>
   <div class="main-container " ref="mainContainer">
     <div
-      class="box bg-grey-darken-4 ml-1 my-1 mt-2 rounded-lg"
+      class="box bg-grey-darken-4 ml-1 rounded-lg"
     >
       <LeftPanel />
     </div>

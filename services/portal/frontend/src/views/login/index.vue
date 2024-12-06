@@ -2,7 +2,7 @@
     <div class="fill-height d-flex flex-column justify-center align-center">
         <div class="h-70">
             <div class="mx-5 my-10">
-                <h1 class="text-h1 font-weight-bold text-grey-lighten-3 py-3">Clinical Study Portal</h1>
+                <h1 class="text-h2 font-weight-bold text-grey-lighten-3 py-3">Clinical Study Portal</h1>
             </div>
             <div class="mx-auto rounded w-66" max-width="600">
                 <v-form validate-on="submit lazy" @submit.prevent="submit">
@@ -17,7 +17,6 @@
                         type="password"
                         label="Password"
                     ></v-text-field>
-
                     <v-btn
                         :loading="loading"
                         class="mt-2"
@@ -51,14 +50,14 @@ const publicData = {
 const userName = ref('');
 const password = ref('');
 const loading = ref(false);
-const rulesUser = [(value) => checkApi(value, 'userName')];
-const rulesPassword = [(value) => checkApi(value, 'password')];
-const timeout = ref(null);
+const rulesUser = [(value:string) => checkApi(value, 'userName')];
+const rulesPassword = [(value:string) => checkApi(value, 'password')];
+const timeout = ref<null|NodeJS.Timeout>(null);
 const router = useRouter();
 const isUser = ref(false);
 const { setUser } = useUser();
 
-const submit = async (event) => {
+const submit = async (event:any) => {
         loading.value = true
         const results = await event
         loading.value = false
@@ -76,9 +75,9 @@ const submit = async (event) => {
         }
       }
 
-const checkApi = async (validatingStr: string, type: string): Promise => {
+const checkApi = async (validatingStr: string, type: string): Promise<any> => {
     return new Promise(resolve => {
-        clearTimeout(timeout.value)
+        clearTimeout(timeout.value as NodeJS.Timeout);
         
         timeout.value = setTimeout(() => {
             if (type === 'userName'){

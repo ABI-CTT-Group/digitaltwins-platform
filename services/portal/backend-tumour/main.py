@@ -12,8 +12,11 @@ from models import model
 from task import task_oi
 from pathlib import Path
 import io
+from router import tumour_position
 
 app = FastAPI()
+
+app.include_router(tumour_position.router)
 
 origins = [
     "http://127.0.0.1:5173",
@@ -81,7 +84,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
 async def send_obj_to_frontend(patient_id):
     obj_path = tools.get_file_path(patient_id, "obj", "mask.obj")
-    print("obj_path:",obj_path)
     file_exists = (obj_path is not None) and obj_path.exists()
     if file_exists:
         with open(obj_path, "rb") as file:
@@ -236,7 +238,6 @@ async def get_mask(name: str = Query(None)):
 @app.get("/api/breast_points")
 async def get_breast_points(name: str = Query(None), filename: str = Query(None)):
 
-    print(filename)
     checked = tools.check_file_exist(name, "json", f"{filename}.json")
     if checked:
         path = tools.get_file_path(name, "json", f"{filename}.json")

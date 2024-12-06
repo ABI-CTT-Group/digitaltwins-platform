@@ -1,4 +1,6 @@
 import * as Copper from "copper3d";
+import * as THREE from "three";
+
 export interface INrrdCaseNames {
   names: string[];
   details: Array<IDetails>;
@@ -86,11 +88,13 @@ export interface ILoadedMeshes {
   z: THREE.Mesh;
   order: number;
 }
-export interface ISliceIndex {
+
+export interface ICommXYZ {
   x: number;
   y: number;
   z: number;
 }
+
 export interface ILeftRightData {
   maskNrrdMeshes: Copper.nrrdMeshesType;
   maskSlices: Copper.nrrdSliceType;
@@ -122,3 +126,42 @@ export interface IRequests {
   url: string;
   params: any;
 }
+
+export interface IStudyDetails {
+  position: ICommXYZ;
+  start: string;
+  end: string;
+  duration: string;
+}
+
+export interface ITumourStudyClockFace {
+  face: "12:00" | "1:00" | "2:00" | "3:00" | "4:00" | "5:00" | "6:00" | "7:00" | "8:00" | "9:00" | "10:00" | "11:00" | "central" | "none";
+  start: string;
+  end: string;
+  duration: string;
+}
+
+export interface ITumourStudyReport {
+  skin: IStudyDetails;
+  ribcage:IStudyDetails;
+  nipple:IStudyDetails;
+  clock_face: ITumourStudyClockFace;
+  total_duration: string;
+  complete: boolean
+}
+
+export interface ITumourStudyWindow {
+  center: ICommXYZ;
+}
+
+export interface ITumourStudyAppDetail {
+  name: string;
+  file_path: string;
+  tumour_position: ITumourStudyWindow;
+  report: ITumourStudyReport;
+}
+
+export interface ITumourStudyAppDetails {
+  details: ITumourStudyAppDetail[];
+}
+

@@ -1,10 +1,13 @@
-const eventNames = ['API:UN_AUTH', 'API:INVALID'];
+const eventNames = ['TumourStudy:Casename', 'TumourStudy:Status', "TumourStudy:NextCase", "TumourStudy:ImageLoaded", "TumourStudy:NrrdTools", ];
 type EventNames = (typeof eventNames)[number];
 
 class EventEmitter {
     private listeners: Record<string, Set<Function>> = {
-        'API:UN_AUTH': new Set(),
-        'API:INVALID': new Set()
+        'TumourStudy:Casename': new Set(),
+        'TumourStudy:Status': new Set(),
+        'TumourStudy:NextCase': new Set(),
+        'TumourStudy:ImageLoaded': new Set(),
+        'TumourStudy:NrrdTools': new Set(),
     };
 
     on(eventName: EventNames, listener: Function) {
