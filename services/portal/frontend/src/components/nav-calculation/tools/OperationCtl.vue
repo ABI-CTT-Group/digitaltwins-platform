@@ -22,7 +22,6 @@
         label="Functional Controller"
         :inline="true"
         :disabled="commFuncRadiosDisabled"
-        @update:modelValue="toggleFuncRadios"
       >
         <v-radio
           v-for="(item, idx) in commFuncRadioValues"
@@ -46,29 +45,11 @@
 import Calculator from "./advance/Calculator.vue";
 import { ref, onMounted } from "vue";
 import { storeToRefs } from "pinia";
-import emitter from "@/plugins/bus";
-import * as Copper from "@/ts/index";
-import {
-  useTumourWindowStore
-} from "@/store/app";
-// import * as Copper from "copper3d";
-
-// load tumour window
-const { tumourWindow } = storeToRefs(useTumourWindowStore());
-const { getTumourWindowChrunk } = useTumourWindowStore();
+import emitter from "@/plugins/custom-emitter";
 
 // Functional Controls
 const commFuncRadios = ref("segmentation");
 const commFuncRadiosDisabled = ref(true);
-
-// Slider Controls
-
-
-// Functional Buttons
-const guiSettings = ref<any>();
-let nrrdTools:Copper.NrrdTools;
-
-type TTumourCenter = { center: { x: number; y: number; z: number; }};
 
 const commFuncRadioValues = ref([
   { label: "Calculate Distance", value: "calculator", color: "calculator" },
@@ -82,50 +63,18 @@ onMounted(() => {
 
 function manageEmitters() {
 
-  emitter.on("caseswitched", async (casename)=>{
-    try{
-      setTimeout(()=>{
-        commFuncRadios.value = "segmentation"
-      },500)
-    }catch(e){
-      console.log("first time load images -- ignore");
-    }
+  emitter.on("TumourStudy:NextCase", async (casename: string)=>{
     commFuncRadiosDisabled.value = true;
-    await getTumourWindowChrunk(casename as string);
   });
 
-  emitter.on("finishloadcases", (val) => {
-    guiSettings.value = val;
+  emitter.on("TumourStudy:ImageLoaded", () => {
     commFuncRadiosDisabled.value = false;
     commFuncRadios.value = "calculator";
-    toggleFuncRadios("calculator");
   });
-  // xyz: 84 179 74
-  emitter.on("loadcalculatortumour", (tool)=>{
-    nrrdTools = tool as Copper.NrrdTools
-  });
+ 
 }
 
 
-function setupTumourSpherePosition(){
-
-  if (!!tumourWindow.value){
-    nrrdTools.setCalculateDistanceSphere((tumourWindow.value as TTumourCenter).center.x, (tumourWindow.value as TTumourCenter).center.y, (tumourWindow.value as TTumourCenter).center.z, "tumour");
-  }
-}
-
-function toggleFuncRadios(val: any) {
-
-  if(val === "calculator"){
-    emitter.emit("open_calculate_box", "Calculator")
-    guiSettings.value.guiState["calculator"] = true;
-    guiSettings.value.guiState["sphere"] = false;
-    setupTumourSpherePosition()
-    emitter.emit("calculator timer", "start");
-  }
-  
-  guiSettings.value.guiSetting[commFuncRadios.value].onChange();
-}
 
 </script>
 

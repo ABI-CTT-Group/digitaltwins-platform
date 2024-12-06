@@ -16,7 +16,7 @@
 import { ref, onMounted } from "vue";
 import ImageCtl from "./tools/NrrdImageCtl.vue";
 import OperationCtl from "./tools/OperationCtl.vue";
-import emitter from "@/plugins/bus";
+import emitter from "@/plugins/custom-emitter";
 const open = ref(["Cases", "Operation", "Calculator"]);
 
 onMounted(()=>{
@@ -24,17 +24,11 @@ onMounted(()=>{
 })
 
 function manageEmitters() {
-  emitter.on("guide_to_operation_status", (val)=>{
-    if(val==="open" && !open.value.includes("Operation")){
-      open.value.push("Operation")
-    }
-  });
-  emitter.on("open_calculate_box", (val)=>{
-    open.value.push(val as string)
-  })
-  emitter.on("close_calculate_box", (val)=>{
-    open.value = open.value.filter(item => item !== val)
-  })
+  // emitter.on("guide_to_operation_status", (val: string)=>{
+  //   if(val==="open" && !open.value.includes("Operation")){
+  //     open.value.push("Operation")
+  //   }
+  // });
 }
 
 </script>

@@ -59,7 +59,7 @@ import {
 } from "@/store/app";
 import {
   ICaseDetails,
-  ISliceIndex,
+  ICommXYZ,
   ILeftRightData,
   INipplePoints,
   IRibSkinPoints,
@@ -115,7 +115,7 @@ let loadNrrdSlices: Copper.nrrdSliceType;
 let nippleCentralLimit = 10;
 let nippleTl: number[] = [];
 let nippleTr: number[] = [];
-let tumourSliceIndex: ISliceIndex = {x:0, y:0, z:0};
+let tumourSliceIndex: ICommXYZ = {x:0, y:0, z:0};
 
 
 // the nrrd origin + bais for display tumour, breast model, skin, ribcage, nipple
@@ -510,11 +510,11 @@ function onEmitter() {
     tumourVolume.value =  Number(((4/3) * Math.PI * Math.pow(sphereData.sphereRadiusMM, 3)/1000).toFixed(3));
     
 
-    loadNrrdSlices.x.index = (tumourSliceIndex as ISliceIndex).x =
+    loadNrrdSlices.x.index = (tumourSliceIndex as ICommXYZ).x =
     loadNrrdSlices.x.RSAMaxIndex / 2 + sphereTumour.position.x;
-    loadNrrdSlices.y.index = (tumourSliceIndex as ISliceIndex).y =
+    loadNrrdSlices.y.index = (tumourSliceIndex as ICommXYZ).y =
     loadNrrdSlices.y.RSAMaxIndex / 2 + sphereTumour.position.y;
-    loadNrrdSlices.z.index = (tumourSliceIndex as ISliceIndex).z =
+    loadNrrdSlices.z.index = (tumourSliceIndex as ICommXYZ).z =
     loadNrrdSlices.z.RSAMaxIndex / 2 + sphereTumour.position.z;
     loadNrrdSlices.x.repaint.call(loadNrrdSlices.x);
     loadNrrdSlices.y.repaint.call(loadNrrdSlices.y);
@@ -748,9 +748,9 @@ function loadSegmentTumour(tomourUrl:string){
 
   displayAndCalculateNSR();
   
-  (tumourSliceIndex as ISliceIndex).x = loadNrrdSlices.x.index;
-  (tumourSliceIndex as ISliceIndex).y = loadNrrdSlices.y.index;
-  (tumourSliceIndex as ISliceIndex).z = loadNrrdSlices.z.index;
+  (tumourSliceIndex as ICommXYZ).x = loadNrrdSlices.x.index;
+  (tumourSliceIndex as ICommXYZ).y = loadNrrdSlices.y.index;
+  (tumourSliceIndex as ICommXYZ).z = loadNrrdSlices.z.index;
 
   requestUpdateSliderSettings();
   });
@@ -909,7 +909,7 @@ const handleViewsDoubleClick = (view: string) => {
 };
 
 
-function removeOldMeshes(meshSet: THREE.Object3D<THREE.Event>[]) {
+function removeOldMeshes(meshSet: THREE.Object3D[]) {
   if (!!copperScene) {
     (copperScene as Copper.copperScene).scene.remove(...meshSet);
     meshSet.forEach((element) => {
@@ -923,7 +923,7 @@ function removeOldMeshes(meshSet: THREE.Object3D<THREE.Event>[]) {
   }
 }
 
-const resetSliceIndex = (sliceIndex: ISliceIndex) => {
+const resetSliceIndex = (sliceIndex: ICommXYZ) => {
   if(sliceIndex.x === 0 && sliceIndex.y === 0 && sliceIndex.z ===0 )return;
 
   loadNrrdMeshes.x.renderOrder = 1;

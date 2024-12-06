@@ -16,12 +16,14 @@ def get_metadata():
         Config.METADATA = pd.read_excel(metadata_path, sheet_name="Sheet1")
 
 
-def get_all_case_names():
+def get_all_case_names(except_case: list = None):
     """
     :return: get each case name, the patient id for user to switch cases
     """
+    if except_case is None:
+        except_case = []
     if Config.METADATA is not None:
-        case_names = list(set(Config.METADATA["patient_id"]))
+        case_names = list(set(Config.METADATA["patient_id"]) - set(except_case))
         Config.CASE_NAMES = case_names
         return case_names
     return []
@@ -60,7 +62,7 @@ def write_data_to_json(patient_id, masks):
             Config.MASK_FILE_PATH = mask_json_path
             Config.MASKS = masks
             saveMaskData()
-    except :
+    except:
         print("File not found!")
 
 
@@ -79,11 +81,13 @@ def get_file_path(patient_id, file_type, file_name):
         new_paths = []
         for path in paths:
             new_paths.append(Config.BASE_PATH / path)
-        file_path_arr = [path for path in new_paths if path.name==file_name]
-        if len(file_path_arr) >0:
+        file_path_arr = [path for path in new_paths if path.name == file_name]
+        if len(file_path_arr) > 0:
             file_path_full = file_path_arr[0]
             return file_path_full
     return None
+
+
 def get_category_files(patient_id, file_type, categore, except_file_name=[]):
     """
         :param patient_id: case name
@@ -100,14 +104,14 @@ def get_category_files(patient_id, file_type, categore, except_file_name=[]):
             if file_path.name not in except_file_name:
                 new_paths.append(file_path)
 
-        file_path_arr = [str(path).replace("\\", "/") for path in new_paths if path.parent.name == categore and path.exists()]
+        file_path_arr = [str(path).replace("\\", "/") for path in new_paths if
+                         path.parent.name == categore and path.exists()]
         if len(file_path_arr) > 0:
             return file_path_arr
     return []
 
 
 def save_sphere_points_to_json(patient_id, data):
-
     sphere_json_path = get_file_path(patient_id, "json", "sphere_points.json")
     if sphere_json_path is None:
         return False
@@ -118,6 +122,8 @@ def save_sphere_points_to_json(patient_id, data):
     with open(sphere_json_path, "w") as json_file:
         json.dump(data, json_file)
     return True
+
+
 def replace_data_to_json(patient_id, slice):
     """
     :param patient_id: case name
@@ -132,6 +138,7 @@ def replace_data_to_json(patient_id, slice):
     Config.MASKS[label][index]["data"] = slice.mask
     Config.MASKS["hasData"] = True
 
+
 def selectNrrdPaths(patient_id, file_type, limit):
     """
     :param patient_id: name
@@ -140,13 +147,15 @@ def selectNrrdPaths(patient_id, file_type, limit):
     :return:
     """
     all_nrrd_paths = []
-    nrrds_df = Config.METADATA[(Config.METADATA["file type"] == file_type) & (Config.METADATA["patient_id"] == patient_id)]
+    nrrds_df = Config.METADATA[
+        (Config.METADATA["file type"] == file_type) & (Config.METADATA["patient_id"] == patient_id)]
     all_nrrd_paths.extend(list(nrrds_df["filename"]))
     selected_paths = []
     for file_path in all_nrrd_paths:
         if Path(file_path).parent.name == limit:
             selected_paths.append(file_path)
     return selected_paths
+
 
 def getReturnedJsonFormat(path):
     """
@@ -156,6 +165,7 @@ def getReturnedJsonFormat(path):
     with open(path, mode="rb") as file:
         file_contents = file.read()
     return BytesIO(file_contents)
+
 
 def getJsonData(path):
     """
@@ -177,6 +187,7 @@ def getMaskData(path):
     if Config.MASKS is None:
         Config.MASKS = getJsonData(path)
     return Config.MASKS
+
 
 def zipNrrdFiles(name, caseType):
     """
@@ -201,6 +212,7 @@ def zipNrrdFiles(name, caseType):
             zip_file.write(file_path)
     Config.Current_Case_Name = name
 
+
 def saveMaskData():
     """
     save mask.json to local drive
@@ -210,6 +222,39 @@ def saveMaskData():
             # json.dump(MASKS, file)
             file.write(json.dumps(Config.MASKS).encode('utf-8'))
         Config.MASKS = None
+
+
+def init_tumour_position_json(path):
+    tumour_position = {
+        "skin": {
+            "position": {"x": 0, "y": 0, "z": 0},
+            "start": "000000",
+            "end": "000000",
+            "duration": "000000"
+        },
+        "ribcage": {
+            "position": {"x": 0, "y": 0, "z": 0},
+            "start": "000000",
+            "end": "000000",
+            "duration": "000000"
+        },
+        "nipple": {
+            "position": {"x": 0, "y": 0, "z": 0},
+            "start": "000000",
+            "end": "000000",
+            "duration": "000000"
+        },
+        "clock_face": {
+            "face": "none",
+            "start": "000000",
+            "end": "000000",
+            "duration": "000000"
+        },
+        "total_duration": "000000",
+        "complete": False
+    }
+    with open(path, 'w') as json_file:
+        json.dump(tumour_position, json_file, indent=4)
 
 
 def save():
