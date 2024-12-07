@@ -47,3 +47,14 @@ export const findRequestUrls = (
   }
   return requests;
 };
+
+
+export function customRound(num:number) {
+  const decimalPart = num - Math.floor(num);
+  
+  if (decimalPart > 0.5) {
+    return Math.ceil(num);  
+  } else {
+    return Math.floor(num); 
+  }
+}

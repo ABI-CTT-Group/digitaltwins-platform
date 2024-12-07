@@ -9,6 +9,7 @@ import {
   ISaveSphere,
   IRegRquest,
   IRequests,
+  ISaveTumourPosition
 } from "@/models/apiTypes";
 import JSZip from "jszip";
 /**
@@ -117,6 +118,17 @@ export async function useSaveSphere(body: ISaveSphere) {
   const success = http.post<boolean>("/sphere/save", body);
   return success;
 }
+
+/**
+ * sava tumour origin
+ * @param body
+ * @returns
+ */
+export async function useSaveTumourPosition(body: ISaveTumourPosition) {
+  const success = http.post<boolean>("/save_tumour_position", body);
+  return success;
+}
+
 /**
  * Save mask
  * @returns

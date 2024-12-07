@@ -2,9 +2,9 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import {
     useTumourPositionStudyDetails,
-    useStudyDisplayNrrd,
+    useStudyDisplayNrrd
 } from "@/plugins/tumour_position_study_api";
-import { ITumourStudyAppDetails } from "@/models/apiTypes";
+import { ITumourStudyAppDetails, ITumourStudyReport } from "@/models/apiTypes";
 
 export const useTumourStudyDetailsStore = defineStore("TumourStudyDetails", () => {
     const studyDetails = ref<ITumourStudyAppDetails>();

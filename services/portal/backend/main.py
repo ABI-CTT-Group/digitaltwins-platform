@@ -302,6 +302,17 @@ async def clear_mesh(name: str = Query(None)):
     Config.ClearAllMask = False
     return "success"
 
+@app.post("/api/save_tumour_position")
+async def save_tumour_position(save_position: model.TumourPosition):
+    tumour_position_path = tools.get_file_path(save_position.case_name, "json", "tumour_window.json")
+    position = {
+        "center": save_position.model_dump().get("position")
+    }
+    with open(tumour_position_path, "w") as tumour_position_file:
+        json.dump(position, tumour_position_file, indent=4)
+
+    return True
+
 
 if __name__ == '__main__':
     uvicorn.run(app)

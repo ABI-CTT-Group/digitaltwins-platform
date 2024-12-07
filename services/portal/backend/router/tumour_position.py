@@ -2,6 +2,7 @@ from fastapi import APIRouter, Query
 from utils import tools
 from fastapi.responses import FileResponse
 from pathlib import Path
+from models import model
 import json
 
 router = APIRouter()
@@ -17,16 +18,16 @@ async def get_tumour_position_app_detail():
     for name in case_names:
         registration_nrrd_paths = tools.get_category_files(name, "nrrd", "registration")
         segmentation_breast_points_paths = tools.get_category_files(name, "json", "segmentation")
-        tumour_position_path = tools.get_file_path(name, "json", "tumour_position_study.json")
+        tumour_report_path = tools.get_file_path(name, "json", "tumour_position_study.json")
         report = {}
 
-        if tumour_position_path.exists():
+        if tumour_report_path.exists():
             # get study status
-            with open(tumour_position_path, 'r') as file:
+            with open(tumour_report_path, 'r') as file:
                 report = json.load(file)
         else:
             # init tumour position study report json file
-            tools.init_tumour_position_json(tumour_position_path)
+            tools.init_tumour_position_json(tumour_report_path)
 
         # Get tumour position {x,y,z}
         if len([item for item in segmentation_breast_points_paths if "tumour_window.json" in item]) == 0:
@@ -58,8 +59,15 @@ async def get_tumour_position_clear():
 @router.get("/api/tumour_position/display")
 async def get_tumour_position_display_nrrd(filepath: str = Query(None)):
     filepath = Path(filepath)
-    print(filepath)
     if filepath.exists():
         return FileResponse(filepath, media_type="application/octet-stream", filename="contrast1.nrrd")
     else:
         return False
+
+
+@router.post("/api/tumour_position/report")
+async def save_tumour_position_report(study_report: model.TumourStudyReport):
+    tumour_report_path = tools.get_file_path(study_report.case_name, "json", "tumour_position_study.json")
+    with open(tumour_report_path, 'w') as file:
+        json.dump(study_report.model_dump(), file, indent=4)
+    return True

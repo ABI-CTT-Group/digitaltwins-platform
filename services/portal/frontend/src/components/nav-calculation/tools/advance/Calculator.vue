@@ -55,7 +55,7 @@
           block
           density="comfortable"
           @click="onNextCaseClick()"
-        >Next Case</v-btn>
+        >{{ pinkBtnTitle }}</v-btn>
         <v-progress-linear
           color="nav-success-2"
           buffer-value="0"
@@ -69,15 +69,19 @@
   import { ref, onMounted } from "vue";
   import * as Copper from "@/ts/index";
   import emitter from "@/plugins/custom-emitter";
-  import { ITumourStudyAppDetail } from "@/models/apiTypes";
+  import { ITumourStudyAppDetail, ICommXYZ } from "@/models/apiTypes";
+  import { useRouter, useRoute } from 'vue-router';
   
+  type ClockFace = "12:00" | "1:00" | "2:00" | "3:00" | "4:00" | "5:00" | "6:00" | "7:00" | "8:00" | "9:00" | "10:00" | "11:00" | "central";
   // buttons
-  const calculatorPickerRadios = ref("tumour");
+  const calculatorPickerRadios = ref("");
   const finishBtnDisabled = ref(true);
   const showBtn = ref(false);
   const clockFaceDisabled = ref(true);
   const clockFace = ref(["12:00", "1:00", "2:00", "3:00", "4:00", "5:00", "6:00", "7:00", "8:00", "9:00", "10:00", "11:00", "central"]);
   const selectedClockFace = ref("");
+  const pinkBtnTitle = ref("Next Case");
+  const router = useRouter();
   
   const commFuncRadioValues = ref([
     // { label: "Tumour", value: "tumour", color: "#4CAF50" },
@@ -87,16 +91,8 @@
   ]);
   
   const guiSettings = ref<any>();
-  const startTime = ref<number[]>([0,0,0]);
-  const skinTime = ref<string>();
-  const nippleTime = ref<string>();
-  const ribTime = ref<string>();
-  const finishTime = ref<string>();
   let nrrdTools:Copper.NrrdTools;
   let workingCase: ITumourStudyAppDetail;
-  const now = new Date();
-    
-
   
   onMounted(() => {
     manageEmitters();
@@ -104,16 +100,17 @@
   
   function manageEmitters() {
     emitter.on("TumourStudy:ImageLoaded", (study: ITumourStudyAppDetail) => {
-      console.log("TumourStudy:ImageLoaded", study);
       selectedClockFace.value = "";
       commFuncRadioValues.value[0].disabled = false;
       workingCase = study;
-      calculatorPickerRadios.value = "tumour";
+      calculatorPickerRadios.value = "";
+      guiSettings.value.guiState["cal_distance"] = "";
       setupTumourSpherePosition()
     });
   
-    emitter.on("TumourStudy:Status", (status: string)=>{
-      calculatorTimerReport(status);
+    emitter.on("TumourStudy:Status", (status: string, position:number[], distance:number)=>{
+      const convertedPosition = {x: customRound(position[0]), y: customRound(position[1]), z: customRound(position[2])};
+      calculatorTimerReport(status, convertedPosition, distance);
     })
 
     // First time init Calculator
@@ -123,6 +120,11 @@
       guiSettings.value.guiState["calculator"] = true;
       guiSettings.value.guiState["sphere"] = false;
       guiSettings.value.guiSetting["calculator"].onChange();
+    });
+
+    emitter.on("TumourStudy:AllCasesCompleted", ()=>{
+      showBtn.value = true;
+      pinkBtnTitle.value = "End Session";
     });
   }
 
@@ -134,78 +136,140 @@ function setupTumourSpherePosition(){
 }
 
 
-  function calculatorTimerReport(status:string){
+function calculatorTimerReport(status:string, position:ICommXYZ, distance:number){
 
-    const currentTime = [now.getHours(), now.getMinutes(), now.getSeconds()]
-    switch (status) {
-        case "start":
-          console.log("start timer: ", now.getHours()+":", now.getMinutes()+":", now.getSeconds());
-          startTime.value = currentTime;
-          nippleTime.value = "";
-          skinTime.value = "";
-          ribTime.value = "";
-          finishTime.value = "";
-          break;
-        case "skin":
-          commFuncRadioValues.value[1].disabled = false;
-          console.log("skin timer: ", now.getHours()+":", now.getMinutes()+":", now.getSeconds());
-          break;
-        case "nipple":
-          commFuncRadioValues.value[2].disabled = false;
-          console.log("nipple timer: ", now.getHours()+":", now.getMinutes()+":", now.getSeconds());
-          break;
-        case "ribcage":
-          clockFaceDisabled.value = false;
-          console.log("ribcage timer: ", now.getHours()+":", now.getMinutes()+":", now.getSeconds());
-          break;
-        case "finish":
-          console.log("finish timer: ", now.getHours()+":", now.getMinutes()+":", now.getSeconds());
-          break;
-        default:
-          break;
-      }
+  switch (status) {
+      case "skin":
+        commFuncRadioValues.value[1].disabled = false;
+        workingCase.report.skin.position = position;
+        workingCase.report.skin.distance = distance + " mm";
+        break;
+      case "nipple":
+        commFuncRadioValues.value[2].disabled = false;
+        workingCase.report.nipple.position = position;
+        workingCase.report.nipple.distance = distance + " mm";
+        break;
+      case "ribcage":
+        clockFaceDisabled.value = false;
+        workingCase.report.ribcage.position = position;
+        workingCase.report.ribcage.distance = distance + " mm";
+        break;
+      default:
+        break;
+    }
+}
+
+function toggleCalculatorPickerRadios(val: string | null) {
+  const now = new Date();
+  const currentTime = now.getTime();
+  if (val === "skin"){
+    // "tumour" | "skin" | "nipple" | "ribcage"
+    workingCase.report.start = currentTime;
+    workingCase.report.skin.start = currentTime;
+    guiSettings.value.guiState["cal_distance"] = "skin";
   }
+  if (val === "nipple"){
+    workingCase.report.nipple.start = currentTime;
+    workingCase.report.skin.end = currentTime;
+    commFuncRadioValues.value[0].disabled = true;
+    guiSettings.value.guiState["cal_distance"] = "nipple";
+  }
+  if (val === "ribcage"){
+    workingCase.report.ribcage.start = currentTime;
+    workingCase.report.nipple.end = currentTime;
+    commFuncRadioValues.value[1].disabled = true;
+    guiSettings.value.guiState["cal_distance"] = "ribcage";
+  }
+  guiSettings.value.guiSetting["cal_distance"].onChange(calculatorPickerRadios.value);
+}
+
+function onClockFaceChange(val: ClockFace){
+  const now = new Date();
+  const currentTime = now.getTime();
+  if(!commFuncRadioValues.value[2].disabled){
+    workingCase.report.ribcage.end = currentTime;
+    workingCase.report.clock_face.start = currentTime;
+  }
+  workingCase.report.clock_face.face = val;
+  commFuncRadioValues.value[2].disabled = true;
+  finishBtnDisabled.value = false;
+}
+
+function onBtnClick(val:string){
+  const now = new Date();
+  const currentTime = now.getTime();
+  workingCase.report.end = currentTime;
+  workingCase.report.clock_face.end = currentTime;
+
+  calculatorPickerRadios.value = "";
+  guiSettings.value.guiState["cal_distance"] = "";
+  clockFaceDisabled.value = true;
+  finishBtnDisabled.value = true;
+  showBtn.value = true;
+  updateReport(); 
+}
+
+function onNextCaseClick(){
+  if(pinkBtnTitle.value === "End Session"){
+    router.push({name: "Dashboard"});
+    return;
+  }
+  showBtn.value = false;
+  emitter.emit("TumourStudy:NextCase");
+}
+
+function updateReport(){
+  workingCase.report.total_duration = timeDifferenceToHMS(Math.abs((workingCase.report.end as number) - (workingCase.report.start as number)));
+  workingCase.report.skin.duration = timeDifferenceToHMS(Math.abs((workingCase.report.skin.end as number) - (workingCase.report.skin.start as number)));
+  workingCase.report.nipple.duration = timeDifferenceToHMS(Math.abs((workingCase.report.nipple.end as number) - (workingCase.report.nipple.start as number)));
+  workingCase.report.ribcage.duration = timeDifferenceToHMS(Math.abs((workingCase.report.ribcage.end as number) - (workingCase.report.ribcage.start as number)));
+  workingCase.report.clock_face.duration = timeDifferenceToHMS(Math.abs((workingCase.report.clock_face.end as number) - (workingCase.report.clock_face.start as number)));
+  workingCase.report.start = timestampToHMS(workingCase.report.start as number);
+  workingCase.report.end = timestampToHMS(workingCase.report.end as number);
+  workingCase.report.skin.start = timestampToHMS(workingCase.report.skin.start as number);
+  workingCase.report.skin.end = timestampToHMS(workingCase.report.skin.end as number);
+  workingCase.report.nipple.start = timestampToHMS(workingCase.report.nipple.start as number);
+  workingCase.report.nipple.end = timestampToHMS(workingCase.report.nipple.end as number);
+  workingCase.report.ribcage.start = timestampToHMS(workingCase.report.ribcage.start as number);
+  workingCase.report.ribcage.end = timestampToHMS(workingCase.report.ribcage.end as number);
+  workingCase.report.clock_face.start = timestampToHMS(workingCase.report.clock_face.start as number);
+  workingCase.report.clock_face.end = timestampToHMS(workingCase.report.clock_face.end as number);
+
+  emitter.emit("TumourStudy:CaseReport", workingCase.report);  
+}
+
+function customRound(num:number) {
+  const decimalPart = num - Math.floor(num);
   
-  function toggleCalculatorPickerRadios(val: string | null) {
-    if (val === "skin"){
-      // "tumour" | "skin" | "nipple" | "ribcage"
-      calculatorTimerReport("start");
-      guiSettings.value.guiState["cal_distance"] = "skin";
-    }
-    if (val === "nipple"){
-      commFuncRadioValues.value[0].disabled = true;
-      guiSettings.value.guiState["cal_distance"] = "nipple";
-    }
-    if (val === "ribcage"){
-      commFuncRadioValues.value[1].disabled = true;
-      guiSettings.value.guiState["cal_distance"] = "ribcage";
-    }
-    guiSettings.value.guiSetting["cal_distance"].onChange(calculatorPickerRadios.value);
+  if (decimalPart > 0.5) {
+    return Math.ceil(num);  
+  } else {
+    return Math.floor(num); 
   }
+}
 
-  function onClockFaceChange(val: string | null){
-    commFuncRadioValues.value[2].disabled = true;
-    finishBtnDisabled.value = false;
-    console.log("clockface timer: ", now.getHours()+":", now.getMinutes()+":", now.getSeconds());
-  }
+function timestampToHMS(timestamp:number|string) {
+  const date = new Date(timestamp);  
+  const hours = date.getHours();   
+  const minutes = date.getMinutes(); 
+  const seconds = date.getSeconds(); 
 
-  function onBtnClick(val:string){
-    if (!!guiSettings.value){
-      calculatorPickerRadios.value = "tumour";
-      guiSettings.value.guiState["cal_distance"] = "tumour";
-      clockFaceDisabled.value = true;
-      finishBtnDisabled.value = true;
-      showBtn.value = true;
-      calculatorTimerReport("finish")
-    }
-  }
+  const formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  return formattedTime;
+}
 
-  function onNextCaseClick(){
-    showBtn.value = false;
-    emitter.emit("TumourStudy:NextCase");
-  }
+function timeDifferenceToHMS(diffInMillis:number) {
+
+  const hours = Math.floor(diffInMillis / (1000 * 60 * 60)); 
+  const minutes = Math.floor((diffInMillis % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diffInMillis % (1000 * 60)) / 1000); 
+
+  const formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+  return formattedTime;
+}
   
-  </script>
-  
-  <style scoped></style>
+</script>
+
+<style scoped></style>
   
