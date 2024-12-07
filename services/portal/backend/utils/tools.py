@@ -228,18 +228,21 @@ def init_tumour_position_json(path):
     tumour_position = {
         "skin": {
             "position": {"x": 0, "y": 0, "z": 0},
+            "distance": "0",
             "start": "000000",
             "end": "000000",
             "duration": "000000"
         },
         "ribcage": {
             "position": {"x": 0, "y": 0, "z": 0},
+            "distance": "0",
             "start": "000000",
             "end": "000000",
             "duration": "000000"
         },
         "nipple": {
             "position": {"x": 0, "y": 0, "z": 0},
+            "distance": "0",
             "start": "000000",
             "end": "000000",
             "duration": "000000"
@@ -250,6 +253,8 @@ def init_tumour_position_json(path):
             "end": "000000",
             "duration": "000000"
         },
+        "start": "000000",
+        "end": "000000",
         "total_duration": "000000",
         "complete": False
     }

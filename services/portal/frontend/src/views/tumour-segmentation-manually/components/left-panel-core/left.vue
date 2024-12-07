@@ -65,7 +65,7 @@ import {
   ICaseUrls,
   IDetails,
 } from "@/models/apiTypes";
-import { addNameToLoadedMeshes, findRequestUrls } from "./utils-left";
+import { addNameToLoadedMeshes, findRequestUrls, customRound } from "./utils-left";
 import {
   useFileCountStore,
   useInitMarksStore,
@@ -76,6 +76,7 @@ import {
   useClearMaskMeshStore,
   useNrrdCaseFileUrlsWithOrderStore,
 } from "@/store/app";
+import { useSaveTumourPosition } from "@/plugins/api";
 import {
   findCurrentCase,
   revokeAppUrls,
@@ -432,8 +433,17 @@ function distance3D(x1:number, y1:number, z1:number, x2:number, y2:number, z2:nu
     return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-const getCalculateSpherePositionsData = (tumourSphereOrigin:Copper.ICommXYZ, skinSphereOrigin:Copper.ICommXYZ, ribSphereOrigin:Copper.ICommXYZ, nippleSphereOrigin:Copper.ICommXYZ, aix:"x"|"y"|"z")=>{
-   if(tumourSphereOrigin === null) return;
+const getCalculateSpherePositionsData = async (tumourSphereOrigin:Copper.ICommXYZ, skinSphereOrigin:Copper.ICommXYZ, ribSphereOrigin:Copper.ICommXYZ, nippleSphereOrigin:Copper.ICommXYZ, aix:"x"|"y"|"z")=>{
+   if(tumourSphereOrigin === null){
+     return;
+   }else{
+    const position = {
+      x: customRound(tumourSphereOrigin["z"][0]),
+      y: customRound(tumourSphereOrigin["z"][1]),
+      z: customRound(tumourSphereOrigin["z"][2]),
+    }
+    await useSaveTumourPosition({case_name: currentCaseId, position});
+   }
 
    if (skinSphereOrigin !== null){
      dts.value = Number(distance3D(tumourSphereOrigin[aix][0], tumourSphereOrigin[aix][1], tumourSphereOrigin[aix][2], skinSphereOrigin[aix][0], skinSphereOrigin[aix][1], skinSphereOrigin[aix][2]).toFixed(2));

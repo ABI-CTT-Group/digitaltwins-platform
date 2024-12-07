@@ -1,5 +1,9 @@
 import http from "./http";
-import { ITumourStudyAppDetails } from "@/models/apiTypes";
+import { ITumourStudyAppDetails, ITumourStudyReport } from "@/models/apiTypes";
+
+export interface ITumourStudyReportExtent extends ITumourStudyReport {
+  case_name: string;
+}
 
 export async function useTumourPositionStudyDetails() {
     const details = http.get<ITumourStudyAppDetails>("/tumour_position");
@@ -18,4 +22,9 @@ export async function useStudyDisplayNrrd(filepath: string) {
           reject(error);
         });
     });
+}
+
+export async function useSaveTumourStudyReport(body: ITumourStudyReportExtent) {
+  const success = http.post<boolean>("/tumour_position/report", body);
+  return success;
 }

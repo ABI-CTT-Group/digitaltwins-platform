@@ -38,12 +38,14 @@ import { onMounted, ref, watchEffect } from "vue";
 import { storeToRefs } from "pinia";
 import {
   ITumourStudyAppDetails,
+  ITumourStudyReport,
   ITumourStudyAppDetail,
   ILoadedMeshes,
 } from "@/models/apiTypes";
 import { addNameToLoadedMeshes, getIncompleteCases } from "./utils-left";
 
-import {useTumourStudyDetailsStore, useTumourStudyNrrdStore} from "@/store/tumour_position_study_app";
+import {useTumourStudyDetailsStore, useTumourStudyNrrdStore } from "@/store/tumour_position_study_app";
+import {useSaveTumourStudyReport} from "@/plugins/tumour_position_study_api";
 import {
   getEraserUrlsForOffLine,
   getCursorUrlsForOffLine,
@@ -103,10 +105,24 @@ const cursorUrls = getCursorUrlsForOffLine();
 
 function onEmitter() {
   emitter.on("TumourStudy:NextCase",()=>{
-    //TODO: next case
-    workingCase.value = incompleteCases.value[1];
-    onCaseSwitched()
+    //update incomplete cases
+    incompleteCases.value = getIncompleteCases(studyDetails.value!.details);
+    if (incompleteCases.value.length > 0) {
+      workingCase.value = incompleteCases.value[0];
+      onCaseSwitched()
+    }else{
+      emitter.emit("TumourStudy:AllCasesCompleted");
+    }
   });
+
+  emitter.on("TumourStudy:CaseReport", async (report:ITumourStudyReport)=>{
+    // update study details
+    workingCase.value!.report = report;
+    workingCase.value!.report.complete = true;
+
+    // save report to backend
+    await useSaveTumourStudyReport(Object.assign({case_name:workingCase.value!.name}, workingCase.value!.report));
+  })
 }
 
 onMounted(async () => {
@@ -192,19 +208,17 @@ const getCalculateSpherePositionsData = (tumourSphereOrigin:Copper.ICommXYZ | nu
 
    if (skinSphereOrigin !== null){
      dts.value = Number(distance3D(tumourSphereOrigin[aix][0], tumourSphereOrigin[aix][1], tumourSphereOrigin[aix][2], skinSphereOrigin[aix][0], skinSphereOrigin[aix][1], skinSphereOrigin[aix][2]).toFixed(2));
+      // send to calculator component: status (skin, nipple, ribcage), position, distance 
+     emitter.emit("TumourStudy:Status", nrrdTools.gui_states.cal_distance, skinSphereOrigin.z, dts.value);
    }
    if (ribSphereOrigin !== null){
      dtr.value = Number(distance3D(tumourSphereOrigin[aix][0], tumourSphereOrigin[aix][1], tumourSphereOrigin[aix][2], ribSphereOrigin[aix][0], ribSphereOrigin[aix][1], ribSphereOrigin[aix][2]).toFixed(2));
+     emitter.emit("TumourStudy:Status", nrrdTools.gui_states.cal_distance, ribSphereOrigin.z, dtr.value);
    }
    if (nippleSphereOrigin !== null){
      dtn.value = Number(distance3D(tumourSphereOrigin[aix][0], tumourSphereOrigin[aix][1], tumourSphereOrigin[aix][2], nippleSphereOrigin[aix][0], nippleSphereOrigin[aix][1], nippleSphereOrigin[aix][2]).toFixed(2));
-   }
-   
-   // send status to calculator component
-   if (nrrdTools.gui_states.cal_distance !== "tumour"){
-    emitter.emit("TumourStudy:Status", nrrdTools.gui_states.cal_distance);
-   }
-   
+     emitter.emit("TumourStudy:Status", nrrdTools.gui_states.cal_distance, nippleSphereOrigin.z, dtn.value);
+   } 
 }
 
 
