@@ -12,7 +12,7 @@
   
   <script setup lang="ts">
   import Switcher from "@/components/commonBar/Switcher.vue";
-  import { ref, onMounted, onUnmounted } from "vue";
+  import { ref, onMounted } from "vue";
   import emitter from "@/plugins/bus";
   
   const breastModelState = ref(true);
