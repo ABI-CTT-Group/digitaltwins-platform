@@ -147,9 +147,9 @@ export interface ITumourStudyClockFace {
 }
 
 export interface ITumourStudyReport {
+  nipple:IStudyDetails;
   skin: IStudyDetails;
   ribcage:IStudyDetails;
-  nipple:IStudyDetails;
   clock_face: ITumourStudyClockFace;
   start: string | number;
   end: string | number;

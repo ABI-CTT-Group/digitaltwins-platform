@@ -226,6 +226,13 @@ def saveMaskData():
 
 def init_tumour_position_json(path):
     tumour_position = {
+        "nipple": {
+            "position": {"x": 0, "y": 0, "z": 0},
+            "distance": "0",
+            "start": "000000",
+            "end": "000000",
+            "duration": "000000"
+        },
         "skin": {
             "position": {"x": 0, "y": 0, "z": 0},
             "distance": "0",
@@ -234,13 +241,6 @@ def init_tumour_position_json(path):
             "duration": "000000"
         },
         "ribcage": {
-            "position": {"x": 0, "y": 0, "z": 0},
-            "distance": "0",
-            "start": "000000",
-            "end": "000000",
-            "duration": "000000"
-        },
-        "nipple": {
             "position": {"x": 0, "y": 0, "z": 0},
             "distance": "0",
             "start": "000000",
