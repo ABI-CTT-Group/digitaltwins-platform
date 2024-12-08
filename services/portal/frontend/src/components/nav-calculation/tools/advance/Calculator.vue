@@ -74,7 +74,7 @@
   
   type ClockFace = "12:00" | "1:00" | "2:00" | "3:00" | "4:00" | "5:00" | "6:00" | "7:00" | "8:00" | "9:00" | "10:00" | "11:00" | "central";
   // buttons
-  const calculatorPickerRadios = ref("");
+  const calculatorPickerRadios = ref("nipple");
   const finishBtnDisabled = ref(true);
   const showBtn = ref(false);
   const clockFaceDisabled = ref(true);
@@ -85,9 +85,10 @@
   
   const commFuncRadioValues = ref([
     // { label: "Tumour", value: "tumour", color: "#4CAF50" },
-    { label: "Skin", value: "skin", color: "#FFEB3B", disabled: false },
-    { label: "Nipple", value: "nipple", color: "#E91E63", disabled: true },
+    { label: "Nipple", value: "nipple", color: "#E91E63", disabled: false },
+    { label: "Skin", value: "skin", color: "#FFEB3B", disabled: true },
     { label: "Ribcage", value: "ribcage", color: "#2196F3", disabled: true },
+    { label: "ClockFace", value: "clockface", color: "#9C27B0", disabled: true },
   ]);
   
   const guiSettings = ref<any>();
@@ -102,10 +103,16 @@
     emitter.on("TumourStudy:ImageLoaded", (study: ITumourStudyAppDetail) => {
       selectedClockFace.value = "";
       commFuncRadioValues.value[0].disabled = false;
+      commFuncRadioValues.value[1].disabled = true;
+      commFuncRadioValues.value[2].disabled = true;
+      commFuncRadioValues.value[3].disabled = true;
+      finishBtnDisabled.value = true;
+      clockFaceDisabled.value = true;
       workingCase = study;
-      calculatorPickerRadios.value = "";
+      calculatorPickerRadios.value = "nipple";
       guiSettings.value.guiState["cal_distance"] = "";
       setupTumourSpherePosition()
+      toggleCalculatorPickerRadios("nipple");
     });
   
     emitter.on("TumourStudy:Status", (status: string, position:number[], distance:number)=>{
@@ -139,18 +146,18 @@ function setupTumourSpherePosition(){
 function calculatorTimerReport(status:string, position:ICommXYZ, distance:number){
 
   switch (status) {
-      case "skin":
+    case "nipple":
         commFuncRadioValues.value[1].disabled = false;
-        workingCase.report.skin.position = position;
-        workingCase.report.skin.distance = distance + " mm";
-        break;
-      case "nipple":
-        commFuncRadioValues.value[2].disabled = false;
         workingCase.report.nipple.position = position;
         workingCase.report.nipple.distance = distance + " mm";
         break;
+      case "skin":
+        commFuncRadioValues.value[2].disabled = false;
+        workingCase.report.skin.position = position;
+        workingCase.report.skin.distance = distance + " mm";
+        break;
       case "ribcage":
-        clockFaceDisabled.value = false;
+        commFuncRadioValues.value[3].disabled = false;
         workingCase.report.ribcage.position = position;
         workingCase.report.ribcage.distance = distance + " mm";
         break;
@@ -162,36 +169,36 @@ function calculatorTimerReport(status:string, position:ICommXYZ, distance:number
 function toggleCalculatorPickerRadios(val: string | null) {
   const now = new Date();
   const currentTime = now.getTime();
-  if (val === "skin"){
-    // "tumour" | "skin" | "nipple" | "ribcage"
-    workingCase.report.start = currentTime;
-    workingCase.report.skin.start = currentTime;
-    guiSettings.value.guiState["cal_distance"] = "skin";
-  }
   if (val === "nipple"){
+    workingCase.report.start = currentTime;
     workingCase.report.nipple.start = currentTime;
-    workingCase.report.skin.end = currentTime;
     commFuncRadioValues.value[0].disabled = true;
     guiSettings.value.guiState["cal_distance"] = "nipple";
   }
+  if (val === "skin"){
+    // "tumour" | "skin" | "nipple" | "ribcage"
+    workingCase.report.nipple.end = currentTime;
+    workingCase.report.skin.start = currentTime;
+    guiSettings.value.guiState["cal_distance"] = "skin";
+  }
   if (val === "ribcage"){
     workingCase.report.ribcage.start = currentTime;
-    workingCase.report.nipple.end = currentTime;
+    workingCase.report.skin.end = currentTime;
     commFuncRadioValues.value[1].disabled = true;
     guiSettings.value.guiState["cal_distance"] = "ribcage";
+  }
+  if (val === "clockface"){
+    workingCase.report.ribcage.end = currentTime;
+    workingCase.report.clock_face.start = currentTime;
+    clockFaceDisabled.value = false;
+    commFuncRadioValues.value[2].disabled = true;
+    guiSettings.value.guiState["cal_distance"] = "";
   }
   guiSettings.value.guiSetting["cal_distance"].onChange(calculatorPickerRadios.value);
 }
 
 function onClockFaceChange(val: ClockFace){
-  const now = new Date();
-  const currentTime = now.getTime();
-  if(!commFuncRadioValues.value[2].disabled){
-    workingCase.report.ribcage.end = currentTime;
-    workingCase.report.clock_face.start = currentTime;
-  }
   workingCase.report.clock_face.face = val;
-  commFuncRadioValues.value[2].disabled = true;
   finishBtnDisabled.value = false;
 }
 
@@ -220,8 +227,8 @@ function onNextCaseClick(){
 
 function updateReport(){
   workingCase.report.total_duration = timeDifferenceToHMS(Math.abs((workingCase.report.end as number) - (workingCase.report.start as number)));
-  workingCase.report.skin.duration = timeDifferenceToHMS(Math.abs((workingCase.report.skin.end as number) - (workingCase.report.skin.start as number)));
   workingCase.report.nipple.duration = timeDifferenceToHMS(Math.abs((workingCase.report.nipple.end as number) - (workingCase.report.nipple.start as number)));
+  workingCase.report.skin.duration = timeDifferenceToHMS(Math.abs((workingCase.report.skin.end as number) - (workingCase.report.skin.start as number)));
   workingCase.report.ribcage.duration = timeDifferenceToHMS(Math.abs((workingCase.report.ribcage.end as number) - (workingCase.report.ribcage.start as number)));
   workingCase.report.clock_face.duration = timeDifferenceToHMS(Math.abs((workingCase.report.clock_face.end as number) - (workingCase.report.clock_face.start as number)));
   workingCase.report.start = timestampToHMS(workingCase.report.start as number);

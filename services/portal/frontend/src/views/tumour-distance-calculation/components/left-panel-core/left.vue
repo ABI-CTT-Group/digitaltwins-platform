@@ -1,13 +1,13 @@
 <template>
   <div id="bg" ref="base_container" class="dark guide-left-panel ">
     <div ref="canvas_container" class="canvas_container"></div>
-    <div ref="slice_index_container" class="copper3d_sliceNumber">
+    <!-- <div ref="slice_index_container" class="copper3d_sliceNumber">
       Tumour Segmentation Panel
-    </div>
+    </div> -->
 
     <v-card class="left-value-panel mt-2">
-      <div class="dts"><span>DTS:</span> <span>{{ dts }} mm</span></div>
       <div class="dtn"><span>DTN:</span> <span>{{ dtn }} mm</span></div>
+      <div class="dts"><span>DTS:</span> <span>{{ dts }} mm</span></div>
       <div class="dtr"><span>DTR:</span> <span>{{ dtr }} mm</span></div>
     </v-card>
   </div>
@@ -64,7 +64,7 @@ let initSliceIndex = ref(0);
 let base_container = ref<HTMLDivElement>();
 let canvas_container = ref<HTMLDivElement>();
 let nav_bar_left_container = ref<HTMLDivElement>();
-let slice_index_container = ref<HTMLDivElement>();
+// let slice_index_container = ref<HTMLDivElement>();
 
 let scene: Copper.copperScene | undefined;
 let pre_slices = ref();
@@ -137,9 +137,9 @@ onMounted(async () => {
   );
 
   nrrdTools = new Copper.NrrdTools(canvas_container.value as HTMLDivElement);
-  nrrdTools.setDisplaySliceIndexPanel(
-    slice_index_container.value as HTMLDivElement
-  );
+  // nrrdTools.setDisplaySliceIndexPanel(
+  //   slice_index_container.value as HTMLDivElement
+  // );
   // for offline working
   nrrdTools.setEraserUrls(eraserUrls);
   nrrdTools.setPencilIconUrls(cursorUrls);
