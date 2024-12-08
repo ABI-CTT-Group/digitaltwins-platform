@@ -28,9 +28,9 @@
 </template>
 <script setup lang="ts">
 import { GUI, GUIController } from "dat.gui";
-// import * as Copper from "copper3d";
+import * as Copper from "copper3d";
 import "copper3d/dist/css/style.css";
-import * as Copper from "@/ts/index";
+// import * as Copper from "@/ts/index";
 import loadingGif from "@/assets/loading.svg";
 
 import NavBar from "@/components/commonBar/NavBarCalculation.vue";

@@ -118,7 +118,7 @@ import Calculator from "./advance/Calculator.vue";
 import { ref, onMounted } from "vue";
 import { storeToRefs } from "pinia";
 import emitter from "@/plugins/bus";
-import * as Copper from "@/ts/index";
+import * as Copper from "copper3d";
 import {
   useTumourWindowStore
 } from "@/store/app";

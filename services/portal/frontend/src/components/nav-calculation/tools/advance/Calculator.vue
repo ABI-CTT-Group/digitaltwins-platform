@@ -67,7 +67,7 @@
   
   <script setup lang="ts">
   import { ref, onMounted } from "vue";
-  import * as Copper from "@/ts/index";
+  import * as Copper from "copper3d";
   import emitter from "@/plugins/custom-emitter";
   import { ITumourStudyAppDetail, ICommXYZ } from "@/models/apiTypes";
   import { useRouter, useRoute } from 'vue-router';
