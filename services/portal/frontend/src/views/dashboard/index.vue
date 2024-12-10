@@ -49,12 +49,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useUser } from "../hooks/user";
+import { storeToRefs } from "pinia";
+import {useTumourStudyDetailsStore } from "@/store/tumour_position_study_app";
 const router = useRouter();
 const route = useRoute();
 const { user } = useUser();
+
+const { studyDetails } = storeToRefs(useTumourStudyDetailsStore());
+const { getTumourStudyDetails } = useTumourStudyDetailsStore();
 
 type Study = {
     title: string;
@@ -113,6 +118,12 @@ const items = ref([
           }
         ])
 
+
+onMounted(async () => {
+    if (!!studyDetails.value === false) await getTumourStudyDetails();
+    const completeTask = studyDetails.value?.details.filter(detail=> detail.report.complete === true);
+    items.value[0].studies[0].subTitle = `Completed Cases: ${completeTask!.length} / ${studyDetails.value?.details.length}`;
+})
 const handleEnter = (study: Study) => {
     study.isEnter=!study.isEnter
     items.value.forEach(item => {

@@ -15,7 +15,6 @@
 
 <script setup lang="ts">
 import SysOptsCtl from "./tools/SysOptsCtl.vue";
-import { ref } from "vue";
 </script>
 
 <style scoped></style>

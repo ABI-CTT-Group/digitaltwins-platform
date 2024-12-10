@@ -164,7 +164,7 @@ onMounted(async () => {
 });
 
 async function getInitData() {
-  await getTumourStudyDetails();
+  if(!!studyDetails.value === false) await getTumourStudyDetails();
   if (studyDetails.value?.details) {
     incompleteCases.value = getIncompleteCases(studyDetails.value?.details);
 
