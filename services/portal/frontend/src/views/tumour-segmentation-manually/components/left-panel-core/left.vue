@@ -246,6 +246,8 @@ onMounted(async () => {
   );
 
   nrrdTools = new Copper.NrrdTools(canvas_container.value as HTMLDivElement);
+
+  emitter.emit("nrrd_tools", nrrdTools);
   nrrdTools.setDisplaySliceIndexPanel(
     slice_index_container.value as HTMLDivElement
   );
@@ -269,11 +271,11 @@ onMounted(async () => {
     loadBarMain.loadingContainer
   );
 
-  document.addEventListener("keydown", (e) => {
-    if (e.code === "KeyF") {
-      Copper.fullScreenListenner(base_container.value as HTMLDivElement);
-    }
-  });
+  // document.addEventListener("keydown", (e) => {
+  //   if (e.code === "KeyF") {
+  //     Copper.fullScreenListenner(base_container.value as HTMLDivElement);
+  //   }
+  // });
 
   setupGui();
   setupCopperScene("nrrd_tools");

@@ -1,18 +1,5 @@
 <template>
   <div>
-    <Switcher
-      :title="'Debug Mode'"
-      :label="switchDebugLabel"
-      v-model:controller="debugMode"
-      @toggleUpdate="toggleDebug"
-    />
-    <Switcher
-      :title="'Sticky Tool Settings Bar'"
-      :label="switchStickyLabel"
-      v-model:controller="stickMode"
-      @toggleUpdate="toggleSticky"
-    />
-
     <Dialog 
       @on-open="handleDialogOpen"
       @on-cancel="handleDialogCancel"
@@ -51,17 +38,11 @@
 <script setup lang="ts">
 import * as Copper from "copper3d";
 // import * as Copper from "@/ts/index";
-import Switcher from "@/components/commonBar/Switcher.vue";
 import { ref, onMounted, onUnmounted } from "vue";
 import Dialog from "@/components/commonBar/Dialog.vue";
-import emitter from "@/plugins/bus";
 import { IKeyboardSettings } from "@/models/apiTypes";
+import emitter from "@/plugins/custom-emitter";
 
-
-const debugMode = ref(false);
-const switchDebugLabel = ref("off");
-const stickMode = ref(true);
-const switchStickyLabel = ref("on");
 const nrrdTools = ref<Copper.NrrdTools>();
 const keyboardSettings = ref<IKeyboardSettings>({
   draw: '',
@@ -77,18 +58,6 @@ const mouseModes = ref([
 
 const settingsData = ref([
   {
-    label: "Key for Draw Mode:",
-    type: "draw",
-  },
-  {
-    label: "Key for Undo:",
-    type: "undo",
-  },
-  {
-    label: "Key for Contrast:",
-    type: "contrast",
-  },
-  {
     label: "Key for Crosshair:",
     type: "crosshair",
   },
@@ -100,25 +69,12 @@ onMounted(() => {
 });
 
 function manageEmitters() {
-  emitter.on("drawer_status", (val)=>{
-    stickMode.value = val as boolean;
-    switchStickyLabel.value =  stickMode.value === false ? "off" : "on";
-  });
-  emitter.on("nrrd_tools", (val:any)=>{
-    nrrdTools.value = val;
+  emitter.on("TumourStudy:NrrdTools", (tool: Copper.NrrdTools)=>{
+    nrrdTools.value = tool;
     keyboardSettings.value = {...nrrdTools.value!.nrrd_states.keyboardSettings};
   });
 }
 
-function toggleDebug(value: boolean) {
-  switchDebugLabel.value = switchDebugLabel.value === "on" ? "off" : "on";
-  emitter.emit("show_debug_mode", value);
-}
-
-function toggleSticky(value: boolean) {
-  switchStickyLabel.value = switchStickyLabel.value === "on" ? "off" : "on";
-  emitter.emit("set_nav_sticky_mode", value);
-}
 
 function handleKeyDown(event: KeyboardEvent, type: string) {
   switch(type) {

@@ -8,6 +8,7 @@
       ></v-list-item>
       <ImageCtl />
       <OperationCtl />
+      <SysOpts />
     </v-list>
   </v-card>
 </template>
@@ -16,7 +17,7 @@
 import { ref, onMounted } from "vue";
 import ImageCtl from "./tools/NrrdImageCtl.vue";
 import OperationCtl from "./tools/OperationCtl.vue";
-import emitter from "@/plugins/custom-emitter";
+import SysOpts from "./SysOpts.vue";
 const open = ref(["Cases", "Operation", "Calculator"]);
 
 onMounted(()=>{
@@ -30,7 +31,6 @@ function manageEmitters() {
   //   }
   // });
 }
-
 </script>
 
 <style lang="scss"></style>
