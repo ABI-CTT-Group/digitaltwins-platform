@@ -8,6 +8,7 @@
             class="pa-4 text-center mx-auto"
             elevation="12"
             min-width="600"
+            max-width="600"
             rounded="lg"
             width="100%"
         >
@@ -24,7 +25,9 @@
                 
 
                 <p class="mb-4 text-medium-emphasis text-body-2">
-                    Customize your keyboard shortcuts for Tumour Study Tool.
+                    Customize your keyboard shortcuts for Tumour Study Tool. 
+                    <br/>
+                    Click `Save` button to save your changes. Click grey area to cancel.
                 </p>
 
                 <v-divider class="mb-4"></v-divider>

@@ -1,9 +1,12 @@
 <template>
     <div class="w-screen h-screen gradients d-flex flex-column align-center">
-        <h1 class="text-center py-3">Clinical Study Dashboard</h1>
+        <h1 class="text-center pt-10">Clinical Study Dashboard</h1>
 
-        <div class="w-75 flex-1-1 d-flex justify-center align-center">
-            <v-carousel hide-delimiters >
+        <div class="w-75 flex-1-1 px-6 d-flex justify-center align-center">
+            <v-carousel 
+                show-arrows="hover"
+                hide-delimiter-background
+            >
                 <v-carousel-item
                 v-for="(item,i) in items"
                 :key="i"
@@ -13,8 +16,8 @@
                     <div v-for="study in item.studies">
                         <v-card
                             class="mx-auto"
-                            max-width="300"
-                            min-width="300"
+                            max-width="350"
+                            min-width="350"
                             :disabled="study.status === 'inactive'"
                         >
                             <v-img
