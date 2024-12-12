@@ -9,6 +9,13 @@
       ></v-list-item>
     </template>
     <v-text-field
+      class="mx-4 my-1"
+      label="Completed Cases"
+      :model-value="completedCases"
+      variant="solo"
+      disabled
+    ></v-text-field>
+    <v-text-field
       class="mx-4"
       label="Case Name"
       :model-value="caseName"
@@ -19,19 +26,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { useFileCountStore } from "@/store/app";
-import { storeToRefs } from "pinia";
+import { ref, onMounted, computed } from "vue";
 import { ITumourStudyAppDetail } from "@/models/apiTypes";
 import emitter from "@/plugins/custom-emitter";
+import {useTumourStudyDetailsStore } from "@/store/tumour_position_study_app";
+import { storeToRefs } from "pinia";
 
-
+const { studyDetails } = storeToRefs(useTumourStudyDetailsStore());
 const disableSelectCase = ref(false);
 const caseName = ref("");
 
 
 onMounted(() => {
   manageEmitters();
+});
+
+const completedCases = computed(() => {
+  if (!!studyDetails.value === false) return "0 / 0";
+  
+  const completeTask = studyDetails.value?.details.filter(detail=> detail.report.complete === true);
+  return `${completeTask!.length} / ${studyDetails.value?.details.length}`;
 });
 
 function manageEmitters() {

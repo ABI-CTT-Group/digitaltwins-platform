@@ -113,7 +113,8 @@ async def get_cases_name(background_tasks: BackgroundTasks):
         registration_nrrd_paths = tools.get_category_files(name, "nrrd", "registration")
         segmentation_breast_points_paths = tools.get_category_files(name, "json", "segmentation")
         segmentation_breast_model_paths = tools.get_category_files(name, "obj", "segmentation")
-        segmentation_manual_mask_paths = tools.get_category_files(name, "json", "segmentation_manual", ["sphere_points.json"])
+        # get all masks json files
+        segmentation_manual_mask_paths = tools.get_category_files(name, "json", "segmentation_manual", ["sphere_points.json", "tumour_position_study.json"])
         segmentation_manual_3dobj_paths = tools.get_category_files(name, "obj", "segmentation_manual")
         json_is_exist = tools.check_file_exist(name, "json", "mask.json")
         obj_is_exist = tools.check_file_exist(name, "obj", "mask.obj")

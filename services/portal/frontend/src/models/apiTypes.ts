@@ -172,3 +172,11 @@ export interface ITumourStudyAppDetails {
   details: ITumourStudyAppDetail[];
 }
 
+export interface IKeyboardSettings {
+  draw: string;
+  undo: string;
+  contrast: string[];
+  crosshair: string;
+  mouseWheel: "Scroll:Zoom" | "Scroll:Slice" | string;
+  [key: string]: any;
+}

@@ -88,17 +88,18 @@
 
       <div class="guide-operation-comm-btns">
           <v-btn
-          v-for="(btn, idx) in commFuncBtnValues"
-          block
-          density="comfortable"
-          variant="outlined"
-          class="my-1"
-          :key="idx"
-          :color="btn.color"
-          :disabled="btn.disabled"
-          @click="onBtnClick(btn.value)"
-          >{{ btn.label }}</v-btn
-        >
+            v-for="(btn, idx) in commFuncBtnValues"
+            block
+            density="comfortable"
+            variant="outlined"
+            class="my-1"
+            :key="idx"
+            :color="btn.color"
+            :disabled="btn.disabled"
+            @click="onBtnClick(btn.value)"
+          >
+            {{ btn.label }}
+          </v-btn>
       </div>
       
       <v-progress-linear
