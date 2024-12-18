@@ -7,11 +7,12 @@ import json
 
 router = APIRouter()
 
+except_cases=["Breast_014", "C-V0001"]
 
 @router.get("/api/tumour_position")
 async def get_tumour_position_app_detail():
     tools.get_metadata()
-    case_names = tools.get_all_case_names(except_case=["Breast_014", "C-V0001"])
+    case_names = tools.get_all_case_names(except_case=except_cases)
     case_names.sort()
     res = {}
     res["details"] = []
@@ -46,7 +47,7 @@ async def get_tumour_position_app_detail():
 @router.get("/api/tumour_position/clear")
 async def get_tumour_position_clear():
     tools.get_metadata()
-    case_names = tools.get_all_case_names(except_case=["test", "C-V0001"])
+    case_names = tools.get_all_case_names(except_case=except_cases)
     case_names.sort()
     for name in case_names:
         tumour_position_path = tools.get_file_path(name, "json", "tumour_position_study.json")
