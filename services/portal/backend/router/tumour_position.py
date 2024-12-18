@@ -11,7 +11,7 @@ router = APIRouter()
 @router.get("/api/tumour_position")
 async def get_tumour_position_app_detail():
     tools.get_metadata()
-    case_names = tools.get_all_case_names(except_case=["test", "C-V0001"])
+    case_names = tools.get_all_case_names(except_case=["Breast_014", "C-V0001"])
     case_names.sort()
     res = {}
     res["details"] = []

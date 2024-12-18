@@ -1,5 +1,6 @@
 <template>
-  <div id="bg" ref="base_container" class="dark guide-left-panel ">
+
+  <div id="bg" ref="base_container" class="dark guide-left-panel" @keydown="(event)=>setUpMouseWheel(event,'down')" @keyup="(event)=>setUpMouseWheel(event,'up')">
     <div ref="canvas_container" class="canvas_container"></div>
     <!-- <div ref="slice_index_container" class="copper3d_sliceNumber">
       Tumour Segmentation Panel
@@ -144,6 +145,8 @@ onMounted(async () => {
   nrrdTools.setEraserUrls(eraserUrls);
   nrrdTools.setPencilIconUrls(cursorUrls);
 
+  nrrdTools.nrrd_states.keyboardSettings.mouseWheel = "Scroll:Slice";
+
   // sphere plan b
   toolsState = nrrdTools.getNrrdToolsSettings();
 
@@ -162,6 +165,17 @@ onMounted(async () => {
 
   await getInitData();
 });
+
+function setUpMouseWheel(e:KeyboardEvent, status: "down" | "up") {
+  if(status === "down"){
+    nrrdTools.nrrd_states.keyboardSettings.mouseWheel = "Scroll:Zoom";
+    nrrdTools.updateMouseWheelEvent();
+  }else if(status === "up"){
+    nrrdTools.nrrd_states.keyboardSettings.mouseWheel = "Scroll:Slice";
+    nrrdTools.updateMouseWheelEvent();
+  }
+}
+ 
 
 async function getInitData() {
   if(!!studyDetails.value === false) await getTumourStudyDetails();

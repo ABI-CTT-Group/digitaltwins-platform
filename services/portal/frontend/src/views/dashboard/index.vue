@@ -4,55 +4,58 @@
 
         <div class="w-75 flex-1-1 px-6 d-flex justify-center align-center">
             <v-carousel 
-                show-arrows="hover"
                 hide-delimiter-background
+                hide-delimiters
+                show-arrows
             >
+                <template v-slot:prev="{ props }">
+                    <div></div>
+                </template>
                 <v-carousel-item
-                v-for="(item,i) in items"
+                v-for="(item,i) in renderItems"
                 :key="i"
                 cover
                 >
-                <div class="w-100 h-100 d-flex justify-space-evenly align-center">
-                    <div v-for="study in item.studies">
-                        <v-card
-                            class="mx-auto"
-                            max-width="350"
-                            min-width="350"
-                            :disabled="study.status === 'inactive'"
-                        >
-                            <v-img
-                                class="align-end text-white"
-                                height="200"
-                                :src="study.src"
-                                cover
+                    <div class="w-100 h-100 d-flex justify-space-evenly align-center">
+                        <div v-for="study in item.studies">
+                            <v-card
+                                class="mx-auto"
+                                max-width="350"
+                                min-width="350"
                             >
-                                <v-card-title>{{ study.title }}</v-card-title>
-                            </v-img>
-                            <v-card-subtitle class="pt-4">
-                                {{ study.subTitle }}
-                            </v-card-subtitle>
+                                <v-img
+                                    class="align-end text-white"
+                                    height="200"
+                                    :src="study.src"
+                                    cover
+                                >
+                                    <v-card-title>{{ study.title }}</v-card-title>
+                                </v-img>
+                                <v-card-subtitle class="pt-4">
+                                    {{ study.subTitle }}
+                                </v-card-subtitle>
 
-                            <v-card-text>
-                                <div>{{ study.description }}</div>
-                            </v-card-text>
+                                <v-card-text>
+                                    <div>{{ study.description }}</div>
+                                </v-card-text>
 
-                            <v-card-actions>
-                                <v-btn v-if="!study.isEnter" color="green" text="Enter" @click="handleEnter(study)"></v-btn>
-                                <v-btn v-if="study.isEnter" color="orange" text="Begin session" @click="handleStartSession(study.session)"></v-btn>
-                                <v-btn v-if="study.isEnter" color="orange" text="Tutorial"></v-btn>
-                            </v-card-actions>
-                        </v-card>
+                                <v-card-actions>
+                                    <v-btn v-if="!study.isEnter" color="green" text="Enter" @click="handleEnter(study)"></v-btn>
+                                    <v-btn v-if="study.isEnter" color="orange" text="Begin session" @click="handleStartSession(study.session)"></v-btn>
+                                    <v-btn v-if="study.isEnter" color="orange" text="Tutorial"></v-btn>
+                                </v-card-actions>
+                            </v-card>
+                        </div>
+                        
                     </div>
-                    
-                </div>
-            </v-carousel-item>
+                </v-carousel-item>
             </v-carousel>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useUser } from "../hooks/user";
 import { storeToRefs } from "pinia";
@@ -121,6 +124,14 @@ const items = ref([
           }
         ])
 
+const renderItems = computed(() => {
+    return items.value.map(item => {
+        return {
+            ...item,
+            studies: item.studies.filter(study => study.status === 'active')
+        }
+    })
+})
 
 onMounted(async () => {
     if (!!studyDetails.value === false) await getTumourStudyDetails();

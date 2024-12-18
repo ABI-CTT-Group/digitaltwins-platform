@@ -356,6 +356,8 @@ function onEmitter() {
     // 2.1 Get casename and the nrrd image URL blob
     casename = case_infos.currentCaseId;
     maskNrrd.value = case_infos.maskNrrd;
+    console.log("maskNrrd", maskNrrd.value);
+    
     // 2.2 Load Nrrd
 
     loadNrrd(maskNrrd.value as string, "register")?.then(async (nrrdData)=>{
