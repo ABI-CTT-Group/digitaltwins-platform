@@ -741,6 +741,8 @@ async function onCaseSwitched(casename: string) {
       allContrastUrls = caseUrls.value.nrrdUrls;
       loadedUrls[currentCaseId] = caseUrls.value;
       const details = cases.value?.details;
+      console.log(allContrastUrls);
+      
       emitter.emit("casename", {
         currentCaseId,
         details,

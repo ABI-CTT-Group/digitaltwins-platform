@@ -284,7 +284,7 @@ async def get_display_segment_tumour_model(name: str = Query(None)):
 async def get_display_breast_model(name: str = Query(None)):
 
     breast_mesh_path = tools.get_file_path(name, "obj", "prone_surface.obj")
-    if breast_mesh_path is not None:
+    if breast_mesh_path is not None and breast_mesh_path.exists():
         file_res = FileResponse(breast_mesh_path, media_type="application/octet-stream", filename="prone_surface.obj")
         return file_res
     else:

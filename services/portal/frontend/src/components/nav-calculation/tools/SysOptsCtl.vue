@@ -6,7 +6,7 @@
       @on-save="handleDialogSave"
     >
 
-    <div v-for="(d, i) in settingsData" :key="i" class="d-flex align-center justify-space-between px-10">
+    <!-- <div v-for="(d, i) in settingsData" :key="i" class="d-flex align-center justify-space-between px-10">
       <h4 class="pb-3">
         {{ d.label }}
       </h4>
@@ -17,7 +17,7 @@
           @keydown="handleKeyDown($event, d.type)"
         ></v-text-field>
       </div>
-    </div>
+    </div> -->
     <div class="d-flex align-center justify-space-between px-10">
       <h4 class="pb-3">
         Mouse Wheel Mode:
@@ -57,10 +57,10 @@ const mouseModes = ref([
 ]);
 
 const settingsData = ref([
-  {
-    label: "Key for Crosshair:",
-    type: "crosshair",
-  },
+  // {
+  //   label: "Key for Crosshair:",
+  //   type: "crosshair",
+  // },
 ])
 
 
