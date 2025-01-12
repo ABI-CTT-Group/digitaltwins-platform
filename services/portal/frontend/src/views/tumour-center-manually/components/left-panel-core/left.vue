@@ -1,5 +1,5 @@
 <template>
-  <div ref="base_container" class="left-container dark guide-left-panel">
+  <div id="bg" ref="base_container" class="dark guide-left-panel">
     <div v-show="debug_mode" ref="c_gui" class="left_gui"></div>
     <div ref="canvas_container" class="canvas_container"></div>
     <div ref="slice_index_container" class="copper3d_sliceNumber">
@@ -12,9 +12,11 @@
       @get-load-files-urls="readyToLoad"
     ></Upload>
 
-    <div v-show="showCalculatorValue" class="left-value-panel mt-2">
-      <TumourDistancePanel :dts="dts" :dtn="dtn" :dtr="dtr" />
-    </div>
+    <v-card v-show="showCalculatorValue" class="left-value-panel mt-2">
+      <div class="dts"><span>DTS:</span> <span>{{ dts }} mm</span></div>
+      <div class="dtn"><span>DTN:</span> <span>{{ dtn }} mm</span></div>
+      <div class="dtr"><span>DTR:</span> <span>{{ dtr }} mm</span></div>
+    </v-card>
   </div>
   <div
     v-show="panelWidth >= 600 ? true : false"
@@ -36,8 +38,6 @@
   </div>
 </template>
 <script setup lang="ts">
-import TumourDistancePanel from "@/components/view-components/TumourDistancePanel.vue";
-
 import { GUI, GUIController } from "dat.gui";
 import * as Copper from "copper3d";
 import "copper3d/dist/css/style.css";
@@ -58,7 +58,7 @@ import {
   ICaseUrls,
   IDetails,
 } from "@/models/apiTypes";
-import { addNameToLoadedMeshes, findRequestUrls, customRound } from "@/plugins/view-utils/utils-left";
+import { addNameToLoadedMeshes, findRequestUrls, customRound } from "./utils-left";
 import {
   useFileCountStore,
   useInitMarksStore,
@@ -79,7 +79,6 @@ import {
 } from "@/plugins/view-utils/tools";
 import emitter from "@/plugins/bus";
 import { convertInitMaskData } from "@/plugins/worker";
-
 
 type Props = {
   panelWidth: number;
@@ -162,7 +161,6 @@ const { getMaskDataBackend } = useMaskStore();
 const { clearMaskMeshObj } = useClearMaskMeshStore();
 const { getNrrdAndJsonFileUrls } = useNrrdCaseFileUrlsWithOrderStore();
 const { caseUrls } = storeToRefs(useNrrdCaseFileUrlsWithOrderStore());
-
 let originUrls = ref<ICaseUrls>({ nrrdUrls: [], jsonUrl: "" });
 let regUrls = ref<ICaseUrls>({ nrrdUrls: [], jsonUrl: "" });
 
@@ -187,18 +185,6 @@ function onEmitter() {
     debug_mode.value = flag as boolean;
   });
 
-  // emitter.on("resize-left-right-panels", (effects) => {
-  //   console.log((effects as any).effectPanelSize);
-
-  //   // if ((effects as any).panel === "left") {
-  //   //   if ((effects as any).effectPanelSize < 600) {
-  //   //     showNavToolsBar.value = false;
-  //   //     return;
-  //   //   }
-  //   // }
-  //   // showNavToolsBar.value = true;
-  // });
-
   emitter.on("toggleTheme", () => {
     base_container.value?.classList.toggle("dark");
   });
@@ -209,9 +195,7 @@ function onEmitter() {
       (nav_bar_left_container.value as HTMLDivElement).style.width = "60%";
     }
   });
-  // emitter.on("containerHight", (h) => {
-  //   (base_container.value as HTMLDivElement).style.height = `${h}vh`;
-  // });
+
   emitter.on("caseswitched", async (casename) => {
     await onCaseSwitched(casename as string);
   });
@@ -242,8 +226,7 @@ onMounted(async () => {
 
   nrrdTools = new Copper.NrrdTools(canvas_container.value as HTMLDivElement);
 
-  emitter.emit("Segmentation:NrrdTool", nrrdTools);
-
+  emitter.emit("nrrd_tools", nrrdTools);
   nrrdTools.setDisplaySliceIndexPanel(
     slice_index_container.value as HTMLDivElement
   );
@@ -867,7 +850,7 @@ function switchRegCheckBoxStatus(
 </script>
 
 <style>
-.left-container {
+#bg {
   width: 100%;
   /* height: 100vh; */
   flex: 0 0 90%;

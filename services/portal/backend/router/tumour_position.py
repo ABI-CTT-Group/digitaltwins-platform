@@ -22,7 +22,7 @@ async def get_tumour_position_app_detail():
         tumour_report_path = tools.get_file_path(name, "json", "tumour_position_study.json")
         report = {}
 
-        if tumour_report_path.exists():
+        if tumour_report_path.exists() and tumour_report_path.stat().st_size != 0:
             # get study status
             with open(tumour_report_path, 'r') as file:
                 report = json.load(file)

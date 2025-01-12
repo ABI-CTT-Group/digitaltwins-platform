@@ -43,14 +43,14 @@ import {
   ITumourStudyAppDetail,
   ILoadedMeshes,
 } from "@/models/apiTypes";
-import { addNameToLoadedMeshes, getIncompleteCases } from "./utils-left";
-
+import { addNameToLoadedMeshes, getIncompleteCases } from "@/plugins/view-utils/utils-left";
 import {useTumourStudyDetailsStore, useTumourStudyNrrdStore } from "@/store/tumour_position_study_app";
 import {useSaveTumourStudyReport} from "@/plugins/tumour_position_study_api";
+
 import {
   getEraserUrlsForOffLine,
   getCursorUrlsForOffLine,
-} from "@/views/tumour-segmentation-manually/components/tools";
+} from "@/plugins/view-utils/tools";
 // import emitter from "@/plugins/bus";
 import emitter from "@/plugins/custom-emitter";
 
@@ -96,6 +96,7 @@ const { studyDetails } = storeToRefs(useTumourStudyDetailsStore());
 const { getTumourStudyDetails } = useTumourStudyDetailsStore();
 const { studyNrrd } = storeToRefs(useTumourStudyNrrdStore());
 const { getStudyNrrd } = useTumourStudyNrrdStore();
+
 
 const incompleteCases = ref<ITumourStudyAppDetail[]>([]);
 const workingCase = ref<ITumourStudyAppDetail | null>(null);
@@ -146,6 +147,8 @@ onMounted(async () => {
   nrrdTools.setPencilIconUrls(cursorUrls);
 
   nrrdTools.nrrd_states.keyboardSettings.mouseWheel = "Scroll:Slice";
+
+  // setNrrdTools(nrrdTools);
 
   // sphere plan b
   toolsState = nrrdTools.getNrrdToolsSettings();
@@ -218,6 +221,8 @@ function distance3D(x1:number, y1:number, z1:number, x2:number, y2:number, z2:nu
 }
 
 const getCalculateSpherePositionsData = (tumourSphereOrigin:Copper.ICommXYZ | null, skinSphereOrigin:Copper.ICommXYZ | null, ribSphereOrigin:Copper.ICommXYZ | null, nippleSphereOrigin:Copper.ICommXYZ | null, aix:"x"|"y"|"z")=>{
+  console.log("tumourOrigin: ",tumourSphereOrigin);
+  
    if(tumourSphereOrigin === null) return;
 
    if (skinSphereOrigin !== null){
@@ -361,6 +366,7 @@ const loadCurrentCase = (
         nrrdMesh: Copper.nrrdMeshesType,
         nrrdSlices: Copper.nrrdSliceType
       ) => {
+ 
         addNameToLoadedMeshes(nrrdMesh, name);
         const newNrrdSlice = Object.assign(nrrdSlices, { order: i });
         const newNrrdMesh = Object.assign(nrrdMesh, { order: i });

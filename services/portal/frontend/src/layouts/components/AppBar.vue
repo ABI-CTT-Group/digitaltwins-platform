@@ -7,9 +7,7 @@
     :permanent="!temporary"
     :temporary="temporary"
   >
-    <!--     :theme="drawerTheme" -->
-
-    <NavPanel />
+    <slot></slot>
   </v-navigation-drawer>
 
   <v-app-bar color="surface" class="d-flex justify-end">
@@ -17,25 +15,19 @@
     <v-app-bar-nav-icon class="guide-bar-nav" @click="toggleDrawer"></v-app-bar-nav-icon>
 
     <div class="guide-expand-panel" data-tool="expandtool"></div>
-    
-    <!-- pink-darken-3 text-deep-orange-->
     <v-app-bar-title >
       <span class="text-capitalize"
-        >Tumour Position & Extent Reporting
+        >
+        {{ title }}
       </span>
-      <span class="text-body-2 font-italic text-deep-orange">v3.0.0</span>
+      <span class="text-body-2 font-italic text-deep-orange">
+        {{ version }}
+      </span>
     </v-app-bar-title>
 
     <div width="" class="w-50 d-flex flex-row justify-end align-center px-2">
       <IntroPanel />
-
-      <v-btn
-        color="secondary-font"
-        class="px-5"
-        density="compact"
-        icon="mdi-theme-light-dark"
-        @click="toggleTheme"
-      ></v-btn>
+       <slot name="theme"></slot>
       <v-img
         class="px-5"
         width="250px"
@@ -48,18 +40,24 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { useTheme } from "vuetify";
-
-import NavPanel from "@/components/nav-segmentation/NavPanel.vue";
 import IntroPanel from "@/components/intro/IntroPanel.vue";
 import emitter from "@/plugins/bus";
 
-const drawerTheme = ref("dark");
+
+defineProps({
+  title: {
+    type: String,
+    default: "Tumour Position & Extent Reporting App",
+  },
+  version: {
+    type: String,
+    default: "v3.0.0",
+  },
+});
 
 const drawer = ref(false);
 const temporary = ref(true);
 
-const theme = useTheme();
 
 onMounted(() => {
   manageEmitters();
@@ -93,15 +91,5 @@ function toggleDrawer() {
   });
 }
 
-function toggleTheme(value: any) {
-  // theme.global.current.value.dark
-  theme.global.name.value = theme.global.current.value.dark
-    ? "lightTheme"
-    : "darkTheme";
-
-  drawerTheme.value = theme.global.current.value.dark ? "dark" : "light";
-
-  emitter.emit("toggleTheme", theme.global.name.value);
-}
 </script>
 <style></style>

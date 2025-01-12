@@ -9,7 +9,6 @@
       ></v-list-item>
     </template>
 
-  
       <v-select
       class="mx-4"
       :items="cases?.names"
@@ -20,8 +19,6 @@
       :disabled="disableSelectCase"
       @update:modelValue="onCaseSwitched"
     ></v-select>
-
-    
 
     <v-select
       class="mx-4"

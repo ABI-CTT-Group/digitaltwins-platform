@@ -61,7 +61,7 @@ import coronalImg_blank from "@/assets/images/person_anterior.png";
 import clockImg from "@/assets/images/clock_white.png";
 import resetImg from "@/assets/images/reset.png";
 import emitter from "@/plugins/bus";
-import {PanelOperationManager} from "@/views/tumour-segmentation-manually/components/right-panel-core/utils-right"
+import {PanelOperationManager} from "@/plugins/view-utils/utils-right"
 
 type Props = {
   panelWidth: number;

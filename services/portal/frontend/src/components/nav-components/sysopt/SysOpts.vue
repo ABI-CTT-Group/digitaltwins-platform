@@ -9,12 +9,12 @@
       ></v-list-item>
     </template>
 
-    <SysOptsCtl />
+    <slot></slot>
   </v-list-group>
 </template>
 
 <script setup lang="ts">
-import SysOptsCtl from "./tools/SysOptsCtl.vue";
+
 </script>
 
 <style scoped></style>

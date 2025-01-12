@@ -8,7 +8,9 @@
       ></v-list-item>
       <ImageCtl />
       <OperationCtl />
-      <SysOpts />
+      <SysOpts>
+        <SysOptsCtl :nrrd-tools="nrrdTools"/>
+      </SysOpts>
     </v-list>
   </v-card>
 </template>
@@ -17,12 +19,17 @@
 import { ref, onMounted } from "vue";
 import ImageCtl from "./tools/NrrdImageCtl.vue";
 import OperationCtl from "./tools/OperationCtl.vue";
-import SysOpts from "./SysOpts.vue";
+import SysOpts from "../nav-components/sysopt/SysOpts.vue";
+import SysOptsCtl from "../nav-components/sysopt/SysOptsCtl.vue";
+import emitter from "@/plugins/custom-emitter";
+import * as Copper from "copper3d";
+
 const open = ref(["Cases", "Operation", "Calculator"]);
+const nrrdTools = ref<Copper.NrrdTools>();
 
 onMounted(()=>{
   manageEmitters();
-})
+}) 
 
 function manageEmitters() {
   // emitter.on("guide_to_operation_status", (val: string)=>{
@@ -30,6 +37,9 @@ function manageEmitters() {
   //     open.value.push("Operation")
   //   }
   // });
+  emitter.on("TumourStudy:NrrdTools",(val:Copper.NrrdTools)=>{
+    nrrdTools.value = val;
+  })
 }
 </script>
 

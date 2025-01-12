@@ -34,7 +34,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useUser } from "../hooks/user";
+import { useUser } from "@/plugins/hooks/user";
 
 const publicData = {
     user1: {

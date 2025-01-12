@@ -306,11 +306,15 @@ async def clear_mesh(name: str = Query(None)):
 @app.post("/api/save_tumour_position")
 async def save_tumour_position(save_position: model.TumourPosition):
     tumour_position_path = tools.get_file_path(save_position.case_name, "json", "tumour_window.json")
-    position = {
-        "center": save_position.model_dump().get("position")
-    }
+    position_json = {}
+    if tumour_position_path.exists():
+        with open(tumour_position_path, "r") as tumour_position_file:
+            data = tumour_position_file.read()
+            position_json = json.loads(data)
+
+    position_json["center"] = save_position.model_dump().get("position")
     with open(tumour_position_path, "w") as tumour_position_file:
-        json.dump(position, tumour_position_file, indent=4)
+        json.dump(position_json, tumour_position_file, indent=4)
 
     return True
 

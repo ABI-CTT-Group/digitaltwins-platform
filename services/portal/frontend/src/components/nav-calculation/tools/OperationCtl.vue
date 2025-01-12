@@ -1,50 +1,23 @@
 <template>
-  <v-list-group value="Operation" class="guide-operation-overall" data-tool="operationtool">
-    <template v-slot:activator="{ props }">
-      <v-list-item
-        v-bind="props"
-        color="nav-success"
-        prepend-icon="mdi-axe"
-        title="Operation Settings"
-      ></v-list-item>
+  <Operation>
+    <template #Calculator>
+      <Calculator />
     </template>
-    <!-- Functional Control -->
-    <Calculator />
-    <v-container fluid>
-      <v-progress-linear
-        color="nav-success-2"
-        buffer-value="0"
-        stream
-      ></v-progress-linear>
-      <v-radio-group
-        class="radio-group guide-operation-functional-control"
+    <template #FunctionalControl>
+      <FunctionalControl
         v-model="commFuncRadios"
-        label="Functional Controller"
-        :inline="true"
+        :radio-values="commFuncRadioValues"
         :disabled="commFuncRadiosDisabled"
-      >
-        <v-radio
-          v-for="(item, idx) in commFuncRadioValues"
-          :key="idx"
-          :label="item.label"
-          :value="item.value"
-          :color="item.color"
-        ></v-radio>
-      </v-radio-group>
-      <v-progress-linear
-        color="nav-success-2"
-        buffer-value="0"
-        stream
-      ></v-progress-linear>
-      <!-- </v-container> -->
-    </v-container>
-  </v-list-group>
+      />
+      </template>
+  </Operation>
 </template>
 
 <script setup lang="ts">
 import Calculator from "./advance/Calculator.vue";
+import FunctionalControl from "@/components/nav-components/functionalCtl/FunctionalControl.vue";
+import Operation from "@/components/nav-components/Operation.vue";
 import { ref, onMounted } from "vue";
-import { storeToRefs } from "pinia";
 import emitter from "@/plugins/custom-emitter";
 
 // Functional Controls
@@ -74,15 +47,5 @@ function manageEmitters() {
  
 }
 
-
-
 </script>
 
-<style>
-.v-selection-control-group--inline {
-  flex-direction: row;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  padding: 0 10px;
-}
-</style>

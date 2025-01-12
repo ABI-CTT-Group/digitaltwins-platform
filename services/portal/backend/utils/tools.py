@@ -256,7 +256,8 @@ def init_tumour_position_json(path):
         "start": "000000",
         "end": "000000",
         "total_duration": "000000",
-        "complete": False
+        "complete": False,
+        "assisted": False
     }
     with open(path, 'w') as json_file:
         json.dump(tumour_position, json_file, indent=4)

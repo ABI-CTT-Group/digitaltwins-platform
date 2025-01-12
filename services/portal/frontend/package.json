@@ -20,7 +20,7 @@
     "mitt": "^3.0.1",
     "pinia": "^2.0.0",
     "roboto-fontface": "*",
-    "vue": "^3.3.8",
+    "vue": "^3.5.13",
     "vue-router": "^4.2.5",
     "vuetify": "^3.4.3",
     "webfontloader": "^1.0.0"

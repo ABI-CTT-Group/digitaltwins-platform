@@ -31,7 +31,7 @@ import LeftPanel from "./components/left-panel-core/left.vue";
 import RightPanel from "./components/right-panel-core/right.vue";
 import { ref, onMounted } from "vue";
 import emitter from "@/plugins/bus";
-import { throttle } from "../../plugins/view-utils/tools";
+import { throttle } from "./components/tools";
 
 const mainContainer = ref<HTMLDivElement>();
 const splitBar = ref<HTMLDivElement>();

@@ -1,4 +1,4 @@
-const eventNames = ['TumourStudy:Casename', 'TumourStudy:Status', "TumourStudy:NextCase", "TumourStudy:ImageLoaded", "TumourStudy:NrrdTools", "TumourStudy:CaseReport", "TumourStudy:AllCasesCompleted"];
+const eventNames = ['TumourStudy:Casename', 'TumourStudy:Status', "TumourStudy:NextCase", "TumourStudy:ImageLoaded", "TumourStudy:NrrdTools", "TumourStudy:CaseReport", "TumourStudy:AllCasesCompleted", "Common:NrrdTool"];
 type EventNames = (typeof eventNames)[number];
 
 class EventEmitter {
@@ -9,7 +9,7 @@ class EventEmitter {
         'TumourStudy:ImageLoaded': new Set(),
         'TumourStudy:NrrdTools': new Set(),
         'TumourStudy:CaseReport': new Set(),
-        'TumourStudy:AllCasesCompleted': new Set()
+        'TumourStudy:AllCasesCompleted': new Set(),
     };
 
     on(eventName: EventNames, listener: Function) {

@@ -1,5 +1,5 @@
 <template>
-  <div id="right_panel" ref="right_panel" class="right_container guide-right-panel">
+  <div id="right_panel" ref="right_panel" class="guide-right-panel">
     <div v-show="openLoading" ref="loading_container" class="loading">
       <div class="loading_text text-cyan-darken-3">Load tumour model...</div>
     </div>
@@ -71,7 +71,7 @@ import {
   getClosestNipple,
   createOriginSphere
 } from "@/plugins/view-utils/tools";
-import { PanelOperationManager, valideClock, deepClone, processPointsCloud } from "@/plugins/view-utils/utils-right";
+import { PanelOperationManager, valideClock, deepClone, processPointsCloud } from "./utils-right";
 import loadingGif from "@/assets/loading.svg";
 
 type Props = {
@@ -965,7 +965,7 @@ const resetNrrdImage = () => {
 </script>
 
 <style scoped>
-.right_container {
+#right_panel {
   width: 95%;
   flex: 0 0 90%;
   position: relative;

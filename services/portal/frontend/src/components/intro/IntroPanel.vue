@@ -19,7 +19,7 @@
     >
       <h4 class="text-h5 font-weight-bold mb-4">How to use:</h4>
 
-      <p class="mb-8">
+      <div class="mb-8">
         <a href="#" class="text-red-accent-2 text-decoration-none">Full panel view: </a>
         <p class="ml-9">Mouse left double click the panel.</p>
 
@@ -50,7 +50,7 @@
         </a>
          <p class="ml-9">Press <a href="#" class="text-teal text-decoration-none font-weight-bold">s</a> key on the keyboard ( <a href="#" class="text-warning text-decoration-none font-weight-bold">Once</a> ) to enable/disable, then left click on images,
         and use bottom tool's bar to switch the image orientation.</p>
-      </p>
+        </div>
 
       
 
