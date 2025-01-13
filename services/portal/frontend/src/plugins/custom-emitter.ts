@@ -1,12 +1,11 @@
 const eventNames = [
+    "Core:NrrdTools",
     'TumourStudy:Casename', 
     'TumourStudy:Status', 
     "TumourStudy:NextCase", 
     "TumourStudy:ImageLoaded", 
-    "TumourStudy:NrrdTools", 
     "TumourStudy:CaseReport", 
     "TumourStudy:AllCasesCompleted", 
-    "Segmentation:NrrdTools",
     "Segmentation:CaseDetails",
     "Segementation:CaseSwitched",
     "Segmentation:ContrastChanged",

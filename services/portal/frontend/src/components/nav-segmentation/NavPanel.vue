@@ -38,7 +38,7 @@ function manageEmitters() {
   emitter.on("IntroGuide:OperationStatus", emitterOnOperationStatus);
   emitter.on("Common:OpenCalculatorBox", emitterOnOpenCalculatorBox)
   emitter.on("Common:CloseCalculatorBox", emitterOnCloseCalculatorBox)
-  emitter.on("Segmentation:NrrdTools", emitterOnNrrdTools)
+  emitter.on("Core:NrrdTools", emitterOnNrrdTools)
   emitter.on("Common:DrawerStatus", emitterOnDrawerStatus);
 }
 
@@ -72,7 +72,7 @@ onUnmounted(()=>{
   emitter.off("IntroGuide:OperationStatus", emitterOnOperationStatus);
   emitter.off("Common:OpenCalculatorBox", emitterOnOpenCalculatorBox)
   emitter.off("Common:CloseCalculatorBox", emitterOnCloseCalculatorBox)
-  emitter.off("Segmentation:NrrdTools", emitterOnNrrdTools)
+  emitter.off("Core:NrrdTools", emitterOnNrrdTools)
   emitter.off("Common:DrawerStatus", emitterOnDrawerStatus);
 })
 

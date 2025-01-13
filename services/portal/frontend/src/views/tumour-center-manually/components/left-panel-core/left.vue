@@ -226,7 +226,7 @@ onMounted(async () => {
 
   nrrdTools = new Copper.NrrdTools(canvas_container.value as HTMLDivElement);
 
-  emitter.emit("Segmentation:NrrdTools", nrrdTools);
+  emitter.emit("Core:NrrdTools", nrrdTools);
   nrrdTools.setDisplaySliceIndexPanel(
     slice_index_container.value as HTMLDivElement
   );

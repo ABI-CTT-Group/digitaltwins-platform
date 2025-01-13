@@ -68,7 +68,7 @@ function manageEmitters() {
   emitter.on("TumourStudy:Status", emitterOnStatus);
 
   // First time init Calculator
-  emitter.on("TumourStudy:NrrdTools", emitterOnNrrdTools);
+  emitter.on("Core:NrrdTools", emitterOnNrrdTools);
 
   emitter.on("TumourStudy:AllCasesCompleted", emitterOnAllCasesCompleted);
 }
@@ -253,7 +253,7 @@ function timeDifferenceToHMS(diffInMillis:number) {
 onUnmounted(() => {
   emitter.off("TumourStudy:ImageLoaded", emitterOnImageLoaded);
   emitter.off("TumourStudy:Status", emitterOnStatus);
-  emitter.off("TumourStudy:NrrdTools", emitterOnNrrdTools);
+  emitter.off("Core:NrrdTools", emitterOnNrrdTools);
   emitter.off("TumourStudy:AllCasesCompleted", emitterOnAllCasesCompleted);
 });
 </script>

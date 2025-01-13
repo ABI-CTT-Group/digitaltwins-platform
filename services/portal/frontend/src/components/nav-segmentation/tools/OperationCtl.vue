@@ -149,7 +149,7 @@ function manageEmitters() {
   emitter.on("Segmentation:FinishLoadAllCaseImages", emitterOnFinishLoadAllCaseImages);
   emitter.on("Common:DragImageWindowCenter", emitterOnDragImageWindowCenter);
   emitter.on("Common:DragImageWindowHigh", emitterOnDragImageWindowHigh);
-  emitter.on("Segmentation:NrrdTools", emitterOnNrrdTools);
+  emitter.on("Core:NrrdTools", emitterOnNrrdTools);
 }
 
 const emitterOnCaseSwitched = async (casename:string) => {
@@ -330,7 +330,7 @@ onUnmounted(() => {
   emitter.off("Segmentation:FinishLoadAllCaseImages", emitterOnFinishLoadAllCaseImages);
   emitter.off("Common:DragImageWindowCenter", emitterOnDragImageWindowCenter);
   emitter.off("Common:DragImageWindowHigh", emitterOnDragImageWindowHigh);
-  emitter.off("Segmentation:NrrdTools", emitterOnNrrdTools);
+  emitter.off("Core:NrrdTools", emitterOnNrrdTools);
 });
 
 </script>

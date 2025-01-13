@@ -32,7 +32,7 @@ onMounted(()=>{
 }) 
 
 function manageEmitters() {
-  emitter.on("TumourStudy:NrrdTools", emitterOnNrrdTools)
+  emitter.on("Core:NrrdTools", emitterOnNrrdTools)
 }
 
 const emitterOnNrrdTools = (val:Copper.NrrdTools)=>{
@@ -40,7 +40,7 @@ const emitterOnNrrdTools = (val:Copper.NrrdTools)=>{
 }
 
 onUnmounted(()=>{
-  emitter.off("TumourStudy:NrrdTools", emitterOnNrrdTools)
+  emitter.off("Core:NrrdTools", emitterOnNrrdTools)
 })
 </script>
 

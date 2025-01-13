@@ -1,52 +1,51 @@
 <template>
-  <div ref="base_container" class="left-container dark guide-left-panel">
-    <div v-show="debug_mode" ref="c_gui" class="left_gui"></div>
-    <div ref="canvas_container" class="canvas_container"></div>
-    <div ref="slice_index_container" class="copper3d_sliceNumber">
-      Tumour Segmentation Panel
-    </div>
-
-    <Upload
-      :dialog="dialog"
-      @on-close-dialog="onCloseDialog"
-      @get-load-files-urls="readyToLoad"
-    ></Upload>
-
-    <div v-show="showCalculatorValue">
+  <LeftPanelCore 
+    ref="leftPanelCoreRef"
+    :show-debug-panel="debug_mode" 
+    :show-slice-index="true"
+    :enable-upload="true"
+    :show-tumour-distance-panel="showCalculatorValue"
+    :show-bottom-nav-bar="panelWidth >= 600 ? true : false">
+    <template #drag-to-upload>
+      <Upload
+        :dialog="dialog"
+        @on-close-dialog="onCloseDialog"
+        @get-load-files-urls="readyToLoad"
+      />
+    </template>
+    <template #tumour-distance-panel>
       <TumourDistancePanel :dts="dts" :dtn="dtn" :dtr="dtr" />
-    </div>
-  </div>
-  <div
-    v-show="panelWidth >= 600 ? true : false"
-    class="nav_bar_left_container"
-    ref="nav_bar_left_container"
-  >
-    <NavBar
-      :file-num="fileNum"
-      :max="max"
-      :immediate-slice-num="immediateSliceNum"
-      :contrast-index="contrastNum"
-      :init-slice-index="initSliceIndex"
-      @on-slice-change="getSliceChangedNum"
-      @reset-main-area-size="resetMainAreaSize"
-      @on-change-orientation="resetSlicesOrientation"
-      @on-save="onSaveMask"
-      @on-open-dialog="onOpenDialog"
-    ></NavBar>
-  </div>
+    </template>
+    <template #bottom-nav-bar>
+      <NavBar
+        :file-num="fileNum"
+        :max="max"
+        :immediate-slice-num="immediateSliceNum"
+        :contrast-index="contrastNum"
+        :init-slice-index="initSliceIndex"
+        @on-slice-change="getSliceChangedNum"
+        @reset-main-area-size="resetMainAreaSize"
+        @on-change-orientation="resetSlicesOrientation"
+        @on-save="onSaveMask"
+        @on-open-dialog="onOpenDialog"
+      />
+    </template>
+  </LeftPanelCore>
 </template>
 <script setup lang="ts">
+import LeftPanelCore from "@/components/view-components/LeftPanelCore.vue";
 import TumourDistancePanel from "@/components/view-components/TumourDistancePanelLeft.vue";
+import NavBar from "@/components/commonBar/NavBar.vue";
+import Upload from "@/components/commonBar/Upload.vue";
 
 import { GUI, GUIController } from "dat.gui";
 import * as Copper from "copper3d";
 import "copper3d/dist/css/style.css";
 // import * as Copper from "@/ts/index";
-import loadingGif from "@/assets/loading.svg";
 
-import NavBar from "@/components/commonBar/NavBar.vue";
-import Upload from "@/components/commonBar/Upload.vue";
-import { onMounted, ref, watchEffect, onUnmounted } from "vue";
+
+
+import { onMounted, ref, watchEffect, onUnmounted, watch } from "vue";
 import { storeToRefs } from "pinia";
 import {
   IStoredMasks,
@@ -85,7 +84,21 @@ type Props = {
   panelWidth: number;
 };
 
-let appRenderer: Copper.copperRenderer;
+const leftPanelCoreRef = ref<InstanceType<typeof LeftPanelCore>>();
+
+let a;
+let appRenderer;
+let nrrdTools;
+let scene: any;
+let loadBarMain:any ;
+let loadingContainer;
+let progress;
+let gui:any;
+let base_container;
+
+
+
+
 let max = ref(0);
 let immediateSliceNum = ref(0);
 let contrastNum = ref(0);
@@ -93,21 +106,15 @@ let fileNum = ref(0);
 let initSliceIndex = ref(0);
 let dialog = ref(false);
 
-let base_container = ref<HTMLDivElement>();
-let c_gui = ref<HTMLDivElement>();
-let canvas_container = ref<HTMLDivElement>();
-let nav_bar_left_container = ref<HTMLDivElement>();
-let slice_index_container = ref<HTMLDivElement>();
+
 let debug_mode = ref(false);
 
-let scene: Copper.copperScene | undefined;
+
 let pre_slices = ref();
 
-let gui = new GUI({ width: 300, autoPlace: false });
 let optsGui: GUI | undefined = undefined;
-let nrrdTools: Copper.NrrdTools;
-let loadBarMain: Copper.loadingBarType;
-let loadingContainer: HTMLDivElement, progress: HTMLDivElement;
+
+
 let allSlices: Array<any> = [];
 let defaultRegAllSlices: Array<any> = [];
 let originAllSlices: Array<any> = [];
@@ -149,7 +156,7 @@ type selecedType = {
   [key: string]: boolean;
 };
 
-let toolsState: any;
+
 
 const { cases } = storeToRefs(useFileCountStore());
 const { getFilesNames } = useFileCountStore();
@@ -166,8 +173,6 @@ const { caseUrls } = storeToRefs(useNrrdCaseFileUrlsWithOrderStore());
 let originUrls = ref<ICaseUrls>({ nrrdUrls: [], jsonUrl: "" });
 let regUrls = ref<ICaseUrls>({ nrrdUrls: [], jsonUrl: "" });
 
-const eraserUrls = getEraserUrlsForOffLine();
-const cursorUrls = getCursorUrlsForOffLine();
 
 const showCalculatorValue = ref(false);
 
@@ -197,7 +202,7 @@ const emitterOnDebugMode = (flag: boolean) => {
   debug_mode.value = flag;
 };
 const emitterOnToggleAppTheme = () => {
-    base_container.value?.classList.toggle("dark");
+    base_container!.classList.toggle("dark");
 };
 const emitterOnCaseSwitched = async (casename: string) => {
   await onCaseSwitched(casename);
@@ -211,52 +216,22 @@ const emitteOnRegisterImageChanged = async (result: boolean) => {
 };
 
 onMounted(async () => {
-
-  console.log("left panel mounted");
+  appRenderer = leftPanelCoreRef.value?.appRenderer;
+  nrrdTools = leftPanelCoreRef.value?.nrrdTools;
+  scene = leftPanelCoreRef.value?.scene;
+  loadBarMain = leftPanelCoreRef.value?.loadBarMain;
+  loadingContainer = leftPanelCoreRef.value?.loadingContainer;
+  progress = leftPanelCoreRef.value?.progress;
+  gui = leftPanelCoreRef.value?.gui;
+  base_container = leftPanelCoreRef.value?.baseContainer;
+  console.log(nrrdTools);
+  console.log(base_container);
+  
   
   manageEmitters();
 
   await getInitData();
-  c_gui.value?.appendChild(gui.domElement);
-
-  appRenderer = new Copper.copperRenderer(
-    base_container.value as HTMLDivElement,
-    {
-      guiOpen: false,
-      alpha: true,
-    }
-  );
-
-  nrrdTools = new Copper.NrrdTools(canvas_container.value as HTMLDivElement);
-
-  emitter.emit("Segmentation:NrrdTools", nrrdTools);
-
-  nrrdTools.setDisplaySliceIndexPanel(
-    slice_index_container.value as HTMLDivElement
-  );
-  // for offline working
-
-  // nrrdTools.setBaseCanvasesSize(1.5);
-  nrrdTools.setEraserUrls(eraserUrls);
-  nrrdTools.setPencilIconUrls(cursorUrls);
-  // nrrdTools.setMainAreaSize(3);
-
-  // sphere plan b
-  toolsState = nrrdTools.getNrrdToolsSettings();
-  // toolsState.spherePlanB = false;
-
-  loadBarMain = Copper.loading(loadingGif);
-
-  loadingContainer = loadBarMain.loadingContainer;
-  progress = loadBarMain.progress;
-
-  (canvas_container.value as HTMLDivElement).appendChild(
-    loadBarMain.loadingContainer
-  );
-
-  setupGui();
-  setupCopperScene("nrrd_tools");
-  appRenderer.animate();
+  
 });
 
 async function getInitData() {
@@ -279,7 +254,7 @@ const readyToLoad = (urlsArray: Array<string>, name: string) => {
 };
 
 const onSaveMask = async (flag: boolean) => {
-  if (flag && nrrdTools.protectedData.maskData.paintImages.z.length > 0) {
+  if (flag && nrrdTools!.protectedData.maskData.paintImages.z.length > 0) {
     switchAnimationStatus("flex", "Saving masks data, please wait......");
     await sendSaveMask(currentCaseId);
     switchAnimationStatus("none");
@@ -295,34 +270,34 @@ const onCloseDialog = (flag: boolean) => {
 };
 
 const resetSlicesOrientation = (axis: "x" | "y" | "z") => {
-  nrrdTools.setSliceOrientation(axis);
-  max.value = nrrdTools.getMaxSliceNum()[1];
+  nrrdTools!.setSliceOrientation(axis);
+  max.value = nrrdTools!.getMaxSliceNum()[1];
   const { currentIndex, contrastIndex } =
-    nrrdTools.getCurrentSlicesNumAndContrastNum();
+    nrrdTools!.getCurrentSlicesNumAndContrastNum();
   immediateSliceNum.value = currentIndex;
   contrastNum.value = contrastIndex;
 };
 const getSliceChangedNum = (sliceNum: number) => {
-  nrrdTools.setSliceMoving(sliceNum);
+  nrrdTools!.setSliceMoving(sliceNum);
 };
 const resetMainAreaSize = (factor: number) => {
-  nrrdTools.setMainAreaSize(factor);
+  nrrdTools!.setMainAreaSize(factor);
 };
 
 const sendInitMaskToBackend = async () => {
-  // const masksData = nrrdTools.paintImages.z;
-  const rawMaskData = nrrdTools.getMaskData();
+  // const masksData = nrrdTools!.paintImages.z;
+  const rawMaskData = nrrdTools!.getMaskData();
   const masksData = {
     label1: rawMaskData.paintImagesLabel1.z,
     label2: rawMaskData.paintImagesLabel2.z,
     label3: rawMaskData.paintImagesLabel3.z,
   };
-  const dimensions = nrrdTools.getCurrentImageDimension();
+  const dimensions = nrrdTools!.getCurrentImageDimension();
   const len = rawMaskData.paintImages.z.length;
   const width = dimensions[0];
   const height = dimensions[1];
-  const voxelSpacing = nrrdTools.getVoxelSpacing();
-  const spaceOrigin = nrrdTools.getSpaceOrigin();
+  const voxelSpacing = nrrdTools!.getVoxelSpacing();
+  const spaceOrigin = nrrdTools!.getSpaceOrigin();
   
   
   if (len > 0) {
@@ -361,7 +336,7 @@ const loadJsonMasks = (url: string) => {
         console.log("data empty init");
         sendInitMaskToBackend();
       }
-      nrrdTools.setMasksData(data, loadBarMain);
+      nrrdTools!.setMasksData(data, loadBarMain);
     }
   };
   xhr.send();
@@ -389,18 +364,18 @@ const setMaskData = () => {
 };
 
 const switchAnimationStatus = (status: "flex" | "none", text?: string) => {
-  loadingContainer.style.display = status;
-  !!text && (progress.innerText = text);
+  loadingContainer!.style.display = status;
+  !!text && (progress!.innerText = text);
 };
 
 const getSphereData = async (sphereOrigin: number[], sphereRadius: number) => {
   const sphereData: ISaveSphere = {
     caseId: currentCaseId,
     sliceId: sphereOrigin[2],
-    origin: nrrdTools.nrrd_states.spaceOrigin,
-    spacing: nrrdTools.nrrd_states.voxelSpacing,
+    origin: nrrdTools!.nrrd_states.spaceOrigin,
+    spacing: nrrdTools!.nrrd_states.voxelSpacing,
     sphereRadiusMM: sphereRadius,
-    sphereOriginMM: [sphereOrigin[0],sphereOrigin[1],sphereOrigin[2]*nrrdTools.nrrd_states.voxelSpacing[2]],
+    sphereOriginMM: [sphereOrigin[0],sphereOrigin[1],sphereOrigin[2]*nrrdTools!.nrrd_states.voxelSpacing[2]],
   };
 
   emitter.emit("SegmentationTrial:DrawSphereFunction", sphereData);
@@ -423,8 +398,8 @@ const getCalculateSpherePositionsData = async (tumourSphereOrigin:Copper.ICommXY
      return;
    }else{
     const position = {
-      x: customRound(tumourSphereOrigin["z"][0]/nrrdTools.nrrd_states.voxelSpacing[0]),
-      y: customRound(tumourSphereOrigin["z"][1]/nrrdTools.nrrd_states.voxelSpacing[1]),
+      x: customRound(tumourSphereOrigin["z"][0]/nrrdTools!.nrrd_states.voxelSpacing[0]),
+      y: customRound(tumourSphereOrigin["z"][1]/nrrdTools!.nrrd_states.voxelSpacing[1]),
       z: customRound(tumourSphereOrigin["z"][2]),
     }
     await useSaveTumourPosition({case_name: currentCaseId, position});
@@ -441,8 +416,8 @@ const getCalculateSpherePositionsData = async (tumourSphereOrigin:Copper.ICommXY
    }
    
    // send status to calculator component
-   if (nrrdTools.gui_states.cal_distance !== "tumour"){
-    emitter.emit("SegmentationTrial:CalulatorTimerFunction", nrrdTools.gui_states.cal_distance);
+   if (nrrdTools!.gui_states.cal_distance !== "tumour"){
+    emitter.emit("SegmentationTrial:CalulatorTimerFunction", nrrdTools!.gui_states.cal_distance);
    }
    
 }
@@ -498,7 +473,7 @@ watchEffect(() => {
     });
 
     if(originRegswitcher){ 
-      nrrdTools.switchAllSlicesArrayData(allSlices);
+      nrrdTools!.switchAllSlicesArrayData(allSlices);
       if(loadOrigin) {
         loadOrigin = false;
         if (originAllSlices.length === 0) {
@@ -511,13 +486,13 @@ watchEffect(() => {
           1000
         );
   } else {
-      nrrdTools.clear();
-      nrrdTools.setAllSlices(allSlices);
+      nrrdTools!.clear();
+      nrrdTools!.setAllSlices(allSlices);
 
       defaultRegAllSlices = [...allSlices];
       defaultRegAllMeshes = [...allLoadedMeshes];
 
-      initSliceIndex.value = nrrdTools.getCurrentSliceIndex();
+      initSliceIndex.value = nrrdTools!.getCurrentSliceIndex();
 
       const getSliceNum = (index: number, contrastindex: number) => {
         immediateSliceNum.value = index;
@@ -525,25 +500,25 @@ watchEffect(() => {
       };
 
       if (firstLoad) {
-        nrrdTools.drag({
+        nrrdTools!.drag({
           getSliceNum,
         });
-        nrrdTools.draw({ getMaskData, getSphereData, getCalculateSpherePositionsData});
-        nrrdTools.setupGUI(gui);
-        nrrdTools.enableContrastDragEvents(getContrastMove)
-        coreRenderId = scene?.addPreRenderCallbackFunction(nrrdTools.start) as number;
+        nrrdTools!.draw({ getMaskData, getSphereData, getCalculateSpherePositionsData});
+        nrrdTools!.setupGUI(gui as GUI);
+        nrrdTools!.enableContrastDragEvents(getContrastMove)
+        coreRenderId = scene?.addPreRenderCallbackFunction(nrrdTools!.start) as number;
         setUpGuiAfterLoading();
         // xyz: 84 179 74
         // emitter.emit("loadcalculatortumour", nrrdTools);
       } else {
-        nrrdTools.redrawMianPreOnDisplayCanvas();
+        nrrdTools!.redrawMianPreOnDisplayCanvas();
       }
 
       if (loadCases) {
         setMaskData();
       }
 
-      max.value = nrrdTools.getMaxSliceNum()[1];
+      max.value = nrrdTools!.getMaxSliceNum()[1];
 
       const selectedState: selecedType = {};
 
@@ -571,7 +546,7 @@ watchEffect(() => {
     setTimeout(() => {
       initSliceIndex.value = 0;
       filesCount.value = 0;
-      const guiSettings = nrrdTools.getGuiSettings();
+      const guiSettings = nrrdTools!.getGuiSettings();
       emitter.emit("Segmentation:FinishLoadAllCaseImages", guiSettings);
     }, 1000);
     firstLoad = false;
@@ -581,15 +556,7 @@ watchEffect(() => {
   }
 });
 
-async function setupCopperScene(name: string) {
-  scene = appRenderer.getSceneByName(name) as Copper.copperScene;
-  if (scene == undefined) {
-    scene = appRenderer.createScene(name) as Copper.copperScene;
-    if (scene) {
-      appRenderer.setCurrentScene(scene);
-    }
-  }
-}
+
 
 const loadAllNrrds = (
   urls: Array<string>,
@@ -619,12 +586,12 @@ const loadAllNrrds = (
     pre_slices.value = nrrdSlices;
     filesCount.value += 1;
   };
-  scene?.loadNrrd(urls[0], loadBarMain, true, mainPreArea);
+  scene?.loadNrrd(urls[0], loadBarMain as Copper.loadingBarType, true, mainPreArea);
 
   for (let i = 1; i < urls.length; i++) {
     scene?.loadNrrd(
       urls[i],
-      loadBarMain,
+      loadBarMain as Copper.loadingBarType,
       true,
       (
         volume: any,
@@ -662,16 +629,16 @@ const loadAllNrrds = (
 function onContrastSelected(flag: boolean, i: number) {
   if (flag) {
     fileNum.value += 1;
-    nrrdTools.addSkip(i);
+    nrrdTools!.addSkip(i);
   } else {
     fileNum.value -= 1;
-    nrrdTools.removeSkip(i);
+    nrrdTools!.removeSkip(i);
   }
-  const maxNum = nrrdTools.getMaxSliceNum()[1];
+  const maxNum = nrrdTools!.getMaxSliceNum()[1];
   if (maxNum) {
     max.value = maxNum;
     const { currentIndex, contrastIndex } =
-      nrrdTools.getCurrentSlicesNumAndContrastNum();
+      nrrdTools!.getCurrentSlicesNumAndContrastNum();
 
     immediateSliceNum.value = currentIndex;
     contrastNum.value = contrastIndex + 1;
@@ -806,24 +773,24 @@ async function onRegistedStateChanged(isShowRegisterImage: boolean) {
 function setupGui() {
   state.switchCase = cases.value?.names[0] as string;
 
-  gui
+  gui!
     .add(state, "switchCase", cases.value?.names as string[])
-    .onChange(async (caseId) => {
+    .onChange(async (caseId: string) => {
       await onCaseSwitched(caseId);
       setUpGuiAfterLoading();
     });
 
-  selectedContrastFolder = gui.addFolder("select display contrast");
+  selectedContrastFolder = gui!.addFolder("select display contrast");
 }
 
 function setUpGuiAfterLoading() {
   if (!!optsGui) {
-    gui.removeFolder(optsGui);
+    gui!.removeFolder(optsGui);
     optsGui = undefined;
     state.showRegisterImages = true;
   }
-  optsGui = gui.addFolder("opts");
-  regCkeckbox = optsGui.add(state, "showRegisterImages");
+  optsGui = gui!.addFolder("opts");
+  regCkeckbox = optsGui!.add(state, "showRegisterImages");
   regCheckboxElement = regCkeckbox.domElement.childNodes[0] as HTMLInputElement;
   regCkeckbox.onChange(async () => {
     if (regCheckboxElement.disabled) {
@@ -833,8 +800,8 @@ function setUpGuiAfterLoading() {
 
     await onRegistedStateChanged(state.showRegisterImages);
   });
-  optsGui.add(state, "release");
-  optsGui.closed = false;
+  optsGui!.add(state, "release");
+  optsGui!.closed = false;
 }
 
 function switchRegCheckBoxStatus(
@@ -858,7 +825,7 @@ onUnmounted(() => {
   emitter.off("Segementation:CaseSwitched", emitterOnCaseSwitched);
   emitter.off("Segmentation:ContrastChanged", emitterOnContrastChanged);
   emitter.off("Segmentation:RegisterImageChanged", emitteOnRegisterImageChanged);
-  nrrdTools.clear();
+  nrrdTools!.clear();
   allContrastUrls.length = 0;
   allSlices.length = 0;
   allLoadedMeshes.length = 0;
@@ -872,92 +839,5 @@ onUnmounted(() => {
 </script>
 
 <style>
-.left-container {
-  width: 100%;
-  /* height: 100vh; */
-  flex: 0 0 90%;
-  overflow: hidden;
-  position: relative;
-  /* border: 1px solid palevioletred; */
-}
-.left_gui {
-  /* position: fixed; */
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 100;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-}
-.canvas_container {
-  /* position: fixed; */
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.nav_bar_left_container {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-}
-
-.copper3d_sliceNumber {
-  position: relative;
-  width: 300px;
-  text-align: center;
-  top: 5% !important;
-  right: 1% !important;
-  left: 0px !important;
-  margin: 0 auto;
-  border: 3px solid salmon;
-  border-radius: 10px;
-  padding: 5px;
-  font-size: 0.9em;
-  font-weight: 700;
-  color: rgba(26, 26, 26, 0.965);
-  cursor: no-drop;
-  transition: border-color 0.25s;
-}
-
-.copper3d_sliceNumber:hover {
-  border-color: #eb4a05;
-}
-.copper3d_sliceNumber:focus,
-.copper3d_sliceNumber:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-.dark .copper3d_sliceNumber {
-  border: 3px solid #009688;
-  color: #fff8ec;
-}
-
-.dark .copper3d_sliceNumber:hover {
-  border-color: #4db6ac;
-}
-
-.copper3D_scene_div {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.copper3D_loading_progress {
-  color: darkgray !important;
-  text-align: center;
-  width: 60%;
-}
-.copper3D_drawingCanvasContainer {
-  max-width: 80%;
-  max-height: 80%;
-}
 
 </style>

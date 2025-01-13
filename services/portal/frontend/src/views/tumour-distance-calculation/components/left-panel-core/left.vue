@@ -280,7 +280,7 @@ watchEffect(() => {
       nrrdTools.setupGUI(gui);
       coreRenderId = scene?.addPreRenderCallbackFunction(nrrdTools.start) as number;
       // xyz: 84 179 74
-      emitter.emit("TumourStudy:NrrdTools", nrrdTools);
+      emitter.emit("Core:NrrdTools", nrrdTools);
     } else {
       nrrdTools.redrawMianPreOnDisplayCanvas();
     }
