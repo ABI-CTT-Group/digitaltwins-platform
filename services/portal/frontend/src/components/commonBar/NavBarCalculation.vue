@@ -19,8 +19,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, toRefs, watchEffect, onMounted } from "vue";
-import emitter from "@/plugins/bus";
+import { ref, reactive, toRefs, watchEffect, onMounted, onUnmounted } from "vue";
+import emitter from "@/plugins/custom-emitter";
 
 type Props = {
   fileNum: number;
@@ -35,10 +35,17 @@ type Props = {
 const nav_container = ref<HTMLDivElement>();
 
 onMounted(() => {
-  emitter.on("toggleTheme", () => {
-    nav_container.value?.classList.toggle("dark");
-  });
+  manageEmitters();
 });
+
+function manageEmitters() {
+  emitter.on("Common:ToggleAppTheme", emmiterOnToggleAppTheme);
+}
+
+const emmiterOnToggleAppTheme = () => {
+    nav_container.value?.classList.toggle("dark");
+};
+
 let p = withDefaults(defineProps<Props>(), {
   min: 0,
   max: 160,
@@ -103,6 +110,10 @@ watchEffect(() => {
   initSliceIndex?.value &&
     (currentSliderNum = (initSliceIndex?.value as number) * fileNum.value);
   updateSlider();
+});
+
+onUnmounted(() => {
+  emitter.off("Common:ToggleAppTheme", emmiterOnToggleAppTheme);
 });
 </script>
 

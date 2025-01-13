@@ -47,7 +47,7 @@ import {
 } from "vue";
 import Drawer from "@/components/commonBar/drawer.vue";
 import NavBarRight from "@/components/commonBar/NavBarRight.vue";
-import emitter from "@/plugins/bus";
+import emitter from "@/plugins/custom-emitter";;
 import { storeToRefs } from "pinia";
 import {
   useMaskNrrdStore,
@@ -63,7 +63,7 @@ import {
   ILeftRightData,
   INipplePoints,
   IRibSkinPoints,
-  ISaveSphere
+  ISaveSphere,
 } from "@/models/apiTypes";
 import {
   findCurrentCase,
@@ -181,7 +181,7 @@ watch(panelWidth, (newVal, oldVal) => {
 // App entry
 
 onMounted(() => {
-  onEmitter();
+  manageEmitters();
 
   loadBarMain = Copper.loading(loadingGif);
 
@@ -317,24 +317,18 @@ function clearModelsAndStates(){
 }
 
 
-function onEmitter() {
+function manageEmitters() {
   /**
    * UI Control layer
    * */ 
-  emitter.on("containerHight", (h) => {
-    (right_panel.value as HTMLDivElement).style.height = `${h}vh`;
-  });
-  emitter.on("resize-left-right-panels", (val) => {
+  // emitter.on("containerHight", (h) => {
+  //   (right_panel.value as HTMLDivElement).style.height = `${h}vh`;
+  // });
+  emitter.on("Common:ResizeCopperSceneWhenNavChanged", () => {
     // give a 300ms delay for wait right panel to recalculate width, then update threejs
     setTimeout(() => {
       copperScene?.onWindowResize();
     }, 300);
-
-    if ((val as any).panel === "right") {
-      setTimeout(() => {
-        copperScene?.onWindowResize();
-      }, 1000);
-    }
   });
 
   /**
@@ -342,11 +336,11 @@ function onEmitter() {
    * */ 
 
   // switch cases
-  emitter.on("casename", async (case_details) => {
+  emitter.on("Segmentation:CaseDetails", async (case_details: ICaseDetails) => {
     // 1. clear previous meshes and clear state
     clearModelsAndStates()
     // 2. request data
-    const case_infos: ICaseDetails = case_details as ICaseDetails;
+    const case_infos: ICaseDetails = case_details;
     const case_detail = findCurrentCase(
       case_infos.details,
       case_infos.currentCaseId
@@ -400,15 +394,15 @@ function onEmitter() {
   });
 
   // switch segmented tumour mesh 3D obj model
-  emitter.on("syncTumourObjMesh", () => {
+  emitter.on("Segmentation:SyncTumourModelButtonClicked", () => {
     loadingContainer.style.display = "flex";
     openLoading.value = true;
     socketTimer = requestSocketUpdateTumourModel();
   });
 
   // Listen to switch register images and origin images
-  emitter.on("showRegBtnToRight", (data) => {
-    const res = data as ILeftRightData;
+  emitter.on("Segmentation:RegisterButtonStatusChanged", (data: ILeftRightData) => {
+    const res = data;
     // removeOldMeshes([nrrdMeshes.x, nrrdMeshes.y, nrrdMeshes.z]);
 
     const recordSliceIndex = {
@@ -485,7 +479,7 @@ function onEmitter() {
 
   
   // When left panel draw sphere, then the right panel need automatically update the sphere tumour
-  emitter.on("drawSphere",(val)=>{
+  emitter.on("SegmentationTrial:DrawSphereFunction",(val: ISaveSphere)=>{
 
     if(!!preTumourShpere){
       copperScene.scene.remove(preTumourShpere)
@@ -495,7 +489,7 @@ function onEmitter() {
       copperScene.scene.remove(segementTumour3DModel);
     }
 
-    const sphereData = val as ISaveSphere
+    const sphereData = val;
     const geometry = new THREE.SphereGeometry(sphereData.sphereRadiusMM, 32, 16);
     const material = new THREE.MeshBasicMaterial({ color: "#228b22" });
 
@@ -530,12 +524,12 @@ function onEmitter() {
     displayAndCalculateNSR();
   })
 
-  emitter.on("set_breast_model_state", (val)=>{
+  emitter.on("Common:ToggleBreastVisibility", (val:boolean)=>{
    
     if (!!breast3DModel){
       breast3DModel.traverse((child)=>{
         if((child as THREE.Mesh).isMesh){
-          child.visible = val as boolean;
+          child.visible = val;
         }
       })
     }
@@ -647,7 +641,7 @@ function requestUpdateSliderSettings(){
           Math.ceil(loadNrrdSlices.y.index / nrrdSpacing[1]),
           Math.ceil(loadNrrdSlices.z.index / nrrdSpacing[2])
         ]} 
-  emitter.emit("sendMountSliderSettings", sliderSettingsValue)
+  emitter.emit("SegmentationTrial:RightPanelSliderSettingValueUpdated", sliderSettingsValue)
 }
 
 async function loadBreastModel() {

@@ -23,7 +23,7 @@ import DefaultView from "./View.vue";
 import NavPanel from "@/components/nav-segmentation/NavPanel.vue";
 import { useTheme } from "vuetify";
 import { ref } from "vue";
-import emitter from "@/plugins/bus";
+import emitter from "@/plugins/custom-emitter";;
 
 const theme = useTheme();
 const drawerTheme = ref("dark");
@@ -36,7 +36,7 @@ function toggleTheme(value: any) {
 
   drawerTheme.value = theme.global.current.value.dark ? "dark" : "light";
 
-  emitter.emit("toggleTheme", theme.global.name.value);
+  emitter.emit("Common:ToggleAppTheme", theme.global.name.value);
 }
 </script>
 

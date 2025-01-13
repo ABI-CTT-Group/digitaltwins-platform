@@ -17,7 +17,7 @@
 import Calculator from "./advance/Calculator.vue";
 import FunctionalControl from "@/components/nav-components/functionalCtl/FunctionalControl.vue";
 import Operation from "@/components/nav-components/Operation.vue";
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import emitter from "@/plugins/custom-emitter";
 
 // Functional Controls
@@ -36,16 +36,24 @@ onMounted(() => {
 
 function manageEmitters() {
 
-  emitter.on("TumourStudy:NextCase", async (casename: string)=>{
-    commFuncRadiosDisabled.value = true;
-  });
+  emitter.on("TumourStudy:NextCase", emitterOnNextCase);
 
-  emitter.on("TumourStudy:ImageLoaded", () => {
-    commFuncRadiosDisabled.value = false;
-    commFuncRadios.value = "calculator";
-  });
+  emitter.on("TumourStudy:ImageLoaded", emitterOnImageLoaded);
  
 }
 
+const emitterOnNextCase = (casename: string)=>{
+  commFuncRadiosDisabled.value = true;
+};
+
+const emitterOnImageLoaded = () => {
+  commFuncRadiosDisabled.value = false;
+  commFuncRadios.value = "calculator";
+};
+
+onUnmounted(() => {
+  emitter.off("TumourStudy:NextCase", emitterOnNextCase);
+  emitter.off("TumourStudy:ImageLoaded", emitterOnImageLoaded);
+});
 </script>
 

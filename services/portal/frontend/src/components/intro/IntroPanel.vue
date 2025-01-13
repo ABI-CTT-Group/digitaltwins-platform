@@ -79,7 +79,7 @@
 <script setup lang="ts">
 import introJs from 'intro.js';
 import { useTheme } from "vuetify";
-import emitter from "@/plugins/bus";
+import emitter from "@/plugins/custom-emitter";
 
 const theme = useTheme();
 let tipclass = '';
@@ -233,9 +233,9 @@ After clicking once, a slider will appear on the left to control the slice index
       if(!!targetElement){
         var dataToolValue = targetElement.getAttribute("data-tool");
         if(dataToolValue === "expandtool"){
-          emitter.emit("guide_to_drawer_status", "open");
+          emitter.emit("IntroGuide:DrawerStatus", "open");
         }else if(dataToolValue === "operationtool"){
-          emitter.emit("guide_to_operation_status", "open");
+          emitter.emit("IntroGuide:OperationStatus", "open");
         }
       }
     }).start();

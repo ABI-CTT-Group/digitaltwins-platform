@@ -35,7 +35,7 @@ import "copper3d/dist/css/style.css";
 import loadingGif from "@/assets/loading.svg";
 
 import NavBar from "@/components/commonBar/NavBarCalculation.vue";
-import { onMounted, ref, watchEffect } from "vue";
+import { onMounted, ref, watchEffect, onUnmounted } from "vue";
 import { storeToRefs } from "pinia";
 import {
   ITumourStudyAppDetails,
@@ -51,7 +51,7 @@ import {
   getEraserUrlsForOffLine,
   getCursorUrlsForOffLine,
 } from "@/plugins/view-utils/tools";
-// import emitter from "@/plugins/bus";
+// import emitter from "@/plugins/custom-emitter";;
 import emitter from "@/plugins/custom-emitter";
 
 
@@ -104,31 +104,35 @@ const workingCase = ref<ITumourStudyAppDetail | null>(null);
 const eraserUrls = getEraserUrlsForOffLine();
 const cursorUrls = getCursorUrlsForOffLine();
 
+let coreRenderId = 0;
 
-function onEmitter() {
-  emitter.on("TumourStudy:NextCase",()=>{
-    //update incomplete cases
-    incompleteCases.value = getIncompleteCases(studyDetails.value!.details);
-    if (incompleteCases.value.length > 0) {
-      workingCase.value = incompleteCases.value[0];
-      onCaseSwitched()
-    }else{
-      emitter.emit("TumourStudy:AllCasesCompleted");
-    }
-  });
 
-  emitter.on("TumourStudy:CaseReport", async (report:ITumourStudyReport)=>{
-    // update study details
-    workingCase.value!.report = report;
-    workingCase.value!.report.complete = true;
+function manageEmitters() {
+  emitter.on("TumourStudy:NextCase", emitterOnNextCase);
+  emitter.on("TumourStudy:CaseReport", emitterOnCaseReport);
+}
 
-    // save report to backend
-    await useSaveTumourStudyReport(Object.assign({case_name:workingCase.value!.name}, workingCase.value!.report));
-  })
+const emitterOnNextCase = ()=>{
+  //update incomplete cases
+  incompleteCases.value = getIncompleteCases(studyDetails.value!.details);
+  if (incompleteCases.value.length > 0) {
+    workingCase.value = incompleteCases.value[0];
+    onCaseSwitched()
+  }else{
+    emitter.emit("TumourStudy:AllCasesCompleted");
+  }
+}
+const emitterOnCaseReport = async (report:ITumourStudyReport)=>{
+  // update study details
+  workingCase.value!.report = report;
+  workingCase.value!.report.complete = true;
+
+  // save report to backend
+  await useSaveTumourStudyReport(Object.assign({case_name:workingCase.value!.name}, workingCase.value!.report));
 }
 
 onMounted(async () => {
-  onEmitter();
+  manageEmitters();
 
   appRenderer = new Copper.copperRenderer(
     base_container.value as HTMLDivElement,
@@ -274,7 +278,7 @@ watchEffect(() => {
       });
       nrrdTools.draw({ getCalculateSpherePositionsData });
       nrrdTools.setupGUI(gui);
-      scene?.addPreRenderCallbackFunction(nrrdTools.start);
+      coreRenderId = scene?.addPreRenderCallbackFunction(nrrdTools.start) as number;
       // xyz: 84 179 74
       emitter.emit("TumourStudy:NrrdTools", nrrdTools);
     } else {
@@ -387,6 +391,11 @@ const loadCurrentCase = (
   }
 };
 
+onUnmounted(() => {
+  emitter.off("TumourStudy:NextCase", emitterOnNextCase);
+  emitter.off("TumourStudy:CaseReport", emitterOnCaseReport);
+  scene?.removePreRenderCallbackFunction(coreRenderId);
+});
 
 </script>
 

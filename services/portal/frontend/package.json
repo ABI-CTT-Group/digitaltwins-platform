@@ -11,7 +11,7 @@
   "dependencies": {
     "@mdi/font": "7.0.96",
     "axios": "^1.5.0",
-    "copper3d": "^2.2.0",
+    "copper3d": "^2.2.1",
     "copper3d-tree": "^1.0.1",
     "core-js": "^3.29.0",
     "element-plus": "^2.4.1",

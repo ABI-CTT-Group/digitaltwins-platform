@@ -30,7 +30,7 @@
 import LeftPanel from "./components/left-panel-core/left.vue";
 import RightPanel from "./components/right-panel-core/right.vue";
 import { ref, onMounted } from "vue";
-import emitter from "@/plugins/bus";
+import emitter from "@/plugins/custom-emitter";;
 import { throttle } from "./components/tools";
 
 const mainContainer = ref<HTMLDivElement>();
@@ -61,8 +61,8 @@ onMounted(() => {
 });
 
 function manageEmitters() {
-  emitter.on("set_nav_sticky_mode", (val) => {
-    nav_sticky = val as boolean;
+  emitter.on("Common:NavStickyMode", (val: boolean) => {
+    nav_sticky = val;
     if (val && left_container.value?.classList.contains("panel_active")) {
       left_container.value?.classList.add("nav_panel_active");
     } else if (
@@ -135,11 +135,7 @@ function togglePanelActive(panel: string, e: MouseEvent) {
       }
       leftPanelWidth.value = left_container.value?.getBoundingClientRect()
         .width as number;
-      emitter.emit("resize-left-right-panels", {
-        effectPanelSize: leftPanelWidth.value,
-        panel: "left",
-      });
-      emitter.emit("resize-left-right-panels", {
+      emitter.emit("Common:ResizeCopperSceneWhenNavChanged", {
         effectPanelSize: rightPanelWidth.value,
         panel: "right",
       });
@@ -162,7 +158,7 @@ function togglePanelActive(panel: string, e: MouseEvent) {
         // set a time out to make sure after the browser finish render the doms, then we get the correct panel width.
         rightPanelWidth.value = right_container.value?.getBoundingClientRect()
         .width as number;
-        emitter.emit("resize-left-right-panels", {
+        emitter.emit("Common:ResizeCopperSceneWhenNavChanged", {
           effectPanelSize: rightPanelWidth.value,
           panel: "right",
         });

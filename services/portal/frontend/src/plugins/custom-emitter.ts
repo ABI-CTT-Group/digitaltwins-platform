@@ -1,20 +1,59 @@
-const eventNames = ['TumourStudy:Casename', 'TumourStudy:Status', "TumourStudy:NextCase", "TumourStudy:ImageLoaded", "TumourStudy:NrrdTools", "TumourStudy:CaseReport", "TumourStudy:AllCasesCompleted", "Common:NrrdTool"];
+const eventNames = [
+    'TumourStudy:Casename', 
+    'TumourStudy:Status', 
+    "TumourStudy:NextCase", 
+    "TumourStudy:ImageLoaded", 
+    "TumourStudy:NrrdTools", 
+    "TumourStudy:CaseReport", 
+    "TumourStudy:AllCasesCompleted", 
+    "Segmentation:NrrdTools",
+    "Segmentation:CaseDetails",
+    "Segementation:CaseSwitched",
+    "Segmentation:ContrastChanged",
+    "Segmentation:RegisterImageChanged",
+    "Segmentation:RegisterButtonStatusChanged",
+    "Segmentation:ContrastImageStates",
+    "Segmentation:FinishLoadAllCaseImages",
+    "Segmentation:SyncTumourModelButtonClicked",
+    "SegmentationTrial:CalulatorTimerFunction",
+    "SegmentationTrial:DrawSphereFunction",
+    "SegmentationTrial:RightPanelSliderSettingValueUpdated",
+    "Common:NavStickyMode",
+    "Common:DebugMode",
+    "Common:DrawerStatus",
+    "Common:ResizeCopperSceneWhenNavChanged",
+    "Common:CloseCalculatorBox",
+    "Common:OpenCalculatorBox",
+    "Common:DragImageWindowCenter",
+    "Common:DragImageWindowHigh",
+    "Common:ToggleAppTheme",
+    "Common:ToggleBreastVisibility",
+    "IntroGuide:OperationStatus",
+    "IntroGuide:DrawerStatus",
+];
 type EventNames = (typeof eventNames)[number];
 
+const generateEventListeners = () => {
+    const listeners: Record<string, Set<Function>> = {};
+    eventNames.forEach(eventName => {
+        listeners[eventName] = new Set();
+    });
+    return listeners;
+};
+
+
 class EventEmitter {
-    private listeners: Record<string, Set<Function>> = {
-        'TumourStudy:Casename': new Set(),
-        'TumourStudy:Status': new Set(),
-        'TumourStudy:NextCase': new Set(),
-        'TumourStudy:ImageLoaded': new Set(),
-        'TumourStudy:NrrdTools': new Set(),
-        'TumourStudy:CaseReport': new Set(),
-        'TumourStudy:AllCasesCompleted': new Set(),
-    };
+    private listeners: Record<string, Set<Function>> = generateEventListeners();
 
     on(eventName: EventNames, listener: Function) {
         if (eventNames.includes(eventName)) {
             this.listeners[eventName].add(listener);
+        }
+    }
+
+    off(eventName: EventNames, listener: Function) {
+        if (eventNames.includes(eventName)) {
+            this.listeners[eventName].delete(listener);
         }
     }
 

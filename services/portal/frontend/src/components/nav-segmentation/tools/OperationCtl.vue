@@ -50,14 +50,20 @@ import Operation from "@/components/nav-components/Operation.vue"
 import FunctionalControl from "@/components/nav-components/functionalCtl/FunctionalControl.vue";
 import SliderControl from "@/components/nav-components/sliderCtl/SliderControl.vue";
 import ButtonsControl from "@/components/nav-components/buttonCtl/ButtonsControl.vue";
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { storeToRefs } from "pinia";
-import emitter from "@/plugins/bus";
+import emitter from "@/plugins/custom-emitter";
 import * as Copper from "copper3d";
 import {
   useTumourWindowStore
 } from "@/store/app";
 import { setTumourPosition } from "@/components/utils";
+
+type TTumourCenter = { center: { x: number; y: number; z: number; }};
+type TGuiSettings = {
+    guiState: Copper.IGUIStates;
+    guiSetting: Copper.IGuiParameterSettings;
+};
 
 // load tumour window
 const { tumourWindow } = storeToRefs(useTumourWindowStore());
@@ -89,7 +95,7 @@ const contrastDragSensitivity = ref(25);
 const guiSettings = ref<any>();
 let nrrdTools:Copper.NrrdTools;
 
-type TTumourCenter = { center: { x: number; y: number; z: number; }};
+
 
 const commFuncRadioValues = ref([
   { label: "Pencil", value: "segmentation", color: "success" },
@@ -139,50 +145,52 @@ onMounted(() => {
 });
 
 function manageEmitters() {
+  emitter.on("Segementation:CaseSwitched", emitterOnCaseSwitched);
+  emitter.on("Segmentation:FinishLoadAllCaseImages", emitterOnFinishLoadAllCaseImages);
+  emitter.on("Common:DragImageWindowCenter", emitterOnDragImageWindowCenter);
+  emitter.on("Common:DragImageWindowHigh", emitterOnDragImageWindowHigh);
+  emitter.on("Segmentation:NrrdTools", emitterOnNrrdTools);
+}
 
-  emitter.on("caseswitched", async (casename)=>{
-    try{
-      setTimeout(()=>{
-        commFuncRadios.value = "segmentation"
-      },500)
-    }catch(e){
-      console.log("first time load images -- ignore");
-    }
-    commFuncRadiosDisabled.value = true;
-    commSliderRadiosDisabled.value = true;
-    sliderDisabled.value = true;
+const emitterOnCaseSwitched = async (casename:string) => {
+  try{
+    setTimeout(()=>{
+      commFuncRadios.value = "segmentation"
+    },500)
+  }catch(e){
+    console.log("first time load images -- ignore");
+  }
+  commFuncRadiosDisabled.value = true;
+  commSliderRadiosDisabled.value = true;
+  sliderDisabled.value = true;
 
-    btnUndoDisabled.value = true;
-    btnResetZoomDisabled.value = true;
-    btnClearDisabled.value = true;
-    btnClearAllDisabled.value = true;
-    await getTumourWindowChrunk(casename as string);
-  });
+  btnUndoDisabled.value = true;
+  btnResetZoomDisabled.value = true;
+  btnClearDisabled.value = true;
+  btnClearAllDisabled.value = true;
+  await getTumourWindowChrunk(casename as string);
+}
+const emitterOnFinishLoadAllCaseImages = (val:TGuiSettings) => {
+  guiSettings.value = val;
+  commSliderRadios.value = "globalAlpha";
+  updateSliderSettings();
+  commFuncRadiosDisabled.value = false;
+  commSliderRadiosDisabled.value = false;
+  sliderDisabled.value = false;
 
-  emitter.on("finishloadcases", (val) => {
-    guiSettings.value = val;
-    commSliderRadios.value = "globalAlpha";
-    updateSliderSettings();
-    commFuncRadiosDisabled.value = false;
-    commSliderRadiosDisabled.value = false;
-    sliderDisabled.value = false;
-
-    btnUndoDisabled.value = false;
-    btnResetZoomDisabled.value = false;
-    btnClearDisabled.value = false;
-    btnClearAllDisabled.value = false;
-  });
-
-  emitter.on("dragImageWindowCenter", (step)=>{
-    dragToChangeImageWindow("windowLow", step as number);
-  })
-  emitter.on("dragImageWindowHigh", (step)=>{
-    dragToChangeImageWindow("windowHigh", step as number);
-  })
-  // xyz: 84 179 74
-  emitter.on("loadcalculatortumour", (tool)=>{
-    nrrdTools = tool as Copper.NrrdTools
-  });
+  btnUndoDisabled.value = false;
+  btnResetZoomDisabled.value = false;
+  btnClearDisabled.value = false;
+  btnClearAllDisabled.value = false;
+}
+const emitterOnDragImageWindowCenter = (step: number)=>{
+  dragToChangeImageWindow("windowLow", step);
+}
+const emitterOnDragImageWindowHigh = (step: number)=>{
+  dragToChangeImageWindow("windowHigh", step);
+}
+const emitterOnNrrdTools = (tool:Copper.NrrdTools)=>{
+  nrrdTools = tool
 }
 
 function dragToChangeImageWindow(type:"windowHigh"|"windowLow", step:number){
@@ -214,13 +222,13 @@ function setupTumourSpherePosition(){
 function toggleFuncRadios(val: any) {
 
   if(val === "calculator"){
-    emitter.emit("open_calculate_box", "Calculator")
+    emitter.emit("Common:OpenCalculatorBox", "Calculator")
     guiSettings.value.guiState["calculator"] = true;
     guiSettings.value.guiState["sphere"] = false;
     setupTumourSpherePosition()
-    emitter.emit("calculator timer", "start");
+    emitter.emit("SegmentationTrial:CalulatorTimerFunction", "start");
   }else{
-    emitter.emit("close_calculate_box", "Calculator")
+    emitter.emit("Common:CloseCalculatorBox", "Calculator")
     guiSettings.value.guiState["calculator"] = false;
     if (val === "sphere") {
       guiSettings.value.guiState["sphere"] = true;
@@ -316,6 +324,14 @@ function updateSliderSettings() {
 function onBtnClick(val: any) {
   guiSettings.value.guiState[val].call();
 }
+
+onUnmounted(() => {
+  emitter.off("Segementation:CaseSwitched", emitterOnCaseSwitched);
+  emitter.off("Segmentation:FinishLoadAllCaseImages", emitterOnFinishLoadAllCaseImages);
+  emitter.off("Common:DragImageWindowCenter", emitterOnDragImageWindowCenter);
+  emitter.off("Common:DragImageWindowHigh", emitterOnDragImageWindowHigh);
+  emitter.off("Segmentation:NrrdTools", emitterOnNrrdTools);
+});
 
 </script>
 

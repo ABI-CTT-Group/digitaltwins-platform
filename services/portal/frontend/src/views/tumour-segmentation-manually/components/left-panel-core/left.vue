@@ -12,7 +12,7 @@
       @get-load-files-urls="readyToLoad"
     ></Upload>
 
-    <div v-show="showCalculatorValue" class="left-value-panel mt-2">
+    <div v-show="showCalculatorValue">
       <TumourDistancePanel :dts="dts" :dtn="dtn" :dtr="dtr" />
     </div>
   </div>
@@ -36,7 +36,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import TumourDistancePanel from "@/components/view-components/TumourDistancePanel.vue";
+import TumourDistancePanel from "@/components/view-components/TumourDistancePanelLeft.vue";
 
 import { GUI, GUIController } from "dat.gui";
 import * as Copper from "copper3d";
@@ -46,7 +46,7 @@ import loadingGif from "@/assets/loading.svg";
 
 import NavBar from "@/components/commonBar/NavBar.vue";
 import Upload from "@/components/commonBar/Upload.vue";
-import { onMounted, ref, watchEffect } from "vue";
+import { onMounted, ref, watchEffect, onUnmounted } from "vue";
 import { storeToRefs } from "pinia";
 import {
   IStoredMasks,
@@ -77,7 +77,7 @@ import {
   getEraserUrlsForOffLine,
   getCursorUrlsForOffLine,
 } from "@/plugins/view-utils/tools";
-import emitter from "@/plugins/bus";
+import emitter from "@/plugins/custom-emitter";
 import { convertInitMaskData } from "@/plugins/worker";
 
 
@@ -171,63 +171,50 @@ const cursorUrls = getCursorUrlsForOffLine();
 
 const showCalculatorValue = ref(false);
 
+let coreRenderId = 0;
+
 withDefaults(defineProps<Props>(), {
   panelWidth: 1000,
 });
 
-function onEmitter() {
-  emitter.on("open_calculate_box", (val)=>{
-    showCalculatorValue.value = true
-  })
-  emitter.on("close_calculate_box", (val)=>{
-    showCalculatorValue.value = false
-  })
-
-  emitter.on("show_debug_mode", (flag) => {
-    debug_mode.value = flag as boolean;
-  });
-
-  // emitter.on("resize-left-right-panels", (effects) => {
-  //   console.log((effects as any).effectPanelSize);
-
-  //   // if ((effects as any).panel === "left") {
-  //   //   if ((effects as any).effectPanelSize < 600) {
-  //   //     showNavToolsBar.value = false;
-  //   //     return;
-  //   //   }
-  //   // }
-  //   // showNavToolsBar.value = true;
-  // });
-
-  emitter.on("toggleTheme", () => {
-    base_container.value?.classList.toggle("dark");
-  });
-  emitter.on("leftFullScreen", (flag) => {
-    if (flag) {
-      (nav_bar_left_container.value as HTMLDivElement).style.width = "90%";
-    } else {
-      (nav_bar_left_container.value as HTMLDivElement).style.width = "60%";
-    }
-  });
-  // emitter.on("containerHight", (h) => {
-  //   (base_container.value as HTMLDivElement).style.height = `${h}vh`;
-  // });
-  emitter.on("caseswitched", async (casename) => {
-    await onCaseSwitched(casename as string);
-  });
-
-  emitter.on("contrastselected", (result) => {
-    const { contrastState, order } = result as any;
-    onContrastSelected(contrastState, order);
-  });
-
-  emitter.on("registerimagechanged", async (result) => {
-    await onRegistedStateChanged(result as boolean);
-  });
+function manageEmitters() {
+  emitter.on("Common:OpenCalculatorBox", emitterOnOpenCalculatorBox)
+  emitter.on("Common:CloseCalculatorBox", emitterOnCloseCalculatorBox)
+  emitter.on("Common:DebugMode", emitterOnDebugMode);
+  emitter.on("Common:ToggleAppTheme", emitterOnToggleAppTheme);
+  emitter.on("Segementation:CaseSwitched", emitterOnCaseSwitched);
+  emitter.on("Segmentation:ContrastChanged", emitterOnContrastChanged);
+  emitter.on("Segmentation:RegisterImageChanged", emitteOnRegisterImageChanged);
 }
 
+const emitterOnOpenCalculatorBox =  ()=>{
+    showCalculatorValue.value = true
+};
+const emitterOnCloseCalculatorBox = ()=>{
+    showCalculatorValue.value = false
+};
+const emitterOnDebugMode = (flag: boolean) => {
+  debug_mode.value = flag;
+};
+const emitterOnToggleAppTheme = () => {
+    base_container.value?.classList.toggle("dark");
+};
+const emitterOnCaseSwitched = async (casename: string) => {
+  await onCaseSwitched(casename);
+};
+const emitterOnContrastChanged = (result: any) => {
+  const { contrastState, order } = result;
+  onContrastSelected(contrastState, order);
+};
+const emitteOnRegisterImageChanged = async (result: boolean) => {
+    await onRegistedStateChanged(result);
+};
+
 onMounted(async () => {
-  onEmitter();
+
+  console.log("left panel mounted");
+  
+  manageEmitters();
 
   await getInitData();
   c_gui.value?.appendChild(gui.domElement);
@@ -242,7 +229,7 @@ onMounted(async () => {
 
   nrrdTools = new Copper.NrrdTools(canvas_container.value as HTMLDivElement);
 
-  emitter.emit("Segmentation:NrrdTool", nrrdTools);
+  emitter.emit("Segmentation:NrrdTools", nrrdTools);
 
   nrrdTools.setDisplaySliceIndexPanel(
     slice_index_container.value as HTMLDivElement
@@ -267,12 +254,6 @@ onMounted(async () => {
     loadBarMain.loadingContainer
   );
 
-  // document.addEventListener("keydown", (e) => {
-  //   if (e.code === "KeyF") {
-  //     Copper.fullScreenListenner(base_container.value as HTMLDivElement);
-  //   }
-  // });
-
   setupGui();
   setupCopperScene("nrrd_tools");
   appRenderer.animate();
@@ -283,6 +264,9 @@ async function getInitData() {
 }
 
 const readyToLoad = (urlsArray: Array<string>, name: string) => {
+
+  console.log("readyToLoad from", name);
+  
   fileNum.value = urlsArray.length;
   allContrastUrls = urlsArray;
   if (allContrastUrls.length > 0) {
@@ -299,7 +283,7 @@ const onSaveMask = async (flag: boolean) => {
     switchAnimationStatus("flex", "Saving masks data, please wait......");
     await sendSaveMask(currentCaseId);
     switchAnimationStatus("none");
-    emitter.emit("syncTumourObjMesh", true);
+    emitter.emit("Segmentation:SyncTumourModelButtonClicked", true);
   }
 };
 
@@ -419,7 +403,7 @@ const getSphereData = async (sphereOrigin: number[], sphereRadius: number) => {
     sphereOriginMM: [sphereOrigin[0],sphereOrigin[1],sphereOrigin[2]*nrrdTools.nrrd_states.voxelSpacing[2]],
   };
 
-  emitter.emit("drawSphere",sphereData);
+  emitter.emit("SegmentationTrial:DrawSphereFunction", sphereData);
 
   await sendSaveSphere(sphereData);
 };
@@ -431,7 +415,7 @@ function distance3D(x1:number, y1:number, z1:number, x2:number, y2:number, z2:nu
     return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-const getCalculateSpherePositionsData = async (tumourSphereOrigin:Copper.ICommXYZ, skinSphereOrigin:Copper.ICommXYZ, ribSphereOrigin:Copper.ICommXYZ, nippleSphereOrigin:Copper.ICommXYZ, aix:"x"|"y"|"z")=>{
+const getCalculateSpherePositionsData = async (tumourSphereOrigin:Copper.ICommXYZ | null, skinSphereOrigin:Copper.ICommXYZ | null, ribSphereOrigin:Copper.ICommXYZ | null, nippleSphereOrigin:Copper.ICommXYZ | null, aix:"x"|"y"|"z")=>{
     // Note: the tumour center now we set to (pixel, pixel, mm) in Axial view, in calculate distance we need to convert it to (mm, mm, mm)
     // pixel / spacing = mm
     // mm * spacing = pixel
@@ -458,7 +442,7 @@ const getCalculateSpherePositionsData = async (tumourSphereOrigin:Copper.ICommXY
    
    // send status to calculator component
    if (nrrdTools.gui_states.cal_distance !== "tumour"){
-    emitter.emit("calculator timer", nrrdTools.gui_states.cal_distance);
+    emitter.emit("SegmentationTrial:CalulatorTimerFunction", nrrdTools.gui_states.cal_distance);
    }
    
 }
@@ -491,9 +475,9 @@ const getMaskData = async (
 
 const getContrastMove = (step:number, towards:"horizental"|"vertical") =>{
   if(towards === "horizental"){
-    emitter.emit("dragImageWindowCenter", step)
+    emitter.emit("Common:DragImageWindowCenter", step)
   }else if(towards === "vertical"){
-    emitter.emit("dragImageWindowHigh", step)
+    emitter.emit("Common:DragImageWindowHigh", step)
   }
   
 }
@@ -547,10 +531,10 @@ watchEffect(() => {
         nrrdTools.draw({ getMaskData, getSphereData, getCalculateSpherePositionsData});
         nrrdTools.setupGUI(gui);
         nrrdTools.enableContrastDragEvents(getContrastMove)
-        scene?.addPreRenderCallbackFunction(nrrdTools.start);
+        coreRenderId = scene?.addPreRenderCallbackFunction(nrrdTools.start) as number;
         setUpGuiAfterLoading();
         // xyz: 84 179 74
-        emitter.emit("loadcalculatortumour", nrrdTools);
+        // emitter.emit("loadcalculatortumour", nrrdTools);
       } else {
         nrrdTools.redrawMianPreOnDisplayCanvas();
       }
@@ -573,7 +557,7 @@ watchEffect(() => {
       }
 
       // send contrast name with states to NrrdImageCtl.vue
-      emitter.emit("setcontrastnames", selectedState);
+      emitter.emit("Segmentation:ContrastImageStates", selectedState);
 
       Copper.removeGuiFolderChilden(selectedContrastFolder);
       for (let i = 0; i < allSlices.length; i++) {
@@ -588,7 +572,7 @@ watchEffect(() => {
       initSliceIndex.value = 0;
       filesCount.value = 0;
       const guiSettings = nrrdTools.getGuiSettings();
-      emitter.emit("finishloadcases", guiSettings);
+      emitter.emit("Segmentation:FinishLoadAllCaseImages", guiSettings);
     }, 1000);
     firstLoad = false;
     loadCases = false;
@@ -695,6 +679,7 @@ function onContrastSelected(flag: boolean, i: number) {
 }
 
 async function onCaseSwitched(casename: string) {
+  
   loadOrigin = false;
   switchAnimationStatus("flex", "Saving masks data, please wait......");
   // revoke the regsiter images
@@ -729,7 +714,6 @@ async function onCaseSwitched(casename: string) {
     
     switchAnimationStatus("flex", "Prepare Nrrd files, please wait......");
     // await getCaseFileUrls(value);
-
     const requests = findRequestUrls(
       cases.value?.details as Array<IDetails>,
       currentCaseId,
@@ -744,7 +728,7 @@ async function onCaseSwitched(casename: string) {
       const details = cases.value?.details;
       console.log(allContrastUrls);
       
-      emitter.emit("casename", {
+      emitter.emit("Segmentation:CaseDetails", {
         currentCaseId,
         details,
         maskNrrd: !!allContrastUrls[1]?allContrastUrls[1]:allContrastUrls[0],
@@ -769,7 +753,7 @@ async function onRegistedStateChanged(isShowRegisterImage: boolean) {
       allSlices = [...originAllSlices];
       allLoadedMeshes = [...originAllMeshes];
       filesCount.value = allContrastUrls.length;
-      emitter.emit("showRegBtnToRight", {
+      emitter.emit("Segmentation:RegisterButtonStatusChanged", {
         maskNrrdMeshes: !!originAllMeshes[1]?originAllMeshes[1]: originAllMeshes[0],
         maskSlices: !!originAllSlices[1]?originAllSlices[1]:originAllSlices[0],
         url: !!allContrastUrls[1]?allContrastUrls[1]:allContrastUrls[0],
@@ -793,7 +777,7 @@ async function onRegistedStateChanged(isShowRegisterImage: boolean) {
     if (!!originUrls.value?.nrrdUrls && originUrls.value?.nrrdUrls.length > 0) {
       allContrastUrls = originUrls.value.nrrdUrls;
       readyToLoad(allContrastUrls, "origin")?.then((data) => {
-        emitter.emit("showRegBtnToRight", {
+        emitter.emit("Segmentation:RegisterButtonStatusChanged", {
           maskNrrdMeshes: data.meshes[1],
           maskSlices: data.slices[1],
           url:  !!allContrastUrls[1]?allContrastUrls[1]:allContrastUrls[0],
@@ -808,7 +792,7 @@ async function onRegistedStateChanged(isShowRegisterImage: boolean) {
       allSlices = [...defaultRegAllSlices];
       allLoadedMeshes = [...defaultRegAllMeshes];
       filesCount.value = allContrastUrls.length;
-      emitter.emit("showRegBtnToRight", {
+      emitter.emit("Segmentation:RegisterButtonStatusChanged", {
         maskNrrdMeshes: !!defaultRegAllMeshes[1]?defaultRegAllMeshes[1]:defaultRegAllMeshes[0],
         maskSlices: !!defaultRegAllSlices[1]?defaultRegAllSlices[1]:defaultRegAllSlices[0],
         url:  !!allContrastUrls[1]?allContrastUrls[1]:allContrastUrls[0],
@@ -864,6 +848,27 @@ function switchRegCheckBoxStatus(
   checkbox.style.pointerEvents = pointerEvents;
   checkbox.style.opacity = opacity;
 }
+
+onUnmounted(() => {
+
+  emitter.off("Common:OpenCalculatorBox", emitterOnOpenCalculatorBox)
+  emitter.off("Common:CloseCalculatorBox", emitterOnCloseCalculatorBox)
+  emitter.off("Common:DebugMode", emitterOnDebugMode);
+  emitter.off("Common:ToggleAppTheme", emitterOnToggleAppTheme);
+  emitter.off("Segementation:CaseSwitched", emitterOnCaseSwitched);
+  emitter.off("Segmentation:ContrastChanged", emitterOnContrastChanged);
+  emitter.off("Segmentation:RegisterImageChanged", emitteOnRegisterImageChanged);
+  nrrdTools.clear();
+  allContrastUrls.length = 0;
+  allSlices.length = 0;
+  allLoadedMeshes.length = 0;
+  originAllSlices.length = 0;
+  defaultRegAllSlices.length = 0;
+  originAllMeshes.length = 0;
+  defaultRegAllMeshes.length = 0;
+  scene?.removePreRenderCallbackFunction(coreRenderId);
+});
+ 
 </script>
 
 <style>
@@ -955,38 +960,4 @@ function switchRegCheckBoxStatus(
   max-height: 80%;
 }
 
-.left-value-panel {
-  position: absolute !important;
-  z-index: 10000;
-  left: 15px;
-  top: 0px;
-  width: 200px;
-  height: 80px;
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  border: 2px solid rgba(255, 255, 255, 0.3) !important;
-  border-radius: 10px !important;
-  padding: 10px 15px !important;
-  font-size: smaller !important;
-  user-select: text !important;
-  -webkit-user-select: text !important;
-  /* display: flex; */
-  /* align-items: center; */
-  /* justify-content: center; */
-}
-
-.left-value-panel > div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.left-value-panel .dts {
-  color: #FFEB3B;
-}
-.left-value-panel .dtr {
-  color: darkcyan;
-}
-.left-value-panel .dtn {
-  color: hotpink;
-}
 </style>

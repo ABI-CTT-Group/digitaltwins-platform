@@ -51,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, toRefs, reactive } from "vue";
+import { ref, onMounted, toRefs, reactive, onUnmounted} from "vue";
 import sagittalImg_white from "@/assets/images/person_left_view_white.png";
 import axialImg_white from "@/assets/images/person_top_down_white.png";
 import coronalImg_white from "@/assets/images/person_anterior_white.png";
@@ -60,11 +60,12 @@ import axialImg_blank from "@/assets/images/person_top_down.png";
 import coronalImg_blank from "@/assets/images/person_anterior.png";
 import clockImg from "@/assets/images/clock_white.png";
 import resetImg from "@/assets/images/reset.png";
-import emitter from "@/plugins/bus";
+import emitter from "@/plugins/custom-emitter";
 import {PanelOperationManager} from "@/plugins/view-utils/utils-right"
 
 type Props = {
   panelWidth: number;
+
 };
 interface ISliderView{
     color:string,
@@ -123,14 +124,6 @@ const viewData = {
 
   }
 }
-  // {
-  // name:"Clock function",
-  // label:"clock",
-  // img:clockImg
-  // },
- 
-  
-
 
 const slider = ref(0);
 const sliderColor = ref("grey");
@@ -188,26 +181,36 @@ const onDoubleClick = (view: string) => {
 };
 
 onMounted(() => {
-  emitter.on("toggleTheme", () => {
-    darkMode.value = !darkMode.value;
-    nav_container.value?.classList.toggle("dark");
-  });
-  emitter.on("sendMountSliderSettings", (settings:any)=>{
-    isBtnDisabled.value = false;
-    sliderViews.sagittal.max = settings.dimensions[0] - 1;
-    sliderViews.axial.max = settings.dimensions[2] - 1;
-    sliderViews.coronal.max = settings.dimensions[1] - 1;
-    sliderViews.sagittal.value = settings.currentValue[0];
-    sliderViews.axial.value = settings.currentValue[2];
-    sliderViews.coronal.value = settings.currentValue[1];
-    operator = settings.panelOperator as PanelOperationManager;
-  });
-  // switch cases
-  emitter.on("casename",()=>{
-    isBtnDisabled.value = true;
-    mountSlider("reset")
-  })
+  manageEmitters();
 });
+
+const manageEmitters = () => {
+  emitter.on("Common:ToggleAppTheme", emitterOnToggleAppTheme);
+  emitter.on("SegmentationTrial:RightPanelSliderSettingValueUpdated", emitterOnRightPanelSliderSettingValueUpdated);
+  // switch cases
+  emitter.on("Segmentation:CaseDetails", emitterOnCaseDetails)
+};
+
+const emitterOnToggleAppTheme = () => {
+  darkMode.value = !darkMode.value;
+  nav_container.value?.classList.toggle("dark");
+}
+
+const emitterOnRightPanelSliderSettingValueUpdated = (settings:any)=>{
+  isBtnDisabled.value = false;
+  sliderViews.sagittal.max = settings.dimensions[0] - 1;
+  sliderViews.axial.max = settings.dimensions[2] - 1;
+  sliderViews.coronal.max = settings.dimensions[1] - 1;
+  sliderViews.sagittal.value = settings.currentValue[0];
+  sliderViews.axial.value = settings.currentValue[2];
+  sliderViews.coronal.value = settings.currentValue[1];
+  operator = settings.panelOperator as PanelOperationManager;
+}
+
+const emitterOnCaseDetails = ()=>{
+  isBtnDisabled.value = true;
+  mountSlider("reset")
+}
 
 function mountSlider(view:string){
   
@@ -250,6 +253,12 @@ function toggleSlider(val: number) {
    
   }
 }
+
+onUnmounted(() => {
+  emitter.off("Common:ToggleAppTheme", emitterOnToggleAppTheme);
+  emitter.off("SegmentationTrial:RightPanelSliderSettingValueUpdated", emitterOnRightPanelSliderSettingValueUpdated);
+  emitter.off("Segmentation:CaseDetails", emitterOnCaseDetails)
+});
 </script>
 
 <style scoped>

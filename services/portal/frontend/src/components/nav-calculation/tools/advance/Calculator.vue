@@ -16,7 +16,7 @@
   
 <script setup lang="ts">
 import CalculatorUI from "@/components/nav-components/tumour-study-calculator-ui/CalculatorUI.vue";
-import { ref, onMounted, watch, computed } from "vue";
+import { ref, onMounted, onUnmounted} from "vue";
 import * as Copper from "copper3d";
 import emitter from "@/plugins/custom-emitter";
 import { ITumourStudyAppDetail, ICommXYZ } from "@/models/apiTypes";
@@ -63,40 +63,48 @@ onMounted(() => {
 // })
 
 function manageEmitters() {
-  emitter.on("TumourStudy:ImageLoaded", (study: ITumourStudyAppDetail) => {
-    selectedClockFace.value = "";
-    commFuncRadioValues.value[0].disabled = false;
-    commFuncRadioValues.value[1].disabled = true;
-    commFuncRadioValues.value[2].disabled = true;
-    commFuncRadioValues.value[3].disabled = true;
-    finishBtnDisabled.value = true;
-    clockFaceDisabled.value = true;
-    workingCase = study;
-    calculatorPickerRadios.value = "nipple";
-    // @ts-ignore
-    guiSettings.value!.guiState["cal_distance"] = "";
-    setupTumourSpherePosition()
-    toggleCalculatorPickerRadios("nipple");
-  });
+  emitter.on("TumourStudy:ImageLoaded", emitterOnImageLoaded);
 
-  emitter.on("TumourStudy:Status", (status: string, position:number[], distance:number)=>{
-    const convertedPosition = {x: customRound(position[0]), y: customRound(position[1]), z: customRound(position[2])};
-    calculatorTimerReport(status, convertedPosition, distance);
-  })
+  emitter.on("TumourStudy:Status", emitterOnStatus);
 
   // First time init Calculator
-  emitter.on("TumourStudy:NrrdTools", (tool: Copper.NrrdTools)=>{
-    nrrdTools.value = tool
-    guiSettings.value = nrrdTools.value.getGuiSettings()
-    guiSettings.value!.guiState["calculator"] = true;
-    guiSettings.value!.guiState["sphere"] = false;
-    guiSettings.value!.guiSetting!["calculator"].onChange();
-  });
+  emitter.on("TumourStudy:NrrdTools", emitterOnNrrdTools);
 
-  emitter.on("TumourStudy:AllCasesCompleted", ()=>{
-    showBtn.value = true;
-    pinkBtnTitle.value = "End Session";
-  });
+  emitter.on("TumourStudy:AllCasesCompleted", emitterOnAllCasesCompleted);
+}
+
+const emitterOnImageLoaded = (study: ITumourStudyAppDetail) => {
+  selectedClockFace.value = "";
+  commFuncRadioValues.value[0].disabled = false;
+  commFuncRadioValues.value[1].disabled = true;
+  commFuncRadioValues.value[2].disabled = true;
+  commFuncRadioValues.value[3].disabled = true;
+  finishBtnDisabled.value = true;
+  clockFaceDisabled.value = true;
+  workingCase = study;
+  calculatorPickerRadios.value = "nipple";
+  // @ts-ignore
+  guiSettings.value!.guiState["cal_distance"] = "";
+  setupTumourSpherePosition()
+  toggleCalculatorPickerRadios("nipple");
+}
+
+const emitterOnStatus = (status: string, position:number[], distance:number)=>{
+  const convertedPosition = {x: customRound(position[0]), y: customRound(position[1]), z: customRound(position[2])};
+  calculatorTimerReport(status, convertedPosition, distance);
+}
+
+const emitterOnNrrdTools = (tool: Copper.NrrdTools)=>{
+  nrrdTools.value = tool
+  guiSettings.value = nrrdTools.value.getGuiSettings()
+  guiSettings.value!.guiState["calculator"] = true;
+  guiSettings.value!.guiState["sphere"] = false;
+  guiSettings.value!.guiSetting!["calculator"].onChange();
+}
+
+const emitterOnAllCasesCompleted = ()=>{
+  showBtn.value = true;
+  pinkBtnTitle.value = "End Session";
 }
 
 
@@ -233,15 +241,21 @@ return formattedTime;
 
 function timeDifferenceToHMS(diffInMillis:number) {
 
-const hours = Math.floor(diffInMillis / (1000 * 60 * 60)); 
-const minutes = Math.floor((diffInMillis % (1000 * 60 * 60)) / (1000 * 60));
-const seconds = Math.floor((diffInMillis % (1000 * 60)) / 1000); 
+  const hours = Math.floor(diffInMillis / (1000 * 60 * 60)); 
+  const minutes = Math.floor((diffInMillis % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diffInMillis % (1000 * 60)) / 1000); 
 
-const formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  const formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
-return formattedTime;
+  return formattedTime;
 }
 
+onUnmounted(() => {
+  emitter.off("TumourStudy:ImageLoaded", emitterOnImageLoaded);
+  emitter.off("TumourStudy:Status", emitterOnStatus);
+  emitter.off("TumourStudy:NrrdTools", emitterOnNrrdTools);
+  emitter.off("TumourStudy:AllCasesCompleted", emitterOnAllCasesCompleted);
+});
 </script>
 
 <style scoped></style>

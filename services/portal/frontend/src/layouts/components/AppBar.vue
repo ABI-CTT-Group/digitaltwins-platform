@@ -39,9 +39,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import IntroPanel from "@/components/intro/IntroPanel.vue";
-import emitter from "@/plugins/bus";
+import emitter from "@/plugins/custom-emitter";;
 
 
 defineProps({
@@ -65,31 +65,37 @@ onMounted(() => {
 
 function manageEmitters() {
   // set_nav_sticky_mode
+  emitter.on("Common:NavStickyMode", emitterOnNavStickyMode);
+  emitter.on("IntroGuide:DrawerStatus", emitterOnDrawerStatus);
+}
 
-  emitter.on("set_nav_sticky_mode", (val) => {
-    temporary.value = !val;
-    emitter.emit("resize-left-right-panels", {
-      panel: "right",
-    });
+const emitterOnNavStickyMode = (val:boolean) => {
+  temporary.value = !val;
+  emitter.emit("Common:ResizeCopperSceneWhenNavChanged", {
+    panel: "right",
   });
-
-  emitter.on("guide_to_drawer_status", (val)=>{
-    if(val==="open" && !drawer.value){
-      toggleDrawer();
-    }
-  });
+}
+const emitterOnDrawerStatus = (val:string)=>{
+  if(val==="open" && !drawer.value){
+    toggleDrawer();
+  }
 }
 
 function toggleDrawer() {
   drawer.value = !drawer.value;
   temporary.value = !drawer.value;
 
-  emitter.emit("drawer_status", drawer.value);
-  emitter.emit("set_nav_sticky_mode", drawer.value);
-  emitter.emit("resize-left-right-panels", {
+  emitter.emit("Common:DrawerStatus", drawer.value);
+  emitter.emit("Common:NavStickyMode", drawer.value);
+  emitter.emit("Common:ResizeCopperSceneWhenNavChanged", {
     panel: "right",
   });
 }
+
+onUnmounted(() => {
+  emitter.off("Common:NavStickyMode", emitterOnNavStickyMode);
+  emitter.off("IntroGuide:DrawerStatus", emitterOnDrawerStatus);
+});
 
 </script>
 <style></style>

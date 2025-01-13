@@ -77,7 +77,7 @@ import {
   getEraserUrlsForOffLine,
   getCursorUrlsForOffLine,
 } from "@/plugins/view-utils/tools";
-import emitter from "@/plugins/bus";
+import emitter from "@/plugins/custom-emitter";;
 import { convertInitMaskData } from "@/plugins/worker";
 
 type Props = {
@@ -173,45 +173,45 @@ withDefaults(defineProps<Props>(), {
   panelWidth: 1000,
 });
 
-function onEmitter() {
-  emitter.on("open_calculate_box", (val)=>{
+function manageEmitters() {
+  emitter.on("Common:OpenCalculatorBox", ()=>{
     showCalculatorValue.value = true
   })
-  emitter.on("close_calculate_box", (val)=>{
+  emitter.on("Common:CloseCalculatorBox", ()=>{
     showCalculatorValue.value = false
   })
 
-  emitter.on("show_debug_mode", (flag) => {
-    debug_mode.value = flag as boolean;
+  emitter.on("Common:DebugMode", (flag: boolean) => {
+    debug_mode.value = flag;
   });
 
-  emitter.on("toggleTheme", () => {
+  emitter.on("Common:ToggleAppTheme", () => {
     base_container.value?.classList.toggle("dark");
   });
-  emitter.on("leftFullScreen", (flag) => {
-    if (flag) {
-      (nav_bar_left_container.value as HTMLDivElement).style.width = "90%";
-    } else {
-      (nav_bar_left_container.value as HTMLDivElement).style.width = "60%";
-    }
-  });
+  // emitter.on("leftFullScreen", (flag) => {
+  //   if (flag) {
+  //     (nav_bar_left_container.value as HTMLDivElement).style.width = "90%";
+  //   } else {
+  //     (nav_bar_left_container.value as HTMLDivElement).style.width = "60%";
+  //   }
+  // });
 
-  emitter.on("caseswitched", async (casename) => {
+  emitter.on("Segementation:CaseSwitched", async (casename:string) => {
     await onCaseSwitched(casename as string);
   });
 
-  emitter.on("contrastselected", (result) => {
+  emitter.on("Segmentation:ContrastChanged", (result: any) => {
     const { contrastState, order } = result as any;
     onContrastSelected(contrastState, order);
   });
 
-  emitter.on("registerimagechanged", async (result) => {
-    await onRegistedStateChanged(result as boolean);
+  emitter.on("Segmentation:RegisterImageChanged", async (result: boolean) => {
+    await onRegistedStateChanged(result);
   });
 }
 
 onMounted(async () => {
-  onEmitter();
+  manageEmitters();
 
   await getInitData();
   c_gui.value?.appendChild(gui.domElement);
@@ -226,7 +226,7 @@ onMounted(async () => {
 
   nrrdTools = new Copper.NrrdTools(canvas_container.value as HTMLDivElement);
 
-  emitter.emit("nrrd_tools", nrrdTools);
+  emitter.emit("Segmentation:NrrdTools", nrrdTools);
   nrrdTools.setDisplaySliceIndexPanel(
     slice_index_container.value as HTMLDivElement
   );
@@ -282,7 +282,7 @@ const onSaveMask = async (flag: boolean) => {
     switchAnimationStatus("flex", "Saving masks data, please wait......");
     await sendSaveMask(currentCaseId);
     switchAnimationStatus("none");
-    emitter.emit("syncTumourObjMesh", true);
+    emitter.emit("Segmentation:SyncTumourModelButtonClicked", true);
   }
 };
 
@@ -402,7 +402,7 @@ const getSphereData = async (sphereOrigin: number[], sphereRadius: number) => {
     sphereOriginMM: [sphereOrigin[0],sphereOrigin[1],sphereOrigin[2]*nrrdTools.nrrd_states.voxelSpacing[2]],
   };
 
-  emitter.emit("drawSphere",sphereData);
+  emitter.emit("SegmentationTrial:DrawSphereFunction",sphereData);
 
   await sendSaveSphere(sphereData);
 };
@@ -441,7 +441,7 @@ const getCalculateSpherePositionsData = async (tumourSphereOrigin:Copper.ICommXY
    
    // send status to calculator component
    if (nrrdTools.gui_states.cal_distance !== "tumour"){
-    emitter.emit("calculator timer", nrrdTools.gui_states.cal_distance);
+    emitter.emit("SegmentationTrial:CalulatorTimerFunction", nrrdTools.gui_states.cal_distance);
    }
    
 }
@@ -474,9 +474,9 @@ const getMaskData = async (
 
 const getContrastMove = (step:number, towards:"horizental"|"vertical") =>{
   if(towards === "horizental"){
-    emitter.emit("dragImageWindowCenter", step)
+    emitter.emit("Common:DragImageWindowCenter", step)
   }else if(towards === "vertical"){
-    emitter.emit("dragImageWindowHigh", step)
+    emitter.emit("Common:DragImageWindowHigh", step)
   }
   
 }
@@ -533,7 +533,7 @@ watchEffect(() => {
         scene?.addPreRenderCallbackFunction(nrrdTools.start);
         setUpGuiAfterLoading();
         // xyz: 84 179 74
-        emitter.emit("loadcalculatortumour", nrrdTools);
+        // emitter.emit("loadcalculatortumour", nrrdTools);
       } else {
         nrrdTools.redrawMianPreOnDisplayCanvas();
       }
@@ -556,7 +556,7 @@ watchEffect(() => {
       }
 
       // send contrast name with states to NrrdImageCtl.vue
-      emitter.emit("setcontrastnames", selectedState);
+      emitter.emit("Segmentation:ContrastImageStates", selectedState);
 
       Copper.removeGuiFolderChilden(selectedContrastFolder);
       for (let i = 0; i < allSlices.length; i++) {
@@ -571,7 +571,7 @@ watchEffect(() => {
       initSliceIndex.value = 0;
       filesCount.value = 0;
       const guiSettings = nrrdTools.getGuiSettings();
-      emitter.emit("finishloadcases", guiSettings);
+      emitter.emit("Segmentation:FinishLoadAllCaseImages", guiSettings);
     }, 1000);
     firstLoad = false;
     loadCases = false;
@@ -727,7 +727,7 @@ async function onCaseSwitched(casename: string) {
       const details = cases.value?.details;
       console.log(allContrastUrls);
       
-      emitter.emit("casename", {
+      emitter.emit("Segmentation:CaseDetails", {
         currentCaseId,
         details,
         maskNrrd: !!allContrastUrls[1]?allContrastUrls[1]:allContrastUrls[0],
@@ -752,7 +752,7 @@ async function onRegistedStateChanged(isShowRegisterImage: boolean) {
       allSlices = [...originAllSlices];
       allLoadedMeshes = [...originAllMeshes];
       filesCount.value = allContrastUrls.length;
-      emitter.emit("showRegBtnToRight", {
+      emitter.emit("Segmentation:RegisterButtonStatusChanged", {
         maskNrrdMeshes: !!originAllMeshes[1]?originAllMeshes[1]: originAllMeshes[0],
         maskSlices: !!originAllSlices[1]?originAllSlices[1]:originAllSlices[0],
         url: !!allContrastUrls[1]?allContrastUrls[1]:allContrastUrls[0],
@@ -776,7 +776,7 @@ async function onRegistedStateChanged(isShowRegisterImage: boolean) {
     if (!!originUrls.value?.nrrdUrls && originUrls.value?.nrrdUrls.length > 0) {
       allContrastUrls = originUrls.value.nrrdUrls;
       readyToLoad(allContrastUrls, "origin")?.then((data) => {
-        emitter.emit("showRegBtnToRight", {
+        emitter.emit("Segmentation:RegisterButtonStatusChanged", {
           maskNrrdMeshes: data.meshes[1],
           maskSlices: data.slices[1],
           url:  !!allContrastUrls[1]?allContrastUrls[1]:allContrastUrls[0],
@@ -791,7 +791,7 @@ async function onRegistedStateChanged(isShowRegisterImage: boolean) {
       allSlices = [...defaultRegAllSlices];
       allLoadedMeshes = [...defaultRegAllMeshes];
       filesCount.value = allContrastUrls.length;
-      emitter.emit("showRegBtnToRight", {
+      emitter.emit("Segmentation:RegisterButtonStatusChanged", {
         maskNrrdMeshes: !!defaultRegAllMeshes[1]?defaultRegAllMeshes[1]:defaultRegAllMeshes[0],
         maskSlices: !!defaultRegAllSlices[1]?defaultRegAllSlices[1]:defaultRegAllSlices[0],
         url:  !!allContrastUrls[1]?allContrastUrls[1]:allContrastUrls[0],

@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import ImageCtl from "./tools/NrrdImageCtl.vue";
 import OperationCtl from "./tools/OperationCtl.vue";
 import SysOpts from "../nav-components/sysopt/SysOpts.vue";
@@ -32,15 +32,16 @@ onMounted(()=>{
 }) 
 
 function manageEmitters() {
-  // emitter.on("guide_to_operation_status", (val: string)=>{
-  //   if(val==="open" && !open.value.includes("Operation")){
-  //     open.value.push("Operation")
-  //   }
-  // });
-  emitter.on("TumourStudy:NrrdTools",(val:Copper.NrrdTools)=>{
-    nrrdTools.value = val;
-  })
+  emitter.on("TumourStudy:NrrdTools", emitterOnNrrdTools)
 }
+
+const emitterOnNrrdTools = (val:Copper.NrrdTools)=>{
+  nrrdTools.value = val;
+}
+
+onUnmounted(()=>{
+  emitter.off("TumourStudy:NrrdTools", emitterOnNrrdTools)
+})
 </script>
 
 <style lang="scss"></style>

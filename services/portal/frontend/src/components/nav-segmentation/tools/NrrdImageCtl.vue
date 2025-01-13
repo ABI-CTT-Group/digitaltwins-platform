@@ -46,10 +46,10 @@
 
 <script setup lang="ts">
 import Switcher from "@/components/commonBar/Switcher.vue";
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { useFileCountStore } from "@/store/app";
 import { storeToRefs } from "pinia";
-import emitter from "@/plugins/bus";
+import emitter from "@/plugins/custom-emitter";
 
 type selecedType = {
   [key: string]: boolean;
@@ -83,25 +83,29 @@ onMounted(() => {
   manageEmitters();
 });
 
+
 function manageEmitters() {
-  emitter.on("finishloadcases", () => {
-    disableSelectCase.value = false;
-    switchDisabled.value = false;
-    switchLoading.value = false;
-  });
-  emitter.on("setcontrastnames", (contrastStates) => {
-    slectedContrast.value = [];
-    contrastState = contrastStates as selecedType;
-    contrastValue.value = Object.keys(contrastState);
-    for (const key in contrastState) {
-      if (contrastState.hasOwnProperty(key)) {
-        if (contrastState[key]) {
-          slectedContrast.value.push(key);
-        }
+  emitter.on("Segmentation:FinishLoadAllCaseImages", emitterOnFinishLoadAllCaseImages);
+  emitter.on("Segmentation:ContrastImageStates", emitterOnContrastImageStates);
+}
+
+const emitterOnFinishLoadAllCaseImages =  () => {
+  disableSelectCase.value = false;
+  switchDisabled.value = false;
+  switchLoading.value = false;
+}
+const emitterOnContrastImageStates = (contrastStates:{[key:string]:boolean}) => {
+  slectedContrast.value = [];
+  contrastState = contrastStates as selecedType;
+  contrastValue.value = Object.keys(contrastState);
+  for (const key in contrastState) {
+    if (contrastState.hasOwnProperty(key)) {
+      if (contrastState[key]) {
+        slectedContrast.value.push(key);
       }
     }
-    disableSelectContrast.value = false;
-  });
+  }
+  disableSelectContrast.value = false;
 }
 
 function onCaseSwitched(casename: any) {
@@ -111,7 +115,7 @@ function onCaseSwitched(casename: any) {
   switchLable.value = "on";
   switchRegisted.value = true;
   switchLoading.value = "warning";
-  emitter.emit("caseswitched", casename);
+  emitter.emit("Segementation:CaseSwitched", casename);
 }
 
 function onContrastSelected(contrasts: string[]) {
@@ -126,7 +130,7 @@ function onContrastSelected(contrasts: string[]) {
           result["effect"] = key;
           result["order"] = contrastOrder[key];
           result["contrastState"] = true;
-          emitter.emit("contrastselected", result);
+          emitter.emit("Segmentation:ContrastChanged", result);
         }
       } else {
         if (contrastState[key]) {
@@ -135,7 +139,7 @@ function onContrastSelected(contrasts: string[]) {
           result["effect"] = key;
           result["order"] = contrastOrder[key];
           result["contrastState"] = false;
-          emitter.emit("contrastselected", result);
+          emitter.emit("Segmentation:ContrastChanged", result);
         }
       }
     }
@@ -146,7 +150,7 @@ function toggleRegisterChanged(value: boolean) {
   switchLable.value = switchLable.value === "on" ? "off" : "on";
   switchDisabled.value = true;
   switchLoading.value = "warning";
-  emitter.emit("registerimagechanged", value);
+  emitter.emit("Segmentation:RegisterImageChanged", value);
 }
 
 const sort = (arr: string[]) => {
@@ -155,9 +159,11 @@ const sort = (arr: string[]) => {
   });
 };
 
-async function getInitData() {
-  await getFilesNames();
-}
+onUnmounted(() => {
+  emitter.off("Segmentation:FinishLoadAllCaseImages", emitterOnFinishLoadAllCaseImages);
+  emitter.off("Segmentation:ContrastImageStates", emitterOnContrastImageStates);
+});
+
 </script>
 
 <style scoped>
