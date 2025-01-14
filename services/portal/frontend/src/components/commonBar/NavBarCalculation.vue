@@ -126,12 +126,10 @@ onUnmounted(() => {
 }
 
 .nav {
-  /* position: fixed;
-  bottom: 25px;
-  left: 10px; */
-
   height: 60px;
   width: 40%;
+  position: absolute;
+  bottom: 20;
   display: flex;
   justify-content: center;
   align-items: center;

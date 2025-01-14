@@ -1,6 +1,6 @@
 <template>
   <v-app>
-    <default-bar title="Tumour Position Study" version="v3.0.0">
+    <default-bar title="Tumour Position Study" version="v1.0.0">
       <NavPanel />
     </default-bar>
 

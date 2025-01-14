@@ -11,7 +11,7 @@
 
       <v-select
       class="mx-4"
-      :items="cases?.names"
+      :items="allCasesDetails?.names"
       density="comfortable"
       label="Cases"
       variant="outlined"
@@ -47,7 +47,7 @@
 <script setup lang="ts">
 import Switcher from "@/components/commonBar/Switcher.vue";
 import { ref, onMounted, onUnmounted } from "vue";
-import { useFileCountStore } from "@/store/app";
+import { useSegmentationCasesStore } from "@/store/app";
 import { storeToRefs } from "pinia";
 import emitter from "@/plugins/custom-emitter";
 
@@ -58,8 +58,8 @@ type resultType = {
   [key: string]: any;
 };
 
-const { cases } = storeToRefs(useFileCountStore());
-const { getFilesNames } = useFileCountStore();
+const { allCasesDetails } = storeToRefs(useSegmentationCasesStore());
+const { getAllCasesDetails } = useSegmentationCasesStore();
 const disableSelectCase = ref(false);
 const disableSelectContrast = ref(true);
 const contrastValue = ref<string[]>([]);

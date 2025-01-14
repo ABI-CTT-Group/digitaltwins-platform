@@ -32,14 +32,14 @@ import {
   ITumourWindow,
   IRequests,
 } from "@/models/apiTypes";
-export const useFileCountStore = defineStore("filesCount", () => {
-  const cases = ref<INrrdCaseNames>();
-  const getFilesNames = async () => {
-    cases.value = await useNrrdCaseNames();
+export const useSegmentationCasesStore = defineStore("allSegmentationCasesDetails", () => {
+  const allCasesDetails = ref<INrrdCaseNames>();
+  const getAllCasesDetails = async () => {
+    allCasesDetails.value = await useNrrdCaseNames();
   };
   return {
-    cases,
-    getFilesNames,
+    allCasesDetails,
+    getAllCasesDetails,
   };
 });
 export const useNrrdCaseFileUrlsWithOrderStore = defineStore(

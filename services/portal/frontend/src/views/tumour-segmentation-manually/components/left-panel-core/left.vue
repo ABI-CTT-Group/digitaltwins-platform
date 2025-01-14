@@ -5,7 +5,9 @@
     :show-slice-index="true"
     :enable-upload="true"
     :show-tumour-distance-panel="showCalculatorValue"
-    :show-bottom-nav-bar="panelWidth >= 600 ? true : false">
+    :show-bottom-nav-bar="panelWidth >= 600 ? true : false"
+    @finished-copper-init="onFinishedCopperInit"
+    >
     <template #drag-to-upload>
       <Upload
         :dialog="dialog"
@@ -56,10 +58,11 @@ import {
   ILoadedMeshes,
   ICaseUrls,
   IDetails,
+  ILeftCoreCopperInit
 } from "@/models/apiTypes";
-import { addNameToLoadedMeshes, findRequestUrls, customRound } from "@/plugins/view-utils/utils-left";
+import { addNameToLoadedMeshes, findRequestUrls, customRound, distance3D } from "@/plugins/view-utils/utils-left";
 import {
-  useFileCountStore,
+  useSegmentationCasesStore,
   useInitMarksStore,
   useReplaceMarksStore,
   useSaveSphereStore,
@@ -86,15 +89,13 @@ type Props = {
 
 const leftPanelCoreRef = ref<InstanceType<typeof LeftPanelCore>>();
 
-let a;
-let appRenderer;
-let nrrdTools;
-let scene: any;
-let loadBarMain:any ;
-let loadingContainer;
-let progress;
+let nrrdTools: Copper.NrrdTools | undefined;
+let scene: Copper.copperScene | undefined;
+let loadBarMain: Copper.loadingBarType | undefined;
+let loadingContainer: HTMLDivElement | undefined;
+let progress: HTMLDivElement | undefined;
 let gui:any;
-let base_container;
+let baseContainer: HTMLDivElement | undefined;
 
 
 
@@ -109,9 +110,6 @@ let dialog = ref(false);
 
 let debug_mode = ref(false);
 
-
-let pre_slices = ref();
-
 let optsGui: GUI | undefined = undefined;
 
 
@@ -122,7 +120,7 @@ let allLoadedMeshes: Array<ILoadedMeshes> = [];
 let defaultRegAllMeshes: Array<ILoadedMeshes> = [];
 let originAllMeshes: Array<ILoadedMeshes> = [];
 let regCkeckbox: GUIController;
-let allContrastUrls: Array<string> = [];
+let currentCaseContrastUrls: Array<string> = [];
 let loadedUrls: ILoadUrls = {};
 
 let filesCount = ref(0);
@@ -134,8 +132,6 @@ let originRegswitcher = false;
 
 let currentCaseId = "";
 let regCheckboxElement: HTMLInputElement;
-
-let showNavToolsBar = ref(true);
 
 let dts = ref(0);
 let dtn = ref(0);
@@ -158,8 +154,8 @@ type selecedType = {
 
 
 
-const { cases } = storeToRefs(useFileCountStore());
-const { getFilesNames } = useFileCountStore();
+const { allCasesDetails } = storeToRefs(useSegmentationCasesStore());
+const { getAllCasesDetails } = useSegmentationCasesStore();
 const { sendInitMask } = useInitMarksStore();
 const { sendReplaceMask } = useReplaceMarksStore();
 const { sendSaveSphere } = useSaveSphereStore();
@@ -175,7 +171,6 @@ let regUrls = ref<ICaseUrls>({ nrrdUrls: [], jsonUrl: "" });
 
 
 const showCalculatorValue = ref(false);
-
 let coreRenderId = 0;
 
 withDefaults(defineProps<Props>(), {
@@ -202,7 +197,7 @@ const emitterOnDebugMode = (flag: boolean) => {
   debug_mode.value = flag;
 };
 const emitterOnToggleAppTheme = () => {
-    base_container!.classList.toggle("dark");
+    baseContainer!.classList.toggle("dark");
 };
 const emitterOnCaseSwitched = async (casename: string) => {
   await onCaseSwitched(casename);
@@ -215,44 +210,39 @@ const emitteOnRegisterImageChanged = async (result: boolean) => {
     await onRegistedStateChanged(result);
 };
 
+const onFinishedCopperInit = (copperInitData:ILeftCoreCopperInit)=>{
+  nrrdTools = copperInitData.nrrdTools;
+  scene = copperInitData.scene;
+}
+
 onMounted(async () => {
-  appRenderer = leftPanelCoreRef.value?.appRenderer;
-  nrrdTools = leftPanelCoreRef.value?.nrrdTools;
-  scene = leftPanelCoreRef.value?.scene;
   loadBarMain = leftPanelCoreRef.value?.loadBarMain;
   loadingContainer = leftPanelCoreRef.value?.loadingContainer;
   progress = leftPanelCoreRef.value?.progress;
   gui = leftPanelCoreRef.value?.gui;
-  base_container = leftPanelCoreRef.value?.baseContainer;
-  console.log(nrrdTools);
-  console.log(base_container);
-  
-  
-  manageEmitters();
+  baseContainer = leftPanelCoreRef.value?.baseContainer;
 
+  // get init data
   await getInitData();
   
+  manageEmitters();
+  setupGui();
 });
 
 async function getInitData() {
-  await getFilesNames();
+  await getAllCasesDetails();
 }
 
-const readyToLoad = (urlsArray: Array<string>, name: string) => {
-
-  console.log("readyToLoad from", name);
-  
-  fileNum.value = urlsArray.length;
-  allContrastUrls = urlsArray;
-  if (allContrastUrls.length > 0) {
+const readyToLoad = ( name: string) => {
+  fileNum.value = currentCaseContrastUrls.length;
+  if (currentCaseContrastUrls.length > 0) {
     return new Promise<{ meshes: Array<Copper.nrrdMeshesType>; slices: any[] }>(
       (resolve, reject) => {
-        loadAllNrrds(allContrastUrls, name, resolve, reject);
+        loadAllNrrds(currentCaseContrastUrls, name, resolve, reject);
       }
     );
   }
 };
-
 const onSaveMask = async (flag: boolean) => {
   if (flag && nrrdTools!.protectedData.maskData.paintImages.z.length > 0) {
     switchAnimationStatus("flex", "Saving masks data, please wait......");
@@ -261,7 +251,6 @@ const onSaveMask = async (flag: boolean) => {
     emitter.emit("Segmentation:SyncTumourModelButtonClicked", true);
   }
 };
-
 const onOpenDialog = (flag: boolean) => {
   dialog.value = flag;
 };
@@ -336,6 +325,8 @@ const loadJsonMasks = (url: string) => {
         console.log("data empty init");
         sendInitMaskToBackend();
       }
+      console.log(loadBarMain);
+      
       nrrdTools!.setMasksData(data, loadBarMain);
     }
   };
@@ -344,9 +335,9 @@ const loadJsonMasks = (url: string) => {
 
 const setMaskData = () => {
   if (loadedUrls[currentCaseId]) {
-    if (cases.value) {
+    if (allCasesDetails.value) {
       const currentCaseDetail = findCurrentCase(
-        cases.value.details,
+        allCasesDetails.value.details,
         currentCaseId
       );
       if (currentCaseDetail.masked) {
@@ -383,12 +374,6 @@ const getSphereData = async (sphereOrigin: number[], sphereRadius: number) => {
   await sendSaveSphere(sphereData);
 };
 
-function distance3D(x1:number, y1:number, z1:number, x2:number, y2:number, z2:number) {
-    let dx = x2 - x1;
-    let dy = y2 - y1;
-    let dz = z2 - z1;
-    return Math.sqrt(dx * dx + dy * dy + dz * dz);
-}
 
 const getCalculateSpherePositionsData = async (tumourSphereOrigin:Copper.ICommXYZ | null, skinSphereOrigin:Copper.ICommXYZ | null, ribSphereOrigin:Copper.ICommXYZ | null, nippleSphereOrigin:Copper.ICommXYZ | null, aix:"x"|"y"|"z")=>{
     // Note: the tumour center now we set to (pixel, pixel, mm) in Axial view, in calculate distance we need to convert it to (mm, mm, mm)
@@ -461,7 +446,7 @@ watchEffect(() => {
   if (
     filesCount.value != 0 &&
     allSlices.length != 0 &&
-    filesCount.value === allContrastUrls.length
+    filesCount.value === currentCaseContrastUrls.length
   ) {
     console.log("All files ready!");
 
@@ -506,10 +491,10 @@ watchEffect(() => {
         nrrdTools!.draw({ getMaskData, getSphereData, getCalculateSpherePositionsData});
         nrrdTools!.setupGUI(gui as GUI);
         nrrdTools!.enableContrastDragEvents(getContrastMove)
+
         coreRenderId = scene?.addPreRenderCallbackFunction(nrrdTools!.start) as number;
         setUpGuiAfterLoading();
-        // xyz: 84 179 74
-        // emitter.emit("loadcalculatortumour", nrrdTools);
+        emitter.emit("Core:NrrdTools", nrrdTools);
       } else {
         nrrdTools!.redrawMianPreOnDisplayCanvas();
       }
@@ -583,7 +568,6 @@ const loadAllNrrds = (
     const newNrrdMesh = Object.assign(nrrdMesh, { order: 0 });
     allSlices.push(newNrrdSlice);
     allLoadedMeshes.push(newNrrdMesh);
-    pre_slices.value = nrrdSlices;
     filesCount.value += 1;
   };
   scene?.loadNrrd(urls[0], loadBarMain as Copper.loadingBarType, true, mainPreArea);
@@ -598,8 +582,7 @@ const loadAllNrrds = (
         nrrdMesh: Copper.nrrdMeshesType,
         nrrdSlices: Copper.nrrdSliceType
       ) => {
-        console.log(nrrdSlices);
-        
+
         addNameToLoadedMeshes(nrrdMesh, name);
         const newNrrdSlice = Object.assign(nrrdSlices, { order: i });
         const newNrrdMesh = Object.assign(nrrdMesh, { order: i });
@@ -663,6 +646,7 @@ async function onCaseSwitched(casename: string) {
   loadedUrls = {};
 
   currentCaseId = casename;
+  // update init data
   await getInitData();
 
   if (loadedUrls[casename]) {
@@ -673,16 +657,16 @@ async function onCaseSwitched(casename: string) {
     URL.revokeObjectURL(loadedUrls[casename].jsonUrl);
     await getMaskDataBackend(casename);
     loadedUrls[casename].jsonUrl = maskBackend.value;
-    allContrastUrls = loadedUrls[casename].nrrdUrls;
+    currentCaseContrastUrls = loadedUrls[casename].nrrdUrls;
     if (!!caseUrls.value) {
-      caseUrls.value.nrrdUrls = allContrastUrls;
+      caseUrls.value.nrrdUrls = currentCaseContrastUrls;
     }
   } else {
     
     switchAnimationStatus("flex", "Prepare Nrrd files, please wait......");
     // await getCaseFileUrls(value);
     const requests = findRequestUrls(
-      cases.value?.details as Array<IDetails>,
+      allCasesDetails.value?.details as Array<IDetails>,
       currentCaseId,
       "registration"
     );
@@ -690,20 +674,18 @@ async function onCaseSwitched(casename: string) {
 
     if (!!caseUrls.value) {
       regUrls.value = caseUrls.value as ICaseUrls;
-      allContrastUrls = caseUrls.value.nrrdUrls;
+      currentCaseContrastUrls = caseUrls.value.nrrdUrls;
       loadedUrls[currentCaseId] = caseUrls.value;
-      const details = cases.value?.details;
-      console.log(allContrastUrls);
-      
+      const details = allCasesDetails.value?.details;
       emitter.emit("Segmentation:CaseDetails", {
         currentCaseId,
         details,
-        maskNrrd: !!allContrastUrls[1]?allContrastUrls[1]:allContrastUrls[0],
+        maskNrrd: !!currentCaseContrastUrls[1]?currentCaseContrastUrls[1]:currentCaseContrastUrls[0],
       });
     }
   }
 
-  readyToLoad(allContrastUrls, "registration");
+  readyToLoad("registration");
   loadCases = true;
 }
 
@@ -719,11 +701,11 @@ async function onRegistedStateChanged(isShowRegisterImage: boolean) {
     if (originAllSlices.length > 0) {
       allSlices = [...originAllSlices];
       allLoadedMeshes = [...originAllMeshes];
-      filesCount.value = allContrastUrls.length;
+      filesCount.value = currentCaseContrastUrls.length;
       emitter.emit("Segmentation:RegisterButtonStatusChanged", {
         maskNrrdMeshes: !!originAllMeshes[1]?originAllMeshes[1]: originAllMeshes[0],
         maskSlices: !!originAllSlices[1]?originAllSlices[1]:originAllSlices[0],
-        url: !!allContrastUrls[1]?allContrastUrls[1]:allContrastUrls[0],
+        url: !!currentCaseContrastUrls[1]?currentCaseContrastUrls[1]:currentCaseContrastUrls[0],
         register: isShowRegisterImage,
       });
       return;
@@ -733,7 +715,7 @@ async function onRegistedStateChanged(isShowRegisterImage: boolean) {
       !(!!originUrls.value?.nrrdUrls && originUrls.value?.nrrdUrls.length > 0)
     ) {
       const requests = findRequestUrls(
-        cases.value?.details as Array<IDetails>,
+        allCasesDetails.value?.details as Array<IDetails>,
         currentCaseId,
         "origin"
       );
@@ -742,12 +724,12 @@ async function onRegistedStateChanged(isShowRegisterImage: boolean) {
     }
 
     if (!!originUrls.value?.nrrdUrls && originUrls.value?.nrrdUrls.length > 0) {
-      allContrastUrls = originUrls.value.nrrdUrls;
-      readyToLoad(allContrastUrls, "origin")?.then((data) => {
+      currentCaseContrastUrls = originUrls.value.nrrdUrls;
+      readyToLoad("origin")?.then((data) => {
         emitter.emit("Segmentation:RegisterButtonStatusChanged", {
           maskNrrdMeshes: data.meshes[1],
           maskSlices: data.slices[1],
-          url:  !!allContrastUrls[1]?allContrastUrls[1]:allContrastUrls[0],
+          url:  !!currentCaseContrastUrls[1]?currentCaseContrastUrls[1]:currentCaseContrastUrls[0],
           register: isShowRegisterImage,
         });
       });
@@ -755,14 +737,14 @@ async function onRegistedStateChanged(isShowRegisterImage: boolean) {
   } else {
     loadOrigin = false;
     if (defaultRegAllSlices.length > 0) {
-      allContrastUrls = regUrls.value.nrrdUrls;
+      currentCaseContrastUrls = regUrls.value.nrrdUrls;
       allSlices = [...defaultRegAllSlices];
       allLoadedMeshes = [...defaultRegAllMeshes];
-      filesCount.value = allContrastUrls.length;
+      filesCount.value = currentCaseContrastUrls.length;
       emitter.emit("Segmentation:RegisterButtonStatusChanged", {
         maskNrrdMeshes: !!defaultRegAllMeshes[1]?defaultRegAllMeshes[1]:defaultRegAllMeshes[0],
         maskSlices: !!defaultRegAllSlices[1]?defaultRegAllSlices[1]:defaultRegAllSlices[0],
-        url:  !!allContrastUrls[1]?allContrastUrls[1]:allContrastUrls[0],
+        url:  !!currentCaseContrastUrls[1]?currentCaseContrastUrls[1]:currentCaseContrastUrls[0],
         register: isShowRegisterImage,
       });
       return;
@@ -771,10 +753,11 @@ async function onRegistedStateChanged(isShowRegisterImage: boolean) {
 }
 
 function setupGui() {
-  state.switchCase = cases.value?.names[0] as string;
-
+  state.switchCase = allCasesDetails.value?.names[0] as string;
+  console.log(state);
+  
   gui!
-    .add(state, "switchCase", cases.value?.names as string[])
+    .add(state, "switchCase", allCasesDetails.value?.names as string[])
     .onChange(async (caseId: string) => {
       await onCaseSwitched(caseId);
       setUpGuiAfterLoading();
@@ -817,7 +800,6 @@ function switchRegCheckBoxStatus(
 }
 
 onUnmounted(() => {
-
   emitter.off("Common:OpenCalculatorBox", emitterOnOpenCalculatorBox)
   emitter.off("Common:CloseCalculatorBox", emitterOnCloseCalculatorBox)
   emitter.off("Common:DebugMode", emitterOnDebugMode);
@@ -826,7 +808,7 @@ onUnmounted(() => {
   emitter.off("Segmentation:ContrastChanged", emitterOnContrastChanged);
   emitter.off("Segmentation:RegisterImageChanged", emitteOnRegisterImageChanged);
   nrrdTools!.clear();
-  allContrastUrls.length = 0;
+  currentCaseContrastUrls.length = 0;
   allSlices.length = 0;
   allLoadedMeshes.length = 0;
   originAllSlices.length = 0;
@@ -839,5 +821,4 @@ onUnmounted(() => {
 </script>
 
 <style>
-
 </style>

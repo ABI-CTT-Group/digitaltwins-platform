@@ -95,8 +95,12 @@ const emitterOnStatus = (status: string, position:number[], distance:number)=>{
 }
 
 const emitterOnNrrdTools = (tool: Copper.NrrdTools)=>{
+  console.log("NrrdTools", tool);
+  
   nrrdTools.value = tool
   guiSettings.value = nrrdTools.value.getGuiSettings()
+  console.log("guiSettings", guiSettings.value);
+  
   guiSettings.value!.guiState["calculator"] = true;
   guiSettings.value!.guiState["sphere"] = false;
   guiSettings.value!.guiSetting!["calculator"].onChange();

@@ -1,18 +1,18 @@
 <template>
     <div ref="baseContainer" class="left-container dark guide-left-panel">
-    <div v-show="showDebugPanel" ref="debugContainer" class="left_gui"></div>
-    <div ref="canvasContainer" class="canvas_container"></div>
-    <div v-show="showSliceIndex" ref="sliceIndexContainer" class="copper3d_sliceNumber">
-        Tumour Segmentation Panel
-    </div>
+      <div v-show="showDebugPanel" ref="debugContainer" class="left_gui"></div>
+      <div ref="canvasContainer" class="canvas_container"></div>
+      <div v-show="showSliceIndex" ref="sliceIndexContainer" class="copper3d_sliceNumber">
+          Tumour Segmentation Panel
+      </div>
 
-    <div v-show="enableUpload">
-        <slot name="drag-to-upload"></slot>
-    </div>
+      <div v-show="enableUpload">
+          <slot name="drag-to-upload"></slot>
+      </div>
 
-    <div v-show="showTumourDistancePanel">
-        <slot name="tumour-distance-panel"></slot>
-    </div>
+      <div v-show="showTumourDistancePanel">
+          <slot name="tumour-distance-panel"></slot>
+      </div>
     </div>
     <div
         v-show="showBottomNavBar"
@@ -47,9 +47,9 @@ let sliceIndexContainer = ref<HTMLDivElement>();
 let gui = new GUI({ width: 300, autoPlace: false });
 
 // Copper3D render scene core variables
-let appRenderer = ref<Copper.copperRenderer>();
-let nrrdTools = ref<Copper.NrrdTools>();
-let scene = ref<Copper.copperScene>();
+let appRenderer: Copper.copperRenderer;
+let nrrdTools: Copper.NrrdTools;
+let scene: Copper.copperScene;
 let loadBarMain = ref<Copper.loadingBarType>();
 let loadingContainer = ref<HTMLDivElement>();
 let progress = ref<HTMLDivElement>();   
@@ -85,15 +85,14 @@ defineProps({
 })
 
 defineExpose({
-    appRenderer,
-    nrrdTools,
-    scene,
     loadBarMain,
     loadingContainer,
     progress,
     gui,
     baseContainer
 })
+
+const emit = defineEmits(["finishedCopperInit"]);
 
 
 onMounted(() => {
@@ -103,7 +102,7 @@ onMounted(() => {
 function initCopper() {
     debugContainer.value?.appendChild(gui.domElement);
 
-    appRenderer.value = new Copper.copperRenderer(
+    appRenderer = new Copper.copperRenderer(
         baseContainer.value as HTMLDivElement,
         {
             guiOpen: false,
@@ -111,22 +110,22 @@ function initCopper() {
         }
     );
 
-    nrrdTools.value = new Copper.NrrdTools(canvasContainer.value as HTMLDivElement);
+    nrrdTools = new Copper.NrrdTools(canvasContainer.value as HTMLDivElement);
 
-    emitter.emit("Core:NrrdTools", nrrdTools.value);
+    // emitter.emit("Core:NrrdTools", nrrdTools.value);
 
-    nrrdTools.value.setDisplaySliceIndexPanel(
+    nrrdTools.setDisplaySliceIndexPanel(
         sliceIndexContainer.value as HTMLDivElement
     );
     // for offline working
 
     // nrrdTools.setBaseCanvasesSize(1.5);
-    nrrdTools.value.setEraserUrls(eraserUrls);
-    nrrdTools.value.setPencilIconUrls(cursorUrls);
+    nrrdTools.setEraserUrls(eraserUrls);
+    nrrdTools.setPencilIconUrls(cursorUrls);
     // nrrdTools.setMainAreaSize(3);
 
     // sphere plan b
-    toolNrrdStates = nrrdTools.value.getNrrdToolsSettings();
+    toolNrrdStates = nrrdTools.getNrrdToolsSettings();
     // toolsState.spherePlanB = false;
 
     loadBarMain.value = Copper.loading(loadingGif);
@@ -140,15 +139,21 @@ function initCopper() {
 
     // setupGui();
     setupCopperScene("nrrd_tools");
-    appRenderer.value.animate();
+    appRenderer.animate();
+
+    emit("finishedCopperInit", {
+        appRenderer,
+        nrrdTools,
+        scene,
+    });
 }
 
 function setupCopperScene(name: string) {
-  scene.value = appRenderer.value!.getSceneByName(name) as Copper.copperScene;
-  if (scene.value == undefined) {
-    scene.value = appRenderer.value!.createScene(name) as Copper.copperScene;
+  scene = appRenderer!.getSceneByName(name) as Copper.copperScene;
+  if (scene == undefined) {
+    scene = appRenderer!.createScene(name) as Copper.copperScene;
     if (scene) {
-      appRenderer.value!.setCurrentScene(scene.value);
+      appRenderer!.setCurrentScene(scene);
     }
   }
 }

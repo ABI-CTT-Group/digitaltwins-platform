@@ -180,3 +180,9 @@ export interface IKeyboardSettings {
   mouseWheel: "Scroll:Zoom" | "Scroll:Slice" | string;
   [key: string]: any;
 }
+
+export interface ILeftCoreCopperInit { 
+  appRenderer: Copper.copperRenderer; 
+  nrrdTools: Copper.NrrdTools; 
+  scene: Copper.copperScene 
+}

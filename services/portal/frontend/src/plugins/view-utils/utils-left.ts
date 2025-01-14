@@ -60,6 +60,13 @@ export function customRound(num:number) {
   }
 }
 
+export function distance3D(x1:number, y1:number, z1:number, x2:number, y2:number, z2:number) {
+  let dx = x2 - x1;
+  let dy = y2 - y1;
+  let dz = z2 - z1;
+  return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
 export const getIncompleteCases = (
   details: Array<ITumourStudyAppDetail>
 ):ITumourStudyAppDetail[] => {
