@@ -27,7 +27,7 @@
 import * as Copper from "copper3d";
 import "copper3d/dist/css/style.css";
 import { GUI, GUIController } from "dat.gui";
-import { ref, onMounted, onUnmounted, onBeforeUnmount } from "vue";
+import { ref, onMounted, onUnmounted, onBeforeUnmount, watch, watchEffect } from "vue";
 import emitter from "@/plugins/custom-emitter";
 import loadingGif from "@/assets/loading.svg";
 import {
@@ -37,6 +37,8 @@ import {
   getEraserUrlsForOffLine,
   getCursorUrlsForOffLine,
 } from "@/plugins/view-utils/tools";
+import { switchAnimationStatus, addNameToLoadedMeshes } from "./leftCoreUtils";
+import { ILoadedMeshes, } from "@/models/apiTypes";
 
 let baseContainer = ref<HTMLDivElement>();
 let debugContainer = ref<HTMLDivElement>();
@@ -61,7 +63,15 @@ const cursorUrls = getCursorUrlsForOffLine();
 // trial variables
 let toolNrrdStates: Copper.INrrdStates;
 
-defineProps({
+// core load images variables
+let allSlices: Array<any> = [];
+let allLoadedMeshes: Array<ILoadedMeshes> = [];
+let fileNum = ref(0);
+let filesCount = ref(0);
+let firstLoad = true;
+let coreRenderId = 0;
+
+const { currentCaseContrastUrls, currentCaseName } = defineProps({
     showSliceIndex:{
         type: Boolean,
         default: true
@@ -81,8 +91,16 @@ defineProps({
     enableUpload:{
         type: Boolean,
         default: false
+    },
+    currentCaseContrastUrls:{
+        type: Array<String>,
+        default: []
+    },
+    currentCaseName:{
+        type: String,
+        default: ""
     }
-})
+});
 
 defineExpose({
     loadBarMain,
@@ -90,10 +108,20 @@ defineExpose({
     progress,
     gui,
     baseContainer
-})
+});
 
-const emit = defineEmits(["finishedCopperInit"]);
+const loadMask = defineModel('loadMask', {
+    type: Boolean,
+    default: false
+});
 
+const emit = defineEmits(["finishedCopperInit", "update:getMaskData", "update:sphereData", "update:calculateSpherePositionsData", "update:sliceNumber", "update:afterLoadAllCaseImages", "update:setMaskData"]);
+
+watch(() => currentCaseContrastUrls, (newVal, oldVal) => {
+    if (newVal.length > 0) {
+        readyToLoad(currentCaseName);
+    }
+});
 
 onMounted(() => {
     initCopper();
@@ -137,7 +165,6 @@ function initCopper() {
         loadBarMain.value.loadingContainer
     );
 
-    // setupGui();
     setupCopperScene("nrrd_tools");
     appRenderer.animate();
 
@@ -158,6 +185,202 @@ function setupCopperScene(name: string) {
   }
 }
 
+
+// core load images
+
+const readyToLoad = ( name: string) => {
+  fileNum.value = currentCaseContrastUrls.length;
+  if (currentCaseContrastUrls.length > 0) {
+    return new Promise<{ meshes: Array<Copper.nrrdMeshesType>; slices: any[] }>(
+      (resolve, reject) => {
+        loadAllNrrds(currentCaseContrastUrls as string[], name, resolve, reject);
+      }
+    );
+  }
+};
+
+const loadAllNrrds = (
+  urls: Array<string>,
+  name: string,
+  resolve?: (value: {
+    meshes: Array<Copper.nrrdMeshesType>;
+    slices: any[];
+  }) => void,
+  reject?: (reason?: any) => void
+) => {
+  switchAnimationStatus(loadingContainer.value!, progress.value!, "none");
+
+  fileNum.value = urls.length;
+
+  allSlices = [];
+  allLoadedMeshes = [];
+  for (let i = 0; i < urls.length; i++) {
+    imageLoader(name, urls[i], i, urls.length, resolve);
+  }
+};
+
+const imageLoader = (name:string, url:string, order: number, total:number, resolve?: (value: {
+    meshes: Array<Copper.nrrdMeshesType>;
+    slices: any[];
+  }) => void) =>{
+  const onload = ( volume: any, nrrdMesh: Copper.nrrdMeshesType, nrrdSlices: Copper.nrrdSliceType)=>{
+    addNameToLoadedMeshes(nrrdMesh, name);
+    const newNrrdSlice = Object.assign(nrrdSlices, { order });
+    const newNrrdMesh = Object.assign(nrrdMesh, { order });
+    allSlices.push(newNrrdSlice);
+    allLoadedMeshes.push(newNrrdMesh);
+    filesCount.value += 1;
+    if (filesCount.value >= total) {
+      allLoadedMeshes.sort((a: any, b: any) => {
+        return a.order - b.order;
+      });
+      allSlices.sort((a: any, b: any) => {
+        return a.order - b.order;
+      });
+      !!resolve && resolve({ meshes: allLoadedMeshes, slices: allSlices });
+    }
+  }
+  scene?.loadNrrd(url, loadBarMain.value!, true, onload);
+}
+
+
+
+const getContrastMove = (step:number, towards:"horizental"|"vertical") =>{
+  if(towards === "horizental"){
+    emitter.emit("Common:DragImageWindowCenter", step)
+  }else if(towards === "vertical"){
+    emitter.emit("Common:DragImageWindowHigh", step)
+  }
+}
+
+const getSliceNum = (index: number, contrastindex: number) => {
+ emit("update:sliceNumber", { index, contrastindex });
+};
+
+const getMaskData = (
+  image: ImageData,
+  sliceId: number,
+  label: string,
+  width: number,
+  height: number,
+  clearAllFlag?: boolean) => {
+  emit("update:getMaskData", {
+    image,
+    sliceId,
+    label,
+    width,
+    height,
+    clearAllFlag,
+  }); 
+};
+const getSphereData = (sphereOrigin: number[], sphereRadius: number) => {
+  emit("update:sphereData", {
+    sphereOrigin,
+    sphereRadius,
+  });
+};
+const getCalculateSpherePositionsData = (tumourSphereOrigin:Copper.ICommXYZ | null, skinSphereOrigin:Copper.ICommXYZ | null, ribSphereOrigin:Copper.ICommXYZ | null, nippleSphereOrigin:Copper.ICommXYZ | null, aix:"x"|"y"|"z") => {
+  emit("update:calculateSpherePositionsData", {
+    tumourSphereOrigin,
+    skinSphereOrigin,
+    ribSphereOrigin,
+    nippleSphereOrigin,
+    aix
+  });
+};
+
+const setMaskData = () => {
+  emit("update:setMaskData");
+};
+
+
+watch(filesCount, ()=>{
+  if (
+    filesCount.value != 0 &&
+    filesCount.value === currentCaseContrastUrls.length
+  ) {
+    console.log("All files ready!");
+
+    nrrdTools!.clear();
+    nrrdTools!.setAllSlices(allSlices);
+
+    if (firstLoad) {
+
+      nrrdTools!.drag({ getSliceNum });
+      nrrdTools!.draw({ getMaskData, getSphereData, getCalculateSpherePositionsData});
+      nrrdTools!.setupGUI(gui as GUI);
+      nrrdTools!.enableContrastDragEvents(getContrastMove)
+
+      coreRenderId = scene?.addPreRenderCallbackFunction(nrrdTools!.start) as number;
+      emitter.emit("Core:NrrdTools", nrrdTools);
+    } else {
+      nrrdTools!.redrawMianPreOnDisplayCanvas();
+    }
+
+    if (loadMask.value) {
+      setMaskData();
+    }
+
+    emit("update:afterLoadAllCaseImages", {
+      allSlices,
+      allLoadedMeshes,
+    });
+
+    firstLoad = false;
+    loadMask.value = false;
+  }
+  setTimeout(() => {
+    filesCount.value = 0;
+  }, 1000);
+})
+
+// watchEffect(() => {
+//   if (
+//     filesCount.value != 0 &&
+//     filesCount.value === currentCaseContrastUrls.length
+//   ) {
+//     console.log("All files ready!");
+
+//     nrrdTools!.clear();
+//     nrrdTools!.setAllSlices(allSlices);
+
+//     if (firstLoad) {
+
+//       nrrdTools!.drag({ getSliceNum });
+//       nrrdTools!.draw({ getMaskData, getSphereData, getCalculateSpherePositionsData});
+//       nrrdTools!.setupGUI(gui as GUI);
+//       nrrdTools!.enableContrastDragEvents(getContrastMove)
+
+//       coreRenderId = scene?.addPreRenderCallbackFunction(nrrdTools!.start) as number;
+//       emitter.emit("Core:NrrdTools", nrrdTools);
+//     } else {
+//       nrrdTools!.redrawMianPreOnDisplayCanvas();
+//     }
+
+//     if (loadMask.value) {
+//       setMaskData();
+//     }
+
+//     emit("update:afterLoadAllCaseImages", {
+//       allSlices,
+//       allLoadedMeshes,
+//     });
+
+//     firstLoad = false;
+//     loadMask.value = false;
+//   }
+//   setTimeout(() => {
+//     filesCount.value = 0;
+//   }, 1000);
+  
+//   // switchAnimationStatus(loadingContainer.value!, progress.value!, "none");
+// });
+
+onUnmounted(() => {
+  scene?.removePreRenderCallbackFunction(coreRenderId);
+  // revokeAppUrls();
+  // revokeRegisterNrrdImages();
+});
 
 </script>
 

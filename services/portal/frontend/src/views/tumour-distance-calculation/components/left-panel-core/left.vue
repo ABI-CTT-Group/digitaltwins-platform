@@ -45,7 +45,8 @@ import {
   ILoadedMeshes,
   ILeftCoreCopperInit
 } from "@/models/apiTypes";
-import { addNameToLoadedMeshes, getIncompleteCases } from "@/plugins/view-utils/utils-left";
+import { addNameToLoadedMeshes } from "@/components/view-components/leftCoreUtils";
+import { getIncompleteCases } from "@/plugins/view-utils/utils-left";
 import {useTumourStudyDetailsStore, useTumourStudyNrrdStore } from "@/store/tumour_position_study_app";
 import {useSaveTumourStudyReport} from "@/plugins/tumour_position_study_api";
 

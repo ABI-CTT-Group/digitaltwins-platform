@@ -57,7 +57,8 @@ import {
   ICaseUrls,
   IDetails,
 } from "@/models/apiTypes";
-import { addNameToLoadedMeshes, findRequestUrls, customRound, distance3D } from "@/plugins/view-utils/utils-left";
+import {addNameToLoadedMeshes} from "@/components/view-components/leftCoreUtils";
+import { findRequestUrls, customRound, distance3D } from "@/plugins/view-utils/utils-left";
 import {
   useSegmentationCasesStore,
   useInitMarksStore,

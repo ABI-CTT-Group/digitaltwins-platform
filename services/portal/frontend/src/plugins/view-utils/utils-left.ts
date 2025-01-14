@@ -1,15 +1,5 @@
-import * as Copper from "copper3d";
 import { IRequests, IDetails } from "@/models/apiTypes";
 import {  ITumourStudyAppDetail } from "@/models/apiTypes";
-
-export function addNameToLoadedMeshes(
-  nrrdMesh: Copper.nrrdMeshesType,
-  name: string
-) {
-  nrrdMesh.x.name = name + " sagittal";
-  nrrdMesh.y.name = name + " coronal";
-  nrrdMesh.z.name = name + " axial";
-}
 
 export const findRequestUrls = (
   details: Array<IDetails>,
