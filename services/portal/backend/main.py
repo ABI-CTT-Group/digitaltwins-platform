@@ -262,7 +262,7 @@ async def get_display_mask_nrrd(name: str = Query(None)):
         return False
 
 
-@app.get("/api/mesh")
+@app.get("/api/mask_tumour_mesh")
 async def get_display_segment_tumour_model(name: str = Query(None)):
     mask_mesh_path = tools.get_file_path(name, "obj", "mask.obj")
     mask_json_path = tools.get_file_path(name, "json", "mask.json")

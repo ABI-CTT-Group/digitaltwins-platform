@@ -25,7 +25,7 @@ import {
   IExportMasks,
   IReplaceMask,
   ISaveSphere,
-  IMaskMesh,
+  IMaskTumourObj,
   IRegRquest,
   INipplePoints,
   IRibSkinPoints,
@@ -199,14 +199,14 @@ export const useMaskNrrdStore = defineStore("getMaskNrrd", () => {
   };
 });
 
-export const useMaskMeshObjStore = defineStore("getMaskMesh", () => {
-  const maskMeshObj = ref<IMaskMesh>({});
-  const getMaskMeshObj = async (name: string) => {
-    maskMeshObj.value = (await useMaskObjMesh(name)) as IMaskMesh;
+export const useMaskTumourObjStore = defineStore("getMaskTumourObj", () => {
+  const maskTumourObj = ref<IMaskTumourObj>({});
+  const getMaskTumourObj = async (name: string) => {
+    maskTumourObj.value = (await useMaskObjMesh(name)) as IMaskTumourObj;
   };
   return {
-    maskMeshObj,
-    getMaskMeshObj,
+    maskTumourObj,
+    getMaskTumourObj,
   };
 });
 

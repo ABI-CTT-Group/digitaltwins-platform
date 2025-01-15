@@ -180,19 +180,19 @@ export async function useMaskNrrd(name: string) {
 export async function useMaskObjMesh(name: string) {
   return new Promise((resolve, reject) => {
     http
-      .getBlob("/mesh", { name })
+      .getBlob("/mask_tumour_mesh", { name })
       .then((res) => {
         
         if(res === 404){
           resolve(false);
         }else{
-          const maskMeshObjUrl = URL.createObjectURL(
+          const maskTumourObjUrl = URL.createObjectURL(
             new Blob([(res as any).data as BlobPart])
           );
           
           resolve(
             Object.assign({
-              maskMeshObjUrl,
+              maskTumourObjUrl,
               meshVolume: (res as any).x_header_obj.volume,
             })
           );

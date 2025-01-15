@@ -8,7 +8,7 @@
       ></v-list-item>
       <ImageCtl />
       <OperationCtl />
-      <RightPanelCore />
+      <NavRightPanelCore />
       <SysOpts>
         <SysOptsCtl :key-board-setting="true" :debug-setting="true" :sticky-nav-setting="true" :stick="stickMode" :nrrd-tools="nrrdTools" @update-debug="handleUpdateDebug" @update-sticky="handleUpdateSticky"/>
       </SysOpts>
@@ -20,7 +20,7 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import ImageCtl from "./tools/NrrdImageCtl.vue";
 import OperationCtl from "./tools/OperationCtl.vue";
-import RightPanelCore from "./RightPanelCore.vue";
+import NavRightPanelCore from "./NavRightPanel.vue";
 import SysOpts from "../nav-components/sysopt/SysOpts.vue";
 import SysOptsCtl from "../nav-components/sysopt/SysOptsCtl.vue";
 import emitter from "@/plugins/custom-emitter";
