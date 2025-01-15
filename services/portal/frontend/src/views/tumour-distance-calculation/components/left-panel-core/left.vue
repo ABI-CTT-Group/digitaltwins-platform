@@ -224,7 +224,7 @@ async function onCaseSwitched() {
   switchAnimationStatus(loadingContainer!, progress!, "flex", "loading image data, please wait......");
   await getStudyNrrd(workingCase.value?.file_path as string);
 
-  // must use a new array to trigger the watcher, cannot use push
+  //Note: Important must use a new array to trigger the watcher, cannot use push
   currentCaseContrastUrls.value = [studyNrrd.value as string];
   currentCaseName.value = workingCase.value?.name as string;
   currentCaseContractsCount.value = currentCaseContrastUrls.value.length;

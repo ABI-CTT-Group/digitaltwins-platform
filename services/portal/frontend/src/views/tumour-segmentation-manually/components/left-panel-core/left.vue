@@ -2,7 +2,7 @@
   <LeftPanelCore 
     ref="leftPanelCoreRef"
     v-model:load-mask="loadMask"
-    :show-debug-panel="debug_mode" 
+    :show-debug-panel="isShowDebugPanel" 
     :show-slice-index="true"
     :enable-upload="true"
     :show-tumour-distance-panel="showCalculatorValue"
@@ -15,6 +15,7 @@
     @update:sphere-data="getSphereData"
     @update:calculate-sphere-positions-data="getCalculateSpherePositionsData"
     @update:slice-number="getSliceNum"
+    @update:mouse-drag-contrast="getContrastMove"
     @update:after-load-all-case-images="handleAllImagesLoaded"
     >
     <template #drag-to-upload>
@@ -70,7 +71,8 @@ import {
   IToolSphereData,
   IToolCalculateSpherePositionsData,
   IToolAfterLoadImagesResponse,
-  IToolGetSliceNumber
+  IToolGetSliceNumber,
+  IToolGetMouseDragContrastMove
 } from "@/models/apiTypes";
 import { findRequestUrls, customRound, distance3D } from "@/plugins/view-utils/utils-left";
 import {
@@ -88,8 +90,6 @@ import {
   findCurrentCase,
   revokeAppUrls,
   revokeCaseUrls,
-  getEraserUrlsForOffLine,
-  getCursorUrlsForOffLine,
 } from "@/plugins/view-utils/tools";
 import emitter from "@/plugins/custom-emitter";
 import { convertInitMaskData } from "@/plugins/worker";
@@ -99,8 +99,23 @@ import { switchAnimationStatus } from "@/components/view-components/leftCoreUtil
 type Props = {
   panelWidth: number;
 };
+type TContrastSelected = {
+  [key: string]: boolean;
+};
+
+withDefaults(defineProps<Props>(), {
+  panelWidth: 1000,
+});
 
 const leftPanelCoreRef = ref<InstanceType<typeof LeftPanelCore>>();
+// to tell left core component to load mask data or not
+let loadMask = ref(true);
+// to tell left core component to show debug panel or not
+let isShowDebugPanel = ref(false);
+// core current case urls, used to trigger left core to load images in watch hook
+let currentCaseContrastUrls = ref<Array<string>>([]);
+// record the current case name
+let currentCaseName = ref("");
 
 let nrrdTools: Copper.NrrdTools | undefined;
 let scene: Copper.copperScene | undefined;
@@ -110,19 +125,17 @@ let progress: HTMLDivElement | undefined;
 let gui:any;
 let baseContainer: HTMLDivElement | undefined;
 
+// nav bar slider config
 let max = ref(0);
 let immediateSliceNum = ref(0);
 let contrastNum = ref(0);
 let currentCaseContractsCount = ref(0);
 let initSliceIndex = ref(0);
+
+// upload dialog config
 let dialog = ref(false);
 
-
-let debug_mode = ref(false);
-
-let optsGui: GUI | undefined = undefined;
-
-
+// core image data
 let displaySlices: Array<any> = [];
 let displayLoadedMeshes: Array<ILoadedMeshes> = [];
 let registerSlices: Array<any> = [];
@@ -131,28 +144,13 @@ let originSlices: Array<any> = [];
 let originMeshes: Array<ILoadedMeshes> = [];
 let originUrls: ICaseUrls = { nrrdUrls: [], jsonUrl: "" };
 let regiterUrls: ICaseUrls = { nrrdUrls: [], jsonUrl: "" };
-
-let regCkeckbox: GUIController;
-let currentCaseContrastUrls = ref<Array<string>>([]);
 let loadedUrls: ILoadUrls = {};
 
-
+// Gui settings
+let regCkeckbox: GUIController;
 let selectedContrastFolder: GUI;
-
-let loadMask = ref(true);
-// true means current we load register images
-// false means current we load origin images
-let regiterSwitchBarStatus = true;
-let originRegswitcher = false;
-
-let currentCaseName = ref("");
 let regCheckboxElement: HTMLInputElement;
-
-let dts = ref(0);
-let dtn = ref(0);
-let dtr = ref(0);
-
-
+let optsGui: GUI | undefined = undefined;
 let state = {
   showContrast: false,
   switchCase: "",
@@ -163,10 +161,16 @@ let state = {
   },
 };
 
-type selecedType = {
-  [key: string]: boolean;
-};
+// true means current we load register images
+// false means current we load origin images
+let regiterSwitchBarStatus = true;
 
+// tumour distance calculation panel data
+let dts = ref(0);
+let dtn = ref(0);
+let dtr = ref(0);
+
+const showCalculatorValue = ref(false);
 
 
 const { allCasesDetails } = storeToRefs(useSegmentationCasesStore());
@@ -180,54 +184,6 @@ const { getMaskDataBackend } = useMaskStore();
 const { clearMaskMeshObj } = useClearMaskMeshStore();
 const { getNrrdAndJsonFileUrls } = useNrrdCaseFileUrlsWithOrderStore();
 const { caseUrls } = storeToRefs(useNrrdCaseFileUrlsWithOrderStore());
-
-
-
-
-const showCalculatorValue = ref(false);
-
-
-withDefaults(defineProps<Props>(), {
-  panelWidth: 1000,
-});
-
-function manageEmitters() {
-  emitter.on("Common:OpenCalculatorBox", emitterOnOpenCalculatorBox)
-  emitter.on("Common:CloseCalculatorBox", emitterOnCloseCalculatorBox)
-  emitter.on("Common:DebugMode", emitterOnDebugMode);
-  emitter.on("Common:ToggleAppTheme", emitterOnToggleAppTheme);
-  emitter.on("Segementation:CaseSwitched", emitterOnCaseSwitched);
-  emitter.on("Segmentation:ContrastChanged", emitterOnContrastChanged);
-  emitter.on("Segmentation:RegisterImageChanged", emitteOnRegisterImageChanged);
-}
-
-const emitterOnOpenCalculatorBox =  ()=>{
-    showCalculatorValue.value = true
-};
-const emitterOnCloseCalculatorBox = ()=>{
-    showCalculatorValue.value = false
-};
-const emitterOnDebugMode = (flag: boolean) => {
-  debug_mode.value = flag;
-};
-const emitterOnToggleAppTheme = () => {
-    baseContainer!.classList.toggle("dark");
-};
-const emitterOnCaseSwitched = async (casename: string) => {
-  await onCaseSwitched(casename);
-};
-const emitterOnContrastChanged = (result: any) => {
-  const { contrastState, order } = result;
-  onContrastSelected(contrastState, order);
-};
-const emitteOnRegisterImageChanged = async (result: boolean) => {
-    await onRegistedStateChanged(result);
-};
-
-const onFinishedCopperInit = (copperInitData:ILeftCoreCopperInit)=>{
-  nrrdTools = copperInitData.nrrdTools;
-  scene = copperInitData.scene;
-}
 
 onMounted(async () => {
   loadBarMain = leftPanelCoreRef.value?.loadBarMain;
@@ -247,7 +203,45 @@ async function getInitData() {
   await getAllCasesDetails();
 }
 
+const onFinishedCopperInit = (copperInitData:ILeftCoreCopperInit)=>{
+  nrrdTools = copperInitData.nrrdTools;
+  scene = copperInitData.scene;
+}
 
+function manageEmitters() {
+  emitter.on("Common:OpenCalculatorBox", emitterOnOpenCalculatorBox)
+  emitter.on("Common:CloseCalculatorBox", emitterOnCloseCalculatorBox)
+  emitter.on("Common:DebugMode", emitterOnDebugMode);
+  emitter.on("Common:ToggleAppTheme", emitterOnToggleAppTheme);
+  emitter.on("Segementation:CaseSwitched", emitterOnCaseSwitched);
+  emitter.on("Segmentation:ContrastChanged", emitterOnContrastChanged);
+  emitter.on("Segmentation:RegisterImageChanged", emitteOnRegisterImageChanged);
+}
+
+const emitterOnOpenCalculatorBox =  ()=>{
+    showCalculatorValue.value = true
+};
+const emitterOnCloseCalculatorBox = ()=>{
+    showCalculatorValue.value = false
+};
+const emitterOnDebugMode = (flag: boolean) => {
+  isShowDebugPanel.value = flag;
+};
+const emitterOnToggleAppTheme = () => {
+    baseContainer!.classList.toggle("dark");
+};
+const emitterOnCaseSwitched = async (casename: string) => {
+  await onCaseSwitched(casename);
+};
+const emitterOnContrastChanged = (result: any) => {
+  const { contrastState, order } = result;
+  onContrastSelected(contrastState, order);
+};
+const emitteOnRegisterImageChanged = async (result: boolean) => {
+    await onRegistedStateChanged(result);
+};
+
+// nav bar hook functions
 const onSaveMask = async (flag: boolean) => {
   if (flag && nrrdTools!.protectedData.maskData.paintImages.z.length > 0) {
     switchAnimationStatus(loadingContainer!, progress!, "flex", "Saving masks data, please wait......");
@@ -256,15 +250,6 @@ const onSaveMask = async (flag: boolean) => {
     emitter.emit("Segmentation:SyncTumourModelButtonClicked", true);
   }
 };
-const onOpenDialog = (flag: boolean) => {
-  dialog.value = flag;
-};
-const onCloseDialog = (flag: boolean) => {
-  dialog.value = flag;
-};
-const handleUploadFiles = (urls: string[]) =>{
-  currentCaseContrastUrls.value = urls;
-}
 
 const resetSlicesOrientation = (axis: "x" | "y" | "z") => {
   nrrdTools!.setSliceOrientation(axis);
@@ -281,6 +266,18 @@ const resetMainAreaSize = (factor: number) => {
   nrrdTools!.setMainAreaSize(factor);
 };
 
+// upload dialog hook functions
+const onOpenDialog = (flag: boolean) => {
+  dialog.value = flag;
+};
+const onCloseDialog = (flag: boolean) => {
+  dialog.value = flag;
+};
+const handleUploadFiles = (urls: string[]) =>{
+  currentCaseContrastUrls.value = urls;
+}
+
+// left core hook functions
 const sendInitMaskToBackend = async () => {
   // const masksData = nrrdTools!.paintImages.z;
   const rawMaskData = nrrdTools!.getMaskData();
@@ -438,7 +435,8 @@ const getSliceNum = (res: IToolGetSliceNumber) => {
     contrastNum.value = contrastindex;
   };
 
-const getContrastMove = (step:number, towards:"horizental"|"vertical") =>{
+const getContrastMove = (res:IToolGetMouseDragContrastMove) =>{
+  const { step, towards } = res;
   if(towards === "horizental"){
     emitter.emit("Common:DragImageWindowCenter", step)
   }else if(towards === "vertical"){
@@ -465,7 +463,7 @@ const handleAllImagesLoaded = async (res:IToolAfterLoadImagesResponse) => {
   max.value = nrrdTools!.getMaxSliceNum()[1];
 
   // step 4: config contrast gui folder and NrrdImageCtl.vue Contrast Image States
-  const selectedState: selecedType = {};
+  const selectedState: TContrastSelected = {};
   for (let i = 0; i < displaySlices.length; i++) {
     if (i == 0) {
       selectedState["pre"] = true;
@@ -494,6 +492,7 @@ const handleAllImagesLoaded = async (res:IToolAfterLoadImagesResponse) => {
 };
 
 
+// Core functions for this component
 /**
  *
  * @param flag [boolean] the effect contrast state, true: add, flase: remove

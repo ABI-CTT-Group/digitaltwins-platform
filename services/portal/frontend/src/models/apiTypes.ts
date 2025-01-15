@@ -214,3 +214,7 @@ export interface IToolGetSliceNumber {
   index: number;
   contrastindex: number;
 }
+export interface IToolGetMouseDragContrastMove {
+  step:number, 
+  towards:"horizental"|"vertical"
+}

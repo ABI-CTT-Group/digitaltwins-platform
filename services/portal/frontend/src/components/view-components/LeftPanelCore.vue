@@ -63,9 +63,12 @@ let toolNrrdStates: Copper.INrrdStates;
 // core load images variables
 let allSlices: Array<any> = [];
 let allLoadedMeshes: Array<ILoadedMeshes> = [];
-let fileNum = ref(0);
+
+// used to trigger nrrdTools to display loaded images slices, once the filesCount === currentCaseContrastUrls.length
 let filesCount = ref(0);
+// when firstLoad is true, it means that we need to initialize the nrrdTools
 let firstLoad = true;
+// used to remove the nrrdTools.start function in scene preRenderCallbackFunction, when we unmount the component
 let coreRenderId = 0;
 
 const { currentCaseContrastUrls, currentCaseName } = defineProps({
@@ -112,7 +115,16 @@ const loadMask = defineModel('loadMask', {
     default: false
 });
 
-const emit = defineEmits(["finishedCopperInit", "update:getMaskData", "update:sphereData", "update:calculateSpherePositionsData", "update:sliceNumber", "update:afterLoadAllCaseImages", "update:setMaskData"]);
+const emit = defineEmits(
+  [
+    "finishedCopperInit", 
+    "update:getMaskData", 
+    "update:sphereData", 
+    "update:calculateSpherePositionsData", 
+    "update:sliceNumber", 
+    "update:afterLoadAllCaseImages", 
+    "update:setMaskData", 
+    "update:mouseDragContrast"]);
 
 watch(() => currentCaseContrastUrls, (newVal, oldVal) => {
 
@@ -137,14 +149,10 @@ function initCopper() {
     );
 
     nrrdTools = new Copper.NrrdTools(canvasContainer.value as HTMLDivElement);
-
-    // emitter.emit("Core:NrrdTools", nrrdTools.value);
-
     nrrdTools.setDisplaySliceIndexPanel(
         sliceIndexContainer.value as HTMLDivElement
     );
     // for offline working
-
     // nrrdTools.setBaseCanvasesSize(1.5);
     nrrdTools.setEraserUrls(eraserUrls);
     nrrdTools.setPencilIconUrls(cursorUrls);
@@ -187,7 +195,6 @@ function setupCopperScene(name: string) {
 // core load images
 
 const readyToLoad = ( name: string) => {
-  fileNum.value = currentCaseContrastUrls.length;
   if (currentCaseContrastUrls.length > 0) {
     return new Promise<{ meshes: Array<Copper.nrrdMeshesType>; slices: any[] }>(
       (resolve, reject) => {
@@ -207,9 +214,6 @@ const loadAllNrrds = (
   reject?: (reason?: any) => void
 ) => {
   switchAnimationStatus(loadingContainer.value!, progress.value!, "none");
-
-  fileNum.value = urls.length;
-
   allSlices = [];
   allLoadedMeshes = [];
   for (let i = 0; i < urls.length; i++) {
@@ -241,20 +245,13 @@ const imageLoader = (name:string, url:string, order: number, total:number, resol
   scene?.loadNrrd(url, loadBarMain.value!, true, onload);
 }
 
-
-
+// hooks
 const getContrastMove = (step:number, towards:"horizental"|"vertical") =>{
-  if(towards === "horizental"){
-    emitter.emit("Common:DragImageWindowCenter", step)
-  }else if(towards === "vertical"){
-    emitter.emit("Common:DragImageWindowHigh", step)
-  }
+  emit("update:mouseDragContrast", { step, towards });
 }
-
 const getSliceNum = (index: number, contrastindex: number) => {
  emit("update:sliceNumber", { index, contrastindex });
 };
-
 const getMaskData = (
   image: ImageData,
   sliceId: number,
@@ -286,12 +283,11 @@ const getCalculateSpherePositionsData = (tumourSphereOrigin:Copper.ICommXYZ | nu
     aix
   });
 };
-
 const setMaskData = () => {
   emit("update:setMaskData");
 };
 
-
+// watch filesCount, when filesCount.value === currentCaseContrastUrls.length, then we can start to display the images
 watch(filesCount, ()=>{
   if (
     filesCount.value != 0 &&
@@ -332,52 +328,9 @@ watch(filesCount, ()=>{
   }, 1000);
 })
 
-// watchEffect(() => {
-//   if (
-//     filesCount.value != 0 &&
-//     filesCount.value === currentCaseContrastUrls.length
-//   ) {
-//     console.log("All files ready!");
-
-//     nrrdTools!.clear();
-//     nrrdTools!.setAllSlices(allSlices);
-
-//     if (firstLoad) {
-
-//       nrrdTools!.drag({ getSliceNum });
-//       nrrdTools!.draw({ getMaskData, getSphereData, getCalculateSpherePositionsData});
-//       nrrdTools!.setupGUI(gui as GUI);
-//       nrrdTools!.enableContrastDragEvents(getContrastMove)
-
-//       coreRenderId = scene?.addPreRenderCallbackFunction(nrrdTools!.start) as number;
-//       emitter.emit("Core:NrrdTools", nrrdTools);
-//     } else {
-//       nrrdTools!.redrawMianPreOnDisplayCanvas();
-//     }
-
-//     if (loadMask.value) {
-//       setMaskData();
-//     }
-
-//     emit("update:afterLoadAllCaseImages", {
-//       allSlices,
-//       allLoadedMeshes,
-//     });
-
-//     firstLoad = false;
-//     loadMask.value = false;
-//   }
-//   setTimeout(() => {
-//     filesCount.value = 0;
-//   }, 1000);
-  
-//   // switchAnimationStatus(loadingContainer.value!, progress.value!, "none");
-// });
 
 onUnmounted(() => {
   scene?.removePreRenderCallbackFunction(coreRenderId);
-  // revokeAppUrls();
-  // revokeRegisterNrrdImages();
 });
 
 </script>
