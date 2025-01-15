@@ -73,7 +73,7 @@ import { useSaveTumourPosition } from "@/plugins/api";
 import {
   findCurrentCase,
   revokeAppUrls,
-  revokeRegisterNrrdImages,
+  revokeCaseUrls,
   getEraserUrlsForOffLine,
   getCursorUrlsForOffLine,
 } from "@/plugins/view-utils/tools";
@@ -212,8 +212,6 @@ const emitteOnRegisterImageChanged = async (result: boolean) => {
 };
 
 onMounted(async () => {
-  nrrdTools = leftPanelCoreRef.value?.nrrdTools;
-  scene = leftPanelCoreRef.value?.scene;
   loadBarMain = leftPanelCoreRef.value?.loadBarMain;
   loadingContainer = leftPanelCoreRef.value?.loadingContainer;
   progress = leftPanelCoreRef.value?.progress;
@@ -628,7 +626,7 @@ async function onCaseSwitched(casename: string) {
   switchAnimationStatus("flex", "Saving masks data, please wait......");
   // revoke the regsiter images
   if (!!originUrls.value && originUrls.value.nrrdUrls.length > 0) {
-    revokeRegisterNrrdImages(originUrls.value.nrrdUrls);
+    // revokeRegisterNrrdImages(originUrls.value.nrrdUrls);
     originUrls.value.nrrdUrls.length = 0;
   }
   originAllSlices.length = 0;

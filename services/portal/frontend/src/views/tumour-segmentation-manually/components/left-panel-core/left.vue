@@ -54,9 +54,7 @@ import * as Copper from "copper3d";
 import "copper3d/dist/css/style.css";
 // import * as Copper from "@/ts/index";
 
-
-
-import { onMounted, ref, watchEffect, onUnmounted, watch } from "vue";
+import { onMounted, ref, onUnmounted } from "vue";
 import { storeToRefs } from "pinia";
 import {
   IStoredMasks,
@@ -89,14 +87,13 @@ import { useSaveTumourPosition } from "@/plugins/api";
 import {
   findCurrentCase,
   revokeAppUrls,
-  revokeRegisterNrrdImages,
+  revokeCaseUrls,
   getEraserUrlsForOffLine,
   getCursorUrlsForOffLine,
 } from "@/plugins/view-utils/tools";
 import emitter from "@/plugins/custom-emitter";
 import { convertInitMaskData } from "@/plugins/worker";
 import { switchAnimationStatus } from "@/components/view-components/leftCoreUtils";
-import { get } from "http";
 
 
 type Props = {
@@ -117,7 +114,6 @@ let max = ref(0);
 let immediateSliceNum = ref(0);
 let contrastNum = ref(0);
 let currentCaseContractsCount = ref(0);
-let filesCount = ref(0);
 let initSliceIndex = ref(0);
 let dialog = ref(false);
 
@@ -127,13 +123,15 @@ let debug_mode = ref(false);
 let optsGui: GUI | undefined = undefined;
 
 
-let allSlices: Array<any> = [];
-let allLoadedMeshes: Array<ILoadedMeshes> = [];
+let displaySlices: Array<any> = [];
+let displayLoadedMeshes: Array<ILoadedMeshes> = [];
+let registerSlices: Array<any> = [];
+let regitserMeshes: Array<ILoadedMeshes> = [];
+let originSlices: Array<any> = [];
+let originMeshes: Array<ILoadedMeshes> = [];
+let originUrls: ICaseUrls = { nrrdUrls: [], jsonUrl: "" };
+let regiterUrls: ICaseUrls = { nrrdUrls: [], jsonUrl: "" };
 
-let defaultRegAllSlices: Array<any> = [];
-let originAllSlices: Array<any> = [];
-let defaultRegAllMeshes: Array<ILoadedMeshes> = [];
-let originAllMeshes: Array<ILoadedMeshes> = [];
 let regCkeckbox: GUIController;
 let currentCaseContrastUrls = ref<Array<string>>([]);
 let loadedUrls: ILoadUrls = {};
@@ -142,7 +140,9 @@ let loadedUrls: ILoadUrls = {};
 let selectedContrastFolder: GUI;
 
 let loadMask = ref(true);
-let loadOrigin = false;
+// true means current we load register images
+// false means current we load origin images
+let regiterSwitchBarStatus = true;
 let originRegswitcher = false;
 
 let currentCaseName = ref("");
@@ -181,8 +181,7 @@ const { clearMaskMeshObj } = useClearMaskMeshStore();
 const { getNrrdAndJsonFileUrls } = useNrrdCaseFileUrlsWithOrderStore();
 const { caseUrls } = storeToRefs(useNrrdCaseFileUrlsWithOrderStore());
 
-let originUrls = ref<ICaseUrls>({ nrrdUrls: [], jsonUrl: "" });
-let regUrls = ref<ICaseUrls>({ nrrdUrls: [], jsonUrl: "" });
+
 
 
 const showCalculatorValue = ref(false);
@@ -226,10 +225,8 @@ const emitteOnRegisterImageChanged = async (result: boolean) => {
 };
 
 const onFinishedCopperInit = (copperInitData:ILeftCoreCopperInit)=>{
-
   nrrdTools = copperInitData.nrrdTools;
   scene = copperInitData.scene;
-  console.log(nrrdTools.getGuiSettings());
 }
 
 onMounted(async () => {
@@ -364,8 +361,6 @@ const setMaskData = () => {
   }, 1000);
 };
 
-
-
 const getSphereData = async (res: IToolSphereData) => {
   const { sphereOrigin, sphereRadius } = res;
   const sphereData: ISaveSphere = {
@@ -381,7 +376,6 @@ const getSphereData = async (res: IToolSphereData) => {
 
   await sendSaveSphere(sphereData);
 };
-
 
 const getCalculateSpherePositionsData = async (res:IToolCalculateSpherePositionsData)=>{
 
@@ -453,14 +447,26 @@ const getContrastMove = (step:number, towards:"horizental"|"vertical") =>{
 }
 
 const handleAllImagesLoaded = async (res:IToolAfterLoadImagesResponse) => {
-  allSlices = res.allSlices;
-  allLoadedMeshes = res.allLoadedMeshes;
-  const selectedState: selecedType = {};
+  // step 1: get all images and meshes and store them in displaySlices and displayLoadedMeshes
+  displaySlices = res.allSlices;
+  displayLoadedMeshes = res.allLoadedMeshes;
 
+  // step 2: Check current register switch bar status and store them in originSlices or registerSlices
+  if (regiterSwitchBarStatus){
+    registerSlices = [...displaySlices]
+    regitserMeshes = [...displayLoadedMeshes]
+  }else{
+    originSlices = [...displaySlices]
+    originMeshes = [...displayLoadedMeshes]
+  }
+
+  // step 3: config nav bar slider
   initSliceIndex.value = nrrdTools!.getCurrentSliceIndex();
   max.value = nrrdTools!.getMaxSliceNum()[1];
 
-  for (let i = 0; i < allSlices.length; i++) {
+  // step 4: config contrast gui folder and NrrdImageCtl.vue Contrast Image States
+  const selectedState: selecedType = {};
+  for (let i = 0; i < displaySlices.length; i++) {
     if (i == 0) {
       selectedState["pre"] = true;
     } else {
@@ -468,22 +474,23 @@ const handleAllImagesLoaded = async (res:IToolAfterLoadImagesResponse) => {
       selectedState[key] = true;
     }
   }
+  // step 4.1: update GUI
   setUpGuiAfterLoading();
-  // send contrast name with states to NrrdImageCtl.vue
+  // step 4.2: send contrast name with states to NrrdImageCtl.vue
   emitter.emit("Segmentation:ContrastImageStates", selectedState);
-  const guiSettings = nrrdTools!.getGuiSettings();
-  emitter.emit("Segmentation:FinishLoadAllCaseImages", guiSettings);
 
+  // step 5: tell all components that all images are loaded and give the guiSettings
+  tellAllRelevantComponentsImagesLoaded();
+
+  // step 6: only for GUI, remove duplicate folder children
   Copper.removeGuiFolderChilden(selectedContrastFolder);
-  for (let i = 0; i < allSlices.length; i++) {
+  for (let i = 0; i < displaySlices.length; i++) {
     let name = "";
     i === 0 ? (name = "pre") : (name = "contrast" + i);
     selectedContrastFolder.add(selectedState, name).onChange((flag) => {
       onContrastSelected(flag, i);
     });
   }
-
-  // initSliceIndex.value = 0;
 };
 
 
@@ -513,129 +520,114 @@ function onContrastSelected(flag: boolean, i: number) {
 }
 
 async function onCaseSwitched(casename: string) {
-  
-  loadOrigin = false;
+  // default every time load register image first, when case switched
+  regiterSwitchBarStatus = true;
+
+  // step 1: start animation
   switchAnimationStatus(loadingContainer!, progress!, "flex", "Saving masks data, please wait......");
-  // revoke the regsiter images
-  if (!!originUrls.value && originUrls.value.nrrdUrls.length > 0) {
-    revokeRegisterNrrdImages(originUrls.value.nrrdUrls);
-    originUrls.value.nrrdUrls.length = 0;
-  }
-  originAllSlices.length = 0;
-  defaultRegAllSlices.length = 0;
-  originAllMeshes.length = 0;
-  defaultRegAllMeshes.length = 0;
-  // temprary disable this function
+
+  // step 2: revoke regsiter and origin images urls
+  revokeCaseUrls(originUrls);
+  revokeCaseUrls(regiterUrls);
+  originUrls.nrrdUrls.length = 0;
+  regiterUrls.nrrdUrls.length = 0;
+  originUrls.jsonUrl = "";
+  regiterUrls.jsonUrl = "";
+
+  // step 3: clear origin and register slices array
+  originSlices.length = 0;
+  registerSlices.length = 0;
+  // revoke App all urls, need to modify later
   revokeAppUrls(loadedUrls);
   loadedUrls = {};
 
+  // step 4: set current case name
   currentCaseName.value = casename;
-  // update init data
+  // step 5: update init data
   await getInitData();
 
-  if (loadedUrls[casename]) {
-    switchAnimationStatus(
-      loadingContainer!, progress!, 
-      "flex",
-      "Prepare and Loading masks data, please wait......"
-    );
-    URL.revokeObjectURL(loadedUrls[casename].jsonUrl);
-    await getMaskDataBackend(casename);
-    loadedUrls[casename].jsonUrl = maskBackend.value;
-    currentCaseContrastUrls.value = loadedUrls[casename].nrrdUrls;
-    if (!!caseUrls.value) {
-      caseUrls.value.nrrdUrls = currentCaseContrastUrls.value;
-    }
-  } else {
-    
-    switchAnimationStatus(loadingContainer!, progress!, "flex", "Prepare Nrrd files, please wait......");
-    // await getCaseFileUrls(value);
-    const requests = findRequestUrls(
-      allCasesDetails.value?.details as Array<IDetails>,
-      currentCaseName.value,
-      "registration"
-    );
-    await getNrrdAndJsonFileUrls(requests);
+  // step 6: start to get nrrd urls
+  switchAnimationStatus(loadingContainer!, progress!, "flex", "Prepare Nrrd files, please wait......");
+  const requests = findRequestUrls(
+    allCasesDetails.value?.details as Array<IDetails>,
+    currentCaseName.value,
+    "registration"
+  );
+  await getNrrdAndJsonFileUrls(requests);
 
-    if (!!caseUrls.value) {
-      regUrls.value = caseUrls.value as ICaseUrls;
-      currentCaseContrastUrls.value = caseUrls.value.nrrdUrls;
-      loadedUrls[currentCaseName.value] = caseUrls.value;
-      const details = allCasesDetails.value?.details;
-      emitter.emit("Segmentation:CaseDetails", {
-        currentCaseId:currentCaseName.value,
-        details,
-        maskNrrd: !!currentCaseContrastUrls.value[1]?currentCaseContrastUrls.value[1]:currentCaseContrastUrls.value[0],
-      });
-    }
+  if (!!caseUrls.value) {
+    regiterUrls = caseUrls.value as ICaseUrls;
+    // trigger the left core ready to load function
+    currentCaseContrastUrls.value = caseUrls.value.nrrdUrls;
+    loadedUrls[currentCaseName.value] = caseUrls.value;
+    const details = allCasesDetails.value?.details;
+    emitter.emit("Segmentation:CaseDetails", {
+      currentCaseId:currentCaseName.value,
+      details,
+      maskNrrd: !!currentCaseContrastUrls.value[1]?currentCaseContrastUrls.value[1]:currentCaseContrastUrls.value[0],
+    });
   }
-
-  // readyToLoad("registration");
+  // when switch case, load mask data
   loadMask.value = true;
+  // tell nav bar file count
   currentCaseContractsCount.value = currentCaseContrastUrls.value.length;
 }
 
 async function onRegistedStateChanged(isShowRegisterImage: boolean) {
 
-  originRegswitcher = true;
   switchRegCheckBoxStatus(regCkeckbox.domElement, "none", "0.5");
   switchAnimationStatus(loadingContainer!, progress!, "flex", "Prepare and Loading data, please wait......");
+  let sendToRightContrstUrl = "";
 
   if (!isShowRegisterImage) {
-    // show origin
-    loadOrigin = true;
-    if (originAllSlices.length > 0) {
-      allSlices = [...originAllSlices];
-      allLoadedMeshes = [...originAllMeshes];
-      filesCount.value = currentCaseContrastUrls.value.length;
-      emitter.emit("Segmentation:RegisterButtonStatusChanged", {
-        maskNrrdMeshes: !!originAllMeshes[1]?originAllMeshes[1]: originAllMeshes[0],
-        maskSlices: !!originAllSlices[1]?originAllSlices[1]:originAllSlices[0],
-        url: !!currentCaseContrastUrls.value[1]?currentCaseContrastUrls.value[1]:currentCaseContrastUrls.value[0],
-        register: isShowRegisterImage,
-      });
-      return;
-    }
+    // load origin images
+    regiterSwitchBarStatus = false;
 
-    if (
-      !(!!originUrls.value?.nrrdUrls && originUrls.value?.nrrdUrls.length > 0)
-    ) {
+    // step 1: check is there origin slices are loaded in originSlices array
+    if (originSlices.length > 0) {
+      displaySlices = [...originSlices];
+      displayLoadedMeshes = [...originMeshes];
+      nrrdTools!.switchAllSlicesArrayData(displaySlices);
+    }else{
+      // step 2: if there is no origin slices
       const requests = findRequestUrls(
         allCasesDetails.value?.details as Array<IDetails>,
         currentCaseName.value,
         "origin"
       );
       await getNrrdAndJsonFileUrls(requests);
-      originUrls.value = caseUrls.value as ICaseUrls;
+      if (!!caseUrls.value) {
+        originUrls = caseUrls.value as ICaseUrls;
+        // trigger the left core ready to load function
+        currentCaseContrastUrls.value = caseUrls.value.nrrdUrls; 
+      }
     }
-
-    // if (!!originUrls.value?.nrrdUrls && originUrls.value?.nrrdUrls.length > 0) {
-    //   currentCaseContrastUrls = originUrls.value.nrrdUrls;
-    //   readyToLoad("origin")?.then((data) => {
-    //     emitter.emit("Segmentation:RegisterButtonStatusChanged", {
-    //       maskNrrdMeshes: data.meshes[1],
-    //       maskSlices: data.slices[1],
-    //       url:  !!currentCaseContrastUrls[1]?currentCaseContrastUrls[1]:currentCaseContrastUrls[0],
-    //       register: isShowRegisterImage,
-    //     });
-    //   });
-    // }
+    sendToRightContrstUrl = originUrls.nrrdUrls[1]?originUrls.nrrdUrls[1]:originUrls.nrrdUrls[0];
   } else {
-    loadOrigin = false;
-    // if (defaultRegAllSlices.length > 0) {
-    //   currentCaseContrastUrls = regUrls.value.nrrdUrls;
-    //   allSlices = [...defaultRegAllSlices];
-    //   allLoadedMeshes = [...defaultRegAllMeshes];
-    //   filesCount.value = currentCaseContrastUrls.length;
-    //   emitter.emit("Segmentation:RegisterButtonStatusChanged", {
-    //     maskNrrdMeshes: !!defaultRegAllMeshes[1]?defaultRegAllMeshes[1]:defaultRegAllMeshes[0],
-    //     maskSlices: !!defaultRegAllSlices[1]?defaultRegAllSlices[1]:defaultRegAllSlices[0],
-    //     url:  !!currentCaseContrastUrls[1]?currentCaseContrastUrls[1]:currentCaseContrastUrls[0],
-    //     register: isShowRegisterImage,
-    //   });
-    //   return;
-    // }
+    regiterSwitchBarStatus = true;
+    displaySlices = [...registerSlices];
+    displayLoadedMeshes = [...regitserMeshes];
+    nrrdTools!.switchAllSlicesArrayData(displaySlices);
+    sendToRightContrstUrl = regiterUrls.nrrdUrls[1]?regiterUrls.nrrdUrls[1]:regiterUrls.nrrdUrls[0];
   }
+
+  //  Finial, send loaded data to right
+  emitter.emit("Segmentation:RegisterButtonStatusChanged", {
+      maskNrrdMeshes: !!displayLoadedMeshes[1]?displayLoadedMeshes[1]: displayLoadedMeshes[0],
+      maskSlices: !!displaySlices[1]?displaySlices[1]:displaySlices[0],
+      url: sendToRightContrstUrl,
+      register: isShowRegisterImage,
+    });
+  //  finished swicth the images, tell all component switch successfully
+  tellAllRelevantComponentsImagesLoaded()
+
+  //  disable loading animation
+  switchAnimationStatus(loadingContainer!, progress!, "none");
+}
+
+function tellAllRelevantComponentsImagesLoaded(){
+  const guiSettings = nrrdTools!.getGuiSettings();
+  emitter.emit("Segmentation:FinishLoadAllCaseImages", guiSettings);
 }
 
 function setupGui() {
@@ -694,13 +686,10 @@ onUnmounted(() => {
   emitter.off("Segmentation:RegisterImageChanged", emitteOnRegisterImageChanged);
   nrrdTools!.clear();
   currentCaseContrastUrls.value.length = 0;
-  allSlices.length = 0;
-  allLoadedMeshes.length = 0;
-  originAllSlices.length = 0;
-  defaultRegAllSlices.length = 0;
-  originAllMeshes.length = 0;
-  defaultRegAllMeshes.length = 0;
-  
+  displaySlices.length = 0;
+  displayLoadedMeshes.length = 0;
+  originSlices.length = 0;
+  registerSlices.length = 0;  
 });
  
 </script>

@@ -31,9 +31,6 @@ import { ref, onMounted, onUnmounted, onBeforeUnmount, watch, watchEffect } from
 import emitter from "@/plugins/custom-emitter";
 import loadingGif from "@/assets/loading.svg";
 import {
-  findCurrentCase,
-  revokeAppUrls,
-  revokeRegisterNrrdImages,
   getEraserUrlsForOffLine,
   getCursorUrlsForOffLine,
 } from "@/plugins/view-utils/tools";
@@ -118,6 +115,7 @@ const loadMask = defineModel('loadMask', {
 const emit = defineEmits(["finishedCopperInit", "update:getMaskData", "update:sphereData", "update:calculateSpherePositionsData", "update:sliceNumber", "update:afterLoadAllCaseImages", "update:setMaskData"]);
 
 watch(() => currentCaseContrastUrls, (newVal, oldVal) => {
+
     if (newVal.length > 0) {
         readyToLoad(currentCaseName);
     }
