@@ -58,7 +58,7 @@ export interface ISaveTumourPosition {
   case_name: string;
   position: ICommXYZ;
 }
-export interface IMaskTumourObj {
+export interface IMaskTumourObjData {
   maskTumourObjUrl?: string;
   meshVolume?: number;
 }

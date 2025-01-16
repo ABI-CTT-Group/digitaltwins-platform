@@ -117,7 +117,7 @@ const loadMask = defineModel('loadMask', {
 
 const emit = defineEmits(
   [
-    "finishedCopperInit", 
+    "update:finishedCopperInit", 
     "update:getMaskData", 
     "update:sphereData", 
     "update:calculateSpherePositionsData", 
@@ -174,7 +174,7 @@ function initCopper() {
     setupCopperScene("nrrd_tools");
     appRenderer.animate();
 
-    emit("finishedCopperInit", {
+    emit("update:finishedCopperInit", {
         appRenderer,
         nrrdTools,
         scene,

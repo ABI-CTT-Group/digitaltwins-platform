@@ -9,7 +9,7 @@
     :show-bottom-nav-bar="panelWidth >= 600 ? true : false"
     :current-case-contrast-urls="currentCaseContrastUrls"
     :current-case-name="currentCaseName"
-    @finished-copper-init="onFinishedCopperInit"
+    @update:finished-copper-init="onFinishedCopperInit"
     @update:get-mask-data="getMaskData"
     @update:set-mask-data="setMaskData"
     @update:sphere-data="getSphereData"

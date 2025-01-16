@@ -1,7 +1,7 @@
 <template>
   <LayoutTwoPanels ref="layoutTwoPanelsRef">
     <template #left>
-      <LeftPanel :panel-width="layoutTwoPanelsRef?.leftPanelWidth"/>
+      <LeftPanel :panel-width="layoutTwoPanelsRef!.leftPanelWidth"/>
     </template>
     <template #right>
       <RightPanel :panel-width="layoutTwoPanelsRef?.rightPanelWidth"/>

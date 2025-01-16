@@ -3,7 +3,8 @@
     ref="rightPanelCoreRef"
     :show-bottom-nav-bar="panelWidth >= 410 ? true : false"
     :show-loading-animation="openLoading"
-    @finished-copper-init="onFinishedCopperInit"
+    @update:finished-copper-init="onFinishedCopperInit"
+    @update:reset-nrrd-image-view="handleResetNrrdImageView"
   >
     <template #tumour-distance-panel>
       <TumourDistancePanelRight 
@@ -18,7 +19,8 @@
     <template #bottom-nav-bar>
       <NavBarRight
         :panel-width="Math.ceil(panelWidth) "
-        @on-view-single-click="handleViewSigleClick"
+        :settings="sliderSettingsValue"
+        @on-view-single-click="handleViewSingleClick"
         @on-view-double-click="handleViewsDoubleClick"
       />
     </template>
@@ -46,8 +48,8 @@ import emitter from "@/plugins/custom-emitter";;
 import { storeToRefs } from "pinia";
 import {
   useMaskNrrdStore,
-  useMaskTumourObjStore,
-  useBreastMeshObjStore,
+  useMaskTumourObjDataStore,
+  useBreastMeshObjUrlStore,
   useNipplePointsStore,
   useRibPointsStore,
   useSkinPointsStore
@@ -83,17 +85,19 @@ let copperLoadingAnimationForNrrdLoader: Copper.loadingBarType | undefined;
 
 let panelOperator: PanelOperationManager;
 let copperScene: Copper.copperScene;
+let sliderSettingsValue = ref<{
+    panelOperator: PanelOperationManager;
+    dimensions: number[];
+    spacing: number[];
+    currentValue: number[];
+}>();
 
 
 let currentCasename = ref<string>("");
+let currentImageType = ref<"register"|"origin">("register");
 
 let socket = new WebSocket("ws://127.0.0.1:8000/ws");
 let socketTimer: NodeJS.Timer;
-
-// for deal with single/double click on a div
-let clickCount = 0;
-let clickTimer: any = null;
-let validFlag = false;
 
 // Right panel display state
 const openLoading = ref(false);
@@ -152,10 +156,10 @@ ribSphere.renderOrder=0;
 
 const { maskNrrd } = storeToRefs(useMaskNrrdStore());
 const { getMaskNrrd } = useMaskNrrdStore();
-const { maskTumourObj } = storeToRefs(useMaskTumourObjStore());
-const { getMaskTumourObj } = useMaskTumourObjStore();
-const { breastMeshObj } = storeToRefs(useBreastMeshObjStore());
-const { getBreastMeshObj } = useBreastMeshObjStore();
+const { maskTumourObjData } = storeToRefs(useMaskTumourObjDataStore());
+const { getMaskTumourObjData } = useMaskTumourObjDataStore();
+const { breastMeshObjUrl } = storeToRefs(useBreastMeshObjUrlStore());
+const { getBreastMeshObjUrl } = useBreastMeshObjUrlStore();
 const { nipplePoints } = storeToRefs(useNipplePointsStore());
 const { getNipplePoints } = useNipplePointsStore();
 const { skinPoints } = storeToRefs(useSkinPointsStore());
@@ -190,42 +194,7 @@ function initSocket(){
     socket.send("Frontend socket connect!");
   };
 
-  socket.onmessage = function (event) {
-    if (typeof event.data === "string") {
-      if (event.data === "delete") {
-        tumourVolume.value = 0;
-        if (!!segementTumour3DModel) copperScene.scene.remove(segementTumour3DModel);
-        segementTumour3DModel = undefined;
-
-        copperScene.scene.remove(ribSphere);
-        copperScene.scene.remove(skinSphere);
-
-        initPanelValue();
-      } else {
-        const volumeJson = JSON.parse(event.data);
-        tumourVolume.value = Math.ceil(volumeJson.volume) / 1000;
-      }
-      clearInterval(socketTimer as NodeJS.Timeout);
-    } else {
-      if(!!maskTumourObj.value.maskTumourObjUrl){
-        console.log("remove old mesh");
-        
-        URL.revokeObjectURL(maskTumourObj.value.maskTumourObjUrl)
-      }
-      const blob = new Blob([event.data], { type: "model/obj" });
-      const url = URL.createObjectURL(blob);
-      maskTumourObj.value.maskTumourObjUrl = url;
-
-      if(!!preTumourShpere){
-        (copperScene as Copper.copperScene).scene.remove(preTumourShpere);
-        preTumourShpere = undefined;
-      }
-      
-      loadSegmentTumour(url)
-      switchAnimationStatus(loadingContainer!, progress!, "none");
-    }
-    openLoading.value = false;
-  };
+  socket.onmessage = getSocketUpdatedMessage;
 }
 
 function initPanelValue() {
@@ -264,9 +233,45 @@ function clearModelsAndStates(){
   skinTree = undefined;
   ribTree = undefined;
   initPanelValue();
-  removeOldMeshes(allRightPanelMeshes);
+  rightPanelCoreRef.value?.removeOldMeshes(allRightPanelMeshes);
+  if(!!maskTumourObjData.value.maskTumourObjUrl){
+      URL.revokeObjectURL(maskTumourObjData.value.maskTumourObjUrl)
+  }
 }
 
+function getSocketUpdatedMessage(event: MessageEvent) {
+  if (typeof event.data === "string") {
+    if (event.data === "delete") {
+      tumourVolume.value = 0;
+      if (!!segementTumour3DModel) copperScene.scene.remove(segementTumour3DModel);
+      segementTumour3DModel = undefined;
+
+      copperScene.scene.remove(ribSphere);
+      copperScene.scene.remove(skinSphere);
+
+      initPanelValue();
+    } else {
+      const volumeJson = JSON.parse(event.data);
+      tumourVolume.value = Math.ceil(volumeJson.volume) / 1000;
+    }
+    clearInterval(socketTimer as NodeJS.Timeout);
+  } else {
+    if(!!maskTumourObjData.value.maskTumourObjUrl){
+      console.log("remove old mesh");
+      URL.revokeObjectURL(maskTumourObjData.value.maskTumourObjUrl)
+    }
+    const blob = new Blob([event.data], { type: "model/obj" });
+    const url = URL.createObjectURL(blob);
+    maskTumourObjData.value.maskTumourObjUrl = url;
+    if(!!preTumourShpere){
+      (copperScene as Copper.copperScene).scene.remove(preTumourShpere);
+      preTumourShpere = undefined;
+    }
+    loadSegmentTumour(url)
+    switchAnimationStatus(loadingContainer!, progress!, "none");
+  }
+  openLoading.value = false;
+}
 
 function manageEmitters() {
   /**
@@ -288,71 +293,27 @@ function manageEmitters() {
   emitter.on("Common:ToggleBreastVisibility", emitterOnToggleBreastVisibility)
 }
 
+const emitterOnCaseDetails = async (caseDetails: ICaseDetails) => {
+  // 1. clear previous meshes and clear state
+  clearModelsAndStates()
+  // 2. request data
+  const case_infos: ICaseDetails = caseDetails;
+  const case_detail = findCurrentCase(
+    case_infos.details,
+    case_infos.currentCaseId
+  );
+  // 2.1 Get currentCasename and get the init data
+  await getInitDataOnceCaseSwitched(caseDetails);
+
+  currentImageType.value = "register"
+  // 2.2 Load Nrrd core
+  coreLoadNrrdImageOnceGetCaseDetail(maskNrrd.value as string, currentImageType.value);
+}
 const emitterOnResizeCopperSceneWhenNavChanged = () => {
   // give a 300ms delay for wait right panel to recalculate width, then update threejs
   setTimeout(() => {
     copperScene?.onWindowResize();
   }, 300);
-}
-const emitterOnCaseDetails = async (case_details: ICaseDetails) => {
-  // 1. clear previous meshes and clear state
-  clearModelsAndStates()
-  // 2. request data
-  const case_infos: ICaseDetails = case_details;
-  const case_detail = findCurrentCase(
-    case_infos.details,
-    case_infos.currentCaseId
-  );
-
-
-  // 2.1 Get currentCasename and the nrrd image URL blob
-  currentCasename.value = case_infos.currentCaseId;
-  // get mask nrrd blob url
-  maskNrrd.value = case_infos.maskNrrd;
-  // get mask tumour obj url
-  await getMaskTumourObj(currentCasename.value);
-  // get breast mesh obj url
-  await getBreastMeshObj(case_infos.currentCaseId);
-  // get ribcage points
-  await getRibPoints(case_infos.currentCaseId);
-  // get skin points
-  await getSkinPoints(case_infos.currentCaseId);
-  // get nipple points
-  await getNipplePoints(currentCasename.value);
-
-  // 2.2 Load Nrrd
-  loadNrrd(maskNrrd.value as string, "register")?.then(async (nrrdData)=>{
-    
-    
-    if(!!skinPoints.value){
-      const skinPointCloud = skinPoints.value as IRibSkinPoints
-      processedSkinPoints = processPointsCloud(skinPointCloud["Datapoints"] as number[][], nrrdData.bias)
-      skinTree = createKDTree(processedSkinPoints);
-    }
-    if(!!ribPoints.value){
-      const ribPointCloud = ribPoints.value as IRibSkinPoints
-      processedRibPoints = processPointsCloud(ribPointCloud["Datapoints"] as number[][], nrrdData.bias)
-      ribTree = createKDTree(processedRibPoints);
-    }
-    // 2.3 Load breast model, nipple, skin, ribcage, 3d model
-    loadBreastModel()
-    // 2.4 Load tumour obj model if has
-
-    if(!!maskTumourObj.value.maskTumourObjUrl){
-      URL.revokeObjectURL(maskTumourObj.value.maskTumourObjUrl)
-    }
-    
-    
-    if(!!maskTumourObj.value){
-      tumourVolume.value = Math.ceil(maskTumourObj.value.meshVolume as number) / 1000;
-      // maskMeshObj.value.maskMeshObjUrl as string
-      
-      // 2.4 load tumour model
-      loadSegmentTumour(maskTumourObj.value.maskTumourObjUrl as string)
-    }else{
-      requestUpdateSliderSettings();
-    }
-  });
 }
 const emitterOnSyncTumourModelButtonClicked = () => {
   switchAnimationStatus(loadingContainer!, progress!, "flex");
@@ -360,78 +321,25 @@ const emitterOnSyncTumourModelButtonClicked = () => {
   socketTimer = requestSocketUpdateTumourModel();
 }
 const emitterOnRegisterButtonStatusChanged = (data: ILeftRightData) => {
-  const res = data;
-  // removeOldMeshes([nrrdMeshes.x, nrrdMeshes.y, nrrdMeshes.z]);
-
+  const {url, register} = data;
+  currentImageType.value = register ? "register" : "origin";
   const recordSliceIndex = {
     x: loadNrrdSlices.x.index,
     y: loadNrrdSlices.y.index,
     z: loadNrrdSlices.z.index,
   };
-  
   if (originMeshes === undefined && originSlices === undefined) {
-    copperScene.loadNrrd(
-      res.url,
-      copperLoadingAnimationForNrrdLoader!,
-      true,
-      (
-        volume: any,
-        nrrdMesh: Copper.nrrdMeshesType,
-        nrrdSlices: Copper.nrrdSliceType
-      ) => {
-        nrrdMesh.x.name = "origin sagittal";
-        nrrdMesh.y.name = "origin coronal";
-        nrrdMesh.z.name = "origin axial";
+   rightPanelCoreRef.value?.loadNrrd(url, currentImageType.value)?.then((nrrdData)=>{
+      const { nrrdMesh, nrrdSlices } = nrrdData;
         originMeshes = nrrdMesh;
         originSlices = nrrdSlices;
         allRightPanelMeshes.push(
           ...[originMeshes.x, originMeshes.y, originMeshes.z]
         );
-        if (registrationMeshes)
-          copperScene.scene.remove(
-            ...[
-              registrationMeshes.x,
-              registrationMeshes.y,
-              registrationMeshes.z,
-            ]
-          );
-
-        loadNrrdMeshes = originMeshes as Copper.nrrdMeshesType;
-        loadNrrdSlices = originSlices as Copper.nrrdSliceType;
-
-        resetSliceIndex(recordSliceIndex);
-        copperScene.scene.add(
-          ...[loadNrrdMeshes.x, loadNrrdMeshes.y, loadNrrdMeshes.z]
-        );
-      },
-      {
-        openGui: false,
-      }
-    );
+        updateNrrdMeshToCopperScene(originMeshes, originSlices, recordSliceIndex);
+    });
   } else {
-    if (res.register) {
-      if (originMeshes)
-        copperScene.scene.remove(
-          ...[originMeshes.x, originMeshes.y, originMeshes.z]
-        );
-      loadNrrdMeshes = registrationMeshes as Copper.nrrdMeshesType;
-      loadNrrdSlices = registrationSlices as Copper.nrrdSliceType;
-    } else {
-      if (registrationMeshes)
-        copperScene.scene.remove(
-          ...[
-            registrationMeshes.x,
-            registrationMeshes.y,
-            registrationMeshes.z,
-          ]
-        );
-      loadNrrdMeshes = originMeshes as Copper.nrrdMeshesType;
-      loadNrrdSlices = originSlices as Copper.nrrdSliceType;
-    }
-    resetSliceIndex(recordSliceIndex);
-    copperScene.scene.add(
-      ...[loadNrrdMeshes.x, loadNrrdMeshes.y, loadNrrdMeshes.z]
-    );
+    register ? updateNrrdMeshToCopperScene(registrationMeshes!, registrationSlices!, recordSliceIndex) : updateNrrdMeshToCopperScene(originMeshes!, originSlices!, recordSliceIndex);
   }
 }
 const emitterOnDrawSphereFunction = (val: ISaveSphere)=>{
@@ -488,119 +396,95 @@ const emitterOnToggleBreastVisibility = (val: boolean)=>{
 }
 
 
-/**
- * load the nrrd case, calculate the nrrd image origin, spacing, ras, dimensions, bias for load nipple, breast model
- * get the nrrd meshes and slices
- * @param nrrdUrl nrrd case url
- * @param name "register"|"origin"
- */
-function loadNrrd(nrrdUrl: string, name:"register"|"origin") {
+const updateNrrdMeshToCopperScene = (updatedNrrdMesh:Copper.nrrdMeshesType, updatedNrrdSlice:Copper.nrrdSliceType, recordSliceIndex?:any) => {
+  if (!!loadNrrdMeshes) copperScene.scene.remove(...[loadNrrdMeshes.x, loadNrrdMeshes.y, loadNrrdMeshes.z]);
+  loadNrrdMeshes = updatedNrrdMesh;
+  loadNrrdSlices = updatedNrrdSlice;
+  if (!!recordSliceIndex) resetSliceIndex(recordSliceIndex);
+  copperScene.scene.add(...[loadNrrdMeshes.x, loadNrrdMeshes.y, loadNrrdMeshes.z]);
+};
+
+const getInitDataOnceCaseSwitched = async (caseDetails: ICaseDetails)=>{
   
-  if (copperScene === undefined) {
-    console.log("copperScene is missing!");
-    return;
-  }
- 
-  // remove GUI
-  const opts: Copper.optsType = {
-    openGui: false,
-    // container: baseContainer_gui.value,
-  };
-  
-  return new Promise<{ origin: number[], spacing: number[],  ras: number[], dimensions:number[], bias: THREE.Vector3}>((resolve, reject) => {
-    const nrrdCallback = async (
-    volume: any,
-    nrrdMesh: Copper.nrrdMeshesType,
-    nrrdSlices: Copper.nrrdSliceType,
-    gui?: GUI
-  ) => {
-    // adjust nrrd volume contrast windowHigh and windowLow
-    // volume.windowHigh = 2000;
-    // volume.windowLow = 82;
-    // volume.repaintAllSlices();
-
-    nrrdOrigin = volume.header.space_origin.map((num: any) => Number(num));
-    nrrdSpacing = volume.spacing;
-    nrrdRas = volume.RASDimensions; // mm
-    nrrdDimensions = volume.dimensions; // pixels
-
-    const x_bias = -(nrrdOrigin[0] * 2 + nrrdRas[0]) / 2;
-    const y_bias = -(nrrdOrigin[1] * 2 + nrrdRas[1]) / 2;
-    const z_bias = -(nrrdOrigin[2] * 2 + nrrdRas[2]) / 2;
-
-     nrrdBias = new THREE.Vector3(x_bias, y_bias, z_bias);
-    
-
-    correctOrigin = [
-          nrrdOrigin[0] + x_bias,
-          nrrdOrigin[1] + y_bias,
-          nrrdOrigin[2] + z_bias,
-        ];  
-
-    // const a = createOriginSphere(origin,ras,spacing,x_bias,y_bias,z_bias);
-    // copperScene.scene.add(...a)
-
-    if(name==="register"){
-      loadNrrdMeshes = registrationMeshes = nrrdMesh;
-      loadNrrdSlices = registrationSlices = nrrdSlices;
-    }else{
-      loadNrrdMeshes = originMeshes = nrrdMesh;
-      loadNrrdSlices = originSlices = nrrdSlices;
-    }
-  
-    loadNrrdSlices.x.index = Math.ceil(loadNrrdSlices.x.RSAMaxIndex / 2);
-    loadNrrdSlices.y.index = Math.ceil(loadNrrdSlices.y.RSAMaxIndex / 2);
-    loadNrrdSlices.z.index = Math.ceil(loadNrrdSlices.z.RSAMaxIndex / 2);
-
-    loadNrrdSlices.x.repaint.call(loadNrrdSlices.x);
-    loadNrrdSlices.y.repaint.call(loadNrrdSlices.y);
-    loadNrrdSlices.z.repaint.call(loadNrrdSlices.z);
-    
-    nrrdMesh.x.name = "Sagittal";
-    nrrdMesh.y.name = "Cornal";
-    nrrdMesh.z.name = "Axial";
-    copperScene.addObject(nrrdMesh.x);
-    copperScene.addObject(nrrdMesh.y);
-    copperScene.addObject(nrrdMesh.z);
-
-    allRightPanelMeshes.push(nrrdMesh.x, nrrdMesh.y, nrrdMesh.z);
-
-    !!resolve && resolve({ origin: nrrdOrigin, spacing: nrrdSpacing,  ras: nrrdRas, dimensions:nrrdDimensions, bias: nrrdBias});
-    // reset view
-    resetNrrdImage();
-  };
-
-  (copperScene as Copper.copperScene).loadNrrd(
-    nrrdUrl,
-    copperLoadingAnimationForNrrdLoader!,
-    true,
-    nrrdCallback,
-    opts
-  );
-  })
-
+  currentCasename.value = caseDetails.currentCaseId;
+  // get mask nrrd blob url
+  maskNrrd.value = caseDetails.maskNrrd;
+  // get mask tumour obj url
+  await getMaskTumourObjData(currentCasename.value);
+  // get breast mesh obj url
+  await getBreastMeshObjUrl(currentCasename.value);
+  // get ribcage points
+  await getRibPoints(currentCasename.value);
+  // get skin points
+  await getSkinPoints(currentCasename.value);
+  // get nipple points
+  await getNipplePoints(currentCasename.value);
 }
 
-function requestUpdateSliderSettings(){
-  const sliderSettingsValue = {
-        panelOperator,
-        dimensions:nrrdDimensions,
-        spacing: nrrdSpacing, 
-        currentValue:[
-          Math.ceil(loadNrrdSlices.x.index / nrrdSpacing[0]),
-          Math.ceil(loadNrrdSlices.y.index / nrrdSpacing[1]),
-          Math.ceil(loadNrrdSlices.z.index / nrrdSpacing[2])
-        ]} 
-  emitter.emit("SegmentationTrial:RightPanelSliderSettingValueUpdated", sliderSettingsValue)
-}
 
-async function loadBreastModel() {
+const coreLoadNrrdImageOnceGetCaseDetail = async (nrrdUrl:string, imageType:"origin"|"register") => {
+  rightPanelCoreRef.value
+    ?.loadNrrd(nrrdUrl, imageType)
+    ?.then(async (nrrdData)=>{
 
-  //  todo load nipple data
-  const nippleResult = !!nipplePoints.value;
+      nrrdOrigin = nrrdData.origin;
+      nrrdSpacing = nrrdData.spacing;
+      nrrdRas = nrrdData.ras;
+      nrrdDimensions = nrrdData.dimensions;
+      nrrdBias = new THREE.Vector3(nrrdData.bias.x, nrrdData.bias.y, nrrdData.bias.z);
+      correctOrigin = nrrdData.correctedOrigin;
+      const { nrrdMesh, nrrdSlices } = nrrdData;
+      
+      if(currentImageType.value==="register"){
+        loadNrrdMeshes = registrationMeshes = nrrdMesh;
+        loadNrrdSlices = registrationSlices = nrrdSlices;
+      }else{
+        loadNrrdMeshes = originMeshes = nrrdMesh;
+        loadNrrdSlices = originSlices = nrrdSlices;
+      }
 
-  if (nippleResult) {
-    const nipples = nipplePoints.value as INipplePoints;
+      const sliceIndex: ICommXYZ  = {
+        x: loadNrrdSlices.x.RSAMaxIndex / 2,
+        y: loadNrrdSlices.y.RSAMaxIndex / 2,
+        z: loadNrrdSlices.z.RSAMaxIndex / 2,  
+      }
+
+      updateNrrdMeshToCopperScene(nrrdMesh, nrrdSlices, sliceIndex);
+      allRightPanelMeshes.push(nrrdMesh.x, nrrdMesh.y, nrrdMesh.z);
+      // reset view
+      rightPanelCoreRef.value?.resetNrrdImageView(loadNrrdMeshes);
+
+
+      if(!!skinPoints.value){
+        const skinPointCloud = skinPoints.value as IRibSkinPoints
+        processedSkinPoints = processPointsCloud(skinPointCloud["Datapoints"] as number[][], nrrdData.bias)
+        skinTree = createKDTree(processedSkinPoints);
+      }
+      if(!!ribPoints.value){
+        const ribPointCloud = ribPoints.value as IRibSkinPoints
+        processedRibPoints = processPointsCloud(ribPointCloud["Datapoints"] as number[][], nrrdData.bias)
+        ribTree = createKDTree(processedRibPoints);
+      }
+
+      // 2.3 Load breast model, nipple, skin, ribcage, 3d model
+      loadBreastNipplePoints(nipplePoints.value as INipplePoints);
+      loadBreastModel(breastMeshObjUrl.value as string);
+      // 2.4 Load tumour obj model if has
+      if(!!maskTumourObjData.value){
+        tumourVolume.value = Math.ceil(maskTumourObjData.value.meshVolume as number) / 1000;
+        // maskMeshObj.value.maskMeshObjUrl as string
+        // 2.4 load tumour model
+        loadSegmentTumour(maskTumourObjData.value.maskTumourObjUrl as string)
+      }else{
+        requestUpdateSliderSettings();
+      }
+    });
+};
+
+
+function loadBreastNipplePoints(nipplePoints:INipplePoints){
+  if(!!nipplePoints){
+    const nipples = nipplePoints;
     const l = nipples.nodes.left_nipple;
     const r = nipples.nodes.right_nipple;
     const nipplesPos = [l, r];
@@ -619,7 +503,6 @@ async function loadBreastModel() {
       nrrdDimensions,
       nrrdBias
     );
-
     // valide(tl,tr,nrrdMesh)
     nippleSphereL.position.set(nippleTl[0], nippleTl[1], nippleTl[2]);
     nippleSphereR.position.set(nippleTr[0], nippleTr[1], nippleTr[2]);
@@ -627,33 +510,33 @@ async function loadBreastModel() {
     copperScene.addObject(nippleSphereR);
     copperScene.addObject(nippleSphereL);
 
-    allRightPanelMeshes.push(nippleSphereL);
-    allRightPanelMeshes.push(nippleSphereR);
+    allRightPanelMeshes.push(...[nippleSphereL, nippleSphereR]);
   }
+}
+
+async function loadBreastModel(url:string){ 
 
   // load breast model
-
-  if(!!breastMeshObj.value){
-    copperScene.loadOBJ(breastMeshObj.value as string, (content) => {
-      breast3DModel = content
-      allRightPanelMeshes.push(content);
-      content.position.set(nrrdBias.x, nrrdBias.y, nrrdBias.z);
-      content.renderOrder = 3;
-      content.traverse((child) => {
-          if ((child as THREE.Mesh).isMesh) {
-            (child as THREE.Mesh).renderOrder=3;
-            (child as THREE.Mesh).material = new THREE.MeshBasicMaterial({
-              side: THREE.DoubleSide,
-              // wireframe:true,
-              // depthWrite:false,
-              transparent:true,
-              opacity:0.2,
-              color: "#795548",
-            });
-          }
-        });
-    })
-  }
+  if (!url) return;
+  copperScene.loadOBJ(url, (content) => {
+    breast3DModel = content
+    allRightPanelMeshes.push(content);
+    content.position.set(nrrdBias.x, nrrdBias.y, nrrdBias.z);
+    content.renderOrder = 3;
+    content.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          (child as THREE.Mesh).renderOrder=3;
+          (child as THREE.Mesh).material = new THREE.MeshBasicMaterial({
+            side: THREE.DoubleSide,
+            // wireframe:true,
+            // depthWrite:false,
+            transparent:true,
+            opacity:0.2,
+            color: "#795548",
+          });
+        }
+      });
+  })
 }
 
 function loadSegmentTumour(tomourUrl:string){
@@ -665,48 +548,35 @@ function loadSegmentTumour(tomourUrl:string){
 
   copperScene.loadOBJ(tomourUrl, (content) => {
 
-  allRightPanelMeshes.push(content);
+    allRightPanelMeshes.push(content);
 
-  segementTumour3DModel = content;
+    segementTumour3DModel = content;
+    content.position.set(nrrdBias.x, nrrdBias.y, nrrdBias.z);
+    const tumourMesh = content.children[0] as THREE.Mesh;
+    const tumourMaterial =
+      tumourMesh.material as THREE.MeshStandardMaterial;
+    // tumourMaterial.color = new THREE.Color("green");
+    tumourMesh.renderOrder = 3;
 
+    const box = new THREE.Box3().setFromObject(content);
+    const size = box.getSize(new THREE.Vector3()).length();
 
-  content.position.set(nrrdBias.x, nrrdBias.y, nrrdBias.z);
-  const tumourMesh = content.children[0] as THREE.Mesh;
-  const tumourMaterial =
-    tumourMesh.material as THREE.MeshStandardMaterial;
-  // tumourMaterial.color = new THREE.Color("green");
+    tumourPosition = box.getCenter(new THREE.Vector3());
+    displayAndCalculateNSR();
 
-  tumourMesh.renderOrder = 3;
+    const sliceIndex: ICommXYZ = {
+      x: loadNrrdSlices.x.RSAMaxIndex / 2 + tumourPosition.x,
+      y: loadNrrdSlices.y.RSAMaxIndex / 2 + tumourPosition.y,
+      z: loadNrrdSlices.z.RSAMaxIndex / 2 + tumourPosition.z,
+    };
 
-  const box = new THREE.Box3().setFromObject(content);
-  const size = box.getSize(new THREE.Vector3()).length();
-
-  tumourPosition = box.getCenter(new THREE.Vector3());
-  // reset nrrd slice
-
-  loadNrrdSlices.x.index = loadNrrdSlices.x.RSAMaxIndex / 2 + tumourPosition.x;
-  loadNrrdSlices.y.index = loadNrrdSlices.y.RSAMaxIndex / 2 + tumourPosition.y;
-  loadNrrdSlices.z.index = loadNrrdSlices.z.RSAMaxIndex / 2 + tumourPosition.z;
-  loadNrrdSlices.x.repaint.call(loadNrrdSlices.x);
-  loadNrrdSlices.y.repaint.call(loadNrrdSlices.y);
-  loadNrrdSlices.z.repaint.call(loadNrrdSlices.z);
-
-  displayAndCalculateNSR();
-  
-  (tumourSliceIndex as ICommXYZ).x = loadNrrdSlices.x.index;
-  (tumourSliceIndex as ICommXYZ).y = loadNrrdSlices.y.index;
-  (tumourSliceIndex as ICommXYZ).z = loadNrrdSlices.z.index;
-
-  requestUpdateSliderSettings();
-  });
-  
+    tumourSliceIndex = sliceIndex;
+    // reset nrrd slice, update loadNrrdSlices index
+    resetSliceIndex(sliceIndex);
+  }); 
 }
 
 function displayAndCalculateNSR(){
-  console.log("displayAndCalculateNSR");
-  console.log(tumourPosition);
-  
-  
   if (!!tumourPosition) {
       // const nippleTree = createKDTree(nipplesPos);
       // const idx = nippleTree.nn([tumourCenter.x,tumourCenter.y,tumourCenter.z])
@@ -717,8 +587,6 @@ function displayAndCalculateNSR(){
       updateTumourPanelInfo(tumourPosition)
     }
 }
-
-
 
 function displaySkinAndRib(tumourPosition:number[]){
 
@@ -746,131 +614,53 @@ function updateTumourPanelInfo(tumourPosition: THREE.Vector3){
       nippleTl[1],
       nippleTl[2]
     );
-    const nippleRight = new THREE.Vector3(
-      nippleTr[0],
-      nippleTr[1],
-      nippleTr[2]
-    );
-    const clockInfo = getClosestNipple(nippleLeft, nippleRight, tumourPosition);
+  const nippleRight = new THREE.Vector3(
+    nippleTr[0],
+    nippleTr[1],
+    nippleTr[2]
+  );
+  const clockInfo = getClosestNipple(nippleLeft, nippleRight, tumourPosition);
 
-    nippleDist.value = clockInfo.dist;
-    // console.log(clockInfo.radial_distance, nippleCentralLimit);
+  nippleDist.value = clockInfo.dist;
+  // console.log(clockInfo.radial_distance, nippleCentralLimit);
 
-    if (clockInfo.radial_distance < nippleCentralLimit) {
-      nippleClock.value = "central";
-    } else {
-      nippleClock.value = "@ " + clockInfo.timeStr;
-    }
+  if (clockInfo.radial_distance < nippleCentralLimit) {
+    nippleClock.value = "central";
+  } else {
+    nippleClock.value = "@ " + clockInfo.timeStr;
+  }
 
-    if(!!ribTree && !!skinTree){
-      skinDist.value = tumourPosition.distanceTo(skinPosition).toFixed(0)
-      ribDist.value = tumourPosition.distanceTo(ribPosition).toFixed(0)
-    }
+  if(!!ribTree && !!skinTree){
+    skinDist.value = tumourPosition.distanceTo(skinPosition).toFixed(0)
+    ribDist.value = tumourPosition.distanceTo(ribPosition).toFixed(0)
+  }
 }
 
 
-const handleViewSigleClick = (view: string) => {
-  panelOperator.start();
-  copperScene.controls.mouseButtons.LEFT = -1;
-  clickCount++;
-  if (clickCount === 1) {
-    clickTimer = setTimeout(() => {
-      switch (view) {
-        case "sagittal":
-          loadNrrdMeshes.x.visible = true;
-          loadNrrdMeshes.y.visible = false;
-          loadNrrdMeshes.z.visible = false;
-          panelOperator.setSlicePrams(loadNrrdSlices.x);
-          break;
-        case "axial":
-          loadNrrdMeshes.x.visible = false;
-          loadNrrdMeshes.y.visible = false;
-          loadNrrdMeshes.z.visible = true;
-          panelOperator.setSlicePrams(loadNrrdSlices.z);
-          break;
-        case "coronal":
-          loadNrrdMeshes.x.visible = false;
-          loadNrrdMeshes.y.visible = true;
-          loadNrrdMeshes.z.visible = false;
-          panelOperator.setSlicePrams(loadNrrdSlices.y);
-          break;
-        case "clock":
-          validFlag = !validFlag;
-          // valideClock(
-          //   validFlag,
-          //   copperScene,
-          //   baseContainer.value as HTMLElement,
-          //   nippleTl,
-          //   nippleTr,
-          //   loadNrrdMeshes
-          // );
-          break;
-        case "3dview":
-          backTo3DView()
-          break;
-        case "reset":
-          resetNrrdImage();
-          break;
-        
-      }
-      clickCount = 0;
-    }, 200);
-  }
+const handleViewSingleClick = (view: string) => {
+  rightPanelCoreRef.value?.onNavBarSingleClick(view, loadNrrdMeshes, loadNrrdSlices);
 };
 
 const handleViewsDoubleClick = (view: string) => {
-
-  if(view == "reset" || view == "3dview") return;
-  
-  !!clickTimer && clearTimeout(clickTimer);
-  clickCount = 0;
-  copperScene.controls.mouseButtons.LEFT = -1;
-  copperScene.controls.reset();
-  switch (view) {
-    case "sagittal":
-      loadNrrdMeshes.x.visible = true;
-      loadNrrdMeshes.y.visible = false;
-      loadNrrdMeshes.z.visible = false;
-      panelOperator.setSlicePrams(loadNrrdSlices.x);
-      copperScene.loadViewUrl("/nrrd_view_sagittal.json");
-      break;
-
-    case "axial":
-      loadNrrdMeshes.x.visible = false;
-      loadNrrdMeshes.y.visible = false;
-      loadNrrdMeshes.z.visible = true;
-      panelOperator.setSlicePrams(loadNrrdSlices.z);
-      copperScene.loadViewUrl("/nrrd_view.json");
-      break;
-
-    case "coronal":
-      loadNrrdMeshes.x.visible = false;
-      loadNrrdMeshes.y.visible = true;
-      loadNrrdMeshes.z.visible = false;
-      panelOperator.setSlicePrams(loadNrrdSlices.y);
-      copperScene.loadViewUrl("/nrrd_view_coronal.json");
-      break;
-  }
+  rightPanelCoreRef.value?.onNavBarDoubleClick(view, loadNrrdMeshes, loadNrrdSlices);
 };
 
-
-function removeOldMeshes(meshSet: THREE.Object3D[]) {
-  if (!!copperScene) {
-    (copperScene as Copper.copperScene).scene.remove(...meshSet);
-    meshSet.forEach((element) => {
-      element.traverse((case_mesh) => {
-        if ((case_mesh as THREE.Mesh).isMesh) {
-          (case_mesh as THREE.Mesh).geometry.dispose();
-        }
-      });
-    });
-    meshSet.length = 0;
-  }
-} 
+function requestUpdateSliderSettings(){
+  // update settings, and automatically send to nav bar
+  sliderSettingsValue.value = {
+        panelOperator,
+        dimensions:nrrdDimensions,
+        spacing: nrrdSpacing, 
+        currentValue:[
+          Math.ceil(loadNrrdSlices.x.index / nrrdSpacing[0]),
+          Math.ceil(loadNrrdSlices.y.index / nrrdSpacing[1]),
+          Math.ceil(loadNrrdSlices.z.index / nrrdSpacing[2])
+        ]
+      };
+}
 
 const resetSliceIndex = (sliceIndex: ICommXYZ) => {
   if(sliceIndex.x === 0 && sliceIndex.y === 0 && sliceIndex.z ===0 )return;
-
   loadNrrdMeshes.x.renderOrder = 1;
   loadNrrdMeshes.y.renderOrder = 1;
   loadNrrdMeshes.z.renderOrder = 1;
@@ -880,28 +670,11 @@ const resetSliceIndex = (sliceIndex: ICommXYZ) => {
   loadNrrdSlices.x.repaint.call(loadNrrdSlices.x);
   loadNrrdSlices.y.repaint.call(loadNrrdSlices.y);
   loadNrrdSlices.z.repaint.call(loadNrrdSlices.z);
-  
-    // request to mount/update slider settings
+  // request to mount/update slider settings
   requestUpdateSliderSettings()
 };
 
-
-
-const backTo3DView = ()=>{
-  panelOperator.dispose();
-  
-  loadNrrdMeshes.x.visible = true;
-  loadNrrdMeshes.y.visible = true;
-  loadNrrdMeshes.z.visible = true;
-  // valideClock(false, copperScene, baseContainer.value as HTMLElement);
-  
-  copperScene.controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
-}
-
-const resetNrrdImage = () => {
-  copperScene.loadViewUrl("/nrrd_view.json");
-  copperScene.controls.reset();
-  backTo3DView();
+const handleResetNrrdImageView = () => {
   resetSliceIndex(tumourSliceIndex);
 };
 

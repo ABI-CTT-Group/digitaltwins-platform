@@ -10,7 +10,7 @@
     :show-bottom-nav-bar="true"
     :current-case-contrast-urls="currentCaseContrastUrls"
     :current-case-name="currentCaseName"
-    @finished-copper-init="onFinishedCopperInit"
+    @update:finished-copper-init="onFinishedCopperInit"
     @update:calculate-sphere-positions-data="getCalculateSpherePositionsData"
     @update:slice-number="getSliceNum"
     @update:after-load-all-case-images="handleAllImagesLoaded"

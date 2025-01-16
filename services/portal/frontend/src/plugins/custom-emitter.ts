@@ -16,7 +16,6 @@ const eventNames = [
     "Segmentation:SyncTumourModelButtonClicked",
     "SegmentationTrial:CalulatorTimerFunction",
     "SegmentationTrial:DrawSphereFunction",
-    "SegmentationTrial:RightPanelSliderSettingValueUpdated",
     "Common:NavStickyMode",
     "Common:DebugMode",
     "Common:DrawerStatus",

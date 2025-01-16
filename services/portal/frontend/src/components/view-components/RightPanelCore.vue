@@ -34,7 +34,8 @@ defineProps({
 })
 
 const emit = defineEmits([
-  "finishedCopperInit"
+  "update:finishedCopperInit",
+  "update:resetNrrdImageView",
 ])
 
 let baseContainer = ref<HTMLDivElement>();
@@ -48,6 +49,24 @@ let copperLoadingAnimationForNrrdLoader: Copper.loadingBarType = Copper.loading(
 let appRenderer: Copper.copperRenderer;
 let copperScene: Copper.copperScene;
 let panelOperator: PanelOperationManager;
+
+// for nrrd loader
+let nrrdOrigin: number[] = [];
+let nrrdSpacing: number[] = [];
+let nrrdBias: THREE.Vector3;
+let correctedOrigin: number[] = [];
+/**
+ * pixel / spacing = mm
+ * mm * spacing = pixel
+ */
+let nrrdRASDimensions: number[] = []; // mm
+let nrrdDimensions: number[] = []; // pixels
+
+
+// for deal with single/double click on a div
+let clickCount = 0;
+let clickTimer: any = null;
+let validFlag = false;
 
 onMounted(() => {
     initCopper();
@@ -75,7 +94,7 @@ function initCopper() {
     initPanelOperator();
     appRenderer.animate();
 
-    emit("finishedCopperInit", { appRenderer, copperScene, panelOperator, copperLoadingAnimationForNrrdLoader});
+    emit("update:finishedCopperInit", { appRenderer, copperScene, panelOperator, copperLoadingAnimationForNrrdLoader});
 }
 
 function initPanelOperator() {
@@ -110,14 +129,198 @@ function initScene(name: string) {
   }
 }
 
+/**
+ * load the nrrd case, calculate the nrrd image origin, spacing, ras, dimensions, bias for load nipple, breast model
+ * get the nrrd meshes and slices
+ * @param nrrdUrl nrrd case url
+ */
+ function loadNrrd(nrrdUrl: string, imageType: "register" | "origin") {
+  
+  if (copperScene === undefined) {
+    console.log("copperScene is missing!");
+    return;
+  }
+  // remove GUI
+  const opts: Copper.optsType = {
+    openGui: false,
+    // container: baseContainer_gui.value,
+  };
+  return new Promise<{ origin: number[], 
+                      correctedOrigin:number[], 
+                      spacing: number[],  
+                      ras: number[], 
+                      dimensions:number[], 
+                      bias: THREE.Vector3,  
+                      nrrdMesh:Copper.nrrdMeshesType, 
+                      nrrdSlices:Copper.nrrdSliceType}>((resolve, reject) => {
+    const nrrdCallback = async (
+    volume: any,
+    nrrdMesh: Copper.nrrdMeshesType,
+    nrrdSlices: Copper.nrrdSliceType,
+  ) => {
+    // adjust nrrd volume contrast windowHigh and windowLow
+    // volume.windowHigh = 2000;
+    // volume.windowLow = 82;
+    // volume.repaintAllSlices();
 
+    nrrdOrigin = volume.header.space_origin.map((num: any) => Number(num));
+    nrrdSpacing = volume.spacing;
+    nrrdRASDimensions = volume.RASDimensions; // mm
+    nrrdDimensions = volume.dimensions; // pixels
+
+    const x_bias = -(nrrdOrigin[0] * 2 + nrrdRASDimensions[0]) / 2;
+    const y_bias = -(nrrdOrigin[1] * 2 + nrrdRASDimensions[1]) / 2;
+    const z_bias = -(nrrdOrigin[2] * 2 + nrrdRASDimensions[2]) / 2;
+
+    nrrdBias = new THREE.Vector3(x_bias, y_bias, z_bias);
+    correctedOrigin = [
+          nrrdOrigin[0] + x_bias,
+          nrrdOrigin[1] + y_bias,
+          nrrdOrigin[2] + z_bias,
+        ];  
+
+    nrrdMesh.x.name = imageType + "_Sagittal";
+    nrrdMesh.y.name = imageType + "_Cornal";
+    nrrdMesh.z.name = imageType + "_Axial";
+    
+    !!resolve && resolve({ origin: nrrdOrigin, correctedOrigin, spacing: nrrdSpacing,  ras: nrrdRASDimensions, dimensions:nrrdDimensions, bias: nrrdBias, nrrdMesh, nrrdSlices});
+    
+  };
+
+  (copperScene as Copper.copperScene).loadNrrd(
+    nrrdUrl,
+    copperLoadingAnimationForNrrdLoader!,
+    true,
+    nrrdCallback,
+    opts
+  );
+  })
+}
+
+function onNavBarSingleClick(view: string, loadNrrdMeshes: Copper.nrrdMeshesType, loadNrrdSlices: Copper.nrrdSliceType) {
+  panelOperator.start();
+  copperScene.controls.mouseButtons.LEFT = -1;
+  clickCount++;
+  if (clickCount === 1) {
+    clickTimer = setTimeout(() => {
+      switch (view) {
+        case "sagittal":
+          loadNrrdMeshes.x.visible = true;
+          loadNrrdMeshes.y.visible = false;
+          loadNrrdMeshes.z.visible = false;
+          panelOperator.setSlicePrams(loadNrrdSlices.x);
+          break;
+        case "axial":
+          loadNrrdMeshes.x.visible = false;
+          loadNrrdMeshes.y.visible = false;
+          loadNrrdMeshes.z.visible = true;
+          panelOperator.setSlicePrams(loadNrrdSlices.z);
+          break;
+        case "coronal":
+          loadNrrdMeshes.x.visible = false;
+          loadNrrdMeshes.y.visible = true;
+          loadNrrdMeshes.z.visible = false;
+          panelOperator.setSlicePrams(loadNrrdSlices.y);
+          break;
+        case "clock":
+          validFlag = !validFlag;
+          // valideClock(
+          //   validFlag,
+          //   copperScene,
+          //   baseContainer.value as HTMLElement,
+          //   nippleTl,
+          //   nippleTr,
+          //   loadNrrdMeshes
+          // );
+          break;
+        case "3dview":
+          backTo3DView(loadNrrdMeshes)
+          break;
+        case "reset":
+          resetNrrdImageView(loadNrrdMeshes);
+          break;
+      }
+      clickCount = 0;
+    }, 200);
+  }
+}
+
+function onNavBarDoubleClick(view: string, loadNrrdMeshes: Copper.nrrdMeshesType, loadNrrdSlices: Copper.nrrdSliceType) {
+  if(view == "reset" || view == "3dview") return;
+  
+  !!clickTimer && clearTimeout(clickTimer);
+  clickCount = 0;
+  copperScene.controls.mouseButtons.LEFT = -1;
+  copperScene.controls.reset();
+  switch (view) {
+    case "sagittal":
+      loadNrrdMeshes.x.visible = true;
+      loadNrrdMeshes.y.visible = false;
+      loadNrrdMeshes.z.visible = false;
+      panelOperator.setSlicePrams(loadNrrdSlices.x);
+      copperScene.loadViewUrl("/nrrd_view_sagittal.json");
+      break;
+
+    case "axial":
+      loadNrrdMeshes.x.visible = false;
+      loadNrrdMeshes.y.visible = false;
+      loadNrrdMeshes.z.visible = true;
+      panelOperator.setSlicePrams(loadNrrdSlices.z);
+      copperScene.loadViewUrl("/nrrd_view.json");
+      break;
+
+    case "coronal":
+      loadNrrdMeshes.x.visible = false;
+      loadNrrdMeshes.y.visible = true;
+      loadNrrdMeshes.z.visible = false;
+      panelOperator.setSlicePrams(loadNrrdSlices.y);
+      copperScene.loadViewUrl("/nrrd_view_coronal.json");
+      break;
+  }
+}
+
+const backTo3DView = (loadNrrdMeshes: Copper.nrrdMeshesType)=>{
+  panelOperator.dispose();
+  loadNrrdMeshes.x.visible = true;
+  loadNrrdMeshes.y.visible = true;
+  loadNrrdMeshes.z.visible = true;
+  // valideClock(false, copperScene, baseContainer.value as HTMLElement);
+  copperScene.controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+}
+
+const resetNrrdImageView = (loadNrrdMeshes: Copper.nrrdMeshesType) => {
+  copperScene.loadViewUrl("/nrrd_view.json");
+  copperScene.controls.reset();
+  backTo3DView(loadNrrdMeshes);
+  emit("update:resetNrrdImageView", { loadNrrdMeshes });
+};
+
+function removeOldMeshes(meshSet: THREE.Object3D[]) {
+  if (!!copperScene) {
+    (copperScene as Copper.copperScene).scene.remove(...meshSet);
+    meshSet.forEach((element) => {
+      element.traverse((case_mesh) => {
+        if ((case_mesh as THREE.Mesh).isMesh) {
+          (case_mesh as THREE.Mesh).geometry.dispose();
+        }
+      });
+    });
+    meshSet.length = 0;
+  }
+} 
 
 defineExpose({
-    baseContainer,
-    guiContainer,
-    loadingContainer, 
-    progress,
-    copperLoadingAnimationForNrrdLoader
+  baseContainer,
+  guiContainer,
+  loadingContainer, 
+  progress,
+  copperLoadingAnimationForNrrdLoader,
+  loadNrrd,
+  removeOldMeshes,
+  onNavBarSingleClick,
+  onNavBarDoubleClick,
+  backTo3DView,
+  resetNrrdImageView
 })
 
 </script>

@@ -51,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, toRefs, reactive, onUnmounted} from "vue";
+import { ref, onMounted, toRefs, reactive, onUnmounted, watch} from "vue";
 import sagittalImg_white from "@/assets/images/person_left_view_white.png";
 import axialImg_white from "@/assets/images/person_top_down_white.png";
 import coronalImg_white from "@/assets/images/person_anterior_white.png";
@@ -65,7 +65,12 @@ import {PanelOperationManager} from "@/plugins/view-utils/utils-right"
 
 type Props = {
   panelWidth: number;
-
+  settings?:{
+      panelOperator: PanelOperationManager;
+      dimensions: number[];
+      spacing: number[];
+      currentValue: number[];
+  };
 };
 interface ISliderView{
     color:string,
@@ -77,6 +82,7 @@ interface ISliderView{
 const props = withDefaults(defineProps<Props>(), {
   panelWidth: 1000,
 });
+
 const { panelWidth } = toRefs(reactive(props));
 const showDragSlider = ref(false)
 
@@ -186,7 +192,6 @@ onMounted(() => {
 
 const manageEmitters = () => {
   emitter.on("Common:ToggleAppTheme", emitterOnToggleAppTheme);
-  emitter.on("SegmentationTrial:RightPanelSliderSettingValueUpdated", emitterOnRightPanelSliderSettingValueUpdated);
   // switch cases
   emitter.on("Segmentation:CaseDetails", emitterOnCaseDetails)
 };
@@ -197,14 +202,7 @@ const emitterOnToggleAppTheme = () => {
 }
 
 const emitterOnRightPanelSliderSettingValueUpdated = (settings:any)=>{
-  isBtnDisabled.value = false;
-  sliderViews.sagittal.max = settings.dimensions[0] - 1;
-  sliderViews.axial.max = settings.dimensions[2] - 1;
-  sliderViews.coronal.max = settings.dimensions[1] - 1;
-  sliderViews.sagittal.value = settings.currentValue[0];
-  sliderViews.axial.value = settings.currentValue[2];
-  sliderViews.coronal.value = settings.currentValue[1];
-  operator = settings.panelOperator as PanelOperationManager;
+  
 }
 
 const emitterOnCaseDetails = ()=>{
@@ -254,9 +252,21 @@ function toggleSlider(val: number) {
   }
 }
 
+watch(()=>props.settings, ()=>{
+  if(!!props.settings){
+    isBtnDisabled.value = false;
+    sliderViews.sagittal.max = props.settings.dimensions[0] - 1;
+    sliderViews.axial.max = props.settings.dimensions[2] - 1;
+    sliderViews.coronal.max = props.settings.dimensions[1] - 1;
+    sliderViews.sagittal.value = props.settings.currentValue[0];
+    sliderViews.axial.value = props.settings.currentValue[2];
+    sliderViews.coronal.value = props.settings.currentValue[1];
+    operator = props.settings.panelOperator as PanelOperationManager;
+  }
+});
+
 onUnmounted(() => {
   emitter.off("Common:ToggleAppTheme", emitterOnToggleAppTheme);
-  emitter.off("SegmentationTrial:RightPanelSliderSettingValueUpdated", emitterOnRightPanelSliderSettingValueUpdated);
   emitter.off("Segmentation:CaseDetails", emitterOnCaseDetails)
 });
 </script>

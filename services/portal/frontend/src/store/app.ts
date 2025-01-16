@@ -25,7 +25,7 @@ import {
   IExportMasks,
   IReplaceMask,
   ISaveSphere,
-  IMaskTumourObj,
+  IMaskTumourObjData,
   IRegRquest,
   INipplePoints,
   IRibSkinPoints,
@@ -199,25 +199,25 @@ export const useMaskNrrdStore = defineStore("getMaskNrrd", () => {
   };
 });
 
-export const useMaskTumourObjStore = defineStore("getMaskTumourObj", () => {
-  const maskTumourObj = ref<IMaskTumourObj>({});
-  const getMaskTumourObj = async (name: string) => {
-    maskTumourObj.value = (await useMaskObjMesh(name)) as IMaskTumourObj;
+export const useMaskTumourObjDataStore = defineStore("getMaskTumourObjUrl", () => {
+  const maskTumourObjData = ref<IMaskTumourObjData>({});
+  const getMaskTumourObjData = async (name: string) => {
+    maskTumourObjData.value = (await useMaskObjMesh(name)) as IMaskTumourObjData;
   };
   return {
-    maskTumourObj,
-    getMaskTumourObj,
+    maskTumourObjData,
+    getMaskTumourObjData,
   };
 });
 
-export const useBreastMeshObjStore = defineStore("getBreastMesh", () => {
-  const breastMeshObj = ref<string>();
-  const getBreastMeshObj = async (name: string) => {
-    breastMeshObj.value = (await useBreastObjMesh(name)) as string;
+export const useBreastMeshObjUrlStore = defineStore("getBreastMeshUrl", () => {
+  const breastMeshObjUrl = ref<string>();
+  const getBreastMeshObjUrl = async (name: string) => {
+    breastMeshObjUrl.value = (await useBreastObjMesh(name)) as string;
   };
   return {
-    breastMeshObj,
-    getBreastMeshObj,
+    breastMeshObjUrl,
+    getBreastMeshObjUrl,
   };
 });
 
