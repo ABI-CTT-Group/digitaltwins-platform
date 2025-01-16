@@ -58,8 +58,8 @@ export interface ISaveTumourPosition {
   case_name: string;
   position: ICommXYZ;
 }
-export interface IMaskMesh {
-  maskMeshObjUrl?: string;
+export interface IMaskTumourObjData {
+  maskTumourObjUrl?: string;
   meshVolume?: number;
 }
 export interface IParams {
@@ -179,4 +179,42 @@ export interface IKeyboardSettings {
   crosshair: string;
   mouseWheel: "Scroll:Zoom" | "Scroll:Slice" | string;
   [key: string]: any;
+}
+
+export interface ILeftCoreCopperInit { 
+  appRenderer: Copper.copperRenderer; 
+  nrrdTools: Copper.NrrdTools; 
+  scene: Copper.copperScene 
+}
+
+export interface IToolSphereData {
+  sphereOrigin: number[];
+  sphereRadius: number;
+}
+export interface IToolMaskData {
+  image: ImageData;
+  sliceId: number;
+  label: string;
+  width: number;
+  height: number;
+  clearAllFlag?: boolean;
+}
+export interface IToolCalculateSpherePositionsData {
+  tumourSphereOrigin: Copper.ICommXYZ | null;
+  skinSphereOrigin: Copper.ICommXYZ | null;
+  ribSphereOrigin: Copper.ICommXYZ | null;
+  nippleSphereOrigin: Copper.ICommXYZ | null;
+  aix: "x" | "y" | "z";
+}
+export interface IToolAfterLoadImagesResponse {
+  allSlices: any[];
+  allLoadedMeshes: ILoadedMeshes[];
+}
+export interface IToolGetSliceNumber {
+  index: number;
+  contrastindex: number;
+}
+export interface IToolGetMouseDragContrastMove {
+  step:number, 
+  towards:"horizental"|"vertical"
 }

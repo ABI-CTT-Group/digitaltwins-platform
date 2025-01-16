@@ -109,12 +109,13 @@ def convert_to_nii(patient_id):
     """
     print("start converting...")
     nrrd_path = get_file_path(patient_id, "nrrd", "contrast_0.nrrd")
+    if nrrd_path is None:
+        nrrd_path = get_file_path(patient_id, "nrrd", "c0.nrrd")
     mask_path = get_file_path(patient_id, "json", "mask.json")
     nii_path = get_file_path(patient_id, "nii.gz", "mask.nii.gz")
     nii_path_2 = get_file_path(patient_id, "nii.gz", "mask_2.nii.gz")
     nii_path_3 = get_file_path(patient_id, "nii.gz", "mask_3.nii.gz")
-    origin_nrrd_image = sitk.ReadImage(nrrd_path)
-    headerKeys = origin_nrrd_image.GetMetaDataKeys()
+
 
     if nrrd_path is None:
         print("contrast_0.nrrd path is None")
@@ -125,6 +126,9 @@ def convert_to_nii(patient_id):
     elif nii_path is None:
         print("mask.nii.gz path is None")
         return
+
+    origin_nrrd_image = sitk.ReadImage(nrrd_path)
+    headerKeys = origin_nrrd_image.GetMetaDataKeys()
 
     with open(mask_path) as user_file:
         file_contents = user_file.read()

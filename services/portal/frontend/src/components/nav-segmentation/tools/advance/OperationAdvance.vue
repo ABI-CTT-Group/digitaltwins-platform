@@ -49,8 +49,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import emitter from "@/plugins/bus";
+import { ref, onMounted, onUnmounted } from "vue";
+import emitter from "@/plugins/custom-emitter";
+import * as Copper from "copper3d";
 
 // buttons
 const commColorPickerRadios = ref("");
@@ -77,17 +78,23 @@ onMounted(() => {
 });
 
 function manageEmitters() {
-  emitter.on("finishloadcases", (val) => {
-    guiSettings.value = val;
-    commColorPickerRadios.value = "color";
-    commColorPicker.value = guiSettings.value.guiState.color;
-    pencilColor.value = guiSettings.value.guiState.color;
-    pencilFillColor.value = guiSettings.value.guiState.fillColor;
-    brushColor.value = guiSettings.value.guiState.brushColor;
+  emitter.on("Segmentation:FinishLoadAllCaseImages", emitterOnFinishLoadAllCaseImages);
+}
 
-    commColorPickerRadiosDisabled.value = false;
-    commColorPickerDisabled.value = false;
-  });
+const emitterOnFinishLoadAllCaseImages = (val:
+  {
+    guiState: Copper.IGUIStates;
+    guiSetting: Copper.IGuiParameterSettings;
+  }) => {
+  guiSettings.value = val;
+  commColorPickerRadios.value = "color";
+  commColorPicker.value = guiSettings.value.guiState.color;
+  pencilColor.value = guiSettings.value.guiState.color;
+  pencilFillColor.value = guiSettings.value.guiState.fillColor;
+  brushColor.value = guiSettings.value.guiState.brushColor;
+
+  commColorPickerRadiosDisabled.value = false;
+  commColorPickerDisabled.value = false;
 }
 
 function toggleColorPickerRadios(val: string | null) {
@@ -108,6 +115,10 @@ function handleOnColorPicked(color: string) {
       break;
   }
 }
+
+onUnmounted(() => {
+  emitter.off("Segmentation:FinishLoadAllCaseImages", emitterOnFinishLoadAllCaseImages);
+});
 </script>
 
 <style scoped></style>

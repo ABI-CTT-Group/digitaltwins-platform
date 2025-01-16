@@ -12,7 +12,8 @@ def get_base_from_env():
     if sys.platform.startswith('linux') or sys.platform.startswith('darwin'):
         return os.environ["BASE"]
     elif sys.platform.startswith('win'):
-        return os.environ["BASE_locally"]
+        return os.environ["BASE_DUKE_locally"]
+        # return os.environ["BASE_locally"]
     return os.environ["BASE"]
 
 class Config:

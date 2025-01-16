@@ -1,50 +1,23 @@
 <template>
-  <v-list-group value="Operation" class="guide-operation-overall" data-tool="operationtool">
-    <template v-slot:activator="{ props }">
-      <v-list-item
-        v-bind="props"
-        color="nav-success"
-        prepend-icon="mdi-axe"
-        title="Operation Settings"
-      ></v-list-item>
+  <Operation>
+    <template #Calculator>
+      <Calculator />
     </template>
-    <!-- Functional Control -->
-    <Calculator />
-    <v-container fluid>
-      <v-progress-linear
-        color="nav-success-2"
-        buffer-value="0"
-        stream
-      ></v-progress-linear>
-      <v-radio-group
-        class="radio-group guide-operation-functional-control"
+    <template #FunctionalControl>
+      <FunctionalControl
         v-model="commFuncRadios"
-        label="Functional Controller"
-        :inline="true"
+        :radio-values="commFuncRadioValues"
         :disabled="commFuncRadiosDisabled"
-      >
-        <v-radio
-          v-for="(item, idx) in commFuncRadioValues"
-          :key="idx"
-          :label="item.label"
-          :value="item.value"
-          :color="item.color"
-        ></v-radio>
-      </v-radio-group>
-      <v-progress-linear
-        color="nav-success-2"
-        buffer-value="0"
-        stream
-      ></v-progress-linear>
-      <!-- </v-container> -->
-    </v-container>
-  </v-list-group>
+      />
+      </template>
+  </Operation>
 </template>
 
 <script setup lang="ts">
 import Calculator from "./advance/Calculator.vue";
-import { ref, onMounted } from "vue";
-import { storeToRefs } from "pinia";
+import FunctionalControl from "@/components/nav-components/functionalCtl/FunctionalControl.vue";
+import Operation from "@/components/nav-components/Operation.vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import emitter from "@/plugins/custom-emitter";
 
 // Functional Controls
@@ -63,26 +36,24 @@ onMounted(() => {
 
 function manageEmitters() {
 
-  emitter.on("TumourStudy:NextCase", async (casename: string)=>{
-    commFuncRadiosDisabled.value = true;
-  });
+  emitter.on("TumourStudy:NextCase", emitterOnNextCase);
 
-  emitter.on("TumourStudy:ImageLoaded", () => {
-    commFuncRadiosDisabled.value = false;
-    commFuncRadios.value = "calculator";
-  });
+  emitter.on("TumourStudy:ImageLoaded", emitterOnImageLoaded);
  
 }
 
+const emitterOnNextCase = (casename: string)=>{
+  commFuncRadiosDisabled.value = true;
+};
 
+const emitterOnImageLoaded = () => {
+  commFuncRadiosDisabled.value = false;
+  commFuncRadios.value = "calculator";
+};
 
+onUnmounted(() => {
+  emitter.off("TumourStudy:NextCase", emitterOnNextCase);
+  emitter.off("TumourStudy:ImageLoaded", emitterOnImageLoaded);
+});
 </script>
 
-<style>
-.v-selection-control-group--inline {
-  flex-direction: row;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  padding: 0 10px;
-}
-</style>

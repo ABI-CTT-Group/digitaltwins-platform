@@ -8,6 +8,7 @@ import Login from "@/views/index.vue";
 import Dashboard from "@/views/dashboard/index.vue";
 import ManuallyTumourSegmentation from "@/views/tumour-segmentation-manually/MainPage.vue";
 import ManuallyTumourCalculation from "@/views/tumour-distance-calculation/MainPage.vue";
+import ManuallyTumourCenter from "@/views/tumour-center-manually/MainPage.vue";
 import SegmentationLayout from "@/layouts/segmentation-layout/Default.vue";
 import CalculationLayout from "@/layouts/calculation-layout/Default.vue";
 
@@ -44,6 +45,17 @@ const routes = [
         path: "/tumour-calculation-manual",
         name: "TumourCalaulationStudy",
         component: ManuallyTumourCalculation,
+      },
+    ],
+  },
+  {
+    path: "/tumour-center-manual",
+    component: CalculationLayout,
+    children: [
+      {
+        path: "/tumour-center-manual",
+        name: "TumourCenterStudy",
+        component: ManuallyTumourCenter,
       },
     ],
   },

@@ -1,6 +1,6 @@
 import * as Copper from "copper3d";
 import * as THREE from "three";
-import { getClosestNipple } from "@/views/tumour-segmentation-manually/components/tools";
+import { getClosestNipple } from "@/plugins/view-utils/tools";
 import { IRequests, IDetails } from "@/models/apiTypes";
 export class PanelOperationManager {
   operator: HTMLElement;

@@ -25,21 +25,21 @@ import {
   IExportMasks,
   IReplaceMask,
   ISaveSphere,
-  IMaskMesh,
+  IMaskTumourObjData,
   IRegRquest,
   INipplePoints,
   IRibSkinPoints,
   ITumourWindow,
   IRequests,
 } from "@/models/apiTypes";
-export const useFileCountStore = defineStore("filesCount", () => {
-  const cases = ref<INrrdCaseNames>();
-  const getFilesNames = async () => {
-    cases.value = await useNrrdCaseNames();
+export const useSegmentationCasesStore = defineStore("allSegmentationCasesDetails", () => {
+  const allCasesDetails = ref<INrrdCaseNames>();
+  const getAllCasesDetails = async () => {
+    allCasesDetails.value = await useNrrdCaseNames();
   };
   return {
-    cases,
-    getFilesNames,
+    allCasesDetails,
+    getAllCasesDetails,
   };
 });
 export const useNrrdCaseFileUrlsWithOrderStore = defineStore(
@@ -199,25 +199,25 @@ export const useMaskNrrdStore = defineStore("getMaskNrrd", () => {
   };
 });
 
-export const useMaskMeshObjStore = defineStore("getMaskMesh", () => {
-  const maskMeshObj = ref<IMaskMesh>({});
-  const getMaskMeshObj = async (name: string) => {
-    maskMeshObj.value = (await useMaskObjMesh(name)) as IMaskMesh;
+export const useMaskTumourObjDataStore = defineStore("getMaskTumourObjUrl", () => {
+  const maskTumourObjData = ref<IMaskTumourObjData>({});
+  const getMaskTumourObjData = async (name: string) => {
+    maskTumourObjData.value = (await useMaskObjMesh(name)) as IMaskTumourObjData;
   };
   return {
-    maskMeshObj,
-    getMaskMeshObj,
+    maskTumourObjData,
+    getMaskTumourObjData,
   };
 });
 
-export const useBreastMeshObjStore = defineStore("getBreastMesh", () => {
-  const breastMeshObj = ref<string>();
-  const getBreastMeshObj = async (name: string) => {
-    breastMeshObj.value = (await useBreastObjMesh(name)) as string;
+export const useBreastMeshObjUrlStore = defineStore("getBreastMeshUrl", () => {
+  const breastMeshObjUrl = ref<string>();
+  const getBreastMeshObjUrl = async (name: string) => {
+    breastMeshObjUrl.value = (await useBreastObjMesh(name)) as string;
   };
   return {
-    breastMeshObj,
-    getBreastMeshObj,
+    breastMeshObjUrl,
+    getBreastMeshObjUrl,
   };
 });
 

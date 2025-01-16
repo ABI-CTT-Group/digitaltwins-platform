@@ -8,29 +8,40 @@
       ></v-list-item>
       <ImageCtl />
       <OperationCtl />
-      <SysOpts />
+      <SysOpts>
+        <SysOptsCtl :nrrd-tools="nrrdTools"/>
+      </SysOpts>
     </v-list>
   </v-card>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import ImageCtl from "./tools/NrrdImageCtl.vue";
 import OperationCtl from "./tools/OperationCtl.vue";
-import SysOpts from "./SysOpts.vue";
+import SysOpts from "../nav-components/sysopt/SysOpts.vue";
+import SysOptsCtl from "../nav-components/sysopt/SysOptsCtl.vue";
+import emitter from "@/plugins/custom-emitter";
+import * as Copper from "copper3d";
+
 const open = ref(["Cases", "Operation", "Calculator"]);
+const nrrdTools = ref<Copper.NrrdTools>();
 
 onMounted(()=>{
   manageEmitters();
-})
+}) 
 
 function manageEmitters() {
-  // emitter.on("guide_to_operation_status", (val: string)=>{
-  //   if(val==="open" && !open.value.includes("Operation")){
-  //     open.value.push("Operation")
-  //   }
-  // });
+  emitter.on("Core:NrrdTools", emitterOnNrrdTools)
 }
+
+const emitterOnNrrdTools = (val:Copper.NrrdTools)=>{
+  nrrdTools.value = val;
+}
+
+onUnmounted(()=>{
+  emitter.off("Core:NrrdTools", emitterOnNrrdTools)
+})
 </script>
 
 <style lang="scss"></style>

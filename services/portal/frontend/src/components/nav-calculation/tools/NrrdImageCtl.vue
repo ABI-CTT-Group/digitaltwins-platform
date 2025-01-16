@@ -26,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, onUnmounted } from "vue";
 import { ITumourStudyAppDetail } from "@/models/apiTypes";
 import emitter from "@/plugins/custom-emitter";
 import {useTumourStudyDetailsStore } from "@/store/tumour_position_study_app";
@@ -49,11 +49,17 @@ const completedCases = computed(() => {
 });
 
 function manageEmitters() {
-  emitter.on("TumourStudy:ImageLoaded", (workingCase: ITumourStudyAppDetail) => {
-    caseName.value = workingCase.name;
-    disableSelectCase.value = false;
-  });
+  emitter.on("TumourStudy:ImageLoaded", emitterOnImageLoaded);
 }
+
+const emitterOnImageLoaded = (workingCase: ITumourStudyAppDetail) => {
+  caseName.value = workingCase.name;
+  disableSelectCase.value = false;
+};
+
+onUnmounted(() => {
+  emitter.off("TumourStudy:ImageLoaded", emitterOnImageLoaded);
+});
 
 </script>
 

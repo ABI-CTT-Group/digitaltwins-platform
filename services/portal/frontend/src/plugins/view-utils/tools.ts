@@ -1,4 +1,4 @@
-import { ILoadUrls } from "@/models/apiTypes";
+import { ILoadUrls, ICaseUrls } from "@/models/apiTypes";
 import * as THREE from "three";
 import eraser_1 from "@/assets/eraser/circular-cursor_3.png";
 import eraser_2 from "@/assets/eraser/circular-cursor_8.png";
@@ -37,10 +37,13 @@ export function revokeAppUrls(revokeUrls: ILoadUrls) {
   }
 }
 
-export function revokeRegisterNrrdImages(regUrls: string[]) {
-  regUrls.forEach((url) => {
-    URL.revokeObjectURL(url);
-  });
+export function revokeCaseUrls(caseUrls: ICaseUrls) {
+  if (!!caseUrls){
+    if(!!caseUrls.nrrdUrls) caseUrls.nrrdUrls.forEach((url) => {
+        URL.revokeObjectURL(url);
+    });
+    if(!!caseUrls.jsonUrl) URL.revokeObjectURL(caseUrls.jsonUrl)
+  } 
 }
 
 export function getEraserUrlsForOffLine() {

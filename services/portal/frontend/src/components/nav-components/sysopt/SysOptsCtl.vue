@@ -1,15 +1,17 @@
 <template>
   <div>
     <Switcher
+      v-if="debugSetting"
       :title="'Debug Mode'"
       :label="switchDebugLabel"
       v-model:controller="debugMode"
       @toggleUpdate="toggleDebug"
     />
     <Switcher
+      v-if="stickyNavSetting"
       :title="'Sticky Tool Settings Bar'"
       :label="switchStickyLabel"
-      v-model:controller="stickMode"
+      v-model:controller="stickyMode"
       @toggleUpdate="toggleSticky"
     />
 
@@ -19,18 +21,21 @@
       @on-save="handleDialogSave"
     >
 
-    <div v-for="(d, i) in settingsData" :key="i" class="d-flex align-center justify-space-between px-10">
-      <h4 class="pb-3">
-        {{ d.label }}
-      </h4>
-      <div class="w-33">
-        <v-text-field 
-          v-model="keyboardSettings[d.type]" 
-          variant="outlined"
-          @keydown="handleKeyDown($event, d.type)"
-        ></v-text-field>
+    <div v-if="keyBoardSetting">
+      <div v-for="(d, i) in settingsData" :key="i" class="d-flex align-center justify-space-between px-10">
+        <h4 class="pb-3">
+          {{ d.label }}
+        </h4>
+        <div class="w-33">
+          <v-text-field 
+            v-model="keyboardSettings[d.type]"  
+            variant="outlined"
+            @keydown="handleKeyDown($event, d.type)"
+          ></v-text-field>
+        </div>
       </div>
     </div>
+    
     <div class="d-flex align-center justify-space-between px-10">
       <h4 class="pb-3">
         Mouse Wheel Mode:
@@ -50,19 +55,35 @@
 
 <script setup lang="ts">
 import * as Copper from "copper3d";
-// import * as Copper from "@/ts/index";
 import Switcher from "@/components/commonBar/Switcher.vue";
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, watch, computed } from "vue";
 import Dialog from "@/components/commonBar/Dialog.vue";
-import emitter from "@/plugins/bus";
 import { IKeyboardSettings } from "@/models/apiTypes";
 
 
+interface Props {
+  keyBoardSetting?: boolean;
+  stickyNavSetting?: boolean;
+  debugSetting?: boolean;
+  stick?: boolean;
+  nrrdTools?: Copper.NrrdTools;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  keyBoardSetting: false,
+  stickyNavSetting: false,
+  debugSetting: false,
+  stick: true,
+});
+
+const emit = defineEmits(["updateDebug","updateSticky"]);
+
+// const { nrrdTools } = storeToRefs(useNrrdToolsStore());
+
 const debugMode = ref(false);
+const stickyMode = ref(true);
 const switchDebugLabel = ref("off");
-const stickMode = ref(true);
 const switchStickyLabel = ref("on");
-const nrrdTools = ref<Copper.NrrdTools>();
 const keyboardSettings = ref<IKeyboardSettings>({
   draw: '',
   undo: "",
@@ -94,30 +115,35 @@ const settingsData = ref([
   },
 ])
 
+// const toolsKeyBoard = computed(()=>{
+//   if (!!nrrdTools.value) {
+//     return nrrdTools.value.nrrd_states.keyboardSettings;
+//   }else{
+//     return keyboardSettings.value;
+//   }
+// });
 
-onMounted(() => {
-  manageEmitters();
-});
-
-function manageEmitters() {
-  emitter.on("drawer_status", (val)=>{
-    stickMode.value = val as boolean;
-    switchStickyLabel.value =  stickMode.value === false ? "off" : "on";
+watch(
+  ()=>props.nrrdTools,
+  ()=>{
+    keyboardSettings.value = {...props.nrrdTools!.nrrd_states.keyboardSettings};
   });
-  emitter.on("nrrd_tools", (val:any)=>{
-    nrrdTools.value = val;
-    keyboardSettings.value = {...nrrdTools.value!.nrrd_states.keyboardSettings};
-  });
-}
+watch(
+  ()=>props.stick,
+  (newVal)=>{
+    stickyMode.value = newVal;
+    switchStickyLabel.value =  stickyMode.value === false ? "off" : "on";
+  }
+)
 
 function toggleDebug(value: boolean) {
   switchDebugLabel.value = switchDebugLabel.value === "on" ? "off" : "on";
-  emitter.emit("show_debug_mode", value);
+  emit("updateDebug", value);
 }
 
 function toggleSticky(value: boolean) {
   switchStickyLabel.value = switchStickyLabel.value === "on" ? "off" : "on";
-  emitter.emit("set_nav_sticky_mode", value);
+  emit("updateSticky", value);
 }
 
 function handleKeyDown(event: KeyboardEvent, type: string) {
@@ -146,18 +172,18 @@ function handleKeyDown(event: KeyboardEvent, type: string) {
 }
 
 function handleDialogOpen() {
-  nrrdTools.value!.nrrd_states.configKeyBoard = true;
+  props.nrrdTools!.nrrd_states.configKeyBoard = true;
 }
 
 function handleDialogCancel() {
-  nrrdTools.value!.nrrd_states.configKeyBoard = false;
-  keyboardSettings.value = {...nrrdTools.value!.nrrd_states.keyboardSettings};
+  props.nrrdTools!.nrrd_states.configKeyBoard = false;
+  keyboardSettings.value = {...props.nrrdTools!.nrrd_states.keyboardSettings};
   
 }
 function handleDialogSave() {
-  nrrdTools.value!.nrrd_states.configKeyBoard = false;
-  nrrdTools.value!.nrrd_states.keyboardSettings = {...keyboardSettings.value as any};
-  nrrdTools.value!.updateMouseWheelEvent();
+  props.nrrdTools!.nrrd_states.configKeyBoard = false;
+  props.nrrdTools!.nrrd_states.keyboardSettings = {...keyboardSettings.value as any};
+  props.nrrdTools!.updateMouseWheelEvent();
 }
 
 </script>

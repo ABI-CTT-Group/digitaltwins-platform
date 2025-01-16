@@ -1,129 +1,69 @@
 <template>
-  <v-list-group value="Operation" class="guide-operation-overall" data-tool="operationtool">
-    <template v-slot:activator="{ props }">
-      <v-list-item
-        v-bind="props"
-        color="nav-success"
-        prepend-icon="mdi-axe"
-        title="Operation Settings"
-      ></v-list-item>
-    </template>
-    <!-- Functional Control -->
-    <Calculator />
-    <v-container fluid>
-      <v-progress-linear
-        color="nav-success-2"
-        buffer-value="0"
-        stream
-      ></v-progress-linear>
-      <v-radio-group
-        class="radio-group guide-operation-functional-control"
-        v-model="commFuncRadios"
-        label="Functional Controller"
-        :inline="true"
-        :disabled="commFuncRadiosDisabled"
-        @update:modelValue="toggleFuncRadios"
-      >
-        <v-radio
-          v-for="(item, idx) in commFuncRadioValues"
-          :key="idx"
-          :label="item.label"
-          :value="item.value"
-          :color="item.color"
-        ></v-radio>
-      </v-radio-group>
-      <v-progress-linear
-        color="nav-success-2"
-        buffer-value="0"
-        stream
-      ></v-progress-linear>
-      <!-- </v-container> -->
+    <Operation>
+      <template #Calculator>
+        <Calculator />
+      </template>
 
-      <!-- Slider Controls -->
-      <!-- <v-container fluid> -->
-      <v-progress-linear
-        color="nav-success"
-        buffer-value="0"
-        stream
-      ></v-progress-linear>
-      <v-radio-group
-        class="radio-group guide-operation-slider-control"
-        v-model="commSliderRadios"
-        label="Slider Controller"
-        :inline="true"
-        :disabled="commSliderRadiosDisabled"
-        @update:modelValue="toggleSliderRadios"
-      >
-        <v-radio
-          v-for="(item, idx) in commSliderRadioValues"
-          :key="idx"
-          :label="item.label"
-          :value="item.value"
-          :color="item.color"
-        ></v-radio>
-      </v-radio-group>
-      <v-slider
-        v-model="slider"
-        :color="sliderColor"
-        thumb-label="always"
-        :disabled="sliderDisabled"
-        :max="sliderMax"
-        :min="sliderMin"
-        :step="sliderStep"
-        @update:modelValue="toggleSlider"
-        @end="toggleSliderFinished"
-      ></v-slider>
-      <v-progress-linear
-        color="nav-success"
-        buffer-value="0"
-        stream
-      ></v-progress-linear>
+      <template #FunctionalControl>
+        <FunctionalControl
+          v-model="commFuncRadios"
+          :disabled="commFuncRadiosDisabled"
+          :radio-values="commFuncRadioValues"
+          @update:selected-radio="toggleFuncRadios" 
+          />
+      </template>
 
-      <!-- Buttons -->
-      <v-progress-linear
-        color="nav-success"
-        buffer-value="0"
-        stream
-      ></v-progress-linear>
+      <template #SliderControl>
+        <SliderControl 
+          v-model:slider-radio="commSliderRadios"
+          v-model:slider="slider"
+          :disabled="commSliderRadiosDisabled"
+          :slider-radio-values="commSliderRadioValues"
+          :slider-color="sliderColor"
+          :slider-disabled="sliderDisabled"
+          :slider-max="sliderMax"
+          :slider-min="sliderMin"
+          :slider-step="sliderStep"
+          @update:selected-slider-radio="toggleSliderRadios"
+          @update:slider="toggleSlider"
+          @update:slider-finished="toggleSliderFinished"
+        />
+      </template>
 
-      <div class="guide-operation-comm-btns">
-          <v-btn
-            v-for="(btn, idx) in commFuncBtnValues"
-            block
-            density="comfortable"
-            variant="outlined"
-            class="my-1"
-            :key="idx"
-            :color="btn.color"
-            :disabled="btn.disabled"
-            @click="onBtnClick(btn.value)"
-          >
-            {{ btn.label }}
-          </v-btn>
-      </div>
-      
-      <v-progress-linear
-        color="nav-success"
-        buffer-value="0"
-        stream
-      ></v-progress-linear>
-    </v-container>
-    <OperationAdvance />
-    
-  </v-list-group>
+      <template #ButtonControl>
+        <ButtonsControl
+          :comm-func-btn-values="commFuncBtnValues"
+          @update:btnClicked="onBtnClick"
+        />
+      </template>
+
+      <template #OperationAdvance>
+        <OperationAdvance />
+      </template>
+    </Operation>
 </template>
 
 <script setup lang="ts">
 import OperationAdvance from "./advance/OperationAdvance.vue";
 import Calculator from "./advance/Calculator.vue";
-import { ref, onMounted } from "vue";
+import Operation from "@/components/nav-components/Operation.vue"
+import FunctionalControl from "@/components/nav-components/functionalCtl/FunctionalControl.vue";
+import SliderControl from "@/components/nav-components/sliderCtl/SliderControl.vue";
+import ButtonsControl from "@/components/nav-components/buttonCtl/ButtonsControl.vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { storeToRefs } from "pinia";
-import emitter from "@/plugins/bus";
+import emitter from "@/plugins/custom-emitter";
 import * as Copper from "copper3d";
 import {
   useTumourWindowStore
 } from "@/store/app";
-// import * as Copper from "copper3d";
+import { setTumourPosition } from "@/components/utils";
+
+type TTumourCenter = { center: { x: number; y: number; z: number; }};
+type TGuiSettings = {
+    guiState: Copper.IGUIStates;
+    guiSetting: Copper.IGuiParameterSettings;
+};
 
 // load tumour window
 const { tumourWindow } = storeToRefs(useTumourWindowStore());
@@ -155,7 +95,7 @@ const contrastDragSensitivity = ref(25);
 const guiSettings = ref<any>();
 let nrrdTools:Copper.NrrdTools;
 
-type TTumourCenter = { center: { x: number; y: number; z: number; }};
+
 
 const commFuncRadioValues = ref([
   { label: "Pencil", value: "segmentation", color: "success" },
@@ -205,50 +145,52 @@ onMounted(() => {
 });
 
 function manageEmitters() {
+  emitter.on("Segementation:CaseSwitched", emitterOnCaseSwitched);
+  emitter.on("Segmentation:FinishLoadAllCaseImages", emitterOnFinishLoadAllCaseImages);
+  emitter.on("Common:DragImageWindowCenter", emitterOnDragImageWindowCenter);
+  emitter.on("Common:DragImageWindowHigh", emitterOnDragImageWindowHigh);
+  emitter.on("Core:NrrdTools", emitterOnNrrdTools);
+}
 
-  emitter.on("caseswitched", async (casename)=>{
-    try{
-      setTimeout(()=>{
-        commFuncRadios.value = "segmentation"
-      },500)
-    }catch(e){
-      console.log("first time load images -- ignore");
-    }
-    commFuncRadiosDisabled.value = true;
-    commSliderRadiosDisabled.value = true;
-    sliderDisabled.value = true;
+const emitterOnCaseSwitched = async (casename:string) => {
+  try{
+    setTimeout(()=>{
+      commFuncRadios.value = "segmentation"
+    },500)
+  }catch(e){
+    console.log("first time load images -- ignore");
+  }
+  commFuncRadiosDisabled.value = true;
+  commSliderRadiosDisabled.value = true;
+  sliderDisabled.value = true;
 
-    btnUndoDisabled.value = true;
-    btnResetZoomDisabled.value = true;
-    btnClearDisabled.value = true;
-    btnClearAllDisabled.value = true;
-    await getTumourWindowChrunk(casename as string);
-  });
+  btnUndoDisabled.value = true;
+  btnResetZoomDisabled.value = true;
+  btnClearDisabled.value = true;
+  btnClearAllDisabled.value = true;
+  await getTumourWindowChrunk(casename as string);
+}
+const emitterOnFinishLoadAllCaseImages = (val:TGuiSettings) => {
+  guiSettings.value = val;
+  commSliderRadios.value = "globalAlpha";
+  updateSliderSettings();
+  commFuncRadiosDisabled.value = false;
+  commSliderRadiosDisabled.value = false;
+  sliderDisabled.value = false;
 
-  emitter.on("finishloadcases", (val) => {
-    guiSettings.value = val;
-    commSliderRadios.value = "globalAlpha";
-    updateSliderSettings();
-    commFuncRadiosDisabled.value = false;
-    commSliderRadiosDisabled.value = false;
-    sliderDisabled.value = false;
-
-    btnUndoDisabled.value = false;
-    btnResetZoomDisabled.value = false;
-    btnClearDisabled.value = false;
-    btnClearAllDisabled.value = false;
-  });
-
-  emitter.on("dragImageWindowCenter", (step)=>{
-    dragToChangeImageWindow("windowLow", step as number);
-  })
-  emitter.on("dragImageWindowHigh", (step)=>{
-    dragToChangeImageWindow("windowHigh", step as number);
-  })
-  // xyz: 84 179 74
-  emitter.on("loadcalculatortumour", (tool)=>{
-    nrrdTools = tool as Copper.NrrdTools
-  });
+  btnUndoDisabled.value = false;
+  btnResetZoomDisabled.value = false;
+  btnClearDisabled.value = false;
+  btnClearAllDisabled.value = false;
+}
+const emitterOnDragImageWindowCenter = (step: number)=>{
+  dragToChangeImageWindow("windowLow", step);
+}
+const emitterOnDragImageWindowHigh = (step: number)=>{
+  dragToChangeImageWindow("windowHigh", step);
+}
+const emitterOnNrrdTools = (tool:Copper.NrrdTools)=>{
+  nrrdTools = tool
 }
 
 function dragToChangeImageWindow(type:"windowHigh"|"windowLow", step:number){
@@ -270,20 +212,23 @@ function dragToChangeImageWindow(type:"windowHigh"|"windowLow", step:number){
 function setupTumourSpherePosition(){
 
   if (!!tumourWindow.value){
-    nrrdTools.setCalculateDistanceSphere((tumourWindow.value as TTumourCenter).center.x, (tumourWindow.value as TTumourCenter).center.y, (tumourWindow.value as TTumourCenter).center.z, "tumour");
+    // Note: the tumour center we recieve is in mm, we need to convert it to (pixel, pixel, mm) in Axial view
+    // pixel / spacing = mm
+    // mm * spacing = pixel
+    setTumourPosition(nrrdTools, (tumourWindow.value as TTumourCenter).center)
   }
 }
 
 function toggleFuncRadios(val: any) {
 
   if(val === "calculator"){
-    emitter.emit("open_calculate_box", "Calculator")
+    emitter.emit("Common:OpenCalculatorBox", "Calculator")
     guiSettings.value.guiState["calculator"] = true;
     guiSettings.value.guiState["sphere"] = false;
     setupTumourSpherePosition()
-    emitter.emit("calculator timer", "start");
+    emitter.emit("SegmentationTrial:CalulatorTimerFunction", "start");
   }else{
-    emitter.emit("close_calculate_box", "Calculator")
+    emitter.emit("Common:CloseCalculatorBox", "Calculator")
     guiSettings.value.guiState["calculator"] = false;
     if (val === "sphere") {
       guiSettings.value.guiState["sphere"] = true;
@@ -374,20 +319,19 @@ function updateSliderSettings() {
   sliderMax.value = guiSettings.value.guiSetting[commSliderRadios.value].max;
   sliderMin.value = guiSettings.value.guiSetting[commSliderRadios.value].min;
   sliderStep.value = guiSettings.value.guiSetting[commSliderRadios.value].step;
-
-  
 }
 
 function onBtnClick(val: any) {
   guiSettings.value.guiState[val].call();
 }
+
+onUnmounted(() => {
+  emitter.off("Segementation:CaseSwitched", emitterOnCaseSwitched);
+  emitter.off("Segmentation:FinishLoadAllCaseImages", emitterOnFinishLoadAllCaseImages);
+  emitter.off("Common:DragImageWindowCenter", emitterOnDragImageWindowCenter);
+  emitter.off("Common:DragImageWindowHigh", emitterOnDragImageWindowHigh);
+  emitter.off("Core:NrrdTools", emitterOnNrrdTools);
+});
+
 </script>
 
-<style>
-.v-selection-control-group--inline {
-  flex-direction: row;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  padding: 0 10px;
-}
-</style>

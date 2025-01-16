@@ -114,7 +114,8 @@ async def get_cases_name(background_tasks: BackgroundTasks):
         segmentation_breast_points_paths = tools.get_category_files(name, "json", "segmentation")
         segmentation_breast_model_paths = tools.get_category_files(name, "obj", "segmentation")
         # get all masks json files
-        segmentation_manual_mask_paths = tools.get_category_files(name, "json", "segmentation_manual", ["sphere_points.json", "tumour_position_study.json"])
+        segmentation_manual_mask_paths = tools.get_category_files(name, "json", "segmentation_manual",
+                                                                  ["sphere_points.json", "tumour_position_study.json"])
         segmentation_manual_3dobj_paths = tools.get_category_files(name, "obj", "segmentation_manual")
         json_is_exist = tools.check_file_exist(name, "json", "mask.json")
         obj_is_exist = tools.check_file_exist(name, "obj", "mask.obj")
@@ -169,6 +170,7 @@ async def send_single_file(path: str = Query(None)):
             return "Unsupported file format!"
     else:
         return "No file exists!"
+
 
 @app.get('/api/caseorigin/')
 async def send_nrrd_case(name: str = Query(None)):
@@ -238,7 +240,6 @@ async def get_mask(name: str = Query(None)):
 
 @app.get("/api/breast_points")
 async def get_breast_points(name: str = Query(None), filename: str = Query(None)):
-
     checked = tools.check_file_exist(name, "json", f"{filename}.json")
     if checked:
         path = tools.get_file_path(name, "json", f"{filename}.json")
@@ -261,11 +262,12 @@ async def get_display_mask_nrrd(name: str = Query(None)):
         return False
 
 
-@app.get("/api/mesh")
+@app.get("/api/mask_tumour_mesh")
 async def get_display_segment_tumour_model(name: str = Query(None)):
     mask_mesh_path = tools.get_file_path(name, "obj", "mask.obj")
     mask_json_path = tools.get_file_path(name, "json", "mask.json")
-    if (mask_mesh_path is not None) and (mask_mesh_path.exists()):
+    if (mask_mesh_path is not None) and (mask_mesh_path.exists()) and (mask_json_path.stat().st_size != 0) and (
+            mask_mesh_path.stat().st_size != 0):
         with open(mask_json_path) as user_file:
             file_contents = user_file.read()
             parsed_json = json.loads(file_contents)
@@ -280,15 +282,16 @@ async def get_display_segment_tumour_model(name: str = Query(None)):
         # return False
         raise HTTPException(status_code=404, detail="Item not found")
 
+
 @app.get("/api/breast_model")
 async def get_display_breast_model(name: str = Query(None)):
-
     breast_mesh_path = tools.get_file_path(name, "obj", "prone_surface.obj")
     if breast_mesh_path is not None and breast_mesh_path.exists():
         file_res = FileResponse(breast_mesh_path, media_type="application/octet-stream", filename="prone_surface.obj")
         return file_res
     else:
         return False
+
 
 @app.get("/api/clearmesh")
 async def clear_mesh(name: str = Query(None)):
@@ -303,14 +306,19 @@ async def clear_mesh(name: str = Query(None)):
     Config.ClearAllMask = False
     return "success"
 
+
 @app.post("/api/save_tumour_position")
 async def save_tumour_position(save_position: model.TumourPosition):
     tumour_position_path = tools.get_file_path(save_position.case_name, "json", "tumour_window.json")
-    position = {
-        "center": save_position.model_dump().get("position")
-    }
+    position_json = {}
+    if tumour_position_path.exists():
+        with open(tumour_position_path, "r") as tumour_position_file:
+            data = tumour_position_file.read()
+            position_json = json.loads(data)
+
+    position_json["center"] = save_position.model_dump().get("position")
     with open(tumour_position_path, "w") as tumour_position_file:
-        json.dump(position, tumour_position_file, indent=4)
+        json.dump(position_json, tumour_position_file, indent=4)
 
     return True
 

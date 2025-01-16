@@ -57,9 +57,9 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { useUser } from "../hooks/user";
+import { useUser } from "@/plugins/hooks/user";
 import { storeToRefs } from "pinia";
-import {useTumourStudyDetailsStore } from "@/store/tumour_position_study_app";
+import { useTumourStudyDetailsStore } from "@/store/tumour_position_study_app";
 const router = useRouter();
 const route = useRoute();
 const { user } = useUser();
@@ -90,6 +90,19 @@ const items = ref([
                     session: "TumourCalaulationStudy"
                 },
                 {
+                    title: 'Tumour Center Manual Correction',
+                    subTitle: "Cases: 100",
+                    description: 'Give tumour center at bounding box, and correct the center mannually',
+                    src: 'https://cdn.vuetifyjs.com/images/carousel/squirrel.jpg',
+                    status: user.value === 'admin' ? 'active' : 'inactive',
+                    isEnter: false,
+                    session: "TumourCenterStudy"
+                },  
+            ],
+          },
+          {
+            studies:[
+                {
                     title: 'Tumour Position & Extent Report',
                     subTitle: "Cases: 100",
                     description: 'Using tools to segment tumour and generate a report',
@@ -97,19 +110,6 @@ const items = ref([
                     status: user.value === 'admin' ? 'active' : 'inactive',
                     isEnter: false,
                     session: "TumourSegmentationStudy"
-                },
-            ],
-          },
-          {
-            studies:[
-                {
-                    title: 'Study 3',
-                    subTitle: "Cases: 100",
-                    description: 'This is a description of study 3',
-                    src: 'https://cdn.vuetifyjs.com/images/carousel/squirrel.jpg',
-                    status: user.value === 'admin' ? 'active' : 'inactive',
-                    isEnter: false,
-                    session: ""
                 },
                 {
                     title: 'Study 4',

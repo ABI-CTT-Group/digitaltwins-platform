@@ -51,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, toRefs, reactive } from "vue";
+import { ref, onMounted, toRefs, reactive, onUnmounted, watch} from "vue";
 import sagittalImg_white from "@/assets/images/person_left_view_white.png";
 import axialImg_white from "@/assets/images/person_top_down_white.png";
 import coronalImg_white from "@/assets/images/person_anterior_white.png";
@@ -60,11 +60,17 @@ import axialImg_blank from "@/assets/images/person_top_down.png";
 import coronalImg_blank from "@/assets/images/person_anterior.png";
 import clockImg from "@/assets/images/clock_white.png";
 import resetImg from "@/assets/images/reset.png";
-import emitter from "@/plugins/bus";
-import {PanelOperationManager} from "@/views/tumour-segmentation-manually/components/right-panel-core/utils-right"
+import emitter from "@/plugins/custom-emitter";
+import {PanelOperationManager} from "@/plugins/view-utils/utils-right"
 
 type Props = {
   panelWidth: number;
+  settings?:{
+      panelOperator: PanelOperationManager;
+      dimensions: number[];
+      spacing: number[];
+      currentValue: number[];
+  };
 };
 interface ISliderView{
     color:string,
@@ -76,6 +82,7 @@ interface ISliderView{
 const props = withDefaults(defineProps<Props>(), {
   panelWidth: 1000,
 });
+
 const { panelWidth } = toRefs(reactive(props));
 const showDragSlider = ref(false)
 
@@ -123,14 +130,6 @@ const viewData = {
 
   }
 }
-  // {
-  // name:"Clock function",
-  // label:"clock",
-  // img:clockImg
-  // },
- 
-  
-
 
 const slider = ref(0);
 const sliderColor = ref("grey");
@@ -188,26 +187,28 @@ const onDoubleClick = (view: string) => {
 };
 
 onMounted(() => {
-  emitter.on("toggleTheme", () => {
-    darkMode.value = !darkMode.value;
-    nav_container.value?.classList.toggle("dark");
-  });
-  emitter.on("sendMountSliderSettings", (settings:any)=>{
-    isBtnDisabled.value = false;
-    sliderViews.sagittal.max = settings.dimensions[0] - 1;
-    sliderViews.axial.max = settings.dimensions[2] - 1;
-    sliderViews.coronal.max = settings.dimensions[1] - 1;
-    sliderViews.sagittal.value = settings.currentValue[0];
-    sliderViews.axial.value = settings.currentValue[2];
-    sliderViews.coronal.value = settings.currentValue[1];
-    operator = settings.panelOperator as PanelOperationManager;
-  });
-  // switch cases
-  emitter.on("casename",()=>{
-    isBtnDisabled.value = true;
-    mountSlider("reset")
-  })
+  manageEmitters();
 });
+
+const manageEmitters = () => {
+  emitter.on("Common:ToggleAppTheme", emitterOnToggleAppTheme);
+  // switch cases
+  emitter.on("Segmentation:CaseDetails", emitterOnCaseDetails)
+};
+
+const emitterOnToggleAppTheme = () => {
+  darkMode.value = !darkMode.value;
+  nav_container.value?.classList.toggle("dark");
+}
+
+const emitterOnRightPanelSliderSettingValueUpdated = (settings:any)=>{
+  
+}
+
+const emitterOnCaseDetails = ()=>{
+  isBtnDisabled.value = true;
+  mountSlider("reset")
+}
 
 function mountSlider(view:string){
   
@@ -250,6 +251,24 @@ function toggleSlider(val: number) {
    
   }
 }
+
+watch(()=>props.settings, ()=>{
+  if(!!props.settings){
+    isBtnDisabled.value = false;
+    sliderViews.sagittal.max = props.settings.dimensions[0] - 1;
+    sliderViews.axial.max = props.settings.dimensions[2] - 1;
+    sliderViews.coronal.max = props.settings.dimensions[1] - 1;
+    sliderViews.sagittal.value = props.settings.currentValue[0];
+    sliderViews.axial.value = props.settings.currentValue[2];
+    sliderViews.coronal.value = props.settings.currentValue[1];
+    operator = props.settings.panelOperator as PanelOperationManager;
+  }
+});
+
+onUnmounted(() => {
+  emitter.off("Common:ToggleAppTheme", emitterOnToggleAppTheme);
+  emitter.off("Segmentation:CaseDetails", emitterOnCaseDetails)
+});
 </script>
 
 <style scoped>
