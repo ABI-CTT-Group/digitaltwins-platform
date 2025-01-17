@@ -26,6 +26,7 @@ const eventNames = [
     "Common:DragImageWindowHigh",
     "Common:ToggleAppTheme",
     "Common:ToggleBreastVisibility",
+    "Common:OnAppMounted",
     "IntroGuide:OperationStatus",
     "IntroGuide:DrawerStatus",
 ];

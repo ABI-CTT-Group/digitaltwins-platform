@@ -37,8 +37,6 @@ import LeftPanelCore from "@/components/view-components/LeftPanelCore.vue";
 import NavBar from "@/components/commonBar/NavBarCalculation.vue";
 import * as Copper from "copper3d";
 import "copper3d/dist/css/style.css";
-// import * as Copper from "@/ts/index";
-
 import { onMounted, ref, onUnmounted } from "vue";
 import { storeToRefs } from "pinia";
 import {
@@ -111,6 +109,7 @@ const workingCase = ref<ITumourStudyAppDetail | null>(null);
 function manageEmitters() {
   emitter.on("TumourStudy:NextCase", emitterOnNextCase);
   emitter.on("TumourStudy:CaseReport", emitterOnCaseReport);
+  emitter.emit("Common:OnAppMounted", "TumourStudy:Admin-TumourCenter");
 }
 
 const emitterOnNextCase = ()=>{
@@ -235,6 +234,11 @@ async function onCaseSwitched() {
   //Note: Important must use a new array to trigger the watcher, cannot use push
   currentCaseContrastUrls.value = [studyNrrd.value as string];
   currentCaseName.value = workingCase.value?.name as string;
+
+  emitter.emit("Segmentation:CaseDetails", {
+    caseName: currentCaseName.value,
+    nrrdUrl:  studyNrrd.value
+  });
   currentCaseContractsCount.value = currentCaseContrastUrls.value.length;
 }
 

@@ -2,6 +2,7 @@
     <CalculatorUI 
       :study-radios-value="commFuncRadioValues"
       :clock-face-disabled="clockFaceDisabled"
+      :enable-clock-face="isShowClockFace"
       :finish-btn-disabled="finishBtnDisabled"
       :show-next-btn="showBtn"
       :pink-btn-title="pinkBtnTitle"
@@ -16,39 +17,37 @@
   
 <script setup lang="ts">
 import CalculatorUI from "@/components/nav-components/tumour-study-calculator-ui/CalculatorUI.vue";
-import { ref, onMounted, onUnmounted} from "vue";
+import { ref, onMounted, onUnmounted, computed} from "vue";
 import * as Copper from "copper3d";
 import emitter from "@/plugins/custom-emitter";
 import { ITumourStudyAppDetail, ICommXYZ } from "@/models/apiTypes";
 import { useRouter, useRoute } from 'vue-router';
 import { setTumourPosition } from "@/components/utils";
 
-
+interface IRadiosValue {
+  label: string;
+  value: string;
+  color: string;
+  disabled: boolean;
+}
 type ClockFace = "12:00" | "1:00" | "2:00" | "3:00" | "4:00" | "5:00" | "6:00" | "7:00" | "8:00" | "9:00" | "10:00" | "11:00" | "central";
 // buttons
 const calculatorPickerRadios = ref("nipple");
 const finishBtnDisabled = ref(true);
 const showBtn = ref(false);
 const clockFaceDisabled = ref(true);
-
+const isShowClockFace = ref(true);
 const selectedClockFace = ref("");
 const pinkBtnTitle = ref("Next Case");
 const router = useRouter();
+const fromWhichApp = ref("");
 
-// const { nrrdTools } = storeToRefs(useNrrdToolsStore());
-
-
-const commFuncRadioValues = ref([
-  // { label: "Tumour", value: "tumour", color: "#4CAF50" },
-  { label: "Nipple", value: "nipple", color: "#E91E63", disabled: false },
-  { label: "Skin", value: "skin", color: "#FFEB3B", disabled: true },
-  { label: "Ribcage", value: "ribcage", color: "#2196F3", disabled: true },
-  { label: "ClockFace", value: "clockface", color: "#9C27B0", disabled: true },
-]);
+const commFuncRadioValues = ref<Array<IRadiosValue>>([]);
 
 const guiSettings = ref<any>();
 const nrrdTools = ref<Copper.NrrdTools>();
 let workingCase: ITumourStudyAppDetail;
+
 
 onMounted(() => {
   manageEmitters();
@@ -63,6 +62,8 @@ onMounted(() => {
 // })
 
 function manageEmitters() {
+
+  emitter.on("Common:OnAppMounted", emitterOnAppMounted);
   emitter.on("TumourStudy:ImageLoaded", emitterOnImageLoaded);
 
   emitter.on("TumourStudy:Status", emitterOnStatus);
@@ -73,20 +74,42 @@ function manageEmitters() {
   emitter.on("TumourStudy:AllCasesCompleted", emitterOnAllCasesCompleted);
 }
 
-const emitterOnImageLoaded = (study: ITumourStudyAppDetail) => {
-  selectedClockFace.value = "";
-  commFuncRadioValues.value[0].disabled = false;
-  commFuncRadioValues.value[1].disabled = true;
-  commFuncRadioValues.value[2].disabled = true;
-  commFuncRadioValues.value[3].disabled = true;
-  finishBtnDisabled.value = true;
-  clockFaceDisabled.value = true;
+const emitterOnAppMounted = (from:string) => {
+  fromWhichApp.value = from;
+  switch(from){
+    case "TumourStudy:User-Tumour-Distance-Calculation":
+    commFuncRadioValues.value = [
+            { label: "Nipple", value: "nipple", color: "#E91E63", disabled: false },
+            { label: "Skin", value: "skin", color: "#FFEB3B", disabled: true},
+            { label: "Ribcage", value: "ribcage", color: "#2196F3", disabled: true},
+            { label: "ClockFace", value: "clockface", color: "#9C27B0", disabled: true},
+        ]
+      break;
+    case "TumourStudy:Admin-TumourCenter":
+      commFuncRadioValues.value = [
+            { label: "Tumour", value: "tumour", color: "#4CAF50", disabled: false},
+        ]
+      break;
+    default:
+      commFuncRadioValues.value = [
+            { label: "Tumour", value: "tumour", color: "#4CAF50", disabled: false},
+            { label: "Nipple", value: "nipple", color: "#E91E63", disabled: false},
+            { label: "Skin", value: "skin", color: "#FFEB3B", disabled: true},
+            { label: "Ribcage", value: "ribcage", color: "#2196F3", disabled: true},
+            { label: "ClockFace", value: "clockface", color: "#9C27B0", disabled: true},
+        ];
+      break;
+  }
+}
+
+const emitterOnImageLoaded = (study: ITumourStudyAppDetail, from:string) => {
+
+  configRadiosUI();
   workingCase = study;
-  calculatorPickerRadios.value = "nipple";
   // @ts-ignore
   guiSettings.value!.guiState["cal_distance"] = "";
   setupTumourSpherePosition()
-  toggleCalculatorPickerRadios("nipple");
+  toggleCalculatorPickerRadios(calculatorPickerRadios.value);
 }
 
 const emitterOnStatus = (status: string, position:number[], distance:number)=>{
@@ -95,12 +118,8 @@ const emitterOnStatus = (status: string, position:number[], distance:number)=>{
 }
 
 const emitterOnNrrdTools = (tool: Copper.NrrdTools)=>{
-  console.log("NrrdTools", tool);
-  
   nrrdTools.value = tool
   guiSettings.value = nrrdTools.value.getGuiSettings()
-  console.log("guiSettings", guiSettings.value);
-  
   guiSettings.value!.guiState["calculator"] = true;
   guiSettings.value!.guiState["sphere"] = false;
   guiSettings.value!.guiSetting!["calculator"].onChange();
@@ -111,10 +130,32 @@ const emitterOnAllCasesCompleted = ()=>{
   pinkBtnTitle.value = "End Session";
 }
 
+const configRadiosUI = () => {
+  switch(fromWhichApp.value){
+    case "TumourStudy:User-Tumour-Distance-Calculation":
+      commFuncRadioValues.value[0].disabled = false;
+      commFuncRadioValues.value[1].disabled = true;
+      commFuncRadioValues.value[2].disabled = true;
+      commFuncRadioValues.value[3].disabled = true;
+      selectedClockFace.value = "";
+      finishBtnDisabled.value = true;
+      clockFaceDisabled.value = true;
+      isShowClockFace.value = true;
+      calculatorPickerRadios.value = "nipple";
+      break;
+    case "TumourStudy:Admin-TumourCenter":
+      isShowClockFace.value = false;
+      finishBtnDisabled.value = false;
+      calculatorPickerRadios.value = "tumour";
+      break;
+    default:
+      break;
+  }
+};
+
 
 function setupTumourSpherePosition(){
-
-const tumourCenter = workingCase.tumour_position.center;
+const tumourCenter = workingCase.tumour_window.center;
 setTumourPosition(nrrdTools.value as Copper.NrrdTools, tumourCenter)
 }
 
@@ -145,16 +186,19 @@ switch (status) {
 function toggleCalculatorPickerRadios(val: string | null) {
 const now = new Date();
 const currentTime = now.getTime();
+if (val === "tumour"){
+  guiSettings.value.guiState["cal_distance"] = "tumour";
+}
 if (val === "nipple"){
   workingCase.report.start = currentTime;
   workingCase.report.nipple.start = currentTime;
-  commFuncRadioValues.value[0].disabled = true;
   guiSettings.value.guiState["cal_distance"] = "nipple";
 }
 if (val === "skin"){
   // "tumour" | "skin" | "nipple" | "ribcage"
   workingCase.report.nipple.end = currentTime;
   workingCase.report.skin.start = currentTime;
+  commFuncRadioValues.value[0].disabled = true;
   guiSettings.value.guiState["cal_distance"] = "skin";
 }
 if (val === "ribcage"){

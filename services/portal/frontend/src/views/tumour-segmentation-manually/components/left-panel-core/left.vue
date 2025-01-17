@@ -97,7 +97,7 @@ import { switchAnimationStatus } from "@/components/view-components/leftCoreUtil
 
 
 type Props = {
-  panelWidth: number;
+  panelWidth?: number;
 };
 type TContrastSelected = {
   [key: string]: boolean;

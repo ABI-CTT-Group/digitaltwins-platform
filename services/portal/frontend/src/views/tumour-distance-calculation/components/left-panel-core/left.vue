@@ -103,6 +103,7 @@ const workingCase = ref<ITumourStudyAppDetail | null>(null);
 function manageEmitters() {
   emitter.on("TumourStudy:NextCase", emitterOnNextCase);
   emitter.on("TumourStudy:CaseReport", emitterOnCaseReport);
+  emitter.emit("Common:OnAppMounted", "TumourStudy:User-Tumour-Distance-Calculation");
 }
 
 const emitterOnNextCase = ()=>{

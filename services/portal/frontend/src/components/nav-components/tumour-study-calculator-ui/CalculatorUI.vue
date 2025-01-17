@@ -21,8 +21,9 @@
           :inline="true"
           @update:modelValue="toggleCalculatorPickerRadios"
         >
-          <v-radio
-            v-for="(item, idx) in studyRadiosValue"
+      
+        <v-radio
+             v-for="(item, idx) in studyRadiosValue"
             :key="idx"
             :label="item.label"
             :value="item.value"
@@ -32,6 +33,7 @@
         </v-radio-group>
 
         <v-select
+          v-if="enableClockFace"
           class="mx-4"
           :items="clockFace"
           v-model="selectedClockFace"
@@ -75,6 +77,7 @@ defineProps<{
   finishBtnDisabled: boolean,
   showNextBtn: boolean,
   pinkBtnTitle: string,
+  enableClockFace: boolean
 }>();
 
 const calculatorPickerRadios = defineModel("radios");

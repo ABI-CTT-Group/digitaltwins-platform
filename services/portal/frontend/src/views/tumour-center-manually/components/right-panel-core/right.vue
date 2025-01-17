@@ -60,7 +60,8 @@ import {
   ILeftRightData,
   INipplePoints,
   IRibSkinPoints,
-  ISaveSphere
+  ISaveSphere,
+  ITumourCenterCaseDetails
 } from "@/models/apiTypes";
 import {
   findCurrentCase,
@@ -293,15 +294,9 @@ function manageEmitters() {
   emitter.on("Common:ToggleBreastVisibility", emitterOnToggleBreastVisibility)
 }
 
-const emitterOnCaseDetails = async (caseDetails: ICaseDetails) => {
+const emitterOnCaseDetails = async (caseDetails: ITumourCenterCaseDetails) => {
   // 1. clear previous meshes and clear state
   clearModelsAndStates()
-  // 2. request data
-  const case_infos: ICaseDetails = caseDetails;
-  const case_detail = findCurrentCase(
-    case_infos.details,
-    case_infos.currentCaseId
-  );
   // 2.1 Get currentCasename and get the init data
   await getInitDataOnceCaseSwitched(caseDetails);
 
@@ -404,11 +399,11 @@ const updateNrrdMeshToCopperScene = (updatedNrrdMesh:Copper.nrrdMeshesType, upda
   copperScene.scene.add(...[loadNrrdMeshes.x, loadNrrdMeshes.y, loadNrrdMeshes.z]);
 };
 
-const getInitDataOnceCaseSwitched = async (caseDetails: ICaseDetails)=>{
+const getInitDataOnceCaseSwitched = async (caseDetails: ITumourCenterCaseDetails)=>{
   
-  currentCasename.value = caseDetails.currentCaseId;
+  currentCasename.value = caseDetails.currentCaseName;
   // get mask nrrd blob url
-  maskNrrd.value = caseDetails.maskNrrd;
+  maskNrrd.value = caseDetails.nrrdUrl;
   // get mask tumour obj url
   await getMaskTumourObjData(currentCasename.value);
   // get breast mesh obj url

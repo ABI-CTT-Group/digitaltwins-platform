@@ -81,6 +81,12 @@ export interface ICaseDetails {
   details: Array<IDetails>;
   maskNrrd: string;
 }
+
+export interface ITumourCenterCaseDetails {
+  currentCaseName: string;
+  nrrdUrl: string;
+} 
+
 export interface IRegRquest {
   name: string;
   radius?: number;
@@ -158,13 +164,16 @@ export interface ITumourStudyReport {
 }
 
 export interface ITumourStudyWindow {
+  bounding_box_max_point: ICommXYZ;
+  bounding_box_min_point: ICommXYZ;
   center: ICommXYZ;
+  validate: boolean;
 }
 
 export interface ITumourStudyAppDetail {
   name: string;
   file_path: string;
-  tumour_position: ITumourStudyWindow;
+  tumour_window: ITumourStudyWindow;
   report: ITumourStudyReport;
 }
 
