@@ -35,6 +35,7 @@ import { storeToRefs } from "pinia";
 const { studyDetails } = storeToRefs(useTumourStudyDetailsStore());
 const disableSelectCase = ref(false);
 const caseName = ref("");
+const fromWhichApp = ref("");
 
 
 onMounted(() => {
@@ -43,13 +44,26 @@ onMounted(() => {
 
 const completedCases = computed(() => {
   if (!!studyDetails.value === false) return "0 / 0";
+  let completeTask = []
+  switch (fromWhichApp.value) {
+    case "TumourStudy:User-Tumour-Distance-Calculation":
+      completeTask = studyDetails.value?.details.filter(detail=> detail.report.complete === true);
+      break;
+    case "TumourStudy:Admin-TumourCenter":
+      completeTask = studyDetails.value?.details.filter(detail=> detail.tumour_window.validate === true);
+      break;
+    default:
+      completeTask = [];
+      break;
+  }
   
-  const completeTask = studyDetails.value?.details.filter(detail=> detail.report.complete === true);
-  return `${completeTask!.length} / ${studyDetails.value?.details.length}`;
+  
+  return `${completeTask.length} / ${studyDetails.value?.details.length}`;
 });
 
 function manageEmitters() {
   emitter.on("TumourStudy:ImageLoaded", emitterOnImageLoaded);
+  emitter.on("Common:OnAppMounted", emitterOnAppMounted);
 }
 
 const emitterOnImageLoaded = (workingCase: ITumourStudyAppDetail) => {
@@ -57,8 +71,13 @@ const emitterOnImageLoaded = (workingCase: ITumourStudyAppDetail) => {
   disableSelectCase.value = false;
 };
 
+const emitterOnAppMounted = (from:string) => {
+  fromWhichApp.value = from;
+}
+
 onUnmounted(() => {
   emitter.off("TumourStudy:ImageLoaded", emitterOnImageLoaded);
+  emitter.off("Common:OnAppMounted", emitterOnAppMounted);
 });
 
 </script>

@@ -180,8 +180,19 @@ const getSliceChangedNum = (sliceNum: number) => {
   nrrdTools!.setSliceMoving(sliceNum);
 };
 
+/**
+ * The Skin, Ribcage, Nipple, and Tumour Points that we get from the Copper3D is using this format:
+ * {
+ *  x: pixel,
+ *  y: pixel,
+ *  z: mm
+ * }
+ * @param res 
+ */
 const getCalculateSpherePositionsData = async (res:IToolCalculateSpherePositionsData)=>{
-
+  // Note: the tumour center now we set to (pixel, pixel, mm) in Axial view, in calculate distance we need to convert it to (mm, mm, mm)
+  // pixel / spacing = mm
+  // mm * spacing = pixel
   const { tumourSphereOrigin, skinSphereOrigin, ribSphereOrigin, nippleSphereOrigin, aix } = res;
   console.log("tumourOrigin: ",tumourSphereOrigin);
    if(tumourSphereOrigin === null) return;

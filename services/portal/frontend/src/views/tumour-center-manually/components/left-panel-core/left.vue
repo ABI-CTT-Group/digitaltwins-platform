@@ -15,9 +15,6 @@
     @update:slice-number="getSliceNum"
     @update:after-load-all-case-images="handleAllImagesLoaded"
   >
-    <template #tumour-distance-panel>
-      <TumourDistancePanelLeft :dts="dts" :dtn="dtn" :dtr="dtr" />
-    </template>
     <template #bottom-nav-bar>
       <NavBar
         :file-num="currentCaseContractsCount"
@@ -32,7 +29,6 @@
   </LeftPanelCore>
 </template>
 <script setup lang="ts">
-import TumourDistancePanelLeft from "@/components/view-components/TumourDistancePanelLeft.vue";
 import LeftPanelCore from "@/components/view-components/LeftPanelCore.vue";
 import NavBar from "@/components/commonBar/NavBarCalculation.vue";
 import * as Copper from "copper3d";
@@ -90,11 +86,6 @@ let currentCaseContrastUrls = ref<Array<string>>([]);
 let currentCaseName = ref("");
 
 
-let dts = ref(0);
-let dtn = ref(0);
-let dtr = ref(0);
-
-
 const { studyDetails } = storeToRefs(useTumourStudyDetailsStore());
 const { getTumourStudyDetails } = useTumourStudyDetailsStore();
 const { studyNrrd } = storeToRefs(useTumourStudyNrrdStore());
@@ -128,7 +119,7 @@ const emitterOnCaseReport = async (report:ITumourStudyReport)=>{
   workingCase.value!.report.complete = true;
 
   // save report to backend
-  await useSaveTumourStudyReport(Object.assign({case_name:workingCase.value!.name}, workingCase.value!.report));
+  // await useSaveTumourStudyReport(Object.assign({case_name:workingCase.value!.name}, workingCase.value!.report));
 }
 
 onMounted(async () => {
@@ -186,24 +177,29 @@ const getSliceChangedNum = (sliceNum: number) => {
   nrrdTools!.setSliceMoving(sliceNum);
 };
 
+/**
+ * The Skin, Ribcage, Nipple, and Tumour Points that we get from the Copper3D is using this format:
+ * {
+ *  x: pixel,
+ *  y: pixel,
+ *  z: mm
+ * }
+ * @param res 
+ */
 const getCalculateSpherePositionsData = async (res:IToolCalculateSpherePositionsData)=>{
-
+  // Note: the tumour center now we set to (pixel, pixel, mm) in Axial view, in calculate distance we need to convert it to (mm, mm, mm)
+  // pixel / spacing = mm
+  // mm * spacing = pixel
   const { tumourSphereOrigin, skinSphereOrigin, ribSphereOrigin, nippleSphereOrigin, aix } = res;
-  console.log("tumourOrigin: ",tumourSphereOrigin);
-   if(tumourSphereOrigin === null) return;
-   if (skinSphereOrigin !== null){
-     dts.value = Number(distance3D(tumourSphereOrigin[aix][0], tumourSphereOrigin[aix][1], tumourSphereOrigin[aix][2], skinSphereOrigin[aix][0], skinSphereOrigin[aix][1], skinSphereOrigin[aix][2]).toFixed(2));
-      // send to calculator component: status (skin, nipple, ribcage), position, distance 
-     emitter.emit("TumourStudy:Status", nrrdTools!.gui_states.cal_distance, skinSphereOrigin.z, dts.value);
+   if(tumourSphereOrigin === null){
+    return;
+   }else{
+    emitter.emit("TumourStudy:UpdateTumourPosition", {
+      x: tumourSphereOrigin.z[0],
+      y: tumourSphereOrigin.z[1],
+      z: tumourSphereOrigin.z[2],
+    })
    }
-   if (ribSphereOrigin !== null){
-     dtr.value = Number(distance3D(tumourSphereOrigin[aix][0], tumourSphereOrigin[aix][1], tumourSphereOrigin[aix][2], ribSphereOrigin[aix][0], ribSphereOrigin[aix][1], ribSphereOrigin[aix][2]).toFixed(2));
-     emitter.emit("TumourStudy:Status", nrrdTools!.gui_states.cal_distance, ribSphereOrigin.z, dtr.value);
-   }
-   if (nippleSphereOrigin !== null){
-     dtn.value = Number(distance3D(tumourSphereOrigin[aix][0], tumourSphereOrigin[aix][1], tumourSphereOrigin[aix][2], nippleSphereOrigin[aix][0], nippleSphereOrigin[aix][1], nippleSphereOrigin[aix][2]).toFixed(2));
-     emitter.emit("TumourStudy:Status", nrrdTools!.gui_states.cal_distance, nippleSphereOrigin.z, dtn.value);
-   } 
 }
 const getSliceNum = (res: IToolGetSliceNumber) => {
   const { index, contrastindex } = res;
@@ -237,6 +233,7 @@ async function onCaseSwitched() {
 
   emitter.emit("Segmentation:CaseDetails", {
     caseName: currentCaseName.value,
+    tumourWindow: workingCase.value?.tumour_window,
     nrrdUrl:  studyNrrd.value
   });
   currentCaseContractsCount.value = currentCaseContrastUrls.value.length;

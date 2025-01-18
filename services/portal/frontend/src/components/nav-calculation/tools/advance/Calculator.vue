@@ -299,6 +299,7 @@ function timeDifferenceToHMS(diffInMillis:number) {
 }
 
 onUnmounted(() => {
+  emitter.off("Common:OnAppMounted", emitterOnAppMounted);
   emitter.off("TumourStudy:ImageLoaded", emitterOnImageLoaded);
   emitter.off("TumourStudy:Status", emitterOnStatus);
   emitter.off("Core:NrrdTools", emitterOnNrrdTools);

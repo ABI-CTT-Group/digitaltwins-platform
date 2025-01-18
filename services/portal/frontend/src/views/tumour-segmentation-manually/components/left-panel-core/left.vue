@@ -374,6 +374,16 @@ const getSphereData = async (res: IToolSphereData) => {
   await sendSaveSphere(sphereData);
 };
 
+/**
+ * The Skin, Ribcage, Nipple, and Tumour Points that we get from the Copper3D is using this format:
+ * {
+ *  x: pixel,
+ *  y: pixel,
+ *  z: mm
+ * }
+ * @param res 
+ */
+
 const getCalculateSpherePositionsData = async (res:IToolCalculateSpherePositionsData)=>{
 
   const { tumourSphereOrigin, skinSphereOrigin, ribSphereOrigin, nippleSphereOrigin, aix } = res;

@@ -85,6 +85,7 @@ export interface ICaseDetails {
 export interface ITumourCenterCaseDetails {
   currentCaseName: string;
   nrrdUrl: string;
+  tumourWindow?: ITumourWindow;
 } 
 
 export interface IRegRquest {
@@ -124,6 +125,16 @@ export interface IRibSkinPoints {
 }
 
 export interface ITumourWindow {
+  bounding_box_max_point:{
+    x:number;
+    y:number;
+    z:number
+  },
+  bounding_box_min_point:{
+    x:number;
+    y:number;
+    z:number
+  },
   center:{
     x:number;
     y:number;

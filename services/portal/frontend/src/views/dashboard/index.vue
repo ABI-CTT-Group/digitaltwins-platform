@@ -136,7 +136,9 @@ const renderItems = computed(() => {
 onMounted(async () => {
     if (!!studyDetails.value === false) await getTumourStudyDetails();
     const completeTask = studyDetails.value?.details.filter(detail=> detail.report.complete === true);
+    const tumourCenterConpleteTasks = studyDetails.value?.details?.filter(detail => detail.tumour_window.validate === true);
     items.value[0].studies[0].subTitle = `Completed Cases: ${completeTask!.length} / ${studyDetails.value?.details.length}`;
+    items.value[0].studies[1].subTitle = `Completed Cases: ${tumourCenterConpleteTasks!.length} / ${studyDetails.value?.details.length}`;
 })
 const handleEnter = (study: Study) => {
     study.isEnter=!study.isEnter
