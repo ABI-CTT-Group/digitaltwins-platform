@@ -57,7 +57,7 @@ import * as Copper from "copper3d";
 import {
   useTumourWindowStore
 } from "@/store/app";
-import { setTumourPosition } from "@/components/utils";
+import { setTumourStudyPointPosition } from "@/components/utils";
 
 type TTumourCenter = { center: { x: number; y: number; z: number; }};
 type TGuiSettings = {
@@ -215,7 +215,7 @@ function setupTumourSpherePosition(){
     // Note: the tumour center we recieve is in mm, we need to convert it to (pixel, pixel, mm) in Axial view
     // pixel / spacing = mm
     // mm * spacing = pixel
-    setTumourPosition(nrrdTools, (tumourWindow.value as TTumourCenter).center)
+    setTumourStudyPointPosition(nrrdTools, (tumourWindow.value as TTumourCenter).center, "tumour")
   }
 }
 

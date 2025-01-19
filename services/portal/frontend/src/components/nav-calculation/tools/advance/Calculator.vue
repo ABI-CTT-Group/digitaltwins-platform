@@ -22,7 +22,7 @@ import * as Copper from "copper3d";
 import emitter from "@/plugins/custom-emitter";
 import { ITumourStudyAppDetail, ICommXYZ } from "@/models/apiTypes";
 import { useRouter, useRoute } from 'vue-router';
-import { setTumourPosition } from "@/components/utils";
+import { setTumourStudyPointPosition } from "@/components/utils";
 
 interface IRadiosValue {
   label: string;
@@ -90,6 +90,14 @@ const emitterOnAppMounted = (from:string) => {
             { label: "Tumour", value: "tumour", color: "#4CAF50", disabled: false},
         ]
       break;
+    case "TumourStudy:Admin-TumourAssisted":
+      commFuncRadioValues.value = [
+            { label: "Tumour", value: "tumour", color: "#4CAF50", disabled: false},
+            { label: "Nipple", value: "nipple", color: "#E91E63", disabled: false},
+            { label: "Skin", value: "skin", color: "#FFEB3B", disabled: false},
+            { label: "Ribcage", value: "ribcage", color: "#2196F3", disabled: false},
+            { label: "ClockFace", value: "clockface", color: "#9C27B0", disabled: false}]
+      break;
     default:
       commFuncRadioValues.value = [
             { label: "Tumour", value: "tumour", color: "#4CAF50", disabled: false},
@@ -102,13 +110,16 @@ const emitterOnAppMounted = (from:string) => {
   }
 }
 
-const emitterOnImageLoaded = (study: ITumourStudyAppDetail, from:string) => {
+const emitterOnImageLoaded = (study: ITumourStudyAppDetail) => {
 
   configRadiosUI();
   workingCase = study;
   // @ts-ignore
   guiSettings.value!.guiState["cal_distance"] = "";
-  setupTumourSpherePosition()
+  setupTumourSpherePosition();
+  if(fromWhichApp.value === "TumourStudy:Admin-TumourAssisted"){
+    setupSkinRibcageNipplePosition();
+  }
   toggleCalculatorPickerRadios(calculatorPickerRadios.value);
 }
 
@@ -148,6 +159,10 @@ const configRadiosUI = () => {
       finishBtnDisabled.value = false;
       calculatorPickerRadios.value = "tumour";
       break;
+    case "TumourStudy:Admin-TumourAssisted":
+      finishBtnDisabled.value = false;
+      calculatorPickerRadios.value = "tumour";
+      break;
     default:
       break;
   }
@@ -155,8 +170,21 @@ const configRadiosUI = () => {
 
 
 function setupTumourSpherePosition(){
-const tumourCenter = workingCase.tumour_window.center;
-setTumourPosition(nrrdTools as Copper.NrrdTools, tumourCenter)
+  const tumourCenter = workingCase.tumour_window.center;
+  setTumourStudyPointPosition(nrrdTools as Copper.NrrdTools, tumourCenter, "tumour");
+}
+
+function setupSkinRibcageNipplePosition(){
+  const report = workingCase.report;
+  if(!!report.nipple.position){
+    setTumourStudyPointPosition(nrrdTools as Copper.NrrdTools, report.nipple.position, "nipple");
+  }
+  if(!!report.skin.position){
+    setTumourStudyPointPosition(nrrdTools as Copper.NrrdTools, report.skin.position, "skin");
+  }
+  if(!!report.ribcage.position){
+    setTumourStudyPointPosition(nrrdTools as Copper.NrrdTools, report.ribcage.position, "ribcage");
+  }
 }
 
 

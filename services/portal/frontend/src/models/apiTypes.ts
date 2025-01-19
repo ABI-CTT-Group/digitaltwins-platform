@@ -173,6 +173,7 @@ export interface ITumourStudyReport {
   end: string | number;
   total_duration: string;
   complete: boolean;
+  assisted: boolean;
 }
 
 export interface ITumourStudyWindow {
