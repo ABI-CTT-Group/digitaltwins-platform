@@ -390,12 +390,13 @@ const getCalculateSpherePositionsData = async (res:IToolCalculateSpherePositions
     // Note: the tumour center now we set to (pixel, pixel, mm) in Axial view, in calculate distance we need to convert it to (mm, mm, mm)
     // pixel / spacing = mm
     // mm * spacing = pixel
+  const spacing = nrrdTools!.nrrd_states.voxelSpacing;
    if(tumourSphereOrigin === null){
      return;
    }else{
     const position = {
-      x: customRound(tumourSphereOrigin["z"][0]/nrrdTools!.nrrd_states.voxelSpacing[0]),
-      y: customRound(tumourSphereOrigin["z"][1]/nrrdTools!.nrrd_states.voxelSpacing[1]),
+      x: customRound(tumourSphereOrigin["z"][0]  / spacing[0]),
+      y: customRound(tumourSphereOrigin["z"][1] / spacing[1]),
       z: customRound(tumourSphereOrigin["z"][2]),
     }
     await useSaveTumourPosition({case_name: currentCaseName.value, position});
@@ -403,6 +404,7 @@ const getCalculateSpherePositionsData = async (res:IToolCalculateSpherePositions
 
    if (skinSphereOrigin !== null){
      dts.value = Number(distance3D(tumourSphereOrigin[aix][0], tumourSphereOrigin[aix][1], tumourSphereOrigin[aix][2], skinSphereOrigin[aix][0], skinSphereOrigin[aix][1], skinSphereOrigin[aix][2]).toFixed(2));
+     
    }
    if (ribSphereOrigin !== null){
      dtr.value = Number(distance3D(tumourSphereOrigin[aix][0], tumourSphereOrigin[aix][1], tumourSphereOrigin[aix][2], ribSphereOrigin[aix][0], ribSphereOrigin[aix][1], ribSphereOrigin[aix][2]).toFixed(2));

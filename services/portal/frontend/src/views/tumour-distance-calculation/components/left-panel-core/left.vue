@@ -51,7 +51,7 @@ import {
   IToolGetSliceNumber,
   IToolAfterLoadImagesResponse
 } from "@/models/apiTypes";
-import { getIncompleteCases, distance3D } from "@/plugins/view-utils/utils-left";
+import { getReportIncompleteCases, distance3D } from "@/plugins/view-utils/utils-left";
 import {useTumourStudyDetailsStore, useTumourStudyNrrdStore } from "@/store/tumour_position_study_app";
 import {useSaveTumourStudyReport} from "@/plugins/tumour_position_study_api";
 import { switchAnimationStatus } from "@/components/view-components/leftCoreUtils";
@@ -108,7 +108,7 @@ function manageEmitters() {
 
 const emitterOnNextCase = ()=>{
   //update incomplete cases
-  incompleteCases.value = getIncompleteCases(studyDetails.value!.details);
+  incompleteCases.value = getReportIncompleteCases(studyDetails.value!.details);
   if (incompleteCases.value.length > 0) {
     workingCase.value = incompleteCases.value[0];
     onCaseSwitched()
@@ -157,7 +157,7 @@ function setUpMouseWheel(e:KeyboardEvent, status: "down" | "up") {
 async function getInitData() {
   if(!!studyDetails.value === false) await getTumourStudyDetails();
   if (studyDetails.value?.details) {
-    incompleteCases.value = getIncompleteCases(studyDetails.value?.details);
+    incompleteCases.value = getReportIncompleteCases(studyDetails.value?.details);
 
     // get first incomplete case nrrd image
     if (incompleteCases.value.length > 0) {
@@ -194,20 +194,24 @@ const getCalculateSpherePositionsData = async (res:IToolCalculateSpherePositions
   // pixel / spacing = mm
   // mm * spacing = pixel
   const { tumourSphereOrigin, skinSphereOrigin, ribSphereOrigin, nippleSphereOrigin, aix } = res;
-  console.log("tumourOrigin: ",tumourSphereOrigin);
+  const spacing = nrrdTools!.nrrd_states.voxelSpacing;
+  
    if(tumourSphereOrigin === null) return;
    if (skinSphereOrigin !== null){
      dts.value = Number(distance3D(tumourSphereOrigin[aix][0], tumourSphereOrigin[aix][1], tumourSphereOrigin[aix][2], skinSphereOrigin[aix][0], skinSphereOrigin[aix][1], skinSphereOrigin[aix][2]).toFixed(2));
       // send to calculator component: status (skin, nipple, ribcage), position, distance 
-     emitter.emit("TumourStudy:Status", nrrdTools!.gui_states.cal_distance, skinSphereOrigin.z, dts.value);
+     const position = [skinSphereOrigin.z[0] / spacing[0], skinSphereOrigin.z[1] / spacing[1], skinSphereOrigin.z[2]];
+     emitter.emit("TumourStudy:Status", "skin", position, dts.value);
    }
    if (ribSphereOrigin !== null){
      dtr.value = Number(distance3D(tumourSphereOrigin[aix][0], tumourSphereOrigin[aix][1], tumourSphereOrigin[aix][2], ribSphereOrigin[aix][0], ribSphereOrigin[aix][1], ribSphereOrigin[aix][2]).toFixed(2));
-     emitter.emit("TumourStudy:Status", nrrdTools!.gui_states.cal_distance, ribSphereOrigin.z, dtr.value);
+     const position = [ribSphereOrigin.z[0] / spacing[0], ribSphereOrigin.z[1] / spacing[1], ribSphereOrigin.z[2]];
+     emitter.emit("TumourStudy:Status", "ribcage", position, dtr.value);
    }
    if (nippleSphereOrigin !== null){
      dtn.value = Number(distance3D(tumourSphereOrigin[aix][0], tumourSphereOrigin[aix][1], tumourSphereOrigin[aix][2], nippleSphereOrigin[aix][0], nippleSphereOrigin[aix][1], nippleSphereOrigin[aix][2]).toFixed(2));
-     emitter.emit("TumourStudy:Status", nrrdTools!.gui_states.cal_distance, nippleSphereOrigin.z, dtn.value);
+     const position = [nippleSphereOrigin.z[0] / spacing[0], nippleSphereOrigin.z[1] / spacing[1], nippleSphereOrigin.z[2]];
+     emitter.emit("TumourStudy:Status", "nipple", position, dtn.value);
    } 
 }
 const getSliceNum = (res: IToolGetSliceNumber) => {

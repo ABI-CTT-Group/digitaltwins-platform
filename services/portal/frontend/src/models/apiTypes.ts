@@ -57,6 +57,7 @@ export interface ISaveSphere {
 export interface ISaveTumourPosition {
   case_name: string;
   position: ICommXYZ;
+  validate?: boolean;
 }
 export interface IMaskTumourObjData {
   maskTumourObjUrl?: string;
@@ -149,7 +150,7 @@ export interface IRequests {
 }
 
 export interface IStudyDetails {
-  position: ICommXYZ;
+  position: ICommXYZ| null;
   distance: string;
   start: string | number;
   end: string | number;

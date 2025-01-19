@@ -45,7 +45,7 @@ const fromWhichApp = ref("");
 const commFuncRadioValues = ref<Array<IRadiosValue>>([]);
 
 const guiSettings = ref<any>();
-const nrrdTools = ref<Copper.NrrdTools>();
+let nrrdTools: Copper.NrrdTools;
 let workingCase: ITumourStudyAppDetail;
 
 
@@ -118,8 +118,8 @@ const emitterOnStatus = (status: string, position:number[], distance:number)=>{
 }
 
 const emitterOnNrrdTools = (tool: Copper.NrrdTools)=>{
-  nrrdTools.value = tool
-  guiSettings.value = nrrdTools.value.getGuiSettings()
+  nrrdTools = tool
+  guiSettings.value = nrrdTools.getGuiSettings()
   guiSettings.value!.guiState["calculator"] = true;
   guiSettings.value!.guiState["sphere"] = false;
   guiSettings.value!.guiSetting!["calculator"].onChange();
@@ -156,7 +156,7 @@ const configRadiosUI = () => {
 
 function setupTumourSpherePosition(){
 const tumourCenter = workingCase.tumour_window.center;
-setTumourPosition(nrrdTools.value as Copper.NrrdTools, tumourCenter)
+setTumourPosition(nrrdTools as Copper.NrrdTools, tumourCenter)
 }
 
 
@@ -237,8 +237,7 @@ function onFinishBtnClick(val:string){
 }
 
 function onNextCaseClick(){
-  console.log("aa");
-  
+
   if(pinkBtnTitle.value === "End Session"){
     router.push({name: "Dashboard"});
     return;

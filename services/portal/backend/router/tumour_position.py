@@ -44,8 +44,8 @@ async def get_tumour_position_app_detail():
     return res
 
 
-@router.get("/api/tumour_position/clear")
-async def get_tumour_position_clear():
+@router.get("/api/tumour_position/report_clear")
+async def get_tumour_position_report_clear():
     tools.get_metadata()
     case_names = tools.get_all_case_names(except_case=except_cases)
     case_names.sort()
@@ -54,6 +54,21 @@ async def get_tumour_position_clear():
         if tumour_position_path.exists():
             tumour_position_path.unlink()
 
+    return "Clear successfully"
+
+@router.get("/api/tumour_position/tumour_center_clear")
+async def get_tumour_position_tumour_center_clear():
+    tools.get_metadata()
+    case_names = tools.get_all_case_names(except_case=except_cases)
+    case_names.sort()
+    for name in case_names:
+        tumour_position_path = tools.get_file_path(name, "json", "tumour_window.json")
+        if tumour_position_path.exists():
+            with open(tumour_position_path, 'r') as file:
+                tumour_position = json.load(file)
+                tumour_position["validate"] = False
+            with open(tumour_position_path, 'w') as file:
+                json.dump(tumour_position, file)
     return "Clear successfully"
 
 
