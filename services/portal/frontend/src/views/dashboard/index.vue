@@ -93,7 +93,7 @@ const items = ref([
                     title: 'Tumour Center Manual Correction',
                     subTitle: "Cases: 100",
                     description: 'Give tumour center at bounding box, and correct the center mannually',
-                    src: 'https://cdn.vuetifyjs.com/images/carousel/squirrel.jpg',
+                    src: 'https://cdn.vuetifyjs.com/images/carousel/planet.jpg',
                     status: user.value === 'admin' ? 'active' : 'inactive',
                     isEnter: false,
                     session: "TumourCenterStudy"
@@ -134,6 +134,8 @@ const renderItems = computed(() => {
 })
 
 onMounted(async () => {
+    if (!user.value) router.push({name: 'Login'});
+
     if (!!studyDetails.value === false) await getTumourStudyDetails();
     const completeTask = studyDetails.value?.details.filter(detail=> detail.report.complete === true);
     const assistedCompleteTask = studyDetails.value?.details.filter(detail => detail.report.assisted === true);

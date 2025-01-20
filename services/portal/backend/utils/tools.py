@@ -248,7 +248,7 @@ def init_tumour_position_json(path):
             "duration": "000000"
         },
         "clock_face": {
-            "face": "none",
+            "face": "",
             "start": "000000",
             "end": "000000",
             "duration": "000000"

@@ -87,6 +87,7 @@ export interface ITumourCenterCaseDetails {
   currentCaseName: string;
   nrrdUrl: string;
   tumourWindow?: ITumourWindow;
+  report?: ITumourStudyReport;
 } 
 
 export interface IRegRquest {

@@ -176,6 +176,7 @@ function setupTumourSpherePosition(){
 
 function setupSkinRibcageNipplePosition(){
   const report = workingCase.report;
+ 
   if(!!report.nipple.position){
     setTumourStudyPointPosition(nrrdTools as Copper.NrrdTools, report.nipple.position, "nipple");
   }
@@ -185,6 +186,7 @@ function setupSkinRibcageNipplePosition(){
   if(!!report.ribcage.position){
     setTumourStudyPointPosition(nrrdTools as Copper.NrrdTools, report.ribcage.position, "ribcage");
   }
+  selectedClockFace.value = report.clock_face.face;
 }
 
 
