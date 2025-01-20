@@ -101,7 +101,7 @@ const workingCase = ref<ITumourStudyAppDetail | null>(null);
 function manageEmitters() {
   emitter.on("TumourStudy:NextCase", emitterOnNextCase);
   emitter.on("TumourStudy:CaseReport", emitterOnCaseReport);
-  emitter.emit("Common:OnAppMounted", "TumourStudy:Admin-TumourCenter");
+  emitter.emit("Common:OnAppMounted", "TumourStudy:Admin-TumourAssisted");
 }
 
 const emitterOnNextCase = ()=>{

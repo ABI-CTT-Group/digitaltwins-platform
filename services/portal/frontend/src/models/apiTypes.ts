@@ -57,6 +57,7 @@ export interface ISaveSphere {
 export interface ISaveTumourPosition {
   case_name: string;
   position: ICommXYZ;
+  validate?: boolean;
 }
 export interface IMaskTumourObjData {
   maskTumourObjUrl?: string;
@@ -81,6 +82,13 @@ export interface ICaseDetails {
   details: Array<IDetails>;
   maskNrrd: string;
 }
+
+export interface ITumourCenterCaseDetails {
+  currentCaseName: string;
+  nrrdUrl: string;
+  tumourWindow?: ITumourWindow;
+} 
+
 export interface IRegRquest {
   name: string;
   radius?: number;
@@ -118,6 +126,16 @@ export interface IRibSkinPoints {
 }
 
 export interface ITumourWindow {
+  bounding_box_max_point:{
+    x:number;
+    y:number;
+    z:number
+  },
+  bounding_box_min_point:{
+    x:number;
+    y:number;
+    z:number
+  },
   center:{
     x:number;
     y:number;
@@ -132,7 +150,7 @@ export interface IRequests {
 }
 
 export interface IStudyDetails {
-  position: ICommXYZ;
+  position: ICommXYZ| null;
   distance: string;
   start: string | number;
   end: string | number;
@@ -155,16 +173,20 @@ export interface ITumourStudyReport {
   end: string | number;
   total_duration: string;
   complete: boolean;
+  assisted: boolean;
 }
 
 export interface ITumourStudyWindow {
+  bounding_box_max_point: ICommXYZ;
+  bounding_box_min_point: ICommXYZ;
   center: ICommXYZ;
+  validate: boolean;
 }
 
 export interface ITumourStudyAppDetail {
   name: string;
   file_path: string;
-  tumour_position: ITumourStudyWindow;
+  tumour_window: ITumourStudyWindow;
   report: ITumourStudyReport;
 }
 

@@ -101,7 +101,16 @@ const items = ref([
             ],
           },
           {
-            studies:[
+            studies:[ 
+                {
+                    title: 'Tumour Study Assisted Manually',
+                    subTitle: "Cases: 100",
+                    description: 'Assist to change tumour, skin, ribcage, and nipple position',
+                    src: 'https://cdn.vuetifyjs.com/images/carousel/sky.jpg',
+                    status: user.value === 'admin' ? 'active' : 'inactive',
+                    isEnter: false,
+                    session: "TumourAssistedStudy"
+                },
                 {
                     title: 'Tumour Position & Extent Report',
                     subTitle: "Cases: 100",
@@ -110,15 +119,6 @@ const items = ref([
                     status: user.value === 'admin' ? 'active' : 'inactive',
                     isEnter: false,
                     session: "TumourSegmentationStudy"
-                },
-                {
-                    title: 'Study 4',
-                    subTitle: "Cases: 100",
-                    description: 'This is a description of study 4',
-                    src: 'https://cdn.vuetifyjs.com/images/carousel/sky.jpg',
-                    status: user.value === 'admin' ? 'active' : 'inactive',
-                    isEnter: false,
-                    session: ""
                 },
             ],
           }
@@ -136,7 +136,11 @@ const renderItems = computed(() => {
 onMounted(async () => {
     if (!!studyDetails.value === false) await getTumourStudyDetails();
     const completeTask = studyDetails.value?.details.filter(detail=> detail.report.complete === true);
+    const assistedCompleteTask = studyDetails.value?.details.filter(detail => detail.report.assisted === true);
+    const tumourCenterConpleteTasks = studyDetails.value?.details?.filter(detail => detail.tumour_window.validate === true);
     items.value[0].studies[0].subTitle = `Completed Cases: ${completeTask!.length} / ${studyDetails.value?.details.length}`;
+    items.value[0].studies[1].subTitle = `Completed Cases: ${tumourCenterConpleteTasks!.length} / ${studyDetails.value?.details.length}`;
+    items.value[1].studies[0].subTitle = `Completed Cases: ${assistedCompleteTask!.length} / ${studyDetails.value?.details.length}`;
 })
 const handleEnter = (study: Study) => {
     study.isEnter=!study.isEnter

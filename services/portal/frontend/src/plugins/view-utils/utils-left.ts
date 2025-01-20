@@ -57,8 +57,14 @@ export function distance3D(x1:number, y1:number, z1:number, x2:number, y2:number
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-export const getIncompleteCases = (
+export const getReportIncompleteCases = (
   details: Array<ITumourStudyAppDetail>
 ):ITumourStudyAppDetail[] => {
   return details.filter((item) => item.report.complete === false);
+};
+
+export const getTumourCenterInCompleteCases = (
+  details: Array<ITumourStudyAppDetail>
+):ITumourStudyAppDetail[] => {
+  return details.filter((item) => item.tumour_window.validate === false);
 };

@@ -58,3 +58,4 @@ class TumourStudyReport(BaseModel):
 class TumourPosition(BaseModel):
     case_name: str
     position: ReportPosition
+    validate: bool

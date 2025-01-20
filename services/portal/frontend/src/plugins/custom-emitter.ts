@@ -6,6 +6,10 @@ const eventNames = [
     "TumourStudy:ImageLoaded", 
     "TumourStudy:CaseReport", 
     "TumourStudy:AllCasesCompleted", 
+    "TumourStudy:UpdateTumourPosition",
+    "TumourStudy:UpdateSkinPosition",
+    "TumourStudy:UpdateRibcagePosition",
+    "TumourStudy:UpdateClosestNipplePosition",
     "Segmentation:CaseDetails",
     "Segementation:CaseSwitched",
     "Segmentation:ContrastChanged",
@@ -26,6 +30,7 @@ const eventNames = [
     "Common:DragImageWindowHigh",
     "Common:ToggleAppTheme",
     "Common:ToggleBreastVisibility",
+    "Common:OnAppMounted",
     "IntroGuide:OperationStatus",
     "IntroGuide:DrawerStatus",
 ];

@@ -72,6 +72,17 @@ import { PanelOperationManager, valideClock, deepClone, processPointsCloud } fro
 import loadingGif from "@/assets/loading.svg";
 import { switchAnimationStatus } from "@/components/view-components/leftCoreUtils";
 
+/**
+ * Notice: 3D Nrrd render as pixel not mm.
+ * formulas for converting mm and pixel via image spacing
+ * pixel / spacing = mm
+ * mm * spacing = pixel
+ * 
+ * Duke university provides, tumour center and bounding box are using mm, 
+ * so when we render in threejs we need to convert mm to pixel and add the image origin + threejs world center bias.
+ * 
+ * The tumour, nipple, ribcage, and skin positions that we save to backend are mm, so when save we need to convert the pixel position to mm.
+ */
 
 type Props = {
   panelWidth?: number;
