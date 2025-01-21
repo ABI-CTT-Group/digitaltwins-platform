@@ -9,7 +9,8 @@ import {
   ISaveSphere,
   IRegRquest,
   IRequests,
-  ISaveTumourPosition
+  ISaveTumourPosition,
+  ITumourStudyAssisted
 } from "@/models/apiTypes";
 import JSZip from "jszip";
 /**

@@ -68,3 +68,9 @@ export const getTumourCenterInCompleteCases = (
 ):ITumourStudyAppDetail[] => {
   return details.filter((item) => item.tumour_window.validate === false);
 };
+
+export const getTumourAssitedInCompleteCases = (
+  details: Array<ITumourStudyAppDetail>
+):ITumourStudyAppDetail[] => {
+  return details.filter((item) => item.report.assisted === false && item.report.complete === true);
+};

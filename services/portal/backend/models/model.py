@@ -53,9 +53,15 @@ class TumourStudyReport(BaseModel):
     end: str
     total_duration: str
     complete: bool
+    assisted: bool
 
 
 class TumourPosition(BaseModel):
     case_name: str
     position: ReportPosition
     validate: bool
+
+
+class TumourAssisted(BaseModel):
+    tumour_position: TumourPosition
+    tumour_study_report: TumourStudyReport

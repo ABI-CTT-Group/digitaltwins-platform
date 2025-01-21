@@ -315,7 +315,6 @@ async def save_tumour_position(save_position: model.TumourPosition):
         with open(tumour_position_path, "r") as tumour_position_file:
             data = tumour_position_file.read()
             position_json = json.loads(data)
-    print(save_position.model_dump())
     position_json["center"] = save_position.model_dump().get("position")
     position_json["validate"] = save_position.model_dump().get("validate", False)
     with open(tumour_position_path, "w") as tumour_position_file:

@@ -344,6 +344,13 @@ onUnmounted(() => {
   position: relative;
   /* border: 1px solid palevioletred; */
 }
+/**
+  * Hide the canvas element, because we use the nrrdTools to render the images
+  make sure the canvas element is not visible and not affect the layout
+  */
+.left-container > canvas {
+  height: 0 !important;
+}
 .left_gui {
   /* position: fixed; */
   position: absolute;

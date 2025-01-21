@@ -6,7 +6,7 @@
             <v-carousel 
                 hide-delimiter-background
                 hide-delimiters
-                show-arrows
+                :show-arrows="isShowArrow"
             >
                 <template v-slot:prev="{ props }">
                     <div></div>
@@ -63,6 +63,7 @@ import { useTumourStudyDetailsStore } from "@/store/tumour_position_study_app";
 const router = useRouter();
 const route = useRoute();
 const { user } = useUser();
+
 
 const { studyDetails } = storeToRefs(useTumourStudyDetailsStore());
 const { getTumourStudyDetails } = useTumourStudyDetailsStore();
@@ -124,6 +125,7 @@ const items = ref([
           }
         ])
 
+
 const renderItems = computed(() => {
     return items.value.map(item => {
         return {
@@ -132,6 +134,9 @@ const renderItems = computed(() => {
         }
     })
 })
+const isShowArrow = computed(() => {
+    return renderItems.value.length > 1 ? true : false;
+});
 
 onMounted(async () => {
     if (!user.value) router.push({name: 'Login'});
@@ -139,10 +144,11 @@ onMounted(async () => {
     if (!!studyDetails.value === false) await getTumourStudyDetails();
     const completeTask = studyDetails.value?.details.filter(detail=> detail.report.complete === true);
     const assistedCompleteTask = studyDetails.value?.details.filter(detail => detail.report.assisted === true);
+    const assistedTaskCount = studyDetails.value?.details.filter(detail => detail.report.assisted === false && detail.report.complete === true);
     const tumourCenterConpleteTasks = studyDetails.value?.details?.filter(detail => detail.tumour_window.validate === true);
     items.value[0].studies[0].subTitle = `Completed Cases: ${completeTask!.length} / ${studyDetails.value?.details.length}`;
     items.value[0].studies[1].subTitle = `Completed Cases: ${tumourCenterConpleteTasks!.length} / ${studyDetails.value?.details.length}`;
-    items.value[1].studies[0].subTitle = `Completed Cases: ${assistedCompleteTask!.length} / ${studyDetails.value?.details.length}`;
+    items.value[1].studies[0].subTitle = `Completed Cases: ${assistedCompleteTask!.length} / ${assistedTaskCount!.length}`;
 })
 const handleEnter = (study: Study) => {
     study.isEnter=!study.isEnter

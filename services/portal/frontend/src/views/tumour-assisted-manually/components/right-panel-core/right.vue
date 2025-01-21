@@ -23,7 +23,6 @@ import NavBarRight from "@/components/commonBar/NavBarRight.vue";
 import * as THREE from "three";
 import * as Copper from "copper3d";
 import "copper3d/dist/css/style.css";
-import createKDTree from "copper3d-tree";
 // import * as Copper from "@/ts/index";
 import {
   onMounted,
@@ -221,7 +220,7 @@ const emitterOnResizeCopperSceneWhenNavChanged = () => {
   }, 300);
 }
 
-const emitterOnUpdateTumourPosition = (spherePointOrigin: ICommXYZ, status:string) => {
+const emitterOnUpdateTumourPosition = (spherePointOrigin: ICommXYZ, status:"tumour"|"skin"|"ribcage"|"nipple") => {
   // Note: the tumour center now we set to (pixel, pixel, mm) in Axial view, in threejs world we need to convert it to (pixel, pixel, pixel) and add the image origin + threejs world center bias.
   // pixel / spacing = mm
   // mm * spacing = pixel
@@ -375,7 +374,7 @@ const loadTumourBoundingBox = (center:ICommXYZ, boxWidtHeightDepth:ICommXYZ) => 
   allRightPanelMeshes.push(box);
 }
 
-const loadNippleRibSkinViaPosition = (point:ICommXYZ, status:string) => {
+const loadNippleRibSkinViaPosition = (point:ICommXYZ, status:"skin"|"ribcage"|"nipple") => {
   if(!point) return; 
   switch(status){
     case "nipple":

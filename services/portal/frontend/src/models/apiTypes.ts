@@ -177,6 +177,11 @@ export interface ITumourStudyReport {
   assisted: boolean;
 }
 
+export interface ITumourStudyAssisted {
+  tumour_position: ISaveTumourPosition;
+  tumour_study_report: ITumourStudyReport;
+}
+
 export interface ITumourStudyWindow {
   bounding_box_max_point: ICommXYZ;
   bounding_box_min_point: ICommXYZ;

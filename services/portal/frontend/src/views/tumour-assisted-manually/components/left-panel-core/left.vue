@@ -49,9 +49,9 @@ import {
   IToolGetSliceNumber,
   IToolAfterLoadImagesResponse
 } from "@/models/apiTypes";
-import { getTumourCenterInCompleteCases, distance3D, customRound } from "@/plugins/view-utils/utils-left";
+import { getTumourAssitedInCompleteCases, distance3D, customRound } from "@/plugins/view-utils/utils-left";
 import {useTumourStudyDetailsStore, useTumourStudyNrrdStore, } from "@/store/tumour_position_study_app";
-import {useSaveTumourStudyReport} from "@/plugins/tumour_position_study_api";
+import {useSaveTumourPositionAssisted} from "@/plugins/tumour_position_study_api";
 import { switchAnimationStatus } from "@/components/view-components/leftCoreUtils";
 import { useSaveTumourPosition } from "@/plugins/api";
 
@@ -113,8 +113,9 @@ function manageEmitters() {
 }
 
 const emitterOnNextCase = ()=>{
+  resetDistancePanel();
   //update incomplete cases
-  incompleteCases.value = getTumourCenterInCompleteCases(studyDetails.value!.details);
+  incompleteCases.value = getTumourAssitedInCompleteCases(studyDetails.value!.details);
   if (incompleteCases.value.length > 0) {
     workingCase.value = incompleteCases.value[0];
     onCaseSwitched()
@@ -127,10 +128,17 @@ const emitterOnCaseReport = async (report:ITumourStudyReport)=>{
   // save report to backend
 
   workingCase.value!.tumour_window.validate = true;
-  // await useSaveTumourPosition({
-  //   case_name: currentCaseName.value, 
-  //   position: workingCase.value!.tumour_window.center, 
-  //   validate: workingCase.value!.tumour_window.validate});
+  workingCase.value!.report = report;
+  workingCase.value!.report.assisted = true;
+  // save report to backend
+  const reportSaveData = Object.assign({case_name:workingCase.value!.name}, workingCase.value!.report);
+  const tumourPositionUpdateData = {
+    case_name: currentCaseName.value, 
+    position: workingCase.value!.tumour_window.center}
+  await useSaveTumourPositionAssisted({
+    tumour_position: tumourPositionUpdateData,
+    tumour_study_report: reportSaveData
+  });
 }
 
 onMounted(async () => {
@@ -143,6 +151,12 @@ onMounted(async () => {
   manageEmitters();
   await getInitData();
 });
+
+const resetDistancePanel = () => {
+  dts.value = 0;
+  dtn.value = 0;
+  dtr.value = 0;
+};
 
 const onFinishedCopperInit = async (copperInitData: ILeftCoreCopperInit) => {
   nrrdTools = copperInitData.nrrdTools;
@@ -165,7 +179,7 @@ function setUpMouseWheel(e:KeyboardEvent, status: "down" | "up") {
 async function getInitData() {
   if(!!studyDetails.value === false) await getTumourStudyDetails();
   if (studyDetails.value?.details) {
-    incompleteCases.value = getTumourCenterInCompleteCases(studyDetails.value?.details);
+    incompleteCases.value = getTumourAssitedInCompleteCases(studyDetails.value?.details);
 
     // get first incomplete case nrrd image
     if (incompleteCases.value.length > 0) {

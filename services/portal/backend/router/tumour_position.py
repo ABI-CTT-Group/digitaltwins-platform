@@ -7,7 +7,8 @@ import json
 
 router = APIRouter()
 
-except_cases=["Breast_014", "C-V0001"]
+except_cases = ["Breast_014", "C-V0001"]
+
 
 @router.get("/api/tumour_position")
 async def get_tumour_position_app_detail():
@@ -56,6 +57,7 @@ async def get_tumour_position_report_clear():
 
     return "Clear successfully"
 
+
 @router.get("/api/tumour_position/tumour_center_clear")
 async def get_tumour_position_tumour_center_clear():
     tools.get_metadata()
@@ -86,4 +88,36 @@ async def save_tumour_position_report(study_report: model.TumourStudyReport):
     tumour_report_path = tools.get_file_path(study_report.case_name, "json", "tumour_position_study.json")
     with open(tumour_report_path, 'w') as file:
         json.dump(study_report.model_dump(), file, indent=4)
+    return True
+
+
+@router.post("/api/tumour_position/assisted")
+async def save_tumour_position_assisted(study_report: model.TumourAssisted):
+    save_position = study_report.tumour_position
+    assisted_report = study_report.tumour_study_report
+    tumour_assisted_path = tools.get_file_path(assisted_report.case_name, "json",
+                                               "tumour_position_study_assisted.json")
+    tumour_report_path = tools.get_file_path(assisted_report.case_name, "json", "tumour_position_study.json")
+    tumour_position_path = tools.get_file_path(save_position.case_name, "json", "tumour_window.json")
+
+    with open(tumour_assisted_path, 'w') as file:
+        json.dump(assisted_report.model_dump(), file, indent=4)
+
+    if tumour_report_path.exists():
+        with open(tumour_report_path, 'r') as file:
+            report = json.load(file)
+        report["assisted"] = assisted_report.assisted
+        with open(tumour_report_path, 'w') as file:
+            json.dump(report, file, indent=4)
+
+    if tumour_position_path.exists():
+        with open(tumour_position_path, "r") as tumour_position_file:
+            data = tumour_position_file.read()
+            position_json = json.loads(data)
+
+    position_json["center"] = save_position.model_dump().get("position")
+    # position_json["validate"] = save_position.model_dump().get("validate", False)
+    with open(tumour_position_path, "w") as tumour_position_file:
+        json.dump(position_json, tumour_position_file, indent=4)
+
     return True

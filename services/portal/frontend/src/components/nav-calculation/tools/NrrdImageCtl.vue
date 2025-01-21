@@ -45,23 +45,26 @@ onMounted(() => {
 const completedCases = computed(() => {
   if (!!studyDetails.value === false) return "0 / 0";
   let completeTask = []
+  let totalTask = 0;
   switch (fromWhichApp.value) {
     case "TumourStudy:User-Tumour-Distance-Calculation":
       completeTask = studyDetails.value?.details.filter(detail=> detail.report.complete === true);
+      totalTask = studyDetails.value?.details.length;
       break;
     case "TumourStudy:Admin-TumourCenter":
       completeTask = studyDetails.value?.details.filter(detail=> detail.tumour_window.validate === true);
+      totalTask = studyDetails.value?.details.length;
       break;
     case "TumourStudy:Admin-TumourAssisted":
       completeTask = studyDetails.value?.details.filter(detail=> detail.report.assisted === true);
+      totalTask = studyDetails.value?.details.filter(detail=> detail.report.assisted === false && detail.report.complete === true).length;
       break;
     default:
       completeTask = [];
       break;
   }
   
-  
-  return `${completeTask.length} / ${studyDetails.value?.details.length}`;
+  return `${completeTask.length} / ${totalTask}`;
 });
 
 function manageEmitters() {
