@@ -213,7 +213,7 @@ const getSliceChangedNum = (sliceNum: number) => {
  */
 const getCalculateSpherePositionsData = async (res:IToolCalculateSpherePositionsData)=>{
   // Note: the tumour center now we set to (pixel, pixel, mm) in Axial view, in calculate distance we need to convert it to (mm, mm, mm)
-  // pixel / spacing = mm
+  // pixel / spacing = mm x: 120 / 1.3 = 92.3
   // mm * spacing = pixel
   const { tumourSphereOrigin, skinSphereOrigin, ribSphereOrigin, nippleSphereOrigin, aix } = res;
   const spacing = nrrdTools!.nrrd_states.voxelSpacing;

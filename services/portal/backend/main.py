@@ -115,7 +115,8 @@ async def get_cases_name(background_tasks: BackgroundTasks):
         segmentation_breast_model_paths = tools.get_category_files(name, "obj", "segmentation")
         # get all masks json files
         segmentation_manual_mask_paths = tools.get_category_files(name, "json", "segmentation_manual",
-                                                                  ["sphere_points.json", "tumour_position_study.json"])
+                                                                  ["sphere_points.json", "tumour_position_study.json",
+                                                                   "tumour_position_study_assisted.json"])
         segmentation_manual_3dobj_paths = tools.get_category_files(name, "obj", "segmentation_manual")
         json_is_exist = tools.check_file_exist(name, "json", "mask.json")
         obj_is_exist = tools.check_file_exist(name, "obj", "mask.obj")

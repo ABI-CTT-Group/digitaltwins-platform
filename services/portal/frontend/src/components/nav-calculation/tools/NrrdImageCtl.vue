@@ -57,7 +57,7 @@ const completedCases = computed(() => {
       break;
     case "TumourStudy:Admin-TumourAssisted":
       completeTask = studyDetails.value?.details.filter(detail=> detail.report.assisted === true);
-      totalTask = studyDetails.value?.details.filter(detail=> detail.report.assisted === false && detail.report.complete === true).length;
+      totalTask = studyDetails.value?.details.filter(detail=>detail.report.complete === true).length;
       break;
     default:
       completeTask = [];

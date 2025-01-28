@@ -173,6 +173,8 @@ export interface ITumourStudyReport {
   start: string | number;
   end: string | number;
   total_duration: string;
+  spacing: ICommXYZ | null;
+  origin: ICommXYZ | null;
   complete: boolean;
   assisted: boolean;
 }
