@@ -38,7 +38,7 @@ export const dashboardData:IDashboardData= [
                                                     {
                                                         studies:[
                                                             {
-                                                                title: 'Tumour Position Study',
+                                                                name: 'Tumour Position Study',
                                                                 subTitle: "Cases: 100",
                                                                 description: 'Calculate tumour distance to the skin, ribcage, and nipple mannually',
                                                                 src: 'https://cdn.vuetifyjs.com/images/cards/docks.jpg',
@@ -47,7 +47,7 @@ export const dashboardData:IDashboardData= [
                                                                 session: "TumourCalaulationStudy"
                                                             },
                                                             {
-                                                                title: 'Tumour Center Manual Correction',
+                                                                name: 'Tumour Center Manual Correction',
                                                                 subTitle: "Cases: 100",
                                                                 description: 'Give tumour center at bounding box, and correct the center mannually',
                                                                 src: 'https://cdn.vuetifyjs.com/images/carousel/planet.jpg',
@@ -60,7 +60,7 @@ export const dashboardData:IDashboardData= [
                                                     {
                                                         studies:[ 
                                                             {
-                                                                title: 'Tumour Study Assisted Manually',
+                                                                name: 'Tumour Study Assisted Manually',
                                                                 subTitle: "Cases: 100",
                                                                 description: 'Assist to change tumour, skin, ribcage, and nipple position',
                                                                 src: 'https://cdn.vuetifyjs.com/images/carousel/sky.jpg',
@@ -80,7 +80,7 @@ export const dashboardData:IDashboardData= [
                                                     {
                                                         studies:[ 
                                                             {
-                                                                title: 'Tumour Position & Extent Report',
+                                                                name: 'Tumour Position & Extent Report',
                                                                 subTitle: "Cases: 100",
                                                                 description: 'Using tools to segment tumour and generate a report',
                                                                 src: 'https://cdn.vuetifyjs.com/images/cards/sunshine.jpg',

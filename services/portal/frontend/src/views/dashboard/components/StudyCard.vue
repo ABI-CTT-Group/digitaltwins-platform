@@ -10,7 +10,7 @@
             :src="study.src"
             cover
         >
-            <v-card-title>{{ study.title }}</v-card-title>
+            <v-card-title>{{ study.name }}</v-card-title>
         </v-img>
         <v-card-subtitle class="pt-4">
             {{ study.subTitle }}

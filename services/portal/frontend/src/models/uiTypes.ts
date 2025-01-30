@@ -1,6 +1,6 @@
 
 export interface IStudy {
-    title: string;
+    name: string;
     subTitle: string;
     description: string;
     src: string;

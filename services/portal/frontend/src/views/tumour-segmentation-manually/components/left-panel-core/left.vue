@@ -330,8 +330,6 @@ const loadJsonMasks = (url: string) => {
         console.log("data empty init");
         sendInitMaskToBackend();
       }
-      console.log("data", data);
-      
       nrrdTools!.setMasksData(data, loadBarMain);
     }
   };
@@ -344,10 +342,7 @@ const setMaskData = () => {
       const currentCaseDetail = findCurrentCase(
         allCasesDetails.value.details,
         currentCaseName.value
-      );
-
-      console.log("currentCaseDetail", currentCaseDetail);
-      
+      );   
       if (currentCaseDetail.masked) {
         if (caseUrls.value)
           loadJsonMasks(loadedUrls[currentCaseName.value].jsonUrl as string);

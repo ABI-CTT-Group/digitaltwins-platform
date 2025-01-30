@@ -227,9 +227,9 @@ const getCalculateSpherePositionsData = async (res:IToolCalculateSpherePositions
       }, "tumour")
       const spacing = nrrdTools?.nrrd_states.voxelSpacing!;
       const toumourCenterMM = {
-        x: customRound(tumourSphereOrigin.z[0] / spacing[0]),
-        y: customRound(tumourSphereOrigin.z[1] / spacing[1]),
-        z: customRound(tumourSphereOrigin.z[2])
+        x: tumourSphereOrigin.z[0] / spacing[0],
+        y: tumourSphereOrigin.z[1] / spacing[1],
+        z: tumourSphereOrigin.z[2]
       }
       workingCase.value!.tumour_window.center = toumourCenterMM;
    }
