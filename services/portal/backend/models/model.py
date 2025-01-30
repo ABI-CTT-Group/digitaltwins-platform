@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Union
 
 
 class Masks(BaseModel):
@@ -23,9 +24,9 @@ class Sphere(BaseModel):
 
 
 class ReportPosition(BaseModel):
-    x: int
-    y: int
-    z: int
+    x: Union[float, int, str]
+    y: Union[float, int, str]
+    z: Union[float, int, str]
 
 
 class ReportPoint(BaseModel):
@@ -52,10 +53,18 @@ class TumourStudyReport(BaseModel):
     start: str
     end: str
     total_duration: str
+    spacing: ReportPosition
+    origin: ReportPosition
     complete: bool
+    assisted: bool
 
 
 class TumourPosition(BaseModel):
     case_name: str
     position: ReportPosition
     validate: bool
+
+
+class TumourAssisted(BaseModel):
+    tumour_position: TumourPosition
+    tumour_study_report: TumourStudyReport

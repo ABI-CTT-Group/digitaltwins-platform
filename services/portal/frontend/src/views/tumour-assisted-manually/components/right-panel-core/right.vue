@@ -23,7 +23,6 @@ import NavBarRight from "@/components/commonBar/NavBarRight.vue";
 import * as THREE from "three";
 import * as Copper from "copper3d";
 import "copper3d/dist/css/style.css";
-import createKDTree from "copper3d-tree";
 // import * as Copper from "@/ts/index";
 import {
   onMounted,
@@ -119,8 +118,14 @@ let originSlices: Copper.nrrdSliceType | undefined;
 let tumourSliceIndex: ICommXYZ = {x:0, y:0, z:0};
 // tumour center position in mm
 let tumourCenterMM:ICommXYZ;
+let nipplePointMM:ICommXYZ;
+let ribCagePointMM:ICommXYZ;
+let skinPointMM:ICommXYZ;
 // tumour center position in pixel
 let tumourCenterPixel:ICommXYZ;
+let nipplePointPixel:ICommXYZ;
+let ribCagePointPixel:ICommXYZ;
+let skinPointPixel:ICommXYZ;
 let boxWidtHeightDepthMM:ICommXYZ;
 let boxWidtHeightDepthPixel:ICommXYZ;
 // tumour position in threejs world space in pixel + threejs world center bias
@@ -128,6 +133,9 @@ let tumourPosition:THREE.Vector3|undefined = undefined;
 const Geometry = new THREE.SphereGeometry(3, 32, 16)
 const tumourMaterial = new THREE.MeshBasicMaterial({ color: "#228b22" });
 const tumourSphere = new THREE.Mesh(Geometry, tumourMaterial);
+const nippleSphereClosest = new THREE.Mesh(Geometry, new THREE.MeshBasicMaterial({ color: "hotpink" }));
+const skinSphere = new THREE.Mesh(Geometry, new THREE.MeshBasicMaterial({ color: "#FFFF00"}));
+const ribSphere = new THREE.Mesh(Geometry, new THREE.MeshBasicMaterial({ color: "#00E5FF" }));
 
 
 const maskNrrd = ref<string>("");
@@ -212,18 +220,23 @@ const emitterOnResizeCopperSceneWhenNavChanged = () => {
   }, 300);
 }
 
-const emitterOnUpdateTumourPosition = (tumourSphereOrigin: ICommXYZ) => {
+const emitterOnUpdateTumourPosition = (spherePointOrigin: ICommXYZ, status:"tumour"|"skin"|"ribcage"|"nipple") => {
   // Note: the tumour center now we set to (pixel, pixel, mm) in Axial view, in threejs world we need to convert it to (pixel, pixel, pixel) and add the image origin + threejs world center bias.
   // pixel / spacing = mm
   // mm * spacing = pixel
   if (!nrrdSpacing || nrrdSpacing.length === 0) return;
   // add the image origin in threejs world center bias
-  const tumourCenterPixel = {
-    x: correctedOrigin[0] + tumourSphereOrigin.x,
-    y: correctedOrigin[1] + tumourSphereOrigin.y,
-    z: correctedOrigin[2] + tumourSphereOrigin.z * nrrdSpacing[2]
+  const pointPixel = {
+    x: correctedOrigin[0] + spherePointOrigin.x,
+    y: correctedOrigin[1] + spherePointOrigin.y,
+    z: correctedOrigin[2] + spherePointOrigin.z * nrrdSpacing[2]
   }
-  loadTumourViaPositionCenter(tumourCenterPixel);
+  if(status === "tumour"){
+    loadTumourViaPositionCenter(pointPixel);
+  }else{
+    // 2.5 Load nipple, ribcage, skin
+    loadNippleRibSkinViaPosition(pointPixel, status);
+  }
 }
 
 const convertMMPointToPixelPoint = (point:ICommXYZ, spacing:number[]):ICommXYZ => {
@@ -256,6 +269,17 @@ const getInitDataOnceCaseSwitched = async (caseDetails: ITumourCenterCaseDetails
     y: maxPoint.y - minPoint.y,
     z: maxPoint.z - minPoint.z
   };
+
+  if (!!caseDetails.report?.nipple.position){
+    nipplePointMM = caseDetails.report.nipple.position;
+  }
+  if (!!caseDetails.report?.ribcage.position){
+    ribCagePointMM = caseDetails.report.ribcage.position;
+  }
+  if (!!caseDetails.report?.skin.position){
+    skinPointMM = caseDetails.report.skin.position;
+  }
+
   // get breast mesh obj url
   await getBreastMeshObjUrl(currentCasename.value);
 }
@@ -296,6 +320,31 @@ const coreLoadNrrdImageOnceGetCaseDetail = async (nrrdUrl:string, imageType:"ori
 
       // Note: the tomour center you get here is from the backend, it's in mm, so we need to convert it to pixel
       tumourCenterPixel = convertMMPointToPixelPoint(tumourCenterMM, nrrdSpacing);
+      if (!!nipplePointMM){
+        nipplePointPixel = convertMMPointToPixelPoint(nipplePointMM, nrrdSpacing);
+        loadNippleRibSkinViaPosition({
+          x: correctedOrigin[0]+nipplePointPixel.x,
+          y: correctedOrigin[1]+nipplePointPixel.y,
+          z: correctedOrigin[2]+nipplePointPixel.z
+        }, "nipple");
+      }
+      if (!!ribCagePointMM){
+        ribCagePointPixel = convertMMPointToPixelPoint(ribCagePointMM, nrrdSpacing);
+        loadNippleRibSkinViaPosition({
+          x: correctedOrigin[0]+ribCagePointPixel.x,
+          y: correctedOrigin[1]+ribCagePointPixel.y,
+          z: correctedOrigin[2]+ribCagePointPixel.z
+        }, "ribcage");
+      }
+      if (!!skinPointMM){
+        skinPointPixel = convertMMPointToPixelPoint(skinPointMM, nrrdSpacing);
+        loadNippleRibSkinViaPosition({
+          x: correctedOrigin[0]+skinPointPixel.x,
+          y: correctedOrigin[1]+skinPointPixel.y,
+          z: correctedOrigin[2]+skinPointPixel.z
+        }, "skin");
+      }
+      
       boxWidtHeightDepthPixel = convertMMPointToPixelPoint(boxWidtHeightDepthMM, nrrdSpacing);
       // Note: the tumour center now we set to (pixel, pixel, mm) in Axial view, in threejs world we need to convert it to (pixel, pixel, pixel) and add the image origin + threejs world center bias.
       const correctedTumourCenterPosition = {
@@ -323,6 +372,27 @@ const loadTumourBoundingBox = (center:ICommXYZ, boxWidtHeightDepth:ICommXYZ) => 
   const box = new THREE.BoxHelper( cube, 0xffffff );
   copperScene.addObject( box );
   allRightPanelMeshes.push(box);
+}
+
+const loadNippleRibSkinViaPosition = (point:ICommXYZ, status:"skin"|"ribcage"|"nipple") => {
+  if(!point) return; 
+  switch(status){
+    case "nipple":
+      nippleSphereClosest.position.set(point.x, point.y, point.z);
+      copperScene.scene.add(nippleSphereClosest);
+      allRightPanelMeshes.push(nippleSphereClosest);
+      break;
+    case "ribcage":
+      ribSphere.position.set(point.x, point.y, point.z);
+      copperScene.scene.add(ribSphere);
+      allRightPanelMeshes.push(ribSphere);
+      break;
+    case "skin":
+      skinSphere.position.set(point.x, point.y, point.z);
+      copperScene.scene.add(skinSphere);
+      allRightPanelMeshes.push(skinSphere);
+      break;
+  }
 }
 
 const loadTumourViaPositionCenter = (center:ICommXYZ)=>{

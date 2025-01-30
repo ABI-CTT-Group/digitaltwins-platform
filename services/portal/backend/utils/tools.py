@@ -45,7 +45,8 @@ def check_file_exist(patient_id, filetype, filename):
                 new_file_path.touch()
             else:
                 if file_path.exists():
-                    return True
+                    if file_path.stat().st_size != 0:
+                        return True
                 else:
                     file_path.touch()
         else:
@@ -248,7 +249,7 @@ def init_tumour_position_json(path):
             "duration": "000000"
         },
         "clock_face": {
-            "face": "none",
+            "face": "",
             "start": "000000",
             "end": "000000",
             "duration": "000000"
@@ -256,6 +257,8 @@ def init_tumour_position_json(path):
         "start": "000000",
         "end": "000000",
         "total_duration": "000000",
+        "spacing": None,
+        "origin": None,
         "complete": False,
         "assisted": False
     }

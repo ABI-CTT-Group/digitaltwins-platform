@@ -115,7 +115,8 @@ async def get_cases_name(background_tasks: BackgroundTasks):
         segmentation_breast_model_paths = tools.get_category_files(name, "obj", "segmentation")
         # get all masks json files
         segmentation_manual_mask_paths = tools.get_category_files(name, "json", "segmentation_manual",
-                                                                  ["sphere_points.json", "tumour_position_study.json"])
+                                                                  ["sphere_points.json", "tumour_position_study.json",
+                                                                   "tumour_position_study_assisted.json"])
         segmentation_manual_3dobj_paths = tools.get_category_files(name, "obj", "segmentation_manual")
         json_is_exist = tools.check_file_exist(name, "json", "mask.json")
         obj_is_exist = tools.check_file_exist(name, "obj", "mask.obj")
@@ -315,7 +316,6 @@ async def save_tumour_position(save_position: model.TumourPosition):
         with open(tumour_position_path, "r") as tumour_position_file:
             data = tumour_position_file.read()
             position_json = json.loads(data)
-    print(save_position.model_dump())
     position_json["center"] = save_position.model_dump().get("position")
     position_json["validate"] = save_position.model_dump().get("validate", False)
     with open(tumour_position_path, "w") as tumour_position_file:

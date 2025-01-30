@@ -87,6 +87,7 @@ export interface ITumourCenterCaseDetails {
   currentCaseName: string;
   nrrdUrl: string;
   tumourWindow?: ITumourWindow;
+  report?: ITumourStudyReport;
 } 
 
 export interface IRegRquest {
@@ -172,8 +173,15 @@ export interface ITumourStudyReport {
   start: string | number;
   end: string | number;
   total_duration: string;
+  spacing: ICommXYZ | null;
+  origin: ICommXYZ | null;
   complete: boolean;
   assisted: boolean;
+}
+
+export interface ITumourStudyAssisted {
+  tumour_position: ISaveTumourPosition;
+  tumour_study_report: ITumourStudyReport;
 }
 
 export interface ITumourStudyWindow {

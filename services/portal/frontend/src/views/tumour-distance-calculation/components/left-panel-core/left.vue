@@ -107,6 +107,7 @@ function manageEmitters() {
 }
 
 const emitterOnNextCase = ()=>{
+  resetDistancePanel();
   //update incomplete cases
   incompleteCases.value = getReportIncompleteCases(studyDetails.value!.details);
   if (incompleteCases.value.length > 0) {
@@ -166,6 +167,12 @@ async function getInitData() {
     }
   }
 }
+
+const resetDistancePanel = () => {
+  dts.value = 0;
+  dtn.value = 0;
+  dtr.value = 0;
+};
 
 const resetSlicesOrientation = (axis: "x" | "y" | "z") => {
   nrrdTools!.setSliceOrientation(axis);

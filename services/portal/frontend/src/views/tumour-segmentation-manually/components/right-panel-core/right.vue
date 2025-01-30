@@ -271,6 +271,11 @@ function getSocketUpdatedMessage(event: MessageEvent) {
       console.log("remove old mesh");
       URL.revokeObjectURL(maskTumourObjData.value.maskTumourObjUrl)
     }
+    
+    if (typeof maskTumourObjData.value ===  "boolean"){
+      maskTumourObjData.value = {maskTumourObjUrl: "", meshVolume: 0};
+    }
+    
     const blob = new Blob([event.data], { type: "model/obj" });
     const url = URL.createObjectURL(blob);
     maskTumourObjData.value.maskTumourObjUrl = url;

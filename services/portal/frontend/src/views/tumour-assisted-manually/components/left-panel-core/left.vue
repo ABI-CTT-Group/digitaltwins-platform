@@ -15,6 +15,9 @@
     @update:slice-number="getSliceNum"
     @update:after-load-all-case-images="handleAllImagesLoaded"
   >
+    <template #tumour-distance-panel>
+      <TumourDistancePanelLeft :dts="dts" :dtn="dtn" :dtr="dtr" />
+    </template>
     <template #bottom-nav-bar>
       <NavBar
         :file-num="currentCaseContractsCount"
@@ -29,6 +32,7 @@
   </LeftPanelCore>
 </template>
 <script setup lang="ts">
+import TumourDistancePanelLeft from "@/components/view-components/TumourDistancePanelLeft.vue";
 import LeftPanelCore from "@/components/view-components/LeftPanelCore.vue";
 import NavBar from "@/components/commonBar/NavBarCalculation.vue";
 import * as Copper from "copper3d";
@@ -45,9 +49,9 @@ import {
   IToolGetSliceNumber,
   IToolAfterLoadImagesResponse
 } from "@/models/apiTypes";
-import { getTumourCenterInCompleteCases, distance3D, customRound } from "@/plugins/view-utils/utils-left";
+import { getTumourAssitedInCompleteCases, distance3D, customRound } from "@/plugins/view-utils/utils-left";
 import {useTumourStudyDetailsStore, useTumourStudyNrrdStore, } from "@/store/tumour_position_study_app";
-import {useSaveTumourStudyReport} from "@/plugins/tumour_position_study_api";
+import {useSaveTumourPositionAssisted} from "@/plugins/tumour_position_study_api";
 import { switchAnimationStatus } from "@/components/view-components/leftCoreUtils";
 import { useSaveTumourPosition } from "@/plugins/api";
 
@@ -78,6 +82,10 @@ let contrastNum = ref(0);
 let currentCaseContractsCount = ref(0);
 let initSliceIndex = ref(0);
 
+let dts = ref(0);
+let dtn = ref(0);
+let dtr = ref(0);
+
 
 let displaySlices: Array<any> = [];
 let displayLoadedMeshes: Array<ILoadedMeshes> = [];
@@ -105,8 +113,9 @@ function manageEmitters() {
 }
 
 const emitterOnNextCase = ()=>{
+  resetDistancePanel();
   //update incomplete cases
-  incompleteCases.value = getTumourCenterInCompleteCases(studyDetails.value!.details);
+  incompleteCases.value = getTumourAssitedInCompleteCases(studyDetails.value!.details);
   if (incompleteCases.value.length > 0) {
     workingCase.value = incompleteCases.value[0];
     onCaseSwitched()
@@ -119,10 +128,17 @@ const emitterOnCaseReport = async (report:ITumourStudyReport)=>{
   // save report to backend
 
   workingCase.value!.tumour_window.validate = true;
-  await useSaveTumourPosition({
+  workingCase.value!.report = report;
+  workingCase.value!.report.assisted = true;
+  // save report to backend
+  const reportSaveData = Object.assign({case_name:workingCase.value!.name}, workingCase.value!.report);
+  const tumourPositionUpdateData = {
     case_name: currentCaseName.value, 
-    position: workingCase.value!.tumour_window.center, 
-    validate: workingCase.value!.tumour_window.validate});
+    position: workingCase.value!.tumour_window.center}
+  await useSaveTumourPositionAssisted({
+    tumour_position: tumourPositionUpdateData,
+    tumour_study_report: reportSaveData
+  });
 }
 
 onMounted(async () => {
@@ -135,6 +151,12 @@ onMounted(async () => {
   manageEmitters();
   await getInitData();
 });
+
+const resetDistancePanel = () => {
+  dts.value = 0;
+  dtn.value = 0;
+  dtr.value = 0;
+};
 
 const onFinishedCopperInit = async (copperInitData: ILeftCoreCopperInit) => {
   nrrdTools = copperInitData.nrrdTools;
@@ -157,7 +179,7 @@ function setUpMouseWheel(e:KeyboardEvent, status: "down" | "up") {
 async function getInitData() {
   if(!!studyDetails.value === false) await getTumourStudyDetails();
   if (studyDetails.value?.details) {
-    incompleteCases.value = getTumourCenterInCompleteCases(studyDetails.value?.details);
+    incompleteCases.value = getTumourAssitedInCompleteCases(studyDetails.value?.details);
 
     // get first incomplete case nrrd image
     if (incompleteCases.value.length > 0) {
@@ -191,9 +213,10 @@ const getSliceChangedNum = (sliceNum: number) => {
  */
 const getCalculateSpherePositionsData = async (res:IToolCalculateSpherePositionsData)=>{
   // Note: the tumour center now we set to (pixel, pixel, mm) in Axial view, in calculate distance we need to convert it to (mm, mm, mm)
-  // pixel / spacing = mm
+  // pixel / spacing = mm x: 120 / 1.3 = 92.3
   // mm * spacing = pixel
   const { tumourSphereOrigin, skinSphereOrigin, ribSphereOrigin, nippleSphereOrigin, aix } = res;
+  const spacing = nrrdTools!.nrrd_states.voxelSpacing;
    if(tumourSphereOrigin === null){
     return;
    }else{
@@ -201,15 +224,46 @@ const getCalculateSpherePositionsData = async (res:IToolCalculateSpherePositions
         x: tumourSphereOrigin.z[0],
         y: tumourSphereOrigin.z[1],
         z: tumourSphereOrigin.z[2],
-      })
+      }, "tumour")
       const spacing = nrrdTools?.nrrd_states.voxelSpacing!;
       const toumourCenterMM = {
-        x: customRound(tumourSphereOrigin.z[0] / spacing[0]),
-        y: customRound(tumourSphereOrigin.z[1] / spacing[1]),
-        z: customRound(tumourSphereOrigin.z[2])
+        x: tumourSphereOrigin.z[0] / spacing[0],
+        y: tumourSphereOrigin.z[1] / spacing[1],
+        z: tumourSphereOrigin.z[2]
       }
       workingCase.value!.tumour_window.center = toumourCenterMM;
    }
+   if (skinSphereOrigin !== null){
+     dts.value = Number(distance3D(tumourSphereOrigin[aix][0], tumourSphereOrigin[aix][1], tumourSphereOrigin[aix][2], skinSphereOrigin[aix][0], skinSphereOrigin[aix][1], skinSphereOrigin[aix][2]).toFixed(2));
+      // send to calculator component: status (skin, nipple, ribcage), position, distance 
+     const position = [skinSphereOrigin.z[0] / spacing[0], skinSphereOrigin.z[1] / spacing[1], skinSphereOrigin.z[2]];
+     emitter.emit("TumourStudy:Status", "skin", position, dts.value);
+     emitter.emit("TumourStudy:UpdateTumourPosition", {
+        x: skinSphereOrigin.z[0],
+        y: skinSphereOrigin.z[1],
+        z: skinSphereOrigin.z[2],
+      }, "skin")
+   }
+   if (ribSphereOrigin !== null){
+     dtr.value = Number(distance3D(tumourSphereOrigin[aix][0], tumourSphereOrigin[aix][1], tumourSphereOrigin[aix][2], ribSphereOrigin[aix][0], ribSphereOrigin[aix][1], ribSphereOrigin[aix][2]).toFixed(2));
+     const position = [ribSphereOrigin.z[0] / spacing[0], ribSphereOrigin.z[1] / spacing[1], ribSphereOrigin.z[2]];
+     emitter.emit("TumourStudy:Status", "ribcage", position, dtr.value);
+     emitter.emit("TumourStudy:UpdateTumourPosition", {
+        x: ribSphereOrigin.z[0],
+        y: ribSphereOrigin.z[1],
+        z: ribSphereOrigin.z[2],
+      }, "ribcage")
+   }
+   if (nippleSphereOrigin !== null){
+     dtn.value = Number(distance3D(tumourSphereOrigin[aix][0], tumourSphereOrigin[aix][1], tumourSphereOrigin[aix][2], nippleSphereOrigin[aix][0], nippleSphereOrigin[aix][1], nippleSphereOrigin[aix][2]).toFixed(2));
+     const position = [nippleSphereOrigin.z[0] / spacing[0], nippleSphereOrigin.z[1] / spacing[1], nippleSphereOrigin.z[2]];
+     emitter.emit("TumourStudy:Status", "nipple", position, dtn.value);
+     emitter.emit("TumourStudy:UpdateTumourPosition", {
+        x: nippleSphereOrigin.z[0],
+        y: nippleSphereOrigin.z[1],
+        z: nippleSphereOrigin.z[2],
+      }, "nipple");
+   } 
 }
 const getSliceNum = (res: IToolGetSliceNumber) => {
   const { index, contrastindex } = res;
@@ -244,7 +298,8 @@ async function onCaseSwitched() {
   emitter.emit("Segmentation:CaseDetails", {
     caseName: currentCaseName.value,
     tumourWindow: workingCase.value?.tumour_window,
-    nrrdUrl:  studyNrrd.value
+    nrrdUrl:  studyNrrd.value,
+    report: workingCase.value?.report
   });
   currentCaseContractsCount.value = currentCaseContrastUrls.value.length;
 }

@@ -342,8 +342,7 @@ const setMaskData = () => {
       const currentCaseDetail = findCurrentCase(
         allCasesDetails.value.details,
         currentCaseName.value
-      );
-
+      );   
       if (currentCaseDetail.masked) {
         if (caseUrls.value)
           loadJsonMasks(loadedUrls[currentCaseName.value].jsonUrl as string);
@@ -399,7 +398,7 @@ const getCalculateSpherePositionsData = async (res:IToolCalculateSpherePositions
       y: customRound(tumourSphereOrigin["z"][1] / spacing[1]),
       z: customRound(tumourSphereOrigin["z"][2]),
     }
-    await useSaveTumourPosition({case_name: currentCaseName.value, position});
+    // await useSaveTumourPosition({case_name: currentCaseName.value, position});
    }
 
    if (skinSphereOrigin !== null){
@@ -433,6 +432,10 @@ const getMaskData = async (res:IToolMaskData) => {
     mask,
   };
 
+  console.log("mask data", body);
+  console.log("clearAllFlag", clearAllFlag);
+  
+  
   if (clearAllFlag) {
     clearMaskMeshObj(currentCaseName.value);
     sendInitMaskToBackend();

@@ -1,5 +1,5 @@
 import http from "./http";
-import { ITumourStudyAppDetails, ITumourStudyReport } from "@/models/apiTypes";
+import { ITumourStudyAppDetails, ITumourStudyReport, ITumourStudyAssisted } from "@/models/apiTypes";
 
 export interface ITumourStudyReportExtent extends ITumourStudyReport {
   case_name: string;
@@ -26,5 +26,10 @@ export async function useStudyDisplayNrrd(filepath: string) {
 
 export async function useSaveTumourStudyReport(body: ITumourStudyReportExtent) {
   const success = http.post<boolean>("/tumour_position/report", body);
+  return success;
+}
+
+export async function useSaveTumourPositionAssisted(body: ITumourStudyAssisted) {
+  const success = http.post<boolean>("/tumour_position/assisted", body);
   return success;
 }
