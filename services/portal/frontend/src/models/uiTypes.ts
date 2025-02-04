@@ -13,7 +13,6 @@ export interface IStudy {
     category: string;
     name: string;
     description?: string;
-    href: string;
   }
   
   export interface ICategoryNode extends IBaseCategory {

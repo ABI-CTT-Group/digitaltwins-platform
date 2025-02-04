@@ -4,36 +4,30 @@ export const dashboardData:IDashboardData= [
         category: 'Programme',
         name: '12 LABOURS',
         description: 'From mathematical modelling to proactive medicine.',
-        href: '#programme-1',
         children: [
             {   
                 category: 'Project',
                 name: 'EP4: Breast Biomechanics Project',
                 description: 'Integrating medical imaging, machine learning, and modeling to improve breast cancer diagnosis and treatment.',
-                href: '#project-1',
                 children:[
                     {
                         category: 'Investigation',
                         name: 'Developing clinical workflow for breast tumour reporting',
                         description: "",
-                        href: '#investigation-1',
                         children: [
                             {
                                 category: 'Study',
                                 name: 'Breast Tumour Reporting Study',
                                 description: 'Assessment of efficacy of breast tumour reporting clinical workflow',
-                                href: '#study-1',
                                 children: [
                                     {
                                         category: 'Assay',
                                         name: 'Duke Breast MRI Assay',
                                         description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
-                                        href: '#assay',
                                         children:[
                                             {
                                                 category: "SOP",
                                                 name: "Tumour Position Study",
-                                                href: '#sop-1',
                                                 children: [
                                                     {
                                                         studies:[
@@ -75,7 +69,6 @@ export const dashboardData:IDashboardData= [
                                             {
                                                 category: "SOP",
                                                 name: "Tumour segmentation Study",
-                                                href: '#sop-2',
                                                 children: [
                                                     {
                                                         studies:[ 

@@ -221,11 +221,14 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
 
 <style scoped>
 .gradients {
-    background: #556270;  
+    /* background: #556270;  
     background: -webkit-linear-gradient(to right, #FF6B6B, #556270);  
-    background: linear-gradient(to right, #FF6B6B, #556270); 
-    background-repeat: repeat;
+    background: linear-gradient(to right, #FF6B6B, #556270);  */
+    
 
+    /* background-image: linear-gradient(45deg, #8baaaa 0%, #ae8b9c 100%); */
+    background: linear-gradient(to bottom, #323232 0%, #3F3F3F 40%, #1C1C1C 150%), linear-gradient(to top, rgba(255,255,255,0.40) 0%, rgba(0,0,0,0.25) 200%); background-blend-mode: multiply;
+    background-repeat: repeat;
     /* background: #403B4A; 
     background: -webkit-linear-gradient(to right, #E7E9BB, #403B4A); 
     background: linear-gradient(to right, #E7E9BB, #403B4A);  */
