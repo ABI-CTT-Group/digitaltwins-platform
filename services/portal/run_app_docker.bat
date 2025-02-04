@@ -13,7 +13,7 @@ if exist I:\ (
 ) else (
     echo Mounting VeraCrypt volume...
     REM start VeraCrypt and mounted volume to I: 
-    "C:\Program Files\VeraCrypt\VeraCrypt.exe" /q /v "C:\Users\lgao142\OneDrive - The University of Auckland\Desktop\volume veracrypt\tomour_segmentation.hc" /l I /p Brea$t0_$egmentation
+    "C:\Program Files\VeraCrypt\VeraCrypt.exe" /q /v "C:\Users\lgao142\Desktop\volume veracrypt\duke_dataset.hc"" /l I /p Brea$t0_$egmentation
 
     REM check if VeraCrypt is mounted or not
     if exist I:\ (
