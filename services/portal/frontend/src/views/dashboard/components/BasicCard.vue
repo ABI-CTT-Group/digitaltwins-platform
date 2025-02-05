@@ -3,24 +3,18 @@
         class="ma-4 card-color"
         color="transparent"
         min-width="344"
-        v-for="item in data"
-        :key="item.name"
+        max-width="444"
     >
         <v-card-text>
-        <div class="text-h6 font-weight-black text-grey-lighten-1">{{ item.name }}</div>
+        <div class="text-h6 font-weight-black text-grey-darken-3">{{ data.name }}</div>
 
         <div class="text-medium-emphasis text-grey-darken-3">
-            {{ item.description }}
+            {{ data.description }}
         </div>
         </v-card-text>
 
-        <v-card-actions>
-            <v-btn
-                color="pink-darken-2"
-                text="Explore"
-                variant="text"
-                @click = "handleExploreClicked(item.name, item.category)"
-            ></v-btn>
+        <v-card-actions class="d-flex justify-space-between px-10">
+            <slot name="action"></slot>
         </v-card-actions>
     </v-card>
 </template>
@@ -29,14 +23,9 @@
 import { ICategoryNode } from '@/models/uiTypes';
 
 const props = defineProps<{
-    data?: ICategoryNode[]
+    data?: ICategoryNode
 }>();
 
-const emit = defineEmits(["update:explore"])
-
-const handleExploreClicked = (name:string, category:string) => {
-    emit("update:explore", {name, category})
-}
 </script>
 
 <style scoped>

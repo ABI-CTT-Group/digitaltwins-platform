@@ -13,7 +13,7 @@ export const useUser = () => {
   const { setUser } = currentUserStore();
   const { user } = storeToRefs(currentUserStore());
   if (!!user.value) {
-    localStorage.setItem('tumourAppRole', encryptKey(encryptKey(user.value) + '-'+ Date.now()));
+    localStorage.setItem('tumourAppRole', encryptKey(encryptKey(user.value.role) + '-'+ Date.now()));
   }else{
     // try to get the user from local storage
     const localData = typeof window !== "undefined" ? window.localStorage.getItem('tumourAppRole') : null;
@@ -24,7 +24,7 @@ export const useUser = () => {
       if(role === 'admin'){
           const diff = Date.now() - parseInt(timestamp);
           if(diff < 1000 * 60 * 60){
-              setUser(role);
+              setUser(role, role);
           }else{
               localStorage.removeItem('accessKey');
           }

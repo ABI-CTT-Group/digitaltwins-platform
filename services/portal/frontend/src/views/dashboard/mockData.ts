@@ -22,7 +22,7 @@ export const dashboardData:IDashboardData= [
                                 children: [
                                     {
                                         category: 'Assay',
-                                        name: 'Duke Breast MRI Assay',
+                                        name: 'Assay 1: Run automated tumour position reporting on SPARC dataset',
                                         description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
                                         children:[
                                             {
@@ -87,6 +87,30 @@ export const dashboardData:IDashboardData= [
                                             }
                                         ]
                                     },
+                                    {
+                                        category: 'Assay',
+                                        name: 'Assay 2: Run tumour position selection on SPARC dataset',
+                                        description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
+                                        children:[]
+                                    },
+                                    {
+                                        category: 'Assay',
+                                        name: 'Assay 3: Run automated tumour position reporting on SPARC dataset',
+                                        description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
+                                        children:[]
+                                    },
+                                    {
+                                        category: 'Assay',
+                                        name: 'Assay 4: Run manual tumour position reporting on SPARC dataset',
+                                        description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
+                                        children:[]
+                                    },
+                                    {
+                                        category: 'Assay',
+                                        name: 'Assay 5: Run assisted tumour position reporting on SPARC dataset',
+                                        description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
+                                        children:[]
+                                    }
                                 ]
                             }, 
                         ]

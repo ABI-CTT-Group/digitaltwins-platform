@@ -1,7 +1,8 @@
 <template>
     <div class="w-screen h-screen gradients d-flex flex-column align-center">
-        <h1 class="text-center pt-10 ">Clinical Study Dashboard</h1>
-        <div class="position-fixed breadcrumbs d-flex justify-start align-center w-75 pt-5">
+        <h1 class="text-center py-4 text-grey-lighten-2">Clinical Study Dashboard</h1>
+        <v-divider :thickness="3" class="w-100"></v-divider>
+        <div class="position-fixed breadcrumbs d-flex justify-start align-center w-75">
             <v-breadcrumbs
                 class="custom-pointer"
                 :items="breadCrumbsItems"
@@ -10,9 +11,49 @@
             ></v-breadcrumbs>
         </div>
 
-        <div v-if="showBasicCard" class="h-75 mt-16 d-flex flex-column align-center justify-center">
+        <div v-if="showBasicCard" class="h-75 w-100 mt-16 d-flex flex-column align-center justify-center">
             <div class="w-75 d-flex flex-wrap px-6 mt-10 justify-center align-center overflow-y-auto">
-                <BasicCard :data="currentCategoryData" @update:explore="handleExploreClicked"/>
+                <BasicCard v-for="data in currentCategoryData" :key="data.name" :data="data">
+                    <template v-slot:action>
+                        <v-btn
+                            v-show="data.category !== 'Assay'"
+                            color="pink-darken-2"
+                            text="Explore"
+                            variant="outlined"
+                            @click = "handleExploreClicked(data.name, data.category)"
+                        ></v-btn>
+                        <Dialog
+                            :showDialog="data.category === 'Assay'"
+                            :min="1200"
+                            btnText="Edit"
+                            btnColor = "deep-orange"
+                            @on-open = "handleAssayEditClicked(data.name, data.category)"
+                        >
+                            <template #title>
+                                <h2 class="text-h5 mb-6">Update Assay <span class="text-subtitle-1 font-weight-bold" >"{{ data.name }}"</span> </h2>
+                            </template>
+                            <template #description>
+                                <p class="mb-4 text-medium-emphasis text-body-2">
+                                    Config the assay's: workflow, dataset and cohorts. 
+                                    <br/>
+                                    Click `Save` button to save your configurations. Click grey area to cancel.
+                                </p>
+                            </template>
+                            <div class="h">
+
+                            </div>
+                        </Dialog>
+                        <v-btn
+                            v-show="data.category === 'Assay'"
+                            color="green"
+                            text="Run"
+                            variant="outlined"
+                            :disabled="true"
+                            @click = "handleAssayRunClicked(data.name, data.category)"
+                        ></v-btn>
+                    </template>
+                </BasicCard>
+                
             </div>
         </div>
         <div v-if="!showBasicCard" class="w-75 flex-1-1 px-6 d-flex justify-center align-center">
@@ -50,6 +91,7 @@ import { dashboardData } from "./mockData";
 import { IStudy, IDashboardData, ICategoryNode,IStudiesNode } from "@/models/uiTypes";
 import StudyCard from './components/StudyCard.vue';
 import BasicCard from './components/BasicCard.vue';
+import Dialog from '@/components/commonBar/Dialog.vue';
 
 
 const router = useRouter();
@@ -81,7 +123,15 @@ const handleBreadCrumbsClick = (res:PointerEvent) => {
     breadCrumbsItems.value.splice(index+1)
 }
 
-const handleExploreClicked = ({name, category}:{name:string, category:string}) => {
+const handleAssayEditClicked = (name:string, category:string) => {
+    console.log(name, category);
+}
+
+const handleAssayRunClicked = (name:string, category:string) => {
+    console.log(name, category);
+}
+
+const handleExploreClicked = (name:string, category:string) => {
     const explored = exploredCard.value.find(item => item[category] === name);
     if (!explored) exploredCard.value.push({[category]: name});
 
@@ -221,13 +271,13 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
 
 <style scoped>
 .gradients {
-    /* background: #556270;  
+    background: #556270;  
     background: -webkit-linear-gradient(to right, #FF6B6B, #556270);  
-    background: linear-gradient(to right, #FF6B6B, #556270);  */
+    background: linear-gradient(to right, #FF6B6B, #556270); 
     
 
     /* background-image: linear-gradient(45deg, #8baaaa 0%, #ae8b9c 100%); */
-    background: linear-gradient(to bottom, #323232 0%, #3F3F3F 40%, #1C1C1C 150%), linear-gradient(to top, rgba(255,255,255,0.40) 0%, rgba(0,0,0,0.25) 200%); background-blend-mode: multiply;
+    /* background: linear-gradient(to bottom, #323232 0%, #3F3F3F 40%, #1C1C1C 150%), linear-gradient(to top, rgba(255,255,255,0.40) 0%, rgba(0,0,0,0.25) 200%); background-blend-mode: multiply; */
     background-repeat: repeat;
     /* background: #403B4A; 
     background: -webkit-linear-gradient(to right, #E7E9BB, #403B4A); 
@@ -235,7 +285,10 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
 
 }
 .breadcrumbs {
-    top: 100px
+    top: 110px;
+    border-radius: 17% 83% 84% 16% / 42% 45% 55% 58% ;
+    box-shadow:  8px 8px 10px  #636363,
+                -8px -8px 10px #878787;
 }
 .custom-pointer {
   cursor: pointer !important;
