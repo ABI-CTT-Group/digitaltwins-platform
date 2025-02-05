@@ -6,7 +6,7 @@
         max-width="444"
     >
         <v-card-text>
-        <div class="text-h6 font-weight-black text-grey-darken-3">{{ data.name }}</div>
+        <div class="text-subtitle-1 font-weight-black text-grey-darken-3">{{ data.name }}</div>
 
         <div class="text-medium-emphasis text-grey-darken-3">
             {{ data.description }}

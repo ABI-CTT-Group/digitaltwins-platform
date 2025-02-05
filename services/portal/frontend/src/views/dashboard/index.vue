@@ -25,7 +25,7 @@
                         <Dialog
                             :showDialog="data.category === 'Assay'"
                             :min="1200"
-                            btnText="Edit"
+                            btnText="Create"
                             btnColor = "deep-orange"
                             @on-open = "handleAssayEditClicked(data.name, data.category)"
                         >
@@ -39,8 +39,19 @@
                                     Click `Save` button to save your configurations. Click grey area to cancel.
                                 </p>
                             </template>
-                            <div class="h">
-
+                            <div class="border-sm my-5 mx-5 d-flex flex-column align-start">
+                                <div class="d-flex flex-row ma-2 w-75">
+                                    <span class="text-subtitle-2 w-25 mt-4">Workflows Configurations: </span>
+                                    <div class="w-50">
+                                        <v-select
+                                            label="Select Workflow"
+                                            :items="workflowRenderItems"
+                                            variant="outlined"
+                                        ></v-select>
+                                    </div>
+                                </div>
+                                <div>dataset</div>
+                                <div>cohorts</div>
                             </div>
                         </Dialog>
                         <v-btn
@@ -87,7 +98,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useUser } from "@/plugins/hooks/user";
 import { storeToRefs } from "pinia";
 import { useTumourStudyDetailsStore } from "@/store/tumour_position_study_app";
-import { dashboardData } from "./mockData";
+import { dashboardData, workflowsData } from "./mockData";
 import { IStudy, IDashboardData, ICategoryNode,IStudiesNode } from "@/models/uiTypes";
 import StudyCard from './components/StudyCard.vue';
 import BasicCard from './components/BasicCard.vue';
@@ -109,6 +120,7 @@ let filterData: (ICategoryNode | IStudiesNode)[];
 const breadCrumbsItems = ref([
     { title: 'Programme', disabled: false },
 ])
+const workflowRenderItems = ref<string[]>([]);
 
 const handleBreadCrumbsClick = (res:PointerEvent) => {
     showBasicCard.value = true;
@@ -123,8 +135,13 @@ const handleBreadCrumbsClick = (res:PointerEvent) => {
     breadCrumbsItems.value.splice(index+1)
 }
 
+const getWorkflowRenderData = ()=>{
+    workflowRenderItems.value = workflowsData.map(workflow => workflow.name + "-" + workflow.type);
+}
+
 const handleAssayEditClicked = (name:string, category:string) => {
     console.log(name, category);
+    getWorkflowRenderData();
 }
 
 const handleAssayRunClicked = (name:string, category:string) => {
@@ -286,7 +303,7 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
 }
 .breadcrumbs {
     top: 110px;
-    border-radius: 17% 83% 84% 16% / 42% 45% 55% 58% ;
+    border-radius: 5% 95% 97% 3% / 42% 45% 55% 58%  ;
     box-shadow:  8px 8px 10px  #636363,
                 -8px -8px 10px #878787;
 }

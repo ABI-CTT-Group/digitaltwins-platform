@@ -22,7 +22,7 @@ export const dashboardData:IDashboardData= [
                                 children: [
                                     {
                                         category: 'Assay',
-                                        name: 'Assay 1: Run automated tumour position reporting on SPARC dataset',
+                                        name: 'Assay 1: Run automated tumour position reporting (Model Generation) on SPARC dataset',
                                         description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
                                         children:[
                                             {
@@ -95,7 +95,7 @@ export const dashboardData:IDashboardData= [
                                     },
                                     {
                                         category: 'Assay',
-                                        name: 'Assay 3: Run automated tumour position reporting on SPARC dataset',
+                                        name: 'Assay 3: Run automated tumour position reporting (GUI) on SPARC dataset',
                                         description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
                                         children:[]
                                     },
@@ -119,5 +119,67 @@ export const dashboardData:IDashboardData= [
                 ]
             }
         ]
+    }
+]
+
+export const workflowsData = [
+    {
+        name: "Automated tumour position reporting",
+        type: "Model Generation",
+        input:[],
+        output: [],
+    },
+    {
+        name: "Automated tumour position reporting",
+        type: "GUI",
+        input:[],
+        output: [],
+    },
+    {
+        name: "Manual tumour position reporting",
+        type: "GUI",
+        input:[],
+        output: [],
+    },
+    {
+        name: "Tumour position selection",
+        type: "GUI",
+        input:[],
+        output: [],
+    },
+    {
+        name: "Assisted tumour position reporting",
+        type: "GUI",
+        input:[],
+        output: [],
+    },
+    {
+        name: "Automated tumour extent reporting",
+        type: "Model Generation",
+        input:[],
+        output: [],
+    },
+    {
+        name: "Automated tumour extent reporting",
+        type: "GUI",
+        input:[],
+        output: [],
+    },
+    {
+        name: "Manual tumour extent reporting",
+        type: "GUI",
+        input:[],
+        output: [],
+    },
+    {
+        name: "Tumour extent selection",
+        type: "GUI",
+        input:[],
+        output: [],
+    },
+    {
+        name: "Assisted tumour extent reporting",
+        type: "GUI",
+        input:[],
     }
 ]
