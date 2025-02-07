@@ -1,27 +1,27 @@
 import { IDashboardData } from '@/models/uiTypes';
 export const dashboardData:IDashboardData= [
     {
-        category: 'Programme',
+        category: 'Programmes',
         name: '12 LABOURS',
         description: 'From mathematical modelling to proactive medicine.',
         children: [
             {   
-                category: 'Project',
+                category: 'Projects',
                 name: 'EP4: Breast Biomechanics Project',
                 description: 'Integrating medical imaging, machine learning, and modeling to improve breast cancer diagnosis and treatment.',
                 children:[
                     {
-                        category: 'Investigation',
+                        category: 'Investigations',
                         name: 'Developing clinical workflow for breast tumour reporting',
                         description: "",
                         children: [
                             {
-                                category: 'Study',
+                                category: 'Studies',
                                 name: 'Breast Tumour Reporting Study',
                                 description: 'Assessment of efficacy of breast tumour reporting clinical workflow',
                                 children: [
                                     {
-                                        category: 'Assay',
+                                        category: 'Assays',
                                         name: 'Assay 1: Run automated tumour position reporting (Model Generation) on SPARC dataset',
                                         description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
                                         children:[
@@ -88,25 +88,25 @@ export const dashboardData:IDashboardData= [
                                         ]
                                     },
                                     {
-                                        category: 'Assay',
+                                        category: 'Assays',
                                         name: 'Assay 2: Run tumour position selection on SPARC dataset',
                                         description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
                                         children:[]
                                     },
                                     {
-                                        category: 'Assay',
+                                        category: 'Assays',
                                         name: 'Assay 3: Run automated tumour position reporting (GUI) on SPARC dataset',
                                         description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
                                         children:[]
                                     },
                                     {
-                                        category: 'Assay',
+                                        category: 'Assays',
                                         name: 'Assay 4: Run manual tumour position reporting on SPARC dataset',
                                         description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
                                         children:[]
                                     },
                                     {
-                                        category: 'Assay',
+                                        category: 'Assays',
                                         name: 'Assay 5: Run assisted tumour position reporting on SPARC dataset',
                                         description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
                                         children:[]
@@ -123,63 +123,105 @@ export const dashboardData:IDashboardData= [
 ]
 
 export const workflowsData = [
-    {
+    {   
+        uuid: "xxxx-1234-uoa-abi-1",
         name: "Automated tumour position reporting",
         type: "Model Generation",
-        input:[],
-        output: [],
+        inputs:["MRI Images", "Segmentation"],
+        outputs: ["Mesh"],
     },
     {
+        uuid: "xxxx-1234-uoa-abi-2",
         name: "Automated tumour position reporting",
         type: "GUI",
-        input:[],
-        output: [],
+        inputs:[],
+        outputs: [],
     },
     {
+        uuid: "xxxx-1234-uoa-abi-3",
         name: "Manual tumour position reporting",
         type: "GUI",
-        input:[],
-        output: [],
+        inputs:[],
+        outputs: [],
     },
     {
+        uuid: "xxxx-1234-uoa-abi-4",
         name: "Tumour position selection",
         type: "GUI",
-        input:[],
-        output: [],
+        inputs:[],
+        outputs: [],
     },
     {
+        uuid: "xxxx-1234-uoa-abi-5",
         name: "Assisted tumour position reporting",
         type: "GUI",
-        input:[],
-        output: [],
+        inputs:[],
+        outputs: [],
     },
     {
+        uuid: "xxxx-1234-uoa-abi-6",
         name: "Automated tumour extent reporting",
         type: "Model Generation",
-        input:[],
-        output: [],
+        inputs:[],
+        outputs: [],
     },
     {
+        uuid: "xxxx-1234-uoa-abi-7",
         name: "Automated tumour extent reporting",
         type: "GUI",
-        input:[],
-        output: [],
+        inputs:[],
+        outputs: [],
     },
     {
+        uuid: "xxxx-1234-uoa-abi-8",
         name: "Manual tumour extent reporting",
         type: "GUI",
-        input:[],
-        output: [],
+        inputs:[],
+        outputs: [],
     },
     {
+        uuid: "xxxx-1234-uoa-abi-9",
         name: "Tumour extent selection",
         type: "GUI",
-        input:[],
-        output: [],
+        inputs:[],
+        outputs: [],
     },
     {
+        uuid: "xxxx-1234-uoa-abi-10",
         name: "Assisted tumour extent reporting",
         type: "GUI",
-        input:[],
+        inputs:[],
+        outputs: [],
+    }
+]
+
+export const datasetsData = [
+    {
+        uuid: "xxxx-1234-uoa-abi-dataset-1",
+        name: "SPARC-dataset-1",
+        samples: [
+            {
+                uuid: "xxxx-1234-uoa-abi-dataset-1-subject-1-sample-1",
+                name: "Sample-1",
+            },
+            {
+                uuid: "xxxx-1234-uoa-abi-dataset-1-subject-1-sample-2",
+                name: "Sample-2",
+            }
+        ]
+    },
+    {
+        uuid: "xxxx-1234-uoa-abi-dataset-2",
+        name: "SPARC-dataset-2",
+        samples: [
+            {
+                uuid: "xxxx-1234-uoa-abi-dataset-2-subject-1-sample-1",
+                name: "Sample-1",
+            },
+            {
+                uuid: "xxxx-1234-uoa-abi-dataset-2-subject-1-sample-2",
+                name: "Sample-2",
+            }
+        ]
     }
 ]

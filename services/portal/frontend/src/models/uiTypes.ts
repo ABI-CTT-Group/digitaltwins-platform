@@ -24,3 +24,12 @@ export interface IStudy {
   }
   
   export type IDashboardData = ICategoryNode[];
+
+  export interface IWorkflowData {
+    uuid: string;
+    name: string;
+    type: string;
+    inputs: string[];
+    outputs: string[];
+  }
+

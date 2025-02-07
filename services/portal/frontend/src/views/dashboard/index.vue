@@ -16,18 +16,19 @@
                 <BasicCard v-for="data in currentCategoryData" :key="data.name" :data="data">
                     <template v-slot:action>
                         <v-btn
-                            v-show="data.category !== 'Assay'"
+                            v-show="data.category !== 'Assays'"
                             color="pink-darken-2"
                             text="Explore"
                             variant="outlined"
                             @click = "handleExploreClicked(data.name, data.category)"
                         ></v-btn>
                         <Dialog
-                            :showDialog="data.category === 'Assay'"
+                            :showDialog="data.category === 'Assays'"
                             :min="1200"
                             btnText="Create"
                             btnColor = "deep-orange"
-                            @on-open = "handleAssayEditClicked(data.name, data.category)"
+                            @on-open = "handleAssayCreateClicked(data.name, data.category)"
+                            @on-save= "handleAssaySave"
                         >
                             <template #title>
                                 <h2 class="text-h5 mb-6">Update Assay <span class="text-subtitle-1 font-weight-bold" >"{{ data.name }}"</span> </h2>
@@ -39,23 +40,10 @@
                                     Click `Save` button to save your configurations. Click grey area to cancel.
                                 </p>
                             </template>
-                            <div class="border-sm my-5 mx-5 d-flex flex-column align-start">
-                                <div class="d-flex flex-row ma-2 w-75">
-                                    <span class="text-subtitle-2 w-25 mt-4">Workflows Configurations: </span>
-                                    <div class="w-50">
-                                        <v-select
-                                            label="Select Workflow"
-                                            :items="workflowRenderItems"
-                                            variant="outlined"
-                                        ></v-select>
-                                    </div>
-                                </div>
-                                <div>dataset</div>
-                                <div>cohorts</div>
-                            </div>
+                            <AssayContent :workflows-data="workflowsData" />
                         </Dialog>
                         <v-btn
-                            v-show="data.category === 'Assay'"
+                            v-show="data.category === 'Assays'"
                             color="green"
                             text="Run"
                             variant="outlined"
@@ -93,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useUser } from "@/plugins/hooks/user";
 import { storeToRefs } from "pinia";
@@ -103,6 +91,7 @@ import { IStudy, IDashboardData, ICategoryNode,IStudiesNode } from "@/models/uiT
 import StudyCard from './components/StudyCard.vue';
 import BasicCard from './components/BasicCard.vue';
 import Dialog from '@/components/commonBar/Dialog.vue';
+import AssayContent from './components/AssayContent.vue';
 
 
 const router = useRouter();
@@ -118,7 +107,7 @@ const studyCardItems = ref<IStudiesNode[]>([]);
 let filterData: (ICategoryNode | IStudiesNode)[];
 // const currentCategoryData = ref<ICategoryNode>();
 const breadCrumbsItems = ref([
-    { title: 'Programme', disabled: false },
+    { title: 'Programmes', disabled: false },
 ])
 const workflowRenderItems = ref<string[]>([]);
 
@@ -136,12 +125,16 @@ const handleBreadCrumbsClick = (res:PointerEvent) => {
 }
 
 const getWorkflowRenderData = ()=>{
-    workflowRenderItems.value = workflowsData.map(workflow => workflow.name + "-" + workflow.type);
+    // workflowRenderItems.value = workflowsData.map(workflow => workflow.name + "-" + workflow.type);
 }
 
-const handleAssayEditClicked = (name:string, category:string) => {
+const handleAssayCreateClicked = (name:string, category:string) => {
     console.log(name, category);
     getWorkflowRenderData();
+}
+
+const handleAssaySave = () => {
+    console.log("Save Assay");
 }
 
 const handleAssayRunClicked = (name:string, category:string) => {
