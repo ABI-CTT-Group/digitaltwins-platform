@@ -51,6 +51,17 @@
         </div>
         <div class="d-flex flex-row ma-2 w-100">
             <span class="text-subtitle-2 w-25 mt-4">Cohorts:</span>
+            <v-responsive
+                class=""
+                max-width="344"
+            >
+                <v-text-field
+                v-model:model-value="cohorts"
+                :rules="[rules.required]"
+                label="Number of Cohorts"
+                clearable
+                ></v-text-field>
+        </v-responsive>
         </div>
     </div>
 </template>
@@ -80,6 +91,24 @@ const inputRenderItems = ref<IInput[]>([]);
 const outputRenderItems = ref<string[]>([]);
 const datasetRenderItems = ref<string[]>();
 const selectedWorkflow = ref<string>("");
+const cohorts = ref<number>(0);
+
+const rules = {
+    required: (value: number) => {
+        if (!value) {
+            return 'This field is required';
+        }else if (isNaN(value)) {
+            return 'Please enter a valid number';
+        }
+        else if (value < 1) {
+            return 'Number of cohorts should be greater than 0';
+        }else if (value % 1 !== 0) {
+            return 'Number of cohorts should be an integer';
+        }else {
+            return true;
+        }
+    }
+};
 
 
 onMounted(() => {

@@ -11,7 +11,22 @@
             ></v-breadcrumbs>
         </div>
 
-        <div v-if="showBasicCard" class="h-75 w-100 mt-16 d-flex flex-column align-center justify-center">
+        <div v-if="detailsRenderItems.description !== ''" class="position-fixed intro d-flex flex-column overflow-y-auto justify-space-around pa-5 ">
+            <div>
+                <div v-for="c in detailsRenderItems.categories" :key="c.name" class="text-grey-darken-3 my-2">
+                    <span v-if="c.category==='Studies'" class="font-weight-medium text-body-1">Study: </span>
+                    <span v-else class="font-weight-medium text-body-1">{{ c.category.slice(0, -1) }}: </span>
+                    <span class="text-body-2">{{c.name}}</span>
+                </div>
+            </div>
+            
+            <div class="mt-2 text-grey-darken-3">
+                <span class="font-weight-medium text-body-1">Description: </span>
+                <span class="text-body-2">{{detailsRenderItems.description}}</span>
+            </div>
+        </div>
+
+        <div v-if="showBasicCard" class="h-75 w-100 mt-16 d-flex flex-column justify-center  align-center ">
             <div class="w-75 d-flex flex-wrap px-6 mt-10 justify-center align-center overflow-y-auto">
                 <BasicCard v-for="data in currentCategoryData" :key="data.name" :data="data">
                     <template v-slot:action>
@@ -20,7 +35,7 @@
                             color="pink-darken-2"
                             text="Explore"
                             variant="outlined"
-                            @click = "handleExploreClicked(data.name, data.category)"
+                            @click = "handleExploreClicked(data.name, data.category, data.description)"
                         ></v-btn>
                         <Dialog
                             :showDialog="data.category === 'Assays'"
@@ -111,15 +126,30 @@ const breadCrumbsItems = ref([
 ])
 const workflowRenderItems = ref<string[]>([]);
 
+const detailsRenderItems = ref<{
+    categories: {category: string, name: string, description: string}[];
+    description: string;
+}>({
+    categories:[],
+    description: "",
+})
+
 const handleBreadCrumbsClick = (res:PointerEvent) => {
     showBasicCard.value = true;
     const clickedCrumb = (res.target as HTMLElement).innerText;
     currentCategory.value = clickedCrumb;
     const index =  breadCrumbsItems.value.findIndex(item => item.title === clickedCrumb);
+    const detailsIndex = detailsRenderItems.value.categories.findIndex(item => item.category === clickedCrumb);
+    
     if (index !== 0) {
         breadCrumbsCategory.value = breadCrumbsItems.value[index-1].title;
+        detailsRenderItems.value.categories = detailsRenderItems.value.categories.slice(0, detailsIndex);
+        
+        detailsRenderItems.value.description = detailsRenderItems.value.categories[detailsIndex-1].description;
     }else{
         breadCrumbsCategory.value = clickedCrumb;
+        detailsRenderItems.value.categories = [];
+        detailsRenderItems.value.description = "";
     }
     breadCrumbsItems.value.splice(index+1)
 }
@@ -141,9 +171,11 @@ const handleAssayRunClicked = (name:string, category:string) => {
     console.log(name, category);
 }
 
-const handleExploreClicked = (name:string, category:string) => {
+const handleExploreClicked = (name:string, category:string, des:string) => {
     const explored = exploredCard.value.find(item => item[category] === name);
     if (!explored) exploredCard.value.push({[category]: name});
+    detailsRenderItems.value.categories.push({category: category, name: name, description: des});
+    detailsRenderItems.value.description = des;
 
     breadCrumbsCategory.value = category;
 
@@ -218,7 +250,7 @@ const handleExploreClicked = (name:string, category:string) => {
 
 const currentCategoryData = computed(() => {
     if (currentCategory.value === "") return;
-    if (currentCategory.value === "Programme"){
+    if (currentCategory.value === "Programmes"){
         filterData = dashboardData;
         return dashboardData;
     }else{
@@ -264,7 +296,7 @@ const isShowArrow = computed(() => {
 
 onMounted(async () => {
     if (!user.value) router.push({name: 'Login'});
-    currentCategory.value = "Programme";
+    currentCategory.value = "Programmes";
     if (!!studyDetails.value === false) await getTumourStudyDetails();
 })
 
@@ -302,5 +334,15 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
 }
 .custom-pointer {
   cursor: pointer !important;
+}
+
+.intro{
+    top: 30%;
+    left: 5px;
+    width: 18%;
+
+    border-radius: 6px;
+    box-shadow:  1px 1px 5px #d3d3d3,
+                -1px -1px 5px #d3d3d3;
 }
 </style>

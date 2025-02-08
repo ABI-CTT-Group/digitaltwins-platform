@@ -12,18 +12,18 @@ export const dashboardData:IDashboardData= [
                 children:[
                     {
                         category: 'Investigations',
-                        name: 'Developing clinical workflow for breast tumour reporting',
-                        description: "",
+                        name: 'Automated tumour position reporting',
+                        description: "Using workflow for breast tumour reporting",
                         children: [
                             {
                                 category: 'Studies',
-                                name: 'Breast Tumour Reporting Study',
-                                description: 'Assessment of efficacy of breast tumour reporting clinical workflow',
+                                name: 'Efficacy assessment of automated tumour position reporting workflow (single-site)',
+                                description: 'This study involves assessing the efficacy of automated and assisted workflows for tumour position reporting, compared with manual reporting.',
                                 children: [
                                     {
                                         category: 'Assays',
-                                        name: 'Assay 1: Run automated tumour position reporting (Model Generation) on SPARC dataset',
-                                        description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
+                                        name: 'Assay 1: Run workflow 1 on Duke University breast MRI dataset',
+                                        description: 'Using workflow 1: automated tumour position reporting (Model Generation)',
                                         children:[
                                             {
                                                 category: "SOP",
@@ -89,26 +89,26 @@ export const dashboardData:IDashboardData= [
                                     },
                                     {
                                         category: 'Assays',
-                                        name: 'Assay 2: Run tumour position selection on SPARC dataset',
-                                        description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
+                                        name: 'Assay 2: Run workflow 4 on Duke University breast MRI dataset',
+                                        description: 'Using workflow 4: tumour position selection',
                                         children:[]
                                     },
                                     {
                                         category: 'Assays',
-                                        name: 'Assay 3: Run automated tumour position reporting (GUI) on SPARC dataset',
-                                        description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
+                                        name: 'Assay 3: Run workflow 2 on Duke University breast MRI dataset',
+                                        description: 'Using workflow 2: automated tumour position reporting (GUI)',
                                         children:[]
                                     },
                                     {
                                         category: 'Assays',
-                                        name: 'Assay 4: Run manual tumour position reporting on SPARC dataset',
-                                        description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
+                                        name: 'Assay 4: Run workflow 3 on Duke University breast MRI dataset',
+                                        description: 'Using workflow 3: manual tumour position reporting',
                                         children:[]
                                     },
                                     {
                                         category: 'Assays',
-                                        name: 'Assay 5: Run assisted tumour position reporting on SPARC dataset',
-                                        description: 'Breast tumour reporting on 66 cases from the Duke Breast MRI dataset',
+                                        name: 'Assay 5: Run workflow 5 on Duke University breast MRI dataset',
+                                        description: 'Using workflow 5: assisted tumour position reporting',
                                         children:[]
                                     }
                                 ]
