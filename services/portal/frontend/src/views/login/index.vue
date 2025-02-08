@@ -38,16 +38,24 @@ import { useUser } from "@/plugins/hooks/user";
 
 const publicData = {
     user1: {
-        userName: 'Participant_1',
-        password: '123456'
+        userName: 'participant_1',
+        password: '123456',
+        role: 'clinician'
+    },
+    user2: {
+        userName: 'researcher_1',
+        password: '123456',
+        role: 'researcher'
     },
     admin: {
         userName: 'admin',
-        password: 'admin'
+        password: 'admin',
+        role: 'admin'
     }
 }
 
 const userName = ref('');
+const role = ref('');
 const password = ref('');
 const loading = ref(false);
 const rulesUser = [(value:string) => checkApi(value, 'userName')];
@@ -71,7 +79,7 @@ const submit = async (event:any) => {
                     router.push({name: 'Dashboard'})
                     break;
             }
-            setUser(userName.value);
+            setUser(userName.value, role.value);
         }
       }
 
@@ -96,9 +104,15 @@ const checkApi = async (validatingStr: string, type: string): Promise<any> => {
                     switch (userName.value) {
                         case publicData.user1.userName:
                             if (validatingStr === publicData.user1.password) return resolve(true)
+                            role.value = publicData.user1.role;
+                            break;
+                        case publicData.user2.userName:
+                            if (validatingStr === publicData.user1.password) return resolve(true)
+                            role.value = publicData.user2.role;
                             break;
                         case publicData.admin.userName:
                             if (validatingStr === publicData.admin.password) return resolve(true)
+                            role.value = publicData.admin.role;
                             break;
                     }
                     return resolve('Password is incorrect.')

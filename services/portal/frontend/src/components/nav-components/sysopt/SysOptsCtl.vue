@@ -16,10 +16,25 @@
     />
 
     <Dialog 
+      :btnText="'Keyboard Settings'"
+      btnColor = "deep-orange"
+      btnIcon = "mdi-cog"
       @on-open="handleDialogOpen"
       @on-cancel="handleDialogCancel"
       @on-save="handleDialogSave"
     >
+
+    <template #title>
+      <h2 class="text-h5 mb-6">Keyboard Settings</h2>
+    </template>
+
+    <template #description>
+      <p class="mb-4 text-medium-emphasis text-body-2">
+        Customize your keyboard shortcuts for Tumour Study Tool. 
+        <br/>
+        Click `Save` button to save your changes. Click grey area to cancel.
+      </p>
+    </template>
 
     <div v-if="keyBoardSetting">
       <div v-for="(d, i) in settingsData" :key="i" class="d-flex align-center justify-space-between px-10">

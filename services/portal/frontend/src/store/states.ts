@@ -2,11 +2,19 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import * as Copper from "copper3d"
 
-export const currentUserStore = defineStore("currentUser", () => {
-    const user = ref<string>();
-    const setUser = (username:string) => {
+interface IUser {
+  name: string;
+  role: string;
+}
 
-      user.value = username;
+export const currentUserStore = defineStore("currentUser", () => {
+    const user = ref<IUser>();
+    const setUser = (username:string, role:string) => {
+
+      user.value = {
+        name: username,
+        role: role
+      }
     };
     return {
       user,

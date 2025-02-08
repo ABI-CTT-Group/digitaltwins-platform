@@ -7,31 +7,25 @@
         <v-sheet
             class="pa-4 text-center mx-auto"
             elevation="12"
-            min-width="600"
-            max-width="600"
+            :min-width="min"
+            :max-width="max"
             rounded="lg"
             width="100%"
         >
             <div class="d-flex justify-space-start align-center">
                 <v-icon
-                class="mb-5 mr-4"
-                color="success"
-                icon="mdi-cog-outline"
-                size="60"
+                    class="mb-5 mr-4"
+                    color="success"
+                    icon="mdi-cog-outline"
+                    size="60"
                 ></v-icon>
-
-                <h2 class="text-h5 mb-6">Keyboard Settings</h2>
+                <slot name="title"></slot>
             </div>
-                
 
-                <p class="mb-4 text-medium-emphasis text-body-2">
-                    Customize your keyboard shortcuts for Tumour Study Tool. 
-                    <br/>
-                    Click `Save` button to save your changes. Click grey area to cancel.
-                </p>
+                <slot name="description"></slot>
 
                 <v-divider class="mb-4"></v-divider>
-
+                
                 <slot></slot>
 
                 <div class="text-end">
@@ -51,19 +45,41 @@
 
     <div class="px-2 my-6">
       <v-btn
-        color="deep-orange"
-        prepend-icon="mdi-cog"
+        v-show="showDialog"
+        :color="btnColor"
+        :prepend-icon="btnIcon"
         block
-        density="comfortable"
-        size="small"
-        text="Keyboard Settings"
+        :text="btnText" 
+        :variant="btnVariant"
         @click="openDialog"
       ></v-btn>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, defineEmits } from "vue";
+import { ref } from "vue";
+
+interface DialogProps {
+    max?: number;
+    min?: number;
+    icon?: string;
+    btnText?: string;
+    btnColor?: string;
+    btnIcon?: string;
+    btnVariant?: string;
+    showDialog?: boolean;
+}
+
+withDefaults(defineProps<DialogProps>(), {
+    max: 600,
+    min: 600,
+    icon: "mdi-cog-outline",
+    btnText: "",
+    btnColor: "",
+    btnIcon: "",
+    btnVariant: "outlined",
+    showDialog: true
+});
 
 const dialog = ref(false);
 const isSaved = ref(false);
