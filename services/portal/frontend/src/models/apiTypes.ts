@@ -248,3 +248,10 @@ export interface IToolGetMouseDragContrastMove {
   step:number, 
   towards:"horizental"|"vertical"
 }
+
+export interface IDashboardCategory {
+  uuid: string;
+  name: string;
+  category: string;
+  description: string;
+}

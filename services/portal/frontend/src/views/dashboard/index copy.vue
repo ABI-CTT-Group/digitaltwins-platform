@@ -13,21 +13,21 @@
 
         <div v-if="detailsRenderItems.description !== ''" class="position-fixed intro d-flex flex-column overflow-y-auto justify-space-around pa-5 ">
             <div>
-                <div v-for="c in detailsRenderItems.categories" :key="c.name" class="text-grey-lighten-3 my-2">
+                <div v-for="c in detailsRenderItems.categories" :key="c.name" class="text-grey-darken-3 my-2">
                     <span v-if="c.category==='Studies'" class="font-weight-medium text-body-1">Study: </span>
                     <span v-else class="font-weight-medium text-body-1">{{ c.category.slice(0, -1) }}: </span>
                     <span class="text-body-2">{{c.name}}</span>
                 </div>
             </div>
             
-            <div class="mt-2 text-grey-lighten-3">
+            <div class="mt-2 text-grey-darken-3">
                 <span class="font-weight-medium text-body-1">Description: </span>
                 <span class="text-body-2">{{detailsRenderItems.description}}</span>
             </div>
         </div>
 
-        <div  class="basic-card-container w-100 mt-16 d-flex flex-column justify-center  align-center ">
-            <div v-if="showBasicCard" class="w-75 d-flex flex-wrap px-6 mt-10 justify-center align-center overflow-y-auto">
+        <!-- <div  class="h-100 w-100 mt-16 d-flex flex-column justify-center align-center "> -->
+            <div v-if="showBasicCard" class="w-75 d-flex flex-wrap px-6 mt-16 justify-center align-center overflow-y-auto">
                 <BasicCard v-for="data in currentCategoryData" :key="data.name" :data="data">
                     <template v-slot:action>
                         <v-btn
@@ -35,7 +35,7 @@
                             color="pink-darken-2"
                             text="Explore"
                             variant="outlined"
-                            @click = "handleExploreClicked(data.uuid, data.name, data.category, data.description)"
+                            @click = "handleExploreClicked(data.name, data.category, data.description)"
                         ></v-btn>
                         <Dialog
                             :showDialog="data.category === 'Assays'"
@@ -67,8 +67,9 @@
                         ></v-btn>
                     </template>
                 </BasicCard>
+                
             </div>
-        </div>
+        <!-- </div> -->
         <div v-if="!showBasicCard" class="w-75 flex-1-1 px-6 d-flex justify-center align-center">
             <v-carousel 
                 hide-delimiter-background
@@ -103,7 +104,6 @@ import { useTumourStudyDetailsStore } from "@/store/tumour_position_study_app";
 import { useDashboardProgrammesStore, useDashboardCategoryChildrenStore } from '@/store/dashboard_store';
 import { dashboardData, workflowsData } from "./mockData";
 import { IStudy, IDashboardData, ICategoryNode,IStudiesNode } from "@/models/uiTypes";
-import {IDashboardCategory} from "@/models/apiTypes";
 import StudyCard from './components/StudyCard.vue';
 import BasicCard from './components/BasicCard.vue';
 import Dialog from '@/components/commonBar/Dialog.vue';
@@ -121,16 +121,15 @@ const { dashboardCategoryChildren } = storeToRefs(useDashboardCategoryChildrenSt
 const { getDashboardCategoryChildren } = useDashboardCategoryChildrenStore();
 const currentCategory = ref("");
 const breadCrumbsCategory = ref("");
-const exploredCard = ref<{category:string, data:IDashboardCategory[]}[]>([]);
+const exploredCard = ref<any[]>([]);
 const showBasicCard = ref(true);
 const studyCardItems = ref<IStudiesNode[]>([]);
 let filterData: (ICategoryNode | IStudiesNode)[];
-const currentCategoryData = ref<IDashboardCategory[]>([]);
+// const currentCategoryData = ref<ICategoryNode>();
 const breadCrumbsItems = ref([
     { title: 'Programmes', disabled: false },
 ])
 const workflowRenderItems = ref<string[]>([]);
-const breadCrumbs = ["Programmes", "Projects", "Investigations", "Studies", "Assays"];
 
 const detailsRenderItems = ref<{
     categories: {category: string, name: string, description: string}[];
@@ -144,13 +143,6 @@ const handleBreadCrumbsClick = (res:PointerEvent) => {
     showBasicCard.value = true;
     const clickedCrumb = (res.target as HTMLElement).innerText;
     currentCategory.value = clickedCrumb;
-    const data = exploredCard.value.find(item => item.category === clickedCrumb)?.data;
-    if (!!data) {
-        currentCategoryData.value = data;
-    }else{
-        currentCategoryData.value = dashboardProgrammes.value!;
-    }
-    
     const index =  breadCrumbsItems.value.findIndex(item => item.title === clickedCrumb);
     const detailsIndex = detailsRenderItems.value.categories.findIndex(item => item.category === clickedCrumb);
     
@@ -184,39 +176,115 @@ const handleAssayRunClicked = (name:string, category:string) => {
     console.log(name, category);
 }
 
-const handleExploreClicked = async (uuid:string, name:string, category:string, des:string) => {
-    const explored = exploredCard.value.find(item => item.category === category);
-    if (!explored) exploredCard.value.push(
-        {category:category, data: currentCategoryData.value}
-    );
+const handleExploreClicked = (name:string, category:string, des:string) => {
+    const explored = exploredCard.value.find(item => item[category] === name);
+    if (!explored) exploredCard.value.push({[category]: name});
     detailsRenderItems.value.categories.push({category: category, name: name, description: des});
     detailsRenderItems.value.description = des;
 
     breadCrumbsCategory.value = category;
 
-    // const data = filterData.find(item => (item as ICategoryNode).category === category && (item as ICategoryNode).name === name);
-    // if (category === "SOP"){
-    //     showBasicCard.value = false;
-    //     currentCategory.value = (data as ICategoryNode)!.name;
-    //     breadCrumbsItems.value.push({ title: currentCategory.value, disabled: false });
-    //     studyCardItems.value = (data as ICategoryNode)!.children as IStudiesNode[];
-    //     if(currentCategory.value === "Tumour Position Study") {
-    //         const completeTask = studyDetails.value?.details.filter(detail=> detail.report.complete === true);
-    //         const assistedCompleteTask = studyDetails.value?.details.filter(detail => detail.report.assisted === true);
-    //         const assistedTaskCount = studyDetails.value?.details.filter(detail => detail.report.complete === true);
-    //         const tumourCenterConpleteTasks = studyDetails.value?.details?.filter(detail => detail.tumour_window.validate === true);
-    //         studyCardItems.value[0].studies[0].subTitle = `Completed Cases: ${completeTask!.length} / ${studyDetails.value?.details.length}`;
-    //         studyCardItems.value[0].studies[1].subTitle = `Completed Cases: ${tumourCenterConpleteTasks!.length} / ${studyDetails.value?.details.length}`;
-    //         studyCardItems.value[1].studies[0].subTitle = `Completed Cases: ${assistedCompleteTask!.length} / ${assistedTaskCount!.length}`;
-    //     }
-    //     return
-    // }
-    // currentCategory.value = ((data as ICategoryNode)!.children[0]  as ICategoryNode).category;
-    const index = breadCrumbs.findIndex(item => item === category) 
-    currentCategory.value = breadCrumbs[index+1];
+    const data = filterData.find(item => (item as ICategoryNode).category === category && (item as ICategoryNode).name === name);
+    if (category === "SOP"){
+        showBasicCard.value = false;
+        currentCategory.value = (data as ICategoryNode)!.name;
+        breadCrumbsItems.value.push({ title: currentCategory.value, disabled: false });
+        studyCardItems.value = (data as ICategoryNode)!.children as IStudiesNode[];
+        if(currentCategory.value === "Tumour Position Study") {
+            const completeTask = studyDetails.value?.details.filter(detail=> detail.report.complete === true);
+            const assistedCompleteTask = studyDetails.value?.details.filter(detail => detail.report.assisted === true);
+            const assistedTaskCount = studyDetails.value?.details.filter(detail => detail.report.complete === true);
+            const tumourCenterConpleteTasks = studyDetails.value?.details?.filter(detail => detail.tumour_window.validate === true);
+            studyCardItems.value[0].studies[0].subTitle = `Completed Cases: ${completeTask!.length} / ${studyDetails.value?.details.length}`;
+            studyCardItems.value[0].studies[1].subTitle = `Completed Cases: ${tumourCenterConpleteTasks!.length} / ${studyDetails.value?.details.length}`;
+            studyCardItems.value[1].studies[0].subTitle = `Completed Cases: ${assistedCompleteTask!.length} / ${assistedTaskCount!.length}`;
+        }
+        return
+    }
+    currentCategory.value = ((data as ICategoryNode)!.children[0]  as ICategoryNode).category;
     breadCrumbsItems.value.push({ title: currentCategory.value, disabled: false });
-    await getDashboardCategoryChildren(uuid, category);
-    currentCategoryData.value = dashboardCategoryChildren.value!;
+}
+
+// user.value === 'admin' ? 'active' : 'inactive'
+// const items = ref([
+//           {
+//             studies:[
+//                 {
+//                     name: 'Tumour Position Study',
+//                     subTitle: "Cases: 100",
+//                     description: 'Calculate tumour distance to the skin, ribcage, and nipple mannually',
+//                     src: 'https://cdn.vuetifyjs.com/images/cards/docks.jpg',
+//                     status: 'active',
+//                     isEnter: false,
+//                     session: "TumourCalaulationStudy"
+//                 },
+//                 {
+//                     name: 'Tumour Center Manual Correction',
+//                     subTitle: "Cases: 100",
+//                     description: 'Give tumour center at bounding box, and correct the center mannually',
+//                     src: 'https://cdn.vuetifyjs.com/images/carousel/planet.jpg',
+//                     status: user.value === 'admin' ? 'active' : 'inactive',
+//                     isEnter: false,
+//                     session: "TumourCenterStudy"
+//                 },  
+//             ],
+//           },
+//           {
+//             studies:[ 
+//                 {
+//                     name: 'Tumour Study Assisted Manually',
+//                     subTitle: "Cases: 100",
+//                     description: 'Assist to change tumour, skin, ribcage, and nipple position',
+//                     src: 'https://cdn.vuetifyjs.com/images/carousel/sky.jpg',
+//                     status: user.value === 'admin' ? 'active' : 'inactive',
+//                     isEnter: false,
+//                     session: "TumourAssistedStudy"
+//                 },
+//                 {
+//                     name: 'Tumour Position & Extent Report',
+//                     subTitle: "Cases: 100",
+//                     description: 'Using tools to segment tumour and generate a report',
+//                     src: 'https://cdn.vuetifyjs.com/images/cards/sunshine.jpg',
+//                     status: user.value === 'admin' ? 'active' : 'inactive',
+//                     isEnter: false,
+//                     session: "TumourSegmentationStudy"
+//                 },
+//             ],
+//           }
+//         ])
+
+const currentCategoryData = computed(() => {
+    if (currentCategory.value === "") return;
+    if (currentCategory.value === "Programmes"){
+        filterData = dashboardData;
+        return dashboardData;
+    }else{
+        const data = getFilterData(dashboardData);
+        filterData = data?.children as (ICategoryNode | IStudiesNode)[];
+        return data?.children;
+    }
+});
+
+const getFilterData = (categoryData:ICategoryNode[]):ICategoryNode|undefined => {
+   
+    for (let child of categoryData){
+        const explored = exploredCard.value.find(item => item[breadCrumbsCategory.value] === child.name);
+        if (!!explored) {
+            return child;   
+        }
+        const result = getFilterData(child.children as ICategoryNode[]);
+        if (result) {
+            return result;
+        }
+    }
+    return undefined;
+}
+
+const updateBreadCrumbs = (category: string) => {
+    breadCrumbsItems.value = [
+        { title: 'Programme', disabled: false},
+        { title: category, disabled: false }
+    ]
 }
 
 const renderItems = computed(() => {
@@ -235,8 +303,6 @@ onMounted(async () => {
     if (!user.value) router.push({name: 'Login'});
     currentCategory.value = "Programmes";
     if (!!studyDetails.value === false) await getTumourStudyDetails();
-    await getDashboardProgrammes();
-    currentCategoryData.value = dashboardProgrammes.value!;
 })
 
 const handleStudyCardEnterClicked = (study: IStudy) => {
@@ -252,13 +318,13 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
 
 <style scoped>
 .gradients {
-    /* background: #556270;  
+    background: #556270;  
     background: -webkit-linear-gradient(to right, #FF6B6B, #556270);  
-    background: linear-gradient(to right, #FF6B6B, #556270);  */
+    background: linear-gradient(to right, #FF6B6B, #556270); 
     
 
     /* background-image: linear-gradient(45deg, #8baaaa 0%, #ae8b9c 100%); */
-    background: linear-gradient(to bottom, #323232 0%, #3F3F3F 40%, #1C1C1C 150%), linear-gradient(to top, rgba(255,255,255,0.40) 0%, rgba(0,0,0,0.25) 200%); background-blend-mode: multiply;
+    /* background: linear-gradient(to bottom, #323232 0%, #3F3F3F 40%, #1C1C1C 150%), linear-gradient(to top, rgba(255,255,255,0.40) 0%, rgba(0,0,0,0.25) 200%); background-blend-mode: multiply; */
     background-repeat: repeat;
     /* background: #403B4A; 
     background: -webkit-linear-gradient(to right, #E7E9BB, #403B4A); 
@@ -282,8 +348,5 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
     border-radius: 6px;
     box-shadow:  1px 1px 5px #d3d3d3,
                 -1px -1px 5px #d3d3d3;
-}
-.basic-card-container{
-    height: 80%;
 }
 </style>

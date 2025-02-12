@@ -128,14 +128,14 @@ export const workflowsData = [
         name: "Automated tumour position reporting",
         type: "Model Generation",
         inputs:["MRI Images", "Segmentation"],
-        outputs: ["Mesh"],
+        outputs: ["Nifti Image", "NRRD Image", "Segmentation", "Point Could","Mesh"],
     },
     {
         uuid: "xxxx-1234-uoa-abi-2",
         name: "Automated tumour position reporting",
         type: "GUI",
-        inputs:[],
-        outputs: [],
+        inputs:["MRI(NRRD)"],
+        outputs: ["Tumour Positions"],
     },
     {
         uuid: "xxxx-1234-uoa-abi-3",

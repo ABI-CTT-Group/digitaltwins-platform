@@ -103,16 +103,23 @@ const checkApi = async (validatingStr: string, type: string): Promise<any> => {
               
                     switch (userName.value) {
                         case publicData.user1.userName:
-                            if (validatingStr === publicData.user1.password) return resolve(true)
-                            role.value = publicData.user1.role;
+                            if (validatingStr === publicData.user1.password) {
+                                role.value = publicData.user1.role;
+                                return resolve(true)
+                            }
                             break;
                         case publicData.user2.userName:
-                            if (validatingStr === publicData.user1.password) return resolve(true)
-                            role.value = publicData.user2.role;
+                            if (validatingStr === publicData.user1.password) {
+                                role.value = publicData.user2.role;
+                                return resolve(true);
+                            }
+                            
                             break;
                         case publicData.admin.userName:
-                            if (validatingStr === publicData.admin.password) return resolve(true)
-                            role.value = publicData.admin.role;
+                            if (validatingStr === publicData.admin.password) {
+                                role.value = publicData.admin.role;
+                                return resolve(true);
+                            }
                             break;
                     }
                     return resolve('Password is incorrect.')

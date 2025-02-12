@@ -1,8 +1,8 @@
 <template>
     <div class="border-sm py-2 my-5 mx-5 d-flex flex-column align-start">
         <div class="d-flex flex-row ma-2 w-100">
-            <span class="text-subtitle-2 w-25 mt-4">Workflows Configurations: </span>
-            <div class="w-50">
+            <span class="text-subtitle-2 w-25 mt-4">Workflow: </span>
+            <div class="w-66">
                 <v-select
                     v-model="selectedWorkflow"
                     label="Select Workflow"
@@ -45,7 +45,21 @@
             <span class="text-subtitle-2 w-25">Outputs: </span>
             <div class="w-75">
                 <div class="w-75 d-flex flex-row mt-4" v-for="output in outputRenderItems">
-                    <span class="text-subtitle-2 w-25 fancy-shadow">{{ output }}</span>
+                    <span class="text-subtitle-2 w-25">{{ output.name }}:</span>
+                    <div class="w-50 mx-1">
+                        <v-text-field
+                            v-model:model-value="output.datasetName"
+                            label="Dataset Description"
+                            clearable
+                        ></v-text-field>
+                    </div>
+                    <div class="w-50 mx-1">
+                        <v-text-field
+                            v-model:model-value="output.sampleName"
+                            label="Sample Description"
+                            clearable
+                        ></v-text-field>
+                    </div>
                 </div>
             </div>
         </div>
@@ -58,7 +72,7 @@
                 <v-text-field
                 v-model:model-value="cohorts"
                 :rules="[rules.required]"
-                label="Number of Cohorts"
+                label="Number of Participants"
                 clearable
                 ></v-text-field>
         </v-responsive>
@@ -82,13 +96,19 @@ interface IInput {
     }[];
 }
 
+interface IOutput {
+    name: string;
+    datasetName: string;
+    sampleName: string;
+}
+
 const props = defineProps<{
     workflowsData: IWorkflowData[];
 }>();
 
 const workflowRenderItems = ref<string[]>();
 const inputRenderItems = ref<IInput[]>([]);
-const outputRenderItems = ref<string[]>([]);
+const outputRenderItems = ref<IOutput[]>([]);
 const datasetRenderItems = ref<string[]>();
 const selectedWorkflow = ref<string>("");
 const cohorts = ref<number>(0);
@@ -123,7 +143,9 @@ watch(() => selectedWorkflow.value, (value) => {
     });
     const datasets = getDatasets();
     datasetRenderItems.value = datasets.map(dataset => dataset.name);
-    outputRenderItems.value = workflow!.outputs;
+    outputRenderItems.value = workflow!.outputs.map(output => {
+        return { name: output, datasetName: "New Dataset 1", sampleName: output };
+    });
 });
 
 const handleDatasetSelected = (value: string, name:string) => {
