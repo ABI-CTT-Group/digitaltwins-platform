@@ -10,21 +10,30 @@
                 @click="handleBreadCrumbsClick"
             ></v-breadcrumbs>
         </div>
-
-        <div v-if="detailsRenderItems.description !== ''" class="position-fixed intro d-flex flex-column overflow-y-auto justify-space-around pa-5 ">
-            <div>
+        <v-card v-if="detailsRenderItems.description !== ''" class="position-fixed intro d-flex flex-column overflow-y-auto justify-space-around pa-5" color="transparent">
+            <v-card-text>
                 <div v-for="c in detailsRenderItems.categories" :key="c.name" class="text-grey-lighten-3 my-2">
                     <span v-if="c.category==='Studies'" class="font-weight-medium text-body-1">Study: </span>
                     <span v-else class="font-weight-medium text-body-1">{{ c.category.slice(0, -1) }}: </span>
-                    <span class="text-body-2">{{c.name}}</span>
+                    <span class="text-body-2 tooltip-panel">
+                        {{c.name}} 
+                        <v-icon
+                            color="blue-darken-1"
+                            icon="mdi-information-outline"
+                            class="ml-1"
+                            size="small"
+                            ></v-icon>
+                        <v-tooltip
+                            activator="parent"
+                            location="bottom"
+                            max-width="300"
+                        >
+                            {{ c.description }}
+                        </v-tooltip>
+                    </span>
                 </div>
-            </div>
-            
-            <div class="mt-2 text-grey-lighten-3">
-                <span class="font-weight-medium text-body-1">Description: </span>
-                <span class="text-body-2">{{detailsRenderItems.description}}</span>
-            </div>
-        </div>
+            </v-card-text>
+        </v-card>
 
         <div  class="basic-card-container w-100 mt-16 d-flex flex-column justify-center  align-center ">
             <div v-if="showBasicCard" class="w-75 d-flex flex-wrap px-6 mt-10 justify-center align-center overflow-y-auto">
@@ -42,7 +51,7 @@
                             :min="1200"
                             btnText="Edit"
                             btnColor = "deep-orange"
-                            @on-open = "handleAssayCreateClicked(data.name, data.category)"
+                            @on-open = "handleAssayEditClicked(data.uuid, data.name)"
                             @on-save= "handleAssaySave"
                         >
                             <template #title>
@@ -55,14 +64,14 @@
                                     Click `Save` button to save your configurations. Click grey area to cancel.
                                 </p>
                             </template>
-                            <AssayContent :workflows-data="workflowsData" />
+                            <AssayContent v-model="currentAssayDetails" />
                         </Dialog>
                         <v-btn
                             v-show="data.category === 'Assays'"
                             color="green"
-                            text="Run"
+                            text="Launch "
                             variant="outlined"
-                            :disabled="true"
+                            :disabled="!allAssayDetailsOfStudy[data.uuid]?.isAssayReadyToLaunch"
                             @click = "handleAssayRunClicked(data.name, data.category)"
                         ></v-btn>
                     </template>
@@ -100,15 +109,19 @@ import { useRouter, useRoute } from 'vue-router';
 import { useUser } from "@/plugins/hooks/user";
 import { storeToRefs } from "pinia";
 import { useTumourStudyDetailsStore } from "@/store/tumour_position_study_app";
-import { useDashboardProgrammesStore, useDashboardCategoryChildrenStore } from '@/store/dashboard_store';
+import { useDashboardGetAssayDetails } from "@/plugins/dashboard_api";
+import { useDashboardProgrammesStore, useDashboardCategoryChildrenStore, useDashboardSaveAssayDetailsStore } from '@/store/dashboard_store';
 import { dashboardData, workflowsData } from "./mockData";
 import { IStudy, IDashboardData, ICategoryNode,IStudiesNode } from "@/models/uiTypes";
-import {IDashboardCategory} from "@/models/apiTypes";
+import {IDashboardCategory, IAssayDetails} from "@/models/apiTypes";
 import StudyCard from './components/StudyCard.vue';
 import BasicCard from './components/BasicCard.vue';
 import Dialog from '@/components/commonBar/Dialog.vue';
 import AssayContent from './components/AssayContent.vue';
 
+interface IAllAssayDetailsOfStudy {
+    [key: string]: IAssayDetails;
+}
 
 const router = useRouter();
 const route = useRoute();
@@ -119,18 +132,22 @@ const { dashboardProgrammes } = storeToRefs(useDashboardProgrammesStore());
 const { getDashboardProgrammes } = useDashboardProgrammesStore();
 const { dashboardCategoryChildren } = storeToRefs(useDashboardCategoryChildrenStore());
 const { getDashboardCategoryChildren } = useDashboardCategoryChildrenStore();
+const { saveAssayDetails } = useDashboardSaveAssayDetailsStore();
 const currentCategory = ref("");
 const breadCrumbsCategory = ref("");
 const exploredCard = ref<{category:string, data:IDashboardCategory[]}[]>([]);
 const showBasicCard = ref(true);
 const studyCardItems = ref<IStudiesNode[]>([]);
-let filterData: (ICategoryNode | IStudiesNode)[];
+
 const currentCategoryData = ref<IDashboardCategory[]>([]);
+
 const breadCrumbsItems = ref([
     { title: 'Programmes', disabled: false },
 ])
 const workflowRenderItems = ref<string[]>([]);
 const breadCrumbs = ["Programmes", "Projects", "Investigations", "Studies", "Assays"];
+const currentAssayDetails = ref<IAssayDetails>();
+const allAssayDetailsOfStudy = ref<IAllAssayDetailsOfStudy>({});
 
 const detailsRenderItems = ref<{
     categories: {category: string, name: string, description: string}[];
@@ -167,21 +184,20 @@ const handleBreadCrumbsClick = (res:PointerEvent) => {
     breadCrumbsItems.value.splice(index+1)
 }
 
-const getWorkflowRenderData = ()=>{
-    // workflowRenderItems.value = workflowsData.map(workflow => workflow.name + "-" + workflow.type);
+const handleAssayEditClicked = async (uuid:string, name:string) => {
+    currentAssayDetails.value = allAssayDetailsOfStudy.value[uuid];
 }
 
-const handleAssayCreateClicked = (name:string, category:string) => {
+const handleAssaySave = async () => {
+    currentAssayDetails.value!.isAssayReadyToLaunch = true;
+    allAssayDetailsOfStudy.value[currentAssayDetails.value!.uuid] = currentAssayDetails.value!;
+    await saveAssayDetails(currentAssayDetails.value!);
+}
+
+const handleAssayRunClicked = async (name:string, category:string) => {
     console.log(name, category);
-    getWorkflowRenderData();
-}
-
-const handleAssaySave = () => {
-    console.log("Save Assay");
-}
-
-const handleAssayRunClicked = (name:string, category:string) => {
-    console.log(name, category);
+    const a = await useDashboardGetAssayDetails(currentAssayDetails.value!.uuid);
+    console.log("211: ",a);
 }
 
 const handleExploreClicked = async (uuid:string, name:string, category:string, des:string) => {
@@ -219,6 +235,28 @@ const handleExploreClicked = async (uuid:string, name:string, category:string, d
     currentCategoryData.value = dashboardCategoryChildren.value!;
 }
 
+watch(()=>currentCategoryData.value, (newVal)=>{
+    if(newVal[0].category === "Assays"){
+        currentCategoryData.value.forEach( async (item) => {
+            const details = await useDashboardGetAssayDetails(item.uuid);
+            if (!!details) {
+                allAssayDetailsOfStudy.value[item.uuid] = details;
+            }else{
+                allAssayDetailsOfStudy.value[item.uuid] = {
+                    uuid: item.uuid,
+                    workflow:{
+                        uuid: "",
+                        inputs: [],
+                        outputs: [],
+                    },
+                    numberOfParticipants: 0,
+                    isAssayReadyToLaunch: false,
+                };
+            }
+        })
+    }
+})
+
 const renderItems = computed(() => {
     return studyCardItems.value.map(item => {
         return {
@@ -252,13 +290,13 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
 
 <style scoped>
 .gradients {
-    /* background: #556270;  
+    background: #556270;  
     background: -webkit-linear-gradient(to right, #FF6B6B, #556270);  
-    background: linear-gradient(to right, #FF6B6B, #556270);  */
+    background: linear-gradient(to right, #FF6B6B, #556270); 
     
 
     /* background-image: linear-gradient(45deg, #8baaaa 0%, #ae8b9c 100%); */
-    background: linear-gradient(to bottom, #323232 0%, #3F3F3F 40%, #1C1C1C 150%), linear-gradient(to top, rgba(255,255,255,0.40) 0%, rgba(0,0,0,0.25) 200%); background-blend-mode: multiply;
+    /* background: linear-gradient(to bottom, #323232 0%, #3F3F3F 40%, #1C1C1C 150%), linear-gradient(to top, rgba(255,255,255,0.40) 0%, rgba(0,0,0,0.25) 200%); background-blend-mode: multiply; */
     background-repeat: repeat;
     /* background: #403B4A; 
     background: -webkit-linear-gradient(to right, #E7E9BB, #403B4A); 
@@ -277,13 +315,16 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
 .intro{
     top: 30%;
     left: 5px;
-    width: 18%;
-
+    width: 20%;
+/* 
     border-radius: 6px;
     box-shadow:  1px 1px 5px #d3d3d3,
-                -1px -1px 5px #d3d3d3;
+                -1px -1px 5px #d3d3d3; */
 }
 .basic-card-container{
     height: 80%;
+}
+.tooltip-panel{
+    cursor: help;
 }
 </style>

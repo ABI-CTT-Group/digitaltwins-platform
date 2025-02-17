@@ -1,4 +1,3 @@
-
 dashboard_data = [
     {
         "uuid": "uoa-abi-xxx_programme-001",
@@ -102,8 +101,8 @@ workflows_data = [
         "uuid": "xxxx-1234-uoa-abi-4",
         "name": "Tumour position selection",
         "type": "GUI",
-        "inputs": [],
-        "outputs": [],
+        "inputs": ["NRRD Image", "Tumour Center", "Tumour Bounding Box"],
+        "outputs": ["Tumour Position"],
     },
     {
         "uuid": "xxxx-1234-uoa-abi-5",
@@ -179,3 +178,5 @@ datasets_data = [
         ]
     }
 ]
+
+assays_data = {}

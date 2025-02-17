@@ -68,3 +68,16 @@ class TumourPosition(BaseModel):
 class TumourAssisted(BaseModel):
     tumour_position: TumourPosition
     tumour_study_report: TumourStudyReport
+
+
+class AssayWorkflowDetails(BaseModel):
+    uuid: str
+    inputs: list
+    outputs: list
+
+
+class AssayDetails(BaseModel):
+    uuid: str
+    workflow: AssayWorkflowDetails
+    numberOfParticipants: int
+    isAssayReadyToLaunch: bool

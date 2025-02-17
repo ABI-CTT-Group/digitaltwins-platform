@@ -4,17 +4,20 @@
             <span class="text-subtitle-2 w-25 mt-4">Workflow: </span>
             <div class="w-66">
                 <v-select
-                    v-model="selectedWorkflow"
+                    v-model="assayDetails!.workflow.uuid"
                     label="Select Workflow"
                     :items="workflowRenderItems"
+                    item-title="name"
+                    item-value="uuid"
                     variant="outlined"
+                    @update:model-value="handleWorkflowSelected"
                 ></v-select>
             </div>
         </div>
         <div class="d-flex flex-row ma-2 w-100">
             <span class="text-subtitle-2 w-25">Inputs: </span>
             <div class="w-75">
-                <div class="w-75 d-flex flex-row mt-4" v-for="input in inputRenderItems">
+                <div class="w-75 d-flex flex-row mt-4" v-for="input in assayDetails!.workflow.inputs">
                     <span class="text-subtitle-2 w-25">{{ input.name }}:</span>
                     <div class="w-50 mx-1">
                         <v-select
@@ -44,19 +47,19 @@
         <div class="d-flex flex-row ma-2 w-100">
             <span class="text-subtitle-2 w-25">Outputs: </span>
             <div class="w-75">
-                <div class="w-75 d-flex flex-row mt-4" v-for="output in outputRenderItems">
+                <div class="w-75 d-flex flex-row mt-4" v-for="output in assayDetails!.workflow.outputs">
                     <span class="text-subtitle-2 w-25">{{ output.name }}:</span>
                     <div class="w-50 mx-1">
                         <v-text-field
                             v-model:model-value="output.datasetName"
-                            label="Dataset Description"
+                            label="Dataset Name"
                             clearable
                         ></v-text-field>
                     </div>
                     <div class="w-50 mx-1">
                         <v-text-field
                             v-model:model-value="output.sampleName"
-                            label="Sample Description"
+                            label="Sample Name"
                             clearable
                         ></v-text-field>
                     </div>
@@ -70,7 +73,7 @@
                 max-width="344"
             >
                 <v-text-field
-                v-model:model-value="cohorts"
+                v-model:model-value="assayDetails!.numberOfParticipants"
                 :rules="[rules.required]"
                 label="Number of Participants"
                 clearable
@@ -85,15 +88,21 @@
 import { ref, watch, onMounted } from 'vue';
 import { datasetsData } from "../mockData";
 import { IWorkflowData } from '@/models/uiTypes';
+import {IAssayDetails} from '@/models/apiTypes';
+import { useDashboardWorkflowsStore, useDashboardWorkflowDetailStore } from '@/store/dashboard_store';
+import { storeToRefs } from "pinia";
+
+
+interface IItem {
+    uuid: string;
+    name: string;
+}
 
 interface IInput {
     name: string;
     datasetSelected: string;
     sampleSelected: string;
-    sampleRenderItems: {
-        uuid: string;
-        name: string;
-    }[];
+    sampleRenderItems: IItem[];
 }
 
 interface IOutput {
@@ -102,16 +111,16 @@ interface IOutput {
     sampleName: string;
 }
 
-const props = defineProps<{
-    workflowsData: IWorkflowData[];
-}>();
-
-const workflowRenderItems = ref<string[]>();
-const inputRenderItems = ref<IInput[]>([]);
-const outputRenderItems = ref<IOutput[]>([]);
+const workflowRenderItems = ref<IItem[]>();
+// const inputRenderItems = ref<IInput[]>([]);
+// const outputRenderItems = ref<IOutput[]>([]);
 const datasetRenderItems = ref<string[]>();
-const selectedWorkflow = ref<string>("");
-const cohorts = ref<number>(0);
+const { dashboardWorkflows } = storeToRefs(useDashboardWorkflowsStore());
+const { getDashboardWorkflows } = useDashboardWorkflowsStore();
+const { dashboardWorkflowDetail } = storeToRefs(useDashboardWorkflowDetailStore());
+const { getDashboardWorkflowDetail } = useDashboardWorkflowDetailStore();
+
+const assayDetails = defineModel<IAssayDetails>();
 
 const rules = {
     required: (value: number) => {
@@ -131,26 +140,33 @@ const rules = {
 };
 
 
-onMounted(() => {
-    workflowRenderItems.value = props.workflowsData.map(workflow => workflow.name + "-" + workflow.type);
+onMounted(async () => {
+    await getDashboardWorkflows();
+    workflowRenderItems.value = dashboardWorkflows.value!.map(workflow => {
+        return {
+            uuid: workflow.uuid,
+            name: workflow.name + " - " + workflow.type
+        }
+    });
 });
 
+const handleWorkflowSelected = async (value: string) => {
 
-watch(() => selectedWorkflow.value, (value) => {
-    const workflow = findWorkflow(value);
-    inputRenderItems.value = workflow!.inputs.map(input => {
+    await getDashboardWorkflowDetail(value);
+    assayDetails.value!.workflow.inputs = dashboardWorkflowDetail.value!.inputs!.map(input => {
         return { name: input, datasetSelected: "", sampleSelected: "", sampleRenderItems: [] };
     });
     const datasets = getDatasets();
     datasetRenderItems.value = datasets.map(dataset => dataset.name);
-    outputRenderItems.value = workflow!.outputs.map(output => {
+    assayDetails.value!.workflow.outputs = dashboardWorkflowDetail.value!.outputs!.map(output => {
         return { name: output, datasetName: "New Dataset 1", sampleName: output };
     });
-});
+};
+
 
 const handleDatasetSelected = (value: string, name:string) => {
     const dataset = datasetsData.find(dataset => dataset.uuid === value);
-    inputRenderItems.value.find(input => {
+    assayDetails.value!.workflow.inputs.find(input => {
         if (input.datasetSelected === value && input.name === name) {
             input.sampleSelected = "";
             input.sampleRenderItems = dataset!.samples;
@@ -167,7 +183,7 @@ const handleSampleSelected = (value: any) => {
 const findWorkflow = (workflow: string) => {
     const workflowName = workflow.split("-")[0];
     const workflowType = workflow.split("-")[1];
-    return props.workflowsData.find(workflow => workflow.name === workflowName && workflow.type === workflowType);
+    return dashboardWorkflows.value!.find(workflow => workflow.name === workflowName && workflow.type === workflowType);
 };
 
 const getDatasets = () => {

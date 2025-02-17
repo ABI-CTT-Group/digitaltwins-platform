@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Query
-from data import dashboard_data, workflows_data, datasets_data
+from data import dashboard_data, workflows_data, datasets_data, assays_data
+from models import model
+import json
 
 router = APIRouter()
 
@@ -34,7 +36,6 @@ async def get_dashboard_category_children_by_uuid(uuid: str = Query(None), categ
     if category == "Assays":
         return None
     filtered_data = test_get_filter_data(dashboard_data, uuid)
-    print(filtered_data)
     if filtered_data is None:
         return None
     children = []
@@ -79,6 +80,9 @@ async def get_dashboard_workflows_detail_by_uuid(uuid: str = Query(None)):
     for data in workflows_data:
         if data["uuid"] == uuid:
             return {
+                "uuid": uuid,
+                "name": data.get("name", None),
+                "type": data.get("type", None),
                 "inputs": data.get("inputs", None),
                 "outputs": data.get("outputs", None),
             }
@@ -107,3 +111,20 @@ async def get_dashboard_dataset_detail_by_uuid(uuid: str = Query(None)):
                 "samples": data.get("samples", None),
             }
     return None
+
+
+@router.post("/api/dashboard/assay-details")
+async def set_dashboard_assay_details(details: model.AssayDetails):
+    assays_data[details.uuid] = json.dumps(details.model_dump())
+    return True
+
+
+@router.get("/api/dashboard/assay-details")
+async def get_dashboard_assay_detail_by_uuid(uuid: str = Query(None)):
+    if uuid is None:
+        return None
+    details = assays_data.get(uuid, None)
+    if details is None:
+        return None
+    else:
+        return json.loads(details)

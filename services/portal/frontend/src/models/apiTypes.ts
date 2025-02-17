@@ -255,3 +255,37 @@ export interface IDashboardCategory {
   category: string;
   description: string;
 }
+
+export interface IDashboardWorkflow {
+  uuid: string;
+  name: string;
+  type: string;
+  inputs?: string[];
+  outputs?: string[];
+}
+
+interface IWorkflowInput {
+  name: string; 
+  datasetSelected: string;
+  sampleSelected: string;
+  sampleRenderItems: {
+      uuid: string;
+      name: string;
+  }[]
+}
+interface IWorkflowOutput { 
+  name: string, 
+  datasetName: string, 
+  sampleName: string
+}
+
+export interface IAssayDetails {
+  uuid: string;
+  workflow: {
+    uuid: string;
+    inputs: IWorkflowInput[];
+    outputs: IWorkflowOutput[];
+  };
+  numberOfParticipants: number;
+  isAssayReadyToLaunch: boolean;
+}

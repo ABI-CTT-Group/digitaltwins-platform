@@ -1,7 +1,7 @@
 <template>
     <v-card
         class="w-75 ma-4 card-color"
-        color="transparent"
+        color="grey-darken-1"
     >
         <v-card-text>
         <div class="text-subtitle-1 font-weight-black text-grey-lighten-3">{{ data.name }}</div>
