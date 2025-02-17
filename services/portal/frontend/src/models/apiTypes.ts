@@ -289,3 +289,8 @@ export interface IAssayDetails {
   numberOfParticipants: number;
   isAssayReadyToLaunch: boolean;
 }
+
+export interface IAssayLaunch {
+  type: string;
+  url: string;
+}

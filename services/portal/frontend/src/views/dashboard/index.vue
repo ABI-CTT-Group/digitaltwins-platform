@@ -69,10 +69,10 @@
                         <v-btn
                             v-show="data.category === 'Assays'"
                             color="green"
-                            text="Launch "
+                            :text="assayRunBtnText"
                             variant="outlined"
                             :disabled="!allAssayDetailsOfStudy[data.uuid]?.isAssayReadyToLaunch"
-                            @click = "handleAssayRunClicked(data.name, data.category)"
+                            @click = "handleAssayLaunchClicked(data.uuid, assayRunBtnText)"
                         ></v-btn>
                     </template>
                 </BasicCard>
@@ -109,7 +109,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useUser } from "@/plugins/hooks/user";
 import { storeToRefs } from "pinia";
 import { useTumourStudyDetailsStore } from "@/store/tumour_position_study_app";
-import { useDashboardGetAssayDetails } from "@/plugins/dashboard_api";
+import { useDashboardGetAssayDetails, useDashboardGetAssayLaunch } from "@/plugins/dashboard_api";
 import { useDashboardProgrammesStore, useDashboardCategoryChildrenStore, useDashboardSaveAssayDetailsStore } from '@/store/dashboard_store';
 import { dashboardData, workflowsData } from "./mockData";
 import { IStudy, IDashboardData, ICategoryNode,IStudiesNode } from "@/models/uiTypes";
@@ -157,6 +157,8 @@ const detailsRenderItems = ref<{
     description: "",
 })
 
+const assayRunBtnText = ref("Launch");
+
 const handleBreadCrumbsClick = (res:PointerEvent) => {
     showBasicCard.value = true;
     const clickedCrumb = (res.target as HTMLElement).innerText;
@@ -194,10 +196,16 @@ const handleAssaySave = async () => {
     await saveAssayDetails(currentAssayDetails.value!);
 }
 
-const handleAssayRunClicked = async (name:string, category:string) => {
-    console.log(name, category);
-    const a = await useDashboardGetAssayDetails(currentAssayDetails.value!.uuid);
-    console.log("211: ",a);
+const handleAssayLaunchClicked = async (uuid:string, status:string) => {
+    const res = await useDashboardGetAssayLaunch(uuid);
+    if (res.type === "airflow"){
+        assayRunBtnText.value = "Monitor";
+        if (status === "Monitor") window.open(res.url, '_blank');
+    }else if (res.type === "GUI"){
+        if (!!res.url){
+            router.push({name: res.url});
+        }
+    }
 }
 
 const handleExploreClicked = async (uuid:string, name:string, category:string, des:string) => {

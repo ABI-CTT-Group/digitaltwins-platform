@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query
-from data import dashboard_data, workflows_data, datasets_data, assays_data
+from data import dashboard_data, workflows_data, datasets_data, assays_data, launch_workflow
 from models import model
 import json
 
@@ -128,3 +128,11 @@ async def get_dashboard_assay_detail_by_uuid(uuid: str = Query(None)):
         return None
     else:
         return json.loads(details)
+
+@router.get("/api/dashboard/assay-launch")
+async def launch_dashboard_assay_detail_by_uuid(uuid: str = Query(None)):
+    details = assays_data.get(uuid, None)
+    if details is None:
+        return None
+    details = json.loads(details)
+    return launch_workflow.get(details["workflow"]["uuid"], None)

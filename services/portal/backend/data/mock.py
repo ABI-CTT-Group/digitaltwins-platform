@@ -180,3 +180,46 @@ datasets_data = [
 ]
 
 assays_data = {}
+
+launch_workflow = {
+    "xxxx-1234-uoa-abi-1": {
+        "type": "airflow",
+        "url": "https://airflow.apache.org/"
+    },
+    "xxxx-1234-uoa-abi-2": {
+        "type": "GUI",
+        "url": None
+    },
+    "xxxx-1234-uoa-abi-3": {
+        "type": "GUI",
+        "url": None
+    },
+    "xxxx-1234-uoa-abi-4": {
+        "type": "GUI",
+        "url": "TumourCenterStudy"
+    },
+    "xxxx-1234-uoa-abi-5": {
+        "type": "GUI",
+        "url": None
+    },
+    "xxxx-1234-uoa-abi-6": {
+        "type": "GUI",
+        "url": None
+    },
+    "xxxx-1234-uoa-abi-7": {
+        "type": "GUI",
+        "url": None
+    },
+    "xxxx-1234-uoa-abi-8": {
+        "type": "GUI",
+        "url": None
+    },
+    "xxxx-1234-uoa-abi-9": {
+        "type": "GUI",
+        "url": None
+    },
+    "xxxx-1234-uoa-abi-10": {
+        "type": "GUI",
+        "url": None
+    },
+}

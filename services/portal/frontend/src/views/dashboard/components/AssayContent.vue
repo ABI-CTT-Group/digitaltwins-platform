@@ -22,7 +22,7 @@
                     <div class="w-50 mx-1">
                         <v-select
                             v-model="input.datasetSelected"
-                            label="Select Dataset"
+                            :label="`Select ${ input.name } Dataset`"
                             :items="datasetsData"
                             item-title="name"
                             item-value="uuid"
