@@ -1,10 +1,17 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import * as Copper from "copper3d"
+import * as Copper from "copper3d";
+import { IDashboardCategory, IAssayDetails } from "@/models/apiTypes";
 
 interface IUser {
   name: string;
   role: string;
+}
+interface IAllAssayDetailsOfStudy {
+  [key: string]: IAssayDetails;
+}
+interface IAssayBtnText {
+  [key: string]: string;
 }
 
 export const currentUserStore = defineStore("currentUser", () => {
@@ -22,14 +29,73 @@ export const currentUserStore = defineStore("currentUser", () => {
     };
   });
 
-// time consuming operation
-// export const useNrrdToolsStore = defineStore("nrrdTools", () => {
-//     const nrrdTools = ref<Copper.NrrdTools>();
-//     const setNrrdTools = (tool:Copper.NrrdTools) => {
-//       nrrdTools.value = tool;
-//     };
-//     return {
-//       nrrdTools,
-//       setNrrdTools,
-//     };
-//   });
+export const useDashboardPageStore = defineStore("dashboardPage", () => {
+  const currentCategory = ref("");
+  const breadCrumbsCategory = ref("");
+  const exploredCard = ref<{category:string, data:IDashboardCategory[]}[]>([]);
+  const currentCategoryData = ref<IDashboardCategory[]>([]);
+  const breadCrumbsItems = ref([
+      { title: 'Programmes', disabled: false },
+  ]);
+  const detailsRenderItems = ref<{
+    categories: {category: string, name: string, description: string}[];
+    description: string;
+  }>({
+    categories:[],
+    description: "",
+  });
+  const currentAssayDetails = ref<IAssayDetails>();
+  const allAssayDetailsOfStudy = ref<IAllAssayDetailsOfStudy>({});
+  const assayRunBtnText = ref<IAssayBtnText>();
+
+  const setCurrentCategory = (category:string) => {
+    currentCategory.value = category;
+  };
+  const setBreadCrumbsCategory = (category:string) => {
+    breadCrumbsCategory.value = category;
+  }
+  const setExploredCard = (category:string, data:IDashboardCategory[]) => {
+    exploredCard.value.push({category:category, data:data});
+  }
+  const setCurrentCategoryData = (data:IDashboardCategory[]) => {
+    currentCategoryData.value = data;
+  }
+  const setBreadCrumbsItems = (item:{title:string, disabled:boolean}) => {
+    breadCrumbsItems.value.push(item);
+  }
+  const setDetailsRenderItems = (categories:{category: string, name: string, description: string}[], description:string) => {
+    detailsRenderItems.value.categories = categories;
+    detailsRenderItems.value.description = description;
+  }
+  const setCurrentAssayDetails = (assayDetails:IAssayDetails) => {
+    currentAssayDetails.value = assayDetails;
+  }
+  const setAllAssayDetailsOfStudy = (uuid:string, assayDetails:IAssayDetails) => {
+    allAssayDetailsOfStudy.value![uuid] = assayDetails;
+  }
+  const setAssayRunBtnText = (uuid:string, btnText:string) => {
+    assayRunBtnText.value![uuid] = btnText;
+  }
+
+  return {
+    currentCategory,
+    breadCrumbsCategory,
+    exploredCard,
+    currentCategoryData,
+    breadCrumbsItems,
+    detailsRenderItems,
+    allAssayDetailsOfStudy,
+    currentAssayDetails,
+    assayRunBtnText,
+    setCurrentCategory,
+    setBreadCrumbsCategory,
+    setExploredCard,
+    setCurrentCategoryData,
+    setBreadCrumbsItems,
+    setDetailsRenderItems,
+    setAllAssayDetailsOfStudy,
+    setCurrentAssayDetails,
+    setAssayRunBtnText,
+  }
+
+});

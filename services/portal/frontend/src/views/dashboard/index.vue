@@ -69,10 +69,10 @@
                         <v-btn
                             v-show="data.category === 'Assays'"
                             color="green"
-                            :text="assayRunBtnText"
+                            :text="!!assayRunBtnText? assayRunBtnText![data.uuid] : 'Launch'"
                             variant="outlined"
                             :disabled="!allAssayDetailsOfStudy[data.uuid]?.isAssayReadyToLaunch"
-                            @click = "handleAssayLaunchClicked(data.uuid, assayRunBtnText)"
+                            @click = "handleAssayLaunchClicked(data.uuid, assayRunBtnText![data.uuid])"
                         ></v-btn>
                     </template>
                 </BasicCard>
@@ -109,6 +109,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useUser } from "@/plugins/hooks/user";
 import { storeToRefs } from "pinia";
 import { useTumourStudyDetailsStore } from "@/store/tumour_position_study_app";
+import { useDashboardPageStore } from '@/store/states';
 import { useDashboardGetAssayDetails, useDashboardGetAssayLaunch } from "@/plugins/dashboard_api";
 import { useDashboardProgrammesStore, useDashboardCategoryChildrenStore, useDashboardSaveAssayDetailsStore } from '@/store/dashboard_store';
 import { dashboardData, workflowsData } from "./mockData";
@@ -119,9 +120,7 @@ import BasicCard from './components/BasicCard.vue';
 import Dialog from '@/components/commonBar/Dialog.vue';
 import AssayContent from './components/AssayContent.vue';
 
-interface IAllAssayDetailsOfStudy {
-    [key: string]: IAssayDetails;
-}
+
 
 const router = useRouter();
 const route = useRoute();
@@ -133,73 +132,75 @@ const { getDashboardProgrammes } = useDashboardProgrammesStore();
 const { dashboardCategoryChildren } = storeToRefs(useDashboardCategoryChildrenStore());
 const { getDashboardCategoryChildren } = useDashboardCategoryChildrenStore();
 const { saveAssayDetails } = useDashboardSaveAssayDetailsStore();
-const currentCategory = ref("");
-const breadCrumbsCategory = ref("");
-const exploredCard = ref<{category:string, data:IDashboardCategory[]}[]>([]);
+
+const {
+    currentCategory, 
+    breadCrumbsCategory, 
+    exploredCard, 
+    currentCategoryData, 
+    breadCrumbsItems,
+    detailsRenderItems,
+    assayRunBtnText, 
+    allAssayDetailsOfStudy, 
+    currentAssayDetails } = storeToRefs(useDashboardPageStore());
+const {
+    setCurrentCategory, 
+    setBreadCrumbsCategory, 
+    setExploredCard, 
+    setCurrentCategoryData, 
+    setBreadCrumbsItems, 
+    setDetailsRenderItems,
+    setAssayRunBtnText,
+    setAllAssayDetailsOfStudy, 
+    setCurrentAssayDetails } = useDashboardPageStore();
+
 const showBasicCard = ref(true);
 const studyCardItems = ref<IStudiesNode[]>([]);
 
-const currentCategoryData = ref<IDashboardCategory[]>([]);
-
-const breadCrumbsItems = ref([
-    { title: 'Programmes', disabled: false },
-])
-const workflowRenderItems = ref<string[]>([]);
 const breadCrumbs = ["Programmes", "Projects", "Investigations", "Studies", "Assays"];
-const currentAssayDetails = ref<IAssayDetails>();
-const allAssayDetailsOfStudy = ref<IAllAssayDetailsOfStudy>({});
 
-const detailsRenderItems = ref<{
-    categories: {category: string, name: string, description: string}[];
-    description: string;
-}>({
-    categories:[],
-    description: "",
-})
-
-const assayRunBtnText = ref("Launch");
 
 const handleBreadCrumbsClick = (res:PointerEvent) => {
     showBasicCard.value = true;
     const clickedCrumb = (res.target as HTMLElement).innerText;
-    currentCategory.value = clickedCrumb;
+    // currentCategory.value = clickedCrumb;
+    setCurrentCategory(clickedCrumb);
     const data = exploredCard.value.find(item => item.category === clickedCrumb)?.data;
     if (!!data) {
-        currentCategoryData.value = data;
+        setCurrentCategoryData(data);
     }else{
-        currentCategoryData.value = dashboardProgrammes.value!;
+        setCurrentCategoryData(dashboardProgrammes.value!);
     }
     
     const index =  breadCrumbsItems.value.findIndex(item => item.title === clickedCrumb);
     const detailsIndex = detailsRenderItems.value.categories.findIndex(item => item.category === clickedCrumb);
     
     if (index !== 0) {
-        breadCrumbsCategory.value = breadCrumbsItems.value[index-1].title;
-        detailsRenderItems.value.categories = detailsRenderItems.value.categories.slice(0, detailsIndex);
-        
-        detailsRenderItems.value.description = detailsRenderItems.value.categories[detailsIndex-1].description;
+        setBreadCrumbsCategory(breadCrumbsItems.value[index-1].title);
+        setDetailsRenderItems(detailsRenderItems.value.categories.slice(0, detailsIndex), detailsRenderItems.value.categories[detailsIndex-1].description)
     }else{
-        breadCrumbsCategory.value = clickedCrumb;
-        detailsRenderItems.value.categories = [];
-        detailsRenderItems.value.description = "";
+        setBreadCrumbsCategory(clickedCrumb);
+        setDetailsRenderItems([], "");
     }
     breadCrumbsItems.value.splice(index+1)
 }
 
 const handleAssayEditClicked = async (uuid:string, name:string) => {
-    currentAssayDetails.value = allAssayDetailsOfStudy.value[uuid];
+    setCurrentAssayDetails(allAssayDetailsOfStudy.value[uuid])
 }
 
 const handleAssaySave = async () => {
     currentAssayDetails.value!.isAssayReadyToLaunch = true;
-    allAssayDetailsOfStudy.value[currentAssayDetails.value!.uuid] = currentAssayDetails.value!;
+    setAllAssayDetailsOfStudy(currentAssayDetails.value!.uuid, currentAssayDetails.value!);
+    console.log(currentAssayDetails.value);
+    
     await saveAssayDetails(currentAssayDetails.value!);
 }
 
 const handleAssayLaunchClicked = async (uuid:string, status:string) => {
     const res = await useDashboardGetAssayLaunch(uuid);
     if (res.type === "airflow"){
-        assayRunBtnText.value = "Monitor";
+        setAssayRunBtnText(uuid, "Monitor");
         if (status === "Monitor") window.open(res.url, '_blank');
     }else if (res.type === "GUI"){
         if (!!res.url){
@@ -210,13 +211,11 @@ const handleAssayLaunchClicked = async (uuid:string, status:string) => {
 
 const handleExploreClicked = async (uuid:string, name:string, category:string, des:string) => {
     const explored = exploredCard.value.find(item => item.category === category);
-    if (!explored) exploredCard.value.push(
-        {category:category, data: currentCategoryData.value}
-    );
+    if (!explored) setExploredCard(category, currentCategoryData.value);
     detailsRenderItems.value.categories.push({category: category, name: name, description: des});
     detailsRenderItems.value.description = des;
 
-    breadCrumbsCategory.value = category;
+    setBreadCrumbsCategory(category);
 
     // const data = filterData.find(item => (item as ICategoryNode).category === category && (item as ICategoryNode).name === name);
     // if (category === "SOP"){
@@ -236,21 +235,24 @@ const handleExploreClicked = async (uuid:string, name:string, category:string, d
     //     return
     // }
     // currentCategory.value = ((data as ICategoryNode)!.children[0]  as ICategoryNode).category;
-    const index = breadCrumbs.findIndex(item => item === category) 
-    currentCategory.value = breadCrumbs[index+1];
+    const index = breadCrumbs.findIndex(item => item === category);
+    setCurrentCategory(breadCrumbs[index+1]);
     breadCrumbsItems.value.push({ title: currentCategory.value, disabled: false });
     await getDashboardCategoryChildren(uuid, category);
-    currentCategoryData.value = dashboardCategoryChildren.value!;
+    setCurrentCategoryData(dashboardCategoryChildren.value!);
 }
 
 watch(()=>currentCategoryData.value, (newVal)=>{
     if(newVal[0].category === "Assays"){
+        assayRunBtnText.value = {};
+        allAssayDetailsOfStudy.value = {};
         currentCategoryData.value.forEach( async (item) => {
             const details = await useDashboardGetAssayDetails(item.uuid);
+            setAssayRunBtnText(item.uuid, "Launch");
             if (!!details) {
-                allAssayDetailsOfStudy.value[item.uuid] = details;
+                setAllAssayDetailsOfStudy(item.uuid, details);
             }else{
-                allAssayDetailsOfStudy.value[item.uuid] = {
+                setAllAssayDetailsOfStudy(item.uuid, {
                     uuid: item.uuid,
                     workflow:{
                         uuid: "",
@@ -259,7 +261,7 @@ watch(()=>currentCategoryData.value, (newVal)=>{
                     },
                     numberOfParticipants: 0,
                     isAssayReadyToLaunch: false,
-                };
+                });
             }
         })
     }
@@ -279,10 +281,10 @@ const isShowArrow = computed(() => {
 
 onMounted(async () => {
     if (!user.value) router.push({name: 'Login'});
-    currentCategory.value = "Programmes";
     if (!!studyDetails.value === false) await getTumourStudyDetails();
     await getDashboardProgrammes();
-    currentCategoryData.value = dashboardProgrammes.value!;
+    if (currentCategoryData.value.length === 0)
+        currentCategoryData.value = dashboardProgrammes.value!;
 })
 
 const handleStudyCardEnterClicked = (study: IStudy) => {
