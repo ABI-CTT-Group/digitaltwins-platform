@@ -1,12 +1,10 @@
 <template>
     <v-card
-        class="ma-4 card-color"
-        color="transparent"
-        min-width="344"
-        max-width="444"
+        class="w-75 ma-4 card-color"
+        color="grey-darken-1"
     >
         <v-card-text>
-        <div class="text-subtitle-1 font-weight-black text-grey-darken-3">{{ data.name }}</div>
+        <div class="text-subtitle-1 font-weight-black text-grey-lighten-3">{{ data.name }}</div>
 
         <div class="text-medium-emphasis text-grey-darken-3">
             {{ data.description }}
@@ -20,16 +18,16 @@
 </template>
 
 <script setup lang="ts">
-import { ICategoryNode } from '@/models/uiTypes';
+import { IDashboardCategory } from '@/models/apiTypes';
 
 const props = defineProps<{
-    data?: ICategoryNode
+    data: IDashboardCategory
 }>();
 
 </script>
 
 <style scoped>
-.card-color {
+/* .card-color {
     background: linear-gradient(to bottom, rgba(255,255,255,0.15) 0%, rgba(0,0,0,0.15) 100%), radial-gradient(at top center, rgba(255,255,255,0.40) 0%, rgba(0,0,0,0.40) 120%) #989898; background-blend-mode: multiply,multiply;
-}
+} */
 </style>

@@ -10,24 +10,33 @@
                 @click="handleBreadCrumbsClick"
             ></v-breadcrumbs>
         </div>
-
-        <div v-if="detailsRenderItems.description !== ''" class="position-fixed intro d-flex flex-column overflow-y-auto justify-space-around pa-5 ">
-            <div>
-                <div v-for="c in detailsRenderItems.categories" :key="c.name" class="text-grey-darken-3 my-2">
+        <v-card v-if="currentCategory !== 'Programmes' && currentCategory !== ''" class="position-fixed intro d-flex flex-column overflow-y-auto justify-space-around pa-5" color="transparent">
+            <v-card-text>
+                <div v-for="c in detailsRenderItems.categories" :key="c.name" class="text-grey-lighten-3 my-2">
                     <span v-if="c.category==='Studies'" class="font-weight-medium text-body-1">Study: </span>
                     <span v-else class="font-weight-medium text-body-1">{{ c.category.slice(0, -1) }}: </span>
-                    <span class="text-body-2">{{c.name}}</span>
+                    <span class="text-body-2 tooltip-panel">
+                        {{c.name}} 
+                        <v-icon
+                            color="blue-darken-1"
+                            icon="mdi-information-outline"
+                            class="ml-1"
+                            size="small"
+                            ></v-icon>
+                        <v-tooltip
+                            activator="parent"
+                            location="bottom"
+                            max-width="300"
+                        >
+                            {{ c.description }}
+                        </v-tooltip>
+                    </span>
                 </div>
-            </div>
-            
-            <div class="mt-2 text-grey-darken-3">
-                <span class="font-weight-medium text-body-1">Description: </span>
-                <span class="text-body-2">{{detailsRenderItems.description}}</span>
-            </div>
-        </div>
+            </v-card-text>
+        </v-card>
 
-        <div v-if="showBasicCard" class="h-75 w-100 mt-16 d-flex flex-column justify-center  align-center ">
-            <div class="w-75 d-flex flex-wrap px-6 mt-10 justify-center align-center overflow-y-auto">
+        <div  class="basic-card-container w-100 mt-16 d-flex flex-column justify-center  align-center ">
+            <div v-if="showBasicCard" class="w-75 d-flex flex-wrap px-6 mt-10 justify-center align-center overflow-y-auto">
                 <BasicCard v-for="data in currentCategoryData" :key="data.name" :data="data">
                     <template v-slot:action>
                         <v-btn
@@ -35,14 +44,14 @@
                             color="pink-darken-2"
                             text="Explore"
                             variant="outlined"
-                            @click = "handleExploreClicked(data.name, data.category, data.description)"
+                            @click.once = "handleExploreClicked(data.seekId, data.name, data.category, data.description)"
                         ></v-btn>
                         <Dialog
                             :showDialog="data.category === 'Assays'"
                             :min="1200"
-                            btnText="Create"
+                            btnText="Edit"
                             btnColor = "deep-orange"
-                            @on-open = "handleAssayCreateClicked(data.name, data.category)"
+                            @on-open = "handleAssayEditClicked(data.seekId, data.name)"
                             @on-save= "handleAssaySave"
                         >
                             <template #title>
@@ -55,19 +64,18 @@
                                     Click `Save` button to save your configurations. Click grey area to cancel.
                                 </p>
                             </template>
-                            <AssayContent :workflows-data="workflowsData" />
+                            <AssayContent v-model="currentAssayDetails" />
                         </Dialog>
                         <v-btn
                             v-show="data.category === 'Assays'"
                             color="green"
-                            text="Run"
+                            :text="!!assayRunBtnText? assayRunBtnText![data.seekId] : 'Launch'"
                             variant="outlined"
-                            :disabled="true"
-                            @click = "handleAssayRunClicked(data.name, data.category)"
+                            :disabled="!allAssayDetailsOfStudy[data.seekId]?.isAssayReadyToLaunch"
+                            @click.once = "handleAssayLaunchClicked(data.seekId, assayRunBtnText![data.seekId])"
                         ></v-btn>
                     </template>
                 </BasicCard>
-                
             </div>
         </div>
         <div v-if="!showBasicCard" class="w-75 flex-1-1 px-6 d-flex justify-center align-center">
@@ -101,12 +109,17 @@ import { useRouter, useRoute } from 'vue-router';
 import { useUser } from "@/plugins/hooks/user";
 import { storeToRefs } from "pinia";
 import { useTumourStudyDetailsStore } from "@/store/tumour_position_study_app";
+import { useDashboardPageStore } from '@/store/states';
+import { useDashboardGetAssayDetails, useDashboardGetAssayLaunch } from "@/plugins/dashboard_api";
+import { useDashboardProgrammesStore, useDashboardCategoryChildrenStore, useDashboardSaveAssayDetailsStore } from '@/store/dashboard_store';
 import { dashboardData, workflowsData } from "./mockData";
 import { IStudy, IDashboardData, ICategoryNode,IStudiesNode } from "@/models/uiTypes";
+import {IDashboardCategory, IAssayDetails} from "@/models/apiTypes";
 import StudyCard from './components/StudyCard.vue';
 import BasicCard from './components/BasicCard.vue';
 import Dialog from '@/components/commonBar/Dialog.vue';
 import AssayContent from './components/AssayContent.vue';
+
 
 
 const router = useRouter();
@@ -114,173 +127,160 @@ const route = useRoute();
 const { user } = useUser();
 const { studyDetails } = storeToRefs(useTumourStudyDetailsStore());
 const { getTumourStudyDetails } = useTumourStudyDetailsStore();
-const currentCategory = ref("");
-const breadCrumbsCategory = ref("");
-const exploredCard = ref<any[]>([]);
+const { dashboardProgrammes } = storeToRefs(useDashboardProgrammesStore());
+const { getDashboardProgrammes } = useDashboardProgrammesStore();
+const { dashboardCategoryChildren } = storeToRefs(useDashboardCategoryChildrenStore());
+const { getDashboardCategoryChildren } = useDashboardCategoryChildrenStore();
+const { saveAssayDetails } = useDashboardSaveAssayDetailsStore();
+
+const {
+    currentCategory, 
+    breadCrumbsCategory, 
+    exploredCard, 
+    currentCategoryData, 
+    breadCrumbsItems,
+    detailsRenderItems,
+    assayRunBtnText, 
+    allAssayDetailsOfStudy, 
+    currentAssayDetails } = storeToRefs(useDashboardPageStore());
+const {
+    setCurrentCategory, 
+    setBreadCrumbsCategory, 
+    setExploredCard, 
+    setCurrentCategoryData, 
+    setBreadCrumbsItems, 
+    setDetailsRenderItems,
+    setAssayRunBtnText,
+    setAllAssayDetailsOfStudy, 
+    setCurrentAssayDetails } = useDashboardPageStore();
+
 const showBasicCard = ref(true);
 const studyCardItems = ref<IStudiesNode[]>([]);
-let filterData: (ICategoryNode | IStudiesNode)[];
-// const currentCategoryData = ref<ICategoryNode>();
-const breadCrumbsItems = ref([
-    { title: 'Programmes', disabled: false },
-])
-const workflowRenderItems = ref<string[]>([]);
 
-const detailsRenderItems = ref<{
-    categories: {category: string, name: string, description: string}[];
-    description: string;
-}>({
-    categories:[],
-    description: "",
-})
+const breadCrumbs = ["Programmes", "Projects", "Investigations", "Studies", "Assays"];
+
 
 const handleBreadCrumbsClick = (res:PointerEvent) => {
     showBasicCard.value = true;
     const clickedCrumb = (res.target as HTMLElement).innerText;
-    currentCategory.value = clickedCrumb;
+
+    if (clickedCrumb === "Assays" || clickedCrumb === "/" || clickedCrumb === currentCategory.value) {
+        return
+    }
+    // currentCategory.value = clickedCrumb;
+    setCurrentCategory(clickedCrumb);
+    const data = exploredCard.value.find(item => item.category === clickedCrumb)?.data;
+    if (!!data) {
+        setCurrentCategoryData(data);
+    }else{
+        setCurrentCategoryData(dashboardProgrammes.value!);
+    }
+    
     const index =  breadCrumbsItems.value.findIndex(item => item.title === clickedCrumb);
     const detailsIndex = detailsRenderItems.value.categories.findIndex(item => item.category === clickedCrumb);
     
     if (index !== 0) {
-        breadCrumbsCategory.value = breadCrumbsItems.value[index-1].title;
-        detailsRenderItems.value.categories = detailsRenderItems.value.categories.slice(0, detailsIndex);
-        
-        detailsRenderItems.value.description = detailsRenderItems.value.categories[detailsIndex-1].description;
+        setBreadCrumbsCategory(breadCrumbsItems.value[index-1].title);
+        setDetailsRenderItems(detailsRenderItems.value.categories.slice(0, detailsIndex), detailsRenderItems.value.categories[detailsIndex-1].description)
     }else{
-        breadCrumbsCategory.value = clickedCrumb;
-        detailsRenderItems.value.categories = [];
-        detailsRenderItems.value.description = "";
+        setBreadCrumbsCategory(clickedCrumb);
+        setDetailsRenderItems([], "");
     }
     breadCrumbsItems.value.splice(index+1)
 }
 
-const getWorkflowRenderData = ()=>{
-    // workflowRenderItems.value = workflowsData.map(workflow => workflow.name + "-" + workflow.type);
+const handleAssayEditClicked = async (seek_id:string, name:string) => {
+    setCurrentAssayDetails(allAssayDetailsOfStudy.value[seek_id])
 }
 
-const handleAssayCreateClicked = (name:string, category:string) => {
-    console.log(name, category);
-    getWorkflowRenderData();
+const handleAssaySave = async () => {
+    currentAssayDetails.value!.isAssayReadyToLaunch = true;
+    setAllAssayDetailsOfStudy(currentAssayDetails.value!.seekId, currentAssayDetails.value!);
+    // const blob = new Blob([JSON.stringify(currentAssayDetails.value, null, 2)], { type: "application/json" });
+    // const link = document.createElement("a");
+    // link.href = URL.createObjectURL(blob);
+    // link.download = "data.json";
+    // document.body.appendChild(link);
+    // link.click();
+    // document.body.removeChild(link);
+
+    
+    await saveAssayDetails(currentAssayDetails.value!);
 }
 
-const handleAssaySave = () => {
-    console.log("Save Assay");
+const handleAssayLaunchClicked = async (seek_id:string, status:string) => {
+    const res = await useDashboardGetAssayLaunch(seek_id);
+    if (res.type === "airflow"){
+        setAssayRunBtnText(seek_id, "Monitor");
+        if (status === "Monitor") window.open(res.url, '_blank');
+    }else if (res.type === "GUI"){
+        if (!!res.url){
+            router.push({name: res.url});
+        }
+    }
 }
 
-const handleAssayRunClicked = (name:string, category:string) => {
-    console.log(name, category);
-}
-
-const handleExploreClicked = (name:string, category:string, des:string) => {
-    const explored = exploredCard.value.find(item => item[category] === name);
-    if (!explored) exploredCard.value.push({[category]: name});
+const handleExploreClicked = async (seek_id:string, name:string, category:string, des:string) => {
+    const explored = exploredCard.value.find(item => item.category === category);
+    if (!explored) setExploredCard(category, currentCategoryData.value);
     detailsRenderItems.value.categories.push({category: category, name: name, description: des});
     detailsRenderItems.value.description = des;
 
-    breadCrumbsCategory.value = category;
+    setBreadCrumbsCategory(category);
 
-    const data = filterData.find(item => (item as ICategoryNode).category === category && (item as ICategoryNode).name === name);
-    if (category === "SOP"){
-        showBasicCard.value = false;
-        currentCategory.value = (data as ICategoryNode)!.name;
-        breadCrumbsItems.value.push({ title: currentCategory.value, disabled: false });
-        studyCardItems.value = (data as ICategoryNode)!.children as IStudiesNode[];
-        if(currentCategory.value === "Tumour Position Study") {
-            const completeTask = studyDetails.value?.details.filter(detail=> detail.report.complete === true);
-            const assistedCompleteTask = studyDetails.value?.details.filter(detail => detail.report.assisted === true);
-            const assistedTaskCount = studyDetails.value?.details.filter(detail => detail.report.complete === true);
-            const tumourCenterConpleteTasks = studyDetails.value?.details?.filter(detail => detail.tumour_window.validate === true);
-            studyCardItems.value[0].studies[0].subTitle = `Completed Cases: ${completeTask!.length} / ${studyDetails.value?.details.length}`;
-            studyCardItems.value[0].studies[1].subTitle = `Completed Cases: ${tumourCenterConpleteTasks!.length} / ${studyDetails.value?.details.length}`;
-            studyCardItems.value[1].studies[0].subTitle = `Completed Cases: ${assistedCompleteTask!.length} / ${assistedTaskCount!.length}`;
-        }
-        return
-    }
-    currentCategory.value = ((data as ICategoryNode)!.children[0]  as ICategoryNode).category;
+    // const data = filterData.find(item => (item as ICategoryNode).category === category && (item as ICategoryNode).name === name);
+    // if (category === "SOP"){
+    //     showBasicCard.value = false;
+    //     currentCategory.value = (data as ICategoryNode)!.name;
+    //     breadCrumbsItems.value.push({ title: currentCategory.value, disabled: false });
+    //     studyCardItems.value = (data as ICategoryNode)!.children as IStudiesNode[];
+    //     if(currentCategory.value === "Tumour Position Study") {
+    //         const completeTask = studyDetails.value?.details.filter(detail=> detail.report.complete === true);
+    //         const assistedCompleteTask = studyDetails.value?.details.filter(detail => detail.report.assisted === true);
+    //         const assistedTaskCount = studyDetails.value?.details.filter(detail => detail.report.complete === true);
+    //         const tumourCenterConpleteTasks = studyDetails.value?.details?.filter(detail => detail.tumour_window.validate === true);
+    //         studyCardItems.value[0].studies[0].subTitle = `Completed Cases: ${completeTask!.length} / ${studyDetails.value?.details.length}`;
+    //         studyCardItems.value[0].studies[1].subTitle = `Completed Cases: ${tumourCenterConpleteTasks!.length} / ${studyDetails.value?.details.length}`;
+    //         studyCardItems.value[1].studies[0].subTitle = `Completed Cases: ${assistedCompleteTask!.length} / ${assistedTaskCount!.length}`;
+    //     }
+    //     return
+    // }
+    // currentCategory.value = ((data as ICategoryNode)!.children[0]  as ICategoryNode).category;
+    const index = breadCrumbs.findIndex(item => item === category);
+    setCurrentCategory(breadCrumbs[index+1]);
     breadCrumbsItems.value.push({ title: currentCategory.value, disabled: false });
+    
+    await getDashboardCategoryChildren(seek_id, category);
+    setCurrentCategoryData(dashboardCategoryChildren.value!);
 }
 
-// user.value === 'admin' ? 'active' : 'inactive'
-// const items = ref([
-//           {
-//             studies:[
-//                 {
-//                     name: 'Tumour Position Study',
-//                     subTitle: "Cases: 100",
-//                     description: 'Calculate tumour distance to the skin, ribcage, and nipple mannually',
-//                     src: 'https://cdn.vuetifyjs.com/images/cards/docks.jpg',
-//                     status: 'active',
-//                     isEnter: false,
-//                     session: "TumourCalaulationStudy"
-//                 },
-//                 {
-//                     name: 'Tumour Center Manual Correction',
-//                     subTitle: "Cases: 100",
-//                     description: 'Give tumour center at bounding box, and correct the center mannually',
-//                     src: 'https://cdn.vuetifyjs.com/images/carousel/planet.jpg',
-//                     status: user.value === 'admin' ? 'active' : 'inactive',
-//                     isEnter: false,
-//                     session: "TumourCenterStudy"
-//                 },  
-//             ],
-//           },
-//           {
-//             studies:[ 
-//                 {
-//                     name: 'Tumour Study Assisted Manually',
-//                     subTitle: "Cases: 100",
-//                     description: 'Assist to change tumour, skin, ribcage, and nipple position',
-//                     src: 'https://cdn.vuetifyjs.com/images/carousel/sky.jpg',
-//                     status: user.value === 'admin' ? 'active' : 'inactive',
-//                     isEnter: false,
-//                     session: "TumourAssistedStudy"
-//                 },
-//                 {
-//                     name: 'Tumour Position & Extent Report',
-//                     subTitle: "Cases: 100",
-//                     description: 'Using tools to segment tumour and generate a report',
-//                     src: 'https://cdn.vuetifyjs.com/images/cards/sunshine.jpg',
-//                     status: user.value === 'admin' ? 'active' : 'inactive',
-//                     isEnter: false,
-//                     session: "TumourSegmentationStudy"
-//                 },
-//             ],
-//           }
-//         ])
-
-const currentCategoryData = computed(() => {
-    if (currentCategory.value === "") return;
-    if (currentCategory.value === "Programmes"){
-        filterData = dashboardData;
-        return dashboardData;
-    }else{
-        const data = getFilterData(dashboardData);
-        filterData = data?.children as (ICategoryNode | IStudiesNode)[];
-        return data?.children;
+watch(()=>currentCategoryData.value, (newVal)=>{
+    if(newVal[0].category === "Assays"){
+        assayRunBtnText.value = {};
+        allAssayDetailsOfStudy.value = {};
+        currentCategoryData.value.forEach( async (item) => {
+            const details = await useDashboardGetAssayDetails(item.seekId);
+            setAssayRunBtnText(item.seekId, "Launch");
+            if (!!details) {
+                setAllAssayDetailsOfStudy(item.seekId, details);
+                
+            }else{
+                setAllAssayDetailsOfStudy(item.seekId, {
+                    uuid: "",
+                    seekId: item.seekId,
+                    workflow:{
+                        uuid: "",
+                        seekId: "",
+                        inputs: [],
+                        outputs: [],
+                    },
+                    numberOfParticipants: 0,
+                    isAssayReadyToLaunch: false,
+                });
+            }
+        })
     }
-});
-
-const getFilterData = (categoryData:ICategoryNode[]):ICategoryNode|undefined => {
-   
-    for (let child of categoryData){
-        const explored = exploredCard.value.find(item => item[breadCrumbsCategory.value] === child.name);
-        if (!!explored) {
-            return child;   
-        }
-        const result = getFilterData(child.children as ICategoryNode[]);
-        if (result) {
-            return result;
-        }
-    }
-    return undefined;
-}
-
-const updateBreadCrumbs = (category: string) => {
-    breadCrumbsItems.value = [
-        { title: 'Programme', disabled: false},
-        { title: category, disabled: false }
-    ]
-}
+})
 
 const renderItems = computed(() => {
     return studyCardItems.value.map(item => {
@@ -296,8 +296,10 @@ const isShowArrow = computed(() => {
 
 onMounted(async () => {
     if (!user.value) router.push({name: 'Login'});
-    currentCategory.value = "Programmes";
     if (!!studyDetails.value === false) await getTumourStudyDetails();
+    await getDashboardProgrammes();
+    if (currentCategoryData.value.length === 0)
+        currentCategoryData.value = dashboardProgrammes.value!;
 })
 
 const handleStudyCardEnterClicked = (study: IStudy) => {
@@ -324,7 +326,6 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
     /* background: #403B4A; 
     background: -webkit-linear-gradient(to right, #E7E9BB, #403B4A); 
     background: linear-gradient(to right, #E7E9BB, #403B4A);  */
-
 }
 .breadcrumbs {
     top: 110px;
@@ -339,10 +340,16 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
 .intro{
     top: 30%;
     left: 5px;
-    width: 18%;
-
+    width: 20%;
+/* 
     border-radius: 6px;
     box-shadow:  1px 1px 5px #d3d3d3,
-                -1px -1px 5px #d3d3d3;
+                -1px -1px 5px #d3d3d3; */
+}
+.basic-card-container{
+    height: 80%;
+}
+.tooltip-panel{
+    cursor: help;
 }
 </style>

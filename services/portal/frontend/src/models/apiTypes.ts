@@ -248,3 +248,54 @@ export interface IToolGetMouseDragContrastMove {
   step:number, 
   towards:"horizental"|"vertical"
 }
+
+export interface IDashboardCategory {
+  uuid: string;
+  seekId: string;
+  name: string;
+  category: string;
+  description: string;
+}
+
+export interface IDashboardWorkflow {
+  uuid: string;
+  seekId: string;
+  name: string;
+  type: string;
+  inputs?: { category: string; name: string; }[];
+  outputs?: { category: string; name: string; }[];
+}
+
+interface IWorkflowInput {
+  input: { category: string; name: string; }; 
+  datasetSelectedUUID: string;
+  sampleSelectedType: string;
+}
+interface IWorkflowOutput { 
+  output: { category: string; name: string; }, 
+  datasetName: string, 
+  sampleName: string
+}
+
+export interface IAssayDetails {
+  seekId: string;
+  uuid: string;
+  workflow: {
+    uuid: string;
+    seekId: string;
+    inputs: IWorkflowInput[];
+    outputs: IWorkflowOutput[];
+  };
+  numberOfParticipants: number;
+  isAssayReadyToLaunch: boolean;
+}
+
+export interface IAssayLaunch {
+  type: string;
+  url: string;
+}
+
+export interface IAssayDataset {
+  uuid: string;
+  name: string;
+}

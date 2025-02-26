@@ -29,7 +29,6 @@ export interface IStudy {
     uuid: string;
     name: string;
     type: string;
-    inputs: string[];
-    outputs: string[];
+    inputs?: string[];
+    outputs?: string[];
   }
-

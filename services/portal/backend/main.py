@@ -1,6 +1,5 @@
 # terminial-> venv/Scripts/activate.bat
 import json
-
 import uvicorn
 import time
 from fastapi import FastAPI, Query, BackgroundTasks, WebSocket, HTTPException
@@ -12,11 +11,12 @@ from models import model
 from task import task_oi
 from pathlib import Path
 import io
-from router import tumour_position
+from router import tumour_position, dashboard
 
 app = FastAPI()
 
 app.include_router(tumour_position.router)
+app.include_router(dashboard.router)
 
 origins = [
     "http://127.0.0.1:5173",
