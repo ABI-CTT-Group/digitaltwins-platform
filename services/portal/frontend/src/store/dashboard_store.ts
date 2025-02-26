@@ -22,8 +22,8 @@ export const useDashboardProgrammesStore = defineStore("DashboardProgrammes", ()
 
 export const useDashboardCategoryChildrenStore = defineStore("DashboardCategoryChildren", () => {
     const dashboardCategoryChildren = ref<IDashboardCategory[]>();
-    const getDashboardCategoryChildren = async (uuid: string, category: string) => {
-        dashboardCategoryChildren.value = await useDashboardCategoryChildren(uuid, category);
+    const getDashboardCategoryChildren = async (seek_id: string, category: string) => {
+        dashboardCategoryChildren.value = await useDashboardCategoryChildren(seek_id, category);
     };
     return {
         dashboardCategoryChildren,
@@ -44,8 +44,8 @@ export const useDashboardWorkflowsStore = defineStore("DashboardWorkflows", () =
 
 export const useDashboardWorkflowDetailStore = defineStore("DashboardWorkflowDetail", () => {
     const dashboardWorkflowDetail = ref<IDashboardWorkflow>();
-    const getDashboardWorkflowDetail = async (uuid: string) => {
-        dashboardWorkflowDetail.value = await useDashboardWorkflowDetail(uuid);
+    const getDashboardWorkflowDetail = async (seek_id: string) => {
+        dashboardWorkflowDetail.value = await useDashboardWorkflowDetail(seek_id);
     };
     return {
         dashboardWorkflowDetail,

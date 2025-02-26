@@ -72,12 +72,14 @@ class TumourAssisted(BaseModel):
 
 class AssayWorkflowDetails(BaseModel):
     uuid: str
+    seekId: str
     inputs: list
     outputs: list
 
 
 class AssayDetails(BaseModel):
     uuid: str
+    seekId: str
     workflow: AssayWorkflowDetails
     numberOfParticipants: int
     isAssayReadyToLaunch: bool

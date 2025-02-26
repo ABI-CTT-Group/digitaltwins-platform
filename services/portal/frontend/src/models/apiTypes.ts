@@ -251,6 +251,7 @@ export interface IToolGetMouseDragContrastMove {
 
 export interface IDashboardCategory {
   uuid: string;
+  seekId: string;
   name: string;
   category: string;
   description: string;
@@ -258,31 +259,30 @@ export interface IDashboardCategory {
 
 export interface IDashboardWorkflow {
   uuid: string;
+  seekId: string;
   name: string;
   type: string;
-  inputs?: string[];
-  outputs?: string[];
+  inputs?: { category: string; name: string; }[];
+  outputs?: { category: string; name: string; }[];
 }
 
 interface IWorkflowInput {
-  name: string; 
-  datasetSelected: string;
-  sampleSelected: string;
-  sampleRenderItems: {
-      uuid: string;
-      name: string;
-  }[]
+  input: { category: string; name: string; }; 
+  datasetSelectedUUID: string;
+  sampleSelectedType: string;
 }
 interface IWorkflowOutput { 
-  name: string, 
+  output: { category: string; name: string; }, 
   datasetName: string, 
   sampleName: string
 }
 
 export interface IAssayDetails {
+  seekId: string;
   uuid: string;
   workflow: {
     uuid: string;
+    seekId: string;
     inputs: IWorkflowInput[];
     outputs: IWorkflowOutput[];
   };
@@ -293,4 +293,9 @@ export interface IAssayDetails {
 export interface IAssayLaunch {
   type: string;
   url: string;
+}
+
+export interface IAssayDataset {
+  uuid: string;
+  name: string;
 }

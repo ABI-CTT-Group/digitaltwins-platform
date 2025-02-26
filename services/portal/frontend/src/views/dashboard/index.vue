@@ -10,7 +10,7 @@
                 @click="handleBreadCrumbsClick"
             ></v-breadcrumbs>
         </div>
-        <v-card v-if="detailsRenderItems.description !== ''" class="position-fixed intro d-flex flex-column overflow-y-auto justify-space-around pa-5" color="transparent">
+        <v-card v-if="currentCategory !== 'Programmes' && currentCategory !== ''" class="position-fixed intro d-flex flex-column overflow-y-auto justify-space-around pa-5" color="transparent">
             <v-card-text>
                 <div v-for="c in detailsRenderItems.categories" :key="c.name" class="text-grey-lighten-3 my-2">
                     <span v-if="c.category==='Studies'" class="font-weight-medium text-body-1">Study: </span>
@@ -44,14 +44,14 @@
                             color="pink-darken-2"
                             text="Explore"
                             variant="outlined"
-                            @click = "handleExploreClicked(data.uuid, data.name, data.category, data.description)"
+                            @click.once = "handleExploreClicked(data.seekId, data.name, data.category, data.description)"
                         ></v-btn>
                         <Dialog
                             :showDialog="data.category === 'Assays'"
                             :min="1200"
                             btnText="Edit"
                             btnColor = "deep-orange"
-                            @on-open = "handleAssayEditClicked(data.uuid, data.name)"
+                            @on-open = "handleAssayEditClicked(data.seekId, data.name)"
                             @on-save= "handleAssaySave"
                         >
                             <template #title>
@@ -69,10 +69,10 @@
                         <v-btn
                             v-show="data.category === 'Assays'"
                             color="green"
-                            :text="!!assayRunBtnText? assayRunBtnText![data.uuid] : 'Launch'"
+                            :text="!!assayRunBtnText? assayRunBtnText![data.seekId] : 'Launch'"
                             variant="outlined"
-                            :disabled="!allAssayDetailsOfStudy[data.uuid]?.isAssayReadyToLaunch"
-                            @click = "handleAssayLaunchClicked(data.uuid, assayRunBtnText![data.uuid])"
+                            :disabled="!allAssayDetailsOfStudy[data.seekId]?.isAssayReadyToLaunch"
+                            @click.once = "handleAssayLaunchClicked(data.seekId, assayRunBtnText![data.seekId])"
                         ></v-btn>
                     </template>
                 </BasicCard>
@@ -163,6 +163,10 @@ const breadCrumbs = ["Programmes", "Projects", "Investigations", "Studies", "Ass
 const handleBreadCrumbsClick = (res:PointerEvent) => {
     showBasicCard.value = true;
     const clickedCrumb = (res.target as HTMLElement).innerText;
+
+    if (clickedCrumb === "Assays" || clickedCrumb === "/" || clickedCrumb === currentCategory.value) {
+        return
+    }
     // currentCategory.value = clickedCrumb;
     setCurrentCategory(clickedCrumb);
     const data = exploredCard.value.find(item => item.category === clickedCrumb)?.data;
@@ -185,22 +189,29 @@ const handleBreadCrumbsClick = (res:PointerEvent) => {
     breadCrumbsItems.value.splice(index+1)
 }
 
-const handleAssayEditClicked = async (uuid:string, name:string) => {
-    setCurrentAssayDetails(allAssayDetailsOfStudy.value[uuid])
+const handleAssayEditClicked = async (seek_id:string, name:string) => {
+    setCurrentAssayDetails(allAssayDetailsOfStudy.value[seek_id])
 }
 
 const handleAssaySave = async () => {
     currentAssayDetails.value!.isAssayReadyToLaunch = true;
-    setAllAssayDetailsOfStudy(currentAssayDetails.value!.uuid, currentAssayDetails.value!);
-    console.log(currentAssayDetails.value);
+    setAllAssayDetailsOfStudy(currentAssayDetails.value!.seekId, currentAssayDetails.value!);
+    // const blob = new Blob([JSON.stringify(currentAssayDetails.value, null, 2)], { type: "application/json" });
+    // const link = document.createElement("a");
+    // link.href = URL.createObjectURL(blob);
+    // link.download = "data.json";
+    // document.body.appendChild(link);
+    // link.click();
+    // document.body.removeChild(link);
+
     
     await saveAssayDetails(currentAssayDetails.value!);
 }
 
-const handleAssayLaunchClicked = async (uuid:string, status:string) => {
-    const res = await useDashboardGetAssayLaunch(uuid);
+const handleAssayLaunchClicked = async (seek_id:string, status:string) => {
+    const res = await useDashboardGetAssayLaunch(seek_id);
     if (res.type === "airflow"){
-        setAssayRunBtnText(uuid, "Monitor");
+        setAssayRunBtnText(seek_id, "Monitor");
         if (status === "Monitor") window.open(res.url, '_blank');
     }else if (res.type === "GUI"){
         if (!!res.url){
@@ -209,7 +220,7 @@ const handleAssayLaunchClicked = async (uuid:string, status:string) => {
     }
 }
 
-const handleExploreClicked = async (uuid:string, name:string, category:string, des:string) => {
+const handleExploreClicked = async (seek_id:string, name:string, category:string, des:string) => {
     const explored = exploredCard.value.find(item => item.category === category);
     if (!explored) setExploredCard(category, currentCategoryData.value);
     detailsRenderItems.value.categories.push({category: category, name: name, description: des});
@@ -238,7 +249,8 @@ const handleExploreClicked = async (uuid:string, name:string, category:string, d
     const index = breadCrumbs.findIndex(item => item === category);
     setCurrentCategory(breadCrumbs[index+1]);
     breadCrumbsItems.value.push({ title: currentCategory.value, disabled: false });
-    await getDashboardCategoryChildren(uuid, category);
+    
+    await getDashboardCategoryChildren(seek_id, category);
     setCurrentCategoryData(dashboardCategoryChildren.value!);
 }
 
@@ -247,15 +259,18 @@ watch(()=>currentCategoryData.value, (newVal)=>{
         assayRunBtnText.value = {};
         allAssayDetailsOfStudy.value = {};
         currentCategoryData.value.forEach( async (item) => {
-            const details = await useDashboardGetAssayDetails(item.uuid);
-            setAssayRunBtnText(item.uuid, "Launch");
+            const details = await useDashboardGetAssayDetails(item.seekId);
+            setAssayRunBtnText(item.seekId, "Launch");
             if (!!details) {
-                setAllAssayDetailsOfStudy(item.uuid, details);
+                setAllAssayDetailsOfStudy(item.seekId, details);
+                
             }else{
-                setAllAssayDetailsOfStudy(item.uuid, {
-                    uuid: item.uuid,
+                setAllAssayDetailsOfStudy(item.seekId, {
+                    uuid: "",
+                    seekId: item.seekId,
                     workflow:{
                         uuid: "",
+                        seekId: "",
                         inputs: [],
                         outputs: [],
                     },
