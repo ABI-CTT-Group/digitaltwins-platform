@@ -23,7 +23,7 @@ def get_all_case_names(except_case: list = None):
     if except_case is None:
         except_case = []
     if Config.METADATA is not None:
-        case_names = list(set(Config.METADATA["patient_id"]) - set(except_case))
+        case_names = list(set(Config.METADATA["Additional Metadata"]) - set(except_case))
         Config.CASE_NAMES = case_names
         return case_names
     return []
@@ -75,7 +75,7 @@ def get_file_path(patient_id, file_type, file_name):
     """
     if Config.METADATA is not None:
         file_df = Config.METADATA[
-            (Config.METADATA["patient_id"] == patient_id) & (Config.METADATA["file type"] == file_type)]
+            (Config.METADATA["Additional Metadata"] == patient_id) & (Config.METADATA["file type"] == file_type)]
         # index = mask_json_df.index.tolist()
         # path = mask_json_df.loc[index[0], 'filename']
         paths = list(file_df['filename'])
@@ -97,7 +97,7 @@ def get_category_files(patient_id, file_type, categore, except_file_name=[]):
         """
     if Config.METADATA is not None:
         file_df = Config.METADATA[
-            (Config.METADATA["patient_id"] == patient_id) & (Config.METADATA["file type"] == file_type)]
+            (Config.METADATA["Additional Metadata"] == patient_id) & (Config.METADATA["file type"] == file_type)]
         paths = list(file_df['filename'])
         new_paths = []
         for path in paths:
@@ -149,7 +149,7 @@ def selectNrrdPaths(patient_id, file_type, limit):
     """
     all_nrrd_paths = []
     nrrds_df = Config.METADATA[
-        (Config.METADATA["file type"] == file_type) & (Config.METADATA["patient_id"] == patient_id)]
+        (Config.METADATA["file type"] == file_type) & (Config.METADATA["Additional Metadata"] == patient_id)]
     all_nrrd_paths.extend(list(nrrds_df["filename"]))
     selected_paths = []
     for file_path in all_nrrd_paths:
@@ -203,7 +203,7 @@ def zipNrrdFiles(name, caseType):
         file_paths = selectNrrdPaths(name, "nrrd", "origin")
     if caseType == "registration":
         # TODO 2: get mask.json file path
-        json_df = Config.METADATA[(Config.METADATA["file type"] == "json") & (Config.METADATA["patient_id"] == name)]
+        json_df = Config.METADATA[(Config.METADATA["file type"] == "json") & (Config.METADATA["Additional Metadata"] == name)]
         file_paths.extend(list(json_df["filename"]))
     # TODO 3: add base url to these paths
     file_paths = [Config.BASE_PATH / nrrd_path for nrrd_path in file_paths]

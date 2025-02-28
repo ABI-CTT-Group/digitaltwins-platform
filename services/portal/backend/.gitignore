@@ -10,3 +10,4 @@ venv
 digitaltwins
 configs.ini
 requirements_dtp.txt
+data/datasets/*
