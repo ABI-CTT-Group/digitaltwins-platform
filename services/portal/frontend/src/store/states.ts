@@ -11,7 +11,7 @@ interface IAllAssayDetailsOfStudy {
   [key: string]: IAssayDetails;
 }
 interface IAssayBtnText {
-  [key: string]: string;
+  [key: string]: {text:string, url:string};
 }
 
 export const currentUserStore = defineStore("currentUser", () => {
@@ -46,7 +46,8 @@ export const useDashboardPageStore = defineStore("dashboardPage", () => {
   });
   const currentAssayDetails = ref<IAssayDetails>();
   const allAssayDetailsOfStudy = ref<IAllAssayDetailsOfStudy>({});
-  const assayRunBtnText = ref<IAssayBtnText>();
+  const assayExecute = ref<IAssayBtnText>();
+  const switchModel = ref<boolean>(false);
 
   const setCurrentCategory = (category:string) => {
     currentCategory.value = category;
@@ -73,10 +74,15 @@ export const useDashboardPageStore = defineStore("dashboardPage", () => {
   const setAllAssayDetailsOfStudy = (uuid:string, assayDetails:IAssayDetails) => {
     allAssayDetailsOfStudy.value![uuid] = assayDetails;
   }
-  const setAssayRunBtnText = (uuid:string, btnText:string) => {
-    assayRunBtnText.value![uuid] = btnText;
+  const setAssayExecute = (uuid:string, btnText:string, url:string) => {
+    assayExecute.value![uuid] = {
+      text: btnText,
+      url: url,
+    };
   }
-
+  const setSwitchModel = (state:boolean) => {
+    switchModel.value = state;
+  }
   return {
     currentCategory,
     breadCrumbsCategory,
@@ -86,7 +92,8 @@ export const useDashboardPageStore = defineStore("dashboardPage", () => {
     detailsRenderItems,
     allAssayDetailsOfStudy,
     currentAssayDetails,
-    assayRunBtnText,
+    assayExecute,
+    switchModel,
     setCurrentCategory,
     setBreadCrumbsCategory,
     setExploredCard,
@@ -95,7 +102,8 @@ export const useDashboardPageStore = defineStore("dashboardPage", () => {
     setDetailsRenderItems,
     setAllAssayDetailsOfStudy,
     setCurrentAssayDetails,
-    setAssayRunBtnText,
+    setAssayExecute,
+    setSwitchModel
   }
 
 });

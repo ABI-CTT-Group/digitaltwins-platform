@@ -86,7 +86,7 @@
 
 <script setup lang="ts">
 
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, onBeforeMount } from 'vue';
 import { datasetsData } from "../mockData";
 import { IWorkflowData } from '@/models/uiTypes';
 import {IAssayDetails} from '@/models/apiTypes';
@@ -141,6 +141,11 @@ const rules = {
         }
     }
 };
+
+onBeforeMount(()=>{
+    console.log("on before mount: ", );
+    
+})
 
 onMounted(async () => {
     await getDashboardWorkflows();

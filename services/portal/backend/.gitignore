@@ -11,3 +11,5 @@ digitaltwins
 configs.ini
 requirements_dtp.txt
 data/datasets/*
+data/duke_test_data
+data/duke

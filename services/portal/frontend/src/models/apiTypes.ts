@@ -286,13 +286,13 @@ export interface IAssayDetails {
     inputs: IWorkflowInput[];
     outputs: IWorkflowOutput[];
   };
-  numberOfParticipants: number;
+  numberOfParticipants: number|string;
   isAssayReadyToLaunch: boolean;
 }
 
 export interface IAssayLaunch {
   type: string;
-  url: string;
+  data: any;
 }
 
 export interface IAssayDataset {

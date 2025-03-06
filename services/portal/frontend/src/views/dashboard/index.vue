@@ -10,6 +10,17 @@
                 @click="handleBreadCrumbsClick"
             ></v-breadcrumbs>
         </div>
+        <div 
+            v-show="currentCategory === 'Assays'"
+            class="position-fixed custom-switch">
+            <v-switch
+                v-model="pageSwitchModel"
+                :label="`${pageSwitchModel?'Clinician View':'Researcher View'}`"
+                hide-details
+                inset
+                @update:model-value="(val)=>handleSwitchModel(val)"
+            ></v-switch>
+        </div>
         <v-card v-if="currentCategory !== 'Programmes' && currentCategory !== ''" class="position-fixed intro d-flex flex-column overflow-y-auto justify-space-around pa-5" color="transparent">
             <v-card-text>
                 <div v-for="c in detailsRenderItems.categories" :key="c.name" class="text-grey-lighten-3 my-2">
@@ -43,14 +54,16 @@
                             v-show="data.category !== 'Assays'"
                             color="pink-darken-2"
                             text="Explore"
-                            variant="outlined"
+                            variant="flat"
                             @click.once = "handleExploreClicked(data.seekId, data.name, data.category, data.description)"
                         ></v-btn>
                         <Dialog
-                            :showDialog="data.category === 'Assays'"
+
+                            :showDialog="data.category === 'Assays' && !pageSwitchModel"
                             :min="1200"
                             btnText="Edit"
                             btnColor = "deep-orange"
+                            btnVariant="flat"
                             @on-open = "handleAssayEditClicked(data.seekId, data.name)"
                             @on-save= "handleAssaySave"
                         >
@@ -66,13 +79,23 @@
                             </template>
                             <AssayContent v-model="currentAssayDetails" />
                         </Dialog>
+           
                         <v-btn
-                            v-show="data.category === 'Assays'"
+                            v-show="data.category === 'Assays' && !!assayExecute![data.seekId] && assayExecute![data.seekId].text === 'Launch'"
                             color="green"
-                            :text="!!assayRunBtnText? assayRunBtnText![data.seekId] : 'Launch'"
-                            variant="outlined"
+                            :text="'Launch'"
+                            variant="flat"
                             :disabled="!allAssayDetailsOfStudy[data.seekId]?.isAssayReadyToLaunch"
-                            @click.once = "handleAssayLaunchClicked(data.seekId, assayRunBtnText![data.seekId])"
+                            @click.once = "handleAssayLaunchClicked(data.seekId)"
+                        >
+                        </v-btn>
+
+                        <v-btn
+                            v-show="data.category === 'Assays'&& !!assayExecute![data.seekId] && assayExecute![data.seekId].text === 'Monitor'"
+                            color="green"
+                            :text="'Monitor'"
+                            variant="flat"
+                            @click = "handleAssayMonitorClicked(data.seekId)"
                         ></v-btn>
                     </template>
                 </BasicCard>
@@ -140,9 +163,11 @@ const {
     currentCategoryData, 
     breadCrumbsItems,
     detailsRenderItems,
-    assayRunBtnText, 
+    assayExecute, 
     allAssayDetailsOfStudy, 
-    currentAssayDetails } = storeToRefs(useDashboardPageStore());
+    currentAssayDetails,
+    switchModel
+ } = storeToRefs(useDashboardPageStore());
 const {
     setCurrentCategory, 
     setBreadCrumbsCategory, 
@@ -150,14 +175,18 @@ const {
     setCurrentCategoryData, 
     setBreadCrumbsItems, 
     setDetailsRenderItems,
-    setAssayRunBtnText,
+    setAssayExecute,
     setAllAssayDetailsOfStudy, 
-    setCurrentAssayDetails } = useDashboardPageStore();
+    setCurrentAssayDetails,
+    setSwitchModel
+} = useDashboardPageStore();
 
 const showBasicCard = ref(true);
 const studyCardItems = ref<IStudiesNode[]>([]);
 
 const breadCrumbs = ["Programmes", "Projects", "Investigations", "Studies", "Assays"];
+const pageSwitchModel = ref(switchModel.value);
+const isSwitchClicked = ref(false);
 
 
 const handleBreadCrumbsClick = (res:PointerEvent) => {
@@ -208,19 +237,24 @@ const handleAssaySave = async () => {
     await saveAssayDetails(currentAssayDetails.value!);
 }
 
-const handleAssayLaunchClicked = async (seek_id:string, status:string) => {
+const handleAssayMonitorClicked = async (seek_id:string) => {
+    console.log(seek_id);
+    window.open(assayExecute.value![seek_id].url, '_blank');
+}
+
+const handleAssayLaunchClicked = async (seek_id:string) => {
     const res = await useDashboardGetAssayLaunch(seek_id);
     if (res.type === "airflow"){
-        setAssayRunBtnText(seek_id, "Monitor");
-        if (status === "Monitor") window.open(res.url, '_blank');
-    }else if (res.type === "GUI"){
-        if (!!res.url){
-            router.push({name: res.url});
+        setAssayExecute(seek_id, "Monitor", res.data);
+    }else if (res.type === "gui"){
+        if (!!res.data){
+            router.push({name: res.data});
         }
     }
 }
 
 const handleExploreClicked = async (seek_id:string, name:string, category:string, des:string) => {
+    isSwitchClicked.value = false;
     const explored = exploredCard.value.find(item => item.category === category);
     if (!explored) setExploredCard(category, currentCategoryData.value);
     detailsRenderItems.value.categories.push({category: category, name: name, description: des});
@@ -255,12 +289,13 @@ const handleExploreClicked = async (seek_id:string, name:string, category:string
 }
 
 watch(()=>currentCategoryData.value, (newVal)=>{
+    if(isSwitchClicked.value) return;
     if(newVal[0].category === "Assays"){
-        assayRunBtnText.value = {};
+        assayExecute.value = {};
         allAssayDetailsOfStudy.value = {};
         currentCategoryData.value.forEach( async (item) => {
             const details = await useDashboardGetAssayDetails(item.seekId);
-            setAssayRunBtnText(item.seekId, "Launch");
+            setAssayExecute(item.seekId, "Launch", "");
             if (!!details) {
                 setAllAssayDetailsOfStudy(item.seekId, details);
                 
@@ -293,6 +328,27 @@ const renderItems = computed(() => {
 const isShowArrow = computed(() => {
     return renderItems.value.length > 1 ? true : false;
 });
+
+const handleSwitchModel = (val:boolean|null) => {
+    console.log(val);
+    
+    setSwitchModel(val as boolean);
+    isSwitchClicked.value = true;
+    if (val){
+        let i = 0;
+        const a:any[] = [];
+        currentCategoryData.value.map(item => {
+            if (val && i>2){
+                a.push(item);
+            }
+            i +=1;
+        })
+        currentCategoryData.value = a;
+    }else{
+        setCurrentCategoryData(dashboardCategoryChildren.value!);
+    }
+   
+}
 
 onMounted(async () => {
     if (!user.value) router.push({name: 'Login'});
@@ -351,5 +407,9 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
 }
 .tooltip-panel{
     cursor: help;
+}
+.custom-switch{
+    top: 20%;
+    right: 100px;
 }
 </style>

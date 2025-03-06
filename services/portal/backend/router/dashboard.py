@@ -3,7 +3,10 @@ from data import assays_data, launch_workflow
 from models import model
 import json
 from pathlib import Path
-from digitaltwins import Querier, Uploader
+from digitaltwins import Querier, Uploader, Workflow
+# from sparc_me import Dataset, Sample, Subject
+from utils import Config
+import shutil
 import pprint
 
 current_file = Path(__file__).resolve()
@@ -11,6 +14,8 @@ root_dir = current_file.parent.parent
 config_path = root_dir / "configs.ini"
 querier = Querier(config_path)
 uploader = Uploader(config_path)
+workflow_dtp_executor = Workflow(config_path)
+# dataset = Dataset()
 
 router = APIRouter()
 
@@ -23,9 +28,12 @@ Categories:
     - Assaysx`
 """
 
+def set_data_root_path():
+    Config.BASE_PATH = root_dir / "data" / "duke"
 
 @router.get("/api/dashboard/programmes")
 async def get_dashboard_programmes():
+    set_data_root_path()
     programs = querier.get_programs()
     programmes = []
     for data in programs:
@@ -186,7 +194,6 @@ async def get_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
     try:
         assay_detail = querier.get_assay(seek_id, get_params=True)
         params = assay_detail.get("params", None)
-        pprint.pprint(params)
         if params is None:
             return None
         details = {
@@ -226,8 +233,88 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
     """
         When user click launch in assay, what should we do?
     """
-    details = assays_data.get(seek_id, None)
-    if details is None:
-        return None
-    details = json.loads(details)
-    return launch_workflow.get(details["workflow"]["uuid"], None)
+    # Step1: base on assay seek id to get the assay details.
+    assay_detail = querier.get_assay(seek_id, get_params=True)
+    pprint.pprint(assay_detail)
+    # Step2: check the workflow type
+    # Step2.1: cwl script based, return the airflow url
+    # Step2.2: GUI based, execute Step 2
+    workflow = querier.get_sop(sop_id=assay_detail.get("params").get("workflow_seek_id"))
+    workflow_name = workflow.get("attributes").get("title")
+    print(workflow_name)
+    workflow_type = workflow_name.split("-")[1].lstrip()
+
+    if workflow_type != "GUI":
+        response, workflow_monitor_url = workflow_dtp_executor.run(assay_id=int(seek_id))
+        print("response.status_code:" + str(response.status_code))
+        print("Monitoring workflow on: " + workflow_monitor_url)
+        return {
+            "type": "airflow",
+            "data": workflow_monitor_url
+        }
+    else:
+        # # Step3: base on the assay details to download all inputs datasets
+        # # Step3.1: delete all previous inputs and outputs datasets
+        # input_dataset_path = root_dir / "data" / "datasets" / "inputs"
+        # output_dataset_path = root_dir / "data" / "datasets" / "outputs"
+        # clear_folder(root_dir / "data" / "datasets")
+        # # Step3.2: download all inputs datasets into dataset/inputs folder
+        # download_inputs_datasets(input_dataset_path)
+        # # Step3.3: using sparc-me to generate all outputs datasets into dataset/outputs folder
+        # generate_outputs_datasets(output_dataset_path, assay_detail.get("params").get("outputs", []))
+        #
+        # # Step3.4: update overall METADATA
+        # # Step4: return the workflow GUI frontend route name
+        #
+        # # details = assays_data.get(seek_id, None)
+        # # if details is None:
+        # #     return None
+        # # details = json.loads(details)
+        # # return launch_workflow.get(details["workflow"]["uuid"], None)
+        print()
+        if workflow_name == "Tumour position selection - GUI":
+            return {
+                "type": "gui",
+                "data": "TumourCenterStudy"
+            }
+        if workflow_name == "Manual tumour position reporting - GUI":
+            return {
+                "type": "gui",
+                "data": "TumourCalaulationStudy"
+            }
+        if workflow_name == "Automated tumour position reporting - GUI":
+            return {
+                "type": "gui",
+                "data": "TumourAssistedStudy"
+            }
+    return None
+
+
+def generate_outputs_datasets(target_dataset_path, outputs):
+    if not target_dataset_path.exists():
+        target_dataset_path.mkdir(exist_ok=True, parents=True)
+    for output in outputs:
+        output_dataset_path = target_dataset_path / output.get("dataset_name")
+        if output_dataset_path.exists():
+            continue
+        # dataset.create_empty_dataset(version="2.0.0")
+        # # Save the template dataset.
+        # dataset.save(save_dir=output_dataset_path)
+
+
+def download_inputs_datasets(target_dataset_path):
+    shutil.copytree(root_dir / "data" / "duke_test_data", target_dataset_path)
+
+
+def clear_folder(folder_path):
+    folder = Path(folder_path)
+
+    if folder.exists() and folder.is_dir():
+        for item in folder.iterdir():
+            if item.is_file() or item.is_symlink():
+                item.unlink()
+            elif item.is_dir():
+                clear_folder(item)
+                item.rmdir()
+    else:
+        print(f"path not found: {folder}")

@@ -31,7 +31,6 @@ app.add_middleware(
 )
 
 
-#
 # @app.on_event("startup")
 # async def startup_event():
 
@@ -325,4 +324,5 @@ async def save_tumour_position(save_position: model.TumourPosition):
 
 
 if __name__ == '__main__':
-    uvicorn.run(app)
+    # uvicorn.run(app)
+    uvicorn.run(app, port=5566)
