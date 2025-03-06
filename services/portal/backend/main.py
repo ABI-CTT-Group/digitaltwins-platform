@@ -12,22 +12,18 @@ from task import task_oi
 from pathlib import Path
 import io
 from router import tumour_position, dashboard
+from utils import Config
 
 app = FastAPI()
 
 app.include_router(tumour_position.router)
 app.include_router(dashboard.router)
 
-origins = [
-    "http://127.0.0.1:5173",
-]
-
 expose_headers = ["x-volume", "x-file-name", "Content-Disposition"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    # allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,16 +31,19 @@ app.add_middleware(
 )
 
 
-#
 # @app.on_event("startup")
 # async def startup_event():
 
 
 @app.get('/')
 async def root():
-    # headers = {"X-Test":"test"}
-    # return FileResponse("./nrrd_files.zip", media_type="application/octet-stream", filename="mask.obj", headers=headers)
-    # # return JSONResponse( content={"da":"1515"}, headers=headers)
+    print(Config.BASE_PATH)
+    current_path = Path.cwd()
+    print(current_path)
+
+    # Get the directory of the current script
+    script_path = Path(__file__).resolve().parent
+    print(script_path)
     return "Welcome to segmentation backend"
 
 
@@ -325,4 +324,5 @@ async def save_tumour_position(save_position: model.TumourPosition):
 
 
 if __name__ == '__main__':
-    uvicorn.run(app)
+    # uvicorn.run(app)
+    uvicorn.run(app, port=5566)

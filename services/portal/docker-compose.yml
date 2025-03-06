@@ -5,15 +5,15 @@ services:
       context: ./backend
       dockerfile: backend_compose_dockerfile
     ports:
-      - "8000:8000"
+      - "5566:5566"
     # volumes:
     #   - ~/desktop/docker/import_nrrd:/segmentation_gui_backend/import_nrrd
     #   - ~/desktop/docker/export_data:/segmentation_gui_backend/export_data
     # used for encrypt drive 
-    volumes:
-      - type: bind
-        source: I:\workdir
-        target: /tumour_gui_backend/workdir
+    # volumes:
+    #   - type: bind
+    #     source: I:\workdir
+    #     target: /tumour_gui_backend/workdir
   frontend:
     build:
       context: ./frontend

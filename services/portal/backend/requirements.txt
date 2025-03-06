@@ -9,3 +9,6 @@ python-dotenv
 pynrrd
 nibabel
 scikit-image
+psycopg2
+requests
+python-irodsclient
