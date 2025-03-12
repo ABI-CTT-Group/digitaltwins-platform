@@ -1,9 +1,10 @@
 import axios, { type AxiosRequestConfig } from "axios";
 import { IRequests } from "@/models/apiTypes";
 
-const Base_URL = `http://127.0.0.1:5566/api`;
+// const Base_URL = `http://127.0.0.1:5566/api`;
 // const Base_URL = `http://130.216.217.68:5566/api`;
-// const Base_URL = `http://130.216.208.137:5566/api`;
+// for demo
+const Base_URL = `http://130.216.208.137:5566/api`;
 
 const maxRetries = 3;
 const retryDelay = 1000;
