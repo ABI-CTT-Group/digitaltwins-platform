@@ -15,7 +15,7 @@
             class="position-fixed custom-switch">
             <v-switch
                 v-model="pageSwitchModel"
-                :label="`${pageSwitchModel?'Clinician View':'Researcher View'}`"
+                :label="`Switch to ${pageSwitchModel?'Researcher View':'Clinician View'}`"
                 hide-details
                 inset
                 @update:model-value="(val)=>handleSwitchModel(val)"
