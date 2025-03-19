@@ -18,7 +18,7 @@
                 :label="`Switch to ${pageSwitchModel?'Researcher View':'Clinician View'}`"
                 hide-details
                 inset
-                @update:model-value="(val)=>handleSwitchModel(val)"
+                @update:model-value="(val:boolean|null)=>handleSwitchModel(val)"
             ></v-switch>
         </div>
         <v-card v-if="currentCategory !== 'Programmes' && currentCategory !== ''" class="position-fixed intro d-flex flex-column overflow-y-auto justify-space-around pa-5" color="transparent">
@@ -225,15 +225,6 @@ const handleAssayEditClicked = async (seek_id:string, name:string) => {
 const handleAssaySave = async () => {
     currentAssayDetails.value!.isAssayReadyToLaunch = true;
     setAllAssayDetailsOfStudy(currentAssayDetails.value!.seekId, currentAssayDetails.value!);
-    // const blob = new Blob([JSON.stringify(currentAssayDetails.value, null, 2)], { type: "application/json" });
-    // const link = document.createElement("a");
-    // link.href = URL.createObjectURL(blob);
-    // link.download = "data.json";
-    // document.body.appendChild(link);
-    // link.click();
-    // document.body.removeChild(link);
-
-    
     await saveAssayDetails(currentAssayDetails.value!);
 }
 
@@ -248,7 +239,7 @@ const handleAssayLaunchClicked = async (seek_id:string) => {
         setAssayExecute(seek_id, "Monitor", res.data);
     }else if (res.type === "gui"){
         if (!!res.data){
-            router.push({name: res.data});
+            router.push({name: res.data, query: { assayId: seek_id }});
         }
     }
 }
@@ -262,24 +253,6 @@ const handleExploreClicked = async (seek_id:string, name:string, category:string
 
     setBreadCrumbsCategory(category);
 
-    // const data = filterData.find(item => (item as ICategoryNode).category === category && (item as ICategoryNode).name === name);
-    // if (category === "SOP"){
-    //     showBasicCard.value = false;
-    //     currentCategory.value = (data as ICategoryNode)!.name;
-    //     breadCrumbsItems.value.push({ title: currentCategory.value, disabled: false });
-    //     studyCardItems.value = (data as ICategoryNode)!.children as IStudiesNode[];
-    //     if(currentCategory.value === "Tumour Position Study") {
-    //         const completeTask = studyDetails.value?.details.filter(detail=> detail.report.complete === true);
-    //         const assistedCompleteTask = studyDetails.value?.details.filter(detail => detail.report.assisted === true);
-    //         const assistedTaskCount = studyDetails.value?.details.filter(detail => detail.report.complete === true);
-    //         const tumourCenterConpleteTasks = studyDetails.value?.details?.filter(detail => detail.tumour_window.validate === true);
-    //         studyCardItems.value[0].studies[0].subTitle = `Completed Cases: ${completeTask!.length} / ${studyDetails.value?.details.length}`;
-    //         studyCardItems.value[0].studies[1].subTitle = `Completed Cases: ${tumourCenterConpleteTasks!.length} / ${studyDetails.value?.details.length}`;
-    //         studyCardItems.value[1].studies[0].subTitle = `Completed Cases: ${assistedCompleteTask!.length} / ${assistedTaskCount!.length}`;
-    //     }
-    //     return
-    // }
-    // currentCategory.value = ((data as ICategoryNode)!.children[0]  as ICategoryNode).category;
     const index = breadCrumbs.findIndex(item => item === category);
     setCurrentCategory(breadCrumbs[index+1]);
     breadCrumbsItems.value.push({ title: currentCategory.value, disabled: false });

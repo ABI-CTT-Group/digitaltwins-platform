@@ -299,3 +299,8 @@ export interface IAssayDataset {
   uuid: string;
   name: string;
 }
+
+export interface IClinicalReportViewerDetail{
+  uuid: string;
+  date: string;
+}
