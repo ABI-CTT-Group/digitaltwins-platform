@@ -91,7 +91,8 @@ onMounted(async () => {
 const renderPDF = async (pdfPath:string) => {
       // const pdfUrl = 'https://pdftron.s3.amazonaws.com/downloads/pl/demo-annotated.pdf';
       const pdfUrl = pdfPath;
-      pdfjsLib.GlobalWorkerOptions.workerSrc = '../../../node_modules/pdfjs-dist/build/pdf.worker.mjs';
+      // pdfjsLib.GlobalWorkerOptions.workerSrc = '../../../node_modules/pdfjs-dist/build/pdf.worker.mjs';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.mjs';
       const loadingTask = pdfjsLib.getDocument(pdfUrl);
       const pdfDocument = await loadingTask.promise;
 
