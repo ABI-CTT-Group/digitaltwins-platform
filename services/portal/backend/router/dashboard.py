@@ -3,19 +3,13 @@ from data import assays_data, launch_workflow
 from models import model
 import json
 from pathlib import Path
-from digitaltwins import Querier, Uploader, Workflow
 # from sparc_me import Dataset, Sample, Subject
-from utils import Config
+from utils import Config, digitaltwins_configs
 import shutil
 import pprint
 
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent.parent
-config_path = root_dir / "configs.ini"
-querier = Querier(config_path)
-uploader = Uploader(config_path)
-workflow_dtp_executor = Workflow(config_path)
-# dataset = Dataset()
 
 router = APIRouter()
 
@@ -34,10 +28,10 @@ def set_data_root_path():
 @router.get("/api/dashboard/programmes")
 async def get_dashboard_programmes():
     set_data_root_path()
-    programs = querier.get_programs()
+    programs = digitaltwins_configs.querier.get_programs()
     programmes = []
     for data in programs:
-        program = querier.get_program(data.get("id"))
+        program = digitaltwins_configs.querier.get_program(data.get("id"))
         category = program.get("type", None)
         temp = {
             "seekId": program.get("id", None),
@@ -57,29 +51,29 @@ async def get_dashboard_category_children_by_uuid(seek_id: str = Query(None), ca
     if category == "assays":
         return None
     if category == "programmes":
-        program = querier.get_program(program_id=seek_id)
-        dependencies = querier.get_dependencies(program, "projects")
+        program = digitaltwins_configs.querier.get_program(program_id=seek_id)
+        dependencies = digitaltwins_configs.querier.get_dependencies(program, "projects")
     elif category == "projects":
-        project = querier.get_project(project_id=seek_id)
-        dependencies = querier.get_dependencies(project, "investigations")
+        project = digitaltwins_configs.querier.get_project(project_id=seek_id)
+        dependencies = digitaltwins_configs.querier.get_dependencies(project, "investigations")
     elif category == "investigations":
-        investigation = querier.get_investigation(investigation_id=seek_id)
-        dependencies = querier.get_dependencies(investigation, "studies")
+        investigation = digitaltwins_configs.querier.get_investigation(investigation_id=seek_id)
+        dependencies = digitaltwins_configs.querier.get_dependencies(investigation, "studies")
     elif category == "studies":
-        study = querier.get_study(study_id=seek_id)
-        dependencies = querier.get_dependencies(study, "assays")
+        study = digitaltwins_configs.querier.get_study(study_id=seek_id)
+        dependencies = digitaltwins_configs.querier.get_dependencies(study, "assays")
     else:
         return None
     children = []
     for data in dependencies:
         if data.get("type") == "projects":
-            child = querier.get_project(project_id=data.get("id"))
+            child = digitaltwins_configs.querier.get_project(project_id=data.get("id"))
         elif data.get("type") == "investigations":
-            child = querier.get_investigation(investigation_id=data.get("id"))
+            child = digitaltwins_configs.querier.get_investigation(investigation_id=data.get("id"))
         elif data.get("type") == "studies":
-            child = querier.get_study(study_id=data.get("id"))
+            child = digitaltwins_configs.querier.get_study(study_id=data.get("id"))
         elif data.get("type") == "assays":
-            child = querier.get_assay(assay_id=data.get("id"))
+            child = digitaltwins_configs.querier.get_assay(assay_id=data.get("id"))
         else:
             return None
         send_category = child.get("type", None)
@@ -95,7 +89,7 @@ async def get_dashboard_category_children_by_uuid(seek_id: str = Query(None), ca
 
 @router.get("/api/dashboard/workflows")
 async def get_dashboard_workflows():
-    sops = querier.get_sops()
+    sops = digitaltwins_configs.querier.get_sops()
     workflows = []
     for data in sops:
         title = data['attributes']['title']
@@ -120,7 +114,7 @@ async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
     if seek_id is None:
         return None
     try:
-        data = querier.get_sop(sop_id=seek_id)
+        data = digitaltwins_configs.querier.get_sop(sop_id=seek_id)
         title = data['attributes']['title']
         if not title:
             name = None
@@ -144,7 +138,7 @@ async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
 async def get_dashboard_datasets(category: str = Query(None)):
     if category is None:
         return None
-    dtp_datasets = querier.get_datasets(categories=[category])
+    dtp_datasets = digitaltwins_configs.querier.get_datasets(categories=[category])
     datasets = []
     for data in dtp_datasets:
         temp = {
@@ -159,13 +153,12 @@ async def get_dashboard_datasets(category: str = Query(None)):
 async def get_dashboard_dataset_detail_by_uuid(uuid: str = Query(None)):
     if uuid is None:
         return None
-    sample_types = querier.get_dataset_sample_types(dataset_uuid=uuid)
+    sample_types = digitaltwins_configs.querier.get_dataset_sample_types(dataset_uuid=uuid)
     return sample_types
 
 
 @router.post("/api/dashboard/assay-details")
 async def set_dashboard_assay_details(details: model.AssayDetails):
-    pprint.pprint(details)
     assay_data = {
         "assay_uuid": details.uuid,
         "assay_seek_id": int(details.seekId),
@@ -185,14 +178,14 @@ async def set_dashboard_assay_details(details: model.AssayDetails):
              "sample_name": o.get("sampleName")} for o in details.workflow.outputs
         ]
     }
-    uploader.upload_assay(assay_data)
+    digitaltwins_configs.uploader.upload_assay(assay_data)
     return True
 
 
 @router.get("/api/dashboard/assay-details")
 async def get_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
     try:
-        assay_detail = querier.get_assay(seek_id, get_params=True)
+        assay_detail = digitaltwins_configs.querier.get_assay(seek_id, get_params=True)
         params = assay_detail.get("params", None)
         if params is None:
             return None
@@ -234,18 +227,19 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
         When user click launch in assay, what should we do?
     """
     # Step1: base on assay seek id to get the assay details.
-    assay_detail = querier.get_assay(seek_id, get_params=True)
-    pprint.pprint(assay_detail)
+    assay_detail = digitaltwins_configs.querier.get_assay(seek_id, get_params=True)
     # Step2: check the workflow type
     # Step2.1: cwl script based, return the airflow url
     # Step2.2: GUI based, execute Step 2
-    workflow = querier.get_sop(sop_id=assay_detail.get("params").get("workflow_seek_id"))
+    workflow = digitaltwins_configs.querier.get_sop(sop_id=assay_detail.get("params").get("workflow_seek_id"))
     workflow_name = workflow.get("attributes").get("title")
     print(workflow_name)
     workflow_type = workflow_name.split("-")[1].lstrip()
 
+    print("assay id", seek_id)
+
     if workflow_type != "GUI":
-        response, workflow_monitor_url = workflow_dtp_executor.run(assay_id=int(seek_id))
+        response, workflow_monitor_url = digitaltwins_configs.workflow_dtp_executor.run(assay_id=int(seek_id))
         print("response.status_code:" + str(response.status_code))
         print("Monitoring workflow on: " + workflow_monitor_url)
         return {
@@ -271,7 +265,6 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
         # #     return None
         # # details = json.loads(details)
         # # return launch_workflow.get(details["workflow"]["uuid"], None)
-        print()
         if workflow_name == "Tumour position selection - GUI":
             return {
                 "type": "gui",
@@ -286,6 +279,11 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
             return {
                 "type": "gui",
                 "data": "TumourAssistedStudy"
+            }
+        if workflow_name == "Clinical report visualisation - GUI":
+            return {
+                "type": "gui",
+                "data": "ClinicalReportViewer"
             }
     return None
 

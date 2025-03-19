@@ -12,6 +12,7 @@ import ManuallyTumourCenter from "@/views/tumour-center-manually/MainPage.vue";
 import ManuallyTumourAssisted from "@/views/tumour-assisted-manually/MainPage.vue";
 import SegmentationLayout from "@/layouts/segmentation-layout/Default.vue";
 import CalculationLayout from "@/layouts/calculation-layout/Default.vue";
+import ClinicalReportViewer from "@/views/clinical-report-viewer/index.vue";
 
 const routes = [
   {
@@ -71,6 +72,11 @@ const routes = [
       },
     ],
   },
+  {
+    path: "/clinical-report-viewer",
+    name: "ClinicalReportViewer",
+    component: ClinicalReportViewer,
+  }
 ];
 
 

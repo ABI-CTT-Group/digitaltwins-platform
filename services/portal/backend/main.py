@@ -11,13 +11,14 @@ from models import model
 from task import task_oi
 from pathlib import Path
 import io
-from router import tumour_position, dashboard
+from router import tumour_position, dashboard, clinical_report_viewer
 from utils import Config
 
 app = FastAPI()
 
 app.include_router(tumour_position.router)
 app.include_router(dashboard.router)
+app.include_router(clinical_report_viewer.router)
 
 expose_headers = ["x-volume", "x-file-name", "Content-Disposition"]
 
