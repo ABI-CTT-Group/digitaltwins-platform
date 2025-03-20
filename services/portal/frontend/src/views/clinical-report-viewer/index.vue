@@ -77,15 +77,11 @@ const assays = ref([
 
 onMounted(async () => {
   const route = useRoute(); 
-  console.log(route);
   const details = await useClinicalReportViewerDetails(route.query.assayId as string);
-  console.log(details);
   details.map((item:IClinicalReportViewerDetail, idx: number) => {
     assays.value[idx].id = item.uuid;
     assays.value[idx].date = item.date;
-  });
-
-    
+  });  
 });
 
 const renderPDF = async (pdfPath:string) => {
