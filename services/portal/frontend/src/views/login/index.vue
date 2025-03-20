@@ -4,7 +4,7 @@
             <div class="mx-5 my-10">
                 <h1 class="text-h2 font-weight-bold text-grey-lighten-3 py-3">Study Portal</h1>
             </div>
-            <div class="mx-auto rounded w-66" max-width="600">
+            <div class="mx-auto rounded w-66 form-login">
                 <v-form validate-on="submit lazy" @submit.prevent="submit">
                     <v-text-field
                         v-model="userName"
@@ -134,5 +134,7 @@ const checkApi = async (validatingStr: string, type: string): Promise<any> => {
 </script>
 
 <style scoped>
-
+.form-login{
+    min-width: 30rem;
+}
 </style>
