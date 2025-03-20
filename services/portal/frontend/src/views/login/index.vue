@@ -2,7 +2,7 @@
     <div class="fill-height d-flex flex-column justify-center align-center">
         <div class="h-70">
             <div class="mx-5 my-10">
-                <h1 class="text-h2 font-weight-bold text-grey-lighten-3 py-3">Clinical Study Portal</h1>
+                <h1 class="text-h2 font-weight-bold text-grey-lighten-3 py-3">Study Portal</h1>
             </div>
             <div class="mx-auto rounded w-66" max-width="600">
                 <v-form validate-on="submit lazy" @submit.prevent="submit">
