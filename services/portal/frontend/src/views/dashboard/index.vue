@@ -199,6 +199,8 @@ const handleBreadCrumbsClick = (res:PointerEvent) => {
     // currentCategory.value = clickedCrumb;
     setCurrentCategory(clickedCrumb);
     const data = exploredCard.value.find(item => item.category === clickedCrumb)?.data;
+    console.log(exploredCard.value);
+    
     if (!!data) {
         setCurrentCategoryData(data);
     }else{
@@ -247,7 +249,11 @@ const handleAssayLaunchClicked = async (seek_id:string) => {
 const handleExploreClicked = async (seek_id:string, name:string, category:string, des:string) => {
     isSwitchClicked.value = false;
     const explored = exploredCard.value.find(item => item.category === category);
-    if (!explored) setExploredCard(category, currentCategoryData.value);
+    if (!explored){
+        setExploredCard(category, currentCategoryData.value)
+    }else{
+        explored.data = currentCategoryData.value;
+    }
     detailsRenderItems.value.categories.push({category: category, name: name, description: des});
     detailsRenderItems.value.description = des;
 
