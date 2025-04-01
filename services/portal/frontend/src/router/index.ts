@@ -13,6 +13,7 @@ import ManuallyTumourAssisted from "@/views/tumour-assisted-manually/MainPage.vu
 import SegmentationLayout from "@/layouts/segmentation-layout/Default.vue";
 import CalculationLayout from "@/layouts/calculation-layout/Default.vue";
 import ClinicalReportViewer from "@/views/clinical-report-viewer/index.vue";
+import StudyDashboard from "@/views/dashboard/study-dashboard.vue";
 
 const routes = [
   {
@@ -24,6 +25,11 @@ const routes = [
     path: "/dashboard",
     name: "Dashboard",
     component: Dashboard,
+  },
+  {
+    path: "/dashboard-study",
+    name: "StudyDashboard",
+    component: StudyDashboard,
   },
   {
     path: "/tumour-segmentation-manual",
