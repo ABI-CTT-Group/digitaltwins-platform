@@ -1,5 +1,5 @@
 <template>
-    <div class="container d-flex justify-space-around align-center h-screen">
+    <div class="container d-flex justify-space-around align-center h-screen px-10">
         <DashboardCard 
             :src="clinicalImage"
             :title="'Clinician Dashboard'"
@@ -38,9 +38,9 @@ const router = useRouter();
 const handleExploreClicked = (title: string) => {
    
     if(title === 'Study Dashboard') {
-        router.push({name:'StudyDashboard'});
+        router.push({name:'StudyDashboard', params: { dashboardType: 'study' }});
     } else if(title === 'Clinician Dashboard') {
-        console.log(`Explore clicked: ${title}`);
+        router.push({name:'StudyDashboard', params: { dashboardType: 'clinician' }});
     }else if(title === 'Catalogue') {
         window.open("http://130.216.217.147:3000/", '_blank');
     } else {

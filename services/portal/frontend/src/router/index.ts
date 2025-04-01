@@ -27,9 +27,10 @@ const routes = [
     component: Dashboard,
   },
   {
-    path: "/dashboard-study",
+    path: "/dashboard-study:dashboardType",
     name: "StudyDashboard",
     component: StudyDashboard,
+    // props: (route:any) => ({ dashboardType: route.params.dashboardType })
   },
   {
     path: "/tumour-segmentation-manual",
