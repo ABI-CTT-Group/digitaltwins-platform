@@ -1,17 +1,24 @@
 <template>
-    <div class="container d-flex justify-space-between align-center h-screen">
-        <DashboardCard 
-            :src="studyImage" 
-            :title="'Study Dashboard'"
-            location="Auckland Bioengineering Institute"
-            description="The Study Dashboard enables researchers to edit assays, configure parameters, and launch workflows efficiently, ensuring accuracy, reproducibility, and streamlined research."
-            @on-explore="handleExploreClicked"
-            />
+    <div class="container d-flex justify-space-around align-center h-screen">
         <DashboardCard 
             :src="clinicalImage"
             :title="'Clinician Dashboard'"
+            location="Te Whatu Ora AI Lab"
+            description="Enables clinicians to run AI/digital twin driven workflows and generate clinical reports."
+            @on-explore="handleExploreClicked"
+            />
+        <DashboardCard 
+            :src="studyImage" 
+            :title="'Study Dashboard'"
+            location="Te Whatu Ora AI Lab"
+            description="Enables clinicians to collaborate with researchers to assess efficacy of AI/digital twin driven workflows."
+            @on-explore="handleExploreClicked"
+            />
+        <DashboardCard 
+            :src="catelogueImage" 
+            :title="'Catalogue'"
             location="Auckland Bioengineering Institute"
-            description="The Clinician Dashboard enables clinicians to view patient data, access clinical reports, and manage patient records efficiently, ensuring accuracy, reproducibility, and streamlined healthcare."
+            description="Enables clinicians to see what AI/digital twin driven workflows and medical devices are available or being developed in research programmes."
             @on-explore="handleExploreClicked"
             />
         
@@ -21,7 +28,8 @@
 <script setup lang="ts">
 import DashboardCard from './components/DashboardCard.vue';
 import clinicalImage from '@/assets/dashboard/clinical-01.jpg';
-import studyImage from '@/assets/dashboard/study-01.jpg';
+import studyImage from '@/assets/dashboard/study.jpg';
+import catelogueImage from '@/assets/dashboard/catalogue.jpg';
 import { useRouter, useRoute } from 'vue-router';
 
 
@@ -31,8 +39,12 @@ const handleExploreClicked = (title: string) => {
    
     if(title === 'Study Dashboard') {
         router.push({name:'StudyDashboard'});
-    } else {
+    } else if(title === 'Clinician Dashboard') {
         console.log(`Explore clicked: ${title}`);
+    }else if(title === 'Catalogue') {
+        window.open("http://130.216.217.147:3000/", '_blank');
+    } else {
+        console.log(`Unknown title: ${title}`);
     }
 }
 </script>

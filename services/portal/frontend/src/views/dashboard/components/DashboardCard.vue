@@ -2,9 +2,11 @@
     <v-card
         :disabled="loading"
         :loading="loading"
-        class="mx-auto my-12"
-        max-width="450"
-        :color="'grey-lighten-2'"
+        class="mx-2 my-12 "
+        max-width="400"
+        min-width="350"
+        min-height="500"
+        :color="'grey-lighten-3'"
         :variant="'flat'"
     >
         <template v-slot:loader="{ isActive }">
@@ -37,7 +39,7 @@
         </v-card-subtitle>
         </v-card-item>
 
-        <v-card-text>
+        <v-card-text class="text-area">
             <div>{{ description }}</div>
         </v-card-text>
 
@@ -58,13 +60,13 @@
         </div> -->
 
         <v-card-actions>
-        <v-btn
-            color="deep-purple-lighten-2"
-            text="Explore"
-            block
-            border
-            @click="explore"
-        ></v-btn>
+            <v-btn
+                color="deep-purple-lighten-2"
+                text="Explore"
+                block
+                border
+                @click="explore"
+            ></v-btn>
         </v-card-actions>
     </v-card>
 </template>
@@ -92,4 +94,7 @@ function explore () {
 </script>
 
 <style scoped>
+.text-area{
+    height: 100px;
+}
 </style>
