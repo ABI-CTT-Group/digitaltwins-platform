@@ -38,9 +38,9 @@ const router = useRouter();
 const handleExploreClicked = (title: string) => {
    
     if(title === 'Study Dashboard') {
-        router.push({name:'StudyDashboard', params: { dashboardType: 'study' }});
+        router.push({name:'Dashboard', params: { dashboardType: 'study' }});
     } else if(title === 'Clinician Dashboard') {
-        router.push({name:'StudyDashboard', params: { dashboardType: 'clinician' }});
+        router.push({name:'Dashboard', params: { dashboardType: 'clinician' }});
     }else if(title === 'Catalogue') {
         window.open("http://130.216.217.147:3000/", '_blank');
     } else {

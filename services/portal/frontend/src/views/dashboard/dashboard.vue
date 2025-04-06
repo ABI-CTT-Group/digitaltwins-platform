@@ -1,6 +1,6 @@
 <template>
     <div class="w-screen h-screen gradients d-flex flex-column align-center">
-        <h1 class="text-center py-4 text-grey-lighten-2">Study Dashboard</h1>
+        <h1 class="text-center py-4 text-grey-lighten-2">{{title}} Dashboard</h1>
         <v-divider :thickness="3" class="w-100"></v-divider>
         <div class="position-fixed breadcrumbs d-flex justify-start align-center w-75">
             <v-breadcrumbs
@@ -142,11 +142,12 @@ import StudyCard from './components/StudyCard.vue';
 import BasicCard from './components/BasicCard.vue';
 import Dialog from '@/components/commonBar/Dialog.vue';
 import AssayContent from './components/AssayContent.vue';
-import { is } from '@babel/types';
 
 
 const router = useRouter();
 const route = useRoute();
+
+const title = route.params.dashboardType === "study" ? "Study" : "Clinician";
 const { user } = useUser();
 const { studyDetails } = storeToRefs(useTumourStudyDetailsStore());
 const { getTumourStudyDetails } = useTumourStudyDetailsStore();
@@ -325,6 +326,7 @@ const isShowArrow = computed(() => {
 // }
 
 onMounted(async () => {
+
     if (!user.value) router.push({name: 'Login'});
     if (!!studyDetails.value === false) await getTumourStudyDetails();
 

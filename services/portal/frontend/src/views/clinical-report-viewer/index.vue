@@ -34,7 +34,10 @@
                 </template>
                 <template v-slot:item.actions="{ item }">
                     <div class="d-flex ga-2 justify-center">
-                        <v-btn variant="tonal" @click="handleViewPDFClicked(item)">
+                        <v-btn variant="tonal" color="cyan"  @click="handleVisaulisationlicked(item)">
+                            Visaulisation
+                        </v-btn>
+                        <v-btn variant="tonal" color="teal" @click="handleViewPDFClicked(item)">
                             View PDF
                         </v-btn>
                     </div>
@@ -56,9 +59,12 @@
 <script setup lang="ts">
 import { ref, onMounted} from 'vue';
 import * as pdfjsLib from "pdfjs-dist";
-import { useRoute } from 'vue-router';
 import { useClinicalReportViewerDetails } from "@/plugins/clinical_report_viewer_api";
 import { IClinicalReportViewerDetail } from "@/models/apiTypes";
+import { useRouter, useRoute } from 'vue-router';
+
+const router = useRouter();
+const route = useRoute();
 
 const dialog = ref(false);
 const divCanvasContainer = ref<HTMLDivElement>();
@@ -76,7 +82,6 @@ const assays = ref([
 ])
 
 onMounted(async () => {
-  const route = useRoute(); 
   const details = await useClinicalReportViewerDetails(route.query.assayId as string);
   details.map((item:IClinicalReportViewerDetail, idx: number) => {
     assays.value[idx].id = item.uuid;
@@ -173,6 +178,12 @@ const handleDialogCancel = () => {
     console.log('View PDF clicked', item)
     dialog.value = true
     await renderPDF(item.pdf);
+  }
+
+  function handleVisaulisationlicked(item:any) {
+    console.log('Visaulisation clicked', item.id)
+    console.log('Visaulisation clicked', route.query.assayId)
+    router.push({name: "TumourCalaulationStudy", query: { assayId:route.query.assayId, patientId: item.id }});
   }
 </script>
 
