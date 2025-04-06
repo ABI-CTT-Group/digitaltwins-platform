@@ -1,7 +1,7 @@
 <template>
     <div class="container w-screen h-screen d-flex flex-column align-center">
         <div class="d-flex flex-column w-100 ma-5">
-            <h1 class="mx-auto">Clinical Report Viewer</h1>
+            <h1 class="mx-auto">Clinician Dashboard</h1>
 
             <v-divider></v-divider>
         </div>
@@ -183,7 +183,7 @@ const handleDialogCancel = () => {
   function handleVisaulisationlicked(item:any) {
     console.log('Visaulisation clicked', item.id)
     console.log('Visaulisation clicked', route.query.assayId)
-    router.push({name: "TumourCalaulationStudy", query: { assayId:route.query.assayId, patientId: item.id }});
+    router.push({name: "TumourAssistedStudy", query: { assayId:route.query.assayId, patientId: item.id }});
   }
 </script>
 
