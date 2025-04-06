@@ -17,7 +17,7 @@
             indeterminate
         ></v-progress-linear>
         </template>
-
+        
         <v-img
             height="250"
             :src="src"

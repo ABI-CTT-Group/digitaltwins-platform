@@ -72,11 +72,11 @@ const submit = async (event:any) => {
         if (results.valid === true){
             switch (userName.value) {
                 case "admin":
-                    router.push({name: 'Dashboard'})
+                    router.push({name: 'Home'})
                     break;
                 default:
 
-                    router.push({name: 'Dashboard'})
+                    router.push({name: 'Home'})
                     break;
             }
             setUser(userName.value, role.value);

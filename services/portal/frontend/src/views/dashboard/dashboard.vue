@@ -1,6 +1,6 @@
 <template>
     <div class="w-screen h-screen gradients d-flex flex-column align-center">
-        <h1 class="text-center py-4 text-grey-lighten-2">Study Dashboard</h1>
+        <h1 class="text-center py-4 text-grey-lighten-2">{{title}} Dashboard</h1>
         <v-divider :thickness="3" class="w-100"></v-divider>
         <div class="position-fixed breadcrumbs d-flex justify-start align-center w-75">
             <v-breadcrumbs
@@ -10,7 +10,7 @@
                 @click="handleBreadCrumbsClick"
             ></v-breadcrumbs>
         </div>
-        <div 
+        <!-- <div 
             v-show="currentCategory === 'Assays'"
             class="position-fixed custom-switch">
             <v-switch
@@ -20,7 +20,7 @@
                 inset
                 @update:model-value="(val:boolean|null)=>handleSwitchModel(val)"
             ></v-switch>
-        </div>
+        </div> -->
         <v-card v-if="currentCategory !== 'Programmes' && currentCategory !== ''" class="position-fixed intro d-flex flex-column overflow-y-auto justify-space-around pa-5" color="transparent">
             <v-card-text>
                 <div v-for="c in detailsRenderItems.categories" :key="c.name" class="text-grey-lighten-3 my-2">
@@ -59,7 +59,7 @@
                         ></v-btn>
                         <Dialog
 
-                            :showDialog="data.category === 'Assays' && !pageSwitchModel"
+                            :showDialog="data.category === 'Assays' && !isClinicianView"
                             :min="1200"
                             btnText="Edit"
                             btnColor = "deep-orange"
@@ -144,9 +144,10 @@ import Dialog from '@/components/commonBar/Dialog.vue';
 import AssayContent from './components/AssayContent.vue';
 
 
-
 const router = useRouter();
 const route = useRoute();
+
+const title = route.params.dashboardType === "study" ? "Study" : "Clinician";
 const { user } = useUser();
 const { studyDetails } = storeToRefs(useTumourStudyDetailsStore());
 const { getTumourStudyDetails } = useTumourStudyDetailsStore();
@@ -166,7 +167,7 @@ const {
     assayExecute, 
     allAssayDetailsOfStudy, 
     currentAssayDetails,
-    switchModel
+    isClinicianView
  } = storeToRefs(useDashboardPageStore());
 const {
     setCurrentCategory, 
@@ -178,28 +179,26 @@ const {
     setAssayExecute,
     setAllAssayDetailsOfStudy, 
     setCurrentAssayDetails,
-    setSwitchModel
+    setClinicianView
 } = useDashboardPageStore();
 
 const showBasicCard = ref(true);
 const studyCardItems = ref<IStudiesNode[]>([]);
 
 const breadCrumbs = ["Programmes", "Projects", "Investigations", "Studies", "Assays"];
-const pageSwitchModel = ref(switchModel.value);
-const isSwitchClicked = ref(false);
+// const isSwitchClicked = ref(false);
 
 
 const handleBreadCrumbsClick = (res:PointerEvent) => {
     showBasicCard.value = true;
     const clickedCrumb = (res.target as HTMLElement).innerText;
 
-    if (clickedCrumb === "Assays" || clickedCrumb === "/" || clickedCrumb === currentCategory.value) {
+    if (clickedCrumb === "Assays" || clickedCrumb.includes("/") || clickedCrumb === currentCategory.value) {
         return
     }
     // currentCategory.value = clickedCrumb;
     setCurrentCategory(clickedCrumb);
     const data = exploredCard.value.find(item => item.category === clickedCrumb)?.data;
-    console.log(exploredCard.value);
     
     if (!!data) {
         setCurrentCategoryData(data);
@@ -247,7 +246,6 @@ const handleAssayLaunchClicked = async (seek_id:string) => {
 }
 
 const handleExploreClicked = async (seek_id:string, name:string, category:string, des:string) => {
-    isSwitchClicked.value = false;
     const explored = exploredCard.value.find(item => item.category === category);
     if (!explored){
         setExploredCard(category, currentCategoryData.value)
@@ -268,7 +266,6 @@ const handleExploreClicked = async (seek_id:string, name:string, category:string
 }
 
 watch(()=>currentCategoryData.value, (newVal)=>{
-    if(isSwitchClicked.value) return;
     if(newVal[0].category === "Assays"){
         assayExecute.value = {};
         allAssayDetailsOfStudy.value = {};
@@ -308,33 +305,72 @@ const isShowArrow = computed(() => {
     return renderItems.value.length > 1 ? true : false;
 });
 
-const handleSwitchModel = (val:boolean|null) => {
-    console.log(val);
+// const handleSwitchModel = (val:boolean|null) => {
+//     console.log(val);
     
-    setSwitchModel(val as boolean);
-    isSwitchClicked.value = true;
-    if (val){
-        let i = 0;
-        const a:any[] = [];
-        currentCategoryData.value.map(item => {
-            if (val && i>2){
-                a.push(item);
-            }
-            i +=1;
-        })
-        currentCategoryData.value = a;
-    }else{
-        setCurrentCategoryData(dashboardCategoryChildren.value!);
-    }
-   
-}
+//     setSwitchModel(val as boolean);
+//     isSwitchClicked.value = true;
+//     if (val){
+//         let i = 0;
+//         const a:any[] = [];
+//         currentCategoryData.value.map(item => {
+//             if (val && i>2){
+//                 a.push(item);
+//             }
+//             i +=1;
+//         })
+//         currentCategoryData.value = a;
+//     }else{
+//         setCurrentCategoryData(dashboardCategoryChildren.value!);
+//     }
+// }
 
 onMounted(async () => {
+
     if (!user.value) router.push({name: 'Login'});
     if (!!studyDetails.value === false) await getTumourStudyDetails();
-    await getDashboardProgrammes();
-    if (currentCategoryData.value.length === 0)
-        currentCategoryData.value = dashboardProgrammes.value!;
+
+    const flag = isClinicianView.value;
+
+    if (route.params.dashboardType === "study"){
+        setClinicianView(false);
+    }else if (route.params.dashboardType === "clinician"){
+        setClinicianView(true);
+    }
+
+
+    if (currentCategoryData.value.length === 0 || flag !== isClinicianView.value){
+        currentCategoryData.value.length = 0;
+        breadCrumbsItems.value = [
+            { title: 'Programmes', disabled: false },
+        ];
+        setCurrentCategory("Programmes");
+        exploredCard.value = [];
+        detailsRenderItems.value = {
+            categories: [],
+            description: ""
+        };
+        await getDashboardProgrammes();
+        currentCategoryData.value = dashboardProgrammes.value!.filter((item:IDashboardCategory) => {
+            if (isClinicianView.value === false){
+
+                // if (item.name === "12 LABOURS"){
+                //     return item;
+                // }
+                return item;
+            }else if (isClinicianView.value === true){
+                if (item.name === "Auckland hospital"){
+                    return item;
+                }
+            }
+        });
+    }
+
+   
+    // if (currentCategoryData.value.length === 0){
+    //     currentCategoryData.value = dashboardProgrammes.value!;
+    // }
+        
 })
 
 const handleStudyCardEnterClicked = (study: IStudy) => {

@@ -5,7 +5,7 @@ import {
   createWebHashHistory,
 } from "vue-router";
 import Login from "@/views/index.vue";
-import Dashboard from "@/views/dashboard/index.vue";
+import Home from "@/views/dashboard/index.vue";
 import ManuallyTumourSegmentation from "@/views/tumour-segmentation-manually/MainPage.vue";
 import ManuallyTumourCalculation from "@/views/tumour-distance-calculation/MainPage.vue";
 import ManuallyTumourCenter from "@/views/tumour-center-manually/MainPage.vue";
@@ -13,7 +13,7 @@ import ManuallyTumourAssisted from "@/views/tumour-assisted-manually/MainPage.vu
 import SegmentationLayout from "@/layouts/segmentation-layout/Default.vue";
 import CalculationLayout from "@/layouts/calculation-layout/Default.vue";
 import ClinicalReportViewer from "@/views/clinical-report-viewer/index.vue";
-import StudyDashboard from "@/views/dashboard/study-dashboard.vue";
+import Dashboard from "@/views/dashboard/dashboard.vue";
 
 const routes = [
   {
@@ -22,14 +22,15 @@ const routes = [
     component: Login,
   },
   {
-    path: "/dashboard",
-    name: "Dashboard",
-    component: Dashboard,
+    path: "/home",
+    name: "Home",
+    component: Home,
   },
   {
-    path: "/dashboard-study",
-    name: "StudyDashboard",
-    component: StudyDashboard,
+    path: "/dashboard:dashboardType",
+    name: "Dashboard",
+    component: Dashboard,
+    // props: (route:any) => ({ dashboardType: route.params.dashboardType })
   },
   {
     path: "/tumour-segmentation-manual",
