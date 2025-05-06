@@ -242,6 +242,8 @@ const handleAssayLaunchClicked = async (seek_id:string) => {
         if (!!res.data){
             router.push({name: res.data, query: { assayId: seek_id }});
         }
+    }else if (res.type === "EP3 workflow launch"){
+        window.open(res.data, '_blank')
     }
 }
 

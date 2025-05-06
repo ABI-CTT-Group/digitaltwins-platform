@@ -285,6 +285,22 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
                 "type": "gui",
                 "data": "ClinicalReportViewer"
             }
+        # for EP3
+        if workflow_name == "Electrode selection - GUI":
+            return {
+                "type": "EP3 workflow launch",
+                "data": "http://bn363773:8888/lab/workspaces/auto-Q/tree/ep3/electrode_selection.ipynb?token=ctt_digitaltwins_0"
+            }
+        if workflow_name == "Quantification of frequency of electrical activity from electrode measurements - GUI":
+            return {
+                "type": "EP3 workflow launch",
+                "data": "http://bn363773:8888/lab/workspaces/auto-Q/tree/ep3/quantification_of_frequency_of_electrical_activity_from_electrode_measurements.ipynb?token=ctt_digitaltwins_0"
+            }
+        if workflow_name == "Statistical analysis of electrode measurements - GUI":
+            return {
+                "type": "EP3 workflow launch",
+                "data": "http://bn363773:8888/lab/workspaces/auto-Q/tree/ep3/statistical_analysis_of_electrode_measurements.ipynb?token=ctt_digitaltwins_0"
+            }
     return None
 
 
