@@ -34,7 +34,7 @@
                 </template>
                 <template v-slot:item.actions="{ item }">
                     <div class="d-flex ga-2 justify-center">
-                        <v-btn variant="tonal" color="cyan"  @click="handleVisualizationlicked(item)">
+                        <v-btn variant="tonal" color="cyan"  @click="handleVisualisationlicked(item)">
                             Visualisation
                         </v-btn>
                         <v-btn variant="tonal" color="teal" @click="handleViewPDFClicked(item)">
@@ -180,7 +180,7 @@ const handleDialogCancel = () => {
     await renderPDF(item.pdf);
   }
 
-  function handleVisualizationlicked(item:any) {
+  function handleVisualisationlicked(item:any) {
     console.log('Visualization clicked', item.id)
     console.log('Visualization clicked', route.query.assayId)
     router.push({name: "TumourAssistedStudy", query: { assayId:route.query.assayId, patientId: item.id }});

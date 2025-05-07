@@ -28,7 +28,7 @@ import * as Copper from "copper3d";
 import "copper3d/dist/css/style.css";
 import { GUI, GUIController } from "dat.gui";
 import { ref, onMounted, onUnmounted, onBeforeUnmount, watch, watchEffect } from "vue";
-import emitter from "@/plugins/custom-emitter";
+// import emitter from "@/plugins/custom-emitter";
 import loadingGif from "@/assets/loading.svg";
 import {
   getEraserUrlsForOffLine,
@@ -71,7 +71,7 @@ let firstLoad = true;
 // used to remove the nrrdTools.start function in scene preRenderCallbackFunction, when we unmount the component
 let coreRenderId = 0;
 
-const { currentCaseContrastUrls, currentCaseName } = defineProps({
+const { currentCaseContrastUrls, currentCaseName, emitter } = defineProps({
     showSliceIndex:{
         type: Boolean,
         default: true
@@ -99,6 +99,9 @@ const { currentCaseContrastUrls, currentCaseName } = defineProps({
     currentCaseName:{
         type: String,
         default: ""
+    },
+    emitter:{
+      type: Object,
     }
 });
 
@@ -306,7 +309,7 @@ watch(filesCount, ()=>{
       nrrdTools!.enableContrastDragEvents(getContrastMove)
 
       coreRenderId = scene?.addPreRenderCallbackFunction(nrrdTools!.start) as number;
-      emitter.emit("Core:NrrdTools", nrrdTools);
+      emitter!.emit("Core:NrrdTools", nrrdTools);
     } else {
       nrrdTools!.redrawMianPreOnDisplayCanvas();
     }

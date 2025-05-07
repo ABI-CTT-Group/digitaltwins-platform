@@ -10,6 +10,7 @@
     :show-bottom-nav-bar="true"
     :current-case-contrast-urls="currentCaseContrastUrls"
     :current-case-name="currentCaseName"
+    :emitter="emitter"
     @update:finished-copper-init="onFinishedCopperInit"
     @update:calculate-sphere-positions-data="getCalculateSpherePositionsData"
     @update:slice-number="getSliceNum"
