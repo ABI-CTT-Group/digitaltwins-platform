@@ -70,7 +70,7 @@ const submit = async (event:any) => {
         const results = await event
         loading.value = false
         if (results.valid === true){
-            switch (userName.value) {
+            switch (userName.value.toLowerCase()) {
                 case "admin":
                     router.push({name: 'Home'})
                     break;
@@ -90,7 +90,7 @@ const checkApi = async (validatingStr: string, type: string): Promise<any> => {
         timeout.value = setTimeout(() => {
             if (type === 'userName'){
                 if (!validatingStr) return resolve('Please enter a user name.')
-                if (validatingStr === publicData.user1.userName || validatingStr === publicData.admin.userName){
+                if (validatingStr.toLowerCase() === publicData.user1.userName || validatingStr.toLowerCase() === publicData.admin.userName){
                     isUser.value = true;
                     return resolve(true);
                 }else{
@@ -101,22 +101,22 @@ const checkApi = async (validatingStr: string, type: string): Promise<any> => {
                 if (!validatingStr) return resolve('Please enter a password.')
                 if (isUser.value){
               
-                    switch (userName.value) {
+                    switch (userName.value.toLowerCase()) {
                         case publicData.user1.userName:
-                            if (validatingStr === publicData.user1.password) {
+                            if (validatingStr.toLowerCase() === publicData.user1.password) {
                                 role.value = publicData.user1.role;
                                 return resolve(true)
                             }
                             break;
                         case publicData.user2.userName:
-                            if (validatingStr === publicData.user1.password) {
+                            if (validatingStr.toLowerCase() === publicData.user1.password) {
                                 role.value = publicData.user2.role;
                                 return resolve(true);
                             }
                             
                             break;
                         case publicData.admin.userName:
-                            if (validatingStr === publicData.admin.password) {
+                            if (validatingStr.toLowerCase() === publicData.admin.password) {
                                 role.value = publicData.admin.role;
                                 return resolve(true);
                             }
