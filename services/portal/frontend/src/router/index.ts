@@ -13,8 +13,9 @@ import ManuallyTumourAssisted from "@/views/tumour-assisted-manually/MainPage.vu
 import SegmentationLayout from "@/layouts/segmentation-layout/Default.vue";
 import CalculationLayout from "@/layouts/calculation-layout/Default.vue";
 import ClinicalReportViewer from "@/views/clinical-report-viewer/index.vue";
-import Dashboard from "@/views/dashboard/dashboard.vue";
-import TutorialDashboard from "@/views/dashboard/tutorial-dashboard.vue";
+import Dashboard from "@/views/dashboard/study-dashboard/index.vue";
+import TutorialDashboard from "@/views/dashboard/tutorial-dashboard/index.vue";
+import CatalogueDashboard from "@/views/dashboard/catalogue-dashboard/index.vue";
 
 const routes = [
   {
@@ -34,9 +35,14 @@ const routes = [
     // props: (route:any) => ({ dashboardType: route.params.dashboardType })
   },
   {
-    path: "/tutorials",
+    path: "/how-it-works",
     name: "TutorialDashboard",
     component:TutorialDashboard
+  },
+  {
+    path: "/catalogue-dashboard",
+    name: "CatalogueDashboard",
+    component:CatalogueDashboard
   },
   {
     path: "/tumour-segmentation-manual",
