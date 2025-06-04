@@ -240,6 +240,7 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
 
     if workflow_type != "GUI":
         response, workflow_monitor_url = digitaltwins_configs.workflow_dtp_executor.run(assay_id=int(seek_id))
+
         print("response.status_code:" + str(response.status_code))
         print("Monitoring workflow on: " + workflow_monitor_url)
         return {

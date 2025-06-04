@@ -190,11 +190,10 @@ const handleDialogCancel = () => {
 <style scoped>
 .container{
   background: #556270;  
-    background: -webkit-linear-gradient(to right, #FF6B6B, #556270);  
-    background: linear-gradient(to right, #FF6B6B, #556270); 
+  background: -webkit-linear-gradient(to right, #FF6B6B, #556270);  
+  background: linear-gradient(to right, #FF6B6B, #556270); 
 }
-.text-warp{
-    
+.text-warp{ 
   word-wrap: break-word;
   word-break: break-word;
 }
@@ -205,8 +204,5 @@ const handleDialogCancel = () => {
 .dialog{
   background-color: rgba(0, 0, 0, 0.5);
 }
-.test {
-  max-height: 100%;   /* 使其填充父元素 */
-  overflow-y: auto;   /* 超出时垂直方向滚动 */
-}
+
 </style>

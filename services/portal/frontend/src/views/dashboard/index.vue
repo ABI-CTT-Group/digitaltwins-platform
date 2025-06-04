@@ -1,26 +1,50 @@
 <template>
-    <div class="container d-flex justify-space-around align-center h-screen px-10">
-        <DashboardCard 
-            :src="clinicalImage"
-            :title="'Clinician Dashboard'"
-            location="Te Whatu Ora AI Lab"
-            description="Enables clinicians to run AI/digital twin driven workflows and generate clinical reports."
-            @on-explore="handleExploreClicked"
-            />
-        <DashboardCard 
-            :src="studyImage" 
-            :title="'Study Dashboard'"
-            location="Te Whatu Ora AI Lab"
-            description="Enables clinicians to collaborate with researchers to assess efficacy of AI/digital twin driven workflows."
-            @on-explore="handleExploreClicked"
-            />
-        <DashboardCard 
-            :src="catelogueImage" 
-            :title="'Catalogue'"
-            location="Auckland Bioengineering Institute"
-            description="Enables clinicians to see what AI/digital twin driven workflows and medical devices are available or being developed in research programmes."
-            @on-explore="handleExploreClicked"
-            />
+    <div class="container overflow-hidden">
+        <NavHome />
+        <div class="overflow-y-auto w-100 h-100 mt-10 sub-container">
+            <v-row>
+                <v-col
+                    cols="12"
+                    md="12"
+                    class="d-flex justify-space-around align-center"
+                >
+                    <DashboardCard 
+                        :src="tutorialImage" 
+                        :title="'How It Works'"
+                        location="Auckland Bioengineering Institute"
+                        description="Helps clinicians quickly learn how to use the app with a simple, guided overview designed to make getting started easy."
+                        @on-explore="handleExploreClicked"
+                        />    
+                    <DashboardCard 
+                        :src="clinicalImage"
+                        :title="'Clinician Dashboard'"
+                        location="Te Whatu Ora AI Lab"
+                        description="Enables clinicians to run AI/digital twin driven workflows and generate clinical reports."
+                        @on-explore="handleExploreClicked"
+                        />
+                </v-col> 
+                <v-col
+                    cols="12"
+                    md="12"
+                    class="d-flex justify-space-around align-center"
+                >
+                    <DashboardCard 
+                        :src="studyImage" 
+                        :title="'Study Dashboard'"
+                        location="Te Whatu Ora AI Lab"
+                        description="Enables clinicians to collaborate with researchers to assess efficacy of AI/digital twin driven workflows."
+                        @on-explore="handleExploreClicked"
+                        />
+                    <DashboardCard 
+                        :src="catelogueImage" 
+                        :title="'Catalogue'"
+                        location="Auckland Bioengineering Institute"
+                        description="Enables clinicians to see what AI/digital twin driven workflows and medical devices are available or being developed in research programmes."
+                        @on-explore="handleExploreClicked"
+                    />
+                </v-col>
+            </v-row>
+        </div>
         
     </div>
 </template>
@@ -30,6 +54,8 @@ import DashboardCard from './components/DashboardCard.vue';
 import clinicalImage from '@/assets/dashboard/clinical-01.jpg';
 import studyImage from '@/assets/dashboard/study.jpg';
 import catelogueImage from '@/assets/dashboard/catalogue.jpg';
+import tutorialImage from '@/assets/dashboard/study-01.jpg';
+import NavHome from './components/NavHome.vue';
 import { useRouter, useRoute } from 'vue-router';
 
 
@@ -43,7 +69,9 @@ const handleExploreClicked = (title: string) => {
         router.push({name:'Dashboard', params: { dashboardType: 'clinician' }});
     }else if(title === 'Catalogue') {
         window.open("http://130.216.217.147:3000/", '_blank');
-    } else {
+    }else if(title === "Tutorial"){
+        router.push({name:'TutorialDashboard'});
+    }else {
         console.log(`Unknown title: ${title}`);
     }
 }
@@ -51,6 +79,7 @@ const handleExploreClicked = (title: string) => {
 
 <style scoped>
 .container {
+    height: 100vh;
     position: relative;
     background-image: url("@/assets/login_bg.jpg"); 
     background-size: cover;
@@ -71,4 +100,6 @@ const handleExploreClicked = (title: string) => {
   -webkit-filter: blur(4px); 
   z-index: -1; 
 }
+
+
 </style>

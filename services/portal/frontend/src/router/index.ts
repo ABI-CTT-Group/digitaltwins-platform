@@ -14,6 +14,7 @@ import SegmentationLayout from "@/layouts/segmentation-layout/Default.vue";
 import CalculationLayout from "@/layouts/calculation-layout/Default.vue";
 import ClinicalReportViewer from "@/views/clinical-report-viewer/index.vue";
 import Dashboard from "@/views/dashboard/dashboard.vue";
+import TutorialDashboard from "@/views/dashboard/tutorial-dashboard.vue";
 
 const routes = [
   {
@@ -31,6 +32,11 @@ const routes = [
     name: "Dashboard",
     component: Dashboard,
     // props: (route:any) => ({ dashboardType: route.params.dashboardType })
+  },
+  {
+    path: "/tutorials",
+    name: "TutorialDashboard",
+    component:TutorialDashboard
   },
   {
     path: "/tumour-segmentation-manual",
