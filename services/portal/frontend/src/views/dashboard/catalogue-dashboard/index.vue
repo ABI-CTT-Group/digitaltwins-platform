@@ -21,10 +21,10 @@
                     md="6"
                 >
                     <SimpleInfoCard
-                        category="Workflow and Tools Catalogue"
-                        herf="http://130.216.217.147:3000/"
-                        title="Edit in Seek website"
-                        description="Programmes, Projects, Investigations, Studies, Assays, Measurements, Models"
+                        category="Catalogue dashboard"
+                        herf="Home"
+                        title="Edit in Catalogue dashboard"
+                        description="Workflows, Tools​"
                     />
                 </v-col>
             </v-row>

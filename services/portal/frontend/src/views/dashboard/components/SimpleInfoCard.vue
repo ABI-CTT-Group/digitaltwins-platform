@@ -30,6 +30,8 @@
 </template>
 
 <script setup lang="ts">
+import { useRouter, useRoute } from 'vue-router';
+const router = useRouter();
 
 const props = defineProps<{
     category:string,
@@ -42,7 +44,7 @@ const handleBtnClick = ()=>{
   if(props.herf.startsWith("http")){
     window.open(props.herf, '_blank');
   }else{
-
+    router.push({name:props.herf})
   } 
 }
 </script>
