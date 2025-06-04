@@ -4,7 +4,7 @@
             @click="handleHomeClick"
         >
             <v-icon
-                color="green-darken-2"
+                color="blue-darken-2"
                 icon="mdi-home-outline"
                 size="large"
             ></v-icon>
