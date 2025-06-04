@@ -1,15 +1,4 @@
 <template>
-     <!-- <v-card
-        append-icon="mdi-open-in-new"
-        class="container mx-auto"
-        :href="herf"
-        max-width="344"
-        prepend-icon="mdi-github"
-        rel="noopener"
-        subtitle="Check out the official repository"
-        target="_blank"
-        title="Vuetify on GitHub"
-    ></v-card> -->
     <v-card
         color="#bfdbfe"
         variant="outlined"
@@ -18,12 +7,12 @@
         <v-card-item>
           <div>
             <div class="text-overline mb-1">
-              Tutorial
+              {{ category }}
             </div>
             <div class="text-h6 mb-1 text-grey-lighten-3">
               {{ title }}
             </div>
-            <div class="text-caption text-grey-lighten-2">{{ description }}</div>
+            <div class="text-caption text-grey-lighten-2 container">{{ description }}</div>
           </div>
         </v-card-item>
 
@@ -43,18 +32,23 @@
 <script setup lang="ts">
 
 const props = defineProps<{
+    category:string,
     herf:string,
     title:string,
     description:string
 }>()
 
 const handleBtnClick = ()=>{
+  if(props.herf.startsWith("http")){
     window.open(props.herf, '_blank');
+  }else{
+
+  } 
 }
 </script>
 
 <style scoped>
 .container{
-    background-color: oklch(44.6% 0.043 257.281);
+    min-height: 4rem;
 }
 </style>

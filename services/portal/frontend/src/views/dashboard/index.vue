@@ -1,7 +1,7 @@
 <template>
-    <div class="container overflow-hidden">
+    <div class="container overflow-hidden d-flex justify-center">
         <NavHome />
-        <div class="overflow-y-auto w-100 h-100 mt-10 sub-container">
+        <div class="overflow-y-auto h-100 mt-10 sub-container">
             <v-row>
                 <v-col
                     cols="12"
@@ -68,8 +68,8 @@ const handleExploreClicked = (title: string) => {
     } else if(title === 'Clinician Dashboard') {
         router.push({name:'Dashboard', params: { dashboardType: 'clinician' }});
     }else if(title === 'Catalogue') {
-        window.open("http://130.216.217.147:3000/", '_blank');
-    }else if(title === "Tutorial"){
+        router.push({name:"CatalogueDashboard"})
+    }else if(title === "How It Works"){
         router.push({name:'TutorialDashboard'});
     }else {
         console.log(`Unknown title: ${title}`);
@@ -96,10 +96,12 @@ const handleExploreClicked = (title: string) => {
   width: 100%;
   height: 100%;
   background: inherit; 
-  filter: blur(4px); 
-  -webkit-filter: blur(4px); 
+  filter: blur(2px); 
+  -webkit-filter: blur(2px); 
   z-index: -1; 
 }
-
+.sub-container{
+    width: 80%;
+}
 
 </style>
