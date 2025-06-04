@@ -1,10 +1,8 @@
 <template>
     <div class="container w-screen h-screen d-flex flex-column align-center">
-        <div class="d-flex flex-column w-100 ma-5">
-            <h1 class="mx-auto">Clinician Dashboard</h1>
-
-            <v-divider></v-divider>
-        </div>
+        <nav-home>
+          <h1 class="mx-auto">Clinician Dashboard</h1>
+        </nav-home>
         <div class="flex-grow-1 d-flex flex-column w-75 ma-2 justify-center align-center">
             <v-data-table-server
                 v-model:items-per-page="itemsPerPage"
@@ -62,6 +60,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import { useClinicalReportViewerDetails } from "@/plugins/clinical_report_viewer_api";
 import { IClinicalReportViewerDetail } from "@/models/apiTypes";
 import { useRouter, useRoute } from 'vue-router';
+import NavHome from '../dashboard/components/NavHome.vue';
 
 const router = useRouter();
 const route = useRoute();
