@@ -47,7 +47,7 @@
             </v-card-text>
         </v-card>
 
-        <div  class="basic-card-container w-100 mt-16 d-flex flex-column justify-center  align-center ">
+        <div  class="basic-card-container w-100 d-flex flex-column justify-center align-center ">
             <div v-if="showBasicCard" class="w-75 d-flex flex-wrap px-6 mt-10 justify-center align-center overflow-y-auto">
                 <BasicCard v-for="data in currentCategoryData" :key="data.name" :data="data">
                     <template v-slot:action>
@@ -422,7 +422,8 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
                 -1px -1px 5px #d3d3d3; */
 }
 .basic-card-container{
-    height: 80%;
+    height: 75%;
+    margin-top: 150px;
 }
 .tooltip-panel{
     cursor: help;
