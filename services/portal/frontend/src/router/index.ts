@@ -16,6 +16,8 @@ import ClinicalReportViewer from "@/views/clinical-report-viewer/index.vue";
 import Dashboard from "@/views/dashboard/study-dashboard/index.vue";
 import TutorialDashboard from "@/views/dashboard/tutorial-dashboard/index.vue";
 import CatalogueDashboard from "@/views/dashboard/catalogue-dashboard/index.vue";
+import CatalogueDashboardView from "@/views/dashboard/catalogue-dashboard/catalogue-dashboard-view.vue";
+import WorkflowToolsViewer from "@/views/dashboard/catalogue-dashboard/workflow-tools-viewer.vue";
 
 const routes = [
   {
@@ -41,8 +43,19 @@ const routes = [
   },
   {
     path: "/catalogue-dashboard",
-    name: "CatalogueDashboard",
-    component:CatalogueDashboard
+    component:CatalogueDashboard,
+    children:[
+      {
+        path: "/catalogue-dashboard",
+        name: "CatalogueDashboardView",
+        component: CatalogueDashboardView,
+      },
+      {
+        path: "/catalogue-dashboard-workflow-tools",
+        name: "WorkflowToolsViewer",
+        component: WorkflowToolsViewer,
+      }
+    ]
   },
   {
     path: "/tumour-segmentation-manual",
