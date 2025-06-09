@@ -68,7 +68,7 @@ const handleExploreClicked = (title: string) => {
     } else if(title === 'Clinician Dashboard') {
         router.push({name:'Dashboard', params: { dashboardType: 'clinician' }});
     }else if(title === 'Catalogue') {
-        router.push({name:"CatalogueDashboard"})
+        router.push({name:"CatalogueDashboardView"})
     }else if(title === "How It Works"){
         router.push({name:'TutorialDashboard'});
     }else {
