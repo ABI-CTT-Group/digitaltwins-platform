@@ -1,7 +1,8 @@
 <template>
     <div class="w-screen h-screen gradients d-flex flex-column align-center">
-        <h1 class="text-center py-4 text-grey-lighten-2">{{title}} Dashboard</h1>
-        <v-divider :thickness="3" class="w-100"></v-divider>
+        <NavHome>
+            <h1 class="text-center py-4 text-grey-lighten-2">{{title}} Dashboard</h1>
+        </NavHome>
         <div class="position-fixed breadcrumbs d-flex justify-start align-center w-75">
             <v-breadcrumbs
                 class="custom-pointer"
@@ -46,7 +47,7 @@
             </v-card-text>
         </v-card>
 
-        <div  class="basic-card-container w-100 mt-16 d-flex flex-column justify-center  align-center ">
+        <div  class="basic-card-container w-100 d-flex flex-column justify-center align-center ">
             <div v-if="showBasicCard" class="w-75 d-flex flex-wrap px-6 mt-10 justify-center align-center overflow-y-auto">
                 <BasicCard v-for="data in currentCategoryData" :key="data.name" :data="data">
                     <template v-slot:action>
@@ -135,13 +136,14 @@ import { useTumourStudyDetailsStore } from "@/store/tumour_position_study_app";
 import { useDashboardPageStore } from '@/store/states';
 import { useDashboardGetAssayDetails, useDashboardGetAssayLaunch } from "@/plugins/dashboard_api";
 import { useDashboardProgrammesStore, useDashboardCategoryChildrenStore, useDashboardSaveAssayDetailsStore } from '@/store/dashboard_store';
-import { dashboardData, workflowsData } from "./mockData";
+import { dashboardData, workflowsData } from "../mockData";
 import { IStudy, IDashboardData, ICategoryNode,IStudiesNode } from "@/models/uiTypes";
 import {IDashboardCategory, IAssayDetails} from "@/models/apiTypes";
-import StudyCard from './components/StudyCard.vue';
-import BasicCard from './components/BasicCard.vue';
+import StudyCard from '@/views/dashboard/components/StudyCard.vue';
+import BasicCard from '@/views/dashboard/components/BasicCard.vue';
 import Dialog from '@/components/commonBar/Dialog.vue';
-import AssayContent from './components/AssayContent.vue';
+import AssayContent from '@/views/dashboard/components/AssayContent.vue';
+import NavHome from '@/views/dashboard/components/NavHome.vue';
 
 
 const router = useRouter();
@@ -420,7 +422,8 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
                 -1px -1px 5px #d3d3d3; */
 }
 .basic-card-container{
-    height: 80%;
+    height: 75%;
+    margin-top: 150px;
 }
 .tooltip-panel{
     cursor: help;

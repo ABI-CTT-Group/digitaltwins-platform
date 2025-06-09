@@ -13,7 +13,11 @@ import ManuallyTumourAssisted from "@/views/tumour-assisted-manually/MainPage.vu
 import SegmentationLayout from "@/layouts/segmentation-layout/Default.vue";
 import CalculationLayout from "@/layouts/calculation-layout/Default.vue";
 import ClinicalReportViewer from "@/views/clinical-report-viewer/index.vue";
-import Dashboard from "@/views/dashboard/dashboard.vue";
+import Dashboard from "@/views/dashboard/study-dashboard/index.vue";
+import TutorialDashboard from "@/views/dashboard/tutorial-dashboard/index.vue";
+import CatalogueDashboard from "@/views/dashboard/catalogue-dashboard/index.vue";
+import CatalogueDashboardView from "@/views/dashboard/catalogue-dashboard/catalogue-dashboard-view.vue";
+import WorkflowToolsViewer from "@/views/dashboard/catalogue-dashboard/workflow-tools-viewer.vue";
 
 const routes = [
   {
@@ -31,6 +35,27 @@ const routes = [
     name: "Dashboard",
     component: Dashboard,
     // props: (route:any) => ({ dashboardType: route.params.dashboardType })
+  },
+  {
+    path: "/how-it-works",
+    name: "TutorialDashboard",
+    component:TutorialDashboard
+  },
+  {
+    path: "/catalogue-dashboard",
+    component:CatalogueDashboard,
+    children:[
+      {
+        path: "/catalogue-dashboard",
+        name: "CatalogueDashboardView",
+        component: CatalogueDashboardView,
+      },
+      {
+        path: "/catalogue-dashboard-workflow-tools",
+        name: "WorkflowToolsViewer",
+        component: WorkflowToolsViewer,
+      }
+    ]
   },
   {
     path: "/tumour-segmentation-manual",

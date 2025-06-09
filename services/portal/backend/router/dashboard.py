@@ -86,7 +86,6 @@ async def get_dashboard_category_children_by_uuid(seek_id: str = Query(None), ca
         children.append(temp)
     return children
 
-
 @router.get("/api/dashboard/workflows")
 async def get_dashboard_workflows():
     sops = digitaltwins_configs.querier.get_sops()
@@ -133,6 +132,10 @@ async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
     except KeyError as e:
         return None
 
+@router.get("/api/dashboard/workflow-cwl")
+async def get_dashboard_workflow_cwl():
+    sop_cwl = digitaltwins_configs.querier.get_sop(1, get_cwl=True)
+    print(sop_cwl)
 
 @router.get("/api/dashboard/datasets")
 async def get_dashboard_datasets(category: str = Query(None)):
@@ -240,6 +243,7 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
 
     if workflow_type != "GUI":
         response, workflow_monitor_url = digitaltwins_configs.workflow_dtp_executor.run(assay_id=int(seek_id))
+
         print("response.status_code:" + str(response.status_code))
         print("Monitoring workflow on: " + workflow_monitor_url)
         return {
