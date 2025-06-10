@@ -30,11 +30,6 @@ import {ref} from 'vue'
 
 const tutorials = ref([
     {
-        title:"My Digital Twin",
-        description:"A digital twins model.",
-        herf:"https://abi-web-apps.github.io/"
-    },
-    {
         title:"DigitalTWINS on FHIR",
         description:"DigitalTWINs on FHIR uses FHIR R4 to integrate EHR and research data via a structured specification.",
         herf:"https://colab.research.google.com/drive/15c_v9sK4wSF3Rng3j6xk-L6ngfWEEbPq"

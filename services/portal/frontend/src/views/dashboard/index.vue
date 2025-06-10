@@ -22,12 +22,6 @@
                         description="Enables clinicians to run AI/digital twin driven workflows and generate clinical reports."
                         @on-explore="handleExploreClicked"
                         />
-                </v-col> 
-                <v-col
-                    cols="12"
-                    md="12"
-                    class="d-flex justify-space-around align-center"
-                >
                     <DashboardCard 
                         :src="studyImage" 
                         :title="'Study Dashboard'"
@@ -35,11 +29,31 @@
                         description="Enables clinicians to collaborate with researchers to assess efficacy of AI/digital twin driven workflows."
                         @on-explore="handleExploreClicked"
                         />
+                </v-col> 
+                <v-col
+                    cols="12"
+                    md="12"
+                    class="d-flex justify-space-around align-center"
+                > 
                     <DashboardCard 
                         :src="catelogueImage" 
                         :title="'Catalogue'"
                         location="Auckland Bioengineering Institute"
                         description="Enables clinicians to see what AI/digital twin driven workflows and medical devices are available or being developed in research programmes."
+                        @on-explore="handleExploreClicked"
+                    />
+                    <DashboardCard 
+                        :src="catelogueImage" 
+                        :title="'Map'"
+                        location="Auckland Bioengineering Institute"
+                        description="Enables clinicians to see what AI/digital twin driven workflows and medical devices are available or being developed in research programmes."
+                        @on-explore="handleExploreClicked"
+                    />
+                    <DashboardCard 
+                        :src="catelogueImage" 
+                        :title="'My Digital Twin'"
+                        location="Auckland Bioengineering Institute"
+                        description="A digital twins model serves as a platform for clinicians to examine and assess the integration of AI and digital twin technologies in ongoing medical research and development."
                         @on-explore="handleExploreClicked"
                     />
                 </v-col>
@@ -71,7 +85,10 @@ const handleExploreClicked = (title: string) => {
         router.push({name:"CatalogueDashboardView"})
     }else if(title === "How It Works"){
         router.push({name:'TutorialDashboard'});
-    }else {
+    }else if(title === "My Digital Twin"){
+        window.open("https://abi-web-apps.github.io/", '_blank');
+    }
+    else {
         console.log(`Unknown title: ${title}`);
     }
 }
@@ -101,7 +118,7 @@ const handleExploreClicked = (title: string) => {
   z-index: -1; 
 }
 .sub-container{
-    width: 80%;
+    width: 90%;
 }
 
 </style>

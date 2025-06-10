@@ -37,7 +37,7 @@
                     rounded
                     @click="handleDialogSave"
                 >
-                    Save
+                    {{ saveBtnName }}
                 </v-btn>
             </div>
         </v-sheet>
@@ -48,6 +48,8 @@
         v-show="showDialog"
         :color="btnColor"
         :prepend-icon="btnIcon"
+        :height="btnHeight"
+        max-width="100"
         block
         :text="btnText" 
         :variant="btnVariant"
@@ -68,6 +70,8 @@ interface DialogProps {
     btnIcon?: string;
     btnVariant?: string;
     showDialog?: boolean;
+    saveBtnName?: string;
+    btnHeight?:string;
 }
 
 withDefaults(defineProps<DialogProps>(), {
@@ -78,7 +82,9 @@ withDefaults(defineProps<DialogProps>(), {
     btnColor: "",
     btnIcon: "",
     btnVariant: "outlined",
-    showDialog: true
+    showDialog: true,
+    saveBtnName: "Save",
+    btnHeight:""
 });
 
 const dialog = ref(false);
