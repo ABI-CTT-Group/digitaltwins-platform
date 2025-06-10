@@ -1,0 +1,202 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="819pt" height="472pt" viewBox="0.00 0.00 819.00 471.60">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 467.6)">
+<title>G</title>
+<polygon fill="#fdf1e4" stroke="none" points="-4,4 -4,-467.6 815,-467.6 815,4 -4,4"/>
+<g id="clust1" class="cluster">
+<title>cluster_inputs</title>
+<polygon fill="#fdf1e4" stroke="black" stroke-dasharray="5,2" points="121,-377.8 121,-455.6 538,-455.6 538,-377.8 121,-377.8"/>
+<text text-anchor="middle" x="481.98" y="-386" font-family="Times,serif" font-size="14.00">Workflow Inputs</text>
+</g>
+<g id="clust2" class="cluster">
+<title>cluster_outputs</title>
+<polygon fill="#fdf1e4" stroke="black" stroke-dasharray="5,2" points="8,-8 8,-85.8 803,-85.8 803,-8 8,-8"/>
+<text text-anchor="middle" x="742.31" y="-16.2" font-family="Times,serif" font-size="14.00">Workflow Outputs</text>
+</g>
+<!-- create_point_cloud -->
+<g id="node1" class="node">
+<title>create_point_cloud</title>
+<polygon fill="#4bccff" stroke="black" stroke-dasharray="5,2" points="206.35,-187.3 206.35,-223.3 329.65,-223.3 329.65,-187.3 206.35,-187.3"/>
+<text text-anchor="middle" x="268" y="-201.1" font-family="Times,serif" font-size="14.00">create_point_cloud</text>
+</g>
+<!-- create_mesh -->
+<g id="node2" class="node">
+<title>create_mesh</title>
+<polygon fill="#4bccff" stroke="black" stroke-dasharray="5,2" points="125.02,-114.3 125.02,-150.3 210.98,-150.3 210.98,-114.3 125.02,-114.3"/>
+<text text-anchor="middle" x="168" y="-128.1" font-family="Times,serif" font-size="14.00">create_mesh</text>
+</g>
+<!-- create_point_cloud&#45;&gt;create_mesh -->
+<g id="edge1" class="edge">
+<title>create_point_cloud-&gt;create_mesh</title>
+<path fill="none" stroke="black" d="M237.64,-186.93C224.26,-178.08 208.71,-167.17 195.65,-157.5"/>
+<polygon fill="black" stroke="black" points="197.96,-154.86 187.86,-151.65 193.75,-160.45 197.96,-154.86"/>
+</g>
+<!-- create_point_cloud&#45;&gt;create_mesh -->
+<g id="edge2" class="edge">
+<title>create_point_cloud-&gt;create_mesh</title>
+<path fill="none" stroke="black" d="M249.67,-187.11C237.82,-178.02 222.08,-166.73 207.55,-156.84"/>
+<polygon fill="black" stroke="black" points="209.73,-154.09 199.47,-151.42 205.83,-159.9 209.73,-154.09"/>
+</g>
+<!-- point_cloud_lung -->
+<g id="node12" class="node">
+<title>point_cloud_lung</title>
+<polygon fill="#c30000" stroke="black" points="87.61,-41.3 87.61,-77.3 202.39,-77.3 202.39,-41.3 87.61,-41.3"/>
+<text text-anchor="middle" x="145" y="-55.1" font-family="Times,serif" font-size="14.00">point_cloud_lung</text>
+</g>
+<!-- create_point_cloud&#45;&gt;point_cloud_lung -->
+<g id="edge13" class="edge">
+<title>create_point_cloud-&gt;point_cloud_lung</title>
+<path fill="none" stroke="black" d="M261.59,-186.84C253.86,-167.47 239.45,-136.01 220,-113.8 210.1,-102.5 197.38,-92.3 185.23,-83.9"/>
+<polygon fill="black" stroke="black" points="187.2,-81.01 176.93,-78.4 183.34,-86.84 187.2,-81.01"/>
+</g>
+<!-- point_cloud_skin -->
+<g id="node13" class="node">
+<title>point_cloud_skin</title>
+<polygon fill="#c30000" stroke="black" points="220.39,-41.3 220.39,-77.3 333.61,-77.3 333.61,-41.3 220.39,-41.3"/>
+<text text-anchor="middle" x="277" y="-55.1" font-family="Times,serif" font-size="14.00">point_cloud_skin</text>
+</g>
+<!-- create_point_cloud&#45;&gt;point_cloud_skin -->
+<g id="edge14" class="edge">
+<title>create_point_cloud-&gt;point_cloud_skin</title>
+<path fill="none" stroke="black" d="M269.09,-186.93C270.61,-162.6 273.39,-118.1 275.22,-88.86"/>
+<polygon fill="black" stroke="black" points="278.69,-89.44 275.82,-79.24 271.7,-89 278.69,-89.44"/>
+</g>
+<!-- mesh -->
+<g id="node9" class="node">
+<title>mesh</title>
+<polygon fill="#c30000" stroke="black" points="16,-41.3 16,-77.3 70,-77.3 70,-41.3 16,-41.3"/>
+<text text-anchor="middle" x="42.78" y="-55.1" font-family="Times,serif" font-size="14.00">mesh</text>
+</g>
+<!-- create_mesh&#45;&gt;mesh -->
+<g id="edge10" class="edge">
+<title>create_mesh-&gt;mesh</title>
+<path fill="none" stroke="black" d="M130.98,-113.86C114.74,-105.83 95.63,-95.87 79,-85.8 77.95,-85.17 76.89,-84.51 75.83,-83.84"/>
+<polygon fill="black" stroke="black" points="77.83,-80.97 67.56,-78.37 73.97,-86.8 77.83,-80.97"/>
+</g>
+<!-- segment -->
+<g id="node3" class="node">
+<title>segment</title>
+<polygon fill="#4bccff" stroke="black" stroke-dasharray="5,2" points="369.67,-260.3 369.67,-296.3 432.33,-296.3 432.33,-260.3 369.67,-260.3"/>
+<text text-anchor="middle" x="401" y="-274.1" font-family="Times,serif" font-size="14.00">segment</text>
+</g>
+<!-- segment&#45;&gt;create_point_cloud -->
+<g id="edge3" class="edge">
+<title>segment-&gt;create_point_cloud</title>
+<path fill="none" stroke="black" d="M369.22,-263.27C349.65,-253.52 324.63,-240.31 304.3,-229.07"/>
+<polygon fill="black" stroke="black" points="306.21,-226.12 295.77,-224.3 302.79,-232.23 306.21,-226.12"/>
+</g>
+<!-- segment&#45;&gt;create_point_cloud -->
+<g id="edge4" class="edge">
+<title>segment-&gt;create_point_cloud</title>
+<path fill="none" stroke="black" d="M374.36,-259.93C357.85,-250.61 336.26,-239 316.8,-228.97"/>
+<polygon fill="black" stroke="black" points="318.41,-225.86 307.91,-224.42 315.22,-232.09 318.41,-225.86"/>
+</g>
+<!-- nipple_points -->
+<g id="node11" class="node">
+<title>nipple_points</title>
+<polygon fill="#c30000" stroke="black" points="351.89,-41.3 351.89,-77.3 444.11,-77.3 444.11,-41.3 351.89,-41.3"/>
+<text text-anchor="middle" x="398" y="-55.1" font-family="Times,serif" font-size="14.00">nipple_points</text>
+</g>
+<!-- segment&#45;&gt;nipple_points -->
+<g id="edge12" class="edge">
+<title>segment-&gt;nipple_points</title>
+<path fill="none" stroke="black" d="M400.76,-259.91C400.25,-222.69 399.03,-134.99 398.4,-89.23"/>
+<polygon fill="black" stroke="black" points="401.9,-89.24 398.26,-79.29 394.9,-89.33 401.9,-89.24"/>
+</g>
+<!-- segmentation_lung -->
+<g id="node14" class="node">
+<title>segmentation_lung</title>
+<polygon fill="#c30000" stroke="black" points="461.73,-41.3 461.73,-77.3 584.27,-77.3 584.27,-41.3 461.73,-41.3"/>
+<text text-anchor="middle" x="523" y="-55.1" font-family="Times,serif" font-size="14.00">segmentation_lung</text>
+</g>
+<!-- segment&#45;&gt;segmentation_lung -->
+<g id="edge15" class="edge">
+<title>segment-&gt;segmentation_lung</title>
+<path fill="none" stroke="black" d="M410.78,-259.91C431.93,-222.29 482.06,-133.12 507.55,-87.78"/>
+<polygon fill="black" stroke="black" points="510.58,-89.53 512.43,-79.09 504.48,-86.09 510.58,-89.53"/>
+</g>
+<!-- segmentation_skin -->
+<g id="node15" class="node">
+<title>segmentation_skin</title>
+<polygon fill="#c30000" stroke="black" points="602.51,-41.3 602.51,-77.3 723.49,-77.3 723.49,-41.3 602.51,-41.3"/>
+<text text-anchor="middle" x="663" y="-55.1" font-family="Times,serif" font-size="14.00">segmentation_skin</text>
+</g>
+<!-- segment&#45;&gt;segmentation_skin -->
+<g id="edge16" class="edge">
+<title>segment-&gt;segmentation_skin</title>
+<path fill="none" stroke="black" d="M422,-259.91C468.37,-221.5 579.65,-129.33 633.21,-84.97"/>
+<polygon fill="black" stroke="black" points="635.27,-87.81 640.74,-78.74 630.8,-82.42 635.27,-87.81"/>
+</g>
+<!-- create_nifti -->
+<g id="node4" class="node">
+<title>create_nifti</title>
+<polygon fill="#4bccff" stroke="black" stroke-dasharray="5,2" points="463.13,-333.3 463.13,-369.3 542.87,-369.3 542.87,-333.3 463.13,-333.3"/>
+<text text-anchor="middle" x="503" y="-347.1" font-family="Times,serif" font-size="14.00">create_nifti</text>
+</g>
+<!-- create_nifti&#45;&gt;segment -->
+<g id="edge5" class="edge">
+<title>create_nifti-&gt;segment</title>
+<path fill="none" stroke="black" d="M478.05,-332.93C465.21,-323.99 449.35,-312.96 435.37,-303.22"/>
+<polygon fill="black" stroke="black" points="437.5,-300.44 427.29,-297.6 433.5,-306.19 437.5,-300.44"/>
+</g>
+<!-- nifti -->
+<g id="node10" class="node">
+<title>nifti</title>
+<polygon fill="#c30000" stroke="black" points="741,-41.3 741,-77.3 795,-77.3 795,-41.3 741,-41.3"/>
+<text text-anchor="middle" x="767.67" y="-55.1" font-family="Times,serif" font-size="14.00">nifti</text>
+</g>
+<!-- create_nifti&#45;&gt;nifti -->
+<g id="edge11" class="edge">
+<title>create_nifti-&gt;nifti</title>
+<path fill="none" stroke="black" d="M518.78,-333.03C563.61,-283.97 691.89,-143.6 744.77,-85.72"/>
+<polygon fill="black" stroke="black" points="747.12,-88.34 751.28,-78.6 741.95,-83.62 747.12,-88.34"/>
+</g>
+<!-- pca_model -->
+<g id="node5" class="node">
+<title>pca_model</title>
+<polygon fill="#c30000" stroke="black" points="129.29,-411.1 129.29,-447.1 206.71,-447.1 206.71,-411.1 129.29,-411.1"/>
+<text text-anchor="middle" x="168" y="-424.9" font-family="Times,serif" font-size="14.00">pca_model</text>
+</g>
+<!-- pca_model&#45;&gt;create_mesh -->
+<g id="edge6" class="edge">
+<title>pca_model-&gt;create_mesh</title>
+<path fill="none" stroke="black" d="M168,-410.98C168,-362.23 168,-222.34 168,-161.8"/>
+<polygon fill="black" stroke="black" points="171.5,-161.98 168,-151.98 164.5,-161.98 171.5,-161.98"/>
+</g>
+<!-- dicom -->
+<g id="node6" class="node">
+<title>dicom</title>
+<polygon fill="#c30000" stroke="black" points="476,-411.1 476,-447.1 530,-447.1 530,-411.1 476,-411.1"/>
+<text text-anchor="middle" x="503" y="-424.9" font-family="Times,serif" font-size="14.00">dicom</text>
+</g>
+<!-- dicom&#45;&gt;create_nifti -->
+<g id="edge7" class="edge">
+<title>dicom-&gt;create_nifti</title>
+<path fill="none" stroke="black" d="M503,-410.9C503,-402.05 503,-391.02 503,-380.93"/>
+<polygon fill="black" stroke="black" points="506.5,-381.21 503,-371.21 499.5,-381.21 506.5,-381.21"/>
+</g>
+<!-- seg_model_lung -->
+<g id="node7" class="node">
+<title>seg_model_lung</title>
+<polygon fill="#c30000" stroke="black" points="224.73,-411.1 224.73,-447.1 333.27,-447.1 333.27,-411.1 224.73,-411.1"/>
+<text text-anchor="middle" x="279" y="-424.9" font-family="Times,serif" font-size="14.00">seg_model_lung</text>
+</g>
+<!-- seg_model_lung&#45;&gt;segment -->
+<g id="edge8" class="edge">
+<title>seg_model_lung-&gt;segment</title>
+<path fill="none" stroke="black" d="M293.23,-410.74C314.54,-384.76 354.86,-335.57 379.69,-305.29"/>
+<polygon fill="black" stroke="black" points="382.26,-307.67 385.9,-297.72 376.85,-303.23 382.26,-307.67"/>
+</g>
+<!-- seg_model_skin -->
+<g id="node8" class="node">
+<title>seg_model_skin</title>
+<polygon fill="#c30000" stroke="black" points="351.5,-411.1 351.5,-447.1 458.5,-447.1 458.5,-411.1 351.5,-411.1"/>
+<text text-anchor="middle" x="405" y="-424.9" font-family="Times,serif" font-size="14.00">seg_model_skin</text>
+</g>
+<!-- seg_model_skin&#45;&gt;segment -->
+<g id="edge9" class="edge">
+<title>seg_model_skin-&gt;segment</title>
+<path fill="none" stroke="black" d="M404.53,-410.74C403.85,-385.43 402.58,-338.1 401.76,-307.68"/>
+<polygon fill="black" stroke="black" points="405.27,-307.97 401.5,-298.06 398.27,-308.15 405.27,-307.97"/>
+</g>
+</g>
+</svg>

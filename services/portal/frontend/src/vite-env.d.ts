@@ -18,3 +18,4 @@ declare module "copper3d_plugin_heart_k";
 declare module "copper3d_plugin_heartjs_config";
 declare module "static-kdtree";
 declare module "intro.js"
+declare module "js-yaml"

@@ -59,7 +59,6 @@
                             @click.once = "handleExploreClicked(data.seekId, data.name, data.category, data.description)"
                         ></v-btn>
                         <Dialog
-
                             :showDialog="data.category === 'Assays' && !isClinicianView"
                             :min="1200"
                             btnText="Edit"

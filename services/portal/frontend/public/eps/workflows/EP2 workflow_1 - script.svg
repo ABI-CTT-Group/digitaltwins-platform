@@ -1,0 +1,190 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1452pt" height="326pt" viewBox="0.00 0.00 1452.00 325.60">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 321.6)">
+<title>G</title>
+<polygon fill="#fdf1e4" stroke="none" points="-4,4 -4,-321.6 1448,-321.6 1448,4 -4,4"/>
+<g id="clust1" class="cluster">
+<title>cluster_inputs</title>
+<polygon fill="#fdf1e4" stroke="black" stroke-dasharray="5,2" points="8,-231.8 8,-309.6 1436,-309.6 1436,-231.8 8,-231.8"/>
+<text text-anchor="middle" x="1379.98" y="-240" font-family="Times,serif" font-size="14.00">Workflow Inputs</text>
+</g>
+<g id="clust2" class="cluster">
+<title>cluster_outputs</title>
+<polygon fill="#fdf1e4" stroke="black" stroke-dasharray="5,2" points="385,-8 385,-85.8 1124,-85.8 1124,-8 385,-8"/>
+<text text-anchor="middle" x="1063.31" y="-16.2" font-family="Times,serif" font-size="14.00">Workflow Outputs</text>
+</g>
+<!-- join_sternum_and_ribs -->
+<g id="node1" class="node">
+<title>join_sternum_and_ribs</title>
+<polygon fill="#4bccff" stroke="black" stroke-dasharray="5,2" points="84.45,-187.3 84.45,-223.3 229.55,-223.3 229.55,-187.3 84.45,-187.3"/>
+<text text-anchor="middle" x="157" y="-201.1" font-family="Times,serif" font-size="14.00">join_sternum_and_ribs</text>
+</g>
+<!-- mesh_fitting -->
+<g id="node2" class="node">
+<title>mesh_fitting</title>
+<polygon fill="#4bccff" stroke="black" stroke-dasharray="5,2" points="716.61,-114.3 716.61,-150.3 803.39,-150.3 803.39,-114.3 716.61,-114.3"/>
+<text text-anchor="middle" x="760" y="-128.1" font-family="Times,serif" font-size="14.00">mesh_fitting</text>
+</g>
+<!-- join_sternum_and_ribs&#45;&gt;mesh_fitting -->
+<g id="edge1" class="edge">
+<title>join_sternum_and_ribs-&gt;mesh_fitting</title>
+<path fill="none" stroke="black" d="M230.04,-195.7C352.26,-181.31 595.55,-152.66 704.73,-139.81"/>
+<polygon fill="black" stroke="black" points="705.09,-143.29 714.61,-138.64 704.27,-136.34 705.09,-143.29"/>
+</g>
+<!-- surface_mesh_ply_clavicle -->
+<g id="node12" class="node">
+<title>surface_mesh_ply_clavicle</title>
+<polygon fill="#c30000" stroke="black" points="392.81,-41.3 392.81,-77.3 561.19,-77.3 561.19,-41.3 392.81,-41.3"/>
+<text text-anchor="middle" x="477" y="-55.1" font-family="Times,serif" font-size="14.00">surface_mesh_ply_clavicle</text>
+</g>
+<!-- mesh_fitting&#45;&gt;surface_mesh_ply_clavicle -->
+<g id="edge11" class="edge">
+<title>mesh_fitting-&gt;surface_mesh_ply_clavicle</title>
+<path fill="none" stroke="black" d="M716.13,-121.22C677.56,-112.26 619.94,-98.62 570,-85.8 563.72,-84.19 557.2,-82.48 550.67,-80.74"/>
+<polygon fill="black" stroke="black" points="551.74,-77.4 541.17,-78.19 549.92,-84.16 551.74,-77.4"/>
+</g>
+<!-- surface_mesh_ply_humerus -->
+<g id="node13" class="node">
+<title>surface_mesh_ply_humerus</title>
+<polygon fill="#c30000" stroke="black" points="579.47,-41.3 579.47,-77.3 752.53,-77.3 752.53,-41.3 579.47,-41.3"/>
+<text text-anchor="middle" x="666" y="-55.1" font-family="Times,serif" font-size="14.00">surface_mesh_ply_humerus</text>
+</g>
+<!-- mesh_fitting&#45;&gt;surface_mesh_ply_humerus -->
+<g id="edge12" class="edge">
+<title>mesh_fitting-&gt;surface_mesh_ply_humerus</title>
+<path fill="none" stroke="black" d="M737.25,-114.11C725.44,-105.2 710.82,-94.16 697.91,-84.4"/>
+<polygon fill="black" stroke="black" points="700.17,-81.72 690.08,-78.49 695.95,-87.31 700.17,-81.72"/>
+</g>
+<!-- surface_mesh_ply_scapula -->
+<g id="node14" class="node">
+<title>surface_mesh_ply_scapula</title>
+<polygon fill="#c30000" stroke="black" points="770.58,-41.3 770.58,-77.3 937.42,-77.3 937.42,-41.3 770.58,-41.3"/>
+<text text-anchor="middle" x="854" y="-55.1" font-family="Times,serif" font-size="14.00">surface_mesh_ply_scapula</text>
+</g>
+<!-- mesh_fitting&#45;&gt;surface_mesh_ply_scapula -->
+<g id="edge13" class="edge">
+<title>mesh_fitting-&gt;surface_mesh_ply_scapula</title>
+<path fill="none" stroke="black" d="M782.75,-114.11C794.56,-105.2 809.18,-94.16 822.09,-84.4"/>
+<polygon fill="black" stroke="black" points="824.05,-87.31 829.92,-78.49 819.83,-81.72 824.05,-87.31"/>
+</g>
+<!-- surface_mesh_ply_thorax -->
+<g id="node15" class="node">
+<title>surface_mesh_ply_thorax</title>
+<polygon fill="#c30000" stroke="black" points="955.69,-41.3 955.69,-77.3 1116.31,-77.3 1116.31,-41.3 955.69,-41.3"/>
+<text text-anchor="middle" x="1036" y="-55.1" font-family="Times,serif" font-size="14.00">surface_mesh_ply_thorax</text>
+</g>
+<!-- mesh_fitting&#45;&gt;surface_mesh_ply_thorax -->
+<g id="edge14" class="edge">
+<title>mesh_fitting-&gt;surface_mesh_ply_thorax</title>
+<path fill="none" stroke="black" d="M803.71,-121.08C841.47,-112.14 897.46,-98.61 946,-85.8 952.14,-84.18 958.5,-82.46 964.87,-80.71"/>
+<polygon fill="black" stroke="black" points="965.41,-84.19 974.11,-78.15 963.54,-77.45 965.41,-84.19"/>
+</g>
+<!-- ribs_mesh -->
+<g id="node3" class="node">
+<title>ribs_mesh</title>
+<polygon fill="#c30000" stroke="black" points="16.22,-265.1 16.22,-301.1 89.78,-301.1 89.78,-265.1 16.22,-265.1"/>
+<text text-anchor="middle" x="53" y="-278.9" font-family="Times,serif" font-size="14.00">ribs_mesh</text>
+</g>
+<!-- ribs_mesh&#45;&gt;join_sternum_and_ribs -->
+<g id="edge2" class="edge">
+<title>ribs_mesh-&gt;join_sternum_and_ribs</title>
+<path fill="none" stroke="black" d="M65.6,-265.01C74.11,-254.39 86.11,-241.04 99,-231.8 100.16,-230.97 101.34,-230.16 102.56,-229.37"/>
+<polygon fill="black" stroke="black" points="104.09,-232.53 110.94,-224.44 100.55,-226.49 104.09,-232.53"/>
+</g>
+<!-- sternum_mesh -->
+<g id="node4" class="node">
+<title>sternum_mesh</title>
+<polygon fill="#c30000" stroke="black" points="108.17,-265.1 108.17,-301.1 205.83,-301.1 205.83,-265.1 108.17,-265.1"/>
+<text text-anchor="middle" x="157" y="-278.9" font-family="Times,serif" font-size="14.00">sternum_mesh</text>
+</g>
+<!-- sternum_mesh&#45;&gt;join_sternum_and_ribs -->
+<g id="edge3" class="edge">
+<title>sternum_mesh-&gt;join_sternum_and_ribs</title>
+<path fill="none" stroke="black" d="M157,-264.9C157,-256.05 157,-245.02 157,-234.93"/>
+<polygon fill="black" stroke="black" points="160.5,-235.21 157,-225.21 153.5,-235.21 160.5,-235.21"/>
+</g>
+<!-- surface_mesh_stl_clavicle -->
+<g id="node5" class="node">
+<title>surface_mesh_stl_clavicle</title>
+<polygon fill="#c30000" stroke="black" points="224.14,-265.1 224.14,-301.1 387.86,-301.1 387.86,-265.1 224.14,-265.1"/>
+<text text-anchor="middle" x="306" y="-278.9" font-family="Times,serif" font-size="14.00">surface_mesh_stl_clavicle</text>
+</g>
+<!-- surface_mesh_stl_clavicle&#45;&gt;mesh_fitting -->
+<g id="edge4" class="edge">
+<title>surface_mesh_stl_clavicle-&gt;mesh_fitting</title>
+<path fill="none" stroke="black" d="M333.43,-264.67C351.06,-254.04 374.75,-240.82 397,-231.8 502.56,-189.03 632.78,-158.82 705.06,-143.9"/>
+<polygon fill="black" stroke="black" points="705.57,-147.37 714.67,-141.94 704.17,-140.51 705.57,-147.37"/>
+</g>
+<!-- surface_mesh_stl_humerus -->
+<g id="node6" class="node">
+<title>surface_mesh_stl_humerus</title>
+<polygon fill="#c30000" stroke="black" points="405.8,-265.1 405.8,-301.1 574.2,-301.1 574.2,-265.1 405.8,-265.1"/>
+<text text-anchor="middle" x="490" y="-278.9" font-family="Times,serif" font-size="14.00">surface_mesh_stl_humerus</text>
+</g>
+<!-- surface_mesh_stl_humerus&#45;&gt;mesh_fitting -->
+<g id="edge5" class="edge">
+<title>surface_mesh_stl_humerus-&gt;mesh_fitting</title>
+<path fill="none" stroke="black" d="M521.5,-264.74C570.25,-237.88 663.98,-186.22 718.3,-156.28"/>
+<polygon fill="black" stroke="black" points="719.89,-159.4 726.96,-151.51 716.51,-153.27 719.89,-159.4"/>
+</g>
+<!-- surface_mesh_stl_scapula -->
+<g id="node7" class="node">
+<title>surface_mesh_stl_scapula</title>
+<polygon fill="#c30000" stroke="black" points="591.91,-265.1 591.91,-301.1 754.09,-301.1 754.09,-265.1 591.91,-265.1"/>
+<text text-anchor="middle" x="673" y="-278.9" font-family="Times,serif" font-size="14.00">surface_mesh_stl_scapula</text>
+</g>
+<!-- surface_mesh_stl_scapula&#45;&gt;mesh_fitting -->
+<g id="edge6" class="edge">
+<title>surface_mesh_stl_scapula-&gt;mesh_fitting</title>
+<path fill="none" stroke="black" d="M683.15,-264.74C698.15,-239.09 726.36,-190.84 744.11,-160.48"/>
+<polygon fill="black" stroke="black" points="747.12,-162.26 749.15,-151.86 741.08,-158.72 747.12,-162.26"/>
+</g>
+<!-- template_mesh_clavicle -->
+<g id="node8" class="node">
+<title>template_mesh_clavicle</title>
+<polygon fill="#c30000" stroke="black" points="772.36,-265.1 772.36,-301.1 923.64,-301.1 923.64,-265.1 772.36,-265.1"/>
+<text text-anchor="middle" x="848" y="-278.9" font-family="Times,serif" font-size="14.00">template_mesh_clavicle</text>
+</g>
+<!-- template_mesh_clavicle&#45;&gt;mesh_fitting -->
+<g id="edge7" class="edge">
+<title>template_mesh_clavicle-&gt;mesh_fitting</title>
+<path fill="none" stroke="black" d="M837.73,-264.74C822.5,-238.98 793.78,-190.42 775.84,-160.08"/>
+<polygon fill="black" stroke="black" points="779.08,-158.68 770.97,-151.85 773.05,-162.24 779.08,-158.68"/>
+</g>
+<!-- template_mesh_humerus -->
+<g id="node9" class="node">
+<title>template_mesh_humerus</title>
+<polygon fill="#c30000" stroke="black" points="942.02,-265.1 942.02,-301.1 1097.98,-301.1 1097.98,-265.1 942.02,-265.1"/>
+<text text-anchor="middle" x="1020" y="-278.9" font-family="Times,serif" font-size="14.00">template_mesh_humerus</text>
+</g>
+<!-- template_mesh_humerus&#45;&gt;mesh_fitting -->
+<g id="edge8" class="edge">
+<title>template_mesh_humerus-&gt;mesh_fitting</title>
+<path fill="none" stroke="black" d="M990.23,-264.82C973.44,-255.1 952.07,-242.74 933,-231.8 887.71,-205.81 835.62,-176.19 800.53,-156.28"/>
+<polygon fill="black" stroke="black" points="802.4,-153.31 791.98,-151.42 798.95,-159.4 802.4,-153.31"/>
+</g>
+<!-- template_mesh_scapula -->
+<g id="node10" class="node">
+<title>template_mesh_scapula</title>
+<polygon fill="#c30000" stroke="black" points="1116.13,-265.1 1116.13,-301.1 1265.87,-301.1 1265.87,-265.1 1116.13,-265.1"/>
+<text text-anchor="middle" x="1191" y="-278.9" font-family="Times,serif" font-size="14.00">template_mesh_scapula</text>
+</g>
+<!-- template_mesh_scapula&#45;&gt;mesh_fitting -->
+<g id="edge9" class="edge">
+<title>template_mesh_scapula-&gt;mesh_fitting</title>
+<path fill="none" stroke="black" d="M1165.83,-264.64C1149.61,-254 1127.75,-240.77 1107,-231.8 1007.76,-188.9 884.56,-159.06 814.85,-144.18"/>
+<polygon fill="black" stroke="black" points="815.71,-140.79 805.2,-142.15 814.26,-147.64 815.71,-140.79"/>
+</g>
+<!-- template_mesh_thorax -->
+<g id="node11" class="node">
+<title>template_mesh_thorax</title>
+<polygon fill="#c30000" stroke="black" points="1284.24,-265.1 1284.24,-301.1 1427.76,-301.1 1427.76,-265.1 1284.24,-265.1"/>
+<text text-anchor="middle" x="1356" y="-278.9" font-family="Times,serif" font-size="14.00">template_mesh_thorax</text>
+</g>
+<!-- template_mesh_thorax&#45;&gt;mesh_fitting -->
+<g id="edge10" class="edge">
+<title>template_mesh_thorax-&gt;mesh_fitting</title>
+<path fill="none" stroke="black" d="M1333.1,-264.74C1317.5,-253.73 1295.95,-240.05 1275,-231.8 1115.24,-168.86 911.3,-145.19 815.03,-137.1"/>
+<polygon fill="black" stroke="black" points="815.32,-133.61 805.07,-136.29 814.75,-140.59 815.32,-133.61"/>
+</g>
+</g>
+</svg>
