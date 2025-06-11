@@ -34,7 +34,7 @@
                         <v-select
                             v-if="data.input.category === 'measurement'"
                             v-model="data.sampleSelectedType"
-                            label="Select Sample"
+                            label="Sample Type"
                             :items="!!workflowInputDatasetSamples[data.input.name]?workflowInputDatasetSamples[data.input.name].selectedDatasetSampleTypes:[]"
                             item-title="name"
                             item-value="uuid"
