@@ -43,14 +43,14 @@
                         @on-explore="handleExploreClicked"
                     />
                     <DashboardCard 
-                        :src="catelogueImage" 
+                        :src="tutorialImage" 
                         :title="'Map'"
                         location="Auckland Bioengineering Institute"
                         description="Enables clinicians to see what AI/digital twin driven workflows and medical devices are available or being developed in research programmes."
                         @on-explore="handleExploreClicked"
                     />
                     <DashboardCard 
-                        :src="catelogueImage" 
+                        :src="mydigitaltwinImage" 
                         :title="'My Digital Twin'"
                         location="Auckland Bioengineering Institute"
                         description="A digital twins model serves as a platform for clinicians to examine and assess the integration of AI and digital twin technologies in ongoing medical research and development."
@@ -69,6 +69,7 @@ import clinicalImage from '@/assets/dashboard/clinical-01.jpg';
 import studyImage from '@/assets/dashboard/study.jpg';
 import catelogueImage from '@/assets/dashboard/catalogue.jpg';
 import tutorialImage from '@/assets/dashboard/study-01.jpg';
+import mydigitaltwinImage from '@/assets/dashboard/my_digitaltwin.png'
 import NavHome from './components/NavHome.vue';
 import { useRouter, useRoute } from 'vue-router';
 
