@@ -86,8 +86,8 @@
 <script setup lang="ts">
 import DashboardCard from './components/DashboardCard.vue';
 import clinicalImage from '@/assets/dashboard/clinical-01.jpg';
-import studyImage from '@/assets/dashboard/study.jpg';
-import catelogueImage from '@/assets/dashboard/catalogue.jpg';
+import studyImage from '@/assets/dashboard/study.png';
+import catelogueImage from '@/assets/dashboard/catalogue.png';
 import tutorialImage from '@/assets/dashboard/how-to-use.png';
 import mydigitaltwinImage from '@/assets/dashboard/my_digitaltwin.png'
 import mydigitaltwinNavImage from '@/assets/dashboard/my-digital-twin-nav.jpg'
