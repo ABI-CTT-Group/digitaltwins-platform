@@ -9,7 +9,7 @@
             <div class="text-overline mb-1">
               {{ category }}
             </div>
-            <div class="text-h6 mb-1 text-grey-lighten-3">
+            <div class="text-h6 mb-1 text-grey-lighten-3 title">
               {{ title }}
             </div>
             <div class="text-caption text-grey-lighten-2 container">{{ description }}</div>
@@ -52,5 +52,8 @@ const handleBtnClick = ()=>{
 <style scoped>
 .container{
     min-height: 4rem;
+}
+.title{
+  min-height: 4rem;
 }
 </style>

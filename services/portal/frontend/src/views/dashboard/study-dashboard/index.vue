@@ -270,8 +270,6 @@ const handleExploreClicked = async (seek_id:string, name:string, category:string
     if (category == "Programmes"){
         dashboardCategoryChildren.value!.sort((a, b) => a.name.localeCompare(b.name));
     }
-    console.log(category);
-    console.log(dashboardCategoryChildren.value);
     setCurrentCategoryData(dashboardCategoryChildren.value!);
 }
 

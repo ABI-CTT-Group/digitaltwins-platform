@@ -10,9 +10,9 @@
                 >
                     <DashboardCard 
                         :src="tutorialImage" 
-                        :title="'How It Works'"
+                        :title="'How to use this platform'"
                         location="Auckland Bioengineering Institute"
-                        description="Helps clinicians quickly learn how to use the app with a simple, guided overview designed to make getting started easy."
+                        description="Provides help and tutorials describing how to use the platform."
                         @on-explore="handleExploreClicked"
                         />    
                     <DashboardCard 
@@ -43,10 +43,10 @@
                         @on-explore="handleExploreClicked"
                     />
                     <DashboardCard 
-                        :src="tutorialImage" 
-                        :title="'Map'"
-                        location="Auckland Bioengineering Institute"
-                        description="Enables clinicians to see what AI/digital twin driven workflows and medical devices are available or being developed in research programmes."
+                        :src="fcMapImage" 
+                        :title="'Physiology exploration (FC Map)'"
+                        location="SPARC"
+                        description="Use the FC Map to explore physics informed biomedical models."
                         @on-explore="handleExploreClicked"
                     />
                     <DashboardCard 
@@ -68,8 +68,9 @@ import DashboardCard from './components/DashboardCard.vue';
 import clinicalImage from '@/assets/dashboard/clinical-01.jpg';
 import studyImage from '@/assets/dashboard/study.jpg';
 import catelogueImage from '@/assets/dashboard/catalogue.jpg';
-import tutorialImage from '@/assets/dashboard/study-01.jpg';
+import tutorialImage from '@/assets/dashboard/how-to-use.jpg';
 import mydigitaltwinImage from '@/assets/dashboard/my_digitaltwin.png'
+import fcMapImage from '@/assets/dashboard/fc-map.jpg'
 import NavHome from './components/NavHome.vue';
 import { useRouter, useRoute } from 'vue-router';
 
@@ -88,6 +89,8 @@ const handleExploreClicked = (title: string) => {
         router.push({name:'TutorialDashboard'});
     }else if(title === "My Digital Twin"){
         window.open("https://abi-web-apps.github.io/", '_blank');
+    }else if(title === "Physiology exploration (FC Map)"){
+        window.open("https://mapcore-demo.org/2024/sparc-app-isan/apps/maps?id=f2a99cd3", '_blank');
     }
     else {
         console.log(`Unknown title: ${title}`);
