@@ -1,7 +1,7 @@
 <template>
     <div class="container w-screen h-screen d-flex flex-column align-center overflow-hidden">
         <NavHome>
-            <h1 class="mx-auto">How it works</h1>
+            <h1 class="mx-auto">How to use this platform</h1>
         </NavHome>
         <div class="main-container overflow-y-auto">
             <v-row justify="center">
@@ -29,6 +29,11 @@ import NavHome from '@/views/dashboard/components/NavHome.vue';
 import {ref} from 'vue'
 
 const tutorials = ref([
+    {
+        title:"Guidelines for Clinical Translation of Computational Physiology Workflows",
+        description:"",
+        herf:"https://docs.google.com/document/d/1ArbBXdzKCbM_ED5fDBR9yqC2KGp-1Hl7wrrV29ABB1k/edit?tab=t.0#heading=h.c87qz8f8iu38"
+    },
     {
         title:"DigitalTWINS on FHIR",
         description:"DigitalTWINs on FHIR uses FHIR R4 to integrate EHR and research data via a structured specification.",
