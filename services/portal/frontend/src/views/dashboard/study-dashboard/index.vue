@@ -236,6 +236,8 @@ const handleAssayMonitorClicked = async (seek_id:string) => {
 }
 
 const handleAssayLaunchClicked = async (seek_id:string) => {
+    console.log(seek_id);
+    
     const res = await useDashboardGetAssayLaunch(seek_id);
     if (res.type === "airflow"){
         setAssayExecute(seek_id, "Monitor", res.data);

@@ -229,6 +229,7 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
     """
         When user click launch in assay, what should we do?
     """
+    print(seek_id)
     # Step1: base on assay seek id to get the assay details.
     assay_detail = digitaltwins_configs.querier.get_assay(seek_id, get_params=True)
     # Step2: check the workflow type
@@ -236,7 +237,6 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
     # Step2.2: GUI based, execute Step 2
     workflow = digitaltwins_configs.querier.get_sop(sop_id=assay_detail.get("params").get("workflow_seek_id"))
     workflow_name = workflow.get("attributes").get("title")
-    print(workflow_name)
     workflow_type = workflow_name.split("-")[1].lstrip()
 
     print("assay id", seek_id)
