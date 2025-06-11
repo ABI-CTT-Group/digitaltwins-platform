@@ -5,7 +5,7 @@
             md="6"
             class="d-flex justify-center align-center"
         >
-            <div class="col-style  pa-3 overflow-y-auto">
+            <div class="col-style  pa-3">
                 <h2 class="w-100 text-center">
                     Workflows
                 </h2>
@@ -35,15 +35,15 @@
                     </template>
                 </Dialog>
                 <v-divider></v-divider>
-                <div class="mt-2">
+                <div class="mt-2 overflow-y-auto w-content">
                     <Dialog
                         v-for="(workflow, i) in workflows"
                         :key="i"
                         :min="1200"
                         :btnText="workflow"
-                        :btn-height="'100px'"
-                        btnColor = "#5865f2"
-                        btnVariant="outlined"
+                        :btn-height="'70px'"
+                        btnColor = "#424242"
+                        btnVariant="tonal"
                         save-btn-name="Close"
                         @on-open = "handleDialogOpen()"
                         @on-save= "handleDialogSave()"
@@ -72,21 +72,21 @@
             md="6"
             class="d-flex justify-center align-center"
         >
-             <div class="col-style overflow-y-auto pa-3">
+             <div class="col-style pa-3">
                 <h2 class="w-100 text-center">
-                    Workflow tools
+                    Tools
                 </h2>
 
                 <v-divider></v-divider>
-                <div class="mt-2">
+                <div class="mt-2 overflow-y-auto t-content">
                     <Dialog
                         v-for="(tool, i) in tools"
                         :key="i"
                         :min="1200"
                         :btnText="tool"
-                        :btn-height="'100px'"
-                        btnColor = "#5865f2"
-                        btnVariant="outlined"
+                        :btn-height="'70px'"
+                        btnColor = "#424242"
+                        btnVariant="tonal"
                         save-btn-name="Close"
                         @on-open = "handleDialogOpen()"
                         @on-save= "handleDialogSave()"
@@ -121,12 +121,12 @@ const workflows = ref([
     "Electrode selection - script",
     "Quantification of frequency of electrical... - script",
     "Statistical analysis of electrode measurements - script",
-    "EP2 workflow_1 - script",
-    "EP2 workflow_2 - script",
-    "EP1 workflow_1 - script",
-    "EP1 workflow_2 - script",
-    "EP1 workflow_3 - script",
-    "EP1 workflow_4 - script"
+    "Generate personalised model - script",
+    "Quantify scapulothoracic and... - script",
+    "Generate personalised anatomical model of lung - script",
+    "Identify under perfused regions - script",
+    "Identify remodelling level - script",
+    "Predict post surgery PAP - script"
 ]);
 
 const tools = ref([
@@ -173,7 +173,8 @@ const handleDialogSave = () => {
 <style scoped>
 .col-style{
       flex:1;
-      height: 75vh;
+      /* height: 75vh; */
+      height: 100%;
       background: rgba(173, 216, 230, 0.2);
       border-radius: 15px;
       backdrop-filter: blur(10px);
@@ -181,5 +182,11 @@ const handleDialogSave = () => {
       border: 1px solid rgba(255, 255, 255, 0.18);
       color: #fff;
       font-size: 1.2rem;
+}
+.w-content{
+    height: 52vh;
+}
+.t-content{
+    height: 62vh;
 }
 </style>

@@ -69,35 +69,38 @@ const showVisualisationBtn = ref(false)
 
 const dialog = ref(false);
 const divCanvasContainer = ref<HTMLDivElement>();
-const assays = ref([
-  {
-    id: 'sub-1',
-    date: '18/03/2025',
-    pdf: '/ep1_report.pdf'
-  },
-  {
-    id: 'sub-2',
-    date: '18/03/2025',
-    pdf: '/ep2_report.pdf'
-  },
-  {
-    id: 'sub-3',
-    date: '18/03/2025',
-    pdf: '/ep3_report.pdf'
-  },
-  {
-    id: 'sub-4',
-    date: '18/03/2025',
-    pdf: '/ep4_report.pdf'
-  },
-])
+const assays = ref<any[]>([])
 
 onMounted(async () => {
-  if ((route.query.assayId as string) === "9"){
+  const assayId = route.query.assayId as string;
+  if (assayId === "9"){
     showVisualisationBtn.value = true
+    assays.value = [ 
+      {
+        id: 'sub-4',
+        date: '18/03/2025',
+        pdf: '/ep4_report.pdf'
+      }
+    ]
+  }else if (assayId === "16"){
+    assays.value = [
+      {
+        id: 'sub-1',
+        date: '18/03/2025',
+        pdf: '/ep1_report.pdf'
+      }
+    ]
+  }else if (assayId === "20"){
+    assays.value = [
+      {
+        id: 'sub-2',
+        date: '18/03/2025',
+        pdf: '/ep2_report.pdf'
+      }
+    ]
   }
   
-  const details = await useClinicalReportViewerDetails(route.query.assayId as string);
+  const details = await useClinicalReportViewerDetails(assayId);
   // details.map((item:IClinicalReportViewerDetail, idx: number) => {
   //   assays.value[idx].id = item.uuid;
   //   assays.value[idx].date = item.date;
