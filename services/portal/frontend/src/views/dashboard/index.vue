@@ -10,7 +10,7 @@
                 >
                     <DashboardCard 
                         :src="tutorialImage" 
-                        :title="'How to use this platform'"
+                        :title="'How to use this Platform'"
                         location="Auckland Bioengineering Institute"
                         description="Provides help and tutorials describing how to use the platform."
                         @on-explore="handleExploreClicked"
@@ -44,7 +44,7 @@
                     />
                     <DashboardCard 
                         :src="fcMapImage" 
-                        :title="'Physiology exploration (FC Map)'"
+                        :title="'Physiology Exploration (FC Map)'"
                         location="SPARC"
                         description="Use the FC Map to explore physics informed biomedical models."
                         @on-explore="handleExploreClicked"
@@ -52,8 +52,21 @@
                     <DashboardCard 
                         :src="mydigitaltwinImage" 
                         :title="'My Digital Twin'"
+                        location="Te Whatu Ora"
+                        description="Enables patients to interact with educational tools and their digital twins"
+                        @on-explore="handleExploreClicked"
+                    />
+                </v-col>
+                <v-col
+                    cols="12"
+                    md="12"
+                    class="d-flex justify-space-around align-center"
+                > 
+                    <DashboardCard 
+                        :src="mydigitaltwinNavImage" 
+                        :title="'My Digital Health Navigator'"
                         location="Auckland Bioengineering Institute"
-                        description="A digital twins model serves as a platform for clinicians to examine and assess the integration of AI and digital twin technologies in ongoing medical research and development."
+                        description="Interact with your digital health navigator (DiNa)"
                         @on-explore="handleExploreClicked"
                     />
                 </v-col>
@@ -68,8 +81,9 @@ import DashboardCard from './components/DashboardCard.vue';
 import clinicalImage from '@/assets/dashboard/clinical-01.jpg';
 import studyImage from '@/assets/dashboard/study.jpg';
 import catelogueImage from '@/assets/dashboard/catalogue.jpg';
-import tutorialImage from '@/assets/dashboard/how-to-use.jpg';
+import tutorialImage from '@/assets/dashboard/how-to-use.png';
 import mydigitaltwinImage from '@/assets/dashboard/my_digitaltwin.png'
+import mydigitaltwinNavImage from '@/assets/dashboard/my-digital-twin-nav.jpg'
 import fcMapImage from '@/assets/dashboard/fc-map.jpg'
 import NavHome from './components/NavHome.vue';
 import { useRouter, useRoute } from 'vue-router';
@@ -91,6 +105,8 @@ const handleExploreClicked = (title: string) => {
         window.open("https://abi-web-apps.github.io/", '_blank');
     }else if(title === "Physiology exploration (FC Map)"){
         window.open("https://mapcore-demo.org/2024/sparc-app-isan/apps/maps?id=f2a99cd3", '_blank');
+    }else if(title === "My Digital Health Navigator"){
+        window.open("https://www.auckland.ac.nz/en/abi.html", '_blank')
     }
     else {
         console.log(`Unknown title: ${title}`);
