@@ -265,6 +265,13 @@ const handleExploreClicked = async (seek_id:string, name:string, category:string
     breadCrumbsItems.value.push({ title: currentCategory.value, disabled: false });
     
     await getDashboardCategoryChildren(seek_id, category);
+    
+    // temporary
+    if (category == "Programmes"){
+        dashboardCategoryChildren.value!.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    console.log(category);
+    console.log(dashboardCategoryChildren.value);
     setCurrentCategoryData(dashboardCategoryChildren.value!);
 }
 

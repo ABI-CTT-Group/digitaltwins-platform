@@ -74,7 +74,7 @@
         >
              <div class="col-style pa-3">
                 <h2 class="w-100 text-center">
-                    Workflow tools
+                    Tools
                 </h2>
 
                 <v-divider></v-divider>
