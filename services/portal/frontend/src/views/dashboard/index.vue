@@ -69,6 +69,13 @@
                         description="Interact with your digital health navigator (DiNa)"
                         @on-explore="handleExploreClicked"
                     />
+                    <DashboardCard 
+                        :src="annotatorImage" 
+                        :title="'Medical Image Annotation'"
+                        location="Auckland Bioengineering Institute"
+                        description="Efficiently Annotate Medical Images using Advanced AI-assisted Workflows"
+                        @on-explore="handleExploreClicked"
+                    />
                 </v-col>
             </v-row>
         </div>
@@ -85,6 +92,7 @@ import tutorialImage from '@/assets/dashboard/how-to-use.png';
 import mydigitaltwinImage from '@/assets/dashboard/my_digitaltwin.png'
 import mydigitaltwinNavImage from '@/assets/dashboard/my-digital-twin-nav.jpg'
 import fcMapImage from '@/assets/dashboard/fc-map.jpg'
+import annotatorImage from '@/assets/dashboard/annotator.jpg'
 import NavHome from './components/NavHome.vue';
 import { useRouter, useRoute } from 'vue-router';
 
@@ -107,6 +115,8 @@ const handleExploreClicked = (title: string) => {
         window.open("https://mapcore-demo.org/2024/sparc-app-isan/apps/maps?id=f2a99cd3", '_blank');
     }else if(title === "My Digital Health Navigator"){
         window.open("https://www.auckland.ac.nz/en/abi.html", '_blank')
+    }else if(title === "Medical Image Annotation"){
+        window.open("https://build-seven-iota.vercel.app/#/", '_blank')
     }
     else {
         console.log(`Unknown title: ${title}`);
