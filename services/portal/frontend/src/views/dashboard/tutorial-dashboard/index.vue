@@ -30,6 +30,11 @@ import {ref} from 'vue'
 
 const tutorials = ref([
     {
+        title:"Guidelines for Clinical Translation of Computational Physiology Workflows",
+        description:"",
+        herf:"https://docs.google.com/document/d/1ArbBXdzKCbM_ED5fDBR9yqC2KGp-1Hl7wrrV29ABB1k/edit?tab=t.0#heading=h.c87qz8f8iu38"
+    },
+    {
         title:"DigitalTWINS on FHIR",
         description:"DigitalTWINs on FHIR uses FHIR R4 to integrate EHR and research data via a structured specification.",
         herf:"https://colab.research.google.com/drive/15c_v9sK4wSF3Rng3j6xk-L6ngfWEEbPq"
