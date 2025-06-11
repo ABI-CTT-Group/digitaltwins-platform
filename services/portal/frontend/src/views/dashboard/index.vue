@@ -114,7 +114,7 @@ const handleExploreClicked = (title: string) => {
     }else if(title === "Physiology exploration (FC Map)"){
         window.open("https://mapcore-demo.org/2024/sparc-app-isan/apps/maps?id=f2a99cd3", '_blank');
     }else if(title === "My Digital Health Navigator"){
-        window.open("https://www.auckland.ac.nz/en/abi.html", '_blank')
+        window.open("https://dina.kekayan.com/", '_blank')
     }else if(title === "Medical Image Annotation"){
         window.open("https://build-seven-iota.vercel.app/#/", '_blank')
     }
