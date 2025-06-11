@@ -1,20 +1,21 @@
-FROM node:16-alpine
-# FROM node:19-alpine3.16
 
-MAINTAINER LinkunGao<gaolinkun123@gmail.com>
+FROM node:20-alpine
+
+LABEL maintainer="LinkunGao <gaolinkun123@gmail.com>"
 
 WORKDIR /app
 
 COPY . .
 
-RUN npm install
+RUN corepack enable && corepack prepare yarn@stable --activate
 
-RUN npm run build
+RUN yarn install --frozen-lockfile
 
-ENV HOST 0.0.0.0
+RUN yarn build
 
-ENV PORT 3000
+ENV HOST=0.0.0.0
+ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["npm", "run", "preview"]
+CMD ["yarn", "preview"]
