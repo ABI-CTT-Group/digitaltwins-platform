@@ -32,7 +32,7 @@
                 </template>
                 <template v-slot:item.actions="{ item }">
                     <div class="d-flex ga-2 justify-center">
-                        <v-btn variant="tonal" color="cyan"  @click="handleVisualisationlicked(item)">
+                        <v-btn v-if="showVisualisationBtn" variant="tonal" color="cyan"  @click="handleVisualisationlicked(item)">
                             Visualisation
                         </v-btn>
                         <v-btn variant="tonal" color="teal" @click="handleViewPDFClicked(item)">
@@ -44,7 +44,7 @@
         </div>
 
         <v-dialog v-model="dialog" class="dialog d-flex justify-center" max-width="900" @after-leave="handleDialogCancel">
-          <div class="test d-flex justify-center">
+          <div class="test d-flex justify-center overflow-y-auto">
             <!-- <canvas ref="pdfCanvasRef" class="mx-auto"></canvas> -->
             <div ref="divCanvasContainer" class="pdf-page"></div>
           </div>
@@ -65,27 +65,43 @@ import NavHome from '../dashboard/components/NavHome.vue';
 const router = useRouter();
 const route = useRoute();
 
+const showVisualisationBtn = ref(false)
+
 const dialog = ref(false);
 const divCanvasContainer = ref<HTMLDivElement>();
 const assays = ref([
   {
-    id: '',
-    date: '',
+    id: 'sub-1',
+    date: '18/03/2025',
     pdf: '/ep1_report.pdf'
   },
   {
-    id: '',
-    date: '',
+    id: 'sub-2',
+    date: '18/03/2025',
+    pdf: '/ep2_report.pdf'
+  },
+  {
+    id: 'sub-3',
+    date: '18/03/2025',
+    pdf: '/ep3_report.pdf'
+  },
+  {
+    id: 'sub-4',
+    date: '18/03/2025',
     pdf: '/ep4_report.pdf'
   },
 ])
 
 onMounted(async () => {
+  if ((route.query.assayId as string) === "9"){
+    showVisualisationBtn.value = true
+  }
+  
   const details = await useClinicalReportViewerDetails(route.query.assayId as string);
-  details.map((item:IClinicalReportViewerDetail, idx: number) => {
-    assays.value[idx].id = item.uuid;
-    assays.value[idx].date = item.date;
-  });  
+  // details.map((item:IClinicalReportViewerDetail, idx: number) => {
+  //   assays.value[idx].id = item.uuid;
+  //   assays.value[idx].date = item.date;
+  // });  
 });
 
 const renderPDF = async (pdfPath:string) => {
