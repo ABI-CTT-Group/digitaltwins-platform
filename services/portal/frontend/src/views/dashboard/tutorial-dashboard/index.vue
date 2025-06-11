@@ -1,7 +1,7 @@
 <template>
     <div class="container w-screen h-screen d-flex flex-column align-center overflow-hidden">
         <NavHome>
-            <h1 class="mx-auto">How it works</h1>
+            <h1 class="mx-auto">How to use this platform</h1>
         </NavHome>
         <div class="main-container overflow-y-auto">
             <v-row justify="center">

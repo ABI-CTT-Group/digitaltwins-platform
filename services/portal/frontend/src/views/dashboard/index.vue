@@ -53,7 +53,7 @@
                         :src="mydigitaltwinImage" 
                         :title="'My digital twin'"
                         location="Te Whatu Ora"
-                        description="Enables patients to interact with educational tools and their digital twins."
+                        description="Enables patients to interact with their digital twins to better understand and manage their medical conditions."
                         @on-explore="handleExploreClicked"
                     />
                 </v-col>
