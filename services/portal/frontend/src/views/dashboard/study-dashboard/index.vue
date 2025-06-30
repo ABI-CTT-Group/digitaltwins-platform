@@ -364,10 +364,10 @@ onMounted(async () => {
         currentCategoryData.value = dashboardProgrammes.value!.filter((item:IDashboardCategory) => {
             if (isClinicianView.value === false){
 
-                // if (item.name === "12 LABOURS"){
-                //     return item;
-                // }
-                return item;
+                if (item.name !== "Auckland hospital"){
+                    return item;
+                }
+                // return item;
             }else if (isClinicianView.value === true){
                 if (item.name === "Auckland hospital"){
                     return item;

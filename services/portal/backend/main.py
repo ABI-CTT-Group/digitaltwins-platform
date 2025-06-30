@@ -326,4 +326,4 @@ async def save_tumour_position(save_position: model.TumourPosition):
 
 if __name__ == '__main__':
     # uvicorn.run(app)
-    uvicorn.run(app, port=5566)
+    uvicorn.run(app, port=8000)

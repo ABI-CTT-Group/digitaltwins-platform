@@ -49,7 +49,7 @@ const publicData = {
     },
     admin: {
         userName: 'admin',
-        password: 'admin',
+        password: 'ABI_DigitalTWINS_0',
         role: 'admin'
     }
 }
@@ -103,7 +103,7 @@ const checkApi = async (validatingStr: string, type: string): Promise<any> => {
               
                     switch (userName.value.toLowerCase()) {
                         case publicData.user1.userName:
-                            if (validatingStr.toLowerCase() === publicData.user1.password) {
+                            if (validatingStr.toLowerCase() === publicData.user1.password.toLocaleLowerCase()) {
                                 role.value = publicData.user1.role;
                                 return resolve(true)
                             }
@@ -116,7 +116,7 @@ const checkApi = async (validatingStr: string, type: string): Promise<any> => {
                             
                             break;
                         case publicData.admin.userName:
-                            if (validatingStr.toLowerCase() === publicData.admin.password) {
+                            if (validatingStr.toLowerCase() === publicData.admin.password.toLocaleLowerCase()) {
                                 role.value = publicData.admin.role;
                                 return resolve(true);
                             }
