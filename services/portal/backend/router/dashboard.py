@@ -110,6 +110,8 @@ async def get_dashboard_workflows():
 
 @router.get("/api/dashboard/workflow-detail")
 async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
+
+    print(seek_id)
     if seek_id is None:
         return None
     try:

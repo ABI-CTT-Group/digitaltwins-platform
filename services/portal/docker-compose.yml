@@ -2,10 +2,10 @@ version: "3"
 services:
   backend:
     build:
-      context: ./backend
-      dockerfile: backend_compose_dockerfile
+      context: .
+      dockerfile: backend/backend_compose_dockerfile
     ports:
-      - "5566:5566"
+      - "8000:8000"
     # volumes:
     #   - ~/desktop/docker/import_nrrd:/segmentation_gui_backend/import_nrrd
     #   - ~/desktop/docker/export_data:/segmentation_gui_backend/export_data
@@ -18,7 +18,9 @@ services:
     build:
       context: ./frontend
       dockerfile: frontend_dockerfile
+      args:
+        VITE_APP_API_URL: ${VITE_APP_API_URL}
     ports:
-      - "3000:3000"
+      - "80:80"
     depends_on:
       - backend
