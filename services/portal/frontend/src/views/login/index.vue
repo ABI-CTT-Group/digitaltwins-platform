@@ -49,7 +49,7 @@ const publicData = {
     },
     admin: {
         userName: 'admin',
-        password: 'ABI_DigitalTWINS_0',
+        password: 'admin',
         role: 'admin'
     }
 }

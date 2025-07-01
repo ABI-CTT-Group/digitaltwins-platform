@@ -6,7 +6,7 @@
         >
             <SimpleInfoCard
                 category="Seek"
-                herf="http://130.216.217.147:3000/"
+                herf="http://130.216.216.26:8001/"
                 title="Programmes, Projects, Investigations, Studies, Assays, Measurements, Models"
                 description=""
             />

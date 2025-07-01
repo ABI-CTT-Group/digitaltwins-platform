@@ -74,7 +74,7 @@ const assays = ref<any[]>([])
 onMounted(async () => {
   const assayId = route.query.assayId as string;
   
-  if (assayId === "9" || assayId === "24"){
+  if (assayId === "1"||assayId === "9" || assayId === "24"){
     showVisualisationBtn.value = true
     assays.value = [ 
       {
