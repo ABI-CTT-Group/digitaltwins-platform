@@ -304,3 +304,8 @@ export interface IClinicalReportViewerDetail{
   uuid: string;
   date: string;
 }
+
+export interface IProjectDetail{
+  seekId: string;
+  title: string
+}
