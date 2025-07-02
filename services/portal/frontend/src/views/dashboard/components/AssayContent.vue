@@ -74,6 +74,7 @@
                 max-width="344"
             >
                 <v-text-field
+                class="py-3"
                 v-model:model-value="assayDetails!.numberOfParticipants"
                 :rules="[rules.required]"
                 label="Number of Participants"
