@@ -57,7 +57,9 @@
 <script setup lang="ts">
 import { ref, onMounted} from 'vue';
 import * as pdfjsLib from "pdfjs-dist";
+import workerSrc from "pdfjs-dist/build/pdf.worker.min?url";
 import { useClinicalReportViewerDetails } from "@/plugins/clinical_report_viewer_api";
+import {useDashboardProjectDetailsViaAssayId} from "@/plugins/dashboard_api"
 import { IClinicalReportViewerDetail } from "@/models/apiTypes";
 import { useRouter, useRoute } from 'vue-router';
 import NavHome from '../dashboard/components/NavHome.vue';
@@ -70,38 +72,11 @@ const showVisualisationBtn = ref(false)
 const dialog = ref(false);
 const divCanvasContainer = ref<HTMLDivElement>();
 const assays = ref<any[]>([])
+let assayId:string
 
 onMounted(async () => {
-  const assayId = route.query.assayId as string;
   
-  if (assayId === "1"||assayId === "9" || assayId === "24"){
-    showVisualisationBtn.value = true
-    assays.value = [ 
-      {
-        id: 'sub-4',
-        date: '18/03/2025',
-        pdf: '/ep4_report.pdf'
-      }
-    ]
-  }else if (assayId === "16"){
-    assays.value = [
-      {
-        id: 'sub-1',
-        date: '18/03/2025',
-        pdf: '/ep1_report.pdf'
-      }
-    ]
-  }else if (assayId === "20"){
-    assays.value = [
-      {
-        id: 'sub-2',
-        date: '18/03/2025',
-        pdf: '/ep2_report.pdf'
-      }
-    ]
-  }
-  
-  const details = await useClinicalReportViewerDetails(assayId);
+  // const details = await useClinicalReportViewerDetails(assayId);
   // details.map((item:IClinicalReportViewerDetail, idx: number) => {
   //   assays.value[idx].id = item.uuid;
   //   assays.value[idx].date = item.date;
@@ -112,7 +87,9 @@ const renderPDF = async (pdfPath:string) => {
       // const pdfUrl = 'https://pdftron.s3.amazonaws.com/downloads/pl/demo-annotated.pdf';
       const pdfUrl = pdfPath;
       // pdfjsLib.GlobalWorkerOptions.workerSrc = '../../../node_modules/pdfjs-dist/build/pdf.worker.mjs';
-      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.mjs';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc
+      
+      // '/pdfjs/pdf.worker.mjs';
       const loadingTask = pdfjsLib.getDocument(pdfUrl);
       const pdfDocument = await loadingTask.promise;
 
@@ -153,57 +130,86 @@ const handleDialogCancel = () => {
 };
 
 
-  const FakeAPI = {
-    async fetch ({ page, itemsPerPage, sortBy }:any) {
-      return new Promise(resolve => {
-        setTimeout(() => {
-          const start = (page - 1) * itemsPerPage
-          const end = start + itemsPerPage
-          const items = assays.value.slice()
-          if (sortBy.length) {
-            const sortKey = sortBy[0].key
-            const sortOrder = sortBy[0].order
-            items.sort((a:any, b:any) => {
-              const aValue = a[sortKey]
-              const bValue = b[sortKey]
-              return sortOrder === 'desc' ? bValue - aValue : aValue - bValue
-            })
-          }
-          const paginated = items.slice(start, end)
-          resolve({ items: paginated, total: items.length })
-        }, 500)
-      })
-    },
-  }
-  const itemsPerPage = ref(5)
-  const headers = ref([
-    { title: 'Patient ID', key: 'id', align: 'center' },
-    { title: 'Date Generated', key: 'date', align: 'center', sortable: false },
-    { title: 'Actions', key: 'actions', align: 'center', sortable: false }
-  ])
-  const serverItems = ref([])
-  const loading = ref(true)
-  const totalItems = ref(0)
-  function loadItems ({ page, itemsPerPage, sortBy }:any) {
-    loading.value = true
-    FakeAPI.fetch({ page, itemsPerPage, sortBy }).then(({ items, total }:any) => {
-      serverItems.value = items
-      totalItems.value = total
-      loading.value = false
+const FakeAPI = {
+  async fetch ({ page, itemsPerPage, sortBy }:any) {
+    return new Promise(resolve => {
+      setTimeout(() => {
+        const start = (page - 1) * itemsPerPage
+        const end = start + itemsPerPage
+        const items = assays.value.slice()
+        if (sortBy.length) {
+          const sortKey = sortBy[0].key
+          const sortOrder = sortBy[0].order
+          items.sort((a:any, b:any) => {
+            const aValue = a[sortKey]
+            const bValue = b[sortKey]
+            return sortOrder === 'desc' ? bValue - aValue : aValue - bValue
+          })
+        }
+        const paginated = items.slice(start, end)
+        resolve({ items: paginated, total: items.length })
+      }, 500)
     })
+  },
+}
+const itemsPerPage = ref(5)
+const headers = ref([
+  { title: 'Patient ID', key: 'id', align: 'center' },
+  { title: 'Date Generated', key: 'date', align: 'center', sortable: false },
+  { title: 'Actions', key: 'actions', align: 'center', sortable: false }
+])
+const serverItems = ref([])
+const loading = ref(true)
+const totalItems = ref(0)
+async function loadItems ({ page, itemsPerPage, sortBy }:any) {
+assayId = route.query.assayId as string;
+  const project = await useDashboardProjectDetailsViaAssayId(assayId);
+  if (project.title.includes("EP1")){
+    assays.value = [
+      {
+        id: 'sub-1',
+        date: '18/03/2025',
+        pdf: '/ep1_report.pdf'
+      }
+    ]
+  }else if(project.title.includes("EP2")){
+    assays.value = [
+      {
+        id: 'sub-2',
+        date: '18/03/2025',
+        pdf: '/ep2_report.pdf'
+      }
+    ]
+  }else {
+    showVisualisationBtn.value = true
+    assays.value = [ 
+      {
+        id: 'sub-4',
+        date: '18/03/2025',
+        pdf: '/ep4_report.pdf'
+      }
+    ]
   }
 
-  async function handleViewPDFClicked(item:any) {
-    console.log('View PDF clicked', item)
-    dialog.value = true
-    await renderPDF(item.pdf);
-  }
+  loading.value = true
+  FakeAPI.fetch({ page, itemsPerPage, sortBy }).then(({ items, total }:any) => {
+    serverItems.value = items
+    totalItems.value = total
+    loading.value = false
+  })
+}
 
-  function handleVisualisationlicked(item:any) {
-    console.log('Visualization clicked', item.id)
-    console.log('Visualization clicked', route.query.assayId)
-    router.push({name: "TumourAssistedStudy", query: { assayId:route.query.assayId, patientId: item.id }});
-  }
+async function handleViewPDFClicked(item:any) {
+  console.log('View PDF clicked', item)
+  dialog.value = true
+  await renderPDF(item.pdf);
+}
+
+function handleVisualisationlicked(item:any) {
+  console.log('Visualization clicked', item.id)
+  console.log('Visualization clicked', route.query.assayId)
+  router.push({name: "TumourAssistedStudy", query: { assayId:route.query.assayId, patientId: item.id }});
+}
 </script>
 
 <style scoped>
