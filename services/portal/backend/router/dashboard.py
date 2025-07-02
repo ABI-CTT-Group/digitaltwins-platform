@@ -22,8 +22,10 @@ Categories:
     - Assaysx`
 """
 
+
 def set_data_root_path():
     Config.BASE_PATH = root_dir / "data" / "duke"
+
 
 @router.get("/api/dashboard/programmes")
 async def get_dashboard_programmes():
@@ -86,6 +88,7 @@ async def get_dashboard_category_children_by_uuid(seek_id: str = Query(None), ca
         children.append(temp)
     return children
 
+
 @router.get("/api/dashboard/workflows")
 async def get_dashboard_workflows():
     sops = digitaltwins_configs.querier.get_sops()
@@ -110,7 +113,6 @@ async def get_dashboard_workflows():
 
 @router.get("/api/dashboard/workflow-detail")
 async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
-
     print(seek_id)
     if seek_id is None:
         return None
@@ -134,10 +136,12 @@ async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
     except KeyError as e:
         return None
 
+
 @router.get("/api/dashboard/workflow-cwl")
 async def get_dashboard_workflow_cwl():
     sop_cwl = digitaltwins_configs.querier.get_sop(1, get_cwl=True)
     print(sop_cwl)
+
 
 @router.get("/api/dashboard/datasets")
 async def get_dashboard_datasets(category: str = Query(None)):
@@ -226,6 +230,18 @@ async def get_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
         return None
 
 
+@router.get("/api/dashboard/assay-project")
+async def get_project_by_assay_id(seek_id: str = Query(None)):
+    print("aaa")
+    assay_detail = digitaltwins_configs.querier.get_assay(seek_id, get_params=True)
+    project_details = digitaltwins_configs.querier.get_project(
+        project_id=assay_detail["relationships"]["projects"]["data"][0]["id"])
+    return {
+        "seekId": project_details["id"],
+        "title": project_details["attributes"]["title"],
+    }
+
+
 @router.get("/api/dashboard/assay-launch")
 async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
     """
@@ -292,20 +308,36 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
                 "data": "ClinicalReportViewer"
             }
         # for EP3
+        # if workflow_name == "Electrode selection - GUI":
+        #     return {
+        #         "type": "EP3 workflow launch",
+        #         "data": "http://130.216.208.137:8888/lab/workspaces/auto-Q/tree/ep3/electrode_selection.ipynb?token=ctt_digitaltwins_0"
+        #     }
+        # if workflow_name == "Quantification of frequency of electrical activity from electrode measurements - GUI":
+        #     return {
+        #         "type": "EP3 workflow launch",
+        #         "data": "http://130.216.208.137:8888/lab/workspaces/auto-Q/tree/ep3/quantification_of_frequency_of_electrical_activity_from_electrode_measurements.ipynb?token=ctt_digitaltwins_0"
+        #     }
+        # if workflow_name == "Statistical analysis of electrode measurements - GUI":
+        #     return {
+        #         "type": "EP3 workflow launch",
+        #         "data": "http://130.216.208.137:8888/lab/workspaces/auto-Q/tree/ep3/statistical_analysis_of_electrode_measurements.ipynb?token=ctt_digitaltwins_0"
+        #     }
+        # for EP3 Public demo
         if workflow_name == "Electrode selection - GUI":
             return {
                 "type": "EP3 workflow launch",
-                "data": "http://130.216.208.137:8888/lab/workspaces/auto-Q/tree/ep3/electrode_selection.ipynb?token=ctt_digitaltwins_0"
+                "data": "http://130.216.216.26:8008/lab/tree/ep3/electrode_selection.ipynb"
             }
         if workflow_name == "Quantification of frequency of electrical activity from electrode measurements - GUI":
             return {
                 "type": "EP3 workflow launch",
-                "data": "http://130.216.208.137:8888/lab/workspaces/auto-Q/tree/ep3/quantification_of_frequency_of_electrical_activity_from_electrode_measurements.ipynb?token=ctt_digitaltwins_0"
+                "data": "http://130.216.216.26:8008/lab/tree/ep3/quantification_of_frequency_of_electrical_activity_from_electrode_measurements.ipynb"
             }
         if workflow_name == "Statistical analysis of electrode measurements - GUI":
             return {
                 "type": "EP3 workflow launch",
-                "data": "http://130.216.208.137:8888/lab/workspaces/auto-Q/tree/ep3/statistical_analysis_of_electrode_measurements.ipynb?token=ctt_digitaltwins_0"
+                "data": "http://130.216.216.26:8008/lab/tree/ep3/statistical_analysis_of_electrode_measurements.ipynb"
             }
     return None
 
