@@ -1,6 +1,6 @@
 <template>
     <div class="container overflow-hidden d-flex justify-center">
-        <NavHome> <h1 class="text-center py-4 text-grey-lighten-2">DigitalTWINS Platform</h1> </NavHome>
+        <NavHome> <h1 class="text-center py-4 text-grey-lighten-2">DigitalTWINS AI Platform</h1> </NavHome>
         <div class="overflow-y-auto h-100 mt-10 sub-container">
             <v-row>
                 <v-col

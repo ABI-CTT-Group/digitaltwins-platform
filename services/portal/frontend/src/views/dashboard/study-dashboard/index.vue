@@ -402,8 +402,8 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    backdrop-filter: blur(1px); 
-    -webkit-backdrop-filter: blur(1px); 
+    backdrop-filter: blur(10px); 
+    -webkit-backdrop-filter: blur(10px); 
 }
 .container::before {
   content: "";
@@ -413,8 +413,8 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
   width: 100%;
   height: 100%;
   background: inherit; 
-  filter: blur(1px); 
-  -webkit-filter: blur(1px); 
+  filter: blur(10px); 
+  -webkit-filter: blur(10px); 
   z-index: -1; 
 }
 .breadcrumbs {
