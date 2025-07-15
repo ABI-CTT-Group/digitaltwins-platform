@@ -1,8 +1,7 @@
 <template>
     <v-card
-        color="#bfdbfe"
-        variant="outlined"
-        class="mx-auto"
+    
+        class="mx-auto card-color"
       >
         <v-card-item>
           <div>
@@ -55,5 +54,9 @@ const handleBtnClick = ()=>{
 }
 .title{
   min-height: 4rem;
+}
+.card-color {
+    background: linear-gradient(to bottom, rgba(255,255,255,0.35) 0%, rgba(0,0,0,0.35) 100%), radial-gradient(at top center, rgba(255,255,255,0.60) 0%, rgba(0,0,0,0.60) 120%) #989898; background-blend-mode: multiply,multiply;
+    background-color: transparent !important;
 }
 </style>

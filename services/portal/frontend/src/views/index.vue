@@ -30,6 +30,6 @@ import LoginPage from './login/index.vue'
   color: white;
   font-size: 18px;
   font-weight: bold;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* 让文字清晰一点 */
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); 
 }
 </style>

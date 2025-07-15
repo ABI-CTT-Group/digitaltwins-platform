@@ -42,7 +42,7 @@
                         :min="1200"
                         :btnText="workflow"
                         :btn-height="'70px'"
-                        btnColor = "#424242"
+                        btnColor = "#fff"
                         btnVariant="tonal"
                         save-btn-name="Close"
                         @on-open = "handleDialogOpen()"
@@ -85,7 +85,7 @@
                         :min="1200"
                         :btnText="tool"
                         :btn-height="'70px'"
-                        btnColor = "#424242"
+                        btnColor = "#fff"
                         btnVariant="tonal"
                         save-btn-name="Close"
                         @on-open = "handleDialogOpen()"
@@ -175,7 +175,7 @@ const handleDialogSave = () => {
       flex:1;
       /* height: 75vh; */
       height: 100%;
-      background: rgba(173, 216, 230, 0.2);
+      background: rgba(173, 216, 230, 0.4);
       border-radius: 15px;
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
