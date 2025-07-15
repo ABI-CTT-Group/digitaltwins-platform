@@ -13,7 +13,7 @@
             </span>
         </div>
         
-        <div>
+        <div class="my-font">
             <slot></slot>
         </div>
 
@@ -61,5 +61,10 @@ const handleHomeClick = ()=>{
 .logo-img-div img{
     width: 100%;
     height: 100%;
+}
+.my-font{
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, 
+               "PingFang SC", "Noto Sans", "Microsoft YaHei", sans-serif;
+    user-select: none;
 }
 </style>

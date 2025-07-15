@@ -27,7 +27,8 @@ const props = defineProps<{
 </script>
 
 <style scoped>
-/* .card-color {
-    background: linear-gradient(to bottom, rgba(255,255,255,0.15) 0%, rgba(0,0,0,0.15) 100%), radial-gradient(at top center, rgba(255,255,255,0.40) 0%, rgba(0,0,0,0.40) 120%) #989898; background-blend-mode: multiply,multiply;
-} */
+.card-color {
+    background: linear-gradient(to bottom, rgba(255,255,255,0.15) 0%, rgba(0,0,0,0.45) 100%), radial-gradient(at top center, rgba(255,255,255,0.30) 0%, rgba(0,0,0,0.60) 120%) #000; background-blend-mode: multiply,multiply;
+    background-color: transparent !important;
+}
 </style>

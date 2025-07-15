@@ -1,5 +1,5 @@
 <template>
-    <div class="w-screen h-screen gradients d-flex flex-column align-center">
+    <div class="w-screen h-screen container d-flex flex-column align-center">
         <NavHome>
             <h1 class="text-center py-4 text-grey-lighten-2">{{title}} Dashboard</h1>
         </NavHome>
@@ -395,22 +395,32 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
 </script>
 
 <style scoped>
-.gradients {
-    background: #556270;  
-    background: -webkit-linear-gradient(to right, #FF6B6B, #556270);  
-    background: linear-gradient(to right, #FF6B6B, #556270); 
-    
-
-    /* background-image: linear-gradient(45deg, #8baaaa 0%, #ae8b9c 100%); */
-    /* background: linear-gradient(to bottom, #323232 0%, #3F3F3F 40%, #1C1C1C 150%), linear-gradient(to top, rgba(255,255,255,0.40) 0%, rgba(0,0,0,0.25) 200%); background-blend-mode: multiply; */
-    background-repeat: repeat;
-    /* background: #403B4A; 
-    background: -webkit-linear-gradient(to right, #E7E9BB, #403B4A); 
-    background: linear-gradient(to right, #E7E9BB, #403B4A);  */
+.container {
+    height: 100vh;
+    position: relative;
+    background-image: url("@/assets/login_bg.jpg"); 
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    backdrop-filter: blur(1px); 
+    -webkit-backdrop-filter: blur(1px); 
+}
+.container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: inherit; 
+  filter: blur(1px); 
+  -webkit-filter: blur(1px); 
+  z-index: -1; 
 }
 .breadcrumbs {
     top: 110px;
-    border-radius: 5% 95% 97% 3% / 42% 45% 55% 58%  ;
+    /* border-radius: 5% 95% 97% 3% / 42% 45% 55% 58%  ; */
+    border-radius: 10px;
     box-shadow:  8px 8px 10px  #636363,
                 -8px -8px 10px #878787;
 }
