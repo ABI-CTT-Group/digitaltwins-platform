@@ -55,8 +55,8 @@
                             <div class="d-flex justify-center w-100 pa-3">
                                 <div class="w-75">
                                     <v-img
-                                        aspect-ratio="16/9"
-                                        cover
+                                        :aspect-ratio="1"
+                                        width="125"
                                         :src="`/eps/workflows/${workflow}.svg`"
                                     ></v-img>
                                 </div>
@@ -189,4 +189,5 @@ const handleDialogSave = () => {
 .t-content{
     height: 62vh;
 }
+
 </style>

@@ -54,12 +54,27 @@ const tutorials = ref([
 </script>
 
 <style scoped>
-.container{
-  /* background: #556270;   */
-  /* background-color: #424242; */
-  background: #556270;  
-  background: -webkit-linear-gradient(to right, #FF6B6B, #556270);  
-  background: linear-gradient(to right, #FF6B6B, #556270); 
+.container {
+    height: 100vh;
+    position: relative;
+    background-image: url("@/assets/login_bg.jpg"); 
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    backdrop-filter: blur(10px); 
+    -webkit-backdrop-filter: blur(10px); 
+}
+.container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: inherit; 
+  filter: blur(10px); 
+  -webkit-filter: blur(10px); 
+  z-index: -1; 
 }
 .main-container{
     width: 80%;
