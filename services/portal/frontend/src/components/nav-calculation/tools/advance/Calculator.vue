@@ -90,6 +90,11 @@ const emitterOnAppMounted = (from:string) => {
             { label: "Tumour", value: "tumour", color: "#4CAF50", disabled: false},
         ]
       break;
+    case "TumourStudy:Admin-TumourPositionReporting":
+      commFuncRadioValues.value = [
+            { label: "Tumour", value: "tumour", color: "#4CAF50", disabled: false},
+        ]
+      break;
     case "TumourStudy:Admin-TumourAssisted":
       commFuncRadioValues.value = [
             { label: "Tumour", value: "tumour", color: "#4CAF50", disabled: false},
@@ -155,6 +160,11 @@ const configRadiosUI = () => {
       calculatorPickerRadios.value = "nipple";
       break;
     case "TumourStudy:Admin-TumourCenter":
+      isShowClockFace.value = false;
+      finishBtnDisabled.value = false;
+      calculatorPickerRadios.value = "tumour";
+      break;
+    case "TumourStudy:Admin-TumourPositionReporting":
       isShowClockFace.value = false;
       finishBtnDisabled.value = false;
       calculatorPickerRadios.value = "tumour";

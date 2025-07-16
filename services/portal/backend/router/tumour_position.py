@@ -4,6 +4,7 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 from models import model
 import json
+from .dashboard import set_data_root_path
 
 router = APIRouter()
 
@@ -12,6 +13,7 @@ except_cases = ["Breast_014", "C-V0001"]
 
 @router.get("/api/tumour_position")
 async def get_tumour_position_app_detail():
+    set_data_root_path()
     tools.get_metadata()
     case_names = tools.get_all_case_names(except_case=except_cases)
     case_names.sort()
@@ -22,7 +24,6 @@ async def get_tumour_position_app_detail():
         segmentation_breast_points_paths = tools.get_category_files(name, "json", "segmentation")
         tumour_report_path = tools.get_file_path(name, "json", "tumour_position_study.json")
         report = {}
-
         if tumour_report_path.exists() and tumour_report_path.stat().st_size != 0:
             # get study status
             with open(tumour_report_path, 'r') as file:

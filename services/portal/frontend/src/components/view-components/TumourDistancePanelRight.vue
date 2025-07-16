@@ -1,9 +1,9 @@
 <template>
     <v-card class="right-value-panel mt-2 guide-right-value-panel" color="right-display-panel">
-        <div color="primary">
+        <div v-if="showVolume" color="primary">
             <span>Tumour volume:</span> <span>{{ tumourVolume }} cm<sup>3</sup></span>
         </div>
-        <div>
+        <div v-if="showExtent">
             <span>Tumour extent:</span> <span>{{ tumourExtent }} mm</span>
         </div>
         <div class="skin">
@@ -22,14 +22,23 @@
 </template>
 
 <script setup lang="ts">
+import {withDefaults} from "vue"
 
-defineProps({
-    tumourVolume: Number,
-    tumourExtent: Number,
-    skinDist: String,
-    ribDist: String,
-    nippleDist: String,
-    nippleClock: String
+interface Props {
+  tumourVolume?: number
+  tumourExtent?: number
+  skinDist?: string
+  ribDist?: string
+  nippleDist?: string
+  nippleClock?: string
+  showVolume?: boolean
+  showExtent?: boolean
+}
+
+// 只给 showVolume 和 showExtent 设置默认值
+const props = withDefaults(defineProps<Props>(), {
+  showVolume: true,
+  showExtent: true,
 })
 </script>
 
@@ -39,7 +48,7 @@ defineProps({
   left: 0px;
   top: 0px;
   width: 200px;
-  height: 150px;
+  /* height: 150px; */
   background-color: rgba(255, 255, 255, 0.1);
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 10px;
@@ -47,9 +56,9 @@ defineProps({
   font-size: smaller;
   user-select: none;
   -webkit-user-select: none;
-  /* display: flex; */
-  /* align-items: center; */
-  /* justify-content: center; */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .right-value-panel > div {

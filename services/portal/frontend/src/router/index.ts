@@ -18,6 +18,7 @@ import TutorialDashboard from "@/views/dashboard/tutorial-dashboard/index.vue";
 import CatalogueDashboard from "@/views/dashboard/catalogue-dashboard/index.vue";
 import CatalogueDashboardView from "@/views/dashboard/catalogue-dashboard/catalogue-dashboard-view.vue";
 import WorkflowToolsViewer from "@/views/dashboard/catalogue-dashboard/workflow-tools-viewer.vue";
+import TumourPositionReporting from "@/views/tumour-position-reporting/MainPage.vue"
 
 const routes = [
   {
@@ -101,6 +102,17 @@ const routes = [
         path: "/tumour-assisted-manual",
         name: "TumourAssistedStudy",
         component: ManuallyTumourAssisted,
+      },
+    ],
+  },
+  {
+    path: "/tumour-position-reporting",
+    component: CalculationLayout,
+    children: [
+      {
+        path: "/tumour-position-reporting",
+        name: "TumourPositionReporting",
+        component: TumourPositionReporting,
       },
     ],
   },

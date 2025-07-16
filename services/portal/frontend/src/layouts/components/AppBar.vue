@@ -20,7 +20,7 @@
         >
         {{ title }}
       </span>
-      <span class="text-body-2 font-italic text-deep-orange">
+      <span class="text-body-2 font-italic text-deep-orange mx-2">
         {{ version }}
       </span>
     </v-app-bar-title>

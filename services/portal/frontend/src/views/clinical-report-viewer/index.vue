@@ -208,7 +208,7 @@ async function handleViewPDFClicked(item:any) {
 function handleVisualisationlicked(item:any) {
   console.log('Visualization clicked', item.id)
   console.log('Visualization clicked', route.query.assayId)
-  router.push({name: "TumourAssistedStudy", query: { assayId:route.query.assayId, patientId: item.id }});
+  router.push({name: "TumourPositionReporting", query: { assayId:route.query.assayId, patientId: item.id }});
 }
 </script>
 
