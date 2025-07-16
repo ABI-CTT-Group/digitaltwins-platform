@@ -6,6 +6,16 @@
     @update:finished-copper-init="onFinishedCopperInit"
     @update:reset-nrrd-image-view="handleResetNrrdImageView"
   >
+    <template #tumour-distance-panel>
+      <TumourDistancePanelRight 
+        :show-volume="false"
+        :show-extent="false"
+        :skin-dist="skinDist"
+        :rib-dist="ribDist"
+        :nipple-dist="nippleDist"
+        :nipple-clock="nippleClock"
+      />
+    </template>
     <template #bottom-nav-bar>
       <NavBarRight
         :panel-width="Math.ceil(panelWidth) "
@@ -20,6 +30,7 @@
 <script setup lang="ts">
 import RightPanelCore from "@/components/view-components/RightPanelCore.vue";
 import NavBarRight from "@/components/commonBar/NavBarRight.vue";
+import TumourDistancePanelRight from "@/components/view-components/TumourDistancePanelRight.vue";
 import * as THREE from "three";
 import * as Copper from "copper3d";
 import "copper3d/dist/css/style.css";
@@ -129,9 +140,40 @@ const Geometry = new THREE.SphereGeometry(3, 32, 16)
 const tumourMaterial = new THREE.MeshBasicMaterial({ color: "#228b22" });
 const tumourSphere = new THREE.Mesh(Geometry, tumourMaterial);
 
+let nippleCentralLimit = 10;
+let nippleTl: number[] = [];
+let nippleTr: number[] = [];
+let skinTree:any;
+let ribTree:any;
+let processedSkinPoints:number[][] = []
+let processedRibPoints:number[][] = []
+const skinPosition:THREE.Vector3 = new THREE.Vector3(0,0,0)
+const ribPosition:THREE.Vector3 = new THREE.Vector3(0,0,0)
+
+const commGeo = new THREE.SphereGeometry(3, 32, 16)
+const material = new THREE.MeshBasicMaterial({ color: "hotpink" });
+const nippleSphereL = new THREE.Mesh(commGeo, material);
+const nippleSphereR = new THREE.Mesh(commGeo, material);
+const skinSphere = new THREE.Mesh(commGeo, new THREE.MeshBasicMaterial({ color: "#FFFF00"}));
+const ribSphere = new THREE.Mesh(commGeo, new THREE.MeshBasicMaterial({ color: "#00E5FF" }));
+skinSphere.renderOrder=0;
+ribSphere.renderOrder=0;
+
+
 
 const maskNrrd = ref<string>("");
+const { breastMeshObjUrl } = storeToRefs(useBreastMeshObjUrlStore());
 const { getBreastMeshObjUrl } = useBreastMeshObjUrlStore();
+const skinDist = ref("0");
+const ribDist = ref("0");
+const nippleDist = ref("L: 0");
+const nippleClock = ref("@ 0:0");
+const { nipplePoints } = storeToRefs(useNipplePointsStore());
+const { getNipplePoints } = useNipplePointsStore();
+const { skinPoints } = storeToRefs(useSkinPointsStore());
+const { getSkinPoints } = useSkinPointsStore();
+const { ribPoints } = storeToRefs(useRibPointsStore());
+const { getRibPoints } = useRibPointsStore();
 
 
 const props = withDefaults(defineProps<Props>(), {
@@ -178,6 +220,10 @@ function clearModelsAndStates(){
   nrrdRas.length = 0
   nrrdDimensions.length = 0
   nrrdBias = new THREE.Vector3(0,0,0);
+  !!skinTree?skinTree.dispose():null;
+  !!ribTree?ribTree.dispose():null;
+  skinTree = undefined;
+  ribTree = undefined;
   rightPanelCoreRef.value?.removeOldMeshes(allRightPanelMeshes);
 }
 
@@ -202,6 +248,7 @@ const emitterOnCaseDetails = async (caseDetails: ITumourCenterCaseDetails) => {
   await getInitDataOnceCaseSwitched(caseDetails);
 
   currentImageType.value = "register"
+
   // 2.2 Load Nrrd core
   coreLoadNrrdImageOnceGetCaseDetail(maskNrrd.value as string, currentImageType.value);
 }
@@ -245,6 +292,7 @@ const updateNrrdMeshToCopperScene = (updatedNrrdMesh:Copper.nrrdMeshesType, upda
 const getInitDataOnceCaseSwitched = async (caseDetails: ITumourCenterCaseDetails)=>{
   
   currentCasename.value = caseDetails.currentCaseName;
+
   // get mask nrrd blob url
   maskNrrd.value = caseDetails.nrrdUrl;
   
@@ -258,6 +306,12 @@ const getInitDataOnceCaseSwitched = async (caseDetails: ITumourCenterCaseDetails
   };
   // get breast mesh obj url
   await getBreastMeshObjUrl(currentCasename.value);
+  // get ribcage points
+  await getRibPoints(currentCasename.value);
+  // get skin points
+  await getSkinPoints(currentCasename.value);
+  // get nipple points
+  await getNipplePoints(currentCasename.value);
 }
 
 
@@ -303,15 +357,62 @@ const coreLoadNrrdImageOnceGetCaseDetail = async (nrrdUrl:string, imageType:"ori
         y: correctedOrigin[1]+tumourCenterPixel.y, 
         z: correctedOrigin[2]+tumourCenterPixel.z
       }
-      // 2.3 Load tumour center point
+
+      if(!!skinPoints.value){
+        const skinPointCloud = skinPoints.value as IRibSkinPoints
+        processedSkinPoints = processPointsCloud(skinPointCloud["Datapoints"] as number[][], nrrdData.bias)
+        skinTree = createKDTree(processedSkinPoints);
+      }
+      if(!!ribPoints.value){
+        const ribPointCloud = ribPoints.value as IRibSkinPoints
+        processedRibPoints = processPointsCloud(ribPointCloud["Datapoints"] as number[][], nrrdData.bias)
+        ribTree = createKDTree(processedRibPoints);
+      }
+
+      // 2.3 Load breast model, nipple, skin, ribcage, 3d model
+      loadBreastNipplePoints(nipplePoints.value as INipplePoints);
+      // 2.4 Load tumour center point
       loadTumourViaPositionCenter(correctedTumourCenterPosition)
-      // 2.4 Load tumour bounding box
-      loadTumourBoundingBox(correctedTumourCenterPosition, boxWidtHeightDepthPixel);
-      // loadBreastModel(breastMeshObjUrl.value as string);
-      // 2.4 Load tumour obj model if has
+      // 2.5 Load tumour bounding box
+      // loadTumourBoundingBox(correctedTumourCenterPosition, boxWidtHeightDepthPixel);
+  
+      loadBreastModel(breastMeshObjUrl.value as string);
+      // 2.6 Load tumour obj model if has
       requestUpdateSliderSettings();
     });
 };
+
+function loadBreastNipplePoints(nipplePoints:INipplePoints){
+  if(!!nipplePoints){
+    const nipples = nipplePoints;
+    const l = nipples.nodes.left_nipple;
+    const r = nipples.nodes.right_nipple;
+    const nipplesPos = [l, r];
+
+    nippleTl = transformMeshPointToImageSpace(
+      nipplesPos[0],
+      nrrdOrigin,
+      nrrdSpacing,
+      nrrdDimensions,
+      nrrdBias
+    );
+    nippleTr = transformMeshPointToImageSpace(
+      nipplesPos[1],
+      nrrdOrigin,
+      nrrdSpacing,
+      nrrdDimensions,
+      nrrdBias
+    );
+    // valide(tl,tr,nrrdMesh)
+    nippleSphereL.position.set(nippleTl[0], nippleTl[1], nippleTl[2]);
+    nippleSphereR.position.set(nippleTr[0], nippleTr[1], nippleTr[2]);
+
+    copperScene.addObject(nippleSphereR);
+    copperScene.addObject(nippleSphereL);
+
+    allRightPanelMeshes.push(...[nippleSphereL, nippleSphereR]);
+  }
+}
 
 const loadTumourBoundingBox = (center:ICommXYZ, boxWidtHeightDepth:ICommXYZ) => {
   // bunding box
@@ -326,26 +427,28 @@ const loadTumourBoundingBox = (center:ICommXYZ, boxWidtHeightDepth:ICommXYZ) => 
 }
 
 const loadTumourViaPositionCenter = (center:ICommXYZ)=>{
-// Note: The center here must be under (pixel, pixel, pixel) format + threejs world center bias for nrrd image
-if(!center) return;
+  // Note: The center here must be under (pixel, pixel, pixel) format + threejs world center bias for nrrd image
+  if(!center) return;
 
-tumourSphere.position.set(center.x, center.y, center.z);
-if (!tumourPosition) {
-  tumourPosition = new THREE.Vector3()
-}
-tumourPosition?.set(center.x, center.y, center.z);
+  tumourSphere.position.set(center.x, center.y, center.z);
+  if (!tumourPosition) {
+    tumourPosition = new THREE.Vector3()
+  }
+  tumourPosition?.set(center.x, center.y, center.z);
 
-loadNrrdSlices.x.index = (tumourSliceIndex as ICommXYZ).x =
-loadNrrdSlices.x.RSAMaxIndex / 2 + tumourSphere.position.x;
-loadNrrdSlices.y.index = (tumourSliceIndex as ICommXYZ).y =
-loadNrrdSlices.y.RSAMaxIndex / 2 + tumourSphere.position.y;
-loadNrrdSlices.z.index = (tumourSliceIndex as ICommXYZ).z =
-loadNrrdSlices.z.RSAMaxIndex / 2 + tumourSphere.position.z;
-loadNrrdSlices.x.repaint.call(loadNrrdSlices.x);
-loadNrrdSlices.y.repaint.call(loadNrrdSlices.y);
-loadNrrdSlices.z.repaint.call(loadNrrdSlices.z);
-copperScene.scene.add(tumourSphere);
-allRightPanelMeshes.push(tumourSphere);
+  loadNrrdSlices.x.index = (tumourSliceIndex as ICommXYZ).x =
+  loadNrrdSlices.x.RSAMaxIndex / 2 + tumourSphere.position.x;
+  loadNrrdSlices.y.index = (tumourSliceIndex as ICommXYZ).y =
+  loadNrrdSlices.y.RSAMaxIndex / 2 + tumourSphere.position.y;
+  loadNrrdSlices.z.index = (tumourSliceIndex as ICommXYZ).z =
+  loadNrrdSlices.z.RSAMaxIndex / 2 + tumourSphere.position.z;
+  loadNrrdSlices.x.repaint.call(loadNrrdSlices.x);
+  loadNrrdSlices.y.repaint.call(loadNrrdSlices.y);
+  loadNrrdSlices.z.repaint.call(loadNrrdSlices.z);
+  copperScene.scene.add(tumourSphere);
+  allRightPanelMeshes.push(tumourSphere);
+
+  updateSkinAndRibcageThenCalculateDTNSR()
 }
 
 async function loadBreastModel(url:string){ 
@@ -356,6 +459,7 @@ async function loadBreastModel(url:string){
     allRightPanelMeshes.push(content);
     content.position.set(nrrdBias.x, nrrdBias.y, nrrdBias.z);
     content.renderOrder = 3;
+
     content.traverse((child) => {
         if ((child as THREE.Mesh).isMesh) {
           (child as THREE.Mesh).renderOrder=3;
@@ -370,6 +474,62 @@ async function loadBreastModel(url:string){
         }
       });
   })
+}
+
+const updateSkinAndRibcageThenCalculateDTNSR = ()=>{
+  if (!!tumourPosition) {
+      // const nippleTree = createKDTree(nipplesPos);
+      // const idx = nippleTree.nn([tumourCenter.x,tumourCenter.y,tumourCenter.z])
+      // console.log(idx);
+      if(!!ribTree && !!skinTree){
+        displaySkinAndRib([tumourPosition.x, tumourPosition.y, tumourPosition.z])
+      }
+      updateTumourPanelInfo(tumourPosition)
+    }
+}
+
+function displaySkinAndRib(tumourPosition:number[]){
+
+  const skinidx = skinTree.nn(tumourPosition)
+  const ribidx = ribTree.nn(tumourPosition)
+
+  skinSphere.position.set(processedSkinPoints[skinidx][0],processedSkinPoints[skinidx][1], processedSkinPoints[skinidx][2])
+  ribSphere.position.set(processedRibPoints[ribidx][0],processedRibPoints[ribidx][1], processedRibPoints[ribidx][2])
+  skinPosition.set(processedSkinPoints[skinidx][0],processedSkinPoints[skinidx][1], processedSkinPoints[skinidx][2])
+  ribPosition.set(processedRibPoints[ribidx][0],processedRibPoints[ribidx][1], processedRibPoints[ribidx][2])
+
+  copperScene.scene.add( skinSphere, ribSphere)
+
+  allRightPanelMeshes.push(skinSphere)
+  allRightPanelMeshes.push(ribSphere)
+}
+
+function updateTumourPanelInfo(tumourPosition: THREE.Vector3){
+  const nippleLeft = new THREE.Vector3(
+      nippleTl[0],
+      nippleTl[1],
+      nippleTl[2]
+    );
+  const nippleRight = new THREE.Vector3(
+    nippleTr[0],
+    nippleTr[1],
+    nippleTr[2]
+  );
+  const clockInfo = getClosestNipple(nippleLeft, nippleRight, tumourPosition);
+
+  nippleDist.value = clockInfo.dist;
+  // console.log(clockInfo.radial_distance, nippleCentralLimit);
+
+  if (clockInfo.radial_distance < nippleCentralLimit) {
+    nippleClock.value = "central";
+  } else {
+    nippleClock.value = "@ " + clockInfo.timeStr;
+  }
+
+  if(!!ribTree && !!skinTree){
+    skinDist.value = tumourPosition.distanceTo(skinPosition).toFixed(0)
+    ribDist.value = tumourPosition.distanceTo(ribPosition).toFixed(0)
+  }
 }
 
 const handleViewSingleClick = (view: string) => {
