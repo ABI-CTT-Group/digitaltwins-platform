@@ -157,8 +157,6 @@ function setUpMouseWheel(e:KeyboardEvent, status: "down" | "up") {
  
 async function getInitData() {
   if(!!studyDetails.value === false) await getTumourStudyDetails();
-  console.log(studyDetails.value);
-  
   if (studyDetails.value?.details) {
     incompleteCases.value = studyDetails.value?.details.filter((item) => item.name === "Breast_MRI_014")
 
