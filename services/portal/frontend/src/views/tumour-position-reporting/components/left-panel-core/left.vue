@@ -157,8 +157,10 @@ function setUpMouseWheel(e:KeyboardEvent, status: "down" | "up") {
  
 async function getInitData() {
   if(!!studyDetails.value === false) await getTumourStudyDetails();
+  console.log(studyDetails.value);
+  
   if (studyDetails.value?.details) {
-    incompleteCases.value = getTumourCenterInCompleteCases(studyDetails.value?.details);
+    incompleteCases.value = studyDetails.value?.details.filter((item) => item.name === "Breast_MRI_014")
 
     // get first incomplete case nrrd image
     if (incompleteCases.value.length > 0) {
@@ -243,7 +245,7 @@ async function onCaseSwitched() {
   currentCaseName.value = workingCase.value?.name as string;
 
   emitter.emit("Segmentation:CaseDetails", {
-    caseName: currentCaseName.value,
+    currentCaseName: currentCaseName.value,
     tumourWindow: workingCase.value?.tumour_window,
     nrrdUrl:  studyNrrd.value
   });

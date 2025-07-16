@@ -243,7 +243,7 @@ async function onCaseSwitched() {
   currentCaseName.value = workingCase.value?.name as string;
 
   emitter.emit("Segmentation:CaseDetails", {
-    caseName: currentCaseName.value,
+    currentCaseName: currentCaseName.value,
     tumourWindow: workingCase.value?.tumour_window,
     nrrdUrl:  studyNrrd.value
   });
