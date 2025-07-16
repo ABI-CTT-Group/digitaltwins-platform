@@ -48,7 +48,7 @@ def check_file_exist(patient_id, filetype, filename):
                     if file_path.stat().st_size != 0:
                         return True
                 else:
-                    file_path.touch()
+                    return False
         else:
             return file_path.exists()
     return False
