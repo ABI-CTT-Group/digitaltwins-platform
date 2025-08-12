@@ -178,7 +178,7 @@ onUnmounted(() => {
 .box {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 80px);
+    height: calc(100dvh - 80px);
 }
 .box_right {
     display: flex;
