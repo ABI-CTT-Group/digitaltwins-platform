@@ -79,8 +79,7 @@
                             </template>
                             <AssayContent v-model="currentAssayDetails" />
                         </Dialog>
-           
-                        <v-btn
+                        <!-- <v-btn
                             v-show="data.category === 'Assays' && !!assayExecute![data.seekId] && assayExecute![data.seekId].text === 'Launch'"
                             color="green"
                             :text="'Launch'"
@@ -96,7 +95,52 @@
                             :text="'Monitor'"
                             variant="flat"
                             @click = "handleAssayMonitorClicked(data.seekId)"
-                        ></v-btn>
+                        ></v-btn> -->
+                        <div class="d-flex ga-2 justify-center" v-if="data.category === 'Assays'">
+                            <v-btn
+                                color="green"
+                                :text="'Launch'"
+                                variant="flat"
+                                :width="100"
+                                :disabled="!allAssayDetailsOfStudy[data.seekId]?.isAssayReadyToLaunch"
+                                @click.once = "handleAssayLaunchClicked(data.seekId)"
+                            >
+                            </v-btn>
+                            <v-btn
+                                color="green"
+                                :text="'Monitor'"
+                                variant="flat"
+                                :width="100"
+                                :disabled="!(data.category === 'Assays'&& !!assayExecute![data.seekId] && assayExecute![data.seekId].text === 'Monitor')"
+                                @click = "handleAssayMonitorClicked(data.seekId)"
+                            >
+                            </v-btn>
+                            <v-btn
+                                color="green"
+                                :text="'Verify'"
+                                variant="flat"
+                                :width="100"
+                                :disabled="!allAssayDetailsOfStudy[data.seekId]?.isAssayReadyToLaunch"
+                                @click = "handleAssayVerifyClicked(data.seekId)"
+                            ></v-btn>
+                            <v-btn
+                                color="green"
+                                :text="'Download'"
+                                variant="flat"
+                                :width="100"
+                                :disabled="!allAssayDetailsOfStudy[data.seekId]?.isAssayReadyToLaunch"
+                                @click = "handleAssayDownloadClicked(data.seekId)"
+                            ></v-btn>
+                            <v-btn
+                                color="green"
+                                :text="'Upload'"
+                                variant="flat"
+                                :width="100"
+                                :disabled="!allAssayDetailsOfStudy[data.seekId]?.isAssayReadyToLaunch"
+                                @click = "handleAssayUploadClicked(data.seekId)"
+                            ></v-btn>
+                        </div>
+                        
                     </template>
                 </BasicCard>
             </div>
@@ -123,6 +167,8 @@
                 </v-carousel-item>
             </v-carousel>
         </div>
+        <DownloadSheet :download-zip-progress-value="downloadZipProgressValue" v-model:download-dialog="downloadDialog"></DownloadSheet>
+        <UploadSheet v-model:upload-dialog="uploadDialog" :upload-state="uploadState" />
     </div>
 </template>
 
@@ -143,6 +189,12 @@ import BasicCard from '@/views/dashboard/components/BasicCard.vue';
 import Dialog from '@/components/commonBar/Dialog.vue';
 import AssayContent from '@/views/dashboard/components/AssayContent.vue';
 import NavHome from '@/views/dashboard/components/NavHome.vue';
+import axios from 'axios';
+import DownloadSheet from '../components/DownloadSheet.vue';
+import UploadSheet from '../components/UploadSheet.vue';
+
+const username = 'admin';
+const password = 'ctt_digitaltwins_0';
 
 
 const router = useRouter();
@@ -189,6 +241,10 @@ const studyCardItems = ref<IStudiesNode[]>([]);
 const breadCrumbs = ["Programmes", "Projects", "Investigations", "Studies", "Assays"];
 // const isSwitchClicked = ref(false);
 
+const downloadZipProgressValue = ref(0);
+const downloadDialog = ref(false);
+const uploadDialog = ref(false);
+const uploadState = ref("waiting");
 
 const handleBreadCrumbsClick = (res:PointerEvent) => {
     showBasicCard.value = true;
@@ -230,20 +286,75 @@ const handleAssaySave = async () => {
     await saveAssayDetails(currentAssayDetails.value!);
 }
 
-const handleAssayMonitorClicked = async (seek_id:string) => {
-    console.log(seek_id);
-    window.open(assayExecute.value![seek_id].url, '_blank');
+const handleAssayUploadClicked = async (assay_seek_id:string) => {
+    uploadDialog.value = true
+    uploadState.value = "waiting"
+     axios.get('http://130.216.208.137:8089/upload_workflow_outputs/22', {
+        auth: {
+            username: username,
+            password: password
+        }
+        })
+        .then(response => {
+            uploadState.value = String(response.data) 
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
 }
 
-const handleAssayLaunchClicked = async (seek_id:string) => {
-    console.log(seek_id);
+const handleAssayDownloadClicked = async (assay_seek_id:string) => {
+    downloadDialog.value = true;
+    if(downloadZipProgressValue.value==0||downloadZipProgressValue.value==100){
+        downloadZipProgressValue.value = 0;
+        axios.get('http://130.216.208.137:8089/download_workflow_outputs/22', {
+            responseType: 'blob',
+            auth: {
+                username: username,
+                password: password
+            },
+            onDownloadProgress: (progressEvent) => {
+                const { loaded, total } = progressEvent;
+                if (typeof total === 'number') {
+                    const percentCompleted = Math.round((loaded * 100) / total);
+                    console.log(`Download progress: ${percentCompleted}%`);
+                    downloadZipProgressValue.value = percentCompleted
+                } else {
+                    console.log(`Downloaded ${loaded} bytes (total size unknown)`);
+                }
+            }
+        })
+        .then(response => {
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'dataset.zip');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
     
-    const res = await useDashboardGetAssayLaunch(seek_id);
+}
+
+const handleAssayVerifyClicked = async (assay_seek_id:string) => {
+    window.open("http://bn363773:8888/lab/tree/20250722_105946/verify.ipynb","_blank")
+}
+
+const handleAssayMonitorClicked = async (assay_seek_id:string) => {
+    window.open(assayExecute.value![assay_seek_id].url, '_blank');
+}
+
+const handleAssayLaunchClicked = async (assay_seek_id:string) => {
+    const res = await useDashboardGetAssayLaunch(assay_seek_id);
     if (res.type === "airflow"){
-        setAssayExecute(seek_id, "Monitor", res.data);
+        setAssayExecute(assay_seek_id, "Monitor", res.data);
     }else if (res.type === "gui"){
         if (!!res.data){
-            router.push({name: res.data, query: { assayId: seek_id }});
+            router.push({name: res.data, query: { assayId: assay_seek_id }});
         }
     }else if (res.type === "EP3 workflow launch"){
         window.open(res.data, '_blank')
@@ -448,4 +559,5 @@ const handleStudyCardEnterClicked = (study: IStudy) => {
     top: 20%;
     right: 100px;
 }
+
 </style>
