@@ -433,8 +433,8 @@ const getMaskData = async (res:IToolMaskData) => {
     mask,
   };
 
-  console.log("mask data", body);
-  console.log("clearAllFlag", clearAllFlag);
+  // console.log("mask data", body);
+  // console.log("clearAllFlag", clearAllFlag);
   
   
   if (clearAllFlag) {

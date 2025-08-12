@@ -609,10 +609,17 @@ function displaySkinAndRib(tumourPosition:number[]){
   const skinidx = skinTree.nn(tumourPosition)
   const ribidx = ribTree.nn(tumourPosition)
 
+
   skinSphere.position.set(processedSkinPoints[skinidx][0],processedSkinPoints[skinidx][1], processedSkinPoints[skinidx][2])
   ribSphere.position.set(processedRibPoints[ribidx][0],processedRibPoints[ribidx][1], processedRibPoints[ribidx][2])
   skinPosition.set(processedSkinPoints[skinidx][0],processedSkinPoints[skinidx][1], processedSkinPoints[skinidx][2])
   ribPosition.set(processedRibPoints[ribidx][0],processedRibPoints[ribidx][1], processedRibPoints[ribidx][2])
+
+  console.log("skinSphere position", skinSphere.position);
+  console.log("ribSphere position", ribSphere.position);
+  console.log("tumourPosition", tumourPosition);
+  
+  
 
   copperScene.scene.add( skinSphere, ribSphere)
 
