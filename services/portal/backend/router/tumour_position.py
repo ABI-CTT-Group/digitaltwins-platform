@@ -10,7 +10,6 @@ router = APIRouter()
 
 except_cases = ["Breast_014", "C-V0001"]
 
-
 @router.get("/api/tumour_position")
 async def get_tumour_position_app_detail():
     set_data_root_path()
