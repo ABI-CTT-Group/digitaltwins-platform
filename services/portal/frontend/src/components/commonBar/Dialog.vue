@@ -5,7 +5,7 @@
       @after-leave="handleDialogCancel"
     >
         <v-sheet
-            class="pa-4 text-center mx-auto"
+            class="pa-4 text-center mx-auto sheet bg-grey-darken-4"
             elevation="12"
             :min-width="min"
             :max-width="max"
@@ -32,9 +32,9 @@
                 <v-btn
                     class="text-none"
                     color="success"
-                    variant="flat"
+                    variant="tonal"
                     width="90"
-                    rounded
+                    :rounded="btnRounded"
                     @click="handleDialogSave"
                 >
                     {{ saveBtnName }}
@@ -53,6 +53,7 @@
         block
         :text="btnText" 
         :variant="btnVariant"
+        :rounded="btnRounded"
         @click="openDialog"
       ></v-btn>
     </div>
@@ -72,6 +73,7 @@ interface DialogProps {
     showDialog?: boolean;
     saveBtnName?: string;
     btnHeight?:string;
+    btnRounded?:string;
 }
 
 withDefaults(defineProps<DialogProps>(), {
@@ -84,7 +86,8 @@ withDefaults(defineProps<DialogProps>(), {
     btnVariant: "outlined",
     showDialog: true,
     saveBtnName: "Save",
-    btnHeight:""
+    btnHeight:"",
+    btnRounded:"lg"
 });
 
 const dialog = ref(false);
@@ -115,5 +118,10 @@ const handleDialogSave = () => {
 </script>
 
 <style scoped>
-
+.sheet{
+    font-family: "Nunito", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+}
 </style>

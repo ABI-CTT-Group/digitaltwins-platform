@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import SimpleInfoCard from '@/views/dashboard/components/SimpleInfoCard.vue';
+import SimpleInfoCard from '@/components/dt-components/SimpleInfoCard.vue';
 </script>
 
 <style scoped>

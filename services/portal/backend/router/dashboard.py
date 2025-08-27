@@ -113,7 +113,6 @@ async def get_dashboard_workflows():
 
 @router.get("/api/dashboard/workflow-detail")
 async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
-    print(seek_id)
     if seek_id is None:
         return None
     try:
@@ -132,6 +131,7 @@ async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
             "type": workflow_type,
             "inputs": data.get("inputs", None),
             "outputs": data.get("outputs", None),
+            "origin": data
         }
     except KeyError as e:
         return None
@@ -141,6 +141,12 @@ async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
 async def get_dashboard_workflow_cwl():
     sop_cwl = digitaltwins_configs.querier.get_sop(1, get_cwl=True)
     print(sop_cwl)
+
+
+@router.get("/api/dashboard/workflow")
+async def get_dashboard_workflow(seek_id: str = Query(None)):
+    sop = digitaltwins_configs.querier.get_sop(seek_id)
+    return sop
 
 
 @router.get("/api/dashboard/datasets")
