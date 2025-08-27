@@ -9,7 +9,7 @@
           ></v-btn>
     </div>
     <div class="container d-flex justify-center">
-        <div class="overflow-y-auto sub-container d-flex flex-column align-center">
+        <div class="overflow-y-auto sub-container d-flex flex-column align-center no-select">
             <v-container fluid class="py-10">
                 <v-row justify="center">
                     <v-col cols="12" md="10">
@@ -18,18 +18,17 @@
                           <p class="subtitle">Integrate your clinical tools, workflows, and datasets seamlessly</p>
                         </div>
 
-                        <v-card class="pa-6 mb-10" elevation="4">
+                        <v-card class="pa-6 mb-10 " elevation="4">
                           <h2 class="pipeline-title font-weight-medium mb-4">Workflow Overview</h2>
                           <v-row>
                               <v-col cols="12" md="6">
-                              <p><strong>Name:</strong> {{ workflow.name }}</p>
-                              <p><strong>Description:</strong> {{ workflow.description }}</p>
-                              <p><strong>Created By:</strong> {{ workflow.author }}</p>
+                                <p><strong>Name:</strong> {{ workflow.name }}</p>
+                                <p><strong>Version:</strong> {{ workflow.version }}</p>
+                                <p><strong>Created By:</strong> {{ workflow.author }}</p>
                               </v-col>
                               <v-col cols="12" md="6">
-                              <p><strong>Version:</strong> {{ workflow.version }}</p>
-                              <p><strong>Total Tools:</strong> {{ workflow.tools.length }}</p>
-                              <p><strong>Associated Datasets:</strong> {{ workflow.datasets.length }}</p>
+                                <p><strong>license:</strong> {{ workflow.license }}</p>
+                                <p><strong>Total Tools:</strong> {{ workflow.tools.length }}</p>
                               </v-col>
                           </v-row>
                         </v-card>
@@ -81,7 +80,8 @@
 
 <script setup lang="ts">
 import { useRoute } from 'vue-router';
-import { ref, computed, onMounted, onBeforeMount} from 'vue';
+import { asyncComputed } from '@vueuse/core'
+import { ref, computed, onMounted, onBeforeMount, watchEffect} from 'vue';
 import { useDashboardPageStore } from '@/store/states';
 import { useDashboardWorkflowDetail } from "@/plugins/dashboard_api";
 
@@ -97,7 +97,7 @@ onMounted(() => {
   
 });
 
-const workflow1 = computed(async () => {
+const workflow =  asyncComputed(async () => {
     const assayId = route.query.assayId as string;
     console.log(allAssayDetailsOfStudy.value);
     
@@ -106,57 +106,64 @@ const workflow1 = computed(async () => {
     
     const workflowId = assayDetails?.workflow?.seekId;
     const workflowFromSeek = await useDashboardWorkflowDetail(workflowId as string);
-    console.log("dashboardWorkflowDetail: ", workflowFromSeek.origin);
-    return workflowId
+    console.log("workflowFromSeek: ", workflowFromSeek);
+    
+    return {
+      name: workflowFromSeek.origin?.attributes.title,
+      uuid: "",
+      author: 'Dr. Jane Smith',
+      version: '1.2.0',
+      license: workflowFromSeek.origin?.attributes.license,
+      tools: [
+        {
+          id: 1,
+          name: 'FastQC',
+          type: 'Quality Control',
+          image: 'biocontainers/fastqc:v0.11.9_cv8',
+          command: 'fastqc input.fq',
+          description: 'Performs quality checks on raw sequence data.'
+        },
+        {
+          id: 2,
+          name: 'BWA',
+          type: 'Alignment',
+          image: 'biocontainers/bwa:v0.7.17_cv1',
+          command: 'bwa mem ref.fa input.fq > aligned.sam',
+          description: 'Aligns sequencing reads to a reference genome.'
+        },
+        {
+          id: 3,
+          name: 'GATK HaplotypeCaller',
+          type: 'Variant Calling',
+          image: 'broadinstitute/gatk:4.1.8.1',
+          command: 'gatk HaplotypeCaller -I input.bam -O output.vcf',
+          description: 'Calls genetic variants from aligned sequence data.'
+        }
+      ],
+      datasets: [
+        {
+          id: 'd1',
+          name: 'Human Genome Reference (GRCh38)',
+          description: 'The full reference genome used for alignment and variant calling.'
+        },
+        {
+          id: 'd2',
+          name: 'Sample Sequencing Reads',
+          description: 'Raw FASTQ reads from whole genome sequencing samples.'
+        }
+      ]
+    }
+  }, {
+    name: '',
+    uuid:'',
+    author: '',
+    version: '',
+    license: '',
+    tools: [],
+    datasets: []
   });
 
-console.log("workflow1: ", workflow1.value);
 
-
-const workflow = {
-  name: 'Genomic Variant Analysis',
-  description: 'A comprehensive workflow for analyzing genomic variants using multiple bioinformatics tools.',
-  author: 'Dr. Jane Smith',
-  version: '1.2.0',
-  tools: [
-    {
-      id: 1,
-      name: 'FastQC',
-      type: 'Quality Control',
-      image: 'biocontainers/fastqc:v0.11.9_cv8',
-      command: 'fastqc input.fq',
-      description: 'Performs quality checks on raw sequence data.'
-    },
-    {
-      id: 2,
-      name: 'BWA',
-      type: 'Alignment',
-      image: 'biocontainers/bwa:v0.7.17_cv1',
-      command: 'bwa mem ref.fa input.fq > aligned.sam',
-      description: 'Aligns sequencing reads to a reference genome.'
-    },
-    {
-      id: 3,
-      name: 'GATK HaplotypeCaller',
-      type: 'Variant Calling',
-      image: 'broadinstitute/gatk:4.1.8.1',
-      command: 'gatk HaplotypeCaller -I input.bam -O output.vcf',
-      description: 'Calls genetic variants from aligned sequence data.'
-    }
-  ],
-  datasets: [
-    {
-      id: 'd1',
-      name: 'Human Genome Reference (GRCh38)',
-      description: 'The full reference genome used for alignment and variant calling.'
-    },
-    {
-      id: 'd2',
-      name: 'Sample Sequencing Reads',
-      description: 'Raw FASTQ reads from whole genome sequencing samples.'
-    }
-  ]
-}
 </script>
 
 <style scoped>
@@ -170,13 +177,13 @@ const workflow = {
 .plugin-title {
   text-align: center;
   margin-bottom: 60px;
-  user-select: none;
 }
 
 .plugin-title h1 {
   font-size: 3.2rem;
   font-weight: 800;
   background: linear-gradient(90deg, #00bcd4, #29b6f6);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   text-shadow: 0 0 12px rgba(0, 188, 212, 0.4);
@@ -246,6 +253,9 @@ h1, h2 {
 }
 .pipeline-title {
   font-weight: 600;
+}
+.no-select{
+  user-select: none;
 }
 
 </style>

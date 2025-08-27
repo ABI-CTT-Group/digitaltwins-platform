@@ -18,12 +18,33 @@ import NavHome from "@/components/dt-components/NavHome.vue";
     font-weight: 400;
     font-style: normal;
     position: relative;
-    background-image: url("@/assets/login_bg.jpg"); 
+    /* background-image: url("@/assets/bg.png"); 
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
     backdrop-filter: blur(10px); 
-    -webkit-backdrop-filter: blur(10px); 
+    -webkit-backdrop-filter: blur(10px);  */
     overflow: hidden;
+
+    background-color: #071019;
+    background-image:
+      radial-gradient(1200px circle at 18% 50%,
+        rgba(0,0,0,0.85) 0%,
+        rgba(0,0,0,0.55) 38%,
+        rgba(0,0,0,0.20) 60%,
+        rgba(0,0,0,0.00) 72%),
+      linear-gradient(
+        90deg,
+        #050708 0%,
+        #071019 18%,
+        #0b2433 33%,
+        #0e3f5a 50%,
+        #0f5f83 68%,
+        #1493b4 90%,
+        #1fb7d9 100%
+      );
+
+    background-clip: padding-box;
+    -webkit-background-clip: padding-box;
 }
 </style>

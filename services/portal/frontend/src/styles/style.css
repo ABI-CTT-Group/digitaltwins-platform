@@ -1,7 +1,7 @@
 .container {
   height: 100dvh;
-  backdrop-filter: blur(5px); 
-  -webkit-backdrop-filter: blur(5px); 
+  backdrop-filter: blur(1px); 
+  -webkit-backdrop-filter: blur(1px); 
 }
 .container::before {
   content: "";
@@ -12,7 +12,7 @@
   height: 100%;
   background: inherit; 
   background-color: rgba(0, 0, 0, 0.4);
-  filter: blur(2px); 
-  -webkit-filter: blur(2px); 
+  filter: blur(1px); 
+  -webkit-filter: blur(1px); 
   z-index: -1; 
 }
