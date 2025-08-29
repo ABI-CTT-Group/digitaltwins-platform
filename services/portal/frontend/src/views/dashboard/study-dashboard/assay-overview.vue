@@ -1,34 +1,45 @@
 <template>
 
-    <div class="back-arrow">
-       <v-btn 
-          icon="mdi-arrow-left" 
-          variant="tonal"
-          class="hover-animate"
-          @click="$router.back()"
-          ></v-btn>
-    </div>
-    <div class="container d-flex justify-center">
+    
+    <div v-if="assayReadyToLaunch" class="container d-flex justify-center">
+        <div class="back-arrow">
+          <v-btn 
+              icon="mdi-arrow-left" 
+              variant="tonal"
+              class="hover-animate"
+              size="65"
+              @click="$router.back()"
+              ></v-btn>
+        </div>
         <div class="overflow-y-auto sub-container d-flex flex-column align-center no-select">
             <v-container fluid class="py-10">
                 <v-row justify="center">
                     <v-col cols="12" md="10">
                         <div class="plugin-title">
-                          <h1>Launched Assay Overview</h1>
+                          <h1>Assay Ready to Launch</h1>
                           <p class="subtitle">Integrate your clinical tools, workflows, and datasets seamlessly</p>
+                        </div>
+                        <div class="function-button mb-10 w-75">
+                          <AssayBasicCardButtons
+                            :assay-seek-id="assayId"
+                            category="assay"
+                            @assay-launch-clicked="handleAssayLaunchClicked"
+                            @assay-monitor-clicked="handleAssayMonitorClicked"
+                            @assay-verify-clicked="handleAssayVerifyClicked"
+                            @assay-download-clicked="handleAssayDownloadClicked"
+                            @assay-upload-clicked="handleAssayUploadClicked"/>
                         </div>
 
                         <v-card class="pa-6 mb-10 " elevation="4">
                           <h2 class="pipeline-title font-weight-medium mb-4">Workflow Overview</h2>
                           <v-row>
                               <v-col cols="12" md="6">
-                                <p><strong>Name:</strong> {{ workflow.name }}</p>
-                                <p><strong>Version:</strong> {{ workflow.version }}</p>
-                                <p><strong>Created By:</strong> {{ workflow.author }}</p>
+                                <p><strong>Name:</strong> {{ workflow!.name }}</p>
+                                <p><strong>Version:</strong> {{ workflow!.version }}</p>
+                                <p><strong>Created By:</strong> {{ workflow!.author }}</p>
                               </v-col>
                               <v-col cols="12" md="6">
-                                <p><strong>license:</strong> {{ workflow.license }}</p>
-                                <p><strong>Total Tools:</strong> {{ workflow.tools.length }}</p>
+                                <p><strong>Status:</strong>  <workflow-status-tag :status="WorkflowStatus.RUNNING" /></p>
                               </v-col>
                           </v-row>
                         </v-card>
@@ -76,6 +87,7 @@
             </v-container>
         </div>
     </div>
+    <assay-overview-empty v-else/>
 </template>
 
 <script setup lang="ts">
@@ -84,26 +96,32 @@ import { asyncComputed } from '@vueuse/core'
 import { ref, computed, onMounted, onBeforeMount, watchEffect} from 'vue';
 import { useDashboardPageStore } from '@/store/states';
 import { useDashboardWorkflowDetail } from "@/plugins/dashboard_api";
+import AssayOverviewEmpty from '@/components/dt-components/AssayOverviewEmpty.vue';
+import AssayBasicCardButtons from '@/components/dt-components/AssayBasicCardButtons.vue';
+import WorkflowStatusTag from '@/components/dt-components/workflow/WorkflowStatusTag.vue';
+import { WorkflowStatus } from '@/components/dt-components/workflow/workflowStatus';
 
 import { storeToRefs } from "pinia";
 
 const route = useRoute();
 
 const { allAssayDetailsOfStudy } = storeToRefs(useDashboardPageStore());
+const assayId = route.query.assayId as string;
+const assayDetails = allAssayDetailsOfStudy.value[assayId];
+const assayReadyToLaunch = ref(false);
+
 onBeforeMount(async ()=>{
     // await getDashboardWorkflows();
+    assayReadyToLaunch.value = assayDetails?.isAssayReadyToLaunch || false;
 }) 
 onMounted(() => {
   
 });
 
 const workflow =  asyncComputed(async () => {
-    const assayId = route.query.assayId as string;
-    console.log(allAssayDetailsOfStudy.value);
-    
-    const assayDetails = allAssayDetailsOfStudy.value[assayId];
-    console.log("assayDetails: ", assayDetails);
-    
+    //If the assay is not ready to launch, then return
+    if (!assayReadyToLaunch.value) return;
+
     const workflowId = assayDetails?.workflow?.seekId;
     const workflowFromSeek = await useDashboardWorkflowDetail(workflowId as string);
     console.log("workflowFromSeek: ", workflowFromSeek);
@@ -163,6 +181,25 @@ const workflow =  asyncComputed(async () => {
     datasets: []
   });
 
+const handleAssayUploadClicked = async (assay_seek_id:string) => {
+  
+}
+
+const handleAssayDownloadClicked = async (assay_seek_id:string) => {
+   
+    
+}
+
+const handleAssayVerifyClicked = async (assay_seek_id:string) => {
+    window.open("http://bn363773:8888/lab/tree/20250722_105946/verify.ipynb","_blank");
+}
+
+const handleAssayMonitorClicked = async (assay_seek_id:string) => {
+}
+
+const handleAssayLaunchClicked = async (assay_seek_id:string) => {
+   
+}
 
 </script>
 
@@ -247,6 +284,14 @@ h1, h2 {
 }
 .no-select{
   user-select: none;
+}
+
+.function-button{
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  margin: 0 auto;
 }
 
 </style>

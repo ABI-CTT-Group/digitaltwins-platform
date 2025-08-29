@@ -1,12 +1,15 @@
 <template>
     <div class="container d-flex flex-column align-center">
-        <div class="position-fixed breadcrumbs d-flex justify-start align-center w-75">
+        <div class="position-fixed breadcrumbs d-flex justify-start align-center w-66">
             <v-breadcrumbs
                 class="custom-pointer font-weight-black"
                 :items="breadCrumbsItems"
                 divider="/"
                 @click="handleBreadCrumbsClick"
             ></v-breadcrumbs>
+        </div>
+        <div class="position-fixed dashboard-title fancy-title">
+            {{ isClinicianView ? "Clinician Dashboard" : "Study Dashboard" }}
         </div>
         <v-card v-if="currentCategory !== 'Programmes' && currentCategory !== ''" class="position-fixed intro d-flex flex-column overflow-y-auto justify-space-around pa-5" color="transparent">
             <v-card-text>
@@ -35,9 +38,10 @@
 
         <div  class="basic-card-container w-100 d-flex flex-column justify-center align-center ">
             <div class="w-75 d-flex flex-wrap px-6 mt-10 justify-center align-center overflow-y-auto">
-                <BasicCard v-for="data in currentCategoryData" 
+                <AssayBasicCard v-for="data in currentCategoryData" 
                             :key="data.name" 
                             :data="data"
+                            @expand-clicked="handleAssayExpandClicked"
                             @explore-clicked="handleExploreClicked"
                             @assay-edit-clicked="handleAssayEditClicked"
                             @assay-save="handleAssaySave"
@@ -46,7 +50,7 @@
                             @assay-verify-clicked="handleAssayVerifyClicked"
                             @assay-download-clicked="handleAssayDownloadClicked"
                             @assay-upload-clicked="handleAssayUploadClicked">
-                </BasicCard>
+                </AssayBasicCard>
             </div>
         </div>
         <DownloadSheet :download-zip-progress-value="downloadZipProgressValue" v-model:download-dialog="downloadDialog"></DownloadSheet>
@@ -63,7 +67,7 @@ import { useDashboardPageStore } from '@/store/states';
 import { useDashboardGetAssayDetails, useDashboardGetAssayLaunch } from "@/plugins/dashboard_api";
 import { useDashboardProgrammesStore, useDashboardCategoryChildrenStore, useDashboardSaveAssayDetailsStore } from '@/store/dashboard_store';
 import {IDashboardCategory, IAssayDetails} from "@/models/apiTypes";
-import BasicCard from '@/components/dt-components/BasicCard.vue';
+import AssayBasicCard from '@/components/dt-components/AssayBasicCard.vue';
 import axios from 'axios';
 import DownloadSheet from '@/components/dt-components/DownloadSheet.vue';
 import SubmitSheet from '@/components/dt-components/SubmitSheet.vue';
@@ -217,16 +221,24 @@ const handleAssayMonitorClicked = async (assay_seek_id:string) => {
 }
 
 const handleAssayLaunchClicked = async (assay_seek_id:string) => {
+    setCurrentAssayDetails(allAssayDetailsOfStudy.value[assay_seek_id])
     const res = await useDashboardGetAssayLaunch(assay_seek_id);
     if (res.type === "airflow"){
         setAssayExecute(assay_seek_id, "Monitor", res.data);
     }else if (res.type === "gui"){
-        if (!!res.data){
-            router.push({name: "PluginRegister", query: { assayId: assay_seek_id }});
-        }
+        // if (!!res.data){
+        //     router.push({name: "PluginRegister", query: { assayId: assay_seek_id }});
+        // }
     }else if (res.type === "EP3 workflow launch"){
         window.open(res.data, '_blank')
     }
+}
+
+const handleAssayExpandClicked = (assay_seek_id:string, name:string) => {
+    console.log(name);
+    console.log("dadaasd");
+    
+    router.push({name: "LaunchedAssayOverview", query: { assayId: assay_seek_id }});
 }
 
 const handleExploreClicked = async (seek_id:string, name:string, category:string, des:string) => {
@@ -332,8 +344,10 @@ onMounted(async () => {
     top: 110px;
     /* border-radius: 5% 95% 97% 3% / 42% 45% 55% 58%  ; */
     border-radius: 10px;
-    box-shadow:  8px 8px 10px  #636363,
-                -8px -8px 10px #878787;
+    /* box-shadow:  6px 6px 20px  #636363,
+                -6px -6px 20px #878787; */
+    box-shadow:  6px 6px 20px  #0e3f5a,
+                -6px -6px 20px #0b2433;
 }
 .custom-pointer {
   cursor: pointer !important;
@@ -349,8 +363,8 @@ onMounted(async () => {
                 -1px -1px 5px #d3d3d3; */
 }
 .basic-card-container{
-    height: 75%;
-    margin-top: 150px;
+    height: 95dvh;
+    padding-top: 150px;
 }
 .tooltip-title{
     font-weight: 800;   
@@ -378,4 +392,10 @@ onMounted(async () => {
     line-height: 1.5;
     color: #b0bec5;
 }
+.dashboard-title{
+    top: 100px;
+    left: 35px;
+    max-width: 10dvw;
+}
+
 </style>

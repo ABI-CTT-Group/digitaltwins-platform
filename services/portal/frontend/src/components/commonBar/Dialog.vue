@@ -30,7 +30,7 @@
 
                 <div class="text-end">
                 <v-btn
-                    class="text-none"
+                    class="text-none hover-animate"
                     color="success"
                     variant="tonal"
                     width="90"
@@ -49,6 +49,7 @@
         :color="btnColor"
         :prepend-icon="btnIcon"
         :height="btnHeight"
+        class="hover-animate"
         max-width="100"
         block
         :text="btnText" 
@@ -123,5 +124,15 @@ const handleDialogSave = () => {
     font-optical-sizing: auto;
     font-weight: 400;
     font-style: normal;
+     background-color: #071019;
+    background-image:
+      linear-gradient(
+        90deg,
+        #050708 0%,
+        #071019 33%,
+        #0b2433 66%,
+        #0e3f5a 88%,
+        #0f5f83 100%
+      );
 }
 </style>

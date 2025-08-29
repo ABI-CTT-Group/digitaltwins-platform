@@ -10,8 +10,10 @@
                     item-title="name"
                     item-value="seekId"
                     variant="outlined"
+                    :menu-props="{ contentClass: 'my-select-menu' }"
                     @update:model-value="handleWorkflowSelected"
-                ></v-select>
+                >
+                </v-select>
             </div>
         </div>
         <div class="d-flex flex-row ma-2 input">
@@ -268,4 +270,5 @@ const getDatasets = async (workflowCategory:string) => {
     border-radius: 10px;
     background-color: rgba(0,188,212, 0.15);
 }
+
 </style>

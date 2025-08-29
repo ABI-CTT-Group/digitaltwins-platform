@@ -12,7 +12,7 @@ import CatalogueDashboard from "@/views/dashboard/catalogue-dashboard/index.vue"
 import CatalogueDashboardView from "@/views/dashboard/catalogue-dashboard/catalogue-dashboard-view.vue";
 import WorkflowToolsViewer from "@/views/dashboard/catalogue-dashboard/workflow-tools-viewer.vue";
 import Layout from "@/layouts/Default.vue";
-import PluginDashboard from "@/views/dashboard/plugin-dashboard/index.vue";
+import LaunchedAssayOverview from "@/views/dashboard/study-dashboard/assay-overview.vue";
 const routes = [
   {
     path: "/",
@@ -57,8 +57,8 @@ const routes = [
           },
           {
             path: "/launched-assay",
-            name: "PluginRegister",
-            component: PluginDashboard,
+            name: "LaunchedAssayOverview",
+            component: LaunchedAssayOverview,
           }
     ]
   },

@@ -1,3 +1,7 @@
+html, body {
+  font-family: "Nunito", sans-serif;
+  font-optical-sizing: auto;
+}
 .container {
   height: 100dvh;
   backdrop-filter: blur(1px); 
@@ -15,4 +19,25 @@
   filter: blur(1px); 
   -webkit-filter: blur(1px); 
   z-index: -1; 
+}
+.hover-animate {
+  transition: all 0.3s ease;
+  transform: scale(1);
+}
+.hover-animate:hover {
+  transform: scale(1.07) !important;
+  /* background-color: rgba(25,118,210, 0.15) !important; 
+  color: white !important; */
+}
+.fancy-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: 3px;
+  color: #71717a;
+  text-align: center;
+  text-shadow: 1px -1px #fafafa, -1px 1px #050505, -5px 5px 3px #80808080;
+  user-select: none;
+  -webkit-user-select: none; /* Safari */
 }

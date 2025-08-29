@@ -13,8 +13,6 @@ import NavHome from "@/components/dt-components/NavHome.vue";
 
 <style scoped>
 .container {
-    font-family: "Nunito", sans-serif;
-    font-optical-sizing: auto;
     font-weight: 400;
     font-style: normal;
     position: relative;
