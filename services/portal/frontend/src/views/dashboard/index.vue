@@ -1,7 +1,30 @@
 <template>
     <div class="container overflow-hidden d-flex justify-center">
         <div class="overflow-y-auto sub-container">
-            <Hero @started="handleHeroStarted" @documentation="handleHeroDocumentation"/>
+            <Hero >
+                 <v-btn
+                    color="green-lighten-2"
+                    class="text-sky-900 px-6 py-3"
+                    size="large"
+                    elevation="6"
+                    rounded="xl"
+                    variant="tonal"
+                    @click="handleHeroStarted"
+                >
+                    Get Started
+                </v-btn>
+                <v-btn
+                    color="purple-lighten-2"
+                    class="text-white px-6 py-3"
+                    size="large"
+                    elevation="6"
+                    rounded="xl"
+                    variant="tonal"
+                    @click="handleHeroDocumentation"
+                >
+                    Documentation
+                </v-btn>
+            </Hero>
             <v-row class="cards">
                 <v-col
                     cols="12"

@@ -8,9 +8,9 @@
                 @click="handleBreadCrumbsClick"
             ></v-breadcrumbs>
         </div>
-        <div class="position-fixed dashboard-title fancy-title">
+        <!-- <div class="position-fixed dashboard-title fancy-title">
             {{ isClinicianView ? "Clinician Dashboard" : "Study Dashboard" }}
-        </div>
+        </div> -->
         <v-card v-if="currentCategory !== 'Programmes' && currentCategory !== ''" class="position-fixed intro d-flex flex-column overflow-y-auto justify-space-around pa-5" color="transparent">
             <v-card-text>
                 <div v-for="c in detailsRenderItems.categories" :key="c.name" class="text-grey-lighten-3 my-2">
@@ -213,7 +213,16 @@ const handleAssayDownloadClicked = async (assay_seek_id:string) => {
 }
 
 const handleAssayVerifyClicked = async (assay_seek_id:string) => {
-    window.open("http://bn363773:8888/lab/tree/20250722_105946/verify.ipynb","_blank");
+    const assayDetails = allAssayDetailsOfStudy.value[assay_seek_id];
+    const workflowUUID = assayDetails.workflow.uuid;
+    console.log(assayDetails);
+    
+    console.log("ddaas");
+    
+    console.log(workflowUUID);
+    
+    window.open(`http://130.216.216.26:8008/lab/tree/workflow_outputs/${workflowUUID}/verify.ipynb`,"_blank");
+    // window.open("http://bn363773:8888/lab/tree/20250722_105946/verify.ipynb","_blank");
 }
 
 const handleAssayMonitorClicked = async (assay_seek_id:string) => {

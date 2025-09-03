@@ -1,6 +1,6 @@
 <template>
   <v-app class="container">
-    <NavHome></NavHome>
+    <NavHome>{{ dashboardTitle }}</NavHome>
 
     <default-view />
   </v-app>
@@ -9,6 +9,25 @@
 <script lang="ts" setup>
 import DefaultView from "./View.vue";
 import NavHome from "@/components/dt-components/NavHome.vue";
+import { useRoute } from "vue-router";
+import { watch, ref } from "vue";
+
+const route = useRoute();
+const dashboardTitle = ref("");
+watch(
+  () => route.params.dashboardType,
+  (newVal) => {
+    console.log("dashboardType changed to:", newVal);
+    if (newVal === 'clinician') {
+      dashboardTitle.value = "Clinician Dashboard";
+    } else if (newVal === 'study') {
+      dashboardTitle.value = "Study Dashboard";
+    }else {
+      dashboardTitle.value = "";
+    }
+  }
+);
+
 </script>
 
 <style scoped>

@@ -6,7 +6,7 @@ from pathlib import Path
 # from sparc_me import Dataset, Sample, Subject
 from utils import Config, digitaltwins_configs
 import shutil
-import pprint
+from pprint import pprint
 
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent.parent
@@ -117,6 +117,7 @@ async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
         return None
     try:
         data = digitaltwins_configs.querier.get_sop(sop_id=seek_id)
+        pprint(data)
         title = data['attributes']['title']
         if not title:
             name = None
@@ -124,6 +125,7 @@ async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
         else:
             name = title.split(" - ")[0].rstrip()
             workflow_type = title.split(" - ")[1].lstrip()
+
         return {
             "seekId": seek_id,
             "uuid": "",

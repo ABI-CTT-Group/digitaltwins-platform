@@ -14,5 +14,7 @@ data/datasets/*
 data/duke_test_data
 data/duke
 
+minio
+
 configs_old.ini
 configs_public_demo.ini

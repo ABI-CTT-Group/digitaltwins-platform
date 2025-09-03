@@ -13,6 +13,7 @@ import CatalogueDashboardView from "@/views/dashboard/catalogue-dashboard/catalo
 import WorkflowToolsViewer from "@/views/dashboard/catalogue-dashboard/workflow-tools-viewer.vue";
 import Layout from "@/layouts/Default.vue";
 import LaunchedAssayOverview from "@/views/dashboard/study-dashboard/assay-overview.vue";
+import UploadDataset from "@/views/upload-dataset/index.vue";
 const routes = [
   {
     path: "/",
@@ -59,10 +60,14 @@ const routes = [
             path: "/launched-assay",
             name: "LaunchedAssayOverview",
             component: LaunchedAssayOverview,
+          },
+          {
+            path: "/upload-dataset",
+            name: "UploadDataset",
+            component: UploadDataset,
           }
     ]
   },
-
 ];
 
 

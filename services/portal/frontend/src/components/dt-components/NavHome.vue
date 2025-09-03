@@ -19,7 +19,7 @@
             </span> -->
         </div>
         
-        <div class="my-font">
+        <div class="my-title">
             <slot></slot>
         </div>
 
@@ -68,9 +68,9 @@ const handleHomeClick = ()=>{
     width: 100%;
     height: 100%;
 }
-.my-font{
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, 
-               "PingFang SC", "Noto Sans", "Microsoft YaHei", sans-serif;
+.my-title{
+    font-size: 1.2rem;
+    font-weight: 700;
     user-select: none;
 }
 </style>

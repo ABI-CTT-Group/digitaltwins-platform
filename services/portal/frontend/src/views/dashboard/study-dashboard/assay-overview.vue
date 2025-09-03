@@ -34,12 +34,11 @@
                           <h2 class="pipeline-title font-weight-medium mb-4">Workflow Overview</h2>
                           <v-row>
                               <v-col cols="12" md="6">
-                                <p><strong>Name:</strong> {{ workflow!.name }}</p>
-                                <p><strong>Version:</strong> {{ workflow!.version }}</p>
-                                <p><strong>Created By:</strong> {{ workflow!.author }}</p>
+                                <p><strong>Name:</strong> <span class="mx-2">{{ workflow!.name }}</span></p>
+                                <p><strong>Version:</strong> <span class="mx-2">{{ workflow!.version }}</span></p>
                               </v-col>
                               <v-col cols="12" md="6">
-                                <p><strong>Status:</strong>  <workflow-status-tag :status="WorkflowStatus.RUNNING" /></p>
+                                <p><strong>Status:</strong>  <workflow-status-tag class="mx-2" :status="WorkflowStatus.PENDING" /></p>
                               </v-col>
                           </v-row>
                         </v-card>
@@ -64,23 +63,6 @@
                                 </v-card>
                               </v-col>
                           </v-row>
-                        </v-card>
-
-                        <v-card class="pa-6" elevation="4">
-                          <h2 class="pipeline-title font-weight-medium mb-4">Linked Datasets</h2>
-                          <v-list lines="two">
-                              <v-list-item
-                              v-for="dataset in workflow.datasets"
-                              :key="dataset.id"
-                              class="mb-2"
-                              >
-                                  <template v-slot:prepend>
-                                    <v-icon icon="mdi-database-outline" />
-                                  </template>
-                                  <v-list-item-title>{{ dataset.name }}</v-list-item-title>
-                                  <v-list-item-subtitle>{{ dataset.description }}</v-list-item-subtitle>
-                              </v-list-item>
-                          </v-list>
                         </v-card>
                     </v-col>
                 </v-row>

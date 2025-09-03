@@ -7,8 +7,7 @@ const props = defineProps<{ status: WorkflowStatus }>();
 
 <template>
   <v-chip
-    :color="WorkflowStatusMeta[status].bg"
-    :text-color="WorkflowStatusMeta[status].text"
+    :color="WorkflowStatusMeta[status].color"
     label
   >
     {{ WorkflowStatusMeta[status].label }}

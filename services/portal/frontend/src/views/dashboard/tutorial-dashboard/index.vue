@@ -44,7 +44,7 @@ const tutorials = ref([
     {
         title:"Sparc-me",
         description:"A python tool to explore, enhance, and expand SPARC datasets and their descriptions in accordance with FAIR principles.",
-        herf:"https://github.com/SPARC-FAIR-Codeathon/sparc-me/tree/main/examples"
+        herf:"https://github.com/SPARC-FAIR-Codeathon/sparc-me/tree/main?tab=readme-ov-file#sparc-metadata-editor-sparc-me"
     },
 ])
 

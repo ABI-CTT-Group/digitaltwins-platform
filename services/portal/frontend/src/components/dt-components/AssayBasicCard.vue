@@ -10,7 +10,7 @@
         >
             <v-card-text>
                 <div class="d-flex justify-space-between align-center mb-4">
-                    <div class="title font-weight-black text-grey-lighten-3">{{ data.name }}</div>
+                    <div class="title font-weight-black text-grey-lighten-3 pr-5">{{ data.name }}</div>
                     <div v-if="data.category === 'Assays'" class="d-flex align-center">
                         <v-icon
                             icon="mdi-border-radius"

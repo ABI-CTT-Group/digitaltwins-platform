@@ -6,52 +6,54 @@
             variant="tonal"
             :width="100"
             rounded="md"
-            class="hover-animate"
+            class="hover-animate mx-1"
             :disabled="!allAssayDetailsOfStudy[assaySeekId]?.isAssayReadyToLaunch"
             @click.once = "handleAssayLaunchClicked(assaySeekId)"
         >
         </v-btn>
-        <v-btn
-            color="green"
-            :text="'Monitor'"
-            variant="tonal"
-            :width="100"
-            rounded="md"
-            class="hover-animate"
-            :disabled="!(category === 'Assays'&& !!assayExecute![assaySeekId] && assayExecute![assaySeekId].text === 'Monitor')"
-            @click = "handleAssayMonitorClicked(assaySeekId)"
-        >
-        </v-btn>
-        <v-btn
-            color="green"
-            :text="'Verify'"
-            variant="tonal"
-            :width="100"
-            rounded="md"
-            class="hover-animate"
-            :disabled="!allAssayDetailsOfStudy[assaySeekId]?.isAssayReadyToLaunch"
-            @click = "handleAssayVerifyClicked(assaySeekId)"
-        ></v-btn>
-        <v-btn
-            color="green"
-            :text="'Download'"
-            variant="tonal"
-            :width="100"
-            rounded="md"
-            class="hover-animate"
-            :disabled="!allAssayDetailsOfStudy[assaySeekId]?.isAssayReadyToLaunch"
-            @click = "handleAssayDownloadClicked(assaySeekId)"
-        ></v-btn>
-        <v-btn
-            color="green"
-            :text="'Submit'"
-            variant="tonal"
-            :width="100"
-            rounded="md"
-            class="hover-animate"
-            :disabled="!allAssayDetailsOfStudy[assaySeekId]?.isAssayReadyToLaunch"
-            @click = "handleAssayUploadClicked(assaySeekId)"
-        ></v-btn>
+        <div v-if="!isClinicianView">
+            <v-btn
+                color="green"
+                :text="'Monitor'"
+                variant="tonal"
+                :width="100"
+                rounded="md"
+                class="hover-animate mx-1"
+                :disabled="!(category === 'Assays'&& !!assayExecute![assaySeekId] && assayExecute![assaySeekId].text === 'Monitor')"
+                @click = "handleAssayMonitorClicked(assaySeekId)"
+            >
+            </v-btn>
+            <v-btn
+                color="green"
+                :text="'Verify'"
+                variant="tonal"
+                :width="100"
+                rounded="md"
+                class="hover-animate mx-1"
+                :disabled="!allAssayDetailsOfStudy[assaySeekId]?.isAssayReadyToLaunch"
+                @click = "handleAssayVerifyClicked(assaySeekId)"
+            ></v-btn>
+            <v-btn
+                color="green"
+                :text="'Download'"
+                variant="tonal"
+                :width="100"
+                rounded="md"
+                class="hover-animate mx-1"
+                :disabled="!allAssayDetailsOfStudy[assaySeekId]?.isAssayReadyToLaunch"
+                @click = "handleAssayDownloadClicked(assaySeekId)"
+            ></v-btn>
+            <v-btn
+                color="green"
+                :text="'Submit'"
+                variant="tonal"
+                :width="100"
+                rounded="md"
+                class="hover-animate mx-1"
+                :disabled="!allAssayDetailsOfStudy[assaySeekId]?.isAssayReadyToLaunch"
+                @click = "handleAssayUploadClicked(assaySeekId)"
+            ></v-btn>
+        </div>
     </div>
 </template>
 
@@ -61,6 +63,7 @@ import { storeToRefs } from "pinia";
 import { useDashboardPageStore } from '@/store/states';
 
 const {
+    isClinicianView,
     assayExecute, 
     allAssayDetailsOfStudy
  } = storeToRefs(useDashboardPageStore());
