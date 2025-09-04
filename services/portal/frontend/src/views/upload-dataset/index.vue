@@ -7,7 +7,7 @@
 
             <v-container class="d-flex align-center justify-center">
                 <v-card
-                    class="pa-6 responsive-box"
+                    class="pa-6 responsive-box d-flex flex-column align-center justify-center"
                     elevation="12"
                     style="background: rgba(15, 25, 35, 0.45); border-radius: 20px;"
                 >
@@ -27,6 +27,7 @@
                             value="2"
                             color="cyan-lighten-1"
                             :complete="step > 2"
+                            :editable="step > 1"
                         ></v-stepper-item>
                         <v-divider></v-divider>
                         <v-stepper-item
@@ -42,7 +43,7 @@
                     <v-stepper-window>
                         <v-stepper-window-item value="1">
                             <v-card class="pa-4" variant="outlined" color="grey-lighten-2">
-                                <ToolInfomationStep />
+                                <ToolInfomationStep @submit="handleSubmit"/>
                             </v-card>
                         </v-stepper-window-item>
 
@@ -105,19 +106,15 @@
 <script setup lang="ts">
 import Hero from '@/components/dt-components/Hero.vue';
 import ToolInfomationStep from './components/ToolInfomationStep.vue';
-import { ref } from "vue";
+import { IToolInformationStep } from '@/models/uiTypes'
+import { ref, watch } from "vue";
 
 const step = ref(0);
 
-const steps = [
-  { step: 1, title: "Tool Information" },
-  { step: 2, title: "Build & Test" },
-  { step: 3, title: "Preview & Upload" },
-];
-
-const submit = () => {
-  alert("提交成功！");
-};
+const handleSubmit = (data:IToolInformationStep)=>{
+    console.log(data);
+    step.value += 1;
+}
 </script>
 
 <style scoped>
@@ -126,15 +123,16 @@ const submit = () => {
     margin-top: 70px;
 }
 .responsive-box {
-  width: 90%;
+  width: 90% !important;
 }
 
-@media (min-width: 1600px) {
+@media (min-width: 2100px) {
   .responsive-box {
-    width: 65%;
+    width: 75% !important;
   }
 }
 .sheet-stepper{
+    width: 95%;
     background: rgba(1, 62, 62, 0.15); 
     /* border: 1px solid rgba(255, 255, 255, 0.125); */
     border-radius: 10px !important;

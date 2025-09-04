@@ -12,6 +12,8 @@ import { md3 } from "vuetify/blueprints";
 
 // Composables
 import { createVuetify, ThemeDefinition } from "vuetify";
+import * as components from 'vuetify/components'
+import * as directives from 'vuetify/directives'
 
 
 const lightTheme: ThemeDefinition = {
@@ -67,6 +69,8 @@ const darkTheme: ThemeDefinition = {
 
 // https://vuetifyjs.com/en/introduction/why-vuetify/#feature-guides
 export default createVuetify({
+  components,
+  directives,
   blueprint: md3,
   theme: {
     defaultTheme: "darkTheme",

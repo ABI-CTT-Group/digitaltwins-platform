@@ -47,7 +47,7 @@
                 <h4 class="my-2">Description</h4>
                 <v-textarea
                     :model-value="toolInfomationFormData.description"
-                    placeholder="Brief description of your plugin..."
+                    placeholder="Brief description of your workflow tool..."
                     rows="2"
                     counter
                     clearable
@@ -136,7 +136,7 @@
                 :width="150"
                 rounded="md"
                 class="hover-animate ma-5"
-                @click="validate"
+                @click="handleCancel"
             ></v-btn>
             <v-btn
                 color="success"
@@ -146,20 +146,23 @@
                 rounded="md"
                 :disabled="submitBtnDisabled"
                 class="hover-animate ma-5"
+                @click="handleSubmit"
             ></v-btn>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
- import { ref, watch, reactive} from 'vue'
- import { debounce } from "lodash"
+import { ref, watch, reactive} from 'vue'
+import { debounce } from "lodash"
+import { IToolInformationStep } from '@/models/uiTypes'
 
+
+const emit = defineEmits(["cancel", "submit"])
 const form = ref()
-const sourceUrl = ref('')
 const policyCheckbox = ref(false)
 const submitBtnDisabled = ref(true)
-const toolInfomationFormData = reactive({
+const toolInfomationFormData = reactive<IToolInformationStep>({
     sourceUrl:"",
     pluginName:"",
     author:"",
@@ -215,21 +218,20 @@ watch(()=>toolInfomationFormData.hasbackend,(newVal, oldVal)=>{
 })
 
 watch(policyCheckbox, debounce(async () => {
-  const { valid } = await form.value.validate()
-  submitBtnDisabled.value = !valid
+  const { valid } = await form.value.validate();
+  submitBtnDisabled.value = !valid;
+  if(!valid) policyCheckbox.value = false;
 }, 200))
 
-async function validate () {
+async function handleCancel () {
     const { valid } = await form.value.validate()
-
     if (valid) alert('Form is valid')   
+
+    emit("cancel")
 }
 
-function reset () {
-    form.value.reset()
-}
-function resetValidation () {
-    form.value.resetValidation()
+async function handleSubmit() {
+    emit("submit", toolInfomationFormData)
 }
 
 </script>
