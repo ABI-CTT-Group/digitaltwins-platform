@@ -17,7 +17,7 @@ class DotDict:
             super().__setattr__(name, value)
 
 current_file = Path(__file__).resolve()
-root_dir = current_file.parent.parent
+root_dir = current_file.parent.parent.parent
 config_path = root_dir / "configs.ini"
 querier = Querier(config_path)
 uploader = Uploader(config_path)

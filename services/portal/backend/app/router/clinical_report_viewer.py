@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query
-from utils import digitaltwins_configs
+from app.utils import digitaltwins_configs
 from pprint import pprint
 router = APIRouter()
 

@@ -5,9 +5,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pathlib import Path
 import io
-from router import dashboard, clinical_report_viewer
-from utils import Config
+from app.router import dashboard, clinical_report_viewer, workflow_tool_plugin
 from contextlib import asynccontextmanager
+from app.database.database import init_db
+from dotenv import load_dotenv
+import os
+from app.builder.logger import configure_logging, get_logger
+from datetime import datetime
+
+configure_logging()
+logger = get_logger(__name__)
 
 
 # When fastapi start will execute this function first
@@ -15,6 +22,8 @@ from contextlib import asynccontextmanager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    load_dotenv()
+    init_db()
     print("starting lifespan")
     yield
     # Shutdown
@@ -25,6 +34,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="DigitalTWINS Portal API", verison="1.0.0", lifespan=lifespan)
 app.include_router(dashboard.router)
 app.include_router(clinical_report_viewer.router)
+app.include_router(workflow_tool_plugin.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,7 +47,6 @@ app.add_middleware(
 
 @app.get('/')
 async def root():
-    print(Config.BASE_PATH)
     current_path = Path.cwd()
     # Get the directory of the current script
     script_path = Path(__file__).resolve().parent
@@ -62,6 +71,9 @@ async def test():
 
     return response
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "timestamp": datetime.utcnow()}
 
 if __name__ == '__main__':
     # uvicorn.run(app)

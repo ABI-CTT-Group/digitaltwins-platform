@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Query
-from data import assays_data, launch_workflow
-from models import model
+from app.models import assay_model
 import json
 from pathlib import Path
 # from sparc_me import Dataset, Sample, Subject
-from utils import Config, digitaltwins_configs
+from app.utils import digitaltwins_configs
 import shutil
 from pprint import pprint
+
 
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent.parent
@@ -22,14 +22,8 @@ Categories:
     - Assaysx`
 """
 
-
-def set_data_root_path():
-    Config.BASE_PATH = root_dir / "data" / "duke"
-
-
 @router.get("/api/dashboard/programmes")
 async def get_dashboard_programmes():
-    set_data_root_path()
     programs = digitaltwins_configs.querier.get_programs()
     programmes = []
     for data in programs:
@@ -175,7 +169,7 @@ async def get_dashboard_dataset_detail_by_uuid(uuid: str = Query(None)):
 
 
 @router.post("/api/dashboard/assay-details")
-async def set_dashboard_assay_details(details: model.AssayDetails):
+async def set_dashboard_assay_details(details: assay_model.AssayDetails):
     assay_data = {
         "assay_uuid": details.uuid,
         "assay_seek_id": int(details.seekId),

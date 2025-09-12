@@ -49,20 +49,4 @@ defineProps({
     user-select: none;
   -webkit-user-select: none; /* Safari */
 }
-.gradient-animated{
-  /* background: linear-gradient(90deg, #ff6b6b, #f8e71c, #50e3c2, #7c4dff); */
-  background: linear-gradient(90deg, #1fb7d9, #ffffff, #1fb7d9);
-  background-size: 300% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  display: inline-block;
-  animation: slide-gradient 20s linear infinite;
-}
-
-@keyframes slide-gradient {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
 </style>

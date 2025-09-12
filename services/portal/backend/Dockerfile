@@ -1,19 +1,42 @@
 FROM python:3.9-slim
 
-MAINTAINER LinkunGao<gaolinkun123@gmail.com>
+# 基础依赖
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    gcc \
+    libpq-dev \
+    python3-dev \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && corepack enable \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /clinical_dashboard_backend
+# Add Docker official GPG
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
 
-RUN apt-get update && apt-get install -y libpq-dev gcc
+# Add Docker official software source (use VERSION_CODENAME from /etc/os-release)
+RUN . /etc/os-release && echo \
+  "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian ${VERSION_CODENAME} stable" \
+  > /etc/apt/sources.list.d/docker.list
 
-COPY backend/requirements.txt ./
+# Install docker CLI + compose plugin
+RUN apt-get update && apt-get install -y \
+    docker-ce-cli \
+    docker-compose-plugin \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir -r requirements.txt
+# Install uv from astral-sh
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-COPY backend/ .
-COPY configs.ini ./
+# Copy project
+COPY . /app
+WORKDIR /app
 
+# Install dependencies with uv
+RUN uv sync --frozen --no-cache
 
-EXPOSE 8000
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run FastAPI app
+CMD ["uv", "run", "fastapi", "run", "app/main.py", "--port", "8000", "--host", "0.0.0.0"]

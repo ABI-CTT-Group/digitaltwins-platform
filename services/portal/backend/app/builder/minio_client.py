@@ -13,8 +13,7 @@ class MinioClient:
     """Minio client for storing plugin frontend build artfacts and backend origin codes using boto3"""
 
     def __init__(self):
-        self.endpoint = os.getenv('MINIO_ENDPOINT', "minio:9000")
-        print("MINIO_ENDPOINT: ", self.endpoint)
+        self.endpoint = os.getenv('MINIO_ENDPOINT', "localhost:9000")
         self.access_key = os.getenv('MINIO_ACCESS_KEY', "minioadmin")
         self.secret_key = os.getenv('MINIO_SECRET_KEY', "minioadmin")
         self.bucket_name = os.getenv('MINIO_BUCKET_NAME', "workflow-tools")
@@ -30,6 +29,7 @@ class MinioClient:
 
         self._ensure_bucket_exists()
         self.ensure_public_access()
+        self.metadata = self._ensure_metadata()
 
     def _ensure_bucket_exists(self):
         """Ensure the MinIO bucket exists"""
@@ -58,6 +58,7 @@ class MinioClient:
                         "Action": [
                             "s3:GetObject",
                             "s3:GetObjectVersion",
+                            "s3:PutObject"
                         ],
                         "Resource": f"arn:aws:s3:::{self.bucket_name}/*"
                     }
@@ -71,6 +72,37 @@ class MinioClient:
             logger.error(f"Failed to set public read policy for bucket {self.bucket_name}: {e}")
             raise
 
+    def _ensure_metadata(self):
+        try:
+            self.client.head_object(Bucket=self.bucket_name, Key="metadata.json")
+            exists = True
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "404":
+                exists = False
+            else:
+                raise
+
+        if exists:
+            obj = self.client.get_object(Bucket=self.bucket_name, Key="metadata.json")
+            self.metadata = json.loads(obj["Body"].read().decode("utf-8"))
+        else:
+            self.metadata = {
+                "components": []
+            }
+
+        return self.metadata
+
+    def update_metadata(self, metadata):
+        try:
+            self.client.put_object(
+                Bucket=self.bucket_name,
+                Key="metadata.json",
+                Body=json.dumps(metadata, indent=2),
+                ContentType="application/json")
+            logger.info("Updated metadata.json to MinIO successfully")
+        except Exception as e:
+            logger.error(f"Failed to update metadata for minio bucket: {e}")
+
     def upload_directory(self, local_path: str, remote_prefix: str) -> str:
         """Upload a directory to minio bucket"""
         try:
@@ -83,7 +115,7 @@ class MinioClient:
             for root, dirs, files in os.walk(local_path):
                 for file in files:
                     file_path = Path(root) / file
-                    relative_path = file_path.relative_to(local_path)
+                    relative_path = file_path.relative_to(local_path).as_posix()
                     object_name = f"{remote_prefix}/{relative_path}"
 
                     # Determine MIME type

@@ -66,11 +66,16 @@ class PluginBase(BaseModel):
     repository_url: str
     frontend_folder: str
     frontend_build_command: str
+    has_backend: bool
     backend_folder: Optional[str]
+    backend_deploy_command: str
     description: Optional[str] = None
     author: Optional[str] = None
     plugin_metadata: Optional[dict] = None
 
+
+class PluginCreate(PluginBase):
+    pass
 
 class PluginUpdate(PluginBase):
     name: Optional[str] = None

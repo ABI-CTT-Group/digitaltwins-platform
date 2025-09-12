@@ -15,6 +15,13 @@ data/duke_test_data
 data/duke
 
 minio
+.venv
+.env
 
 configs_old.ini
 configs_public_demo.ini
+plugin_registry.db
+
+tmp
+datasets
+app.log

@@ -1,4 +1,10 @@
 <template>
+    <v-alert
+        v-show="showAlert"
+        text="Some required fields are missing. Please provide your GitHub repository, workflow tool name, build command, and, if the tool includes a backend, fill in the frontend and backend folder details."
+        title="Required Fields Missing"
+        type="error"
+    ></v-alert>
     <div>
         <h3 class="text-cyan">Workflow Tool Information</h3>
         <v-divider class="my-2 mb-5" :thickness="3"></v-divider>
@@ -6,7 +12,7 @@
         <v-form ref="form" class="px-5">
             <h4 class="my-2">Source Url *</h4>
             <v-text-field
-                v-model="toolInfomationFormData.sourceUrl"
+                v-model="toolInfomationFormData.repository_url"
                 :rules="sourceUrlRules"
                 label="Git repository URL"
                 placeholder="https://github.com/user/repo.git"
@@ -16,11 +22,15 @@
             ></v-text-field>
             <div class="d-flex flex-row">
                 <div class="w-100">
-                    <h4 class="my-2">Plugin Name</h4>
+                    <h4 class="my-2">Plugin Name *</h4>
                     <v-text-field
-                        v-model="toolInfomationFormData.pluginName"
-                        label="My Workflow Tool"
+                        v-model="toolInfomationFormData.name"
+                        label="My Workflow Tool Name"
                         clearable
+                        @blur="onNameBlur"
+                        :rules="pluginNameRules"
+                        required
+                        :error-messages="(!!nameErr && !nameErr.available) ? nameErr.message : ''"
                     ></v-text-field>
                 </div>
                 <div class="w-100 mx-3" >
@@ -53,14 +63,22 @@
                     clearable
                     ></v-textarea>
             </div>
+            <div class="w-100">
+                <h4 class="my-2">has backend? *</h4>
+                <v-radio-group inline v-model="toolInfomationFormData.has_backend">
+                    <v-radio label="Yes" :value=true></v-radio>
+                    <v-radio label="No" :value=false></v-radio>
+                </v-radio-group>
+            </div>
             <div class="w-100 d-flex flex-row">
-                <div class="w-100 mr-1">
+                <div v-show="toolInfomationFormData.has_backend" class="w-100 mr-1">
                     <h4 class="my-2">Frontend Folder Name *</h4>
                     <v-text-field
-                        v-model="toolInfomationFormData.frontendFolderName"
+                        v-model="toolInfomationFormData.frontend_folder"
                         :rules="frontendFolderRules"
                         label="Frontend Folder"
-                        :error-messages="''"
+                        @blur="handleFrontendFolderBlur"
+                        :error-messages="(!!frontendFolderErr && !frontendFolderErr.available) ? frontendFolderErr.message : ''"
                         clearable
                         required
                     ></v-text-field>
@@ -68,7 +86,7 @@
                 <div class="w-100 ml-1">
                     <h4 class="my-2">Build Command *</h4>
                     <v-text-field
-                        v-model="toolInfomationFormData.frontendBuildCommand"
+                        v-model="toolInfomationFormData.frontend_build_command"
                         :rules="frontendCommandRules"
                         label="Frontend Build Command"
                         clearable
@@ -76,35 +94,27 @@
                     ></v-text-field>
                 </div>
             </div>
-            <div class="w-100 d-flex flex-column">
-                <h4 class="my-2">has backend? *</h4>
-                <v-radio-group inline v-model="toolInfomationFormData.hasbackend">
-                    <v-radio label="Yes" :value=true></v-radio>
-                    <v-radio label="No" :value=false></v-radio>
-                </v-radio-group>
-                <div class="w-100 d-flex flex-row">
-                    <div class="w-100 mr-1">
-                        <h4 class="mb-2">Backend Folder Name *</h4>
-                        <v-text-field
-                            v-model="toolInfomationFormData.backendFolderName"
-                            :rules="backendFolderRules"
-                            label="Backend Folder"
-                            :error-messages="''"
-                            clearable
-                            required
-                            :disabled="!toolInfomationFormData.hasbackend"
-                        ></v-text-field>
-                    </div>
-                    <div class="w-100 ml-1">
-                        <h4 class="mb-2">Build Command (fixed) *</h4>
-                        <v-text-field
-                            bg-color="cyan-darken-4"  
-                            variant="solo"
-                            v-model="toolInfomationFormData.backendBuildCommand"
-                            readonly
-                            :disabled="!toolInfomationFormData.hasbackend"
-                        ></v-text-field>
-                    </div>
+            <div class="w-100 d-flex flex-row">
+                <div v-show="toolInfomationFormData.has_backend" class="w-100 mr-1">
+                    <h4 class="mb-2">Backend Folder Name *</h4>
+                    <v-text-field
+                        v-model="toolInfomationFormData.backend_folder"
+                        :rules="backendFolderRules"
+                        label="Backend Folder"
+                        @blur="handleBackendFolderBlur"
+                        :error-messages="(!!backendFolderErr && !backendFolderErr.available) ? backendFolderErr.message : ''"
+                        clearable
+                        required
+                    ></v-text-field>
+                </div>
+                <div v-show="toolInfomationFormData.has_backend" class="w-100 ml-1">
+                    <h4 class="mb-2">Deploy Command (fixed) *</h4>
+                    <v-text-field
+                        bg-color="cyan-darken-4"  
+                        variant="solo"
+                        v-model="toolInfomationFormData.backend_deploy_command"
+                        readonly
+                    ></v-text-field>
                 </div>
             </div>
              <v-checkbox
@@ -144,7 +154,6 @@
                 variant="tonal"
                 :width="150"
                 rounded="md"
-                :disabled="submitBtnDisabled"
                 class="hover-animate ma-5"
                 @click="handleSubmit"
             ></v-btn>
@@ -153,27 +162,50 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive} from 'vue'
+import axios from 'axios'
+import { ref, watch, reactive, watchEffect} from 'vue'
 import { debounce } from "lodash"
-import { IToolInformationStep } from '@/models/uiTypes'
+import { IToolInformationStep, CheckNameResponse } from '@/models/uiTypes'
+import { useCheckPluginName, useCreateToolPlugin } from '@/plugins/plugin_api'
 
+interface GitContent {
+    name: string;
+    path:string;
+    download_url:string;
+    git_url:string;
+    html_url:string;
+    sha:string;
+    size:number;
+    type:string;
+    url:string;
+    _links: {
+        git:string;
+        html:string;
+        self:string;
+    }
+}
 
 const emit = defineEmits(["cancel", "submit"])
 const form = ref()
 const policyCheckbox = ref(false)
-const submitBtnDisabled = ref(true)
+const showAlert = ref(false)
 const toolInfomationFormData = reactive<IToolInformationStep>({
-    sourceUrl:"",
-    pluginName:"",
+    repository_url:"",
+    name:"",
     author:"",
     version:"1.0.0",
     description:"",
-    frontendFolderName:"frontend",
-    frontendBuildCommand:"npm run build",
-    hasbackend:true,
-    backendFolderName:"backend",
-    backendBuildCommand:"docker compose up --build -d"
+    frontend_folder:"",
+    frontend_build_command:"npm run build",
+    has_backend:true,
+    backend_folder:"",
+    backend_deploy_command:"docker compose up --build -d",
+    plugin_metadata:{}
 })
+const nameErr = ref<CheckNameResponse>()
+const frontendFolderErr = ref<CheckNameResponse>()
+const backendFolderErr = ref<CheckNameResponse>()
+const foldersInRootRepo = ref<string[]>([])
 const githubRepoRegex = /^(https:\/\/github\.com\/[\w.-]+\/[\w.-]+)(\.git)?$|^(git@github\.com:[\w.-]+\/[\w.-]+)(\.git)?$/;
 const semverRegex = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
 const frontendCommandRegex = /^(npm|yarn)\s+\S+/
@@ -182,12 +214,15 @@ const sourceUrlRules = ref([
     (v:string) => !!v || 'Source URL is required',
     (v:string)  => githubRepoRegex.test(v) || 'Must be a valid GitHub repository URL',
 ])
+const pluginNameRules = ref([
+    (v:string) => !!v || 'Workflow tool name is required',
+])
 const versionRules = ref([
     (v:string) => !!v || 'Version is required',
     (v:string) => semverRegex.test(v) || 'Version should be semantic versioning (e.g., 1.0.0)'
 ])
 const frontendFolderRules = ref([
-    (v:string) => !!v || "Make sure the folder name matches the frontend folder in your tool’s GitHub repo"
+    (v:string) => toolInfomationFormData.has_backend ? !!v || "Make sure the folder name matches the frontend folder in your tool’s GitHub repo" : true
 ])
 const frontendCommandRules = ref([
     (v:string) => !!v || 'Command to build your plugin (e.g., npm run build, yarn build)',
@@ -195,7 +230,7 @@ const frontendCommandRules = ref([
 ])
 const backendFolderRules = [
     (v: string) => {
-        if (!toolInfomationFormData.hasbackend) return true
+        if (!toolInfomationFormData.has_backend) return true
         return !!v || "The backend folder name can’t be empty!"
     }
 ]
@@ -207,31 +242,133 @@ const addGitSuffix = (url:string) => {
 }
 
 const onBlur = () => {
-  if (!toolInfomationFormData.sourceUrl) return
-  if (!toolInfomationFormData.sourceUrl.endsWith('.git')) {
-    toolInfomationFormData.sourceUrl = addGitSuffix(toolInfomationFormData.sourceUrl)
+  if (!toolInfomationFormData.repository_url) return
+  if (!toolInfomationFormData.repository_url.endsWith('.git')) {
+    toolInfomationFormData.repository_url = addGitSuffix(toolInfomationFormData.repository_url);
+    getRepoContents(toolInfomationFormData.repository_url);
   }
 }
 
-watch(()=>toolInfomationFormData.hasbackend,(newVal, oldVal)=>{
-    toolInfomationFormData.backendFolderName = newVal ? "backend" : ""
+const onNameBlur = async () => {
+    nameErr.value = await useCheckPluginName(toolInfomationFormData.name)
+}
+
+const handleFrontendFolderBlur = () => {
+    if (checkFolderNameInRoot(toolInfomationFormData.frontend_folder)){
+        frontendFolderErr.value = {
+           available: true,
+           message: '' 
+        }
+    }else{
+        frontendFolderErr.value = {
+            available: false,
+            message: `'${toolInfomationFormData.frontend_folder}' is not in your repo folders: [${foldersInRootRepo.value}]`
+        }
+    }
+}
+
+const handleBackendFolderBlur = () => {
+    if (checkFolderNameInRoot(toolInfomationFormData.backend_folder)){
+        backendFolderErr.value = {
+           available: true,
+           message: '' 
+        }
+    }else{
+        backendFolderErr.value = {
+            available: false,
+            message: `'${toolInfomationFormData.backend_folder}' is not in your repo folders: [${foldersInRootRepo.value}]`
+        }
+    }
+}
+
+const getRepoContents = async (url:string) => {
+    foldersInRootRepo.value = [];
+    const rootContentUrl = convertToApiUrl(url);
+    try {
+        const res =await axios.get(rootContentUrl);
+        const folders = res.data as GitContent[];
+        folders.forEach((item: GitContent)=>{
+            if (item.type == 'dir'){
+                foldersInRootRepo.value.push(item.name)
+            }
+        })
+    } catch (err) {
+        console.error("Error fetching repo contents:", err);
+    }
+
+    function convertToApiUrl(repoUrl:string, path = "") {
+        repoUrl = repoUrl.replace(/\.git$/, "").replace(/\/$/, "");
+
+        const parts = repoUrl.split("/");
+        const owner = parts[parts.length - 2];
+        const repo = parts[parts.length - 1];
+
+        return `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+    }
+
+}
+
+const checkFolderNameInRoot = (name: string) => {
+    return foldersInRootRepo.value.includes(name)
+}
+
+watch(()=>toolInfomationFormData.has_backend,(newVal, oldVal)=>{
+    policyCheckbox.value = false;
 })
 
-watch(policyCheckbox, debounce(async () => {
-  const { valid } = await form.value.validate();
-  submitBtnDisabled.value = !valid;
-  if(!valid) policyCheckbox.value = false;
-}, 200))
+// watch(policyCheckbox, debounce(async () => {
+//     if (policyCheckbox.value){
+//         const { valid } = await form.value.validate();
+//         if (valid && nameErr.value?.available && frontendFolderErr.value?.available && backendFolderErr.value?.available){
+//             submitBtnDisabled.value = !valid;
+//         }
+//         if(!valid) policyCheckbox.value = false;
+//     }
+// }, 200))
+
+async function validate(){
+    const { valid } = await form.value.validate();
+    onNameBlur();
+    if (toolInfomationFormData.has_backend){
+        handleBackendFolderBlur();
+        handleFrontendFolderBlur();
+        if( 
+            valid && 
+            nameErr.value?.available &&
+            frontendFolderErr.value?.available &&
+            backendFolderErr.value?.available)
+        {
+            return true;
+        }
+    }else{
+        if( 
+            valid && 
+            nameErr.value?.available)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
 async function handleCancel () {
     const { valid } = await form.value.validate()
     if (valid) alert('Form is valid')   
-
     emit("cancel")
 }
 
 async function handleSubmit() {
-    emit("submit", toolInfomationFormData)
+    const result = await validate();
+    if (result){
+        // const res = await useCreateToolPlugin(toolInfomationFormData)
+        // console.log(res);
+        
+        // emit("submit", toolInfomationFormData)
+        showAlert.value = false
+    }else{
+        showAlert.value = true
+    }
+    
 }
 
 </script>
