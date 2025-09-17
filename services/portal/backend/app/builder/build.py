@@ -292,7 +292,7 @@ class PluginBuilder:
         patterns = {
             "name": re.compile(r'name:\s*["\']([^"\']*)["\']', re.IGNORECASE),
             "formats": re.compile(r'formats:\s*\[.*?]', re.IGNORECASE | re.DOTALL),
-            "fileName": re.compile(r'fileName:\s*[^,]+', re.IGNORECASE)
+            "fileName": re.compile(r'fileName\s*:\s*.*', re.IGNORECASE)
         }
         try:
             with open(file_path, "r", encoding="utf-8") as f:
@@ -473,7 +473,8 @@ class PluginBuilder:
                         logger.info(f"Found build output directory: {build_output_dir}")
                         break
 
-                dataset_dir = self.create_sparc_dataset(project_dir, has_backend, build_output_dir)
+                dataset_dir = self.create_sparc_dataset(project_dir, has_backend, build_output_dir,
+                                                        f"sparc-{plugin_unique_name}")
                 logger.info(f"SPARC dataset created in {dataset_dir}")
             else:
                 logger.info("Step 5: Skipping SPARC dataset creation for local plugin...")
@@ -503,6 +504,8 @@ class PluginBuilder:
                 try:
                     force_rmtree(cloned_dir)
                     logger.info("Cleaning up cloned repository")
+                    force_rmtree(dataset_dir)
+                    logger.info("Cleaning up sparc dataset")
                 except Exception as e:
                     logger.error(f"Failed to remove cloned repository: {e}")
             else:
