@@ -85,6 +85,7 @@ import { WorkflowStatus } from '@/components/dt-components/workflow/workflowStat
 
 import { storeToRefs } from "pinia";
 
+
 const route = useRoute();
 
 const { allAssayDetailsOfStudy } = storeToRefs(useDashboardPageStore());
@@ -92,8 +93,8 @@ const assayId = route.query.assayId as string;
 const assayDetails = allAssayDetailsOfStudy.value[assayId];
 const assayReadyToLaunch = ref(false);
 
+
 onBeforeMount(async ()=>{
-    // await getDashboardWorkflows();
     assayReadyToLaunch.value = assayDetails?.isAssayReadyToLaunch || false;
 }) 
 onMounted(() => {

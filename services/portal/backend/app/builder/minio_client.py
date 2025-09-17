@@ -5,6 +5,7 @@ import mimetypes
 import boto3
 from botocore.exceptions import ClientError
 from pathlib import Path
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -173,10 +174,19 @@ class MinioClient:
         try:
             response = self.client.list_objects_v2(Bucket=self.bucket_name, Prefix=prefix)
             if 'Contents' in response:
-                return [obj['Key'] for obj in response['Contents']]
+                return [{"Key": obj["Key"]} for obj in response['Contents']]
             return []
         except Exception as e:
             logger.error(f"Failed to list objects with prefix: {prefix}: {e}")
+            raise
+
+    def delete_objects(self, delete_keys: List[str]) -> None:
+        """Delete objects in the bucket"""
+        try:
+            self.client.delete_objects(Bucket=self.bucket_name, Delete={'Objects': delete_keys})
+            logger.info(f"Deleted objects: {delete_keys}")
+        except Exception as e:
+            logger.error(f"Failed to delete objects: {e}")
             raise
 
     def delete_object(self, object_name: str):
@@ -215,7 +225,7 @@ class MinioClient:
     def get_public_url(self, object_name: str) -> str:
         """Get a public URL for an object (no expiration)"""
         protocol = "https" if self.use_ssl else "http"
-        return f"{protocol}://{self.endpoint}/{object_name}/{object_name}"
+        return f"{protocol}://{self.endpoint}/{self.bucket_name}/{object_name}"
 
     def object_exists(self, object_name: str) -> bool:
         """Check if an object exists"""

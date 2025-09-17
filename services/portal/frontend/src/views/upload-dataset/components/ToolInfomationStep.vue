@@ -65,7 +65,7 @@
             </div>
             <div class="w-100">
                 <h4 class="my-2">has backend? *</h4>
-                <v-radio-group inline v-model="toolInfomationFormData.has_backend">
+                <v-radio-group inline v-model="toolInfomationFormData.has_backend" class="w-100 d-flex justify-between">
                     <v-radio label="Yes" :value=true></v-radio>
                     <v-radio label="No" :value=false></v-radio>
                 </v-radio-group>
@@ -316,15 +316,6 @@ watch(()=>toolInfomationFormData.has_backend,(newVal, oldVal)=>{
     policyCheckbox.value = false;
 })
 
-// watch(policyCheckbox, debounce(async () => {
-//     if (policyCheckbox.value){
-//         const { valid } = await form.value.validate();
-//         if (valid && nameErr.value?.available && frontendFolderErr.value?.available && backendFolderErr.value?.available){
-//             submitBtnDisabled.value = !valid;
-//         }
-//         if(!valid) policyCheckbox.value = false;
-//     }
-// }, 200))
 
 async function validate(){
     const { valid } = await form.value.validate();
@@ -351,19 +342,17 @@ async function validate(){
     return false;
 }
 
-async function handleCancel () {
-    const { valid } = await form.value.validate()
-    if (valid) alert('Form is valid')   
+async function handleCancel () {  
     emit("cancel")
 }
 
 async function handleSubmit() {
     const result = await validate();
+    console.log(result);
+    
     if (result){
-        // const res = await useCreateToolPlugin(toolInfomationFormData)
-        // console.log(res);
-        
-        // emit("submit", toolInfomationFormData)
+        const res = await useCreateToolPlugin(toolInfomationFormData)
+        emit("submit", res)
         showAlert.value = false
     }else{
         showAlert.value = true

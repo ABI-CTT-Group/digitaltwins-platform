@@ -1,5 +1,5 @@
 <template>
-  <v-container class="text-center py-16 px-4 no-select" fluid>
+  <v-container class="text-center pt-12 px-4 no-select" fluid>
     <v-row justify="center">
       <v-col cols="12" md="10" lg="8">
         <h2 class="title gradient-animated font-weight-bold mb-4">
