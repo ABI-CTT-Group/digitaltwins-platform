@@ -166,7 +166,7 @@ import axios from 'axios'
 import { ref, watch, reactive, watchEffect} from 'vue'
 import { debounce } from "lodash"
 import { IToolInformationStep, CheckNameResponse } from '@/models/uiTypes'
-import { useCheckPluginName, useCreateToolPlugin } from '@/plugins/plugin_api'
+import { useCheckPluginName } from '@/plugins/plugin_api'
 
 interface GitContent {
     name: string;
@@ -348,11 +348,8 @@ async function handleCancel () {
 
 async function handleSubmit() {
     const result = await validate();
-    console.log(result);
-    
     if (result){
-        const res = await useCreateToolPlugin(toolInfomationFormData)
-        emit("submit", res)
+        emit("submit", toolInfomationFormData)
         showAlert.value = false
     }else{
         showAlert.value = true

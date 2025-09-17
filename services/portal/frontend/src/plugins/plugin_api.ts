@@ -72,3 +72,8 @@ export async function useWorkflowToolBuild(id:string) {
   const res = http.get<PluginExcuteBuildResponse>(`/workflow-tools/plugin/${id}/build`)
   return res
 }
+
+export async function useDeleteTool(id:string) {
+  const res = http.delete(`/workflow-tools/plugin/${id}`)
+  return res;
+}

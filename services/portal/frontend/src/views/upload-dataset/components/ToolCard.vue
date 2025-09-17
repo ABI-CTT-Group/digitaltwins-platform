@@ -1,3 +1,4 @@
+
 <template>
     <v-card 
         class="pa-4 shadow-card card-hover-animate" 
@@ -5,6 +6,8 @@
         max-height="200" 
         rounded="lg" 
         elevation="2"
+        :disabled="isDeleting"
+        :loading="isDeleting"
         style="background: rgba(15, 25, 35, 0.15);" >
         <div class="d-flex justify-space-between align-start">
         <v-avatar
@@ -104,6 +107,7 @@ const props = defineProps<{
 
 const menu = ref(false);
 const tool = toRef(props, "tool")
+const isDeleting = ref(false)
 
 const isBuilding = computed(()=>{
     return tool.value.status == "building" ? true : false;
@@ -167,6 +171,7 @@ const onSubmit = () => {
 }
 const onDelete = () => {
     menu.value = false;
+    isDeleting.value = true;
     emit("delete", tool.value.id)
 }
 </script>

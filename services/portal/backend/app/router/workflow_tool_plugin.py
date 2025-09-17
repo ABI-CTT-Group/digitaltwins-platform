@@ -67,7 +67,17 @@ async def get_plugin(plugin_id: str, db: Session = Depends(get_db)):
 @router.delete("/plugin/{plugin_id}")
 async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
     plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
+
     if plugin is not None:
+        builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).all()
+        for build in builds:
+            if build.s3_path is not None:
+                prefix = build.s3_path.split("/")[-1]
+                object_keys = minio.list_objects(prefix=prefix)
+                if len(object_keys) > 0:
+                    minio.delete_objects(delete_keys=object_keys)
+            db.delete(build)
+            db.commit()
         db.delete(plugin)
         db.commit()
 

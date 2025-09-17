@@ -11,14 +11,14 @@
             <v-stepper-header>
                 <v-stepper-item
                     title="Registration"
-                    value="1"
+                    :value= "1"
                     color="cyan-lighten-1"
                     :complete="step > 1"
                 ></v-stepper-item>
                 <v-divider></v-divider>
                 <v-stepper-item
                     title="Build & Test"
-                    value="2"
+                    :value="2"
                     color="cyan-lighten-1"
                     :complete="step > 2"
                     :editable="step > 1"
@@ -26,7 +26,7 @@
                 <v-divider></v-divider>
                 <v-stepper-item
                     title="Preview & Upload"
-                    value="3"
+                    :value="3"
                     color="cyan-lighten-1"
                     :editable="false"
                     :complete="step > 3"
@@ -35,19 +35,19 @@
 
             <!-- Step Contents -->
             <v-stepper-window>
-                <v-stepper-window-item value="1">
+                <v-stepper-window-item :value="1">
                     <v-card class="pa-4" variant="outlined" color="grey-lighten-2">
                         <ToolInfomationStep @submit="handleSubmit" @cancel="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
 
-                <v-stepper-window-item value="2">
+                <v-stepper-window-item :value="2">
                     <v-card class="pa-4" variant="tonal" color="cyan-darken-4">
-                    <p class="text-body-1">配置 Build 命令，例如 npm run build / docker build。</p>
+                        <ToolBuildStep :tool="tool" @build="handleBuild" @close="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
 
-                <v-stepper-window-item value="3">
+                <v-stepper-window-item :value="3">
                     <v-card class="pa-4" variant="tonal" color="cyan-darken-4">
                     <p class="text-body-1">设置 Prebuild 步骤，例如依赖安装、环境准备。</p>
                     </v-card>
@@ -60,16 +60,24 @@
 
 <script setup lang="ts">
 import ToolInfomationStep from './components/ToolInfomationStep.vue';
-import { IToolInformationStep } from '@/models/uiTypes'
+import ToolBuildStep from './components/ToolBuildStep.vue';
+import { PluginResponse, IToolInformationStep} from '@/models/uiTypes';
+import { useCreateToolPlugin, useWorkflowToolBuild } from '@/plugins/plugin_api'
 import { ref, watch } from "vue";
 
 const emit = defineEmits(['finished'])
 const step = ref(0);
+const tool = ref<PluginResponse>()
 
-const handleSubmit = (data:IToolInformationStep)=>{
-    console.log(data);
+const handleSubmit = async (data:IToolInformationStep)=>{
+    tool.value = await useCreateToolPlugin(data)
     step.value += 1;
 }
+
+const handleBuild = async (id:string)=>{
+    await useWorkflowToolBuild(id)
+}
+
 const handleCancel = ()=>{
     emit('finished')
 }
@@ -87,10 +95,12 @@ const handleCancel = ()=>{
 }
 .sheet-stepper{
     width: 95%;
+    min-height: 50vh;
     background: rgba(1, 62, 62, 0.15); 
     /* border: 1px solid rgba(255, 255, 255, 0.125); */
     border-radius: 10px !important;
     box-shadow:  5px 5px 10px #071b25,
              -5px -5px 10px #0d3547 !important;
 }
+
 </style>

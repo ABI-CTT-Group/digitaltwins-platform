@@ -27,6 +27,7 @@ interface IHttp {
   post<T>(url: string, body?: unknown): Promise<T>;
   getBlob<T>(url: string, params?: unknown): Promise<T>;
   all<T>(requests: Array<IRequests>): Promise<T>;
+  delete<T>(url: string, params?: unknown): Promise<T>;
 }
 
 const http: IHttp = {
@@ -114,6 +115,18 @@ const http: IHttp = {
         })
         .catch((error) => {
           reject(error);
+        });
+    });
+  },
+  delete(url, params) {
+    return new Promise((resolve, reject) => {
+      axios
+        .delete(url, { params })
+        .then((res) => {
+          resolve(res.data);
+        })
+        .catch((err) => {
+          reject(err);
         });
     });
   },

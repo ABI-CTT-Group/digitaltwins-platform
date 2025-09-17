@@ -45,7 +45,7 @@
                     :width="150"
                     rounded="md"
                     class="hover-animate ma-2"
-                    @click="handleRegister"
+                    @click="handleRefresh"
                 ></v-btn>
             </div>
             <div class="d-flex flex-grow-1">
@@ -56,6 +56,7 @@
                         :tool="tool"
                         @launch="(id:string) => handleLaunch(id)"
                         @rebuild="(id:string) => handleRebuild(id)"
+                        @delete="(id:string) => handleDeleteTool(id)"
                     />
                 </div>
                 <div v-else class="w-100 flex-grow-1 d-flex flex-column justify-center align-center">
@@ -73,9 +74,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onBeforeMount, watch } from "vue"
+import { ref, onBeforeMount, watch, onUnmounted } from "vue"
 import ToolCard from "./components/ToolCard.vue"
-import { useWorkflowTools, useMinIoWorkflowToolMetadata, useWorkflowToolBuild } from '@/plugins/plugin_api';
+import { useWorkflowTools, useMinIoWorkflowToolMetadata, useWorkflowToolBuild, useDeleteTool } from '@/plugins/plugin_api';
 import { PluginResponse, PluginMinIOToolMetadata } from '@/models/uiTypes';
 import { useRemoteAppStore } from '@/store/remoteStore'
 import { useRouter } from 'vue-router'
@@ -83,6 +84,8 @@ import Fuse from "fuse.js";
 
 const router = useRouter();
 const remoteAppStore = useRemoteAppStore();
+const isAnyToolBuilding = ref(false);
+let refreshInterval: number | undefined;
 
 const emit = defineEmits(["register"]);
 const search = ref("");
@@ -90,7 +93,7 @@ const workflowTools = ref<Array<PluginResponse>>([]);
 const displayTools = ref<Array<PluginResponse>>([]);
 
 onBeforeMount(async ()=>{
-    workflowTools.value = displayTools.value = await useWorkflowTools();
+    await handleRefresh()
 })
 
 watch(search,(newVal, oldVal)=>{
@@ -98,6 +101,31 @@ watch(search,(newVal, oldVal)=>{
         displayTools.value = workflowTools.value;
     }
 })
+
+watch(isAnyToolBuilding, (newVal) => {
+  if (newVal) {
+    if (!refreshInterval) {
+      console.log("start refresh");
+      refreshInterval = window.setInterval(() => {
+        handleRefresh().catch(err => console.error('refresh failed!', err));
+      }, 5000);
+    }
+  } else {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = undefined;
+      console.log("stop refresh");
+    }
+  }
+}, { immediate: true });
+
+const handleRefresh = async () => {
+  workflowTools.value = displayTools.value = await useWorkflowTools();
+
+  const anyBuilding = workflowTools.value.some(tool => tool.status === "building");
+  isAnyToolBuilding.value = anyBuilding;
+}
+
 const handleSearch = ()=>{
     if(!search.value){
         return
@@ -130,8 +158,20 @@ const handleLaunch = async (id:string) => {
     console.warn(`Launch tool ${id} failed, cannot find the metadata in MinIO. `)
 }
 const handleRebuild = async (id:string) =>{
-    await useWorkflowToolBuild(id)
+    const buildRes = await useWorkflowToolBuild(id);
+    if(buildRes.status="building") await handleRefresh();
 }
+
+const handleDeleteTool = async (id: string) =>{
+    const res = await useDeleteTool(id)
+    if(!!res){
+        await handleRefresh()
+    }
+}
+
+onUnmounted(() => {
+  if (refreshInterval) clearInterval(refreshInterval);
+});
 </script>
 
 <style scoped>
