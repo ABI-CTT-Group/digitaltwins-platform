@@ -92,9 +92,9 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
         metadata_file["components"] = [component for component in metadata_file["components"] if
                                        component['id'] != plugin_id]
         minio.update_metadata(metadata_file)
-        return {"message": "Plugin deleted successfully"}
+        return {"status": True, "message": "Plugin deleted successfully, and metadata updated successfully."}
     else:
-        raise HTTPException(status_code=404, detail="Plugin not exist in metadata.json")
+        return {"status": True, "message": "Plugin deleted successfully and no longer found in the metadata file."}
 
 
 @router.get("/plugin/{plugin_id}/build")
@@ -141,7 +141,8 @@ async def execute_build(
     def run_build():
         try:
             with SessionLocal() as session:
-                build_record = session.query(PluginBuild).filter(PluginBuild.build_id == build_id).first()  # type: ignore
+                build_record = session.query(PluginBuild).filter(
+                    PluginBuild.build_id == build_id).first()  # type: ignore
                 if build_record:
                     build_record.status = BuildStatus.BUILDING.value
                     session.commit()

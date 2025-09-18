@@ -15,6 +15,7 @@ from sparc_me import Dataset
 from .logger import get_logger
 from .minio_client import get_minio_client
 from sqlalchemy.orm import Session
+from app.models.db_model import Plugin, SessionLocal
 
 logger = get_logger(__name__)
 
@@ -30,7 +31,6 @@ class PluginBuilder:
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
         self.dataset_dir = Path(dataset_dir)
         self.dataset_dir.mkdir(parents=True, exist_ok=True)
-        self.db: Session = db
 
     def clone_repository(self, repo_url: str, branch: str = "main") -> Path:
         """Clone a git repository to a temporary directory"""
@@ -346,6 +346,19 @@ class PluginBuilder:
 
         self.replace_vite_build_config(vite_config_file, plugin_expose_name)
 
+    def update_plugin_version(self, project_dir: Path, plugin_id: str):
+        package_json = project_dir / "package.json"
+        with open(package_json, "r") as f:
+            package_json = json.load(f)
+        version = package_json.get("version", None)
+        if version is not None:
+            with SessionLocal() as session:
+                plugin = session.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
+                plugin.version = version
+                session.commit()
+        return version
+
+
     def build_plugin(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
         """Complete plugin build process"""
         build_logs = []
@@ -425,6 +438,11 @@ class PluginBuilder:
             logger.info("Step 2.1: Updating vite.config.js...")
             self.update_vite_config(frontend_path, metadata["expose"])
             logger.info("vite.config.js updated successfully")
+
+            # Step 2.2: update plugin version base on plugin frontend package.json version
+            logger.info("Step 2.2: Updating plugin version...")
+            new_version = self.update_plugin_version(frontend_path, plugin_id)
+            version = new_version if new_version is not None else version
 
             # Step 3: npm install
             logger.info("Step 3: Running npm install")

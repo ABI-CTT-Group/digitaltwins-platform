@@ -42,21 +42,21 @@
                     ></v-text-field>
                 </div>
                 <div class="w-100">
-                    <h4 class="my-2">Version *</h4>
+                    <h4 class="my-2">Version</h4>
                     <v-text-field
                         v-model="toolInfomationFormData.version"
                         :rules="versionRules"
                         label="Version"
-                        placeholder="Semantic versioning (e.g., 1.0.0)"
                         required
                         clearable
+                        disabled
                     ></v-text-field>
                 </div>
             </div>
             <div class="w-100">
                 <h4 class="my-2">Description</h4>
                 <v-textarea
-                    :model-value="toolInfomationFormData.description"
+                    v-model="toolInfomationFormData.description"
                     placeholder="Brief description of your workflow tool..."
                     rows="2"
                     counter
@@ -193,7 +193,7 @@ const toolInfomationFormData = reactive<IToolInformationStep>({
     repository_url:"",
     name:"",
     author:"",
-    version:"1.0.0",
+    version:"0.0.0",
     description:"",
     frontend_folder:"",
     frontend_build_command:"npm run build",
@@ -245,7 +245,25 @@ const onBlur = () => {
   if (!toolInfomationFormData.repository_url) return
   if (!toolInfomationFormData.repository_url.endsWith('.git')) {
     toolInfomationFormData.repository_url = addGitSuffix(toolInfomationFormData.repository_url);
-    getRepoContents(toolInfomationFormData.repository_url);
+    getRepoContents(toolInfomationFormData.repository_url).then((res)=>{
+        const folders = res!.data as GitContent[];
+        folders.forEach((item: GitContent)=>{
+            if (item.type == 'dir'){
+                foldersInRootRepo.value.push(item.name)
+            }
+        })
+    }).catch((err) => console.error("Error fetching repo contents:", err));
+    findPackageJson(toolInfomationFormData.repository_url).then((files)=>{
+        if(files.length > 0){
+            const packageJsonPath = files[0];
+            getRepoContents(toolInfomationFormData.repository_url, packageJsonPath).then((res)=>{
+                const data = res.data;
+                const decoded = atob(data.content.replace(/\n/g, ''));
+                const packageJson = JSON.parse(decoded)
+                toolInfomationFormData.version = packageJson.version;
+            }).catch(console.error)
+        }
+    }).catch(console.error)
   }
 }
 
@@ -281,31 +299,42 @@ const handleBackendFolderBlur = () => {
     }
 }
 
-const getRepoContents = async (url:string) => {
-    foldersInRootRepo.value = [];
-    const rootContentUrl = convertToApiUrl(url);
-    try {
-        const res =await axios.get(rootContentUrl);
-        const folders = res.data as GitContent[];
-        folders.forEach((item: GitContent)=>{
-            if (item.type == 'dir'){
-                foldersInRootRepo.value.push(item.name)
-            }
-        })
-    } catch (err) {
-        console.error("Error fetching repo contents:", err);
-    }
-
-    function convertToApiUrl(repoUrl:string, path = "") {
+function convertToApiUrl(repoUrl:string) {
         repoUrl = repoUrl.replace(/\.git$/, "").replace(/\/$/, "");
 
         const parts = repoUrl.split("/");
         const owner = parts[parts.length - 2];
         const repo = parts[parts.length - 1];
 
-        return `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+        return `https://api.github.com/repos/${owner}/${repo}`;
     }
 
+const getRepoContents = async (url:string, path:string ="") => {
+    foldersInRootRepo.value = [];
+    const rootContentUrl = convertToApiUrl(url) + `/contents/${path}`;
+    const res = await axios.get(rootContentUrl);
+    return res
+}
+
+async function findPackageJson(url:string) {
+    const branch = "main";
+    const gitTreeUrl = convertToApiUrl(url) + `/git/trees/${branch}?recursive=1`;
+
+    const res = await fetch(gitTreeUrl, {
+        headers: {
+        Accept: 'application/vnd.github+json',
+        // Authorization: `Bearer ${token}`, // if the github repo is private
+        },
+    });
+
+    if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+
+    const data = await res.json();
+    const tree = data.tree;
+
+    const packages = tree.filter((item: any) => item.path.endsWith('package.json'));
+
+    return packages.map((item: any) => item.path);
 }
 
 const checkFolderNameInRoot = (name: string) => {

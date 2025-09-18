@@ -89,7 +89,7 @@
         </div>
 
         <div class="d-flex flex-wrap align-center mt-4 gap-2">
-            <v-chip v-if="!!tool.version" size="small" color="blue-lighten-4" text-color="blue-darken-3" class="mx-1">{{ tool.version }}</v-chip>
+            <v-chip v-if="!!tool.version" size="small" color="blue-lighten-4" text-color="blue-darken-3" class="mx-1">v{{ tool.version }}</v-chip>
             <v-chip v-if="!!tool.author" size="small" color="blue-lighten-5" text-color="blue-darken-3" class="mx-1">{{ tool.author }}</v-chip>
             <v-chip v-if="!!tool.status" size="small" :color="statusColor" :text-color="statusTextColor" class="mx-1 mr-1">{{ tool.status == "completed" ? "built" : tool.status }}</v-chip>
             <v-chip v-if="!!tool.created_at" size="small" color="green-lighten-4" text-color="green-darken-2" class="ms-auto">{{ formatDate(tool.created_at) }}</v-chip>
@@ -180,8 +180,18 @@ const onDelete = () => {
 .title {
     font-size: large;
 }
+
 .subtitle{
     font-size: small;
+    line-height: 1.5em;         
+    max-height: 4em;             
+    overflow: hidden;
+    display: -webkit-box;
+    box-orient: vertical;
+    -webkit-box-orient: vertical;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;        
+    text-overflow: ellipsis; 
 }
 .card-hover-animate {
   transition: all 0.3s ease;

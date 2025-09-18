@@ -25,7 +25,7 @@
                 ></v-stepper-item>
                 <v-divider></v-divider>
                 <v-stepper-item
-                    title="Preview & Upload"
+                    title="Complete"
                     :value="3"
                     color="cyan-lighten-1"
                     :editable="false"
@@ -49,7 +49,7 @@
 
                 <v-stepper-window-item :value="3">
                     <v-card class="pa-4" variant="tonal" color="cyan-darken-4">
-                    <p class="text-body-1">设置 Prebuild 步骤，例如依赖安装、环境准备。</p>
+                        <ToolCompleteStep :tool="tool" @done="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
             </v-stepper-window>
@@ -61,6 +61,7 @@
 <script setup lang="ts">
 import ToolInfomationStep from './components/ToolInfomationStep.vue';
 import ToolBuildStep from './components/ToolBuildStep.vue';
+import ToolCompleteStep from './components/ToolCompleteStep.vue';
 import { PluginResponse, IToolInformationStep} from '@/models/uiTypes';
 import { useCreateToolPlugin, useWorkflowToolBuild } from '@/plugins/plugin_api'
 import { ref, watch } from "vue";
@@ -76,6 +77,7 @@ const handleSubmit = async (data:IToolInformationStep)=>{
 
 const handleBuild = async (id:string)=>{
     await useWorkflowToolBuild(id)
+    step.value += 1;
 }
 
 const handleCancel = ()=>{
