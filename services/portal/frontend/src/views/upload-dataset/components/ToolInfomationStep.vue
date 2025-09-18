@@ -46,10 +46,10 @@
                     <v-text-field
                         v-model="toolInfomationFormData.version"
                         :rules="versionRules"
-                        label="Version"
                         required
-                        clearable
-                        disabled
+                        bg-color="cyan-darken-4"  
+                        variant="solo"
+                        readonly
                     ></v-text-field>
                 </div>
             </div>
@@ -110,9 +110,9 @@
                 <div v-show="toolInfomationFormData.has_backend" class="w-100 ml-1">
                     <h4 class="mb-2">Deploy Command (fixed) *</h4>
                     <v-text-field
+                        v-model="toolInfomationFormData.backend_deploy_command"
                         bg-color="cyan-darken-4"  
                         variant="solo"
-                        v-model="toolInfomationFormData.backend_deploy_command"
                         readonly
                     ></v-text-field>
                 </div>
