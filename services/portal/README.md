@@ -30,7 +30,9 @@ docker compose up --build -d
 
 Here you can find information about all **Programmes**, **Projects**, **Investigations**, **Studies**, and **Assays**.
 
-You can click the **`EXPLORE`** button under the *Programmes*, *Projects*, *Investigations*, or *Studies* catalogues to view more details.  
+You can click the **`EXPLORE`** button under the *Programmes*, *Projects*, *Investigations*, or *Studies* catalogues to view more details. 
+<img width="1773" height="648" alt="image" src="https://github.com/user-attachments/assets/f228c509-dd40-471a-98e6-7cfcff369995" />
+
 
 Once you enter the **Assays** page, you can:
 - Edit an assay  
@@ -38,7 +40,9 @@ Once you enter the **Assays** page, you can:
 - Monitor an assay  
 - Verify an assay  
 - Download a dataset  
-- Submit a dataset  
+- Submit a dataset
+
+<img width="2163" height="591" alt="image" src="https://github.com/user-attachments/assets/03b3b1a7-9131-4664-8ef5-30e0c04a41c7" />
 
 ---
 
@@ -49,6 +53,7 @@ Once you enter the **Assays** page, you can:
   - A **Web GUI–based workflow**  
 - After choosing a workflow, select the dataset and sample type for its inputs and outputs.  
 - Finally, specify how many **cohorts** you want to execute for this assay.  
+<img width="1599" height="1563" alt="image" src="https://github.com/user-attachments/assets/6799965c-2891-45f4-ae34-4b08c2013a51" />
 
 ---
 
