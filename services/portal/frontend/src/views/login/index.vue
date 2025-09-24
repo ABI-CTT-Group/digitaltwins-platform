@@ -2,7 +2,7 @@
     <div class="fill-height d-flex flex-column justify-center align-center">
         <div class="h-70">
             <div class="mx-5 my-10 text-center">
-                <h1 class="text-h2 title">DigitalTWINS AI Portal</h1>
+                <h1 class=" title">DigitalTWINS AI Portal</h1>
             </div>
             <div class="mx-auto rounded w-66 form-login">
                 <v-form validate-on="submit lazy" @submit.prevent="submit">
@@ -138,8 +138,7 @@ const checkApi = async (validatingStr: string, type: string): Promise<any> => {
     min-width: 30rem;
 }
 .title{
-    font-family: "Poppins", "Helvetica Neue", Arial, sans-serif; 
     line-height: 1.6; 
-    color: #F5F5F5; 
+    font-size: 2.8rem;
 }
 </style>

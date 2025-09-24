@@ -2,25 +2,71 @@ version: "3"
 services:
   backend:
     build:
-      context: .
-      dockerfile: backend/backend_compose_dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dashboard-api
     ports:
       - "8000:8000"
-    # volumes:
-    #   - ~/desktop/docker/import_nrrd:/segmentation_gui_backend/import_nrrd
-    #   - ~/desktop/docker/export_data:/segmentation_gui_backend/export_data
-    # used for encrypt drive 
-    # volumes:
-    #   - type: bind
-    #     source: I:\workdir
-    #     target: /tumour_gui_backend/workdir
+    environment:
+      - PYTHONPATH=/app
+      - DATABASE_PATH=/data/plugin_registry.db
+      - DATASET_DIR=/datasets
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET_NAME=workflow-tools
+      - MINIO_USE_SSL=false
+      - HOST=130.216.217.176
+    env_file:
+      - ./backend/.env
+    volumes:
+      - digitaltwins_protal_datasets:/data/download_datasets
+      - ./backend/datasets:/app/datasets
+      - ./backend/configs.ini:/app/configs.ini
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    networks:
+      - digitaltwins-portal-network
+    depends_on:
+      - minio
+
   frontend:
     build:
       context: ./frontend
-      dockerfile: frontend_dockerfile
+      dockerfile: Dockerfile
       args:
         VITE_APP_API_URL: ${VITE_APP_API_URL}
+    container_name: digitaltwins-ai-platform
     ports:
       - "80:80"
+    restart: unless-stopped
+    networks:
+      - digitaltwins-portal-network
     depends_on:
       - backend
+  
+  minio:
+    image: quay.io/minio/minio:latest
+    ports:
+      - '8004:9000'
+      - '8005:9001'
+    networks:
+      - digitaltwins-portal-network
+    volumes:
+      - 'minio_data:/data'
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+      - MINIO_SERVER_ACCESS_KEY=minioadmin
+      - MINIO_SERVER_SECRET_KEY=minioadmin
+    command: server /data --console-address ":9001" --address ":9000"
+
+networks:
+  digitaltwins-portal-network:
+    driver: bridge
+
+volumes:
+  digitaltwins_protal_datasets:
+  minio_data:
+    driver: local
+

@@ -12,12 +12,15 @@ const props = defineProps<{
     cwlPath:string
 }>()
 
+const emit = defineEmits(["onWorkflowLoaded"])
+
 const cwlData = ref({})
 
 onMounted(async () => {
   const res = await fetch(props.cwlPath)
   const text = await res.text()
   cwlData.value = yaml.load(text)
+  emit("onWorkflowLoaded", cwlData.value)
 })
 </script>
 

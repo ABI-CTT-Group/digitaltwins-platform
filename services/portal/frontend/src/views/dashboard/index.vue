@@ -1,8 +1,31 @@
 <template>
     <div class="container overflow-hidden d-flex justify-center">
-        <NavHome> <h1 class="text-center py-4 text-grey-lighten-2">DigitalTWINS AI Platform</h1> </NavHome>
-        <div class="overflow-y-auto h-100 mt-10 sub-container">
-            <v-row>
+        <div class="overflow-y-auto sub-container">
+            <Hero >
+                 <v-btn
+                    color="green-lighten-2"
+                    class="text-sky-900 px-6 py-3"
+                    size="large"
+                    elevation="6"
+                    rounded="xl"
+                    variant="tonal"
+                    @click="handleHeroStarted"
+                >
+                    Get Started
+                </v-btn>
+                <v-btn
+                    color="purple-lighten-2"
+                    class="text-white px-6 py-3"
+                    size="large"
+                    elevation="6"
+                    rounded="xl"
+                    variant="tonal"
+                    @click="handleHeroDocumentation"
+                >
+                    Documentation
+                </v-btn>
+            </Hero>
+            <v-row class="cards">
                 <v-col
                     cols="12"
                     md="12"
@@ -91,7 +114,8 @@
 </template>
 
 <script setup lang="ts">
-import DashboardCard from './components/DashboardCard.vue';
+import DashboardCard from '@/components/dt-components/DashboardCard.vue';
+import Hero from '@/components/dt-components/Hero.vue';
 import clinicalImage from '@/assets/dashboard/clinical-01.jpg';
 import studyImage from '@/assets/dashboard/study.png';
 import catelogueImage from '@/assets/dashboard/catalogue.png';
@@ -101,7 +125,6 @@ import mydigitaltwinNavImage from '@/assets/dashboard/my-digital-twin-nav.jpg'
 import fcMapImage from '@/assets/dashboard/fc-map.jpg'
 import annotatorImage from '@/assets/dashboard/annotator.jpg'
 import digitalRepositoryImage from '@/assets/dashboard/digital-repository.jpg'
-import NavHome from './components/NavHome.vue';
 import { useRouter, useRoute } from 'vue-router';
 
 
@@ -130,33 +153,21 @@ const handleExploreClicked = (title: string) => {
         console.log(`Unknown title: ${title}`);
     }
 }
+
+const handleHeroStarted = () => {
+     router.push({name:'Dashboard', params: { dashboardType: 'clinician' }});
+}
+
+const handleHeroDocumentation = () => {
+    router.push({name:'TutorialDashboard'});
+}
 </script>
 
 <style scoped>
-.container {
-    height: 100vh;
-    position: relative;
-    background-image: url("@/assets/login_bg.jpg"); 
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    backdrop-filter: blur(5px); 
-    -webkit-backdrop-filter: blur(5px); 
-}
-.container::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: inherit; 
-  filter: blur(2px); 
-  -webkit-filter: blur(2px); 
-  z-index: -1; 
-}
+
 .sub-container{
     width: 90%;
+    margin-top: 70px;
 }
 
 </style>

@@ -30,6 +30,7 @@
                                     max-height="600"
                                     src="/eps/workflows/new_workflow.png"
                                 ></v-img>
+                                <!-- <CWLWorkflowViewer :workflow="workflowData"/> -->
                             </div>
                         </div>
                     </template>
@@ -53,16 +54,17 @@
                         </template>
                         <template #description>
                             <div class="d-flex justify-center w-100 pa-3">
-                                <div class="w-75">
-                                    <v-img
+                                <div class="w-100">
+                                    <!-- <v-img
                                         :aspect-ratio="1"
                                         max-height="600"
                                         :src="`/eps/workflows/${workflow}.svg`"
-                                    ></v-img>
+                                    ></v-img> -->
+                                    <CWLWorkflowViewer :workflow="workflowData"/>
                                 </div>
                             </div>
                         </template>
-                        <CWLViewer :cwl-path="`/eps/workflows/${workflow}.cwl`" />
+                        <CWLViewer :cwl-path="`/eps/workflows/${workflow}.cwl`" @on-workflow-loaded="handleWorkflowLoaded" />
                     </Dialog>
                 </div>
             </div>
@@ -109,10 +111,13 @@ import { storeToRefs } from 'pinia';
 import { useDashboardWorkflowsStore } from "@/store/dashboard_store";
 import Dialog from '@/components/commonBar/Dialog.vue';
 import CWLViewer from '@/components/commonBar/CWLViewer.vue';
+import CWLWorkflowViewer from '@/components/dt-components/workflow/CWLWorkflowViewer.vue';
+
 
 const { dashboardWorkflows } = storeToRefs(useDashboardWorkflowsStore());
 const { getDashboardWorkflows } = useDashboardWorkflowsStore();
 const isNewWorkflowClicked = ref(false)
+const workflowData = ref({});
 
 const workflows = ref([
     "Automated torso model generation – script", 
@@ -159,6 +164,11 @@ const tools = ref([
 onMounted(async ()=>{
      
 })
+
+const handleWorkflowLoaded = (data: any) => {
+    console.log("CWL Data Loaded: ", data);
+    workflowData.value = data;
+}
 
 const handleDialogOpen = () => {
 

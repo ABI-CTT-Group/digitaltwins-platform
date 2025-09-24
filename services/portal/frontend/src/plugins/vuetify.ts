@@ -12,6 +12,9 @@ import { md3 } from "vuetify/blueprints";
 
 // Composables
 import { createVuetify, ThemeDefinition } from "vuetify";
+import * as components from 'vuetify/components'
+import * as directives from 'vuetify/directives'
+
 
 const lightTheme: ThemeDefinition = {
   dark: false,
@@ -35,7 +38,7 @@ const lightTheme: ThemeDefinition = {
     "three-d-panel": "#FFF8E1",
     "split-line": "#FF8F00",
     switcher: "#FF5722",
-  },
+  }
 };
 
 const darkTheme: ThemeDefinition = {
@@ -61,11 +64,13 @@ const darkTheme: ThemeDefinition = {
     "three-d-panel": "#43A047",
     "split-line": "#009688",
     switcher: "#FF5722",
-  },
+  }
 };
 
 // https://vuetifyjs.com/en/introduction/why-vuetify/#feature-guides
 export default createVuetify({
+  components,
+  directives,
   blueprint: md3,
   theme: {
     defaultTheme: "darkTheme",

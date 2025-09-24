@@ -1,6 +1,5 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import * as Copper from "copper3d";
 import { IDashboardCategory, IAssayDetails } from "@/models/apiTypes";
 
 interface IUser {
@@ -105,5 +104,10 @@ export const useDashboardPageStore = defineStore("dashboardPage", () => {
     setAssayExecute,
     setClinicianView
   }
-
+}, {
+  persist: true,
+  // persist: {
+  //   pick: ['allAssayDetailsOfStudy'],
+  //   storage: localStorage,
+  // }
 });
