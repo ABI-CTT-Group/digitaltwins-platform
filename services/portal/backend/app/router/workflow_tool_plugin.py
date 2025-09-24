@@ -25,6 +25,7 @@ from pathlib import Path
 from botocore.exceptions import ClientError
 from app.utils.workflow_tool_utils import (get_build_record_or_404, get_public_url_for_build)
 from uuid import UUID
+from app.utils.utils import force_rmtree
 
 configure_logging()
 logger = get_logger(__name__)
@@ -76,6 +77,9 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
                 object_keys = minio.list_objects(prefix=prefix)
                 if len(object_keys) > 0:
                     minio.delete_objects(delete_keys=object_keys)
+                # Delete dataset in dataset folder
+                dataset_path = builder.dataset_dir / prefix
+                force_rmtree(dataset_path)
             db.delete(build)
             db.commit()
         db.delete(plugin)
@@ -155,6 +159,8 @@ async def execute_build(
                     if result["success"]:
                         build_record.status = BuildStatus.COMPLETED.value
                         build_record.s3_path = result["s3_path"]
+                        build_record.dataset_path = result["dataset_path"]
+                        build_record.expose_name = result["expose_name"]
                     else:
                         build_record.status = BuildStatus.FAILED.value
                         build_record.error = result["error_message"]
@@ -197,6 +203,23 @@ async def get_plugin_builds(plugin_id: str, skip: int = 0, limit: int = 100, db:
     builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).offset(skip).limit(limit).all()
     return builds
 
+@router.get("/plugin/{plugin_id}/approval")
+async def get_plugin_approval(plugin_id: str, db: Session = Depends(get_db)):
+    plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
+    if plugin is None:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    latest_build = (
+        db.query(PluginBuild)
+        .filter(PluginBuild.plugin_id == plugin.id)
+        .order_by(PluginBuild.created_at.desc())
+        .first()
+    )
+    dataset_path = Path(latest_build.dataset_path)
+    # TODO: Upload dataset to Digitaltwins Platform,and get the uuid
+    # dataset_uuid = upload_dataset(dataset_path)
+    #
+
+    return latest_build
 
 @router.get("/builds/{build_id}", response_model=PluginBuildResponse)
 async def get_build(build_id: str, db: Session = Depends(get_db)):

@@ -358,7 +358,6 @@ class PluginBuilder:
                 session.commit()
         return version
 
-
     def build_plugin(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
         """Complete plugin build process"""
         build_logs = []
@@ -380,9 +379,9 @@ class PluginBuilder:
         cloned_dir = None
 
         try:
-            plugin_unique_name = self.unique_name(plugin_name)
-            logger.info("Plugin unique name is %s", plugin_unique_name)
-            metadata["expose"] = plugin_unique_name
+            plugin_unique_expose_name = self.unique_name(plugin_name)
+            logger.info("Plugin unique name is %s", plugin_unique_expose_name)
+            metadata["expose"] = plugin_unique_expose_name
             # Step 0: Check for existing metadata
             logger.info("Step 0: Checking for existing plugin metadata...")
 
@@ -492,7 +491,7 @@ class PluginBuilder:
                         break
 
                 dataset_dir = self.create_sparc_dataset(project_dir, has_backend, build_output_dir,
-                                                        f"sparc-{plugin_unique_name}")
+                                                        f"{plugin_unique_expose_name}")
                 logger.info(f"SPARC dataset created in {dataset_dir}")
             else:
                 logger.info("Step 5: Skipping SPARC dataset creation for local plugin...")
@@ -522,8 +521,8 @@ class PluginBuilder:
                 try:
                     force_rmtree(cloned_dir)
                     logger.info("Cleaning up cloned repository")
-                    force_rmtree(dataset_dir)
-                    logger.info("Cleaning up sparc dataset")
+                    # force_rmtree(dataset_dir)
+                    # logger.info("Cleaning up sparc dataset")
                 except Exception as e:
                     logger.error(f"Failed to remove cloned repository: {e}")
             else:
@@ -580,6 +579,7 @@ class PluginBuilder:
             return {
                 "success": True,
                 "dataset_path": str(dataset_dir) if dataset_dir else None,
+                "expose_name": plugin_unique_expose_name,
                 "s3_path": s3_path,
                 "build_logs": "\n".join(build_logs),
                 "error_message": None,

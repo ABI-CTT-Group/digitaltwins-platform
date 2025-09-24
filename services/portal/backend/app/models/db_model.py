@@ -54,6 +54,8 @@ class PluginBuild(Base):
     build_logs = Column(Text, nullable=True)
     error_messages = Column(Text, nullable=True)
     s3_path = Column(String, nullable=True)
+    expose_name = Column(String, nullable=True)
+    dataset_path = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -76,6 +78,7 @@ class PluginBase(BaseModel):
 
 class PluginCreate(PluginBase):
     pass
+
 
 class PluginUpdate(PluginBase):
     name: Optional[str] = None
@@ -113,6 +116,7 @@ class PluginBuildResponse(PluginBuildBase):
     plugin_id: str
     build_id: str
     status: str
+    expose_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
