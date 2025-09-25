@@ -18,7 +18,7 @@ class MinioClient:
         self.access_key = os.getenv('MINIO_ACCESS_KEY', "minioadmin")
         self.secret_key = os.getenv('MINIO_SECRET_KEY', "minioadmin")
         self.bucket_name = os.getenv('MINIO_BUCKET_NAME', "workflow-tools")
-        self.use_ssl = os.getenv('MINIO_USE_SSL', "false").lower() == 'true'
+        self.use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
 
         self.client = boto3.client(
             's3',

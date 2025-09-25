@@ -13,7 +13,7 @@ from app.utils.utils import force_rmtree
 
 from sparc_me import Dataset
 from .logger import get_logger
-from .minio_client import get_minio_client
+from app.client.minio import get_minio_client
 from sqlalchemy.orm import Session
 from app.models.db_model import Plugin, SessionLocal
 

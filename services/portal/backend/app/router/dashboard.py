@@ -111,7 +111,6 @@ async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
         return None
     try:
         data = digitaltwins_configs.querier.get_sop(sop_id=seek_id)
-        pprint(data)
         title = data['attributes']['title']
         if not title:
             name = None

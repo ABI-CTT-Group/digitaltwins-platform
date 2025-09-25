@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.models.db_model import (PluginBuild, BuildStatus)
-from app.builder.minio_client import get_minio_client
+from app.client.minio import get_minio_client
 from fastapi import HTTPException
 
 

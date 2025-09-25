@@ -20,18 +20,22 @@ from app.models.db_model import (
 )
 from app.builder.logger import get_logger, configure_logging
 from app.builder.build import PluginBuilder
-from app.builder.minio_client import get_minio_client
+from app.client.minio import get_minio_client
+from app.client.fhir import get_fhir_adapter
+
 from pathlib import Path
 from botocore.exceptions import ClientError
 from app.utils.workflow_tool_utils import (get_build_record_or_404, get_public_url_for_build)
 from uuid import UUID
 from app.utils.utils import force_rmtree
+from fhir_cda import Annotator
 
 configure_logging()
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/workflow-tools")
 builder = PluginBuilder()
 minio = get_minio_client()
+adapter = get_fhir_adapter()
 
 
 @router.get("/check-name")
@@ -203,6 +207,7 @@ async def get_plugin_builds(plugin_id: str, skip: int = 0, limit: int = 100, db:
     builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).offset(skip).limit(limit).all()
     return builds
 
+
 @router.get("/plugin/{plugin_id}/approval")
 async def get_plugin_approval(plugin_id: str, db: Session = Depends(get_db)):
     plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
@@ -215,11 +220,18 @@ async def get_plugin_approval(plugin_id: str, db: Session = Depends(get_db)):
         .first()
     )
     dataset_path = Path(latest_build.dataset_path)
-    # TODO: Upload dataset to Digitaltwins Platform,and get the uuid
+    # TODO 1: Upload dataset to Digitaltwins Platform,and get the uuid
     # dataset_uuid = upload_dataset(dataset_path)
-    #
+    dataset_uuid = "sparc-tool-001"
+    # TODO 2: Annotate tool dataset and upload to FHIR server
+    annotator = Annotator(dataset_path).workflow_tool()
+    annotator.update_uuid(dataset_uuid).update_name(plugin.name).update_title("Workflow tool").update_version(
+        plugin.version).save()
+    adapter_workflow_tool = adapter.digital_twin().workflow_tool()
 
+    await adapter_workflow_tool.add_workflow_tool_description(annotator.get_descriptions()).generate_resources()
     return latest_build
+
 
 @router.get("/builds/{build_id}", response_model=PluginBuildResponse)
 async def get_build(build_id: str, db: Session = Depends(get_db)):
