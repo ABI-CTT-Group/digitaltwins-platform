@@ -15,12 +15,13 @@ services:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_BUCKET_NAME=workflow-tools
-      - MINIO_USE_SSL=false
+      - USE_SSL=false
+      - FHIR_ENDPOINT=hapi-fhir:8080/fhir
       - HOST=130.216.217.176
     env_file:
       - ./backend/.env
     volumes:
-      - digitaltwins_protal_datasets:/data/download_datasets
+      - digitaltwins_portal_datasets:/data/download_datasets
       - ./backend/datasets:/app/datasets
       - ./backend/configs.ini:/app/configs.ini
       - /var/run/docker.sock:/var/run/docker.sock
@@ -60,13 +61,42 @@ services:
       - MINIO_SERVER_ACCESS_KEY=minioadmin
       - MINIO_SERVER_SECRET_KEY=minioadmin
     command: server /data --console-address ":9001" --address ":9000"
+  
+  hapi-fhir:
+    image: hapiproject/hapi:latest
+    container_name: hapi-fhir
+    restart: on-failure
+    ports:
+      - "8080:8080"
+    networks:
+      - digitaltwins-portal-network
+    volumes:
+      - ./hapi/application.yaml:/app/config/application.yaml
+    environment:
+      - SPRING_CONFIG_LOCATION=/app/config/application.yaml
+    depends_on:
+      - hapi-fhir-postgres
+
+  hapi-fhir-postgres:
+    image: postgres:13-alpine
+    container_name: hapi-fhir-postgres
+    restart: always
+    networks:
+      - digitaltwins-portal-network
+    environment:
+      POSTGRES_DB: "hapi"
+      POSTGRES_USER: "admin"
+      POSTGRES_PASSWORD: "admin"
+    volumes:
+      - hapi-fhir-postgres:/var/lib/postgresql/data
 
 networks:
   digitaltwins-portal-network:
     driver: bridge
 
 volumes:
-  digitaltwins_protal_datasets:
+  digitaltwins_portal_datasets:
+  hapi-fhir-postgres:
   minio_data:
     driver: local
 
