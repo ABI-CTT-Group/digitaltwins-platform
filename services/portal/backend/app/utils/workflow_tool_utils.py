@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session
-from app.models.db_model import (PluginBuild, BuildStatus)
+from app.models.db_model import (PluginBuild, BuildStatus, Plugin)
 from app.client.minio import get_minio_client
 from fastapi import HTTPException
+from typing import Tuple, Optional
 
 
 def get_build_record_or_404(build_id: str, db: Session):
@@ -30,3 +31,19 @@ def get_public_url_for_build(build_record: PluginBuild) -> tuple[str, str]:
     minio_client = get_minio_client()
     url = minio_client.get_public_url(object_key)
     return url, s3_path
+
+
+def get_latest_build_record(plugin_id: str, db: Session) -> Tuple[Plugin, Optional[PluginBuild]]:
+    plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
+
+    if plugin is None:
+        raise HTTPException(status_code=404, detail=f"Plugin with id {plugin_id} not found")
+
+    latest_build = (
+        db.query(PluginBuild)
+        .filter(PluginBuild.plugin_id == plugin.id)
+        .order_by(PluginBuild.created_at.desc())
+        .first()
+    )
+
+    return plugin, latest_build

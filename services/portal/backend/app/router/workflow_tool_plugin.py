@@ -20,12 +20,13 @@ from app.models.db_model import (
 )
 from app.builder.logger import get_logger, configure_logging
 from app.builder.build import PluginBuilder
+from app.builder.deploy import PluginDeployer
 from app.client.minio import get_minio_client
 from app.client.fhir import get_fhir_adapter
 
 from pathlib import Path
 from botocore.exceptions import ClientError
-from app.utils.workflow_tool_utils import (get_build_record_or_404, get_public_url_for_build)
+from app.utils.workflow_tool_utils import (get_build_record_or_404, get_public_url_for_build, get_latest_build_record)
 from uuid import UUID
 from app.utils.utils import force_rmtree
 from fhir_cda import Annotator
@@ -34,6 +35,7 @@ configure_logging()
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/workflow-tools")
 builder = PluginBuilder()
+deployer = PluginDeployer()
 minio = get_minio_client()
 adapter = get_fhir_adapter()
 
@@ -208,17 +210,41 @@ async def get_plugin_builds(plugin_id: str, skip: int = 0, limit: int = 100, db:
     return builds
 
 
+@router.get("/plugin/{plugin_id}/deploy")
+async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = None, db: Session = Depends(get_db)):
+    plugin, latest_build = get_latest_build_record(plugin_id, db)
+    # Covert Plugin, PluginBuild object to dict for JSON serialization
+    plugin_dict = {
+        "expose_name": latest_build.expose_name,
+        "dataset_path": latest_build.dataset_path,
+        "backend_folder": plugin.backend_folder,
+        "backend_deploy_command": plugin.backend_deploy_command,
+    }
+    logger.info(f"Building plugin: {json.dumps(plugin_dict, indent=4)}")
+
+    def run_deploy():
+        try:
+            logger.info("Starting plugin deployment...")
+            result = deployer.deploy(plugin_dict)
+            print(result)
+        except Exception as e:
+            logger.error(f"Deploy failed: {e}")
+
+    if background_tasks:
+        background_tasks.add_task(run_deploy)
+    else:
+        thread = threading.Thread(target=run_deploy)
+        thread.start()
+
+    return {
+        "status": True,
+        "message": "Deploy started in background",
+    }
+
+
 @router.get("/plugin/{plugin_id}/approval")
 async def get_plugin_approval(plugin_id: str, db: Session = Depends(get_db)):
-    plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
-    if plugin is None:
-        raise HTTPException(status_code=404, detail="Plugin not found")
-    latest_build = (
-        db.query(PluginBuild)
-        .filter(PluginBuild.plugin_id == plugin.id)
-        .order_by(PluginBuild.created_at.desc())
-        .first()
-    )
+    plugin, latest_build = get_latest_build_record(plugin_id, db)
     dataset_path = Path(latest_build.dataset_path)
     # TODO 1: Upload dataset to Digitaltwins Platform,and get the uuid
     # dataset_uuid = upload_dataset(dataset_path)

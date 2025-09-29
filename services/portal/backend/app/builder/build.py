@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 from typing import Optional, Dict, Any
 from urllib.parse import quote
+from dotenv import dotenv_values
 
 from app.utils.utils import force_rmtree
 
@@ -272,7 +273,7 @@ class PluginBuilder:
         with open(umd_js_file_path, "r") as f:
             umd_js_content = f.read()
 
-        new_path_prefix = f"http://{os.environ.get('HOST', 'localhost')}:9000/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{expose_name}/primary/"
+        new_path_prefix = f"http://{os.environ.get('HOST', 'localhost')}:{os.environ.get('MINIO_EXPOSE_PORT', 9000)}/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{expose_name}/primary/"
         umd_js_content = umd_js_content.replace(new_path_prefix, expose_name)
 
         with open(umd_js_file_path, "w") as f:
@@ -358,6 +359,27 @@ class PluginBuilder:
                 session.commit()
         return version
 
+    def create_env_file(self, project_dir: Path):
+        host = os.environ.get('HOST', None)
+        if host is None:
+            raise RuntimeError("HOST environment variable not set")
+        port = os.environ.get('PLUGIN_PORT', 8082)
+        use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
+        config = {
+            "VITE_PLUGIN_API_URL": f"http{'s' if use_ssl else ''}://{host}",
+            "VITE_PLUGIN_API_PORT": port
+        }
+        env_path = project_dir / ".env"
+        if env_path.exists():
+            env = dotenv_values(env_path)
+            config.update(env)
+        else:
+            env_path.touch(exist_ok=True)
+        with open(env_path, "w", encoding="utf-8") as f:
+            for key, val in config.items():
+                f.write(f"{key}={val}\n")
+        logger.info(f"Updated env file in {env_path}")
+
     def build_plugin(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
         """Complete plugin build process"""
         build_logs = []
@@ -442,6 +464,11 @@ class PluginBuilder:
             logger.info("Step 2.2: Updating plugin version...")
             new_version = self.update_plugin_version(frontend_path, plugin_id)
             version = new_version if new_version is not None else version
+
+            # Step 2.3: update plugin backend endpoint by create .env in frontend folder, if the plugin has backend
+            if has_backend:
+                logger.info("Step 2.3: Create .env file for frontend...")
+                self.create_env_file(frontend_path)
 
             # Step 3: npm install
             logger.info("Step 3: Running npm install")
@@ -532,9 +559,9 @@ class PluginBuilder:
             # Determine the path based on whether it's a local plugin or remote
             if cloned_dir:
                 # Remote plugin - use public directory path with metadata path
-                plugin_path = f"http://{os.environ.get('HOST', 'localhost')}:9000/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{metadata['expose']}/primary/my-app.umd.js"
+                plugin_path = f"http://{os.environ.get('HOST', 'localhost')}:{os.environ.get('MINIO_EXPOSE_PORT', 9000)}/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{metadata['expose']}/primary/my-app.umd.js"
                 if has_backend:
-                    backend_path = f"http://{os.environ.get('HOST', 'localhost')}:9000/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{metadata['expose']}/code/{backend_folder}"
+                    backend_path = f"http://{os.environ.get('HOST', 'localhost')}:{os.environ.get('MINIO_EXPOSE_PORT', 9000)}/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{metadata['expose']}/code/{backend_folder}"
             else:
                 # Local plugin - use public directory path with metadata expose folder name
                 plugin_path = f"/{metadata['expose']}/my-app.umd.js"

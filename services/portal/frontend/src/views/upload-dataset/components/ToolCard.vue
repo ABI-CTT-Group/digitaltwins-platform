@@ -70,6 +70,9 @@
                     <v-list-item density="compact" @click.stop="onSubmit">
                         <v-list-item-title class="hover-animate px-2">Submit to Approval</v-list-item-title>
                     </v-list-item>
+                    <v-list-item v-if="tool.has_backend" density="compact" @click.stop="onDeploy">
+                        <v-list-item-title class="hover-animate px-2">Deploy Backend</v-list-item-title>
+                    </v-list-item>
                     <v-list-item density="compact" @click.stop="onDelete" color="red">
                         <v-list-item-title class="text-red hover-animate px-2">Delete Tool</v-list-item-title>
                     </v-list-item>
@@ -155,7 +158,7 @@ const formatDate = (dateString: string) => {
   return `${Math.floor(diffDays / 365)} years ago`
 }
 
-const emit = defineEmits(["launch", "rebuild", "submit-approve", "delete"])
+const emit = defineEmits(["launch", "rebuild", "submit-approve", "deploy", "delete"])
 
 const onLaunch = () => {
     emit("launch", tool.value.id)
@@ -168,6 +171,10 @@ const onRebuild = () => {
 const onSubmit = () => {
     menu.value = false;
     emit("submit-approve", tool.value.id)
+}
+const onDeploy = () => {
+    menu.value = false;
+    emit("deploy", tool.value.id)
 }
 const onDelete = () => {
     menu.value = false;

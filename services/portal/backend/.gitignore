@@ -23,5 +23,4 @@ configs_public_demo.ini
 plugin_registry.db
 
 tmp
-datasets
 app.log

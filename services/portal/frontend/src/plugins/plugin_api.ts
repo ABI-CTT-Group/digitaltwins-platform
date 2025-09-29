@@ -77,3 +77,13 @@ export async function useDeleteTool(id:string) {
   const res = http.delete(`/workflow-tools/plugin/${id}`)
   return res;
 }
+
+export async function useToolApproval(id:string) {
+  const res = http.get(`/workflow-tools/plugin/${id}/approval`)
+  return res;
+}
+
+export async function useDeployTool(id:string) {
+  const res = http.get(`/workflow-tools/plugin/${id}/deploy`)
+  return res;
+}

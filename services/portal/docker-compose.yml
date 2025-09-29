@@ -1,4 +1,3 @@
-version: "3"
 services:
   backend:
     build:
@@ -15,9 +14,11 @@ services:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_BUCKET_NAME=workflow-tools
+      - MINIO_EXPOSE_PORT=8004
       - USE_SSL=false
       - FHIR_ENDPOINT=hapi-fhir:8080/fhir
       - HOST=130.216.217.176
+      - PLUGIN_PORT=8002
     env_file:
       - ./backend/.env
     volumes:
@@ -36,7 +37,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_APP_API_URL: ${VITE_APP_API_URL}
+        VITE_PORTAL_API_URL: ${VITE_PORTAL_API_URL}
+        VITE_PORTAL_PORT: ${VITE_PORTAL_PORT}
     container_name: digitaltwins-ai-platform
     ports:
       - "80:80"
@@ -61,13 +63,15 @@ services:
       - MINIO_SERVER_ACCESS_KEY=minioadmin
       - MINIO_SERVER_SECRET_KEY=minioadmin
     command: server /data --console-address ":9001" --address ":9000"
+    depends_on:
+      - hapi-fhir
   
   hapi-fhir:
     image: hapiproject/hapi:latest
     container_name: hapi-fhir
     restart: on-failure
     ports:
-      - "8080:8080"
+      - "8006:8080"
     networks:
       - digitaltwins-portal-network
     volumes:

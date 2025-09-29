@@ -56,7 +56,9 @@
                         :tool="tool"
                         @launch="(id:string) => handleLaunch(id)"
                         @rebuild="(id:string) => handleRebuild(id)"
+                        @deploy="(id:string) => handleDeploy(id)"
                         @delete="(id:string) => handleDeleteTool(id)"
+                        @submit-approve="(id:string) => handleToolApproval(id)"
                     />
                 </div>
                 <div v-else class="w-100 flex-grow-1 d-flex flex-column justify-center align-center">
@@ -76,7 +78,7 @@
 <script setup lang="ts">
 import { ref, onBeforeMount, watch, onUnmounted } from "vue"
 import ToolCard from "./components/ToolCard.vue"
-import { useWorkflowTools, useMinIoWorkflowToolMetadata, useWorkflowToolBuild, useDeleteTool } from '@/plugins/plugin_api';
+import { useWorkflowTools, useMinIoWorkflowToolMetadata, useWorkflowToolBuild, useDeleteTool, useToolApproval, useDeployTool } from '@/plugins/plugin_api';
 import { PluginResponse, PluginMinIOToolMetadata } from '@/models/uiTypes';
 import { useRemoteAppStore } from '@/store/remoteStore'
 import { useRouter } from 'vue-router'
@@ -162,10 +164,39 @@ const handleRebuild = async (id:string) =>{
     if(buildRes.status="building") await handleRefresh();
 }
 
+const handleDeploy = async (id:string) =>{
+    // Implement deploy logic here
+    console.log(`Deploy tool with id: ${id}`);
+    // For example, you might call an API endpoint to deploy the tool
+    const deployRes = await useDeployTool(id) as any;
+    console.log(deployRes);
+    
+    if(deployRes.status) {
+        alert('Tool deployed successfully.');
+    } else {
+        alert('Failed to deploy tool.');
+    }
+}
+
 const handleDeleteTool = async (id: string) =>{
     const res = await useDeleteTool(id)
     if(!!res){
         await handleRefresh()
+    }
+}
+
+const handleToolApproval = async (id: string) => {
+    // Call the API to submit the tool for approval
+    try {
+        const res = await useToolApproval(id);
+        if (res) {
+            alert('Tool submitted for approval successfully.');
+        } else {
+            alert('Failed to submit tool for approval.');
+        }
+    } catch (error) {
+        console.error('Error submitting tool for approval:', error);
+        alert('An error occurred while submitting the tool for approval.');
     }
 }
 

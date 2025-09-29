@@ -73,7 +73,7 @@
             <div class="w-100 d-flex flex-row">
                 <div v-show="toolInfomationFormData.has_backend" class="w-100 mr-1">
                     <h4 class="my-2">Frontend Folder Name *</h4>
-                    <v-text-field
+                    <!-- <v-text-field
                         v-model="toolInfomationFormData.frontend_folder"
                         :rules="frontendFolderRules"
                         label="Frontend Folder"
@@ -81,7 +81,13 @@
                         :error-messages="(!!frontendFolderErr && !frontendFolderErr.available) ? frontendFolderErr.message : ''"
                         clearable
                         required
-                    ></v-text-field>
+                    ></v-text-field> -->
+                    <v-select
+                        v-model="toolInfomationFormData.frontend_folder"
+                        :items="foldersInRootRepo"
+                        :rules="frontendFolderRules"
+                        label="Frontend Folder"
+                    ></v-select>
                 </div>
                 <div class="w-100 ml-1">
                     <h4 class="my-2">Build Command *</h4>
@@ -97,7 +103,7 @@
             <div class="w-100 d-flex flex-row">
                 <div v-show="toolInfomationFormData.has_backend" class="w-100 mr-1">
                     <h4 class="mb-2">Backend Folder Name *</h4>
-                    <v-text-field
+                    <!-- <v-text-field
                         v-model="toolInfomationFormData.backend_folder"
                         :rules="backendFolderRules"
                         label="Backend Folder"
@@ -105,7 +111,13 @@
                         :error-messages="(!!backendFolderErr && !backendFolderErr.available) ? backendFolderErr.message : ''"
                         clearable
                         required
-                    ></v-text-field>
+                    ></v-text-field> -->
+                    <v-select
+                        v-model="toolInfomationFormData.backend_folder"
+                        :items="foldersInRootRepo"
+                        :rules="backendFolderRules"
+                        label="Backend Folder"
+                    ></v-select>
                 </div>
                 <div v-show="toolInfomationFormData.has_backend" class="w-100 ml-1">
                     <h4 class="mb-2">Deploy Command (fixed) *</h4>
@@ -242,9 +254,11 @@ const addGitSuffix = (url:string) => {
 }
 
 const onBlur = () => {
-  if (!toolInfomationFormData.repository_url) return
-  if (!toolInfomationFormData.repository_url.endsWith('.git')) {
-    toolInfomationFormData.repository_url = addGitSuffix(toolInfomationFormData.repository_url);
+    if (!toolInfomationFormData.repository_url) return
+    if (!toolInfomationFormData.repository_url.endsWith('.git')) {
+        toolInfomationFormData.repository_url = addGitSuffix(toolInfomationFormData.repository_url);
+    }
+    foldersInRootRepo.value = [];
     getRepoContents(toolInfomationFormData.repository_url).then((res)=>{
         const folders = res!.data as GitContent[];
         folders.forEach((item: GitContent)=>{
@@ -264,7 +278,6 @@ const onBlur = () => {
             }).catch(console.error)
         }
     }).catch(console.error)
-  }
 }
 
 const onNameBlur = async () => {
@@ -272,6 +285,7 @@ const onNameBlur = async () => {
 }
 
 const handleFrontendFolderBlur = () => {
+    console.log(foldersInRootRepo.value);
     if (checkFolderNameInRoot(toolInfomationFormData.frontend_folder)){
         frontendFolderErr.value = {
            available: true,
@@ -310,7 +324,6 @@ function convertToApiUrl(repoUrl:string) {
     }
 
 const getRepoContents = async (url:string, path:string ="") => {
-    foldersInRootRepo.value = [];
     const rootContentUrl = convertToApiUrl(url) + `/contents/${path}`;
     const res = await axios.get(rootContentUrl);
     return res
