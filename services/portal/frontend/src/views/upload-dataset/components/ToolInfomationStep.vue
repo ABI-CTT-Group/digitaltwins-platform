@@ -258,6 +258,11 @@ const onBlur = () => {
     if (!toolInfomationFormData.repository_url.endsWith('.git')) {
         toolInfomationFormData.repository_url = addGitSuffix(toolInfomationFormData.repository_url);
     }
+    toolInfomationFormData.name = getRepoNameFromUrl(toolInfomationFormData.repository_url);
+    toolInfomationFormData.author = getRepoAuthorFromUrl(toolInfomationFormData.repository_url);
+    onNameBlur();
+
+    // Fetch repo contents to get folders in root
     foldersInRootRepo.value = [];
     getRepoContents(toolInfomationFormData.repository_url).then((res)=>{
         const folders = res!.data as GitContent[];
@@ -280,7 +285,21 @@ const onBlur = () => {
     }).catch(console.error)
 }
 
+const getRepoNameFromUrl = (url:string) => {
+  url = url.replace(/\/+$/, "");
+  let name = url.split("/").pop();
+  name = name!.replace(/\.git$/, "");
+  return name;
+}
+
+function getRepoAuthorFromUrl(url:string) {
+  url = url.replace(/\.git$/, "").replace(/\/+$/, "");
+  const parts = url.split("/");
+  return parts[parts.length - 2];
+}
+
 const onNameBlur = async () => {
+    // Don't need to check if name is empty
     nameErr.value = await useCheckPluginName(toolInfomationFormData.name)
 }
 

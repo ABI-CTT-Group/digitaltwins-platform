@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException
 from app.models import assay_model
 import json
 from pathlib import Path
@@ -6,12 +6,12 @@ from pathlib import Path
 from app.utils import digitaltwins_configs
 import shutil
 from pprint import pprint
-
+import os
 
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent.parent
 
-router = APIRouter()
+router = APIRouter(prefix="/api/dashboard")
 
 """
 Categories:
@@ -22,7 +22,8 @@ Categories:
     - Assaysx`
 """
 
-@router.get("/api/dashboard/programmes")
+
+@router.get("/programmes")
 async def get_dashboard_programmes():
     programs = digitaltwins_configs.querier.get_programs()
     programmes = []
@@ -39,7 +40,7 @@ async def get_dashboard_programmes():
     return programmes
 
 
-@router.get("/api/dashboard/category-children")
+@router.get("/category-children")
 async def get_dashboard_category_children_by_uuid(seek_id: str = Query(None), category: str = Query(None)):
     if seek_id is None or category is None:
         return None
@@ -83,7 +84,7 @@ async def get_dashboard_category_children_by_uuid(seek_id: str = Query(None), ca
     return children
 
 
-@router.get("/api/dashboard/workflows")
+@router.get("/workflows")
 async def get_dashboard_workflows():
     sops = digitaltwins_configs.querier.get_sops()
     workflows = []
@@ -105,7 +106,7 @@ async def get_dashboard_workflows():
     return workflows
 
 
-@router.get("/api/dashboard/workflow-detail")
+@router.get("/workflow-detail")
 async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
     if seek_id is None:
         return None
@@ -132,19 +133,19 @@ async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
         return None
 
 
-@router.get("/api/dashboard/workflow-cwl")
+@router.get("/workflow-cwl")
 async def get_dashboard_workflow_cwl():
     sop_cwl = digitaltwins_configs.querier.get_sop(1, get_cwl=True)
     print(sop_cwl)
 
 
-@router.get("/api/dashboard/workflow")
+@router.get("/workflow")
 async def get_dashboard_workflow(seek_id: str = Query(None)):
     sop = digitaltwins_configs.querier.get_sop(seek_id)
     return sop
 
 
-@router.get("/api/dashboard/datasets")
+@router.get("/datasets")
 async def get_dashboard_datasets(category: str = Query(None)):
     if category is None:
         return None
@@ -159,7 +160,7 @@ async def get_dashboard_datasets(category: str = Query(None)):
     return datasets
 
 
-@router.get("/api/dashboard/dataset-detail")
+@router.get("/dataset-detail")
 async def get_dashboard_dataset_detail_by_uuid(uuid: str = Query(None)):
     if uuid is None:
         return None
@@ -167,7 +168,7 @@ async def get_dashboard_dataset_detail_by_uuid(uuid: str = Query(None)):
     return sample_types
 
 
-@router.post("/api/dashboard/assay-details")
+@router.post("/assay-details")
 async def set_dashboard_assay_details(details: assay_model.AssayDetails):
     assay_data = {
         "assay_uuid": details.uuid,
@@ -192,7 +193,7 @@ async def set_dashboard_assay_details(details: assay_model.AssayDetails):
     return True
 
 
-@router.get("/api/dashboard/assay-details")
+@router.get("/assay-details")
 async def get_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
     try:
         assay_detail = digitaltwins_configs.querier.get_assay(seek_id, get_params=True)
@@ -231,7 +232,7 @@ async def get_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
         return None
 
 
-@router.get("/api/dashboard/assay-project")
+@router.get("/assay-project")
 async def get_project_by_assay_id(seek_id: str = Query(None)):
     print("aaa")
     assay_detail = digitaltwins_configs.querier.get_assay(seek_id, get_params=True)
@@ -243,7 +244,7 @@ async def get_project_by_assay_id(seek_id: str = Query(None)):
     }
 
 
-@router.get("/api/dashboard/assay-launch")
+@router.get("/assay-launch")
 async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
     """
         When user click launch in assay, what should we do?
@@ -342,6 +343,24 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
             }
     return None
 
+
+@router.get("/copy_dataset/{name}")
+def copy_dataset(name: str):
+    measurements_path = os.environ.get("DATASET_DIR_MEASUREMENT", "./datasets_measurement")
+    src = Path(measurements_path) / name
+    dst = Path("./data")
+    dst.mkdir(parents=True, exist_ok=True)
+    if not src.exists():
+        raise HTTPException(status_code=404, detail=f"dataset directory {src} does not exist")
+
+    for item in src.iterdir():
+        target = dst / item.name
+        shutil.copy(str(item), str(target))
+
+    return {
+        "status": "200",
+        "message": "dataset moved successfully"
+    }
 
 def generate_outputs_datasets(target_dataset_path, outputs):
     if not target_dataset_path.exists():

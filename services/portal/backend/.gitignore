@@ -24,3 +24,9 @@ plugin_registry.db
 
 tmp
 app.log
+test.py
+
+data/*
+datasets_measurement/*
+datasets_tool/*
+datasets_workflow/*
