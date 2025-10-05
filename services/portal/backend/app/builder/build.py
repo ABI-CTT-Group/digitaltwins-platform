@@ -27,7 +27,7 @@ class PluginBuilder:
     def __init__(self, dataset_dir: str = None, db: Optional[Session] = None):
         if dataset_dir is None:
             # Use environment variable or default to ./dataset for local, /datasets for Docker
-            dataset_dir = os.environ.get('DATASET_DIR', "./datasets")
+            dataset_dir = os.environ.get('DATASET_DIR_TOOL', "./datasets_tool")
         self.tmp_dir = Path("./tmp")
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
         self.dataset_dir = Path(dataset_dir)
