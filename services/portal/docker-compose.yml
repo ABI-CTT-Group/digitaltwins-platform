@@ -9,7 +9,9 @@ services:
     environment:
       - PYTHONPATH=/app
       - DATABASE_PATH=/data/plugin_registry.db
-      - DATASET_DIR=/datasets
+      - DATASET_DIR_TOOL=/datasets_tool
+      - DATASET_DIR_MEASUREMENT=/datasets_measurement
+      - DATASET_DIR_WORKFLOW=/datasets_workflow
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
@@ -22,9 +24,13 @@ services:
     env_file:
       - ./backend/.env
     volumes:
-      - digitaltwins_portal_datasets:/data/download_datasets
-      - ./backend/datasets:/app/datasets
+      - digitaltwins_portal_datasets:/app/data
+      # - ./backend/data:/app/data
+      - ./backend/datasets_tool:/datasets_tool
+      - ./backend/datasets_measurement:/datasets_measurement
+      - ./backend/datasets_workflow:/datasets_workflow
       - ./backend/configs.ini:/app/configs.ini
+      - plugin_database:/data
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
     networks:
@@ -100,7 +106,9 @@ networks:
 
 volumes:
   digitaltwins_portal_datasets:
+    name: digitaltwins_portal_datasets
   hapi-fhir-postgres:
+  plugin_database:
   minio_data:
     driver: local
 
