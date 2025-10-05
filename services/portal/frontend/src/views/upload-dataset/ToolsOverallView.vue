@@ -57,6 +57,8 @@
                         @launch="(id:string) => handleLaunch(id)"
                         @rebuild="(id:string) => handleRebuild(id)"
                         @deploy="(id:string) => handleDeploy(id)"
+                        @compose-up="(id:string) => handleExecuteDockerCompose(id, 'up')"
+                        @compose-down="(id:string) => handleExecuteDockerCompose(id, 'down')"
                         @delete="(id:string) => handleDeleteTool(id)"
                         @submit-approve="(id:string) => handleToolApproval(id)"
                     />
@@ -78,7 +80,7 @@
 <script setup lang="ts">
 import { ref, onBeforeMount, watch, onUnmounted } from "vue"
 import ToolCard from "./components/ToolCard.vue"
-import { useWorkflowTools, useMinIoWorkflowToolMetadata, useWorkflowToolBuild, useDeleteTool, useToolApproval, useDeployTool } from '@/plugins/plugin_api';
+import { useWorkflowTools, useMinIoWorkflowToolMetadata, useWorkflowToolBuild, useDeleteTool, useToolApproval, useDeployTool, useDockerCompose } from '@/plugins/plugin_api';
 import { PluginResponse, PluginMinIOToolMetadata } from '@/models/uiTypes';
 import { useRemoteAppStore } from '@/store/remoteStore'
 import { useRouter } from 'vue-router'
@@ -86,7 +88,7 @@ import Fuse from "fuse.js";
 
 const router = useRouter();
 const remoteAppStore = useRemoteAppStore();
-const isAnyToolBuilding = ref(false);
+const isAnyToolStatusPending = ref(false);
 let refreshInterval: number | undefined;
 
 const emit = defineEmits(["register"]);
@@ -104,7 +106,7 @@ watch(search,(newVal, oldVal)=>{
     }
 })
 
-watch(isAnyToolBuilding, (newVal) => {
+watch(isAnyToolStatusPending, (newVal) => {
   if (newVal) {
     if (!refreshInterval) {
       console.log("start refresh");
@@ -125,7 +127,10 @@ const handleRefresh = async () => {
   workflowTools.value = displayTools.value = await useWorkflowTools();
 
   const anyBuilding = workflowTools.value.some(tool => tool.status === "building");
-  isAnyToolBuilding.value = anyBuilding;
+
+  const anyDeploying = workflowTools.value.some(tool => tool.deploy_status === "deploying");
+
+  isAnyToolStatusPending.value = anyBuilding || anyDeploying;
 }
 
 const handleSearch = ()=>{
@@ -170,18 +175,24 @@ const handleDeploy = async (id:string) =>{
     // For example, you might call an API endpoint to deploy the tool
     const deployRes = await useDeployTool(id) as any;
     console.log(deployRes);
-    
-    if(deployRes.status) {
-        alert('Tool deployed successfully.');
-    } else {
-        alert('Failed to deploy tool.');
-    }
+    if(deployRes.status="deploying") await handleRefresh();
 }
 
 const handleDeleteTool = async (id: string) =>{
     const res = await useDeleteTool(id)
     if(!!res){
         await handleRefresh()
+    }
+}
+
+const handleExecuteDockerCompose = async (id: string, command: "up" | "down") => {
+    try {
+        const res = await useDockerCompose(id, command);
+        console.log(res);
+        
+    } catch (error) {
+        console.error(`Error executing Docker Compose ${command}:`, error);
+        alert(`An error occurred while executing Docker Compose ${command}.`);
     }
 }
 

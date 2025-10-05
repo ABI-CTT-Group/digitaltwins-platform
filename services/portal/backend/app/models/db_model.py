@@ -23,11 +23,18 @@ class BuildStatus(Enum):
     COMPLETED = "completed"
 
 
+class DeployStatus(Enum):
+    PENDING = "pending"
+    DEPLOYING = "deploying"
+    FAILED = "failed"
+    COMPLETED = "completed"
+
+
 class Plugin(Base):
     __tablename__ = "plugins"
 
     id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
-    name = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, index=True, nullable=False)
     version = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     author = Column(String, nullable=True)
@@ -42,6 +49,7 @@ class Plugin(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     builds = relationship("PluginBuild", back_populates="plugin", cascade="all, delete-orphan")
+    deployments = relationship("PluginDeployment", back_populates="plugin", cascade="all, delete-orphan")
 
 
 class PluginBuild(Base):
@@ -60,6 +68,23 @@ class PluginBuild(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     plugin = relationship("Plugin", back_populates="builds")
+    deployments = relationship("PluginDeployment", back_populates="build", cascade="all, delete-orphan")
+
+
+class PluginDeployment(Base):
+    __tablename__ = "plugin_deployments"
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    plugin_id = Column(String, ForeignKey("plugins.id"), nullable=False)
+    build_id = Column(String, ForeignKey("plugin_builds.id"), nullable=False)
+    deploy_id = Column(String, unique=True, index=True, nullable=False)
+    status = Column(String, default=DeployStatus.PENDING.value, nullable=False)
+    source_path = Column(String, nullable=True)
+    up = Column(Boolean, default=False, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    build = relationship("PluginBuild", back_populates="deployments")
+    plugin = relationship("Plugin", back_populates="deployments")
 
 
 class PluginBase(BaseModel):
@@ -117,6 +142,26 @@ class PluginBuildResponse(PluginBuildBase):
     build_id: str
     status: str
     expose_name: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PluginDeployBase(BaseModel):
+    deploy_id: Optional[str] = None
+    status: Optional[str] = BuildStatus.PENDING.value
+    error_messages: Optional[str] = None
+
+
+class PluginDeployResponse(PluginDeployBase):
+    id: str
+    plugin_id: str
+    build_id: str
+    deploy_id: str
+    status: str
+    up: bool
     created_at: datetime
     updated_at: datetime
 

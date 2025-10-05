@@ -28,7 +28,7 @@ class PluginDeployer:
             raise Exception("Docker compose file is not exist")
 
     @staticmethod
-    def _compose_up(backend_dir: Path, command: str):
+    def _compose_execute(backend_dir: Path, command: str):
         try:
             logger.info(f"Running command {command} for deployment of {backend_dir}")
             with subprocess.Popen(
@@ -70,10 +70,10 @@ class PluginDeployer:
             self._check_compose_file(backend_dir)
             # Step 3 deploy backend in docker
             logger.info("Step 3: Start docker compose...")
-            self._compose_up(backend_dir, backend_deploy_command)
+            self._compose_execute(backend_dir, backend_deploy_command)
             return {
                 "success": True,
-                "backend_dir": backend_dir,
+                "backend_dir": str(backend_dir) if backend_dir else None,
                 "deploy_logs": "\n".join(deploy_logs)
             }
 
@@ -87,4 +87,95 @@ class PluginDeployer:
                 "backend_dir": None,
                 "deploy_logs": "\n".join(deploy_logs),
                 "error_message": error_message
+            }
+
+    def compose_up(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
+        dir_path = plugin.get("backend_dir", "unknown")
+        if dir_path is None or dir_path == "unknown":
+            return {"success": False, "backend_dir": None}
+
+        backend_dir = Path(dir_path)
+        command = plugin.get("command", "docker compose up -d")
+
+        if backend_dir.exists():
+            try:
+                self._compose_execute(backend_dir, command)
+                logger.info(f"successfully run docker compose up -d for {backend_dir}")
+                return {
+                    "success": True,
+                    "message": f"successfully run docker compose up -d for {backend_dir}",
+                }
+            except Exception as e:
+                logger.error(f"Failed run docker compose up -d for {backend_dir}, error: {e}")
+                return {
+                    "success": False,
+                    "message": f"Failed run docker compose up -d for {backend_dir}, error: {e}",
+                }
+        else:
+            logger.error(f"Docker compose up failed, backend_dir {backend_dir} does not exist")
+            return {
+                "success": False,
+                "message": f"Docker compose up for {backend_dir} does not exist",
+            }
+
+    def compose_down(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
+        dir_path = plugin.get("backend_dir", "unknown")
+        if dir_path is None or dir_path == "unknown":
+            return {"success": False, "backend_dir": None}
+
+        backend_dir = Path(dir_path)
+        command = plugin.get("command", "docker compose down")
+
+        if backend_dir.exists():
+            try:
+                self._compose_execute(backend_dir, command)
+                logger.info(f"successfully run docker compose down for {backend_dir}")
+                return {
+                    "success": True,
+                    "message": f"successfully run docker compose down for {backend_dir}",
+                }
+            except Exception as e:
+                logger.error(f"Failed run docker compose down for {backend_dir}, error: {e}")
+                return {
+                    "success": False,
+                    "message": f"Failed run docker compose down for {backend_dir}, error: {e}",
+                }
+        else:
+            logger.error(f"Docker compose down failed, backend_dir {backend_dir} does not exist")
+            return {
+                "success": False,
+                "message": f"Docker compose down for {backend_dir} does not exist",
+            }
+
+    def delete(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute docker compose down and,
+        Remove all images and volumes which belong to this compose
+        """
+        dir_path = plugin.get("backend_dir", "unknown")
+        if dir_path is None or dir_path == "unknown":
+            return {"success": False, "backend_dir": None}
+
+        backend_dir = Path(dir_path)
+        command = plugin.get("command", "docker compose down --rmi all --volumes")
+
+        if backend_dir.exists():
+            try:
+                self._compose_execute(backend_dir, command)
+                logger.info(f"successfully removed all images and volumes for {backend_dir}")
+                return {
+                    "success": True,
+                    "message": f"successfully removed all images and volumes for {backend_dir}",
+                }
+            except Exception as e:
+                logger.error(f"Failed removed all images and volumes for {backend_dir}, error: {e}")
+                return {
+                    "success": False,
+                    "message": f"Failed removed all images and volumes for {backend_dir}, error: {e}",
+                }
+        else:
+            logger.error(f"Removed all images and volumes failed, backend_dir {backend_dir} does not exist")
+            return {
+                "success": False,
+                "message": f"Removed all images and volumes failed, because {backend_dir} does not exist",
             }

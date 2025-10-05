@@ -64,6 +64,9 @@ export interface PluginResponse {
     description?: string
     author?: string
     status: string
+    deploy_status?: string
+    latest_build_id?: string
+    latest_deploy_id?: string
     created_at: string
     updated_at: string
     [key:string]:any
@@ -77,6 +80,16 @@ export interface PluginBuildResponse {
     build_logs?: string
     error_messages?: string
     s3_path?: string
+    created_at: string
+    updated_at: string
+}
+
+export interface PluginDeployResponse {
+    id: string
+    plugin_id: string
+    build_id: string
+    deploy_id: string
+    status: string
     created_at: string
     updated_at: string
 }

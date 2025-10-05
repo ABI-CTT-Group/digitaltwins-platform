@@ -3,7 +3,7 @@
     <v-card 
         class="pa-4 shadow-card card-hover-animate" 
         width="400"
-        max-height="200" 
+        max-height="230" 
         rounded="lg" 
         elevation="2"
         :disabled="isDeleting"
@@ -37,6 +37,24 @@
                     class="mr-2"
                 />
                 Building
+            </v-btn>
+            <v-btn
+                v-else-if="isDeploying"
+                color="deep-purple"
+                variant="flat" 
+                size="small"
+                class="text-white mx-2" 
+                rounded="md" 
+                disabled
+            >   
+                <v-progress-circular
+                    indeterminate
+                    size="15"
+                    width="2"
+                    color="white"
+                    class="mr-2"
+                />
+                Deploying
             </v-btn>
             <v-btn 
                 v-else
@@ -73,6 +91,12 @@
                     <v-list-item v-if="tool.has_backend" density="compact" @click.stop="onDeploy">
                         <v-list-item-title class="hover-animate px-2">Deploy Backend</v-list-item-title>
                     </v-list-item>
+                    <v-list-item v-if="tool.deploy_status == 'completed'" density="compact" @click.stop="onDockerComposeUp">
+                        <v-list-item-title class="hover-animate px-2">Compose Up</v-list-item-title>
+                    </v-list-item>
+                    <v-list-item v-if="tool.deploy_status == 'completed'" density="compact" @click.stop="onDockerComposeDown">
+                        <v-list-item-title class="hover-animate px-2">Compose Down</v-list-item-title>
+                    </v-list-item>
                     <v-list-item density="compact" @click.stop="onDelete" color="red">
                         <v-list-item-title class="text-red hover-animate px-2">Delete Tool</v-list-item-title>
                     </v-list-item>
@@ -92,9 +116,12 @@
         </div>
 
         <div class="d-flex flex-wrap align-center mt-4 gap-2">
-            <v-chip v-if="!!tool.version" size="small" color="blue-lighten-4" text-color="blue-darken-3" class="mx-1">v{{ tool.version }}</v-chip>
-            <v-chip v-if="!!tool.author" size="small" color="blue-lighten-5" text-color="blue-darken-3" class="mx-1">{{ tool.author }}</v-chip>
-            <v-chip v-if="!!tool.status" size="small" :color="statusColor" :text-color="statusTextColor" class="mx-1 mr-1">{{ tool.status == "completed" ? "built" : tool.status }}</v-chip>
+          <div class="d-flex flex-wrap align-center w-75">
+              <v-chip v-if="!!tool.version" size="small" color="blue-lighten-4" text-color="blue-darken-3" class="mx-1 my-1">v{{ tool.version }}</v-chip>
+              <v-chip v-if="!!tool.author" size="small" color="blue-lighten-5" text-color="blue-darken-3" class="mx-1 my-1">{{ tool.author }}</v-chip>
+              <v-chip v-if="!!tool.status" size="small" :color="statusColor" :text-color="statusTextColor" class="mx-1 mr-1 my-1">pre build: {{ tool.status }}</v-chip>
+              <v-chip v-if="!!tool.deploy_status" size="small" :color="deployStatusColor" :text-color="deployStatusTextColor" class="mx-1 mr-1 my-1">deploy: {{ tool.deploy_status }}</v-chip>
+          </div>
             <v-chip v-if="!!tool.created_at" size="small" color="green-lighten-4" text-color="green-darken-2" class="ms-auto">{{ formatDate(tool.created_at) }}</v-chip>
         </div>
     </v-card>
@@ -103,6 +130,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, toRef } from 'vue'
 import { PluginResponse } from '@/models/uiTypes';
+import { useGetDockerComposeStatus } from '@/plugins/plugin_api'
 
 const props = defineProps<{
   tool: PluginResponse
@@ -114,6 +142,11 @@ const isDeleting = ref(false)
 
 const isBuilding = computed(()=>{
     return tool.value.status == "building" ? true : false;
+})
+const isDeploying = computed(()=>{
+    if(!tool.value.has_backend ) return false;
+    if(!tool.value.deploy_status) return false;
+    return tool.value.deploy_status == "deploying" ? true : false;
 })
 
 const statusColor = computed(() => {
@@ -146,6 +179,36 @@ const statusTextColor = computed(() => {
   }
 })
 
+const deployStatusColor = computed(() => {
+  switch (props.tool.deploy_status) {
+    case "pending":
+      return "amber-lighten-2"
+    case "deploying":
+      return "blue-lighten-2"
+    case "failed":
+      return "red-lighten-2"
+    case "completed":
+      return "green-lighten-2"
+    default:
+      return ""
+  }
+})
+
+const deployStatusTextColor = computed(() => {
+  switch (props.tool.deploy_status) {
+    case "pending":
+      return "amber-darken-3"
+    case "deploying":
+      return "blue-darken-3"
+    case "failed":
+      return "red-darken-3"
+    case "completed":
+      return "green-darken-3"
+    default:
+      return ""
+  }
+})
+
 const formatDate = (dateString: string) => {
   const date = new Date(dateString)
   const now = new Date()
@@ -158,9 +221,16 @@ const formatDate = (dateString: string) => {
   return `${Math.floor(diffDays / 365)} years ago`
 }
 
-const emit = defineEmits(["launch", "rebuild", "submit-approve", "deploy", "delete"])
+const emit = defineEmits(["launch", "rebuild", "submit-approve", "deploy", "compose-up", "compose-down", "delete"])
 
-const onLaunch = () => {
+const onLaunch = async () => {
+    if (tool.value.has_backend && !tool.value.latest_deploy_id && tool.value.deploy_status !== 'completed') {
+        alert("Tool backend is not deployed yet. Please deploy the backend first.");
+        return;
+    }else if(!!tool.value.latest_deploy_id && !await useGetDockerComposeStatus(tool.value.latest_deploy_id).catch(() => false)){
+        alert("Tool backend is not running. Please start the backend by 'Compose Up' first.");
+        return;
+    }
     emit("launch", tool.value.id)
 }
 const onRebuild = () => {
@@ -175,6 +245,14 @@ const onSubmit = () => {
 const onDeploy = () => {
     menu.value = false;
     emit("deploy", tool.value.id)
+}
+const onDockerComposeUp = () => {
+    menu.value = false;
+    emit("compose-up", tool.value.latest_deploy_id)
+}
+const onDockerComposeDown = () => {
+    menu.value = false;
+    emit("compose-down", tool.value.latest_deploy_id)
 }
 const onDelete = () => {
     menu.value = false;

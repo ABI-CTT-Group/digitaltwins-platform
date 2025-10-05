@@ -7,7 +7,7 @@ from app.database.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Literal
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import uuid
@@ -16,7 +16,8 @@ import logging
 import requests
 from app.models.db_model import (
     Plugin, PluginCreate, PluginBuild, PluginResponse,
-    PluginBuildResponse, BuildStatus, SessionLocal
+    PluginBuildResponse, BuildStatus, SessionLocal,
+    DeployStatus, PluginDeployment, PluginDeployResponse
 )
 from app.builder.logger import get_logger, configure_logging
 from app.builder.build import PluginBuilder
@@ -30,6 +31,7 @@ from app.utils.workflow_tool_utils import (get_build_record_or_404, get_public_u
 from uuid import UUID
 from app.utils.utils import force_rmtree
 from fhir_cda import Annotator
+from pprint import pprint
 
 configure_logging()
 logger = get_logger(__name__)
@@ -77,7 +79,16 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
 
     if plugin is not None:
         builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).all()
+        if plugin.has_backend:
+            deploys = db.query(PluginDeployment).filter(PluginDeployment.plugin_id == plugin.id).all()
+            for deployment in deploys:
+                pprint(deployment)
+                deploy_dict = {
+                    "backend_dir": deployment.source_path
+                }
+                deployer.delete(deploy_dict)
         for build in builds:
+            # remove all images volume in docker
             if build.s3_path is not None:
                 prefix = build.s3_path.split("/")[-1]
                 object_keys = minio.list_objects(prefix=prefix)
@@ -86,8 +97,7 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
                 # Delete dataset in dataset folder
                 dataset_path = builder.dataset_dir / prefix
                 force_rmtree(dataset_path)
-            db.delete(build)
-            db.commit()
+            # db.delete(build)
         db.delete(plugin)
         db.commit()
 
@@ -178,7 +188,7 @@ async def execute_build(
         except Exception as e:
             # Update build record with error
             with SessionLocal() as session:
-                build_record = session.query(PluginBuild).filter(PluginBuild.id == build_id).first()
+                build_record = session.query(PluginBuild).filter(PluginBuild.build_id == build_id).first()
                 if build_record:
                     build_record.status = BuildStatus.FAILED.value
                     build_record.error_message = str(e)
@@ -221,14 +231,50 @@ async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = 
         "backend_deploy_command": plugin.backend_deploy_command,
     }
     logger.info(f"Building plugin: {json.dumps(plugin_dict, indent=4)}")
+    deploy_id = str(uuid.uuid4())
+    db_deploy = PluginDeployment(
+        plugin_id=plugin.id,
+        build_id=latest_build.build_id,
+        deploy_id=deploy_id,
+        status=DeployStatus.PENDING.value,
+    )
+
+    db.add(db_deploy)
+    db.commit()
+    db.refresh(db_deploy)
 
     def run_deploy():
         try:
+            with SessionLocal() as session:
+                deploy_record = session.query(PluginDeployment).filter(
+                    PluginDeployment.deploy_id == deploy_id).first()  # type: ignore
+                if deploy_record:
+                    deploy_record.status = DeployStatus.DEPLOYING.value
+                    session.commit()
             logger.info("Starting plugin deployment...")
             result = deployer.deploy(plugin_dict)
-            print(result)
+            with SessionLocal() as session:
+                deploy_record = session.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()
+                if deploy_record:
+                    if result["success"]:
+                        deploy_record.status = DeployStatus.COMPLETED.value
+                        deploy_record.source_path = result["backend_dir"]
+                        deploy_record.up = True
+                    else:
+                        deploy_record.status = BuildStatus.FAILED.value
+                        deploy_record.error = result["error_message"]
+
+                    deploy_record.updated_at = datetime.now()
+                    session.commit()
         except Exception as e:
             logger.error(f"Deploy failed: {e}")
+            with SessionLocal() as session:
+                deploy_record = session.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()
+                if deploy_record:
+                    deploy_record.status = DeployStatus.FAILED.value
+                    deploy_record.error_message = str(e)
+                    deploy_record.updated_at = datetime.now()
+                    session.commit()
 
     if background_tasks:
         background_tasks.add_task(run_deploy)
@@ -237,9 +283,64 @@ async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = 
         thread.start()
 
     return {
-        "status": True,
+        "build_id": latest_build.build_id,
+        "deploy_id": deploy_id,
+        "status": DeployStatus.PENDING.value,
         "message": "Deploy started in background",
     }
+
+
+@router.get("/plugin/build/{build_id}/deploys", response_model=List[PluginDeployResponse])
+async def get_plugin_builds(build_id: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    # Check if plugin exists
+    build_record = db.query(PluginBuild).filter(PluginBuild.build_id == build_id).first()  # type: ignore
+    if build_record is None:
+        raise HTTPException(status_code=404, detail="Plugin Build record not found")
+
+    deployments = db.query(PluginDeployment).filter(PluginDeployment.build_id == build_record.build_id).offset(
+        skip).limit(limit).all()
+    return deployments
+
+
+@router.get("/plugin/deploy/{deploy_id}/execute")
+async def execute_plugin_backend_by_docker(deploy_id: str, command: Literal["up", "down"],
+                                           db: Session = Depends(get_db)):
+    deploy_record = db.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()  # type: ignore
+    if deploy_record is None:
+        raise HTTPException(status_code=404, detail="Plugin Deploy record not found")
+    if deploy_record.status == DeployStatus.COMPLETED.value:
+        if command == "up":
+            result = deployer.compose_up({
+                "backend_dir": deploy_record.source_path
+            })
+            if result["success"]:
+                deploy_record.up = True
+                logger.info("Successfully executed docker compose up for plugin deployment")
+        elif command == "down":
+            result = deployer.compose_down({
+                "backend_dir": deploy_record.source_path
+            })
+            if result["success"]:
+                deploy_record.up = False
+                logger.info("Successfully executed docker compose down for plugin deployment")
+        db.commit()
+        return {
+            "success": True,
+            "message": "Successfully executed docker compose command",
+        }
+    else:
+        return {
+            "success": False,
+            "message": "Execution failed, because the deployment is not completed",
+        }
+
+
+@router.get("/check/deploy/{deploy_id}/")
+async def get_check_deploy(deploy_id: str, db: Session = Depends(get_db)):
+    deploy_record = db.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()  # type: ignore
+    if deploy_record is None:
+        raise HTTPException(status_code=404, detail="Plugin Deploy record not found")
+    return deploy_record.up
 
 
 @router.get("/plugin/{plugin_id}/approval")
