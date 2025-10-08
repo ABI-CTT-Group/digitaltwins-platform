@@ -1,107 +1,110 @@
 <template>
-    <v-row class="h-100 ">
-        <v-col
-            cols="12"
-            md="6"
-            class="d-flex justify-center align-center"
-        >
-            <div class="col-style  pa-3">
-                <h2 class="w-100 text-center">
-                    Workflows
-                </h2>
-             
-                <Dialog
-                    :min="1200"
-                    btnText="New Workflow +"
-                    btnColor = "#5865f2"
-                    btnVariant="flat"
-                    save-btn-name="Close"
-                    @on-open = "handleDialogOpen()"
-                    @on-save= "handleDialogSave()"
-                >
-                    <template #title>
-                        <h2 class="text-h5 mb-6">Workflow Assembler</h2>
-                    </template>
-                    <template #description>
-                        <div class="d-flex justify-center w-100 pa-3">
-                            <div class="w-75">
-                                <v-img
-                                    :aspect-ratio="1"
-                                    max-height="600"
-                                    src="/eps/workflows/new_workflow.png"
-                                ></v-img>
-                                <!-- <CWLWorkflowViewer :workflow="workflowData"/> -->
-                            </div>
-                        </div>
-                    </template>
-                </Dialog>
-                <v-divider></v-divider>
-                <div class="mt-2 overflow-y-auto w-content">
+    <v-container>
+        <v-row>
+            <v-col
+                cols="12"
+                md="6"
+                class="d-flex justify-center align-center"
+            >
+                <div class="col-style  pa-3">
+                    <h2 class="w-100 text-center">
+                        Workflows
+                    </h2>
+                
                     <Dialog
-                        v-for="(workflow, i) in workflows"
-                        :key="i"
                         :min="1200"
-                        :btnText="workflow"
-                        :btn-height="'70px'"
-                        btnColor = "#fff"
-                        btnVariant="tonal"
+                        btnText="New Workflow +"
+                        btnColor = "#5865f2"
+                        btnVariant="flat"
                         save-btn-name="Close"
                         @on-open = "handleDialogOpen()"
                         @on-save= "handleDialogSave()"
                     >
                         <template #title>
-                            <h2 class="text-h5 mb-6">Workflow: {{ workflow }}</h2>
+                            <h2 class="text-h5 mb-6">Workflow Assembler</h2>
                         </template>
                         <template #description>
                             <div class="d-flex justify-center w-100 pa-3">
-                                <div class="w-100">
-                                    <!-- <v-img
+                                <div class="w-75">
+                                    <v-img
                                         :aspect-ratio="1"
                                         max-height="600"
-                                        :src="`/eps/workflows/${workflow}.svg`"
-                                    ></v-img> -->
-                                    <CWLWorkflowViewer :workflow="workflowData"/>
+                                        src="/eps/workflows/new_workflow.png"
+                                    ></v-img>
+                                    <!-- <CWLWorkflowViewer :workflow="workflowData"/> -->
                                 </div>
                             </div>
                         </template>
-                        <CWLViewer :cwl-path="`/eps/workflows/${workflow}.cwl`" @on-workflow-loaded="handleWorkflowLoaded" />
                     </Dialog>
+                    <v-divider></v-divider>
+                    <div class="mt-2 overflow-y-auto w-content">
+                        <Dialog
+                            v-for="(workflow, i) in workflows"
+                            :key="i"
+                            :min="1200"
+                            :btnText="workflow"
+                            :btn-height="'70px'"
+                            btnColor = "#fff"
+                            btnVariant="tonal"
+                            save-btn-name="Close"
+                            @on-open = "handleDialogOpen()"
+                            @on-save= "handleDialogSave()"
+                        >
+                            <template #title>
+                                <h2 class="text-h5 mb-6">Workflow: {{ workflow }}</h2>
+                            </template>
+                            <template #description>
+                                <div class="d-flex justify-center w-100 pa-3">
+                                    <div class="w-100">
+                                        <!-- <v-img
+                                            :aspect-ratio="1"
+                                            max-height="600"
+                                            :src="`/eps/workflows/${workflow}.svg`"
+                                        ></v-img> -->
+                                        <CWLWorkflowViewer :workflow="workflowData"/>
+                                    </div>
+                                </div>
+                            </template>
+                            <CWLViewer :cwl-path="`/eps/workflows/${workflow}.cwl`" @on-workflow-loaded="handleWorkflowLoaded" />
+                        </Dialog>
+                    </div>
                 </div>
-            </div>
-        </v-col>
-        <v-col
-            cols="12"
-            md="6"
-            class="d-flex justify-center align-center"
-        >
-             <div class="col-style pa-3">
-                <h2 class="w-100 text-center">
-                    Tools
-                </h2>
+            </v-col>
+            <v-col
+                cols="12"
+                md="6"
+                class="d-flex justify-center align-center"
+            >
+                <div class="col-style pa-3">
+                    <h2 class="w-100 text-center">
+                        Tools
+                    </h2>
 
-                <v-divider></v-divider>
-                <div class="mt-2 overflow-y-auto t-content">
-                    <Dialog
-                        v-for="(tool, i) in tools"
-                        :key="i"
-                        :min="1200"
-                        :btnText="tool"
-                        :btn-height="'70px'"
-                        btnColor = "#fff"
-                        btnVariant="tonal"
-                        save-btn-name="Close"
-                        @on-open = "handleDialogOpen()"
-                        @on-save= "handleDialogSave()"
-                    >
-                        <template #title>
-                            <h2 class="text-h5 mb-6">Tool: {{ tool }}</h2>
-                        </template>
-                        <CWLViewer :cwl-path="`/eps/tools/all/${tool}.cwl`" />
-                    </Dialog>
+                    <v-divider></v-divider>
+                    <div class="mt-2 overflow-y-auto t-content">
+                        <Dialog
+                            v-for="(tool, i) in tools"
+                            :key="i"
+                            :min="1200"
+                            :btnText="tool"
+                            :btn-height="'70px'"
+                            btnColor = "#fff"
+                            btnVariant="tonal"
+                            save-btn-name="Close"
+                            @on-open = "handleDialogOpen()"
+                            @on-save= "handleDialogSave()"
+                        >
+                            <template #title>
+                                <h2 class="text-h5 mb-6">Tool: {{ tool }}</h2>
+                            </template>
+                            <CWLViewer :cwl-path="`/eps/tools/all/${tool}.cwl`" />
+                        </Dialog>
+                    </div>
                 </div>
-            </div>
-        </v-col>
-    </v-row>
+            </v-col>
+        </v-row>
+    </v-container>
+    
 
 </template>
 

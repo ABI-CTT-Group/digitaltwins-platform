@@ -1,35 +1,64 @@
 <template>
-    <v-row justify="center">
-        <v-col
-            cols="12"
-            md="6"
-        >
-            <SimpleInfoCard
-                category="Seek"
-                herf="http://130.216.216.26:8001/"
-                title="Programmes, Projects, Investigations, Studies, Assays, Measurements, Models"
-                description=""
-            />
-        </v-col>
-        <v-col
-            cols="12"
-            md="6"
-        >
-            <SimpleInfoCard
-                category="DigitalTWINS Platform"
-                herf="WorkflowToolsViewer"
-                title="Workflows, Tools"
-                description="​"
-            />
-        </v-col>
+<div class="layout d-flex flex-column align-center">
+    <div >
+      <SimpleInfoCard
+            :herf="cards[0].herf"
+            :title="cards[0].title"
+            :description="cards[0].description"
+        />
+    </div>
+
+    <v-row
+      class="d-flex justify-center align-center flex-wrap mt-8 sub-card-row"
+      no-gutters
+    >
+      <div
+        v-for="(card, i) in cards.slice(1)"
+        :key="i"
+        class="tech-card neon-border mx-8 my-6"
+      >
+        <SimpleInfoCard
+            :herf="card!.herf"
+            :title="card!.title"
+            :description="card!.description"
+        />
+      </div>
     </v-row>
-    
+</div>
 </template>
 
 <script setup lang="ts">
 import SimpleInfoCard from '@/components/dt-components/SimpleInfoCard.vue';
+import { ref, computed } from 'vue';
+
+const cards =[
+    {
+        title: 'SEEK Catalogue',
+        description: 'View or create descriptions for programmes, projects, investigations, studies, assays, and view existing workflows and tools.',
+        herf: 'http://130.216.216.26:8001/'
+    },
+    {
+        title: 'Workflow assembler',
+        description: 'Assemble & and uploading a new workflow to the platform.',
+        herf: 'WorkflowToolsViewer'
+    },
+    {
+        title: 'Upload workflow',
+        description: 'Upload a new workflow to the platform.',
+        herf: '#'
+    },
+    {
+        title: 'Upload workflow tool',
+        description: 'Upload a new workflow tool to the platform.',
+        herf: 'UploadToolDataset'
+    }
+];
+
 </script>
 
 <style scoped>
-
+.layout {
+    width: 100%;
+    padding-top: 100px;
+}
 </style>

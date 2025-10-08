@@ -27,7 +27,11 @@ from app.client.fhir import get_fhir_adapter
 
 from pathlib import Path
 from botocore.exceptions import ClientError
-from app.utils.workflow_tool_utils import (get_build_record_or_404, get_public_url_for_build, get_latest_build_record)
+from app.utils.workflow_tool_utils import (
+    get_build_record_or_404,
+    get_public_url_for_build,
+    get_latest_build_record,
+    shuttle_down_deployed_backend)
 from uuid import UUID
 from app.utils.utils import force_rmtree
 from fhir_cda import Annotator
@@ -75,46 +79,47 @@ async def get_plugin(plugin_id: str, db: Session = Depends(get_db)):
 
 @router.delete("/plugin/{plugin_id}")
 async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
-    plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
+    try:
+        plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
+        if plugin is not None:
+            builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).all()
+            if plugin.has_backend:
+                shuttle_down_deployed_backend(plugin.id, deployer)
+            for build in builds:
+                pprint(build)
+                # remove all images volume in docker
+                if build.s3_path is not None:
+                    prefix = build.s3_path.split("/")[-1]
+                    object_keys = minio.list_objects(prefix=prefix)
+                    if len(object_keys) > 0:
+                        minio.delete_objects(delete_keys=object_keys)
+                    # Delete dataset in dataset folder
+                    dataset_path = builder.dataset_dir / prefix
+                    force_rmtree(dataset_path)
+                # db.delete(build)
+            db.delete(plugin)
+            db.commit()
 
-    if plugin is not None:
-        builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).all()
-        if plugin.has_backend:
-            deploys = db.query(PluginDeployment).filter(PluginDeployment.plugin_id == plugin.id).all()
-            for deployment in deploys:
-                pprint(deployment)
-                deploy_dict = {
-                    "backend_dir": deployment.source_path
-                }
-                deployer.delete(deploy_dict)
-        for build in builds:
-            # remove all images volume in docker
-            if build.s3_path is not None:
-                prefix = build.s3_path.split("/")[-1]
-                object_keys = minio.list_objects(prefix=prefix)
+        try:
+            # delete the record form the metadata.json file in MinIO
+            metadata_file = await get_metadata_json()
+            delete_plugin_component = next((c for c in metadata_file["components"] if c['id'] == plugin_id), None)
+            if delete_plugin_component is not None:
+                object_keys = minio.list_objects(prefix=delete_plugin_component.get("expose"))
                 if len(object_keys) > 0:
                     minio.delete_objects(delete_keys=object_keys)
-                # Delete dataset in dataset folder
-                dataset_path = builder.dataset_dir / prefix
-                force_rmtree(dataset_path)
-            # db.delete(build)
-        db.delete(plugin)
-        db.commit()
-
-    # delete the record form the metadata.json file in MinIO
-    metadata_file = await get_metadata_json()
-    delete_plugin_component = next((c for c in metadata_file["components"] if c['id'] == plugin_id), None)
-    if delete_plugin_component is not None:
-        object_keys = minio.list_objects(prefix=delete_plugin_component.get("expose"))
-        if len(object_keys) > 0:
-            minio.delete_objects(delete_keys=object_keys)
-        # Update metadata.json file in minio
-        metadata_file["components"] = [component for component in metadata_file["components"] if
-                                       component['id'] != plugin_id]
-        minio.update_metadata(metadata_file)
-        return {"status": True, "message": "Plugin deleted successfully, and metadata updated successfully."}
-    else:
-        return {"status": True, "message": "Plugin deleted successfully and no longer found in the metadata file."}
+                # Update metadata.json file in minio
+                metadata_file["components"] = [component for component in metadata_file["components"] if
+                                               component['id'] != plugin_id]
+                minio.update_metadata(metadata_file)
+                return {"status": True, "message": "Plugin deleted successfully, and metadata updated successfully."}
+            else:
+                return {"status": True,
+                        "message": "Plugin deleted successfully and no longer found in the metadata file."}
+        except Exception as e:
+            return {"status": True, "message": str(e)}
+    except Exception as e:
+        return {"status": False, "message": str(e)}
 
 
 @router.get("/plugin/{plugin_id}/build")
@@ -166,6 +171,9 @@ async def execute_build(
                 if build_record:
                     build_record.status = BuildStatus.BUILDING.value
                     session.commit()
+            # TODO: check deploy status
+            if plugin.has_backend:
+                shuttle_down_deployed_backend(plugin.id, deployer)
 
             builder = PluginBuilder()
             result = builder.build_plugin(plugin_dict)

@@ -380,6 +380,15 @@ class PluginBuilder:
                 f.write(f"{key}={val}\n")
         logger.info(f"Updated env file in {env_path}")
 
+    @staticmethod
+    def remove_tmp_folder(path: Path):
+        if not path.exists():
+            return
+        force_rmtree(path)
+        logger.info("Cleaning up cloned repository")
+        # force_rmtree(dataset_dir)
+        # logger.info("Cleaning up sparc dataset")
+
     def build_plugin(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
         """Complete plugin build process"""
         build_logs = []
@@ -546,10 +555,7 @@ class PluginBuilder:
             logger.info("Step 7: Cleaning up temporary files")
             if cloned_dir:
                 try:
-                    force_rmtree(cloned_dir)
-                    logger.info("Cleaning up cloned repository")
-                    # force_rmtree(dataset_dir)
-                    # logger.info("Cleaning up sparc dataset")
+                    self.remove_tmp_folder(cloned_dir)
                 except Exception as e:
                     logger.error(f"Failed to remove cloned repository: {e}")
             else:
@@ -616,7 +622,7 @@ class PluginBuilder:
             error_message = str(e)
             logger.info(f"Build failed: {error_message}")
             logger.error(f"Build process failed: {e}")
-
+            self.remove_tmp_folder(cloned_dir)
             return {
                 "success": False,
                 "dataset_path": None,

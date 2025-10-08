@@ -7,6 +7,7 @@ from app.utils import digitaltwins_configs
 import shutil
 from pprint import pprint
 import os
+from app.utils.utils import force_rmtree
 
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent.parent
@@ -355,13 +356,32 @@ def copy_dataset(name: str):
 
     for item in src.iterdir():
         target = dst / item.name
-        shutil.copy(str(item), str(target))
+
+        if target.exists():
+            if target.is_file():
+                target.unlink()
+            else:
+                shutil.rmtree(target)
+
+        if item.is_dir():
+            shutil.copytree(item, target)
+        else:
+            shutil.copy2(item, target)
 
     return {
         "status": "200",
         "message": "dataset moved successfully"
     }
 
+@router.get("/clear_data")
+def clear_data():
+    dst = Path("./data")
+    force_rmtree(dst, True)
+
+    return {
+        "status": "200",
+        "message": "dataset moved successfully"
+    }
 def generate_outputs_datasets(target_dataset_path, outputs):
     if not target_dataset_path.exists():
         target_dataset_path.mkdir(exist_ok=True, parents=True)

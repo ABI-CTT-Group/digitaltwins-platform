@@ -40,6 +40,7 @@ class Plugin(Base):
     author = Column(String, nullable=True)
     repository_url = Column(String, nullable=False)
     plugin_metadata = Column(JSON, nullable=True)
+
     has_backend = Column(Boolean, nullable=False, default=True)
     frontend_folder = Column(String, nullable=False)
     frontend_build_command = Column(String, nullable=False)

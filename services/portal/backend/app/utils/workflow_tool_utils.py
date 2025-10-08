@@ -1,8 +1,13 @@
 from sqlalchemy.orm import Session
-from app.models.db_model import (PluginBuild, BuildStatus, Plugin)
 from app.client.minio import get_minio_client
 from fastapi import HTTPException
 from typing import Tuple, Optional
+from app.models.db_model import (
+    Plugin, PluginCreate, PluginBuild, PluginResponse,
+    PluginBuildResponse, BuildStatus, SessionLocal,
+    DeployStatus, PluginDeployment, PluginDeployResponse
+)
+from app.builder.deploy import PluginDeployer
 
 
 def get_build_record_or_404(build_id: str, db: Session):
@@ -47,3 +52,13 @@ def get_latest_build_record(plugin_id: str, db: Session) -> Tuple[Plugin, Option
     )
 
     return plugin, latest_build
+
+
+def shuttle_down_deployed_backend(plugin_id: str, deployer: PluginDeployer):
+    with SessionLocal as session:
+        deploys = session.query(PluginDeployment).filter(PluginDeployment.plugin_id == plugin_id).all()
+        for deployment in deploys:
+            deploy_dict = {
+                "backend_dir": deployment.source_path
+            }
+            deployer.delete(deploy_dict)
