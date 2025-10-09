@@ -6,7 +6,7 @@ import platform
 import uuid
 import json
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Literal
 from urllib.parse import quote
 from dotenv import dotenv_values
 
@@ -160,6 +160,7 @@ class PluginBuilder:
 
     def create_sparc_dataset(self,
                              project_dir: Path,
+                             label: str,
                              has_backend: bool,
                              build_output_dir: Optional[Path] = None,
                              dataset_name: str = "plugin_build_dataset") -> Path:
@@ -187,32 +188,47 @@ class PluginBuilder:
             code_dir = dataset_dir / "code"
             code_dir.mkdir(exist_ok=True)
 
-            if has_backend:
-                for layer in project_dir.iterdir():
-                    if layer.name == ".git":
-                        continue
-                    if layer.is_dir():
-                        for item in layer.iterdir():
-                            dest = code_dir / layer.name
-                            dest.mkdir(exist_ok=True)
-                            self._copy_item(item, dest)
-                    else:
-                        self._copy_item(layer, code_dir)
-            else:
-                for item in project_dir.iterdir():
-                    self._copy_item(item, code_dir)
+            logger.info(f"the tool label is {label}")
+            if label == "GUI":
+                if has_backend:
+                    for layer in project_dir.iterdir():
+                        if layer.name == ".git":
+                            continue
+                        if layer.is_dir():
+                            for item in layer.iterdir():
+                                dest = code_dir / layer.name
+                                dest.mkdir(exist_ok=True)
+                                self._copy_item(item, dest)
+                        else:
+                            self._copy_item(layer, code_dir)
+                else:
+                    for item in project_dir.iterdir():
+                        if item.name == ".git":
+                            continue
+                        self._copy_item(item, code_dir)
 
-            if build_output_dir and build_output_dir.exists():
+                if build_output_dir and build_output_dir.exists():
+                    primary_dir = dataset_dir / "primary"
+                    primary_dir.mkdir(exist_ok=True)
+
+                    for item in build_output_dir.iterdir():
+                        if item.is_dir() and item.name != ".git":
+                            shutil.copytree(item, primary_dir / item.name, dirs_exist_ok=True)
+                        else:
+                            shutil.copy2(item, primary_dir / item.name)
+
+                    logger.info(f"Copied build artifacts from {build_output_dir} to {primary_dir}")
+            else:
                 primary_dir = dataset_dir / "primary"
                 primary_dir.mkdir(exist_ok=True)
 
-                for item in build_output_dir.iterdir():
-                    if item.is_dir():
-                        shutil.copytree(item, primary_dir / item.name, dirs_exist_ok=True)
-                    else:
+                for item in project_dir.iterdir():
+                    if item.name == ".git":
+                        continue
+                    self._copy_item(item, code_dir)
+                    if item.is_dir() and item.suffix == ".cwl":
                         shutil.copy2(item, primary_dir / item.name)
-
-                logger.info(f"Copied build artifacts from {build_output_dir} to {primary_dir}")
+                logger.info(f"Copied cwl artifacts from {project_dir} to {primary_dir}")
 
             dataset.save(save_dir=str(dataset_dir))
 
@@ -399,6 +415,7 @@ class PluginBuilder:
         plugin_id = plugin.get("id")
         plugin_name = plugin.get("name", "unknown")
         version = plugin.get("version", "1.0.0")
+        label = plugin.get("label", "GUI")
         created_at = plugin.get("created_at", "unknown")
         author = plugin.get("author", "unknown")
         description = plugin.get("description", "No description provided")
@@ -408,6 +425,7 @@ class PluginBuilder:
         backend_folder = plugin.get("backend_folder", "unknown")
         backend_deploy_command = plugin.get("backend_deploy_command")
         cloned_dir = None
+        config = {}
 
         try:
             plugin_unique_expose_name = self.unique_name(plugin_name)
@@ -454,83 +472,95 @@ class PluginBuilder:
                     raise RuntimeError(f"Local path does not a directory: {project_dir}")
                 logger.info(f"Using local project dictory: {project_dir}")
 
-            # Step 2: Check if it's an npm project and extract metadata
-            logger.info("Step 2: Checking if the frontend is an npm project...")
-            if has_backend:
-                frontend_path = project_dir / frontend_folder
+            # If the tool is a script, skip some of the steps below.
+            if label == "GUI":
+                # Step 2: Check if it's an npm project and extract metadata
+                logger.info("Step 2: Checking if the frontend is an npm project...")
+                if has_backend:
+                    frontend_path = project_dir / frontend_folder
+                else:
+                    frontend_path = project_dir
+                if not self.check_npm_project(frontend_path):
+                    raise RuntimeError("No package.json found - not an npm project")
+                logger.info("npm project detected")
+
+                # Step 2.1: update vite.config.js
+                logger.info("Step 2.1: Updating vite.config.js...")
+                self.update_vite_config(frontend_path, metadata["expose"])
+                logger.info("vite.config.js updated successfully")
+
+                # Step 2.2: update plugin version base on plugin frontend package.json version
+                logger.info("Step 2.2: Updating plugin version...")
+                new_version = self.update_plugin_version(frontend_path, plugin_id)
+                version = new_version if new_version is not None else version
+
+                # Step 2.3: update plugin backend endpoint by create .env in frontend folder, if the plugin has backend
+                if has_backend:
+                    logger.info("Step 2.3: Create .env file for frontend...")
+                    self.create_env_file(frontend_path)
+
+                # Step 3: npm install
+                logger.info("Step 3: Running npm install")
+                install_result = self.frontend_install(frontend_path)
+                if not install_result["success"]:
+                    raise RuntimeError(f"npm install failed: {install_result.get('error', 'Unknown error')}")
+                logger.info("npm install completed successfully")
+
+                # Step 4: npm build
+                logger.info("Step 4: Running npm build...")
+                build_result = self.frontend_build(frontend_path, frontend_build_command)
+                if not build_result["success"]:
+                    raise RuntimeError(f"npm build failed: {build_result.get('error', 'Unknown error')}")
+                logger.info("npm build completed successfully")
+
+                # Step 5: replace the path in the umd.js file (only for remote repos, not local)
+                if cloned_dir:
+                    logger.info("Step 5: Replacing path in umd.js file...")
+                    self.replace_path_in_umd_js(project_dir, has_backend, metadata["expose"], frontend_folder)
+                    logger.info("Path in umd.js file replaced successfully")
+                else:
+                    logger.info("Step 5: Skipping path replacement for local plugin...")
+
+                # read config file in the cloned directory
+                config_file = project_dir / "config.portal.json"
+
+                if config_file.exists():
+                    logger.info(f"Reading config from {config_file}")
+                    with open(config_file, "r") as f:
+                        config = json.loads(f.read())
+                else:
+                    logger.warning(f"No config.portal.json found in {project_dir}")
+
+                # Step 5: Create SPARC dataset (only for remote repos)
+                dataset_dir = None
+                if cloned_dir:
+                    logger.info("Step 5: Creating SPARC dataset by sparc-me")
+
+                    # Look for common build output directories
+                    build_output_dir = None
+                    possible_build_dir = ["dist", "build"]
+                    for dir_name in possible_build_dir:
+                        potential_dir = frontend_path / dir_name
+                        if potential_dir.exists():
+                            build_output_dir = potential_dir
+                            logger.info(f"Found build output directory: {build_output_dir}")
+                            break
+
+                    dataset_dir = self.create_sparc_dataset(project_dir, label, has_backend, build_output_dir,
+                                                            f"{plugin_unique_expose_name}")
+                    logger.info(f"SPARC dataset created in {dataset_dir}")
+                else:
+                    logger.info("Step 5: Skipping SPARC dataset creation for local plugin...")
             else:
-                frontend_path = project_dir
-            if not self.check_npm_project(frontend_path):
-                raise RuntimeError("No package.json found - not an npm project")
-            logger.info("npm project detected")
-
-            # Step 2.1: update vite.config.js
-            logger.info("Step 2.1: Updating vite.config.js...")
-            self.update_vite_config(frontend_path, metadata["expose"])
-            logger.info("vite.config.js updated successfully")
-
-            # Step 2.2: update plugin version base on plugin frontend package.json version
-            logger.info("Step 2.2: Updating plugin version...")
-            new_version = self.update_plugin_version(frontend_path, plugin_id)
-            version = new_version if new_version is not None else version
-
-            # Step 2.3: update plugin backend endpoint by create .env in frontend folder, if the plugin has backend
-            if has_backend:
-                logger.info("Step 2.3: Create .env file for frontend...")
-                self.create_env_file(frontend_path)
-
-            # Step 3: npm install
-            logger.info("Step 3: Running npm install")
-            install_result = self.frontend_install(frontend_path)
-            if not install_result["success"]:
-                raise RuntimeError(f"npm install failed: {install_result.get('error', 'Unknown error')}")
-            logger.info("npm install completed successfully")
-
-            # Step 4: npm build
-            logger.info("Step 4: Running npm build...")
-            build_result = self.frontend_build(frontend_path, frontend_build_command)
-            if not build_result["success"]:
-                raise RuntimeError(f"npm build failed: {build_result.get('error', 'Unknown error')}")
-            logger.info("npm build completed successfully")
-
-            # Step 5: replace the path in the umd.js file (only for remote repos, not local)
-            if cloned_dir:
-                logger.info("Step 5: Replacing path in umd.js file...")
-                self.replace_path_in_umd_js(project_dir, has_backend, metadata["expose"], frontend_folder)
-                logger.info("Path in umd.js file replaced successfully")
-            else:
-                logger.info("Step 5: Skipping path replacement for local plugin...")
-
-            # read config file in the cloned directory
-            config_file = project_dir / "config.portal.json"
-            config = {}
-            if config_file.exists():
-                logger.info(f"Reading config from {config_file}")
-                with open(config_file, "r") as f:
-                    config = json.loads(f.read())
-            else:
-                logger.warning(f"No config.portal.json found in {project_dir}")
-
-            # Step 5: Create SPARC dataset (only for remote repos)
-            dataset_dir = None
-            if cloned_dir:
-                logger.info("Step 5: Creating SPARC dataset by sparc-me")
-
-                # Look for common build output directories
-                build_output_dir = None
-                possible_build_dir = ["dist", "build"]
-                for dir_name in possible_build_dir:
-                    potential_dir = frontend_path / dir_name
-                    if potential_dir.exists():
-                        build_output_dir = potential_dir
-                        logger.info(f"Found build output directory: {build_output_dir}")
-                        break
-
-                dataset_dir = self.create_sparc_dataset(project_dir, has_backend, build_output_dir,
-                                                        f"{plugin_unique_expose_name}")
-                logger.info(f"SPARC dataset created in {dataset_dir}")
-            else:
-                logger.info("Step 5: Skipping SPARC dataset creation for local plugin...")
+                # Step 5: Create SPARC dataset (only for remote repos) for cwl plugin script
+                dataset_dir = None
+                if cloned_dir:
+                    logger.info("Step 5: Creating SPARC dataset by sparc-me")
+                    dataset_dir = self.create_sparc_dataset(project_dir, label, has_backend, None,
+                                                            f"{plugin_unique_expose_name}")
+                    logger.info(f"SPARC dataset created in {dataset_dir}")
+                else:
+                    logger.info("Step 5: Skipping SPARC dataset creation for local plugin...")
 
             # Step 6: Upload dataset to MinIO or copy to public folder
             s3_path = None
@@ -565,9 +595,12 @@ class PluginBuilder:
             # Determine the path based on whether it's a local plugin or remote
             if cloned_dir:
                 # Remote plugin - use public directory path with metadata path
-                plugin_path = f"http://{os.environ.get('HOST', 'localhost')}:{os.environ.get('MINIO_EXPOSE_PORT', 9000)}/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{metadata['expose']}/primary/my-app.umd.js"
-                if has_backend:
-                    backend_path = f"http://{os.environ.get('HOST', 'localhost')}:{os.environ.get('MINIO_EXPOSE_PORT', 9000)}/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{metadata['expose']}/code/{backend_folder}"
+                if label == "GUI":
+                    plugin_path = f"http://{os.environ.get('HOST', 'localhost')}:{os.environ.get('MINIO_EXPOSE_PORT', 9000)}/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{metadata['expose']}/primary/my-app.umd.js"
+                    if has_backend:
+                        backend_path = f"http://{os.environ.get('HOST', 'localhost')}:{os.environ.get('MINIO_EXPOSE_PORT', 9000)}/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{metadata['expose']}/code/{backend_folder}"
+                else:
+                    plugin_path = f"http://{os.environ.get('HOST', 'localhost')}:{os.environ.get('MINIO_EXPOSE_PORT', 9000)}/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{metadata['expose']}/primary"
             else:
                 # Local plugin - use public directory path with metadata expose folder name
                 plugin_path = f"/{metadata['expose']}/my-app.umd.js"
@@ -577,17 +610,18 @@ class PluginBuilder:
                 "id": plugin_id,
                 "name": plugin_name,
                 "path": plugin_path,
-                "expose": metadata.get("expose", "MyApp"),
+                "expose": metadata.get("expose", "MyApp") if label == "GUI" else None,
+                "label": label,
                 "description": description,
                 "version": version,
                 "created_at": created_at,
                 "author": author,
                 "repository_url": repo_url,
                 "is_local": not bool(cloned_dir),
-                "frontend_folder": frontend_folder,
-                "has_backend": has_backend,
+                "frontend_folder": frontend_folder if label == "GUI" else None,
+                "has_backend": has_backend if label == "GUI" else False,
                 "backend_folder": backend_folder if has_backend else None,
-                "backend_deploy_command": backend_deploy_command if has_backend else None,
+                "backend_deploy_command": backend_deploy_command if (has_backend and label == "GUI") else None,
                 "config": config
             }
             component_exists = False

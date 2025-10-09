@@ -63,7 +63,7 @@
                 size="small" 
                 class="text-white mx-2" 
                 rounded="md" 
-                :disabled="tool.status != 'completed' ? true : false"
+                :disabled="(tool.status != 'completed') ? true : false"
                 @click.stop="onLaunch">
                 Launch
             </v-btn>
@@ -88,13 +88,13 @@
                     <v-list-item density="compact" @click.stop="onSubmit">
                         <v-list-item-title class="hover-animate px-2">Submit to Approval</v-list-item-title>
                     </v-list-item>
-                    <v-list-item v-if="tool.has_backend" density="compact" @click.stop="onDeploy">
+                    <v-list-item v-if="tool.has_backend && tool.label=='GUI'" density="compact" @click.stop="onDeploy">
                         <v-list-item-title class="hover-animate px-2">Deploy Backend</v-list-item-title>
                     </v-list-item>
-                    <v-list-item v-if="tool.deploy_status == 'completed'" density="compact" @click.stop="onDockerComposeUp">
+                    <v-list-item v-if="tool.deploy_status == 'completed' && tool.label=='GUI'" density="compact" @click.stop="onDockerComposeUp">
                         <v-list-item-title class="hover-animate px-2">Compose Up</v-list-item-title>
                     </v-list-item>
-                    <v-list-item v-if="tool.deploy_status == 'completed'" density="compact" @click.stop="onDockerComposeDown">
+                    <v-list-item v-if="tool.deploy_status == 'completed' && tool.label=='GUI'" density="compact" @click.stop="onDockerComposeDown">
                         <v-list-item-title class="hover-animate px-2">Compose Down</v-list-item-title>
                     </v-list-item>
                     <v-list-item density="compact" @click.stop="onDelete" color="red">
@@ -119,6 +119,7 @@
           <div class="d-flex flex-wrap align-center w-75">
               <v-chip v-if="!!tool.version" size="small" color="blue-lighten-4" text-color="blue-darken-3" class="mx-1 my-1">v{{ tool.version }}</v-chip>
               <v-chip v-if="!!tool.author" size="small" color="blue-lighten-5" text-color="blue-darken-3" class="mx-1 my-1">{{ tool.author }}</v-chip>
+              <v-chip v-if="!!tool.author" size="small" color="green-lighten-5" text-color="green-darken-3" class="mx-1 my-1">{{ tool.label }}</v-chip>
               <v-chip v-if="!!tool.status" size="small" :color="statusColor" :text-color="statusTextColor" class="mx-1 mr-1 my-1">pre build: {{ tool.status }}</v-chip>
               <v-chip v-if="!!tool.deploy_status" size="small" :color="deployStatusColor" :text-color="deployStatusTextColor" class="mx-1 mr-1 my-1">deploy: {{ tool.deploy_status }}</v-chip>
           </div>
@@ -224,6 +225,10 @@ const formatDate = (dateString: string) => {
 const emit = defineEmits(["launch", "rebuild", "submit-approve", "deploy", "compose-up", "compose-down", "delete"])
 
 const onLaunch = async () => {
+    if(tool.value.label === "Script"){
+        alert("CWL Script tool cannot be launched. Please download the script and run it locally.");
+        return;
+    }
     if (tool.value.has_backend && !tool.value.latest_deploy_id && tool.value.deploy_status !== 'completed') {
         alert("Tool backend is not deployed yet. Please deploy the backend first.");
         return;

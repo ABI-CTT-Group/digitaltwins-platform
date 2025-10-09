@@ -1,6 +1,14 @@
 <template>
     <div class="container w-screen h-screen d-flex flex-column align-center overflow-hidden">
         <div class="main-container overflow-y-auto">
+             <div class="my-2">
+                <h3 class="mb-2">About</h3>
+                <v-divider thickness="5"></v-divider>
+                <div class="help-list py-3 d-flex flex-wrap justify-start">
+                    
+                </div>
+            </div>
+
             <div class="my-2">
                 <h3 class="mb-2">Help documentation</h3>
                 <v-divider thickness="5"></v-divider>
@@ -86,7 +94,7 @@ const helps = [
 const apiDocs = [
     {
         title:"DigitalTWINS-API",
-        herf:"#",
+        herf:"http://130.216.217.184:8010/docs",
         width:350,
     },
     {

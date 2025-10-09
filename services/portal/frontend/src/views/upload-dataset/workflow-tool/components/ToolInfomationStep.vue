@@ -10,6 +10,17 @@
         <v-divider class="my-2 mb-5" :thickness="3"></v-divider>
         
         <v-form ref="form" class="px-5">
+            <h4 class="my-2">Choose the workflow tool type *</h4>
+             <v-radio-group 
+                v-model="toolInfomationFormData.label"
+                inline
+                class="w-100 d-flex justify-start"
+                @update:modelValue="handleLabelChange"
+                >
+                <v-radio color="success" label="Web GUI" value="GUI"></v-radio>
+                <v-radio color="success" label="CWL Script" value="Script" class="ml-2"></v-radio>
+            </v-radio-group>  
+
             <h4 class="my-2">Source Url *</h4>
             <v-text-field
                 v-model="toolInfomationFormData.repository_url"
@@ -63,72 +74,59 @@
                     clearable
                     ></v-textarea>
             </div>
-            <div class="w-100">
-                <h4 class="my-2">has backend? *</h4>
-                <v-radio-group inline v-model="toolInfomationFormData.has_backend" class="w-100 d-flex justify-between">
-                    <v-radio label="Yes" :value=true></v-radio>
-                    <v-radio label="No" :value=false></v-radio>
-                </v-radio-group>
-            </div>
-            <div class="w-100 d-flex flex-row">
-                <div v-show="toolInfomationFormData.has_backend" class="w-100 mr-1">
-                    <h4 class="my-2">Frontend Folder Name *</h4>
-                    <!-- <v-text-field
-                        v-model="toolInfomationFormData.frontend_folder"
-                        :rules="frontendFolderRules"
-                        label="Frontend Folder"
-                        @blur="handleFrontendFolderBlur"
-                        :error-messages="(!!frontendFolderErr && !frontendFolderErr.available) ? frontendFolderErr.message : ''"
-                        clearable
-                        required
-                    ></v-text-field> -->
-                    <v-select
-                        v-model="toolInfomationFormData.frontend_folder"
-                        :items="foldersInRootRepo"
-                        :rules="frontendFolderRules"
-                        label="Frontend Folder"
-                    ></v-select>
+
+            <!-- GUI Plugin -->
+            <div v-if="toolInfomationFormData.label === 'GUI'" class="w-100">
+                <div class="w-100">
+                    <h4 class="my-2">has backend? *</h4>
+                    <v-radio-group inline v-model="toolInfomationFormData.has_backend" class="w-100 d-flex justify-between">
+                        <v-radio label="Yes" :value=true></v-radio>
+                        <v-radio label="No" :value=false></v-radio>
+                    </v-radio-group>
                 </div>
-                <div class="w-100 ml-1">
-                    <h4 class="my-2">Build Command *</h4>
-                    <v-text-field
-                        v-model="toolInfomationFormData.frontend_build_command"
-                        :rules="frontendCommandRules"
-                        label="Frontend Build Command"
-                        clearable
-                        required
-                    ></v-text-field>
+                <div class="w-100 d-flex flex-row">
+                    <div v-show="toolInfomationFormData.has_backend" class="w-100 mr-1">
+                        <h4 class="my-2">Frontend Folder Name *</h4>
+                        <v-select
+                            v-model="toolInfomationFormData.frontend_folder"
+                            :items="foldersInRootRepo"
+                            :rules="frontendFolderRules"
+                            label="Frontend Folder"
+                        ></v-select>
+                    </div>
+                    <div class="w-100 ml-1">
+                        <h4 class="my-2">Build Command *</h4>
+                        <v-text-field
+                            v-model="toolInfomationFormData.frontend_build_command"
+                            :rules="frontendCommandRules"
+                            label="Frontend Build Command"
+                            clearable
+                            required
+                        ></v-text-field>
+                    </div>
                 </div>
-            </div>
-            <div class="w-100 d-flex flex-row">
-                <div v-show="toolInfomationFormData.has_backend" class="w-100 mr-1">
-                    <h4 class="mb-2">Backend Folder Name *</h4>
-                    <!-- <v-text-field
-                        v-model="toolInfomationFormData.backend_folder"
-                        :rules="backendFolderRules"
-                        label="Backend Folder"
-                        @blur="handleBackendFolderBlur"
-                        :error-messages="(!!backendFolderErr && !backendFolderErr.available) ? backendFolderErr.message : ''"
-                        clearable
-                        required
-                    ></v-text-field> -->
-                    <v-select
-                        v-model="toolInfomationFormData.backend_folder"
-                        :items="foldersInRootRepo"
-                        :rules="backendFolderRules"
-                        label="Backend Folder"
-                    ></v-select>
-                </div>
-                <div v-show="toolInfomationFormData.has_backend" class="w-100 ml-1">
-                    <h4 class="mb-2">Deploy Command (fixed) *</h4>
-                    <v-text-field
-                        v-model="toolInfomationFormData.backend_deploy_command"
-                        bg-color="cyan-darken-4"  
-                        variant="solo"
-                        readonly
-                    ></v-text-field>
+                <div class="w-100 d-flex flex-row">
+                    <div v-show="toolInfomationFormData.has_backend" class="w-100 mr-1">
+                        <h4 class="mb-2">Backend Folder Name *</h4>
+                        <v-select
+                            v-model="toolInfomationFormData.backend_folder"
+                            :items="foldersInRootRepo"
+                            :rules="backendFolderRules"
+                            label="Backend Folder"
+                        ></v-select>
+                    </div>
+                    <div v-show="toolInfomationFormData.has_backend" class="w-100 ml-1">
+                        <h4 class="mb-2">Deploy Command (fixed) *</h4>
+                        <v-text-field
+                            v-model="toolInfomationFormData.backend_deploy_command"
+                            bg-color="cyan-darken-4"  
+                            variant="solo"
+                            readonly
+                        ></v-text-field>
+                    </div>
                 </div>
             </div>
+            
              <v-checkbox
                     v-model="policyCheckbox"
                     :rules="[v => !!v || 'You must agree to continue!']"
@@ -202,6 +200,7 @@ const form = ref()
 const policyCheckbox = ref(false)
 const showAlert = ref(false)
 const toolInfomationFormData = reactive<IToolInformationStep>({
+    label: "GUI",
     repository_url:"",
     name:"",
     author:"",
@@ -251,6 +250,10 @@ const addGitSuffix = (url:string) => {
   if (!url) return ''
   const cleaned = url.replace(/(\.git)?$/, '')
   return cleaned + '.git'
+}
+
+const handleLabelChange = () =>{
+    toolInfomationFormData.label == "Script" ? toolInfomationFormData.has_backend = false : null;
 }
 
 const onBlur = () => {

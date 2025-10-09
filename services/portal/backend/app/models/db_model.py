@@ -1,12 +1,12 @@
 import os
 import uuid
-from sqlalchemy import create_engine, Column, String, DateTime, ForeignKey, Text, JSON, Boolean
+from sqlalchemy import create_engine, Column, String, DateTime, ForeignKey, Text, JSON, Boolean, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from pydantic import BaseModel
-from enum import Enum
+from enum import Enum as PyEnum
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 
 DATABASE_PATH = os.getenv("DATABASE_PATH", "./plugin_registry.db")
 DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
@@ -16,14 +16,14 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-class BuildStatus(Enum):
+class BuildStatus(PyEnum):
     PENDING = "pending"
     BUILDING = "building"
     FAILED = "failed"
     COMPLETED = "completed"
 
 
-class DeployStatus(Enum):
+class DeployStatus(PyEnum):
     PENDING = "pending"
     DEPLOYING = "deploying"
     FAILED = "failed"
@@ -40,7 +40,7 @@ class Plugin(Base):
     author = Column(String, nullable=True)
     repository_url = Column(String, nullable=False)
     plugin_metadata = Column(JSON, nullable=True)
-
+    label = Column(Enum("GUI", "Script", name="plugin_label"), nullable=False)
     has_backend = Column(Boolean, nullable=False, default=True)
     frontend_folder = Column(String, nullable=False)
     frontend_build_command = Column(String, nullable=False)
@@ -94,6 +94,7 @@ class PluginBase(BaseModel):
     repository_url: str
     frontend_folder: str
     frontend_build_command: str
+    label: Literal["GUI", "Script"]
     has_backend: bool
     backend_folder: Optional[str]
     backend_deploy_command: str

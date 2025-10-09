@@ -81,14 +81,17 @@ async def get_plugin(plugin_id: str, db: Session = Depends(get_db)):
 async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
     try:
         plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
+        logger.info(f"Deleting plugin {plugin_id}")
         if plugin is not None:
             builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).all()
             if plugin.has_backend:
+                logger.info(f"Shuttle down backend for plugin {plugin_id}")
                 shuttle_down_deployed_backend(plugin.id, deployer)
             for build in builds:
-                pprint(build)
+                logger.info("Deleting build {}".format(build.id))
                 # remove all images volume in docker
                 if build.s3_path is not None:
+                    logger.info("Deleting s3 path {}".format(build.s3_path))
                     prefix = build.s3_path.split("/")[-1]
                     object_keys = minio.list_objects(prefix=prefix)
                     if len(object_keys) > 0:
@@ -101,6 +104,7 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
             db.commit()
 
         try:
+            logger.info(f"Deleting plugin {plugin_id}: modify the minio metadata.json")
             # delete the record form the metadata.json file in MinIO
             metadata_file = await get_metadata_json()
             delete_plugin_component = next((c for c in metadata_file["components"] if c['id'] == plugin_id), None)
@@ -112,13 +116,17 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
                 metadata_file["components"] = [component for component in metadata_file["components"] if
                                                component['id'] != plugin_id]
                 minio.update_metadata(metadata_file)
+                logger.info(f"Deleting plugin {plugin_id} successfully, and metadata updated successfully.")
                 return {"status": True, "message": "Plugin deleted successfully, and metadata updated successfully."}
             else:
+                logger.info(f"Deleting plugin {plugin_id} successfully. and there is no tool component information in metadata.json")
                 return {"status": True,
                         "message": "Plugin deleted successfully and no longer found in the metadata file."}
         except Exception as e:
+            logger.info(f"Deleting plugin {plugin_id} successfully, but not find the metadata.json file in Minio, failed due to {e}")
             return {"status": True, "message": str(e)}
     except Exception as e:
+        logger.info("Deleting plugin failed due to exception {}".format(e))
         return {"status": False, "message": str(e)}
 
 
@@ -139,6 +147,7 @@ async def execute_build(
         "description": plugin.description,
         "version": plugin.version,
         "author": plugin.author,
+        "label": plugin.label,
         "has_backend": plugin.has_backend,
         "repo_url": plugin.repository_url,
         "frontend_folder": plugin.frontend_folder,
@@ -149,7 +158,7 @@ async def execute_build(
         "created_at": plugin.created_at.isoformat() if plugin.created_at else None,
         "updated_at": plugin.updated_at.isoformat() if plugin.updated_at else None,
     }
-    logger.info(f"Building plugin: {json.dumps(plugin_dict, indent=4)}")
+    logger.info(f"Building GUI plugin: {json.dumps(plugin_dict, indent=4)}")
 
     build_id = str(uuid.uuid4())
 

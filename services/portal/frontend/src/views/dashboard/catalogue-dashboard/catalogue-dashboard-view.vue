@@ -38,19 +38,19 @@ const cards =[
         herf: 'http://130.216.216.26:8001/'
     },
     {
-        title: 'Workflow assembler',
-        description: 'Assemble & and uploading a new workflow to the platform.',
-        herf: 'WorkflowToolsViewer'
+        title: 'Upload workflow tool',
+        description: 'Upload a new workflow tool to the platform.',
+        herf: 'UploadToolDataset'
     },
     {
         title: 'Upload workflow',
         description: 'Upload a new workflow to the platform.',
         herf: '#'
     },
-    {
-        title: 'Upload workflow tool',
-        description: 'Upload a new workflow tool to the platform.',
-        herf: 'UploadToolDataset'
+     {
+        title: 'Workflow assembler',
+        description: 'Assemble & and uploading a new workflow to the platform.',
+        herf: 'WorkflowToolsViewer'
     }
 ];
 

@@ -36,6 +36,7 @@ export interface IToolInformationStep {
     name: string;
     version: string;
     repository_url: string;
+    label: "GUI" | "Script";
     has_backend: boolean;
     frontend_folder: string;
     frontend_build_command: string;
@@ -55,6 +56,7 @@ export interface PluginResponse {
     plugin_metadata: any
     name: string
     version: string
+    label: string
     repository_url: string
     frontend_folder: string
     frontend_build_command: string

@@ -8,6 +8,10 @@ from app.models.db_model import (
     DeployStatus, PluginDeployment, PluginDeployResponse
 )
 from app.builder.deploy import PluginDeployer
+from app.builder.logger import get_logger, configure_logging
+
+configure_logging()
+logger = get_logger(__name__)
 
 
 def get_build_record_or_404(build_id: str, db: Session):
@@ -55,10 +59,15 @@ def get_latest_build_record(plugin_id: str, db: Session) -> Tuple[Plugin, Option
 
 
 def shuttle_down_deployed_backend(plugin_id: str, deployer: PluginDeployer):
-    with SessionLocal as session:
-        deploys = session.query(PluginDeployment).filter(PluginDeployment.plugin_id == plugin_id).all()
-        for deployment in deploys:
-            deploy_dict = {
-                "backend_dir": deployment.source_path
-            }
-            deployer.delete(deploy_dict)
+    try:
+        with SessionLocal() as session:
+            deploys = session.query(PluginDeployment).filter(PluginDeployment.plugin_id == plugin_id).all()
+            for deployment in deploys:
+                logger.info("Start to shuttle down the deployment {}".format(deployment.id))
+                deploy_dict = {
+                    "backend_dir": deployment.source_path
+                }
+                logger.info("the deployment is {}".format(deploy_dict))
+                deployer.delete(deploy_dict)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
