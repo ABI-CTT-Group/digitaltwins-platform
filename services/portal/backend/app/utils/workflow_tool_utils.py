@@ -1,21 +1,22 @@
 from sqlalchemy.orm import Session
 from app.client.minio import get_minio_client
 from fastapi import HTTPException
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union, Type
 from app.models.db_model import (
     Plugin, PluginCreate, PluginBuild, PluginResponse,
     PluginBuildResponse, BuildStatus, SessionLocal,
-    DeployStatus, PluginDeployment, PluginDeployResponse
+    DeployStatus, PluginDeployment, PluginDeployResponse,
+    WorkflowBuild
 )
-from app.builder.deploy import PluginDeployer
+from app.builder.deploy_tool import PluginDeployer
 from app.builder.logger import get_logger, configure_logging
 
 configure_logging()
 logger = get_logger(__name__)
 
 
-def get_build_record_or_404(build_id: str, db: Session):
-    build_record = db.query(PluginBuild).filter(PluginBuild.build_id == build_id).first()
+def get_build_record_or_404(build_id: str, db: Session, Build: Type):
+    build_record = db.query(Build).filter(Build.build_id == build_id).first()  # type ignore
     if build_record is None:
         raise HTTPException(status_code=404, detail="Build not found")
 
@@ -34,10 +35,10 @@ def get_object_key_from_s3_path(s3_path: str) -> str:
     return s3_path.replace("s3://", "").split("/", 1)[1]
 
 
-def get_public_url_for_build(build_record: PluginBuild) -> tuple[str, str]:
+def get_public_url_for_build(build_record: Union[PluginBuild, WorkflowBuild], client_name: str) -> tuple[str, str]:
     s3_path = build_record.s3_path
     object_key = get_object_key_from_s3_path(s3_path)
-    minio_client = get_minio_client()
+    minio_client = get_minio_client(client_name)
     url = minio_client.get_public_url(object_key)
     return url, s3_path
 

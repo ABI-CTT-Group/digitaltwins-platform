@@ -34,6 +34,7 @@ class Plugin(Base):
     __tablename__ = "plugins"
 
     id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    uuid = Column(String, unique=True, nullable=True)
     name = Column(String, index=True, nullable=False)
     version = Column(String, nullable=False)
     description = Column(Text, nullable=True)
@@ -51,6 +52,7 @@ class Plugin(Base):
 
     builds = relationship("PluginBuild", back_populates="plugin", cascade="all, delete-orphan")
     deployments = relationship("PluginDeployment", back_populates="plugin", cascade="all, delete-orphan")
+    annotation = relationship("PluginAnnotation", back_populates="plugin", uselist=False, cascade="all, delete-orphan")
 
 
 class PluginBuild(Base):
@@ -88,6 +90,67 @@ class PluginDeployment(Base):
     plugin = relationship("Plugin", back_populates="deployments")
 
 
+class PluginAnnotation(Base):
+    __tablename__ = "plugin_annotations"
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    plugin_id = Column(String, ForeignKey("plugins.id"), nullable=False)
+    annotation_id = Column(String, unique=True, index=True, nullable=False)
+    sparc_note = Column(String, nullable=True)
+    fhir_note = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    plugin = relationship("Plugin", back_populates="annotation", uselist=False)
+
+
+class Workflow(Base):
+    __tablename__ = "workflows"
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    uuid = Column(String, unique=True, nullable=True)
+    name = Column(String, index=True, nullable=False)
+    version = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    author = Column(String, nullable=True)
+    repository_url = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    builds = relationship("WorkflowBuild", back_populates="workflow", cascade="all, delete-orphan")
+    annotation = relationship("WorkflowAnnotation", back_populates="workflow", uselist=False,
+                              cascade="all, delete-orphan")
+
+
+class WorkflowBuild(Base):
+    __tablename__ = "workflow_builds"
+
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    workflow_id = Column(String, ForeignKey("workflows.id"), nullable=False)
+    build_id = Column(String, unique=True, index=True, nullable=False)
+    status = Column(String, default=BuildStatus.PENDING.value, nullable=False)
+    build_logs = Column(Text, nullable=True)
+    error_messages = Column(Text, nullable=True)
+    s3_path = Column(String, nullable=True)
+    expose_name = Column(String, nullable=True)
+    dataset_path = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    workflow = relationship("Workflow", back_populates="builds")
+
+
+class WorkflowAnnotation(Base):
+    __tablename__ = "workflow_annotations"
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    workflow_id = Column(String, ForeignKey("workflows.id"), nullable=False)
+    annotation_id = Column(String, unique=True, index=True, nullable=False)
+    fhir_note = Column(String, nullable=True)
+    sparc_note = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    workflow = relationship("Workflow", back_populates="annotation", uselist=False)
+
+
 class PluginBase(BaseModel):
     name: str
     version: str
@@ -115,6 +178,7 @@ class PluginUpdate(PluginBase):
 
 class PluginResponse(PluginBase):
     id: str
+    uuid: Optional[str] = None
     plugin_metadata: Optional[dict] = None
     created_at: datetime
     updated_at: datetime
@@ -123,7 +187,7 @@ class PluginResponse(PluginBase):
         from_attributes = True
 
 
-class PluginBuildBase(BaseModel):
+class BuildBase(BaseModel):
     build_id: Optional[str] = None
     status: Optional[str] = BuildStatus.PENDING.value
     build_logs: Optional[str] = None
@@ -131,14 +195,14 @@ class PluginBuildBase(BaseModel):
     s3_path: Optional[str] = None
 
 
-class PluginBuildUpdate(BaseModel):
+class BuildUpdate(BaseModel):
     status: Optional[str] = None
     build_logs: Optional[str] = None
     error_messages: Optional[str] = None
     s3_path: Optional[str] = None
 
 
-class PluginBuildResponse(PluginBuildBase):
+class PluginBuildResponse(BuildBase):
     id: str
     plugin_id: str
     build_id: str
@@ -164,6 +228,76 @@ class PluginDeployResponse(PluginDeployBase):
     deploy_id: str
     status: str
     up: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PluginAnnotationBase(BaseModel):
+    fhir_note: Optional[str] = None
+    sparc_note: Optional[str] = None
+
+
+class PluginAnnotationCreate(PluginAnnotationBase):
+    pass
+
+
+class PluginAnnotationResponse(PluginAnnotationBase):
+    id: str
+    annotation_id: str
+    fhir_note: str
+    sparc_note: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class WorkflowBase(BaseModel):
+    name: str
+    version: str
+    repository_url: str
+    description: Optional[str] = None
+    author: Optional[str] = None
+
+
+class WorkflowCreate(WorkflowBase):
+    pass
+
+
+class WorkflowResponse(WorkflowBase):
+    id: str
+    uuid: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class WorkflowBuildResponse(BuildBase):
+    id: str
+    workflow_id: str
+    build_id: str
+    status: str
+    expose_name: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class WorkflowAnnotationBase(BaseModel):
+    workflow_id: str
+
+
+class WorkflowAnnotationResponse(WorkflowAnnotationBase):
+    id: str
+    workflow_id: str
+    note: Optional[str]
     created_at: datetime
     updated_at: datetime
 

@@ -1,30 +1,32 @@
 <template>
-<div class="layout d-flex flex-column align-center">
-    <div >
-      <SimpleInfoCard
-            :herf="cards[0].herf"
-            :title="cards[0].title"
-            :description="cards[0].description"
-        />
-    </div>
+<div class="layout overflow-y-auto d-flex flex-column align-center justify-center ">
 
-    <v-row
-      class="d-flex justify-center align-center flex-wrap mt-8 sub-card-row"
-      no-gutters
+  <div class="d-flex justify-center align-center mb-12">
+    <SimpleInfoCard
+      :herf="cards[0].herf"
+      :title="cards[0].title"
+      :description="cards[0].description"
+    />
+  </div>
+
+  <div
+    class="d-flex justify-center align-center flex-wrap sub-card-row"
+    style="gap: 2rem;"  
+  >
+    <div
+      v-for="(card, i) in cards.slice(1)"
+      :key="i"
+      class="d-flex justify-center"
     >
-      <div
-        v-for="(card, i) in cards.slice(1)"
-        :key="i"
-        class="tech-card neon-border mx-8 my-6"
-      >
-        <SimpleInfoCard
-            :herf="card!.herf"
-            :title="card!.title"
-            :description="card!.description"
-        />
-      </div>
-    </v-row>
+      <SimpleInfoCard
+        :herf="card.herf"
+        :title="card.title"
+        :description="card.description"
+      />
+    </div>
+  </div>
 </div>
+
 </template>
 
 <script setup lang="ts">
@@ -45,7 +47,7 @@ const cards =[
     {
         title: 'Upload workflow',
         description: 'Upload a new workflow to the platform.',
-        herf: '#'
+        herf: 'UploadWorkflowDataset'
     },
      {
         title: 'Workflow assembler',
@@ -59,6 +61,17 @@ const cards =[
 <style scoped>
 .layout {
     width: 100%;
+    height: 100%;
     padding-top: 100px;
 }
+.sub-card-row {
+  gap: 1.5rem;
+}
+
+@media (max-width: 960px) {
+  .sub-card-row {
+    gap: 1rem;
+  }
+}
+
 </style>

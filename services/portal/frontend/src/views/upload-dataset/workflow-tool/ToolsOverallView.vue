@@ -19,35 +19,11 @@
         </div>
         
         <div class="d-flex flex-column w-100 my-2 pa-5 border-sm rounded tool-conatiner">
-            <div class="d-flex justify-space-between w-100 header px-2 py-5">
-                <v-text-field
-                    v-model="search"
-                    label="Search workflow tools"
-                    variant="outlined"
-                    prepend-inner-icon="mdi-magnify"
-                    clearable
-                    hide-details
-                />
-                <v-btn
-                    :text="'search'"
-                    variant="tonal"
-                    :width="150"
-                    rounded="md"
-                    class="hover-animate ma-2"
-                    @click="handleSearch"
-                ></v-btn>
-            </div>
-            <div class="d-flex justify-end">
-                <v-btn
-                    color="blue"
-                    :text="'refresh'"
-                    variant="tonal"
-                    :width="150"
-                    rounded="md"
-                    class="hover-animate ma-2"
-                    @click="handleRefresh"
-                ></v-btn>
-            </div>
+            <Search 
+                :label="'Search workflow tools'"
+                v-model:search="search"
+                @on:search="handleSearch" />
+            <Refresh @on:refresh="handleRefresh"/>
             <div class="d-flex flex-grow-1">
                 <div v-if="displayTools.length > 0" class="d-flex flex-wrap ga-10 pa-5 justify-start">
                     <ToolCard
@@ -63,14 +39,7 @@
                         @submit-approve="(id:string) => handleToolApproval(id)"
                     />
                 </div>
-                <div v-else class="w-100 flex-grow-1 d-flex flex-column justify-center align-center">
-                    <v-icon size="64" color="yellow-darken-1">mdi-database-off</v-icon>
-                    <h2 class="mt-4">No data available</h2>
-                    <p class="text-grey">
-                        It seems there is nothing to display here. Try refreshing or check back later.
-                    </p>
-                </div>
-                
+                <NoData v-else />
             </div>
         </div>
         </v-card>
@@ -85,6 +54,9 @@ import { PluginResponse, PluginMinIOToolMetadata } from '@/models/uiTypes';
 import { useRemoteAppStore } from '@/store/remoteStore'
 import { useRouter } from 'vue-router'
 import Fuse from "fuse.js";
+import NoData from '../components/NoData.vue';
+import Search from '../components/Search.vue';
+import Refresh from "../components/Refresh.vue";
 
 const router = useRouter();
 const remoteAppStore = useRemoteAppStore();
@@ -241,14 +213,6 @@ onUnmounted(() => {
   min-height: 32px !important;  
   padding-top: 0 !important;
   padding-bottom: 0 !important;
-}
-.shadow-card {
-    background: rgba(255, 245, 200, 0.15); 
-    border-radius: 10px !important;
-    box-shadow: 
-        0 0 10px rgba(255, 230, 150, 0.6),  
-        0 0 10px rgba(255, 220, 120, 0.5),  
-        inset 0 0 10px rgba(255, 235, 180, 0.3) !important; 
 }
 .tool-conatiner{
     min-height: 50vh;

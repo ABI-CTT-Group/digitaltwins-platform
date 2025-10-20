@@ -15,9 +15,11 @@ import Layout from "@/layouts/Default.vue";
 import LaunchedAssayOverview from "@/views/dashboard/study-dashboard/assay-overview.vue";
 import UploadDataset from "@/views/upload-dataset/index.vue";
 import UploadToolDataset from "@/views/upload-dataset/workflow-tool/index.vue";
+import UploadWorkflowDataset from "@/views/upload-dataset/workflow/index.vue";
 import PluginHome from "@/views/toolPlugin/index.vue";
 import ToolPluginView from "@/views/toolPlugin/tool-plugin-view.vue";
-import path from "path";
+
+
 const routes = [
   {
     path: "/",
@@ -74,6 +76,11 @@ const routes = [
                 path: "/upload-tool-dataset",
                 name: "UploadToolDataset",
                 component: UploadToolDataset,
+              },
+              {
+                path: "/upload-workflow-dataset",
+                name: "UploadWorkflowDataset",
+                component: UploadWorkflowDataset,
               },
             ]
           },

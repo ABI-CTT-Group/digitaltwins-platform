@@ -1,7 +1,7 @@
 <template>
     <div class="container w-screen h-screen d-flex flex-column align-center overflow-hidden">
         <BackIcon/>
-        <div class="main-container overflow-y-auto d-flex align-center">
+        <div class="main-container ">
             <router-view/>
         </div>
     </div>

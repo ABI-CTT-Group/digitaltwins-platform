@@ -1,0 +1,148 @@
+<template>
+    <v-container class="d-flex align-center justify-center">
+        <v-card
+            class="pa-6 responsive-box d-flex flex-column align-center justify-center"
+            elevation="12"
+            style="background: rgba(15, 25, 35, 0.45); border-radius: 20px;"
+        >
+        <div class="w-100 d-flex justify-start">
+            <v-btn
+                color="pink"
+                :text="'Register a new workflow'"
+                variant="tonal"
+                :width="350"
+                rounded="md"
+                prepend-icon="mdi-plus-circle-outline"
+                class="hover-animate my-2"
+                @click="handleRegister"
+            ></v-btn>
+        </div>
+        
+        <div class="d-flex flex-column w-100 my-2 pa-5 border-sm rounded tool-conatiner">
+            <Search 
+                :label="'Search workflows'"
+                v-model:search="search"
+                @on:search="handleSearch" />
+            <Refresh @on:refresh="handleRefresh"/>
+            <div class="d-flex flex-grow-1">
+                <div v-if="displayWorkflows.length > 0" class="d-flex flex-wrap ga-10 pa-5 justify-start">
+                    <WorkflowCard
+                        v-for="w in displayWorkflows"
+                        :key="w.id" 
+                        :workflow="w"
+                        @delete="(id:string) => handleDeleteTool(id)"
+                        @submit-approve="(id:string) => handleToolApproval(id)"
+                    />
+                </div>
+                <NoData v-else />
+            </div>
+        </div>
+        </v-card>
+    </v-container>
+</template>
+
+<script setup lang="ts">
+import { ref, onBeforeMount, watch, onUnmounted } from "vue"
+import WorkflowCard from "./components/WorkflowCard.vue"
+import { useWorkflow } from '@/plugins/workflow_api';
+import { IWrokflowResponse } from '@/models/uiTypes';
+import { useRouter } from 'vue-router'
+import Fuse from "fuse.js";
+import NoData from '@/views/upload-dataset/components/NoData.vue';
+import Search from '@/views/upload-dataset/components/Search.vue';
+import Refresh from "@/views/upload-dataset/components/Refresh.vue";
+
+const router = useRouter();
+
+const emit = defineEmits(["register"]);
+const search = ref("");
+const workflows = ref<Array<IWrokflowResponse>>([]);
+const displayWorkflows = ref<Array<IWrokflowResponse>>([]);
+
+onBeforeMount(async ()=>{
+    await handleRefresh()
+})
+
+watch(search,(newVal, oldVal)=>{
+    if(!newVal){
+        displayWorkflows.value = workflows.value;
+    }
+})
+
+
+
+const handleRefresh = async () => {
+    workflows.value = displayWorkflows.value = await useWorkflow()
+}
+
+const handleSearch = ()=>{
+    if(!search.value){
+        return
+    }
+    const fuse = new Fuse(workflows.value, {
+        keys: ["name"],   
+        threshold: 0.4    
+    });
+    displayWorkflows.value = fuse.search(search.value).map(r => r.item)
+}
+const handleRegister = ()=>{
+    emit("register")
+}
+
+
+const handleDeleteTool = async (id: string) =>{
+    // const res = await useDeleteTool(id)
+    // if(!!res){
+    //     await handleRefresh()
+    // }
+}
+
+const handleToolApproval = async (id: string) => {
+    // Call the API to submit the tool for approval
+    // try {
+    //     const res = await useToolApproval(id);
+    //     if (res) {
+    //         alert('Tool submitted for approval successfully.');
+    //     } else {
+    //         alert('Failed to submit tool for approval.');
+    //     }
+    // } catch (error) {
+    //     console.error('Error submitting tool for approval:', error);
+    //     alert('An error occurred while submitting the tool for approval.');
+    // }
+}
+
+</script>
+
+<style scoped>
+.responsive-box {
+  width: 90% !important;
+}
+
+@media (min-width: 2100px) {
+  .responsive-box {
+    width: 75% !important;
+  }
+}
+.header {
+    background: rgba(3, 252, 252, 0.05); 
+    border-radius: 10px !important;
+}
+.subtitle {
+  font-size: 14px;
+  color: #666;
+  white-space: nowrap;    
+  overflow: hidden;        
+  text-overflow: ellipsis;   
+}
+.v-list-item {
+  min-height: 32px !important;  
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.tool-conatiner{
+    min-height: 50vh;
+}
+
+</style>

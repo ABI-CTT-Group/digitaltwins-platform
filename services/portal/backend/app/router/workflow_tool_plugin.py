@@ -17,11 +17,13 @@ import requests
 from app.models.db_model import (
     Plugin, PluginCreate, PluginBuild, PluginResponse,
     PluginBuildResponse, BuildStatus, SessionLocal,
-    DeployStatus, PluginDeployment, PluginDeployResponse
+    DeployStatus, PluginDeployment, PluginDeployResponse,
+    PluginAnnotationBase, PluginAnnotationResponse, PluginAnnotationCreate,
+    PluginAnnotation
 )
 from app.builder.logger import get_logger, configure_logging
-from app.builder.build import PluginBuilder
-from app.builder.deploy import PluginDeployer
+from app.builder.build_tool import PluginBuilder
+from app.builder.deploy_tool import PluginDeployer
 from app.client.minio import get_minio_client
 from app.client.fhir import get_fhir_adapter
 
@@ -35,7 +37,6 @@ from app.utils.workflow_tool_utils import (
 from uuid import UUID
 from app.utils.utils import force_rmtree
 from fhir_cda import Annotator
-from pprint import pprint
 
 configure_logging()
 logger = get_logger(__name__)
@@ -45,6 +46,11 @@ deployer = PluginDeployer()
 minio = get_minio_client()
 adapter = get_fhir_adapter()
 
+
+@router.get("/", response_model=List[PluginResponse])
+async def get_plugins(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    plugins = db.query(Plugin).offset(skip).limit(limit).all()
+    return plugins
 
 @router.get("/check-name")
 async def check_name(name: str, db: Session = Depends(get_db)):
@@ -56,6 +62,7 @@ async def check_name(name: str, db: Session = Depends(get_db)):
 
 @router.post("/create", response_model=PluginResponse)
 async def create_tool_plugin(plugin: PluginCreate, db: Session = Depends(get_db)):
+
     db_plugin = Plugin(**plugin.model_dump())
     db.add(db_plugin)
     db.commit()
@@ -63,10 +70,25 @@ async def create_tool_plugin(plugin: PluginCreate, db: Session = Depends(get_db)
     return db_plugin
 
 
-@router.get("/", response_model=List[PluginResponse])
-async def get_plugins(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    plugins = db.query(Plugin).offset(skip).limit(limit).all()
-    return plugins
+@router.post("/plugin/{plugin_id}/annotation", response_model=PluginAnnotationResponse)
+async def create_tool_annotation(plugin_id: str, annotation: PluginAnnotationCreate, db: Session = Depends(get_db)):
+    plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
+    if plugin is None:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    annotation_id = str(uuid.uuid4())
+
+    db_annotation = PluginAnnotation(
+        plugin_id=plugin.id,
+        annotation_id=annotation_id,
+        fhir_note=annotation.fhir_note,
+        sparc_note=annotation.sparc_note
+    )
+
+    db.add(db_annotation)
+    db.commit()
+    db.refresh(db_annotation)
+    return db_annotation
+
 
 
 @router.get("/plugin/{plugin_id}", response_model=PluginResponse)
@@ -119,11 +141,13 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
                 logger.info(f"Deleting plugin {plugin_id} successfully, and metadata updated successfully.")
                 return {"status": True, "message": "Plugin deleted successfully, and metadata updated successfully."}
             else:
-                logger.info(f"Deleting plugin {plugin_id} successfully. and there is no tool component information in metadata.json")
+                logger.info(
+                    f"Deleting plugin {plugin_id} successfully. and there is no tool component information in metadata.json")
                 return {"status": True,
                         "message": "Plugin deleted successfully and no longer found in the metadata file."}
         except Exception as e:
-            logger.info(f"Deleting plugin {plugin_id} successfully, but not find the metadata.json file in Minio, failed due to {e}")
+            logger.info(
+                f"Deleting plugin {plugin_id} successfully, but not find the metadata.json file in Minio, failed due to {e}")
             return {"status": True, "message": str(e)}
     except Exception as e:
         logger.info("Deleting plugin failed due to exception {}".format(e))
@@ -236,6 +260,15 @@ async def get_plugin_builds(plugin_id: str, skip: int = 0, limit: int = 100, db:
     builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).offset(skip).limit(limit).all()
     return builds
 
+@router.get("/plugin/{plugin_id}/annotation", response_model=PluginAnnotationResponse)
+async def get_plugin_annotations(plugin_id: str, db: Session = Depends(get_db)):
+    plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first() # type: ignore
+    if plugin is None:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    annotation = db.query(PluginAnnotation).filter(PluginAnnotation.plugin_id == plugin.id).all()
+    if len(annotation) == 0:
+        raise HTTPException(status_code=404, detail="Annotation not found")
+    return annotation[0]
 
 @router.get("/plugin/{plugin_id}/deploy")
 async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = None, db: Session = Depends(get_db)):
@@ -400,8 +433,8 @@ async def get_build_download_url(build_id: str, db: Session = Depends(get_db)):
     """Get a presigned download URL for a build's artifacts"""
 
     try:
-        build_record = get_build_record_or_404(build_id, db)
-        url, s3_path = get_public_url_for_build(build_record)
+        build_record = get_build_record_or_404(build_id, db, PluginBuild)
+        url, s3_path = get_public_url_for_build(build_record, "workflow-tools")
 
         return {
             "build_id": build_id,
@@ -417,8 +450,8 @@ async def get_build_download_url(build_id: str, db: Session = Depends(get_db)):
 async def get_build_direct_url(build_id: str, db: Session = Depends(get_db)):
     """Get a direct public URL for a build's artifacts (no expiration)"""
     try:
-        build_record = get_build_record_or_404(build_id, db)
-        url, s3_path = get_public_url_for_build(build_record)
+        build_record = get_build_record_or_404(build_id, db, PluginBuild)
+        url, s3_path = get_public_url_for_build(build_record, "workflow-tools")
 
         return {
             "build_id": build_id,
@@ -452,7 +485,7 @@ async def get_test_build_info():
 @router.get("/metadata")
 async def get_metadata_json():
     try:
-        obj = minio.client.get_object(Bucket=os.getenv("MINIO_BUCKET_NAME", "workflow-tools"), Key="metadata.json")
+        obj = minio.get_object("metadata.json")
         data = obj['Body'].read().decode('utf-8')
         return json.loads(data)
     except ClientError as e:
@@ -464,7 +497,7 @@ async def get_metadata_json():
 @router.get("/get-file/{object_key:path}")
 async def get_file(object_key: str):
     try:
-        obj = minio.client.get_object(Bucket=os.getenv("MINIO_BUCKET_NAME", "workflow-tools"), Key=object_key)
+        obj = minio.get_object(object_key)
         return StreamingResponse(obj['Body'], media_type="application/octet-stream")
     except ClientError:
         raise HTTPException(status_code=404, detail=f"File not found: {object_key}")

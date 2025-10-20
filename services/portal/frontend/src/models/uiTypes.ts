@@ -125,3 +125,79 @@ export interface PluginExcuteBuildResponse {
     message: string,
     repo_url: string
 }
+
+export interface GitContent {
+    name: string;
+    path:string;
+    download_url:string;
+    git_url:string;
+    html_url:string;
+    sha:string;
+    size:number;
+    type:string;
+    url:string;
+    _links: {
+        git:string;
+        html:string;
+        self:string;
+    }
+}
+
+export interface IWorkflowInformationStep {
+    name: string;
+    version: string;
+    repository_url: string;
+    description?: string ;
+    author?: string;
+}
+
+export interface IWrokflowResponse {
+    id: string;
+    name: string;
+    version: string;
+    repository_url: string;
+    description?: string;
+    author?: string;
+    created_at: string;
+    updated_at: string;
+    [key:string]:any;
+}
+
+interface IAnnotateToolInput{
+  name:string;
+  resource: "Observation" | "ImagingStudy" | "DocumentReference" | ""
+}
+interface IAnnotateToolOutput extends IAnnotateToolInput{
+  code: string; 
+  system: string; 
+  unit: string;
+}
+
+export interface IAnnotateTool {
+  name: string;
+  inputs: Array<IAnnotateToolInput>;
+  outputs: Array<IAnnotateToolOutput>;
+}
+
+export interface IAnnotation {
+    fhir_note: string;
+    sparc_note: string;
+}
+
+export interface IAnnotationResponse {
+  id:string;
+  annotation_id:string;
+  fhir_note:string;
+  sparc_note:string;
+  created_at:string;
+  updated_at:string;
+}
+
+export interface IWorkflowStepAnnotation {
+    id:string;
+    uuid:string;
+    name:string;
+    tool_fhir_note?:{
+       [key:string]:any; 
+    };
+}

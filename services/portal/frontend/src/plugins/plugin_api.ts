@@ -2,12 +2,14 @@ import http from "./http";
 import { AxiosError } from "axios";
 import { 
   IToolInformationStep, 
+  IAnnotation,
   CheckNameResponse, 
   PluginResponse, 
   PluginBuildResponse, 
   PluginDeployResponse,
   PluginMinIOMetadata,
-  PluginExcuteBuildResponse} from "@/models/uiTypes";
+  PluginExcuteBuildResponse,
+  IAnnotationResponse} from "@/models/uiTypes";
 
 
    
@@ -34,6 +36,11 @@ export async function useCheckPluginName(name: string): Promise<CheckNameRespons
 
 export async function useCreateToolPlugin(plugin:IToolInformationStep) {
     const createPluginResponse = http.post<PluginResponse>("/workflow-tools/create", plugin)
+    return createPluginResponse
+}
+
+export async function useCreateToolPluginAnnotation(id:string, annotation:IAnnotation) {
+    const createPluginResponse = http.post<IAnnotationResponse>(`/workflow-tools/plugin/${id}/annotation`, annotation)
     return createPluginResponse
 }
 
@@ -113,5 +120,10 @@ export async function useDockerCompose(deploy_id:string, command:"up"|"down") {
 
 export async function useGetDockerComposeStatus(deploy_id:string) {
   const res = http.get<boolean>(`/workflow-tools/check/deploy/${deploy_id}/`)
+  return res;
+}
+
+export async function useGetWorkflowToolAnnotation(id:string){
+  const res = http.get<IAnnotationResponse>(`/workflow-tools/plugin/${id}/annotation`)
   return res;
 }

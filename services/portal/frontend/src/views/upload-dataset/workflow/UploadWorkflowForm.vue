@@ -5,8 +5,8 @@
             elevation="12"
             style="background: rgba(15, 25, 35, 0.45); border-radius: 20px;"
         >
-        <h2 class="w-100 text-center my-3">New Workflow Tool</h2>
-        <v-stepper v-model="step" alt-labels editable class="sheet-stepper" >
+        <h2 class="w-100 text-center my-3">New Workflow</h2>
+        <v-stepper v-model="step" alt-labels class="sheet-stepper" >
             <!-- Step Headers -->
             <v-stepper-header>
                 <v-stepper-item
@@ -21,23 +21,14 @@
                     :value="2"
                     color="cyan-lighten-1"
                     :complete="step > 2"
-                    :editable="step > 1"
-                ></v-stepper-item>
-                <v-divider></v-divider>
-                <v-stepper-item
-                    title="Build & Test"
-                    :value="3"
-                    color="cyan-lighten-1"
-                    :complete="step > 3"
-                    :editable="step > 2"
                 ></v-stepper-item>
                 <v-divider></v-divider>
                 <v-stepper-item
                     title="Complete"
-                    :value="4"
+                    :value="3"
                     color="cyan-lighten-1"
                     :editable="false"
-                    :complete="step > 4"
+                    :complete="step > 3"
                 ></v-stepper-item>
             </v-stepper-header>
 
@@ -45,25 +36,19 @@
             <v-stepper-window>
                 <v-stepper-window-item :value="1">
                     <v-card class="pa-4" variant="outlined" color="grey-lighten-2">
-                        <ToolInfomationStep @submit="handleSubmit" @cancel="handleCancel"/>
+                        <WorkflowInfomationStep @submit="handleSubmit" @cancel="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
 
                 <v-stepper-window-item :value="2">
                     <v-card class="pa-4" variant="outlined" color="grey-lighten-2">
-                        <ToolAnnotateStep :tool="tool" @annotation-submit="handleAnnotation" @close="handleCancel"/>
+                        <WorkflowAnnotateStep :workflow="workflow" @annotation-submit="handleAnnotation" @close="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
 
                 <v-stepper-window-item :value="3">
                     <v-card class="pa-4" variant="tonal" color="cyan-darken-4">
-                        <ToolBuildStep :tool="tool" @build="handleBuild" @close="handleCancel"/>
-                    </v-card>
-                </v-stepper-window-item>
-
-                <v-stepper-window-item :value="4">
-                    <v-card class="pa-4" variant="tonal" color="cyan-darken-4">
-                        <ToolCompleteStep :tool="tool" @done="handleCancel"/>
+                        <WorkflowCompleteStep :workflow="workflow" @done="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
             </v-stepper-window>
@@ -73,35 +58,27 @@
 </template>
 
 <script setup lang="ts">
-import ToolInfomationStep from './components/ToolInfomationStep.vue';
-import ToolBuildStep from './components/ToolBuildStep.vue';
-import ToolCompleteStep from './components/ToolCompleteStep.vue';
-import ToolAnnotateStep from './components/ToolAnnotateStep.vue';
-import { PluginResponse, IToolInformationStep, IAnnotateTool} from '@/models/uiTypes';
-import { useCreateToolPlugin, useWorkflowToolBuild, useCreateToolPluginAnnotation } from '@/plugins/plugin_api'
+import WorkflowInfomationStep from './components/WorkflowInfomationStep.vue';
+import WorkflowAnnotateStep from './components/WorkflowAnnotateStep.vue';
+import WorkflowCompleteStep from './components/WorkflowCompleteStep.vue';
+import { PluginResponse, IWorkflowInformationStep, IWrokflowResponse, IAnnotation} from '@/models/uiTypes';
+import { useCreateWorkflow, useCreateWorkflowAnnotation } from '@/plugins/workflow_api'
 import { ref, watch } from "vue";
 
 const emit = defineEmits(['finished'])
 const step = ref(0);
-const tool = ref<PluginResponse>()
+const  workflow = ref<IWrokflowResponse>()
 
-const handleSubmit = async (data:IToolInformationStep)=>{
-    tool.value = await useCreateToolPlugin(data)
+const handleSubmit = async (data:IWorkflowInformationStep)=>{
+    workflow.value  = await useCreateWorkflow(data)
+
     step.value += 1;
 }
 
-const handleAnnotation = async (id:string, data:IAnnotateTool) =>{
-
-    const res = await useCreateToolPluginAnnotation(id, {
-        fhir_note: JSON.stringify(data),
-        sparc_note: ""
-    })
+const handleAnnotation = async (id:string, annotation:IAnnotation)=>{
+    const a = await useCreateWorkflowAnnotation(id, annotation)
+    console.log(a);
     
-    step.value += 1;
-}
-
-const handleBuild = async (id:string)=>{
-    await useWorkflowToolBuild(id)
     step.value += 1;
 }
 

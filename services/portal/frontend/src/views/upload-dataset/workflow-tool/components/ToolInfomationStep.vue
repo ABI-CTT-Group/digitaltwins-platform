@@ -1,7 +1,7 @@
 <template>
     <v-alert
         v-show="showAlert"
-        text="Some required fields are missing. Please provide your GitHub repository, workflow tool name, build command, and, if the tool includes a backend, fill in the frontend and backend folder details."
+        :text="alertText"
         title="Required Fields Missing"
         type="error"
     ></v-alert>
@@ -21,59 +21,18 @@
                 <v-radio color="success" label="CWL Script" value="Script" class="ml-2"></v-radio>
             </v-radio-group>  
 
-            <h4 class="my-2">Source Url *</h4>
-            <v-text-field
-                v-model="toolInfomationFormData.repository_url"
-                :rules="sourceUrlRules"
-                label="Git repository URL"
-                placeholder="https://github.com/user/repo.git"
-                required
-                @blur="onBlur"
-                clearable
-            ></v-text-field>
-            <div class="d-flex flex-row">
-                <div class="w-100">
-                    <h4 class="my-2">Plugin Name *</h4>
-                    <v-text-field
-                        v-model="toolInfomationFormData.name"
-                        label="My Workflow Tool Name"
-                        clearable
-                        @blur="onNameBlur"
-                        :rules="pluginNameRules"
-                        required
-                        :error-messages="(!!nameErr && !nameErr.available) ? nameErr.message : ''"
-                    ></v-text-field>
-                </div>
-                <div class="w-100 mx-3" >
-                    <h4 class="my-2">Author</h4>
-                    <v-text-field
-                        v-model="toolInfomationFormData.author"
-                        label="Your Name"
-                        clearable
-                    ></v-text-field>
-                </div>
-                <div class="w-100">
-                    <h4 class="my-2">Version</h4>
-                    <v-text-field
-                        v-model="toolInfomationFormData.version"
-                        :rules="versionRules"
-                        required
-                        bg-color="cyan-darken-4"  
-                        variant="solo"
-                        readonly
-                    ></v-text-field>
-                </div>
-            </div>
-            <div class="w-100">
-                <h4 class="my-2">Description</h4>
-                <v-textarea
-                    v-model="toolInfomationFormData.description"
-                    placeholder="Brief description of your workflow tool..."
-                    rows="2"
-                    counter
-                    clearable
-                    ></v-textarea>
-            </div>
+            <CommonInfoForm
+                :cwl-repo-err="cwlRepoErr"
+                :name-err="nameErr"
+                v-model:repository_url="toolInfomationFormData.repository_url"
+                v-model:name="toolInfomationFormData.name"
+                v-model:author="toolInfomationFormData.author"
+                v-model:version="toolInfomationFormData.version"
+                v-model:description="toolInfomationFormData.description"
+                v-model:policy-checkbox="policyCheckbox"
+                @onSoundUrlBlur="onRepoBlur"
+                @onNameBlur="onNameBlur"
+           >
 
             <!-- GUI Plugin -->
             <div v-if="toolInfomationFormData.label === 'GUI'" class="w-100">
@@ -126,26 +85,7 @@
                     </div>
                 </div>
             </div>
-            
-             <v-checkbox
-                    v-model="policyCheckbox"
-                    :rules="[v => !!v || 'You must agree to continue!']"
-                    required
-            >
-                <template v-slot:label>
-                    I agree to the&nbsp;
-                    <a
-                        href="#"
-                        @click.stop.prevent=""
-                    >Terms of Service</a>
-                    &nbsp;and&nbsp;
-                    <a
-                        href="#"
-                        @click.stop.prevent=""
-                    >Privacy Policy</a>*
-                </template>
-            </v-checkbox>
-            
+            </CommonInfoForm>
         </v-form>
         <v-divider class="mb-5" :thickness="3"></v-divider>
         <div class="d-flex flex-row justify-center">
@@ -174,31 +114,18 @@
 <script setup lang="ts">
 import axios from 'axios'
 import { ref, watch, reactive, watchEffect} from 'vue'
-import { debounce } from "lodash"
 import { IToolInformationStep, CheckNameResponse } from '@/models/uiTypes'
 import { useCheckPluginName } from '@/plugins/plugin_api'
-
-interface GitContent {
-    name: string;
-    path:string;
-    download_url:string;
-    git_url:string;
-    html_url:string;
-    sha:string;
-    size:number;
-    type:string;
-    url:string;
-    _links: {
-        git:string;
-        html:string;
-        self:string;
-    }
-}
+import CommonInfoForm from '@/views/upload-dataset/components/CommonInfoForm.vue'
+import { getRepoNameFromUrl, getRepoAuthorFromUrl, getRepoContents, convertToApiUrl} from '@/views/upload-dataset/components/utils'
+import { GitContent } from '@/models/uiTypes'
 
 const emit = defineEmits(["cancel", "submit"])
 const form = ref()
 const policyCheckbox = ref(false)
 const showAlert = ref(false)
+const cwlCheck = ref(true);
+const alertText = ref("")
 const toolInfomationFormData = reactive<IToolInformationStep>({
     label: "GUI",
     repository_url:"",
@@ -216,22 +143,12 @@ const toolInfomationFormData = reactive<IToolInformationStep>({
 const nameErr = ref<CheckNameResponse>()
 const frontendFolderErr = ref<CheckNameResponse>()
 const backendFolderErr = ref<CheckNameResponse>()
+const cwlRepoErr = ref<CheckNameResponse>()
+
 const foldersInRootRepo = ref<string[]>([])
-const githubRepoRegex = /^(https:\/\/github\.com\/[\w.-]+\/[\w.-]+)(\.git)?$|^(git@github\.com:[\w.-]+\/[\w.-]+)(\.git)?$/;
-const semverRegex = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
 const frontendCommandRegex = /^(npm|yarn)\s+\S+/
 
-const sourceUrlRules = ref([
-    (v:string) => !!v || 'Source URL is required',
-    (v:string)  => githubRepoRegex.test(v) || 'Must be a valid GitHub repository URL',
-])
-const pluginNameRules = ref([
-    (v:string) => !!v || 'Workflow tool name is required',
-])
-const versionRules = ref([
-    (v:string) => !!v || 'Version is required',
-    (v:string) => semverRegex.test(v) || 'Version should be semantic versioning (e.g., 1.0.0)'
-])
+
 const frontendFolderRules = ref([
     (v:string) => toolInfomationFormData.has_backend ? !!v || "Make sure the folder name matches the frontend folder in your tool’s GitHub repo" : true
 ])
@@ -253,10 +170,18 @@ const addGitSuffix = (url:string) => {
 }
 
 const handleLabelChange = () =>{
-    toolInfomationFormData.label == "Script" ? toolInfomationFormData.has_backend = false : null;
+    if (toolInfomationFormData.label === "Script"){
+        toolInfomationFormData.has_backend = false;
+        onRepoBlur();
+
+    }else{
+        cwlCheck.value = false;
+        cwlRepoErr.value = undefined;
+    }
+    showAlert.value = false;
 }
 
-const onBlur = () => {
+const onRepoBlur = () => {
     if (!toolInfomationFormData.repository_url) return
     if (!toolInfomationFormData.repository_url.endsWith('.git')) {
         toolInfomationFormData.repository_url = addGitSuffix(toolInfomationFormData.repository_url);
@@ -269,12 +194,31 @@ const onBlur = () => {
     foldersInRootRepo.value = [];
     getRepoContents(toolInfomationFormData.repository_url).then((res)=>{
         const folders = res!.data as GitContent[];
+        const cwlFilesInRoot: string[] = [];
         folders.forEach((item: GitContent)=>{
             if (item.type == 'dir'){
                 foldersInRootRepo.value.push(item.name)
+            }else if(toolInfomationFormData.label === "Script" && item.type == 'file' && item.name.endsWith(".cwl")){
+                 cwlFilesInRoot.push(item.name);
             }
         })
+        if (toolInfomationFormData.label === "Script"){
+            if (cwlFilesInRoot.length > 0){
+                cwlCheck.value = true;
+                cwlRepoErr.value = {
+                    available: true,
+                    message: ''
+                }
+            }else{
+                cwlCheck.value = false;
+                cwlRepoErr.value = {
+                    available: false,
+                    message: "No CWL files found in the root of the repository."
+                }
+            }
+        }
     }).catch((err) => console.error("Error fetching repo contents:", err));
+
     findPackageJson(toolInfomationFormData.repository_url).then((files)=>{
         if(files.length > 0){
             const packageJsonPath = files[0];
@@ -288,18 +232,6 @@ const onBlur = () => {
     }).catch(console.error)
 }
 
-const getRepoNameFromUrl = (url:string) => {
-  url = url.replace(/\/+$/, "");
-  let name = url.split("/").pop();
-  name = name!.replace(/\.git$/, "");
-  return name;
-}
-
-function getRepoAuthorFromUrl(url:string) {
-  url = url.replace(/\.git$/, "").replace(/\/+$/, "");
-  const parts = url.split("/");
-  return parts[parts.length - 2];
-}
 
 const onNameBlur = async () => {
     // Don't need to check if name is empty
@@ -307,7 +239,6 @@ const onNameBlur = async () => {
 }
 
 const handleFrontendFolderBlur = () => {
-    console.log(foldersInRootRepo.value);
     if (checkFolderNameInRoot(toolInfomationFormData.frontend_folder)){
         frontendFolderErr.value = {
            available: true,
@@ -333,22 +264,6 @@ const handleBackendFolderBlur = () => {
             message: `'${toolInfomationFormData.backend_folder}' is not in your repo folders: [${foldersInRootRepo.value}]`
         }
     }
-}
-
-function convertToApiUrl(repoUrl:string) {
-        repoUrl = repoUrl.replace(/\.git$/, "").replace(/\/$/, "");
-
-        const parts = repoUrl.split("/");
-        const owner = parts[parts.length - 2];
-        const repo = parts[parts.length - 1];
-
-        return `https://api.github.com/repos/${owner}/${repo}`;
-    }
-
-const getRepoContents = async (url:string, path:string ="") => {
-    const rootContentUrl = convertToApiUrl(url) + `/contents/${path}`;
-    const res = await axios.get(rootContentUrl);
-    return res
 }
 
 async function findPackageJson(url:string) {
@@ -384,22 +299,29 @@ watch(()=>toolInfomationFormData.has_backend,(newVal, oldVal)=>{
 async function validate(){
     const { valid } = await form.value.validate();
     onNameBlur();
-    if (toolInfomationFormData.has_backend){
-        handleBackendFolderBlur();
-        handleFrontendFolderBlur();
-        if( 
-            valid && 
-            nameErr.value?.available &&
-            frontendFolderErr.value?.available &&
-            backendFolderErr.value?.available)
-        {
-            return true;
+    if(toolInfomationFormData.label === "GUI"){
+       
+        if (toolInfomationFormData.has_backend){
+            handleBackendFolderBlur();
+            handleFrontendFolderBlur();
+            if( 
+                valid && 
+                nameErr.value?.available &&
+                frontendFolderErr.value?.available &&
+                backendFolderErr.value?.available)
+            {
+                return true;
+            }
+        }else{
+            if( 
+                valid && 
+                nameErr.value?.available)
+            {
+                return true;
+            }
         }
-    }else{
-        if( 
-            valid && 
-            nameErr.value?.available)
-        {
+    }else if(toolInfomationFormData.label === "Script"){
+        if (valid && nameErr.value?.available && cwlCheck.value){
             return true;
         }
     }
@@ -417,6 +339,7 @@ async function handleSubmit() {
         showAlert.value = false
     }else{
         showAlert.value = true
+        alertText.value = "Some required fields are missing. Please provide your GitHub repository, workflow tool name, build command, and, if the tool includes a backend, fill in the frontend and backend folder details."
     }
     
 }

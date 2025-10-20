@@ -5,8 +5,8 @@
                 :title="heroDetail.title"
                 :subtitle="heroDetail.subtitle"/>
 
-            <ToolsOverallView v-if="showOverall" @register="showOverall=false"/>
-            <UploadToolForm v-else @finished="handleUploadFinished"/>
+            <WorkflowsOverallView v-if="showOverall" @register="showOverall=false"/>
+            <UploadWorkflowForm v-else @finished="handleUploadFinished"/>
             
         </div>
     </div>
@@ -14,20 +14,20 @@
 
 <script setup lang="ts">
 import Hero from '@/components/dt-components/Hero.vue';
-import UploadToolForm from './UploadToolForm.vue';
-import ToolsOverallView from './ToolsOverallView.vue';
+import UploadWorkflowForm from './UploadWorkflowForm.vue';
+import WorkflowsOverallView from './WorkflowsOverallView.vue';
 import { ref, computed } from 'vue';
 const showOverall = ref(true);
 const heroDetail = computed(()=>{
     if(showOverall.value){
         return {
-            title:'Workflow Tool Hub',
-            subtitle:'Browse all tools — create, upload, and build Web GUI or CWL Script tools effortlessly, and preview results seamlessly.'
+            title:'Workflow Hub',
+            subtitle:'Explore all tools, design workflows effortlessly using Web GUI or CWL Script components.'
         }
     }else{
         return {
-            title:'Upload & Configure Workflow Tool',
-            subtitle:'From basic setup to build & preview — all in one simple interface.'
+            title:'Upload & Annotate Workflow',
+            subtitle:'Streamline your workflow creation and annotation in one intuitive interface.'
         }
     }
 })
