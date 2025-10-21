@@ -40,28 +40,6 @@ class PluginBuilder:
         self.dataset_dir = Path(dataset_dir)
         self.dataset_dir.mkdir(parents=True, exist_ok=True)
 
-    # def clone_repository(self, repo_url: str, branch: str = "main") -> Path:
-    #     """Clone a git repository to a temporary directory"""
-    #     try:
-    #         clone_dir = self.tmp_dir / f"plugin_build_{uuid.uuid4().hex[:8]}"
-    #         clone_dir.mkdir(exist_ok=True)
-    #         if not repo_url.endswith(".git"):
-    #             repo_url += ".git"
-    #         logger.info(f"Cloning repository {repo_url} to {clone_dir}")
-    #         subprocess.run(
-    #             ["git", "clone", "--branch", branch, repo_url, str(clone_dir)],
-    #             capture_output=True,
-    #             text=True,
-    #             check=True
-    #         )
-    #         logger.info(f"Successfully cloned repository to {clone_dir}")
-    #         return clone_dir
-    #     except subprocess.CalledProcessError as e:
-    #         logger.error(f"Failed to clone repository: {e}")
-    #         logger.error(f"stdout: {e.stdout}")
-    #         logger.error(f"stderr: {e.stderr}")
-    #         raise RuntimeError(f"Git clone failed: {e}")
-
     @staticmethod
     def check_npm_project(project_dir: Path) -> bool:
         """Check if the project directory contains npm project files"""
@@ -234,7 +212,7 @@ class PluginBuilder:
                     if item.name == ".git":
                         continue
                     copy_item(item, code_dir)
-                    if item.is_dir() and item.suffix == ".cwl":
+                    if item.is_file() and item.suffix == ".cwl":
                         shutil.copy2(item, primary_dir / item.name)
                 logger.info(f"Copied cwl artifacts from {project_dir} to {primary_dir}")
 
@@ -385,7 +363,7 @@ class PluginBuilder:
                 f.write(f"{key}={val}\n")
         logger.info(f"Updated env file in {env_path}")
 
-    def build_plugin(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
+    def build(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
         """Complete plugin build process"""
         build_logs = []
         error_message = None

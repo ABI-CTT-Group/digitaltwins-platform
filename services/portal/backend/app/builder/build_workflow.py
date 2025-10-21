@@ -65,7 +65,7 @@ class WorkflowBuilder:
                 if item.name == ".git":
                     continue
                 copy_item(item, code_dir)
-                if item.is_dir() and item.suffix == ".cwl":
+                if item.is_file() and item.suffix == ".cwl":
                     shutil.copy2(item, primary_dir / item.name)
             logger.info(f"Copied cwl artifacts from {project_dir} to {primary_dir}")
 
@@ -84,7 +84,7 @@ class WorkflowBuilder:
             logger.error(f"Failed to create SPARC dataset: {e}")
             raise RuntimeError(f"Failed to create SPARC dataset: {e}")
 
-    def build_workflow(self, workflow: Dict[str, Any]) -> Dict[str, Any]:
+    def build(self, workflow: Dict[str, Any]) -> Dict[str, Any]:
         """Complete plugin build process"""
         build_logs = []
         error_message = None

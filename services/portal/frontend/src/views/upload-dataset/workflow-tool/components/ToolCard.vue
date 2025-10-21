@@ -95,7 +95,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, toRef } from 'vue'
 import { PluginResponse } from '@/models/uiTypes';
-import { useGetDockerComposeStatus } from '@/plugins/plugin_api'
+import { useGetDockerComposeStatus, useDeleteTool } from '@/plugins/plugin_api'
 import CardUI from '../../components/CardUI.vue';
 import { formatDate } from '../../components/utils';
 
@@ -214,10 +214,16 @@ const onDockerComposeDown = () => {
     menu.value = false;
     emit("compose-down", tool.value.latest_deploy_id)
 }
-const onDelete = () => {
+const onDelete = async () => {
     menu.value = false;
     isDeleting.value = true;
-    emit("delete", tool.value.id)
+    const res:any = await useDeleteTool(tool.value.id)
+    
+    if(!res["status"]){
+      isDeleting.value = false;
+      alert("Error: " + res["message"])
+    }
+    emit("delete", res)
 }
 </script>
 

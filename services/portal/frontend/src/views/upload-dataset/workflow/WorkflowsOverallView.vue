@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import { ref, onBeforeMount, watch, onUnmounted } from "vue"
 import WorkflowCard from "./components/WorkflowCard.vue"
-import { useWorkflow } from '@/plugins/workflow_api';
+import { useWorkflow, useDeleteWorkflow } from '@/plugins/workflow_api';
 import { IWrokflowResponse } from '@/models/uiTypes';
 import { useRouter } from 'vue-router'
 import Fuse from "fuse.js";
@@ -58,6 +58,8 @@ const emit = defineEmits(["register"]);
 const search = ref("");
 const workflows = ref<Array<IWrokflowResponse>>([]);
 const displayWorkflows = ref<Array<IWrokflowResponse>>([]);
+const isAnyStatusPending = ref(false);
+let refreshInterval: number | undefined;
 
 onBeforeMount(async ()=>{
     await handleRefresh()
@@ -69,10 +71,28 @@ watch(search,(newVal, oldVal)=>{
     }
 })
 
+watch(isAnyStatusPending, (newVal) => {
+  if (newVal) {
+    if (!refreshInterval) {
+      console.log("start worklfow refresh");
+      refreshInterval = window.setInterval(() => {
+        handleRefresh().catch(err => console.error('refresh failed!', err));
+      }, 5000);
+    }
+  } else {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = undefined;
+      console.log("stop workflow refresh");
+    }
+  }
+}, { immediate: true });
 
 
 const handleRefresh = async () => {
-    workflows.value = displayWorkflows.value = await useWorkflow()
+    workflows.value = displayWorkflows.value = await useWorkflow();
+    const anyBuilding = workflows.value.some(workflow => workflow.status === "building");
+    isAnyStatusPending.value = anyBuilding;
 }
 
 const handleSearch = ()=>{
@@ -91,10 +111,10 @@ const handleRegister = ()=>{
 
 
 const handleDeleteTool = async (id: string) =>{
-    // const res = await useDeleteTool(id)
-    // if(!!res){
-    //     await handleRefresh()
-    // }
+    const res = await useDeleteWorkflow(id)
+    if(!!res){
+        await handleRefresh()
+    }
 }
 
 const handleToolApproval = async (id: string) => {

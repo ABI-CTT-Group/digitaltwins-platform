@@ -74,7 +74,7 @@ export interface PluginResponse {
     [key:string]:any
 }
 
-export interface PluginBuildResponse {
+export interface BuildResponse {
     id: string
     plugin_id: string
     build_id: string
@@ -119,7 +119,7 @@ export interface PluginMinIOMetadata {
     components: Array<PluginMinIOToolMetadata>
 }
 
-export interface PluginExcuteBuildResponse {
+export interface ExcuteBuildResponse {
     build_id: string,
     status: string,
     message: string,
@@ -158,6 +158,8 @@ export interface IWrokflowResponse {
     repository_url: string;
     description?: string;
     author?: string;
+    status: string;
+    latest_build_id?: string
     created_at: string;
     updated_at: string;
     [key:string]:any;

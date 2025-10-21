@@ -18,7 +18,7 @@ from app.models.db_model import (
     Plugin, PluginCreate, PluginBuild, PluginResponse,
     PluginBuildResponse, BuildStatus, SessionLocal,
     DeployStatus, PluginDeployment, PluginDeployResponse,
-    PluginAnnotationBase, PluginAnnotationResponse, PluginAnnotationCreate,
+    PluginAnnotationResponse, PluginAnnotationCreate,
     PluginAnnotation
 )
 from app.builder.logger import get_logger, configure_logging
@@ -34,6 +34,7 @@ from app.utils.workflow_tool_utils import (
     get_public_url_for_build,
     get_latest_build_record,
     shuttle_down_deployed_backend)
+from app.utils.builder_utils import execute_build_in_background
 from uuid import UUID
 from app.utils.utils import force_rmtree
 from fhir_cda import Annotator
@@ -50,7 +51,13 @@ adapter = get_fhir_adapter()
 @router.get("/", response_model=List[PluginResponse])
 async def get_plugins(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     plugins = db.query(Plugin).offset(skip).limit(limit).all()
-    return plugins
+    responses = []
+    for p in plugins:
+        response = PluginResponse.model_validate(p)
+        response.workflow_ids = [w.id for w in p.workflows]
+        responses.append(response)
+
+    return responses
 
 @router.get("/check-name")
 async def check_name(name: str, db: Session = Depends(get_db)):
@@ -105,6 +112,14 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
         plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
         logger.info(f"Deleting plugin {plugin_id}")
         if plugin is not None:
+            # Check if plugin is used in any workflow
+            if plugin.workflows:
+                workflow_names = [w.name for w in plugin.workflows]
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot delete plugin. It is used in workflows: {', '.join(workflow_names)}",
+                )
+
             builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).all()
             if plugin.has_backend:
                 logger.info(f"Shuttle down backend for plugin {plugin_id}")
@@ -196,51 +211,18 @@ async def execute_build(
     db.commit()
     db.refresh(db_build)
 
-    def run_build():
-        try:
-            with SessionLocal() as session:
-                build_record = session.query(PluginBuild).filter(
-                    PluginBuild.build_id == build_id).first()  # type: ignore
-                if build_record:
-                    build_record.status = BuildStatus.BUILDING.value
-                    session.commit()
-            # TODO: check deploy status
-            if plugin.has_backend:
-                shuttle_down_deployed_backend(plugin.id, deployer)
+    # TODO: check deploy status
+    if plugin.has_backend:
+        shuttle_down_deployed_backend(plugin.id, deployer)
 
-            builder = PluginBuilder()
-            result = builder.build_plugin(plugin_dict)
-            with SessionLocal() as session:
-                build_record = session.query(PluginBuild).filter(PluginBuild.build_id == build_id).first()
-                if build_record:
-                    if result["success"]:
-                        build_record.status = BuildStatus.COMPLETED.value
-                        build_record.s3_path = result["s3_path"]
-                        build_record.dataset_path = result["dataset_path"]
-                        build_record.expose_name = result["expose_name"]
-                    else:
-                        build_record.status = BuildStatus.FAILED.value
-                        build_record.error = result["error_message"]
-
-                    build_record.build_logs = result["build_logs"]
-                    build_record.updated_at = datetime.now()
-                    session.commit()
-
-        except Exception as e:
-            # Update build record with error
-            with SessionLocal() as session:
-                build_record = session.query(PluginBuild).filter(PluginBuild.build_id == build_id).first()
-                if build_record:
-                    build_record.status = BuildStatus.FAILED.value
-                    build_record.error_message = str(e)
-                    build_record.updated_at = datetime.now()
-                    session.commit()
-
-    if background_tasks:
-        background_tasks.add_task(run_build)
-    else:
-        thread = threading.Thread(target=run_build)
-        thread.start()
+    # executing build in backend
+    execute_build_in_background(
+        build_id=build_id,
+        data=plugin_dict,
+        builder=builder,
+        Build=PluginBuild,
+        background_tasks=background_tasks,
+    )
 
     return {
         "build_id": build_id,

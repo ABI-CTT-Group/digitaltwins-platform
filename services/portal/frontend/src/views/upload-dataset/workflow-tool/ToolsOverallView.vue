@@ -150,8 +150,7 @@ const handleDeploy = async (id:string) =>{
     if(deployRes.status="deploying") await handleRefresh();
 }
 
-const handleDeleteTool = async (id: string) =>{
-    const res = await useDeleteTool(id)
+const handleDeleteTool = async (res: any) =>{
     if(!!res){
         await handleRefresh()
     }

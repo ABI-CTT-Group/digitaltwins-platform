@@ -1,3 +1,4 @@
+from __future__ import annotations
 import subprocess
 import uuid
 from pathlib import Path
@@ -6,8 +7,17 @@ import shutil
 from app.utils.utils import force_rmtree
 import re
 from app.client.minio import MinioClient
-from typing import Dict, Any
 
+from typing import Dict, Any, Union, Type, TYPE_CHECKING
+import threading
+from app.models.db_model import (
+    BuildStatus, SessionLocal, PluginBuild, WorkflowBuild)
+from datetime import datetime
+from fastapi import BackgroundTasks
+
+if TYPE_CHECKING:
+    from app.builder.build_tool import PluginBuilder
+    from app.builder.build_workflow import WorkflowBuilder
 
 def clone_repository(tmp_dir: Path, repo_url: str, logger: logging.Logger, branch: str = "main") -> Path:
     """Clone a git repository to a temporary directory"""
@@ -82,3 +92,54 @@ def update_minio_bucket_metadata(minio_client: MinioClient, component_entry: Dic
 
     logger.info(f"Write metadata to MinIO metadata file")
     minio_client.update_metadata(existing_metadata)
+
+
+def execute_build_in_background(
+        build_id: str,
+        data: Dict[str, Any],
+        builder: Union[PluginBuilder, WorkflowBuilder],
+        Build: Type[Union[PluginBuild, WorkflowBuild]],
+        background_tasks: BackgroundTasks = None):
+    def run_build():
+        try:
+            with SessionLocal() as session:
+                build_record = session.query(Build).filter(
+                    Build.build_id == build_id).first()  # type: ignore
+                if build_record:
+                    build_record.status = BuildStatus.BUILDING.value
+                    session.commit()
+
+            result = builder.build(data)
+            with SessionLocal() as session:
+                build_record = session.query(Build).filter(Build.build_id == build_id).first()
+                if build_record:
+                    if result["success"]:
+                        build_record.status = BuildStatus.COMPLETED.value
+                        build_record.s3_path = result["s3_path"]
+                        build_record.dataset_path = result["dataset_path"]
+                        build_record.expose_name = result["expose_name"]
+                    else:
+                        build_record.status = BuildStatus.FAILED.value
+                        build_record.error = result["error_message"]
+
+                    build_record.build_logs = result["build_logs"]
+                    build_record.updated_at = datetime.now()
+                    session.commit()
+
+        except Exception as e:
+            # Update build record with error
+            with SessionLocal() as session:
+                build_record = session.query(Build).filter(Build.build_id == build_id).first()
+                if build_record:
+                    build_record.status = BuildStatus.FAILED.value
+                    build_record.error_message = str(e)
+                    build_record.updated_at = datetime.now()
+                    session.commit()
+                else:
+                    print("⚠️ Build record not found when writing error message")
+
+    if background_tasks:
+        background_tasks.add_task(run_build)
+    else:
+        thread = threading.Thread(target=run_build)
+        thread.start()

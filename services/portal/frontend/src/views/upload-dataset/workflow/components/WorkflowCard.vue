@@ -19,6 +19,7 @@
       <template #tags>
           <v-chip v-if="!!workflow.version" size="small" color="blue-lighten-4" text-color="blue-darken-3" class="mx-1 my-1">v{{ workflow.version }}</v-chip>
           <v-chip v-if="!!workflow.author" size="small" color="blue-lighten-5" text-color="blue-darken-3" class="mx-1 my-1">{{ workflow.author }}</v-chip>
+          <v-chip v-if="!!workflow.status" size="small" :color="statusColor" :text-color="statusTextColor" class="mx-1 mr-1 my-1">{{ workflow.status }}</v-chip>
       </template>
       <template #time>
           <v-chip v-if="!!workflow.created_at" size="small" color="green-lighten-4" text-color="green-darken-2" class="ms-auto">{{ formatDate(workflow.created_at) }}</v-chip>
@@ -44,6 +45,35 @@ const isDeleting = ref(false)
 
 const emit = defineEmits(["submit-approve",  "delete"])
 
+const statusColor = computed(() => {
+  switch (props.workflow.status) {
+    case "pending":
+      return "amber-lighten-2"
+    case "building":
+      return "blue-lighten-2"
+    case "failed":
+      return "red-lighten-2"
+    case "completed":
+      return "green-lighten-2"
+    default:
+      return ""
+  }
+})
+
+const statusTextColor = computed(() => {
+  switch (props.workflow.status) {
+    case "pending":
+      return "amber-darken-3"
+    case "building":
+      return "blue-darken-3"
+    case "failed":
+      return "red-darken-3"
+    case "completed":
+      return "green-darken-3"
+    default:
+      return ""
+  }
+})
 
 const onSubmit = () => {
     menu.value = false;

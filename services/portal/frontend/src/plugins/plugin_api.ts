@@ -5,10 +5,10 @@ import {
   IAnnotation,
   CheckNameResponse, 
   PluginResponse, 
-  PluginBuildResponse, 
+  BuildResponse, 
   PluginDeployResponse,
   PluginMinIOMetadata,
-  PluginExcuteBuildResponse,
+  ExcuteBuildResponse,
   IAnnotationResponse} from "@/models/uiTypes";
 
 
@@ -52,10 +52,10 @@ export async function useWorkflowTools() {
       let lastestBuildId = undefined
       let latestDeployId = undefined
       try {
-        const buildsResponse = await http.get<Array<PluginBuildResponse>>(`/workflow-tools/plugin/${tool.id}/builds`)
+        const buildsResponse = await http.get<Array<BuildResponse>>(`/workflow-tools/plugin/${tool.id}/builds`)
         if(buildsResponse.length > 0){
           // get the most recent build
-          const lastestBuild = buildsResponse.sort((a:PluginBuildResponse, b:PluginBuildResponse)=> 
+          const lastestBuild = buildsResponse.sort((a:BuildResponse, b:BuildResponse)=> 
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
           buildStatus = lastestBuild.status
           lastestBuildId = lastestBuild.build_id
@@ -94,7 +94,7 @@ export async function useMinIoWorkflowToolMetadata() {
 }
 
 export async function useWorkflowToolBuild(id:string) {
-  const res = http.get<PluginExcuteBuildResponse>(`/workflow-tools/plugin/${id}/build`)
+  const res = http.get<ExcuteBuildResponse>(`/workflow-tools/plugin/${id}/build`)
   return res
 }
 

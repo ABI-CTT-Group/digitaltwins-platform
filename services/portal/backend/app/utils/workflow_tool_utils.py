@@ -15,7 +15,7 @@ configure_logging()
 logger = get_logger(__name__)
 
 
-def get_build_record_or_404(build_id: str, db: Session, Build: Type):
+def get_build_record_or_404(build_id: str, db: Session, Build: Type[Union[PluginBuild, WorkflowBuild]]):
     build_record = db.query(Build).filter(Build.build_id == build_id).first()  # type ignore
     if build_record is None:
         raise HTTPException(status_code=404, detail="Build not found")

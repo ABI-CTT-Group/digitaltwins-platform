@@ -5,7 +5,9 @@ import {
     CheckNameResponse, 
     IWorkflowInformationStep,
     IWrokflowResponse,
-    IAnnotationResponse
+    IAnnotationResponse,
+    BuildResponse,
+    ExcuteBuildResponse
 } from "@/models/uiTypes";
 
 export async function useCheckPluginName(name: string): Promise<CheckNameResponse> {
@@ -29,16 +31,51 @@ export async function useCheckPluginName(name: string): Promise<CheckNameRespons
 }
 
 export async function useCreateWorkflow(workflow:IWorkflowInformationStep) {
-    const createPluginResponse = http.post<IWrokflowResponse>("/workflow/create", workflow)
-    return createPluginResponse
+    const createWorkflowResponse = http.post<IWrokflowResponse>("/workflow/create", workflow)
+    return createWorkflowResponse
 }
 
 export async function useCreateWorkflowAnnotation(id:string, annotation:IAnnotation) {
-    const createPluginResponse = http.post<IAnnotationResponse>(`/workflow/${id}/annotation`, annotation)
-    return createPluginResponse
+    const createAnnotationResponse = http.post<IAnnotationResponse>(`/workflow/${id}/annotation`, annotation)
+    return createAnnotationResponse
+}
+
+export async function useWorkflowBuild(workflowId: string) {
+    const buildRes = http.get<ExcuteBuildResponse>(`/workflow/${workflowId}/build`)
+    return buildRes
+}
+
+export async function useDeleteWorkflow(workflowId: string) {
+    const deleteRes = http.delete(`/workflow/${workflowId}`)
+    return deleteRes
 }
 
 export async function useWorkflow() {
-  const workflowTools = http.get<Array<IWrokflowResponse>>("/workflow")
-  return workflowTools
+  const workflows = http.get<Array<IWrokflowResponse>>("/workflow").then(async (items)=>{
+      const formattedWorkflows = await Promise.all(items.map(async (workflow)=>{
+        let buildStatus = 'pending'
+        let lastestBuildId = undefined
+        try {
+          const buildsResponse = await http.get<Array<BuildResponse>>(`/workflow/${workflow.id}/builds`)
+          if(buildsResponse.length > 0){
+            // get the most recent build
+            const lastestBuild = buildsResponse.sort((a:BuildResponse, b:BuildResponse)=> 
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+            buildStatus = lastestBuild.status
+            lastestBuildId = lastestBuild.build_id
+          }
+          
+        }catch(buildError){
+          console.warn(`Failed to fetch builds for workflow tool ${workflow.id}:`, buildError)
+        }
+        return {
+          ...workflow,
+          description: workflow.description == "" ? "No description available" : workflow.description,
+          status: buildStatus,
+          latest_build_id: lastestBuildId,
+        }
+      }))
+      return formattedWorkflows
+    })
+    return workflows
 }

@@ -1,12 +1,12 @@
 import os
 import uuid
-from sqlalchemy import create_engine, Column, String, DateTime, ForeignKey, Text, JSON, Boolean, Enum
+from sqlalchemy import create_engine, Column, String, DateTime, ForeignKey, Text, JSON, Boolean, Enum, Table
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from pydantic import BaseModel
 from enum import Enum as PyEnum
 from datetime import datetime
-from typing import Optional, Literal
+from typing import Optional, Literal, List, Any
 
 DATABASE_PATH = os.getenv("DATABASE_PATH", "./plugin_registry.db")
 DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
@@ -29,6 +29,12 @@ class DeployStatus(PyEnum):
     FAILED = "failed"
     COMPLETED = "completed"
 
+workflow_plugin_association = Table(
+    "workflow_plugin_association",
+    Base.metadata,
+    Column("workflow_id", String, ForeignKey("workflows.id", ondelete="CASCADE")),
+    Column("plugin_id", String, ForeignKey("plugins.id", ondelete="CASCADE")),
+)
 
 class Plugin(Base):
     __tablename__ = "plugins"
@@ -50,6 +56,11 @@ class Plugin(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    workflows = relationship(
+        "Workflow",
+        secondary=workflow_plugin_association,
+        back_populates="plugins",
+    )
     builds = relationship("PluginBuild", back_populates="plugin", cascade="all, delete-orphan")
     deployments = relationship("PluginDeployment", back_populates="plugin", cascade="all, delete-orphan")
     annotation = relationship("PluginAnnotation", back_populates="plugin", uselist=False, cascade="all, delete-orphan")
@@ -115,6 +126,11 @@ class Workflow(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    plugins = relationship(
+        "Plugin",
+        secondary=workflow_plugin_association,
+        back_populates="workflows",
+    )
     builds = relationship("WorkflowBuild", back_populates="workflow", cascade="all, delete-orphan")
     annotation = relationship("WorkflowAnnotation", back_populates="workflow", uselist=False,
                               cascade="all, delete-orphan")
@@ -180,6 +196,7 @@ class PluginResponse(PluginBase):
     id: str
     uuid: Optional[str] = None
     plugin_metadata: Optional[dict] = None
+    workflow_ids: Optional[List[str]] = None
     created_at: datetime
     updated_at: datetime
 
@@ -235,16 +252,16 @@ class PluginDeployResponse(PluginDeployBase):
         from_attributes = True
 
 
-class PluginAnnotationBase(BaseModel):
+class AnnotationBase(BaseModel):
     fhir_note: Optional[str] = None
     sparc_note: Optional[str] = None
 
 
-class PluginAnnotationCreate(PluginAnnotationBase):
+class PluginAnnotationCreate(AnnotationBase):
     pass
 
 
-class PluginAnnotationResponse(PluginAnnotationBase):
+class PluginAnnotationResponse(AnnotationBase):
     id: str
     annotation_id: str
     fhir_note: str
@@ -277,6 +294,7 @@ class WorkflowResponse(WorkflowBase):
     class Config:
         from_attributes = True
 
+
 class WorkflowBuildResponse(BuildBase):
     id: str
     workflow_id: str
@@ -290,14 +308,15 @@ class WorkflowBuildResponse(BuildBase):
         from_attributes = True
 
 
-class WorkflowAnnotationBase(BaseModel):
-    workflow_id: str
+class WorkflowAnnotationCreate(AnnotationBase):
+    pass
 
 
-class WorkflowAnnotationResponse(WorkflowAnnotationBase):
+class WorkflowAnnotationResponse(AnnotationBase):
     id: str
-    workflow_id: str
-    note: Optional[str]
+    annotation_id: str
+    fhir_note: str
+    sparc_note: str
     created_at: datetime
     updated_at: datetime
 

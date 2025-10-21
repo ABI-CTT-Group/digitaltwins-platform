@@ -6,16 +6,16 @@ from fastapi.responses import StreamingResponse
 from app.database.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from datetime import datetime
+
 from typing import List, Dict, Any, Literal
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import uuid
-import threading
 import requests
 from app.models.db_model import (
+    Plugin,
     Workflow, WorkflowBuild, WorkflowAnnotation, WorkflowBase,
-    WorkflowAnnotationBase, WorkflowResponse, WorkflowCreate,
+    WorkflowResponse, WorkflowCreate, WorkflowAnnotationCreate,
     WorkflowAnnotationResponse, WorkflowBuildResponse, BuildStatus,
     SessionLocal
 )
@@ -25,6 +25,9 @@ from app.client.fhir import get_fhir_adapter
 from botocore.exceptions import ClientError
 from app.builder.build_workflow import WorkflowBuilder
 from app.utils.workflow_tool_utils import get_build_record_or_404, get_public_url_for_build
+from app.utils.builder_utils import execute_build_in_background
+
+import json
 
 from pathlib import Path
 from uuid import UUID
@@ -37,6 +40,7 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/workflow")
 minio = get_minio_client("workflows")
 adapter = get_fhir_adapter()
+builder = WorkflowBuilder()
 
 
 @router.get("/check-name")
@@ -57,10 +61,42 @@ async def create_tool_plugin(workflow: WorkflowCreate, db: Session = Depends(get
     return db_workflow
 
 
+@router.post("/{workflow_id}/annotation", response_model=WorkflowAnnotationResponse)
+async def create_tool_annotation(workflow_id: str, annotation: WorkflowAnnotationCreate, db: Session = Depends(get_db)):
+    workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()  # type: ignore
+    if workflow is None:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+
+    # Update workflow plugins
+    data = json.loads(annotation.fhir_note)
+    if isinstance(data, list):
+        plugin_ids = [p["id"] for p in data]
+        plugins = db.query(Plugin).filter(Plugin.id.in_(plugin_ids)).all()
+        if len(plugins) != len(plugin_ids):
+            missing_ids = set(plugin_ids) - {p.id for p in plugins}
+            raise HTTPException(status_code=404, detail=f"Plugins not found: {missing_ids}")
+        workflow.plugins = plugins
+
+    annotation_id = str(uuid.uuid4())
+
+    db_annotation = WorkflowAnnotation(
+        workflow_id=workflow.id,
+        annotation_id=annotation_id,
+        fhir_note=annotation.fhir_note,
+        sparc_note=annotation.sparc_note
+    )
+
+    db.add(db_annotation)
+    db.commit()
+    db.refresh(db_annotation)
+    return db_annotation
+
+
 @router.get("/", response_model=List[WorkflowResponse])
 async def get_plugins(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     workflows = db.query(Workflow).offset(skip).limit(limit).all()
     return workflows
+
 
 @router.get("/metadata")
 async def get_metadata_json():
@@ -126,6 +162,7 @@ async def get_build_direct_url(build_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate direct url for build {build_id}: {e}")
 
+
 @router.get("/{workflow_id}/build")
 async def execute_build(
         workflow_id: str,
@@ -162,48 +199,13 @@ async def execute_build(
     db.commit()
     db.refresh(db_build)
 
-    def run_build():
-        try:
-            with SessionLocal() as session:
-                build_record = session.query(WorkflowBuild).filter(
-                    WorkflowBuild.build_id == build_id).first()  # type: ignore
-                if build_record:
-                    build_record.status = BuildStatus.BUILDING.value
-                    session.commit()
-
-            builder = WorkflowBuilder()
-            result = builder.build_workflow(workflow_dict)
-            with SessionLocal() as session:
-                build_record = session.query(WorkflowBuild).filter(WorkflowBuild.build_id == build_id).first()
-                if build_record:
-                    if result["success"]:
-                        build_record.status = BuildStatus.COMPLETED.value
-                        build_record.s3_path = result["s3_path"]
-                        build_record.dataset_path = result["dataset_path"]
-                        build_record.expose_name = result["expose_name"]
-                    else:
-                        build_record.status = BuildStatus.FAILED.value
-                        build_record.error = result["error_message"]
-
-                    build_record.build_logs = result["build_logs"]
-                    build_record.updated_at = datetime.now()
-                    session.commit()
-
-        except Exception as e:
-            # Update build record with error
-            with SessionLocal() as session:
-                build_record = session.query(WorkflowBuild).filter(WorkflowBuild.build_id == build_id).first()
-                if build_record:
-                    build_record.status = BuildStatus.FAILED.value
-                    build_record.error_message = str(e)
-                    build_record.updated_at = datetime.now()
-                    session.commit()
-
-    if background_tasks:
-        background_tasks.add_task(run_build)
-    else:
-        thread = threading.Thread(target=run_build)
-        thread.start()
+    execute_build_in_background(
+        build_id=build_id,
+        data=workflow_dict,
+        builder=builder,
+        Build=WorkflowBuild,
+        background_tasks=background_tasks,
+    )
 
     return {
         "build_id": build_id,
@@ -211,6 +213,7 @@ async def execute_build(
         "message": "Build started in background",
         "repo_url": workflow.repository_url
     }
+
 
 @router.get("/{workflow_id}/builds", response_model=List[WorkflowBuildResponse])
 async def get_plugin_builds(workflow_id: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
@@ -222,21 +225,15 @@ async def get_plugin_builds(workflow_id: str, skip: int = 0, limit: int = 100, d
     builds = db.query(WorkflowBuild).filter(WorkflowBuild.workflow_id == workflow.id).offset(skip).limit(limit).all()
     return builds
 
+
 @router.get("/{workflow_id}", response_model=WorkflowResponse)
 async def get_plugin(workflow_id: str, db: Session = Depends(get_db)):
     workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()  # type: ignore
     if workflow is None:
         raise HTTPException(status_code=404, detail="Plugin not found")
     return workflow
-#
-#
 
-#
-#
 
-#
-#
-#
 # @router.get("/plugin/{plugin_id}/approval")
 # async def get_plugin_approval(plugin_id: str, db: Session = Depends(get_db)):
 #     plugin, latest_build = get_latest_build_record(plugin_id, db)
@@ -252,8 +249,6 @@ async def get_plugin(workflow_id: str, db: Session = Depends(get_db)):
 #
 #     await adapter_workflow_tool.add_workflow_tool_description(annotator.get_descriptions()).generate_resources()
 #     return latest_build
-#
-#
 
 
 @router.delete("/{workflow_id}")
@@ -262,6 +257,18 @@ async def delete_plugin(workflow_id: str, db: Session = Depends(get_db)):
         workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()  # type: ignore
         logger.info(f"Deleting plugin {workflow_id}")
         if workflow is not None:
+            builds = db.query(WorkflowBuild).filter(WorkflowBuild.workflow_id == workflow.id).all() # type: ignore
+            for build in builds:
+                logger.info("Deleting build {}".format(build.id))
+                if build.s3_path is not None:
+                    logger.info("Deleting s3 path {}".format(build.s3_path))
+                    prefix = build.s3_path.split("/")[-1]
+                    object_keys = minio.list_objects(prefix=prefix)
+                    if len(object_keys) > 0:
+                        minio.delete_objects(delete_keys=object_keys)
+                    # Delete dataset in dataset folder
+                    dataset_path = builder.dataset_dir / prefix
+                    force_rmtree(dataset_path)
             db.delete(workflow)
             db.commit()
 
@@ -281,11 +288,13 @@ async def delete_plugin(workflow_id: str, db: Session = Depends(get_db)):
                 logger.info(f"Deleting plugin {workflow_id} successfully, and metadata updated successfully.")
                 return {"status": True, "message": "Plugin deleted successfully, and metadata updated successfully."}
             else:
-                logger.info(f"Deleting plugin {workflow_id} successfully. and there is no tool component information in metadata.json")
+                logger.info(
+                    f"Deleting plugin {workflow_id} successfully. and there is no tool component information in metadata.json")
                 return {"status": True,
                         "message": "Plugin deleted successfully and no longer found in the metadata file."}
         except Exception as e:
-            logger.info(f"Deleting plugin {workflow_id} successfully, but not find the metadata.json file in Minio, failed due to {e}")
+            logger.info(
+                f"Deleting plugin {workflow_id} successfully, but not find the metadata.json file in Minio, failed due to {e}")
             return {"status": True, "message": str(e)}
     except Exception as e:
         logger.info("Deleting plugin failed due to exception {}".format(e))

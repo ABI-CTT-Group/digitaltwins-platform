@@ -24,11 +24,18 @@
                 ></v-stepper-item>
                 <v-divider></v-divider>
                 <v-stepper-item
-                    title="Complete"
+                    title="Build"
                     :value="3"
                     color="cyan-lighten-1"
-                    :editable="false"
                     :complete="step > 3"
+                ></v-stepper-item>
+                <v-divider></v-divider>
+                <v-stepper-item
+                    title="Complete"
+                    :value="4"
+                    color="cyan-lighten-1"
+                    :editable="false"
+                    :complete="step > 4"
                 ></v-stepper-item>
             </v-stepper-header>
 
@@ -48,6 +55,12 @@
 
                 <v-stepper-window-item :value="3">
                     <v-card class="pa-4" variant="tonal" color="cyan-darken-4">
+                        <WorkflowBuildStep :workflow="workflow" @build="handleBuild" @close="handleCancel"/>
+                    </v-card>
+                </v-stepper-window-item>
+
+                <v-stepper-window-item :value="4">
+                    <v-card class="pa-4" variant="tonal" color="cyan-darken-4">
                         <WorkflowCompleteStep :workflow="workflow" @done="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
@@ -61,8 +74,9 @@
 import WorkflowInfomationStep from './components/WorkflowInfomationStep.vue';
 import WorkflowAnnotateStep from './components/WorkflowAnnotateStep.vue';
 import WorkflowCompleteStep from './components/WorkflowCompleteStep.vue';
-import { PluginResponse, IWorkflowInformationStep, IWrokflowResponse, IAnnotation} from '@/models/uiTypes';
-import { useCreateWorkflow, useCreateWorkflowAnnotation } from '@/plugins/workflow_api'
+import WorkflowBuildStep from './components/WorkflowBuildStep.vue';
+import { IWorkflowInformationStep, IWrokflowResponse, IAnnotation} from '@/models/uiTypes';
+import { useCreateWorkflow, useCreateWorkflowAnnotation, useWorkflowBuild } from '@/plugins/workflow_api'
 import { ref, watch } from "vue";
 
 const emit = defineEmits(['finished'])
@@ -77,8 +91,11 @@ const handleSubmit = async (data:IWorkflowInformationStep)=>{
 
 const handleAnnotation = async (id:string, annotation:IAnnotation)=>{
     const a = await useCreateWorkflowAnnotation(id, annotation)
-    console.log(a);
-    
+    step.value += 1;
+}
+
+const handleBuild = async (id:string)=>{
+    await useWorkflowBuild(id)
     step.value += 1;
 }
 
