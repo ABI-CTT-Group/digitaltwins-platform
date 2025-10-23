@@ -39,7 +39,7 @@
                 ></v-btn>
                 <Dialog
                     :showDialog="data.category === 'Assays' && !isClinicianView"
-                    :min="1200"
+                    :min="1300"
                     btnText="Edit"
                     btnColor = "deep-orange"
                     btnVariant="tonal"
@@ -136,10 +136,30 @@ const handleAssayUploadClicked = (seekId: string) => {
 </script>
 
 <style scoped>
-.card-color {
+/* .card-color {
     background: linear-gradient(to bottom, rgba(255,255,255,0.15) 0%, rgba(0,0,0,0.45) 100%), radial-gradient(at top center, rgba(255,255,255,0.30) 0%, rgba(0,0,0,0.60) 120%) #000; background-blend-mode: multiply,multiply;
     background-color: transparent !important;
+} */
+
+.card-color {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(20, 20, 20, 0.4));
+  background-color: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 0 20px rgba(0, 0, 0, 0.4),
+    inset 0 0 10px rgba(255, 255, 255, 0.05);
+  color: #e6edf5;
+  transition: all 0.3s ease;
 }
+.card-color:hover {
+  box-shadow:
+    0 0 25px rgba(255, 255, 255, 0.1),
+    inset 0 0 15px rgba(255, 255, 255, 0.08);
+}
+
+
 .title{
     font-size: 1.1rem;
     line-height: 1.2;

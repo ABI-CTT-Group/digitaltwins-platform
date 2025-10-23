@@ -7,8 +7,7 @@
         <v-sheet
             class="pa-4 text-center mx-auto sheet bg-grey-darken-4"
             elevation="12"
-            :min-width="min"
-            :max-width="max"
+
             rounded="lg"
             width="100%"
         >
@@ -70,7 +69,7 @@ interface DialogProps {
     btnText?: string;
     btnColor?: string;
     btnIcon?: string;
-    btnVariant?: string;
+    btnVariant?: "outlined" | "flat" | "text" | "elevated" | "tonal" | "plain" | undefined;
     showDialog?: boolean;
     saveBtnName?: string;
     btnHeight?:string;
@@ -120,19 +119,19 @@ const handleDialogSave = () => {
 
 <style scoped>
 .sheet{
+    width: 80dvw !important;
     font-family: "Nunito", sans-serif;
     font-optical-sizing: auto;
     font-weight: 400;
     font-style: normal;
-     background-color: #071019;
-    background-image:
-      linear-gradient(
-        90deg,
-        #050708 0%,
-        #071019 33%,
-        #0b2433 66%,
-        #0e3f5a 88%,
-        #0f5f83 100%
-      );
+    background: rgba(0, 0, 0, 0.6) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.5),
+        inset 0 0 8px rgba(255, 255, 255, 0.05);
+    color: #f0f3f8;
+    padding: 28px;
 }
 </style>

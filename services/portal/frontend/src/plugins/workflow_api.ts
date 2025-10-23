@@ -79,3 +79,8 @@ export async function useWorkflow() {
     })
     return workflows
 }
+
+export async function useWorkflowApproval(workflowId:string) {
+  const res = http.get(`/workflow/${workflowId}/approval`)
+  return res;
+}

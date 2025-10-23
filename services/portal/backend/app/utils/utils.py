@@ -2,6 +2,8 @@ import os
 import stat
 import shutil
 from pathlib import Path
+from typing import Any
+import math
 
 
 def force_rmtree(path: Path, keep_folder: bool = False):
@@ -10,6 +12,7 @@ def force_rmtree(path: Path, keep_folder: bool = False):
     - If keep_folder=False (default), the entire directory will be deleted (same as shutil.rmtree).
     - If keep_folder=True, only the files and subdirectories inside the directory will be removed, while keeping the directory itself.
     """
+
     def onerror(func, p, exc_info):
         if not os.access(p, os.W_OK):
             os.chmod(p, stat.S_IWRITE)
@@ -29,3 +32,13 @@ def force_rmtree(path: Path, keep_folder: bool = False):
         (path / ".gitkeep").touch(exist_ok=True)
     else:
         shutil.rmtree(path, onerror=onerror)
+
+
+def is_empty(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.strip() == ""
+
+    if isinstance(value, (float, int)):
+        return math.isnan(value) if isinstance(value, float) else False
+
+    return not bool(value)

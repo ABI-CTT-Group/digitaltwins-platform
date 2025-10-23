@@ -82,7 +82,7 @@
       <template #tags>
         <v-chip v-if="!!tool.version" size="small" color="blue-lighten-4" text-color="blue-darken-3" class="mx-1 my-1">v{{ tool.version }}</v-chip>
         <v-chip v-if="!!tool.author" size="small" color="blue-lighten-5" text-color="blue-darken-3" class="mx-1 my-1">{{ tool.author }}</v-chip>
-        <v-chip v-if="!!tool.author" size="small" color="green-lighten-5" text-color="green-darken-3" class="mx-1 my-1">{{ tool.label }}</v-chip>
+        <v-chip v-if="!!tool.author" size="small" color="orange-lighten-2" text-color="green-darken-3" class="mx-1 my-1">{{ tool.label }}</v-chip>
         <v-chip v-if="!!tool.status" size="small" :color="statusColor" :text-color="statusTextColor" class="mx-1 mr-1 my-1">pre build: {{ tool.status }}</v-chip>
         <v-chip v-if="!!tool.deploy_status" size="small" :color="deployStatusColor" :text-color="deployStatusTextColor" class="mx-1 mr-1 my-1">deploy: {{ tool.deploy_status }}</v-chip>
       </template>
@@ -250,22 +250,17 @@ const onDelete = async () => {
 }
 .card-hover-animate:hover {
   transform: scale(1.02) !important;
-}
-/* .shadow-card {
-    background: rgba(255, 245, 200, 0.15); 
-    border-radius: 10px !important;
-    box-shadow: 
-        0 0 10px rgba(255, 230, 150, 0.6),  
-        0 0 10px rgba(255, 220, 120, 0.5),  
-        inset 0 0 10px rgba(255, 235, 180, 0.3) !important; 
-} */
- .shadow-card {
-    background: rgba(75, 204, 255, 0.1);
-    border-radius: 10px !important;
-    box-shadow:
-        0 0 15px rgba(75, 204, 255, 0.7),
+  box-shadow:
+        0 0 15px rgba(75, 204, 255, 0.6),
         0 0 25px rgba(75, 204, 255, 0.4),
         inset 0 0 10px rgba(75, 204, 255, 0.25) !important;
+}
+
+.shadow-card {
+  background: rgba(75, 204, 255, 0.1);
+  border-radius: 10px !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  
 }
 
 </style>

@@ -1,6 +1,7 @@
 <template>
+    <!-- rgba(15, 25, 35, 0.15) -->
     <CardUI 
-      cardStyle="background: rgba(255, 153, 0, 0.03);"
+      cardStyle="background: rgba(0, 200, 180, 0.05);"
       :isDeleting="isDeleting"
       v-model:menu="menu"
     >
@@ -110,14 +111,16 @@ const onDelete = () => {
 }
 .card-hover-animate:hover {
   transform: scale(1.02) !important;
+  box-shadow:
+        0 0 12px rgba(0, 200, 180, 0.5),
+        0 0 20px rgba(0, 200, 180, 0.3),
+        inset 0 0 8px rgba(0, 200, 180, 0.2) !important;
 }
+
 .shadow-card {
-    background: rgba(255, 153, 0, 0.15);
-    border-radius: 10px !important;
-    box-shadow:
-        0 0 10px rgba(255, 153, 0, 0.6),
-        0 0 10px rgba(255, 153, 0, 0.5),
-        inset 0 0 10px rgba(255, 153, 0, 0.3) !important;
+    background: rgba(0, 200, 180, 0.12);
+    border-radius: 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 

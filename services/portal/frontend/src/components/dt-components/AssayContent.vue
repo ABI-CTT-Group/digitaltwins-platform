@@ -62,7 +62,7 @@
                     <div class="w-50 mx-1">
                         <v-text-field
                             v-model:model-value="data.sampleName"
-                            label="Sample Name"
+                            label="Sample Type"
                             clearable
                         ></v-text-field>
                     </div>

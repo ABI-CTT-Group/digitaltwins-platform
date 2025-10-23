@@ -30,8 +30,8 @@
                         v-for="w in displayWorkflows"
                         :key="w.id" 
                         :workflow="w"
-                        @delete="(id:string) => handleDeleteTool(id)"
-                        @submit-approve="(id:string) => handleToolApproval(id)"
+                        @delete="(id:string) => handleDeleteWorkflow(id)"
+                        @submit-approve="(id:string) => handleWorkflowApproval(id)"
                     />
                 </div>
                 <NoData v-else />
@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import { ref, onBeforeMount, watch, onUnmounted } from "vue"
 import WorkflowCard from "./components/WorkflowCard.vue"
-import { useWorkflow, useDeleteWorkflow } from '@/plugins/workflow_api';
+import { useWorkflow, useDeleteWorkflow, useWorkflowApproval } from '@/plugins/workflow_api';
 import { IWrokflowResponse } from '@/models/uiTypes';
 import { useRouter } from 'vue-router'
 import Fuse from "fuse.js";
@@ -110,26 +110,26 @@ const handleRegister = ()=>{
 }
 
 
-const handleDeleteTool = async (id: string) =>{
+const handleDeleteWorkflow = async (id: string) =>{
     const res = await useDeleteWorkflow(id)
     if(!!res){
         await handleRefresh()
     }
 }
 
-const handleToolApproval = async (id: string) => {
-    // Call the API to submit the tool for approval
-    // try {
-    //     const res = await useToolApproval(id);
-    //     if (res) {
-    //         alert('Tool submitted for approval successfully.');
-    //     } else {
-    //         alert('Failed to submit tool for approval.');
-    //     }
-    // } catch (error) {
-    //     console.error('Error submitting tool for approval:', error);
-    //     alert('An error occurred while submitting the tool for approval.');
-    // }
+const handleWorkflowApproval = async (id: string) => {
+    // Call the API to submit the workflow for approval
+    try {
+        const res = await useWorkflowApproval(id);
+        if (res) {
+            alert('Workflow submitted for approval successfully.');
+        } else {
+            alert('Failed to submit workflow for approval.');
+        }
+    } catch (error) {
+        console.error('Error submitting workflow for approval:', error);
+        alert('An error occurred while submitting the workflow for approval.');
+    }
 }
 
 </script>

@@ -21,17 +21,17 @@ from app.models.db_model import (
 )
 from app.builder.logger import get_logger, configure_logging
 from app.client.minio import get_minio_client
-from app.client.fhir import get_fhir_adapter
+from app.client.fhir import get_fhir_adapter, get_fhir_async_client
 from botocore.exceptions import ClientError
 from app.builder.build_workflow import WorkflowBuilder
-from app.utils.workflow_tool_utils import get_build_record_or_404, get_public_url_for_build
+from app.utils.workflow_tool_utils import get_build_record_or_404, get_public_url_for_build, get_latest_build_record
 from app.utils.builder_utils import execute_build_in_background
 
 import json
 
 from pathlib import Path
 from uuid import UUID
-from app.utils.utils import force_rmtree
+from app.utils.utils import force_rmtree, is_empty
 from fhir_cda import Annotator
 from pprint import pprint
 
@@ -41,6 +41,7 @@ router = APIRouter(prefix="/api/workflow")
 minio = get_minio_client("workflows")
 adapter = get_fhir_adapter()
 builder = WorkflowBuilder()
+fhir_async_client = get_fhir_async_client()
 
 
 @router.get("/check-name")
@@ -226,29 +227,86 @@ async def get_plugin_builds(workflow_id: str, skip: int = 0, limit: int = 100, d
     return builds
 
 
+@router.get("/{workflow_id}/annotation", response_model=WorkflowAnnotationResponse)
+async def get_workflow_annotation(workflow_id: str, db: Session = Depends(get_db)) -> WorkflowAnnotationResponse:
+    annotation = db.query(WorkflowAnnotation).filter(
+        WorkflowAnnotation.workflow_id == workflow_id).first()  # type: ignore
+    if annotation is None:
+        raise HTTPException(status_code=404, detail="Workflow Annotation not found")
+
+    return annotation
+
+
+@router.get("/{workflow_id}/approval")
+async def get_workflow_approval(workflow_id: str, db: Session = Depends(get_db)):
+    workflow, latest_build = get_latest_build_record(workflow_id, "workflow", db)
+    dataset_path = Path(latest_build.dataset_path)
+    # TODO 1: Upload dataset to Digitaltwins Platform,and get the uuid
+    # dataset_uuid = upload_dataset(dataset_path)
+    if is_empty(workflow.uuid):
+        dataset_uuid = f"sparc-workflow-${uuid.uuid4()}"
+        # TODO 2: Update workflow uuid
+        workflow.uuid = dataset_uuid
+        db.commit()
+    else:
+        dataset_uuid = workflow.uuid
+    # TODO 3: Annotate tool dataset and upload to FHIR server
+    annotator = Annotator(dataset_path).workflow()
+
+    annotation = db.query(WorkflowAnnotation).filter(
+        WorkflowAnnotation.workflow_id == workflow_id).first()  # type: ignore
+
+    if annotation is None:
+        raise HTTPException(status_code=404, detail="Workflow Annotation not found")
+
+    try:
+        # annotation.fhir_note
+        fhir_note = json.loads(annotation.fhir_note)
+
+        (annotator.update_uuid(dataset_uuid)
+         .update_name(workflow.name)
+         .update_author(workflow.author)
+         .update_version(workflow.version))
+
+        actions = annotator.annotate_action()
+        for action in actions:
+            step_annotation = next((item for item in fhir_note if item["name"] == action.title), None)
+            if step_annotation is None:
+                continue
+            action.set_related_tool_uuid(step_annotation["uuid"])
+            tool_fhir_note = step_annotation["tool_fhir_note"]
+            for i in action.annotate_input():
+                step_annotation_input = next((item for item in tool_fhir_note["inputs"] if item["name"] == i.display),
+                                             None)
+                if step_annotation_input is None:
+                    continue
+                i.set_resource_type(step_annotation_input["resource"])
+
+            for o in action.annotate_output():
+                step_annotation_output = next(
+                    (item for item in tool_fhir_note["outputs"] if item["name"] == o.display), None)
+                if step_annotation_output is None:
+                    continue
+                o.set_resource_type(step_annotation_output["resource"])
+                if step_annotation_output["resource"] == "Observation":
+                    o.set_code(step_annotation_output["code"]).set_system(step_annotation_output["system"]).set_unit(
+                        step_annotation_output["unit"])
+
+        annotator.save()
+        adapter_workflow = adapter.digital_twin().workflow()
+        await adapter_workflow.add_workflow_description(annotator.get_descriptions()).generate_resources()
+        return latest_build
+    except Exception as e:
+        logger.error(f"Failed to get annotation for workflow {workflow_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get workflow annotation: {e}")
+
+
 @router.get("/{workflow_id}", response_model=WorkflowResponse)
-async def get_plugin(workflow_id: str, db: Session = Depends(get_db)):
-    workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()  # type: ignore
-    if workflow is None:
-        raise HTTPException(status_code=404, detail="Plugin not found")
-    return workflow
-
-
-# @router.get("/plugin/{plugin_id}/approval")
-# async def get_plugin_approval(plugin_id: str, db: Session = Depends(get_db)):
-#     plugin, latest_build = get_latest_build_record(plugin_id, db)
-#     dataset_path = Path(latest_build.dataset_path)
-#     # TODO 1: Upload dataset to Digitaltwins Platform,and get the uuid
-#     # dataset_uuid = upload_dataset(dataset_path)
-#     dataset_uuid = "sparc-tool-001"
-#     # TODO 2: Annotate tool dataset and upload to FHIR server
-#     annotator = Annotator(dataset_path).workflow_tool()
-#     annotator.update_uuid(dataset_uuid).update_name(plugin.name).update_title("Workflow tool").update_version(
-#         plugin.version).save()
-#     adapter_workflow_tool = adapter.digital_twin().workflow_tool()
-#
-#     await adapter_workflow_tool.add_workflow_tool_description(annotator.get_descriptions()).generate_resources()
-#     return latest_build
+async def get_workflow(workflow_id: str, db: Session = Depends(get_db)):
+    annotation = db.query(Workflow).filter(Workflow.id == workflow_id).first()  # type: ignore
+    if annotation is None:
+        raise HTTPException(status_code=404, detail="Annotation not found")
+    return annotation
 
 
 @router.delete("/{workflow_id}")
@@ -257,7 +315,20 @@ async def delete_plugin(workflow_id: str, db: Session = Depends(get_db)):
         workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()  # type: ignore
         logger.info(f"Deleting plugin {workflow_id}")
         if workflow is not None:
-            builds = db.query(WorkflowBuild).filter(WorkflowBuild.workflow_id == workflow.id).all() # type: ignore
+
+            # Check if workflow instance exists
+            if workflow.uuid:
+                resource_workflows = await fhir_async_client.resources("PlanDefinition").search(
+                    identifier=workflow.uuid).fetch_all()
+                logger.info(f"Delete: find workflow fhir resources: {resource_workflows}")
+                for w in resource_workflows:
+                    try:
+                        await w.delete()
+                        logger.info(f"Deleted workflow fhir resource uuid: {workflow_id}, resource: {w.to_reference()}")
+                    except Exception as e:
+                        logger.error(f"Failed to delete workflow {workflow_id} in FHIR server: {e}")
+
+            builds = db.query(WorkflowBuild).filter(WorkflowBuild.workflow_id == workflow.id).all()  # type: ignore
             for build in builds:
                 logger.info("Deleting build {}".format(build.id))
                 if build.s3_path is not None:

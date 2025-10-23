@@ -25,7 +25,7 @@ from app.builder.logger import get_logger, configure_logging
 from app.builder.build_tool import PluginBuilder
 from app.builder.deploy_tool import PluginDeployer
 from app.client.minio import get_minio_client
-from app.client.fhir import get_fhir_adapter
+from app.client.fhir import get_fhir_adapter, get_fhir_async_client
 
 from pathlib import Path
 from botocore.exceptions import ClientError
@@ -36,7 +36,7 @@ from app.utils.workflow_tool_utils import (
     shuttle_down_deployed_backend)
 from app.utils.builder_utils import execute_build_in_background
 from uuid import UUID
-from app.utils.utils import force_rmtree
+from app.utils.utils import force_rmtree, is_empty
 from fhir_cda import Annotator
 
 configure_logging()
@@ -46,6 +46,7 @@ builder = PluginBuilder()
 deployer = PluginDeployer()
 minio = get_minio_client()
 adapter = get_fhir_adapter()
+fhir_async_client = get_fhir_async_client()
 
 
 @router.get("/", response_model=List[PluginResponse])
@@ -119,6 +120,18 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
                     status_code=400,
                     detail=f"Cannot delete plugin. It is used in workflows: {', '.join(workflow_names)}",
                 )
+
+            # Check if plugin instance exists
+            if plugin.uuid:
+                resource_tools = await fhir_async_client.resources("ActivityDefinition").search(
+                    identifier=plugin.uuid).fetch_all()
+                logger.info(f"Delete: find tool fhir resources: {resource_tools}")
+                for t in resource_tools:
+                    try:
+                        await t.delete()
+                        logger.info(f"Deleted tool fhir resource uuid: {plugin_id}, resource: {t.to_reference()}")
+                    except Exception as e:
+                        logger.error(f"Failed to delete tool {plugin_id} in FHIR server: {e}")
 
             builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).all()
             if plugin.has_backend:
@@ -254,7 +267,7 @@ async def get_plugin_annotations(plugin_id: str, db: Session = Depends(get_db)):
 
 @router.get("/plugin/{plugin_id}/deploy")
 async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = None, db: Session = Depends(get_db)):
-    plugin, latest_build = get_latest_build_record(plugin_id, db)
+    plugin, latest_build = get_latest_build_record(plugin_id, "plugin", db)
     # Covert Plugin, PluginBuild object to dict for JSON serialization
     plugin_dict = {
         "expose_name": latest_build.expose_name,
@@ -377,12 +390,19 @@ async def get_check_deploy(deploy_id: str, db: Session = Depends(get_db)):
 
 @router.get("/plugin/{plugin_id}/approval")
 async def get_plugin_approval(plugin_id: str, db: Session = Depends(get_db)):
-    plugin, latest_build = get_latest_build_record(plugin_id, db)
+    plugin, latest_build = get_latest_build_record(plugin_id, "plugin", db)
     dataset_path = Path(latest_build.dataset_path)
     # TODO 1: Upload dataset to Digitaltwins Platform,and get the uuid
     # dataset_uuid = upload_dataset(dataset_path)
-    dataset_uuid = "sparc-tool-001"
-    # TODO 2: Annotate tool dataset and upload to FHIR server
+    if is_empty(plugin.uuid):
+        dataset_uuid = f"sparc-tool-${uuid.uuid4()}"
+        # TODO 2: Update workflow uuid
+        plugin.uuid = dataset_uuid
+        db.commit()
+    else:
+        dataset_uuid = plugin.uuid
+
+    # TODO 3: Annotate tool dataset and upload to FHIR server
     annotator = Annotator(dataset_path).workflow_tool()
     annotator.update_uuid(dataset_uuid).update_name(plugin.name).update_title("Workflow tool").update_version(
         plugin.version).save()

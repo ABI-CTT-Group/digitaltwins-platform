@@ -16,12 +16,11 @@
           <h4 class="my-2">Tool Inputs</h4>
           <div class="w-100 d-flex flex-row flex-wrap">
             <div v-for="input in annotateTool.inputs" class="d-flex flex-column justify-start w-33">
-              <span class="mx-2">{{ input.name }} *</span>
+              <span class="mx-2">{{ input.name }}</span>
                 <v-select
                   class="mt-4 mx-2"
                   v-model="input.resource"
                   :items="fhirResources"
-                  :rules="notEmptyRules"
                   label="FHIR Resource"
                   required
                   clearable
@@ -32,7 +31,7 @@
           <h4 class="my-2">Tool Outputs</h4>
           <div class="w-100 d-flex flex-row flex-wrap">
             <div v-for="output in annotateTool.outputs" class="d-flex flex-column justify-start w-33">
-              <span class="mx-2">{{ output.name }} *</span>
+              <span class="mx-2">{{ output.name }}</span>
               <div>
                 <v-select
                   class="mt-4 mx-2"
@@ -146,6 +145,10 @@ const fhirObservationSytems = ref([
   {
     name: "DCM",
     value: "https://fhir-ru.github.io/codesystem-dicom-dcim.html#4.3.14.431"
+  },
+  {
+    name: "12 Labours Codes",
+    value: "https://www.auckland.ac.nz/en/abi/our-research/research-groups-themes/12-Labours.html"
   }
 ]) 
 

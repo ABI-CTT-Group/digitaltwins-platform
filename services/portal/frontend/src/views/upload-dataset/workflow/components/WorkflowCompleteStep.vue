@@ -3,10 +3,10 @@
     <div class="d-flex flex-column align-center justify-center flex-grow-1 text-center">
       <v-icon size="64" color="cyan-darken-1">mdi-cog-sync</v-icon>
 
-      <h2 class="mt-4 text-cyan">Workflow Tool Build in Progress</h2>
+      <h2 class="mt-4 text-cyan">Workflow Build in Progress</h2>
 
       <p class="text-grey">
-        Your workflow tool "{{ workflow?.name }}" is currently being built. Once the build is completed, 
+        Your workflow "{{ workflow?.name }}" is currently being built. Once the build is completed, 
         you will be able to upload its dataset to the <strong>DigitalTWINS</strong> platform.
       </p>
     </div>
