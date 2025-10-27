@@ -1,0 +1,19 @@
+services:
+  keycloak:
+    extends:
+      file: ./services/keycloak/docker-compose.yml
+      service: keycloak
+
+volumes:
+  keycloak_data:
+    driver: local
+
+networks:
+  digitaltwins:
+    driver: bridge
+
+# create networks if not exists
+# sudo docker network create digitaltwins
+
+# create volumes if not exists
+# sudo docker volume create minio_data
