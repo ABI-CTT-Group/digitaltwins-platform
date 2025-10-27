@@ -1,0 +1,33 @@
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3.2
+    command: start-dev
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}
+    ports:
+      - "8009:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    restart: unless-stopped
+    networks:
+      - digitaltwins
+
+volumes:
+  keycloak_data:
+    driver: local
+
+networks:
+  digitaltwins:
+    driver: bridge
+
+# Keycloak Admin Console
+# http://localhost:8080/admin
+
+# keycloak account console
+# http://localhost:8080/realms/<myrealm>/account
+# http://localhost:8080/realms/digitaltwins/account
+
+
+# creating network
+# sudo docker network create digitaltwins
