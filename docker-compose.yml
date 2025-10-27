@@ -3,9 +3,19 @@ services:
     extends:
       file: ./services/keycloak/docker-compose.yml
       service: keycloak
+  minio:
+    extends:
+      file: ./services/minio/docker-compose.yml
+      service: minio
+#    env_file:
+#      - .env
+    networks:
+      - digitaltwins
 
 volumes:
   keycloak_data:
+    driver: local
+  minio_data:
     driver: local
 
 networks:
