@@ -72,16 +72,25 @@
         <div class="d-flex flex-row ma-2 cohort">
             <span class="assay-form-subtitle w-25 mt-4 text-cyan">Cohorts:</span>
             <v-responsive
-                class=""
+                class="my-2"
                 max-width="344"
             >
-                <v-text-field
+                <!-- <v-text-field
                 class="py-3"
                 v-model:model-value="assayDetails!.numberOfParticipants"
                 :rules="[rules.required]"
                 label="Number of Participants"
                 clearable
-                ></v-text-field>
+                ></v-text-field> -->
+                <v-text-field
+                    v-model:model-value="cohortsPaticipants"
+                    @update:model-value="handleCohortUpdate"
+                    class="py-3"
+                    label="Enter Participants ranges"
+                    hint="Use commas and dashes, e.g. 1-5,6,7,9-15"
+                    persistent-hint
+                    :rules="[rules.cohort]"
+                />
         </v-responsive>
         </div>
     </div>
@@ -115,6 +124,7 @@ interface IRenderWorkflowInputDatasetSamples {
     }
 }
 
+const cohortsPaticipants = ref<string>("");
 const workflowRenderItems = ref<IItem[]>();
 // const inputRenderItems = ref<IInput[]>([]);
 // const outputRenderItems = ref<IOutput[]>([]);
@@ -141,8 +151,33 @@ const rules = {
         }else {
             return true;
         }
+    },
+    cohort:(value: string) => {
+        const regex = /^\s*\d+\s*(-\s*\d+\s*)?(\s*,\s*\d+\s*(-\s*\d+\s*)?)*$/;
+        if (!value) {
+            return 'This field is required';
+        } else if (!regex.test(value)) {
+            return 'Invalid format. Use e.g. 1-5,6,7,9-15';
+        } else if(!validateRangeFormat(value)){
+            return 'Invalid range. Ensure that start of range is less than end.';
+        } else {
+            return true;
+        }
     }
 };
+
+function validateRangeFormat(value:string) {
+
+  const parts = value.split(',');
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (trimmed.includes('-')) {
+      const [start, end] = trimmed.split('-').map(Number);
+      if (start >= end) return false;
+    }
+  }
+  return true;
+}
 
 onBeforeMount(()=>{
 })
@@ -219,6 +254,61 @@ const handleDatasetSelected = async (value: string, inputName:string, inputCateg
 
 const handleSampleSelected = (value: any) => {
     console.log(value);
+};
+
+function compressRangeList(numbers: number[]): string {
+  if (!numbers || numbers.length === 0) return "";
+
+  const sorted = Array.from(new Set(numbers)).sort((a, b) => a - b);
+  const ranges = [];
+  let start = sorted[0];
+  let end = sorted[0];
+
+  for (let i = 1; i < sorted.length; i++) {
+    const current = sorted[i];
+    if (current === end + 1) {
+      end = current;
+    } else {
+      ranges.push(start === end ? `${start}` : `${start}-${end}`);
+      start = end = current;
+    }
+  }
+  ranges.push(start === end ? `${start}` : `${start}-${end}`);
+
+  return ranges.join(",");
+}
+
+function parseRangeList(input:string): number[] {
+  const numbers = new Set<number>();
+  const parts = input.split(",");
+
+  for (let part of parts) {
+    part = part.trim();
+    if (!part) continue;
+
+    if (part.includes("-")) {
+      const [startStr, endStr] = part.split("-").map(s => s.trim());
+      const start = parseInt(startStr, 10);
+      const end = parseInt(endStr, 10);
+
+      if (!isNaN(start) && !isNaN(end)) {
+        const [min, max] = start <= end ? [start, end] : [end, start]; 
+        for (let i = min; i <= max; i++) {
+          numbers.add(i);
+        }
+      }
+    } else {
+      const n = parseInt(part, 10);
+      if (!isNaN(n)) numbers.add(n);
+    }
+  }
+
+  return Array.from(numbers).sort((a, b) => a - b);
+}
+
+
+const handleCohortUpdate = (value:string) => {
+    assayDetails.value!.numberOfParticipants = parseRangeList(value);
 };
 
 

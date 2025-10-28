@@ -44,7 +44,7 @@ export interface IAssayDetails {
     inputs: IWorkflowInput[];
     outputs: IWorkflowOutput[];
   };
-  numberOfParticipants: number|string;
+  numberOfParticipants: Array<number>;
   isAssayReadyToLaunch: boolean;
 }
 
