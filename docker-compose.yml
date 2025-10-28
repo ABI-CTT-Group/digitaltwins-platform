@@ -3,19 +3,21 @@ services:
     extends:
       file: ./services/keycloak/docker-compose.yml
       service: keycloak
+    restart: unless-stopped
   minio:
     extends:
       file: ./services/minio/docker-compose.yml
       service: minio
-#    env_file:
-#      - .env
+    restart: unless-stopped
     networks:
       - digitaltwins
 
 volumes:
   keycloak_data:
+    name: digitaltwins_keycloak_data
     driver: local
   minio_data:
+    name: digitaltwins_minio_data
     driver: local
 
 networks:
