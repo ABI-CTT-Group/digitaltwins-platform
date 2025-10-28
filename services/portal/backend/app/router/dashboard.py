@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, Depends
+from fastapi.responses import JSONResponse
 from app.models import assay_model
 import json
 from pathlib import Path
@@ -8,9 +9,25 @@ import shutil
 from pprint import pprint
 import os
 from app.utils.utils import force_rmtree
+from app.client.digitaltwins_api import DigitalTWINSAPIClient
 
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent.parent
+ADMIN_USER = os.getenv('DIGITALTWINS_ADMIN_USERNAME', "admin")
+ADMIN_PASS = os.getenv('DIGITALTWINS_ADMIN_PASSWORD', "admin")
+
+
+async def get_client() -> DigitalTWINSAPIClient:
+    """Create a client instance for dependency injection"""
+    digitaltwins_client = DigitalTWINSAPIClient(
+        username=ADMIN_USER,
+        password=ADMIN_PASS,
+    )
+    try:
+        yield digitaltwins_client
+    finally:
+        await digitaltwins_client.close()
+
 
 router = APIRouter(prefix="/api/dashboard")
 
@@ -24,21 +41,49 @@ Categories:
 """
 
 
+@router.get("/health")
+async def proxy_request(client: DigitalTWINSAPIClient = Depends(get_client)):
+    response = await client.get("/health")
+    return JSONResponse(content=response.json(), status_code=response.status_code)
+
+
 @router.get("/programmes")
-async def get_dashboard_programmes():
-    programs = digitaltwins_configs.querier.get_programs()
-    programmes = []
-    for data in programs:
-        program = digitaltwins_configs.querier.get_program(data.get("id"))
-        category = program.get("type", None)
-        temp = {
-            "seekId": program.get("id", None),
-            "name": program.get("attributes").get("title", None),
-            "category": category.capitalize() if category is not None else None,
-            "description": program.get("attributes").get("description", None),
-        }
-        programmes.append(temp)
-    return programmes
+async def get_programmes(client: DigitalTWINSAPIClient = Depends(get_client)):
+    response = await client.get("/programs", {"get_details": False})
+    if response.status_code == 200:
+        programmes = []
+        for data in response.json():
+            program_res = await client.get(f"/programs/{data['id']}")
+            if program_res.status_code == 200:
+                program = program_res.json()
+                category = program.get("type", None)
+                temp = {
+                    "seekId": program.get("id", None),
+                    "name": program.get("attributes").get("title", None),
+                    "category": category.capitalize() if category is not None else None,
+                    "description": program.get("attributes").get("description", None),
+                }
+                programmes.append(temp)
+        return programmes
+    else:
+        raise HTTPException(status_code=response.status_code, detail=response.text)
+
+
+# @router.get("/programmes")
+# async def get_dashboard_programmes():
+#     programs = digitaltwins_configs.querier.get_programs()
+#     programmes = []
+#     for data in programs:
+#         program = digitaltwins_configs.querier.get_program(data.get("id"))
+#         category = program.get("type", None)
+#         temp = {
+#             "seekId": program.get("id", None),
+#             "name": program.get("attributes").get("title", None),
+#             "category": category.capitalize() if category is not None else None,
+#             "description": program.get("attributes").get("description", None),
+#         }
+#         programmes.append(temp)
+#     return programmes
 
 
 @router.get("/category-children")
@@ -373,6 +418,7 @@ def copy_dataset(name: str):
         "message": "dataset moved successfully"
     }
 
+
 @router.get("/clear_data")
 def clear_data():
     dst = Path("./data")
@@ -382,6 +428,8 @@ def clear_data():
         "status": "200",
         "message": "dataset moved successfully"
     }
+
+
 def generate_outputs_datasets(target_dataset_path, outputs):
     if not target_dataset_path.exists():
         target_dataset_path.mkdir(exist_ok=True, parents=True)

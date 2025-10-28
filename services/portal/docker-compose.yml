@@ -19,6 +19,7 @@ services:
       - MINIO_EXPOSE_PORT=8004
       - USE_SSL=false
       - FHIR_ENDPOINT=hapi-fhir:8080/fhir
+      - DIGITALTWINS_API_URL=http://130.216.217.184:8010/
       - HOST=130.216.217.176
       - PLUGIN_PORT=8002
     env_file:
