@@ -12,8 +12,10 @@ services:
 
 volumes:
   keycloak_data:
+    name: digitaltwins_keycloak_data
     driver: local
   minio_data:
+    name: digitaltwins_minio_data
     driver: local
 
 networks:
