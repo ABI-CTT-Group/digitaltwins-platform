@@ -3,10 +3,12 @@ services:
     extends:
       file: ./services/keycloak/docker-compose.yml
       service: keycloak
+    restart: unless-stopped
   minio:
     extends:
       file: ./services/minio/docker-compose.yml
       service: minio
+    restart: unless-stopped
     networks:
       - digitaltwins
 
