@@ -7,8 +7,6 @@ services:
     extends:
       file: ./services/minio/docker-compose.yml
       service: minio
-#    env_file:
-#      - .env
     networks:
       - digitaltwins
 
