@@ -84,7 +84,7 @@ function explore () {
 
 <style scoped>
 .text-area{
-    height: 100px;
+    height: 130px;
 }
 .transition {
   transition: all 0.3s ease;

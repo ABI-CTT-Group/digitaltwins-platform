@@ -1,14 +1,16 @@
 import axios, { type AxiosRequestConfig } from "axios";
 import { IRequests } from "@/models/apiTypes";
 
-const Base_URL = import.meta.env.VITE_APP_API_URL;
+const Base_URL = import.meta.env.VITE_PORTAL_API_URL;
+const Port = import.meta.env.VITE_PORTAL_PORT;
 
 // const Base_URL = `http://130.216.217.68:5566/api`;
 
+const endpointUrl = `${Base_URL}:${Port}/api`;
 
 const maxRetries = 3;
 const retryDelay = 1000;
-axios.defaults.baseURL = Base_URL;
+axios.defaults.baseURL = endpointUrl;
 
 axios.interceptors.request.use((config: AxiosRequestConfig | any) => config);
 axios.interceptors.response.use(

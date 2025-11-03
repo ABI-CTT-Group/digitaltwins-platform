@@ -1,6 +1,5 @@
 FROM python:3.9-slim
 
-# 基础依赖
 RUN apt-get update && apt-get install -y \
     git \
     curl \

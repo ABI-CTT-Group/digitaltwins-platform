@@ -11,17 +11,17 @@
         <!-- <div class="position-fixed dashboard-title fancy-title">
             {{ isClinicianView ? "Clinician Dashboard" : "Study Dashboard" }}
         </div> -->
+        <div>
+            <HelpIcon class="position-fixed dashboard-title" :size="50" @click="hanleHelpClick"/>
+        </div>
         <v-card v-if="currentCategory !== 'Programmes' && currentCategory !== ''" class="position-fixed intro d-flex flex-column overflow-y-auto justify-space-around pa-5" color="transparent">
             <v-card-text>
-                <div v-for="c in detailsRenderItems.categories" :key="c.name" class="text-grey-lighten-3 my-2">
-                    <span v-if="c.category==='Studies'" class="tooltip-title">Study: </span>
-                    <span v-else class="tooltip-title">{{ c.category.slice(0, -1) }}: </span>
-                    <span class="tooltip-panel">
-                        {{c.name}} 
+                <div v-for="c in detailsRenderItems.categories" :key="c.name" class="text-grey-lighten-3 my-2 d-flex flex-row align-center">
+                    <span  class="tooltip-title d-flex justify-center">
                         <v-icon
                             color="blue-darken-1"
                             icon="mdi-information-outline"
-                            class="ml-1"
+                            class="mx-1"
                             size="small"
                             ></v-icon>
                         <v-tooltip
@@ -31,6 +31,10 @@
                         >
                             {{ c.description }}
                         </v-tooltip>
+                        {{ c.category === 'Studies' ? 'Study' : c.category.slice(0,-1) }} 
+                    </span>
+                    <span class="tooltip-panel mx-3">
+                        {{c.name}} 
                     </span>
                 </div>
             </v-card-text>
@@ -71,6 +75,8 @@ import AssayBasicCard from '@/components/dt-components/AssayBasicCard.vue';
 import axios from 'axios';
 import DownloadSheet from '@/components/dt-components/DownloadSheet.vue';
 import SubmitSheet from '@/components/dt-components/SubmitSheet.vue';
+import { reWriteCategoryDetails } from './utils';
+import HelpIcon from '@/components/commonBar/HelpIcon.vue';
 
 const username = 'admin';
 const password = 'ctt_digitaltwins_0';
@@ -154,8 +160,10 @@ const handleAssayEditClicked = async (seek_id:string, name:string) => {
 
 const handleAssaySave = async () => {
     currentAssayDetails.value!.isAssayReadyToLaunch = true;
-    setAllAssayDetailsOfStudy(currentAssayDetails.value!.seekId, currentAssayDetails.value!);
-    await saveAssayDetails(currentAssayDetails.value!);
+    console.log(currentAssayDetails.value);
+    
+    // setAllAssayDetailsOfStudy(currentAssayDetails.value!.seekId, currentAssayDetails.value!);
+    // await saveAssayDetails(currentAssayDetails.value!);
 }
 
 const handleAssayUploadClicked = async (assay_seek_id:string) => {
@@ -257,7 +265,10 @@ const handleExploreClicked = async (seek_id:string, name:string, category:string
     }else{
         explored.data = currentCategoryData.value;
     }
-    detailsRenderItems.value.categories.push({category: category, name: name, description: des});
+
+    await getDashboardCategoryChildren(seek_id, category);
+
+    detailsRenderItems.value.categories.push({category: category, name: name, description: reWriteCategoryDetails(category)});
     detailsRenderItems.value.description = des;
 
     setBreadCrumbsCategory(category);
@@ -266,7 +277,7 @@ const handleExploreClicked = async (seek_id:string, name:string, category:string
     setCurrentCategory(breadCrumbs[index+1]);
     breadCrumbsItems.value.push({ title: currentCategory.value, disabled: false });
     
-    await getDashboardCategoryChildren(seek_id, category);
+    
     
     // temporary
     if (category == "Programmes"){
@@ -302,6 +313,10 @@ watch(()=>currentCategoryData.value, (newVal)=>{
         })
     }
 })
+
+const hanleHelpClick = () => {
+    window.open("https://github.com/ABI-CTT-Group/DigitalTWINS-Portal?tab=readme-ov-file#how-to-use-the-study-dashboard", "_blank");
+}
 
 
 onMounted(async () => {
@@ -376,11 +391,12 @@ onMounted(async () => {
     padding-top: 150px;
 }
 .tooltip-title{
+     cursor: help;
     font-weight: 800;   
     color: coral;
 }
 .tooltip-panel{
-    cursor: help;
+   
     font-size: 0.8rem;
     line-height: 1.2;
 }
@@ -403,7 +419,7 @@ onMounted(async () => {
 }
 .dashboard-title{
     top: 100px;
-    left: 35px;
+    right: 35px;
     max-width: 10dvw;
 }
 

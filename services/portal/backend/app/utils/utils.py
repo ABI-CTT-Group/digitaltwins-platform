@@ -2,12 +2,17 @@ import os
 import stat
 import shutil
 from pathlib import Path
+from typing import Any
+import math
 
 
-def force_rmtree(path: Path):
+def force_rmtree(path: Path, keep_folder: bool = False):
     """
-    Delete entire directories (including read-only files), compatible with Linux/Windows.
+    Forcefully delete a directory or all files within it.
+    - If keep_folder=False (default), the entire directory will be deleted (same as shutil.rmtree).
+    - If keep_folder=True, only the files and subdirectories inside the directory will be removed, while keeping the directory itself.
     """
+
     def onerror(func, p, exc_info):
         if not os.access(p, os.W_OK):
             os.chmod(p, stat.S_IWRITE)
@@ -15,5 +20,25 @@ def force_rmtree(path: Path):
         else:
             raise
 
-    if path.exists():
+    if not path.exists():
+        return
+
+    if keep_folder:
+        for child in path.iterdir():
+            if child.is_dir():
+                shutil.rmtree(child, onerror=onerror)
+            else:
+                os.remove(child)
+        (path / ".gitkeep").touch(exist_ok=True)
+    else:
         shutil.rmtree(path, onerror=onerror)
+
+
+def is_empty(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.strip() == ""
+
+    if isinstance(value, (float, int)):
+        return math.isnan(value) if isinstance(value, float) else False
+
+    return not bool(value)

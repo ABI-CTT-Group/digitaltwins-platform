@@ -39,12 +39,12 @@
                         @on-explore="handleExploreClicked"
                         />    
                     <DashboardCard 
-                        :src="clinicalImage"
-                        :title="'Clinician dashboard'"
-                        location="Te Whatu Ora AI Lab"
-                        description="Enables clinicians to run AI/digital twin driven workflows and generate clinical reports."
+                        :src="catelogueImage" 
+                        :title="'Catalogue'"
+                        location="Auckland Bioengineering Institute"
+                        description="Provides “yellow pages” that enable users to see what AI/digital twin assets are being developed in research programmes. This includes viewing or adding new programmes, projects, investigations, studies, assays, workflows, measurements, and models."
                         @on-explore="handleExploreClicked"
-                        />
+                    />
                     <DashboardCard 
                         :src="studyImage" 
                         :title="'Study dashboard'"
@@ -57,12 +57,12 @@
                     cols="12"
                     md="12"
                     class="d-flex justify-space-around align-center"
-                > 
+                >  
                     <DashboardCard 
-                        :src="catelogueImage" 
-                        :title="'Catalogue'"
-                        location="Auckland Bioengineering Institute"
-                        description="Enables clinicians to see what AI/digital twin driven workflows and medical devices are available or being developed in research programmes."
+                        :src="clinicalImage"
+                        :title="'Clinician dashboard'"
+                        location="Te Whatu Ora AI Lab"
+                        description="Enables clinicians to run AI/digital twin driven workflows and generate clinical reports."
                         @on-explore="handleExploreClicked"
                     />
                     <DashboardCard 

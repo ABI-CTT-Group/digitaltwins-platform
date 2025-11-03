@@ -1,4 +1,3 @@
-version: "3"
 services:
   backend:
     build:
@@ -10,20 +9,29 @@ services:
     environment:
       - PYTHONPATH=/app
       - DATABASE_PATH=/data/plugin_registry.db
-      - DATASET_DIR=/datasets
+      - DATASET_DIR_TOOL=/datasets_tool
+      - DATASET_DIR_MEASUREMENT=/datasets_measurement
+      - DATASET_DIR_WORKFLOW=/datasets_workflow
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_BUCKET_NAME=workflow-tools
+      - MINIO_EXPOSE_PORT=8004
       - USE_SSL=false
       - FHIR_ENDPOINT=hapi-fhir:8080/fhir
+      - DIGITALTWINS_API_URL=http://130.216.217.184:8010/
       - HOST=130.216.217.176
+      - PLUGIN_PORT=8002
     env_file:
       - ./backend/.env
     volumes:
-      - digitaltwins_portal_datasets:/data/download_datasets
-      - ./backend/datasets:/app/datasets
+      - digitaltwins_portal_datasets:/app/data
+      # - ./backend/data:/app/data
+      - ./backend/datasets_tool:/datasets_tool
+      - ./backend/datasets_measurement:/datasets_measurement
+      - ./backend/datasets_workflow:/datasets_workflow
       - ./backend/configs.ini:/app/configs.ini
+      - plugin_database:/data
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
     networks:
@@ -36,7 +44,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_APP_API_URL: ${VITE_APP_API_URL}
+        VITE_PORTAL_API_URL: ${VITE_PORTAL_API_URL}
+        VITE_PORTAL_PORT: ${VITE_PORTAL_PORT}
     container_name: digitaltwins-ai-platform
     ports:
       - "80:80"
@@ -61,13 +70,15 @@ services:
       - MINIO_SERVER_ACCESS_KEY=minioadmin
       - MINIO_SERVER_SECRET_KEY=minioadmin
     command: server /data --console-address ":9001" --address ":9000"
+    depends_on:
+      - hapi-fhir
   
   hapi-fhir:
     image: hapiproject/hapi:latest
     container_name: hapi-fhir
     restart: on-failure
     ports:
-      - "8080:8080"
+      - "8006:8080"
     networks:
       - digitaltwins-portal-network
     volumes:
@@ -96,7 +107,9 @@ networks:
 
 volumes:
   digitaltwins_portal_datasets:
+    name: digitaltwins_portal_datasets
   hapi-fhir-postgres:
+  plugin_database:
   minio_data:
     driver: local
 

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException, Depends
+from fastapi.responses import JSONResponse
 from app.models import assay_model
 import json
 from pathlib import Path
@@ -6,12 +7,29 @@ from pathlib import Path
 from app.utils import digitaltwins_configs
 import shutil
 from pprint import pprint
-
+import os
+from app.utils.utils import force_rmtree
+from app.client.digitaltwins_api import DigitalTWINSAPIClient
 
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent.parent
+ADMIN_USER = os.getenv('DIGITALTWINS_ADMIN_USERNAME', "admin")
+ADMIN_PASS = os.getenv('DIGITALTWINS_ADMIN_PASSWORD', "admin")
 
-router = APIRouter()
+
+async def get_client() -> DigitalTWINSAPIClient:
+    """Create a client instance for dependency injection"""
+    digitaltwins_client = DigitalTWINSAPIClient(
+        username=ADMIN_USER,
+        password=ADMIN_PASS,
+    )
+    try:
+        yield digitaltwins_client
+    finally:
+        await digitaltwins_client.close()
+
+
+router = APIRouter(prefix="/api/dashboard")
 
 """
 Categories:
@@ -22,54 +40,75 @@ Categories:
     - Assaysx`
 """
 
-@router.get("/api/dashboard/programmes")
-async def get_dashboard_programmes():
-    programs = digitaltwins_configs.querier.get_programs()
-    programmes = []
-    for data in programs:
-        program = digitaltwins_configs.querier.get_program(data.get("id"))
-        category = program.get("type", None)
-        temp = {
-            "seekId": program.get("id", None),
-            "name": program.get("attributes").get("title", None),
-            "category": category.capitalize() if category is not None else None,
-            "description": program.get("attributes").get("description", None),
-        }
-        programmes.append(temp)
-    return programmes
+
+@router.get("/health")
+async def proxy_request(client: DigitalTWINSAPIClient = Depends(get_client)):
+    response = await client.get("/health")
+    return JSONResponse(content=response.json(), status_code=response.status_code)
 
 
-@router.get("/api/dashboard/category-children")
-async def get_dashboard_category_children_by_uuid(seek_id: str = Query(None), category: str = Query(None)):
+@router.get("/programmes")
+async def get_programmes(client: DigitalTWINSAPIClient = Depends(get_client)):
+    response = await client.get("/programs", {"get_details": False})
+    if response.status_code == 200:
+        programmes = []
+        for data in response.json().get('programs'):
+            program_res = await client.get(f"/programs/{data['id']}")
+            if program_res.status_code == 200:
+                program = program_res.json().get('program')
+                category = program.get("type", None)
+                temp = {
+                    "seekId": program.get("id", None),
+                    "name": program.get("attributes").get("title", None),
+                    "category": category.capitalize() if category is not None else None,
+                    "description": program.get("attributes").get("description", None),
+                }
+                programmes.append(temp)
+        return programmes
+    else:
+        raise HTTPException(status_code=response.status_code, detail=response.text)
+
+
+@router.get("/category-children")
+async def get_dashboard_category_children_by_uuid(seek_id: str = Query(None), category: str = Query(None),
+                                                  client: DigitalTWINSAPIClient = Depends(get_client)):
     if seek_id is None or category is None:
         return None
     category = category.lower()
     if category == "assays":
         return None
     if category == "programmes":
-        program = digitaltwins_configs.querier.get_program(program_id=seek_id)
-        dependencies = digitaltwins_configs.querier.get_dependencies(program, "projects")
+        program_res = await client.get(f"/programs/{seek_id}")
+        program = program_res.json().get('program')
+        dependencies = program.get("relationships").get("projects").get("data")
     elif category == "projects":
-        project = digitaltwins_configs.querier.get_project(project_id=seek_id)
-        dependencies = digitaltwins_configs.querier.get_dependencies(project, "investigations")
+        project_res = await client.get(f"/projects/{seek_id}")
+        project = project_res.json().get('project')
+        dependencies = project.get("relationships").get("investigations").get("data")
     elif category == "investigations":
-        investigation = digitaltwins_configs.querier.get_investigation(investigation_id=seek_id)
-        dependencies = digitaltwins_configs.querier.get_dependencies(investigation, "studies")
+        investigation_res = await client.get(f"/investigations/{seek_id}")
+        investigation = investigation_res.json().get('investigation')
+        dependencies = investigation.get("relationships").get("studies").get("data")
     elif category == "studies":
-        study = digitaltwins_configs.querier.get_study(study_id=seek_id)
-        dependencies = digitaltwins_configs.querier.get_dependencies(study, "assays")
+        study_res = await client.get(f"/studies/{seek_id}")
+        study = study_res.json().get('study')
+        dependencies = study.get("relationships").get("assays").get("data")
     else:
         return None
     children = []
     for data in dependencies:
         if data.get("type") == "projects":
-            child = digitaltwins_configs.querier.get_project(project_id=data.get("id"))
+            res = await client.get(f"/projects/{data.get('id')}")
+            child = res.json().get('project')
         elif data.get("type") == "investigations":
-            child = digitaltwins_configs.querier.get_investigation(investigation_id=data.get("id"))
+            res = await client.get(f"/investigations/{data.get('id')}")
+            child = res.json().get('investigation')
         elif data.get("type") == "studies":
-            child = digitaltwins_configs.querier.get_study(study_id=data.get("id"))
+            res = await client.get(f"/studies/{data.get('id')}")
+            child = res.json().get('study')
         elif data.get("type") == "assays":
-            child = digitaltwins_configs.querier.get_assay(assay_id=data.get("id"))
+            res = await client.get(f"/assays/{data.get('id')}")
+            child = res.json().get('assay')
         else:
             return None
         send_category = child.get("type", None)
@@ -83,18 +122,20 @@ async def get_dashboard_category_children_by_uuid(seek_id: str = Query(None), ca
     return children
 
 
-@router.get("/api/dashboard/workflows")
-async def get_dashboard_workflows():
-    sops = digitaltwins_configs.querier.get_sops()
+@router.get("/workflows")
+async def get_dashboard_workflows(client: DigitalTWINSAPIClient = Depends(get_client)):
+    sops_res = await client.get("/workflows")
+    sops = sops_res.json().get('workflows')
     workflows = []
     for data in sops:
         title = data['attributes']['title']
-        if title is None:
-            name = None
-            workflow_type = None
-        else:
+        if " - " in title:
             name = title.split(" - ")[0].rstrip()
             workflow_type = title.split(" - ")[1].lstrip()
+        else:
+            name = title
+            workflow_type = None
+
         temp = {
             "seekId": data.get("id", None),
             "uuid": "",
@@ -104,8 +145,7 @@ async def get_dashboard_workflows():
         workflows.append(temp)
     return workflows
 
-
-@router.get("/api/dashboard/workflow-detail")
+@router.get("/workflow-detail")
 async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
     if seek_id is None:
         return None
@@ -119,6 +159,9 @@ async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
             name = title.split(" - ")[0].rstrip()
             workflow_type = title.split(" - ")[1].lstrip()
 
+        pprint(data.get("inputs", None))
+        print("out")
+        pprint(data.get("outputs", None))
         return {
             "seekId": seek_id,
             "uuid": "",
@@ -131,20 +174,48 @@ async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
     except KeyError as e:
         return None
 
+# @router.get("/workflow-detail")
+# async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None),
+#                                                 client: DigitalTWINSAPIClient = Depends(get_client)):
+#     if seek_id is None:
+#         return None
+#     try:
+#         w_res = await client.get(f"/workflows/{seek_id}")
+#         workflow = w_res.json().get('workflow')
+#         title = workflow['attributes']['title']
+#         if " - " in title:
+#             name = title.split(" - ")[0].rstrip()
+#             workflow_type = title.split(" - ")[1].lstrip()
+#         else:
+#             name = title
+#             workflow_type = None
+#
+#         return {
+#             "seekId": seek_id,
+#             "uuid": "",
+#             "name": name,
+#             "type": workflow_type,
+#             "inputs": workflow.get("inputs", None),
+#             "outputs": workflow.get("outputs", None),
+#             "origin": workflow
+#         }
+#     except KeyError as e:
+#         return None
 
-@router.get("/api/dashboard/workflow-cwl")
+
+@router.get("/workflow-cwl")
 async def get_dashboard_workflow_cwl():
     sop_cwl = digitaltwins_configs.querier.get_sop(1, get_cwl=True)
     print(sop_cwl)
 
 
-@router.get("/api/dashboard/workflow")
+@router.get("/workflow")
 async def get_dashboard_workflow(seek_id: str = Query(None)):
     sop = digitaltwins_configs.querier.get_sop(seek_id)
     return sop
 
 
-@router.get("/api/dashboard/datasets")
+@router.get("/datasets")
 async def get_dashboard_datasets(category: str = Query(None)):
     if category is None:
         return None
@@ -159,7 +230,7 @@ async def get_dashboard_datasets(category: str = Query(None)):
     return datasets
 
 
-@router.get("/api/dashboard/dataset-detail")
+@router.get("/dataset-detail")
 async def get_dashboard_dataset_detail_by_uuid(uuid: str = Query(None)):
     if uuid is None:
         return None
@@ -167,7 +238,7 @@ async def get_dashboard_dataset_detail_by_uuid(uuid: str = Query(None)):
     return sample_types
 
 
-@router.post("/api/dashboard/assay-details")
+@router.post("/assay-details")
 async def set_dashboard_assay_details(details: assay_model.AssayDetails):
     assay_data = {
         "assay_uuid": details.uuid,
@@ -192,7 +263,7 @@ async def set_dashboard_assay_details(details: assay_model.AssayDetails):
     return True
 
 
-@router.get("/api/dashboard/assay-details")
+@router.get("/assay-details")
 async def get_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
     try:
         assay_detail = digitaltwins_configs.querier.get_assay(seek_id, get_params=True)
@@ -231,7 +302,7 @@ async def get_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
         return None
 
 
-@router.get("/api/dashboard/assay-project")
+@router.get("/assay-project")
 async def get_project_by_assay_id(seek_id: str = Query(None)):
     print("aaa")
     assay_detail = digitaltwins_configs.querier.get_assay(seek_id, get_params=True)
@@ -243,7 +314,7 @@ async def get_project_by_assay_id(seek_id: str = Query(None)):
     }
 
 
-@router.get("/api/dashboard/assay-launch")
+@router.get("/assay-launch")
 async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
     """
         When user click launch in assay, what should we do?
@@ -341,6 +412,46 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
                 "data": "http://130.216.216.26:8008/lab/tree/ep3/statistical_analysis_of_electrode_measurements.ipynb"
             }
     return None
+
+
+@router.get("/copy_dataset/{name}")
+def copy_dataset(name: str):
+    measurements_path = os.environ.get("DATASET_DIR_MEASUREMENT", "./datasets_measurement")
+    src = Path(measurements_path) / name
+    dst = Path("./data")
+    dst.mkdir(parents=True, exist_ok=True)
+    if not src.exists():
+        raise HTTPException(status_code=404, detail=f"dataset directory {src} does not exist")
+
+    for item in src.iterdir():
+        target = dst / item.name
+
+        if target.exists():
+            if target.is_file():
+                target.unlink()
+            else:
+                shutil.rmtree(target)
+
+        if item.is_dir():
+            shutil.copytree(item, target)
+        else:
+            shutil.copy2(item, target)
+
+    return {
+        "status": "200",
+        "message": "dataset moved successfully"
+    }
+
+
+@router.get("/clear_data")
+def clear_data():
+    dst = Path("./data")
+    force_rmtree(dst, True)
+
+    return {
+        "status": "200",
+        "message": "dataset moved successfully"
+    }
 
 
 def generate_outputs_datasets(target_dataset_path, outputs):

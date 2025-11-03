@@ -1,16 +1,8 @@
 <template>
-
+    
     
     <div v-if="assayReadyToLaunch" class="container d-flex justify-center">
-        <div class="back-arrow">
-          <v-btn 
-              icon="mdi-arrow-left" 
-              variant="tonal"
-              class="hover-animate"
-              size="65"
-              @click="$router.back()"
-              ></v-btn>
-        </div>
+        <BackIcon/>
         <div class="overflow-y-auto sub-container d-flex flex-column align-center no-select">
             <v-container fluid class="py-10">
                 <v-row justify="center">
@@ -73,6 +65,7 @@
 </template>
 
 <script setup lang="ts">
+import BackIcon from '@/components/commonBar/BackIcon.vue';
 import { useRoute } from 'vue-router';
 import { asyncComputed } from '@vueuse/core'
 import { ref, computed, onMounted, onBeforeMount, watchEffect} from 'vue';
@@ -255,12 +248,7 @@ h1, h2 {
   background-color: rgba(0, 0, 0, 0.6) !important;
 }
 
-.back-arrow {
-  position: fixed;
-  top: 80px;
-  left: 20px;
-  z-index: 100;
-}
+
 
 .pipeline-title {
   font-weight: 600;
