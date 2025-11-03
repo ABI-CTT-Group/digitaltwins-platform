@@ -1,19 +1,30 @@
-# By default Keycloak requires HTTPS to be enabled for external IP addresses,
-# if you access Keycloak with an internal IP address, this is not required.
-# However, if you access Keycloak from a external network,
-# you need to add your proxy configs/SSL certificate to Keycloak, see docker-compose-https.yml as an example
+# create https-key-store-file, Run:
+# keytool -genkeypair \
+#  -alias keycloak \
+#  -keyalg RSA \
+#  -keystore server.jks \
+#  -storepass change_me \
+#  -keypass change_me \
+#  -validity 365 \
+#  -dname "CN=localhost, OU=Dev, O=MyCompany, L=City, ST=State, C=NZ"
 
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.3.2
-    command: start-dev
+    command:
+      - start
+      - --hostname-strict=false
+      - --http-enabled=true
+      - --https-key-store-file=/opt/keycloak/conf/server.jks
+      - --https-key-store-password=${KC_HTTPS_KEY_STORE_PASSWORD}
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}
     ports:
-      - "8009:8080"
+      - "8009:8443"
     volumes:
       - keycloak_data:/opt/keycloak/data
+      - ./server.jks:/opt/keycloak/conf/server.jks
     restart: unless-stopped
     networks:
       - digitaltwins
