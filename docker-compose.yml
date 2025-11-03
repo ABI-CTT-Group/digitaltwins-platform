@@ -34,6 +34,9 @@ volumes:
   minio_data:
     name: digitaltwins_minio_data
     driver: local
+  hapi_fhir_postgres:
+    name: digitaltwins_hapi_fhir_postgres
+    driver: local
 
 networks:
   digitaltwins:
