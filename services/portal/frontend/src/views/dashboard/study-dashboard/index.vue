@@ -160,8 +160,10 @@ const handleAssayEditClicked = async (seek_id:string, name:string) => {
 
 const handleAssaySave = async () => {
     currentAssayDetails.value!.isAssayReadyToLaunch = true;
-    setAllAssayDetailsOfStudy(currentAssayDetails.value!.seekId, currentAssayDetails.value!);
-    await saveAssayDetails(currentAssayDetails.value!);
+    console.log(currentAssayDetails.value);
+    
+    // setAllAssayDetailsOfStudy(currentAssayDetails.value!.seekId, currentAssayDetails.value!);
+    // await saveAssayDetails(currentAssayDetails.value!);
 }
 
 const handleAssayUploadClicked = async (assay_seek_id:string) => {
@@ -263,6 +265,9 @@ const handleExploreClicked = async (seek_id:string, name:string, category:string
     }else{
         explored.data = currentCategoryData.value;
     }
+
+    await getDashboardCategoryChildren(seek_id, category);
+
     detailsRenderItems.value.categories.push({category: category, name: name, description: reWriteCategoryDetails(category)});
     detailsRenderItems.value.description = des;
 
@@ -272,7 +277,7 @@ const handleExploreClicked = async (seek_id:string, name:string, category:string
     setCurrentCategory(breadCrumbs[index+1]);
     breadCrumbsItems.value.push({ title: currentCategory.value, disabled: false });
     
-    await getDashboardCategoryChildren(seek_id, category);
+    
     
     // temporary
     if (category == "Programmes"){
