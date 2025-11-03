@@ -1,4 +1,4 @@
-# Tumour app vuetify
+# DigitalTWINS Portal Frontend
 
 ## Project setup
 

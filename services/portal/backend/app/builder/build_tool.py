@@ -6,16 +6,24 @@ import platform
 import uuid
 import json
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Literal
 from urllib.parse import quote
+from dotenv import dotenv_values
 
 from app.utils.utils import force_rmtree
 
 from sparc_me import Dataset
 from .logger import get_logger
-from .minio_client import get_minio_client
+from app.client.minio import get_minio_client
 from sqlalchemy.orm import Session
 from app.models.db_model import Plugin, SessionLocal
+from app.utils.builder_utils import (
+    clone_repository,
+    copy_item,
+    is_git_url,
+    remove_tmp_folder,
+    unique_name,
+    update_minio_bucket_metadata)
 
 logger = get_logger(__name__)
 
@@ -26,35 +34,14 @@ class PluginBuilder:
     def __init__(self, dataset_dir: str = None, db: Optional[Session] = None):
         if dataset_dir is None:
             # Use environment variable or default to ./dataset for local, /datasets for Docker
-            dataset_dir = os.environ.get('DATASET_DIR', "./datasets")
+            dataset_dir = os.environ.get('DATASET_DIR_TOOL', "./datasets_tool")
         self.tmp_dir = Path("./tmp")
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
         self.dataset_dir = Path(dataset_dir)
         self.dataset_dir.mkdir(parents=True, exist_ok=True)
 
-    def clone_repository(self, repo_url: str, branch: str = "main") -> Path:
-        """Clone a git repository to a temporary directory"""
-        try:
-            clone_dir = self.tmp_dir / f"plugin_build_{uuid.uuid4().hex[:8]}"
-            clone_dir.mkdir(exist_ok=True)
-            if not repo_url.endswith(".git"):
-                repo_url += ".git"
-            logger.info(f"Cloning repository {repo_url} to {clone_dir}")
-            subprocess.run(
-                ["git", "clone", "--branch", branch, repo_url, str(clone_dir)],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            logger.info(f"Successfully cloned repository to {clone_dir}")
-            return clone_dir
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to clone repository: {e}")
-            logger.error(f"stdout: {e.stdout}")
-            logger.error(f"stderr: {e.stderr}")
-            raise RuntimeError(f"Git clone failed: {e}")
-
-    def check_npm_project(self, project_dir: Path) -> bool:
+    @staticmethod
+    def check_npm_project(project_dir: Path) -> bool:
         """Check if the project directory contains npm project files"""
         package_json = project_dir / "package.json"
         return package_json.exists()
@@ -159,6 +146,7 @@ class PluginBuilder:
 
     def create_sparc_dataset(self,
                              project_dir: Path,
+                             label: str,
                              has_backend: bool,
                              build_output_dir: Optional[Path] = None,
                              dataset_name: str = "plugin_build_dataset") -> Path:
@@ -186,32 +174,47 @@ class PluginBuilder:
             code_dir = dataset_dir / "code"
             code_dir.mkdir(exist_ok=True)
 
-            if has_backend:
-                for layer in project_dir.iterdir():
-                    if layer.name == ".git":
-                        continue
-                    if layer.is_dir():
-                        for item in layer.iterdir():
-                            dest = code_dir / layer.name
-                            dest.mkdir(exist_ok=True)
-                            self._copy_item(item, dest)
-                    else:
-                        self._copy_item(layer, code_dir)
-            else:
-                for item in project_dir.iterdir():
-                    self._copy_item(item, code_dir)
+            logger.info(f"the tool label is {label}")
+            if label == "GUI":
+                if has_backend:
+                    for layer in project_dir.iterdir():
+                        if layer.name == ".git":
+                            continue
+                        if layer.is_dir():
+                            for item in layer.iterdir():
+                                dest = code_dir / layer.name
+                                dest.mkdir(exist_ok=True)
+                                copy_item(item, dest)
+                        else:
+                            copy_item(layer, code_dir)
+                else:
+                    for item in project_dir.iterdir():
+                        if item.name == ".git":
+                            continue
+                        copy_item(item, code_dir)
 
-            if build_output_dir and build_output_dir.exists():
+                if build_output_dir and build_output_dir.exists():
+                    primary_dir = dataset_dir / "primary"
+                    primary_dir.mkdir(exist_ok=True)
+
+                    for item in build_output_dir.iterdir():
+                        if item.is_dir() and item.name != ".git":
+                            shutil.copytree(item, primary_dir / item.name, dirs_exist_ok=True)
+                        else:
+                            shutil.copy2(item, primary_dir / item.name)
+
+                    logger.info(f"Copied build artifacts from {build_output_dir} to {primary_dir}")
+            else:
                 primary_dir = dataset_dir / "primary"
                 primary_dir.mkdir(exist_ok=True)
 
-                for item in build_output_dir.iterdir():
-                    if item.is_dir():
-                        shutil.copytree(item, primary_dir / item.name, dirs_exist_ok=True)
-                    else:
+                for item in project_dir.iterdir():
+                    if item.name == ".git":
+                        continue
+                    copy_item(item, code_dir)
+                    if item.is_file() and item.suffix == ".cwl":
                         shutil.copy2(item, primary_dir / item.name)
-
-                logger.info(f"Copied build artifacts from {build_output_dir} to {primary_dir}")
+                logger.info(f"Copied cwl artifacts from {project_dir} to {primary_dir}")
 
             dataset.save(save_dir=str(dataset_dir))
 
@@ -229,25 +232,8 @@ class PluginBuilder:
             raise RuntimeError(f"Failed to create SPARC dataset: {e}")
 
     @staticmethod
-    def _copy_item(src: Path, dst: Path, exclude: set = None):
-
-        if exclude is None:
-            exclude = {".git", "node_modules", "dist", "build"}
-
-        if src.name in exclude:
-            return
-
-        if src.is_dir():
-            shutil.copytree(src, dst / src.name, dirs_exist_ok=True)
-        else:
-            shutil.copy2(src, dst / src.name)
-
-    def is_git_url(self, repo_url: str) -> bool:
-        """Check if the repository URL is a valid git url"""
-        return repo_url.startswith("git@") or repo_url.startswith("https://") or repo_url.startswith("http://")
-
-    def replace_path_in_umd_js(self, project_dir: Path, has_backend: bool, expose_name: str,
-                               frontend_folder: Optional[str] = None):
+    def _replace_path_in_umd_js(project_dir: Path, has_backend: bool, expose_name: str,
+                                frontend_folder: Optional[str] = None):
         """Replace the path in file ends with .umd.js file for other files in the dist directory to the new path with the minio path"""
         other_files = []
         umd_js_file_path = None
@@ -272,18 +258,14 @@ class PluginBuilder:
         with open(umd_js_file_path, "r") as f:
             umd_js_content = f.read()
 
-        new_path_prefix = f"http://{os.environ.get('HOST', 'localhost')}:9000/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{expose_name}/primary/"
+        new_path_prefix = f"http://{os.environ.get('HOST', 'localhost')}:{os.environ.get('MINIO_EXPOSE_PORT', 9000)}/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{expose_name}/primary/"
         umd_js_content = umd_js_content.replace(new_path_prefix, expose_name)
 
         with open(umd_js_file_path, "w") as f:
             f.write(umd_js_content)
 
-    def unique_name(self, name: str) -> str:
-        """Make the name unique by adding a random string to the end"""
-        clean = re.sub(r'[^a-zA-Z0-9]', '', name)
-        return f"{clean}_{uuid.uuid4().hex[:8]}"
-
-    def replace_vite_build_config(self, file_path: Path, new_name: str) -> bool:
+    @staticmethod
+    def _replace_vite_build_config(file_path: Path, new_name: str) -> bool:
         """
         Replace `name`, `formats`, and `fileName` fields in a Vite config file.
 
@@ -332,7 +314,7 @@ class PluginBuilder:
             logger.error(f"Error processing {file_path}: {e}")
             return False
 
-    def update_vite_config(self, project_dir: Path, plugin_expose_name: str):
+    def _update_vite_config(self, project_dir: Path, plugin_expose_name: str):
         """Update the vite.config.js file to use the unique name"""
         vite_config_js = project_dir / "vite.config.js"
         vite_config_ts = project_dir / "vite.config.ts"
@@ -344,9 +326,10 @@ class PluginBuilder:
             logger.error("vite.config.js or vite.config.ts not found")
             raise RuntimeError("vite.config.js or vite.config.ts not found")
 
-        self.replace_vite_build_config(vite_config_file, plugin_expose_name)
+        self._replace_vite_build_config(vite_config_file, plugin_expose_name)
 
-    def update_plugin_version(self, project_dir: Path, plugin_id: str):
+    @staticmethod
+    def _update_plugin_version(project_dir: Path, plugin_id: str):
         package_json = project_dir / "package.json"
         with open(package_json, "r") as f:
             package_json = json.load(f)
@@ -358,7 +341,29 @@ class PluginBuilder:
                 session.commit()
         return version
 
-    def build_plugin(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
+    @staticmethod
+    def _create_env_file(project_dir: Path):
+        host = os.environ.get('HOST', None)
+        if host is None:
+            raise RuntimeError("HOST environment variable not set")
+        port = os.environ.get('PLUGIN_PORT', 8082)
+        use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
+        config = {
+            "VITE_PLUGIN_API_URL": f"http{'s' if use_ssl else ''}://{host}",
+            "VITE_PLUGIN_API_PORT": port
+        }
+        env_path = project_dir / ".env"
+        if env_path.exists():
+            env = dotenv_values(env_path)
+            config.update(env)
+        else:
+            env_path.touch(exist_ok=True)
+        with open(env_path, "w", encoding="utf-8") as f:
+            for key, val in config.items():
+                f.write(f"{key}={val}\n")
+        logger.info(f"Updated env file in {env_path}")
+
+    def build(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
         """Complete plugin build process"""
         build_logs = []
         error_message = None
@@ -368,6 +373,7 @@ class PluginBuilder:
         plugin_id = plugin.get("id")
         plugin_name = plugin.get("name", "unknown")
         version = plugin.get("version", "1.0.0")
+        label = plugin.get("label", "GUI")
         created_at = plugin.get("created_at", "unknown")
         author = plugin.get("author", "unknown")
         description = plugin.get("description", "No description provided")
@@ -377,18 +383,19 @@ class PluginBuilder:
         backend_folder = plugin.get("backend_folder", "unknown")
         backend_deploy_command = plugin.get("backend_deploy_command")
         cloned_dir = None
+        config = {}
 
         try:
-            plugin_unique_expose_name = self.unique_name(plugin_name)
+            plugin_unique_expose_name = unique_name(plugin_name)
             logger.info("Plugin unique name is %s", plugin_unique_expose_name)
             metadata["expose"] = plugin_unique_expose_name
             # Step 0: Check for existing metadata
             logger.info("Step 0: Checking for existing plugin metadata...")
 
             # Step 1: Clone the repository or use local path
-            if self.is_git_url(repo_url):
+            if is_git_url(repo_url):
                 logger.info("Step 1: Cloning repository...")
-                project_dir = self.clone_repository(repo_url, branch)
+                project_dir = clone_repository(self.tmp_dir, repo_url, logger, branch)
                 cloned_dir = project_dir  # Mark for cleanup
                 logger.info(f"Repository cloned to: {cloned_dir}")
             else:
@@ -423,78 +430,95 @@ class PluginBuilder:
                     raise RuntimeError(f"Local path does not a directory: {project_dir}")
                 logger.info(f"Using local project dictory: {project_dir}")
 
-            # Step 2: Check if it's an npm project and extract metadata
-            logger.info("Step 2: Checking if the frontend is an npm project...")
-            if has_backend:
-                frontend_path = project_dir / frontend_folder
+            # If the tool is a script, skip some of the steps below.
+            if label == "GUI":
+                # Step 2: Check if it's an npm project and extract metadata
+                logger.info("Step 2: Checking if the frontend is an npm project...")
+                if has_backend:
+                    frontend_path = project_dir / frontend_folder
+                else:
+                    frontend_path = project_dir
+                if not self.check_npm_project(frontend_path):
+                    raise RuntimeError("No package.json found - not an npm project")
+                logger.info("npm project detected")
+
+                # Step 2.1: update vite.config.js
+                logger.info("Step 2.1: Updating vite.config.js...")
+                self._update_vite_config(frontend_path, metadata["expose"])
+                logger.info("vite.config.js updated successfully")
+
+                # Step 2.2: update plugin version base on plugin frontend package.json version
+                logger.info("Step 2.2: Updating plugin version...")
+                new_version = self._update_plugin_version(frontend_path, plugin_id)
+                version = new_version if new_version is not None else version
+
+                # Step 2.3: update plugin backend endpoint by create .env in frontend folder, if the plugin has backend
+                if has_backend:
+                    logger.info("Step 2.3: Create .env file for frontend...")
+                    self._create_env_file(frontend_path)
+
+                # Step 3: npm install
+                logger.info("Step 3: Running npm install")
+                install_result = self.frontend_install(frontend_path)
+                if not install_result["success"]:
+                    raise RuntimeError(f"npm install failed: {install_result.get('error', 'Unknown error')}")
+                logger.info("npm install completed successfully")
+
+                # Step 4: npm build
+                logger.info("Step 4: Running npm build...")
+                build_result = self.frontend_build(frontend_path, frontend_build_command)
+                if not build_result["success"]:
+                    raise RuntimeError(f"npm build failed: {build_result.get('error', 'Unknown error')}")
+                logger.info("npm build completed successfully")
+
+                # Step 5: replace the path in the umd.js file (only for remote repos, not local)
+                if cloned_dir:
+                    logger.info("Step 5: Replacing path in umd.js file...")
+                    self._replace_path_in_umd_js(project_dir, has_backend, metadata["expose"], frontend_folder)
+                    logger.info("Path in umd.js file replaced successfully")
+                else:
+                    logger.info("Step 5: Skipping path replacement for local plugin...")
+
+                # read config file in the cloned directory
+                config_file = project_dir / "config.portal.json"
+
+                if config_file.exists():
+                    logger.info(f"Reading config from {config_file}")
+                    with open(config_file, "r") as f:
+                        config = json.loads(f.read())
+                else:
+                    logger.warning(f"No config.portal.json found in {project_dir}")
+
+                # Step 5: Create SPARC dataset (only for remote repos)
+                dataset_dir = None
+                if cloned_dir:
+                    logger.info("Step 5: Creating SPARC dataset by sparc-me")
+
+                    # Look for common build output directories
+                    build_output_dir = None
+                    possible_build_dir = ["dist", "build"]
+                    for dir_name in possible_build_dir:
+                        potential_dir = frontend_path / dir_name
+                        if potential_dir.exists():
+                            build_output_dir = potential_dir
+                            logger.info(f"Found build output directory: {build_output_dir}")
+                            break
+
+                    dataset_dir = self.create_sparc_dataset(project_dir, label, has_backend, build_output_dir,
+                                                            f"{plugin_unique_expose_name}")
+                    logger.info(f"SPARC dataset created in {dataset_dir}")
+                else:
+                    logger.info("Step 5: Skipping SPARC dataset creation for local plugin...")
             else:
-                frontend_path = project_dir
-            if not self.check_npm_project(frontend_path):
-                raise RuntimeError("No package.json found - not an npm project")
-            logger.info("npm project detected")
-
-            # Step 2.1: update vite.config.js
-            logger.info("Step 2.1: Updating vite.config.js...")
-            self.update_vite_config(frontend_path, metadata["expose"])
-            logger.info("vite.config.js updated successfully")
-
-            # Step 2.2: update plugin version base on plugin frontend package.json version
-            logger.info("Step 2.2: Updating plugin version...")
-            new_version = self.update_plugin_version(frontend_path, plugin_id)
-            version = new_version if new_version is not None else version
-
-            # Step 3: npm install
-            logger.info("Step 3: Running npm install")
-            install_result = self.frontend_install(frontend_path)
-            if not install_result["success"]:
-                raise RuntimeError(f"npm install failed: {install_result.get('error', 'Unknown error')}")
-            logger.info("npm install completed successfully")
-
-            # Step 4: npm build
-            logger.info("Step 4: Running npm build...")
-            build_result = self.frontend_build(frontend_path, frontend_build_command)
-            if not build_result["success"]:
-                raise RuntimeError(f"npm build failed: {build_result.get('error', 'Unknown error')}")
-            logger.info("npm build completed successfully")
-
-            # Step 5: replace the path in the umd.js file (only for remote repos, not local)
-            if cloned_dir:
-                logger.info("Step 5: Replacing path in umd.js file...")
-                self.replace_path_in_umd_js(project_dir, has_backend, metadata["expose"], frontend_folder)
-                logger.info("Path in umd.js file replaced successfully")
-            else:
-                logger.info("Step 5: Skipping path replacement for local plugin...")
-
-            # read config file in the cloned directory
-            config_file = project_dir / "config.portal.json"
-            config = {}
-            if config_file.exists():
-                logger.info(f"Reading config from {config_file}")
-                with open(config_file, "r") as f:
-                    config = json.loads(f.read())
-            else:
-                logger.warning(f"No config.portal.json found in {project_dir}")
-
-            # Step 5: Create SPARC dataset (only for remote repos)
-            dataset_dir = None
-            if cloned_dir:
-                logger.info("Step 5: Creating SPARC dataset by sparc-me")
-
-                # Look for common build output directories
-                build_output_dir = None
-                possible_build_dir = ["dist", "build"]
-                for dir_name in possible_build_dir:
-                    potential_dir = frontend_path / dir_name
-                    if potential_dir.exists():
-                        build_output_dir = potential_dir
-                        logger.info(f"Found build output directory: {build_output_dir}")
-                        break
-
-                dataset_dir = self.create_sparc_dataset(project_dir, has_backend, build_output_dir,
-                                                        f"{plugin_unique_expose_name}")
-                logger.info(f"SPARC dataset created in {dataset_dir}")
-            else:
-                logger.info("Step 5: Skipping SPARC dataset creation for local plugin...")
+                # Step 5: Create SPARC dataset (only for remote repos) for cwl plugin script
+                dataset_dir = None
+                if cloned_dir:
+                    logger.info("Step 5: Creating SPARC dataset by sparc-me")
+                    dataset_dir = self.create_sparc_dataset(project_dir, label, has_backend, None,
+                                                            f"{plugin_unique_expose_name}")
+                    logger.info(f"SPARC dataset created in {dataset_dir}")
+                else:
+                    logger.info("Step 5: Skipping SPARC dataset creation for local plugin...")
 
             # Step 6: Upload dataset to MinIO or copy to public folder
             s3_path = None
@@ -519,10 +543,7 @@ class PluginBuilder:
             logger.info("Step 7: Cleaning up temporary files")
             if cloned_dir:
                 try:
-                    force_rmtree(cloned_dir)
-                    logger.info("Cleaning up cloned repository")
-                    # force_rmtree(dataset_dir)
-                    # logger.info("Cleaning up sparc dataset")
+                    remove_tmp_folder(cloned_dir, logger)
                 except Exception as e:
                     logger.error(f"Failed to remove cloned repository: {e}")
             else:
@@ -532,9 +553,12 @@ class PluginBuilder:
             # Determine the path based on whether it's a local plugin or remote
             if cloned_dir:
                 # Remote plugin - use public directory path with metadata path
-                plugin_path = f"http://{os.environ.get('HOST', 'localhost')}:9000/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{metadata['expose']}/primary/my-app.umd.js"
-                if has_backend:
-                    backend_path = f"http://{os.environ.get('HOST', 'localhost')}:9000/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{metadata['expose']}/code/{backend_folder}"
+                if label == "GUI":
+                    plugin_path = f"http://{os.environ.get('HOST', 'localhost')}:{os.environ.get('MINIO_EXPOSE_PORT', 9000)}/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{metadata['expose']}/primary/my-app.umd.js"
+                    if has_backend:
+                        backend_path = f"http://{os.environ.get('HOST', 'localhost')}:{os.environ.get('MINIO_EXPOSE_PORT', 9000)}/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{metadata['expose']}/code/{backend_folder}"
+                else:
+                    plugin_path = f"http://{os.environ.get('HOST', 'localhost')}:{os.environ.get('MINIO_EXPOSE_PORT', 9000)}/{os.environ.get('MINIO_BUCKET_NAME', 'workflow-tools')}/{metadata['expose']}/primary"
             else:
                 # Local plugin - use public directory path with metadata expose folder name
                 plugin_path = f"/{metadata['expose']}/my-app.umd.js"
@@ -544,36 +568,22 @@ class PluginBuilder:
                 "id": plugin_id,
                 "name": plugin_name,
                 "path": plugin_path,
-                "expose": metadata.get("expose", "MyApp"),
+                "expose": metadata.get("expose", "MyApp") if label == "GUI" else None,
+                "label": label,
                 "description": description,
                 "version": version,
                 "created_at": created_at,
                 "author": author,
                 "repository_url": repo_url,
                 "is_local": not bool(cloned_dir),
-                "frontend_folder": frontend_folder,
-                "has_backend": has_backend,
+                "frontend_folder": frontend_folder if label == "GUI" else None,
+                "has_backend": has_backend if label == "GUI" else False,
                 "backend_folder": backend_folder if has_backend else None,
-                "backend_deploy_command": backend_deploy_command if has_backend else None,
+                "backend_deploy_command": backend_deploy_command if (has_backend and label == "GUI") else None,
                 "config": config
             }
-            component_exists = False
-            existing_metadata = minio_client.metadata
-            for i, component in enumerate(existing_metadata.get("components", [])):
-                # TODO: need to tweak, using DigitalTWIN Platform tool dataset uuid
-                if component.get("name") == component_entry.get("name"):
-                    existing_metadata["components"][i] = component_entry
-                    component_exists = True
-                    logger.info(f"Updated existing component: {component_entry['name']}")
-                    break
 
-            if not component_exists:
-                existing_metadata["components"].append(component_entry)
-                logger.info(f"Added new component: {component_entry['name']}")
-
-            logger.info(f"Write metadata to MinIO metadata file")
-            minio_client.update_metadata(existing_metadata)
-
+            update_minio_bucket_metadata(minio_client, component_entry, logger)
             logger.info("Build process completed successfully")
 
             return {
@@ -589,7 +599,7 @@ class PluginBuilder:
             error_message = str(e)
             logger.info(f"Build failed: {error_message}")
             logger.error(f"Build process failed: {e}")
-
+            remove_tmp_folder(cloned_dir, logger)
             return {
                 "success": False,
                 "dataset_path": None,

@@ -10,23 +10,23 @@
 import DefaultView from "./View.vue";
 import NavHome from "@/components/dt-components/NavHome.vue";
 import { useRoute } from "vue-router";
-import { watch, ref } from "vue";
+import { watch, ref, computed } from "vue";
 
 const route = useRoute();
-const dashboardTitle = ref("");
-watch(
-  () => route.params.dashboardType,
-  (newVal) => {
-    console.log("dashboardType changed to:", newVal);
-    if (newVal === 'clinician') {
-      dashboardTitle.value = "Clinician Dashboard";
-    } else if (newVal === 'study') {
-      dashboardTitle.value = "Study Dashboard";
-    }else {
-      dashboardTitle.value = "";
-    }
+
+const dashboardTitle = computed(() => {
+  if (route.name === 'CatalogueDashboardView'){
+    return "Catalogue Dashboard";
+  }else if(route.name === 'TutorialDashboard'){
+    return "How It Works";
+  }else if (route.params.dashboardType === 'clinician') {
+    return "Clinician Dashboard";
+  } else if (route.params.dashboardType === 'study') {
+    return "Study Dashboard";
+  }else {
+    return "";
   }
-);
+})
 
 </script>
 
@@ -53,10 +53,10 @@ watch(
       linear-gradient(
         90deg,
         #050708 0%,
-        #071019 18%,
-        #0b2433 33%,
-        #0e3f5a 50%,
-        #0f5f83 68%,
+        #071019 12%,
+        #0b2433 25%,
+        #0e3f5a 33%,
+        #0f5f83 50%,
         #1493b4 90%,
         #1fb7d9 100%
       );

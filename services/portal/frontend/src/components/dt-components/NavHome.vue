@@ -69,8 +69,8 @@ const handleHomeClick = ()=>{
     height: 100%;
 }
 .my-title{
-    font-size: 1.2rem;
-    font-weight: 700;
+    font-size: 1.5rem;
+    font-weight: 800;
     user-select: none;
 }
 </style>

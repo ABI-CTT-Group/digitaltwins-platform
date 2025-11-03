@@ -7,7 +7,7 @@ from app.database.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Literal
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import uuid
@@ -16,23 +16,49 @@ import logging
 import requests
 from app.models.db_model import (
     Plugin, PluginCreate, PluginBuild, PluginResponse,
-    PluginBuildResponse, BuildStatus, SessionLocal
+    PluginBuildResponse, BuildStatus, SessionLocal,
+    DeployStatus, PluginDeployment, PluginDeployResponse,
+    PluginAnnotationResponse, PluginAnnotationCreate,
+    PluginAnnotation
 )
 from app.builder.logger import get_logger, configure_logging
-from app.builder.build import PluginBuilder
-from app.builder.minio_client import get_minio_client
+from app.builder.build_tool import PluginBuilder
+from app.builder.deploy_tool import PluginDeployer
+from app.client.minio import get_minio_client
+from app.client.fhir import get_fhir_adapter, get_fhir_async_client
+
 from pathlib import Path
 from botocore.exceptions import ClientError
-from app.utils.workflow_tool_utils import (get_build_record_or_404, get_public_url_for_build)
+from app.utils.workflow_tool_utils import (
+    get_build_record_or_404,
+    get_public_url_for_build,
+    get_latest_build_record,
+    shuttle_down_deployed_backend)
+from app.utils.builder_utils import execute_build_in_background
 from uuid import UUID
-from app.utils.utils import force_rmtree
+from app.utils.utils import force_rmtree, is_empty
+from fhir_cda import Annotator
 
 configure_logging()
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/workflow-tools")
 builder = PluginBuilder()
+deployer = PluginDeployer()
 minio = get_minio_client()
+adapter = get_fhir_adapter()
+fhir_async_client = get_fhir_async_client()
 
+
+@router.get("/", response_model=List[PluginResponse])
+async def get_plugins(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    plugins = db.query(Plugin).offset(skip).limit(limit).all()
+    responses = []
+    for p in plugins:
+        response = PluginResponse.model_validate(p)
+        response.workflow_ids = [w.id for w in p.workflows]
+        responses.append(response)
+
+    return responses
 
 @router.get("/check-name")
 async def check_name(name: str, db: Session = Depends(get_db)):
@@ -44,6 +70,7 @@ async def check_name(name: str, db: Session = Depends(get_db)):
 
 @router.post("/create", response_model=PluginResponse)
 async def create_tool_plugin(plugin: PluginCreate, db: Session = Depends(get_db)):
+
     db_plugin = Plugin(**plugin.model_dump())
     db.add(db_plugin)
     db.commit()
@@ -51,10 +78,25 @@ async def create_tool_plugin(plugin: PluginCreate, db: Session = Depends(get_db)
     return db_plugin
 
 
-@router.get("/", response_model=List[PluginResponse])
-async def get_plugins(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    plugins = db.query(Plugin).offset(skip).limit(limit).all()
-    return plugins
+@router.post("/plugin/{plugin_id}/annotation", response_model=PluginAnnotationResponse)
+async def create_tool_annotation(plugin_id: str, annotation: PluginAnnotationCreate, db: Session = Depends(get_db)):
+    plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
+    if plugin is None:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    annotation_id = str(uuid.uuid4())
+
+    db_annotation = PluginAnnotation(
+        plugin_id=plugin.id,
+        annotation_id=annotation_id,
+        fhir_note=annotation.fhir_note,
+        sparc_note=annotation.sparc_note
+    )
+
+    db.add(db_annotation)
+    db.commit()
+    db.refresh(db_annotation)
+    return db_annotation
+
 
 
 @router.get("/plugin/{plugin_id}", response_model=PluginResponse)
@@ -67,38 +109,77 @@ async def get_plugin(plugin_id: str, db: Session = Depends(get_db)):
 
 @router.delete("/plugin/{plugin_id}")
 async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
-    plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
+    try:
+        plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
+        logger.info(f"Deleting plugin {plugin_id}")
+        if plugin is not None:
+            # Check if plugin is used in any workflow
+            if plugin.workflows:
+                workflow_names = [w.name for w in plugin.workflows]
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot delete plugin. It is used in workflows: {', '.join(workflow_names)}",
+                )
 
-    if plugin is not None:
-        builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).all()
-        for build in builds:
-            if build.s3_path is not None:
-                prefix = build.s3_path.split("/")[-1]
-                object_keys = minio.list_objects(prefix=prefix)
+            # Check if plugin instance exists
+            if plugin.uuid:
+                resource_tools = await fhir_async_client.resources("ActivityDefinition").search(
+                    identifier=plugin.uuid).fetch_all()
+                logger.info(f"Delete: find tool fhir resources: {resource_tools}")
+                for t in resource_tools:
+                    try:
+                        await t.delete()
+                        logger.info(f"Deleted tool fhir resource uuid: {plugin_id}, resource: {t.to_reference()}")
+                    except Exception as e:
+                        logger.error(f"Failed to delete tool {plugin_id} in FHIR server: {e}")
+
+            builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).all()
+            if plugin.has_backend:
+                logger.info(f"Shuttle down backend for plugin {plugin_id}")
+                shuttle_down_deployed_backend(plugin.id, deployer)
+            for build in builds:
+                logger.info("Deleting build {}".format(build.id))
+                # remove all images volume in docker
+                if build.s3_path is not None:
+                    logger.info("Deleting s3 path {}".format(build.s3_path))
+                    prefix = build.s3_path.split("/")[-1]
+                    object_keys = minio.list_objects(prefix=prefix)
+                    if len(object_keys) > 0:
+                        minio.delete_objects(delete_keys=object_keys)
+                    # Delete dataset in dataset folder
+                    dataset_path = builder.dataset_dir / prefix
+                    force_rmtree(dataset_path)
+                # db.delete(build)
+            db.delete(plugin)
+            db.commit()
+
+        try:
+            logger.info(f"Deleting plugin {plugin_id}: modify the minio metadata.json")
+            # delete the record form the metadata.json file in MinIO
+            metadata_file = await get_metadata_json()
+            delete_plugin_component = next((c for c in metadata_file["components"] if c['id'] == plugin_id), None)
+            if delete_plugin_component is not None:
+                object_keys = minio.list_objects(prefix=delete_plugin_component.get("expose"))
                 if len(object_keys) > 0:
                     minio.delete_objects(delete_keys=object_keys)
-                # Delete dataset in dataset folder
-                dataset_path = builder.dataset_dir / prefix
-                force_rmtree(dataset_path)
-            db.delete(build)
-            db.commit()
-        db.delete(plugin)
-        db.commit()
-
-    # delete the record form the metadata.json file in MinIO
-    metadata_file = await get_metadata_json()
-    delete_plugin_component = next((c for c in metadata_file["components"] if c['id'] == plugin_id), None)
-    if delete_plugin_component is not None:
-        object_keys = minio.list_objects(prefix=delete_plugin_component.get("expose"))
-        if len(object_keys) > 0:
-            minio.delete_objects(delete_keys=object_keys)
-        # Update metadata.json file in minio
-        metadata_file["components"] = [component for component in metadata_file["components"] if
-                                       component['id'] != plugin_id]
-        minio.update_metadata(metadata_file)
-        return {"status": True, "message": "Plugin deleted successfully, and metadata updated successfully."}
-    else:
-        return {"status": True, "message": "Plugin deleted successfully and no longer found in the metadata file."}
+                # Update metadata.json file in minio
+                metadata_file["components"] = [component for component in metadata_file["components"] if
+                                               component['id'] != plugin_id]
+                minio.update_metadata(metadata_file)
+                logger.info(f"Deleting plugin {plugin_id} successfully, and metadata updated successfully.")
+                return {"status": True, "message": "Plugin deleted successfully, and metadata updated successfully."}
+            else:
+                logger.info(
+                    f"Deleting plugin {plugin_id} successfully. and there is no tool component information in metadata.json")
+                return {"status": True,
+                        "message": "Plugin deleted successfully and no longer found in the metadata file."}
+        except Exception as e:
+            logger.info(
+                f"Deleting plugin {plugin_id} successfully, but not find the metadata.json file in Minio, failed due to {e}")
+            return {"status": True, "message": str(e)}
+    except Exception as e:
+        logger.info("Deleting plugin failed due to exception {}".format(e))
+        return {"status": False, "message": str(e)}
 
 
 @router.get("/plugin/{plugin_id}/build")
@@ -118,6 +199,7 @@ async def execute_build(
         "description": plugin.description,
         "version": plugin.version,
         "author": plugin.author,
+        "label": plugin.label,
         "has_backend": plugin.has_backend,
         "repo_url": plugin.repository_url,
         "frontend_folder": plugin.frontend_folder,
@@ -128,7 +210,7 @@ async def execute_build(
         "created_at": plugin.created_at.isoformat() if plugin.created_at else None,
         "updated_at": plugin.updated_at.isoformat() if plugin.updated_at else None,
     }
-    logger.info(f"Building plugin: {json.dumps(plugin_dict, indent=4)}")
+    logger.info(f"Building GUI plugin: {json.dumps(plugin_dict, indent=4)}")
 
     build_id = str(uuid.uuid4())
 
@@ -142,48 +224,18 @@ async def execute_build(
     db.commit()
     db.refresh(db_build)
 
-    def run_build():
-        try:
-            with SessionLocal() as session:
-                build_record = session.query(PluginBuild).filter(
-                    PluginBuild.build_id == build_id).first()  # type: ignore
-                if build_record:
-                    build_record.status = BuildStatus.BUILDING.value
-                    session.commit()
+    # TODO: check deploy status
+    if plugin.has_backend:
+        shuttle_down_deployed_backend(plugin.id, deployer)
 
-            builder = PluginBuilder()
-            result = builder.build_plugin(plugin_dict)
-            with SessionLocal() as session:
-                build_record = session.query(PluginBuild).filter(PluginBuild.build_id == build_id).first()
-                if build_record:
-                    if result["success"]:
-                        build_record.status = BuildStatus.COMPLETED.value
-                        build_record.s3_path = result["s3_path"]
-                        build_record.dataset_path = result["dataset_path"]
-                        build_record.expose_name = result["expose_name"]
-                    else:
-                        build_record.status = BuildStatus.FAILED.value
-                        build_record.error = result["error_message"]
-
-                    build_record.build_logs = result["build_logs"]
-                    build_record.updated_at = datetime.now()
-                    session.commit()
-
-        except Exception as e:
-            # Update build record with error
-            with SessionLocal() as session:
-                build_record = session.query(PluginBuild).filter(PluginBuild.id == build_id).first()
-                if build_record:
-                    build_record.status = BuildStatus.FAILED.value
-                    build_record.error_message = str(e)
-                    build_record.updated_at = datetime.now()
-                    session.commit()
-
-    if background_tasks:
-        background_tasks.add_task(run_build)
-    else:
-        thread = threading.Thread(target=run_build)
-        thread.start()
+    # executing build in backend
+    execute_build_in_background(
+        build_id=build_id,
+        data=plugin_dict,
+        builder=builder,
+        Build=PluginBuild,
+        background_tasks=background_tasks,
+    )
 
     return {
         "build_id": build_id,
@@ -203,23 +255,162 @@ async def get_plugin_builds(plugin_id: str, skip: int = 0, limit: int = 100, db:
     builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).offset(skip).limit(limit).all()
     return builds
 
-@router.get("/plugin/{plugin_id}/approval")
-async def get_plugin_approval(plugin_id: str, db: Session = Depends(get_db)):
-    plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
+@router.get("/plugin/{plugin_id}/annotation", response_model=PluginAnnotationResponse)
+async def get_plugin_annotations(plugin_id: str, db: Session = Depends(get_db)):
+    plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first() # type: ignore
     if plugin is None:
         raise HTTPException(status_code=404, detail="Plugin not found")
-    latest_build = (
-        db.query(PluginBuild)
-        .filter(PluginBuild.plugin_id == plugin.id)
-        .order_by(PluginBuild.created_at.desc())
-        .first()
-    )
-    dataset_path = Path(latest_build.dataset_path)
-    # TODO: Upload dataset to Digitaltwins Platform,and get the uuid
-    # dataset_uuid = upload_dataset(dataset_path)
-    #
+    annotation = db.query(PluginAnnotation).filter(PluginAnnotation.plugin_id == plugin.id).all()
+    if len(annotation) == 0:
+        raise HTTPException(status_code=404, detail="Annotation not found")
+    return annotation[0]
 
+@router.get("/plugin/{plugin_id}/deploy")
+async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = None, db: Session = Depends(get_db)):
+    plugin, latest_build = get_latest_build_record(plugin_id, "plugin", db)
+    # Covert Plugin, PluginBuild object to dict for JSON serialization
+    plugin_dict = {
+        "expose_name": latest_build.expose_name,
+        "dataset_path": latest_build.dataset_path,
+        "backend_folder": plugin.backend_folder,
+        "backend_deploy_command": plugin.backend_deploy_command,
+    }
+    logger.info(f"Building plugin: {json.dumps(plugin_dict, indent=4)}")
+    deploy_id = str(uuid.uuid4())
+    db_deploy = PluginDeployment(
+        plugin_id=plugin.id,
+        build_id=latest_build.build_id,
+        deploy_id=deploy_id,
+        status=DeployStatus.PENDING.value,
+    )
+
+    db.add(db_deploy)
+    db.commit()
+    db.refresh(db_deploy)
+
+    def run_deploy():
+        try:
+            with SessionLocal() as session:
+                deploy_record = session.query(PluginDeployment).filter(
+                    PluginDeployment.deploy_id == deploy_id).first()  # type: ignore
+                if deploy_record:
+                    deploy_record.status = DeployStatus.DEPLOYING.value
+                    session.commit()
+            logger.info("Starting plugin deployment...")
+            result = deployer.deploy(plugin_dict)
+            with SessionLocal() as session:
+                deploy_record = session.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()
+                if deploy_record:
+                    if result["success"]:
+                        deploy_record.status = DeployStatus.COMPLETED.value
+                        deploy_record.source_path = result["backend_dir"]
+                        deploy_record.up = True
+                    else:
+                        deploy_record.status = BuildStatus.FAILED.value
+                        deploy_record.error = result["error_message"]
+
+                    deploy_record.updated_at = datetime.now()
+                    session.commit()
+        except Exception as e:
+            logger.error(f"Deploy failed: {e}")
+            with SessionLocal() as session:
+                deploy_record = session.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()
+                if deploy_record:
+                    deploy_record.status = DeployStatus.FAILED.value
+                    deploy_record.error_message = str(e)
+                    deploy_record.updated_at = datetime.now()
+                    session.commit()
+
+    if background_tasks:
+        background_tasks.add_task(run_deploy)
+    else:
+        thread = threading.Thread(target=run_deploy)
+        thread.start()
+
+    return {
+        "build_id": latest_build.build_id,
+        "deploy_id": deploy_id,
+        "status": DeployStatus.PENDING.value,
+        "message": "Deploy started in background",
+    }
+
+
+@router.get("/plugin/build/{build_id}/deploys", response_model=List[PluginDeployResponse])
+async def get_plugin_builds(build_id: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    # Check if plugin exists
+    build_record = db.query(PluginBuild).filter(PluginBuild.build_id == build_id).first()  # type: ignore
+    if build_record is None:
+        raise HTTPException(status_code=404, detail="Plugin Build record not found")
+
+    deployments = db.query(PluginDeployment).filter(PluginDeployment.build_id == build_record.build_id).offset(
+        skip).limit(limit).all()
+    return deployments
+
+
+@router.get("/plugin/deploy/{deploy_id}/execute")
+async def execute_plugin_backend_by_docker(deploy_id: str, command: Literal["up", "down"],
+                                           db: Session = Depends(get_db)):
+    deploy_record = db.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()  # type: ignore
+    if deploy_record is None:
+        raise HTTPException(status_code=404, detail="Plugin Deploy record not found")
+    if deploy_record.status == DeployStatus.COMPLETED.value:
+        if command == "up":
+            result = deployer.compose_up({
+                "backend_dir": deploy_record.source_path
+            })
+            if result["success"]:
+                deploy_record.up = True
+                logger.info("Successfully executed docker compose up for plugin deployment")
+        elif command == "down":
+            result = deployer.compose_down({
+                "backend_dir": deploy_record.source_path
+            })
+            if result["success"]:
+                deploy_record.up = False
+                logger.info("Successfully executed docker compose down for plugin deployment")
+        db.commit()
+        return {
+            "success": True,
+            "message": "Successfully executed docker compose command",
+        }
+    else:
+        return {
+            "success": False,
+            "message": "Execution failed, because the deployment is not completed",
+        }
+
+
+@router.get("/check/deploy/{deploy_id}/")
+async def get_check_deploy(deploy_id: str, db: Session = Depends(get_db)):
+    deploy_record = db.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()  # type: ignore
+    if deploy_record is None:
+        raise HTTPException(status_code=404, detail="Plugin Deploy record not found")
+    return deploy_record.up
+
+
+@router.get("/plugin/{plugin_id}/approval")
+async def get_plugin_approval(plugin_id: str, db: Session = Depends(get_db)):
+    plugin, latest_build = get_latest_build_record(plugin_id, "plugin", db)
+    dataset_path = Path(latest_build.dataset_path)
+    # TODO 1: Upload dataset to Digitaltwins Platform,and get the uuid
+    # dataset_uuid = upload_dataset(dataset_path)
+    if is_empty(plugin.uuid):
+        dataset_uuid = f"sparc-tool-${uuid.uuid4()}"
+        # TODO 2: Update workflow uuid
+        plugin.uuid = dataset_uuid
+        db.commit()
+    else:
+        dataset_uuid = plugin.uuid
+
+    # TODO 3: Annotate tool dataset and upload to FHIR server
+    annotator = Annotator(dataset_path).workflow_tool()
+    annotator.update_uuid(dataset_uuid).update_name(plugin.name).update_title("Workflow tool").update_version(
+        plugin.version).save()
+    adapter_workflow_tool = adapter.digital_twin().workflow_tool()
+
+    await adapter_workflow_tool.add_workflow_tool_description(annotator.get_descriptions()).generate_resources()
     return latest_build
+
 
 @router.get("/builds/{build_id}", response_model=PluginBuildResponse)
 async def get_build(build_id: str, db: Session = Depends(get_db)):
@@ -244,8 +435,8 @@ async def get_build_download_url(build_id: str, db: Session = Depends(get_db)):
     """Get a presigned download URL for a build's artifacts"""
 
     try:
-        build_record = get_build_record_or_404(build_id, db)
-        url, s3_path = get_public_url_for_build(build_record)
+        build_record = get_build_record_or_404(build_id, db, PluginBuild)
+        url, s3_path = get_public_url_for_build(build_record, "workflow-tools")
 
         return {
             "build_id": build_id,
@@ -261,8 +452,8 @@ async def get_build_download_url(build_id: str, db: Session = Depends(get_db)):
 async def get_build_direct_url(build_id: str, db: Session = Depends(get_db)):
     """Get a direct public URL for a build's artifacts (no expiration)"""
     try:
-        build_record = get_build_record_or_404(build_id, db)
-        url, s3_path = get_public_url_for_build(build_record)
+        build_record = get_build_record_or_404(build_id, db, PluginBuild)
+        url, s3_path = get_public_url_for_build(build_record, "workflow-tools")
 
         return {
             "build_id": build_id,
@@ -296,7 +487,7 @@ async def get_test_build_info():
 @router.get("/metadata")
 async def get_metadata_json():
     try:
-        obj = minio.client.get_object(Bucket=os.getenv("MINIO_BUCKET_NAME", "workflow-tools"), Key="metadata.json")
+        obj = minio.get_object("metadata.json")
         data = obj['Body'].read().decode('utf-8')
         return json.loads(data)
     except ClientError as e:
@@ -308,7 +499,7 @@ async def get_metadata_json():
 @router.get("/get-file/{object_key:path}")
 async def get_file(object_key: str):
     try:
-        obj = minio.client.get_object(Bucket=os.getenv("MINIO_BUCKET_NAME", "workflow-tools"), Key=object_key)
+        obj = minio.get_object(object_key)
         return StreamingResponse(obj['Body'], media_type="application/octet-stream")
     except ClientError:
         raise HTTPException(status_code=404, detail=f"File not found: {object_key}")

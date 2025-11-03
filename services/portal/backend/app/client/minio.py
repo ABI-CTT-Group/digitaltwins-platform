@@ -13,12 +13,12 @@ logger = logging.getLogger(__name__)
 class MinioClient:
     """Minio client for storing plugin frontend build artfacts and backend origin codes using boto3"""
 
-    def __init__(self):
+    def __init__(self, bucket_name):
         self.endpoint = os.getenv('MINIO_ENDPOINT', "localhost:9000")
         self.access_key = os.getenv('MINIO_ACCESS_KEY', "minioadmin")
         self.secret_key = os.getenv('MINIO_SECRET_KEY', "minioadmin")
-        self.bucket_name = os.getenv('MINIO_BUCKET_NAME', "workflow-tools")
-        self.use_ssl = os.getenv('MINIO_USE_SSL', "false").lower() == 'true'
+        self.bucket_name = bucket_name
+        self.use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
 
         self.client = boto3.client(
             's3',
@@ -90,8 +90,12 @@ class MinioClient:
             self.metadata = {
                 "components": []
             }
+            self.update_metadata(self.metadata)
 
         return self.metadata
+
+    def set_bucket_name(self, bucket_name):
+        self.bucket_name = bucket_name
 
     def update_metadata(self, metadata):
         try:
@@ -270,13 +274,32 @@ class MinioClient:
             logger.error(f"Failed to ensure public access: {e}")
             raise
 
+    def get_object(self, key: str):
+        try:
+            return self.client.get_object(Bucket=self.bucket_name, Key=key)
+        except ClientError as e:
+            if e.response['Error']['Code'] == '404':
+                logger.error(f"Failed to get object {key}: {e}")
+                return None
+        except Exception as e:
+            logger.error(f"Failed to get object {key}: {e}")
 
-minio_client = None
+# minio_client = None
+#
+#
+# def get_minio_client() -> MinioClient:
+#     """Get the global MinioClient instance"""
+#     global minio_client
+#     if minio_client is None:
+#         minio_client = MinioClient()
+#     return minio_client
+
+_clients: dict[str, MinioClient] = {}
 
 
-def get_minio_client() -> MinioClient:
-    """Get the global MinioClient instance"""
-    global minio_client
-    if minio_client is None:
-        minio_client = MinioClient()
-    return minio_client
+def get_minio_client(bucket_name: str = None) -> MinioClient:
+    bucket = bucket_name or os.getenv('MINIO_BUCKET_NAME', "workflow-tools")
+    if bucket not in _clients:
+        client = MinioClient(bucket)
+        _clients[bucket] = client
+    return _clients[bucket]
