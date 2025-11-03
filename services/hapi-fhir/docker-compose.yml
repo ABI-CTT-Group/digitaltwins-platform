@@ -1,0 +1,35 @@
+services:
+  hapi-fhir:
+    image: hapiproject/hapi:latest
+    container_name: hapi-fhir
+    restart: on-failure
+    ports:
+      - "8013:8080"
+    networks:
+      - digitaltwins
+    volumes:
+      - ./application.yaml:/app/config/application.yaml
+    environment:
+      - SPRING_CONFIG_LOCATION=/app/config/application.yaml
+    depends_on:
+      - hapi-fhir-postgres
+  hapi-fhir-postgres:
+    image: postgres:13-alpine
+    container_name: hapi-fhir-postgres
+    restart: always
+    networks:
+      - digitaltwins
+    environment:
+      POSTGRES_DB: "hapi"
+      POSTGRES_USER: "admin"
+      POSTGRES_PASSWORD: "admin"
+    volumes:
+      - hapi-fhir-postgres:/var/lib/postgresql/data
+
+volumes:
+  hapi-fhir-postgres:
+    driver: local
+
+networks:
+  digitaltwins:
+    driver: bridge
