@@ -4,6 +4,8 @@ services:
       file: ./services/keycloak/docker-compose.yml
       service: keycloak
     restart: unless-stopped
+    networks:
+      - digitaltwins
   minio:
     extends:
       file: ./services/minio/docker-compose.yml
