@@ -1,0 +1,20 @@
+services:
+  jupyterlab:
+    image: jupyter/base-notebook
+    user: root
+    environment:
+      NB_UID: 1000
+      NB_GID: 1000
+      CHOWN_HOME: "yes"
+      CHOWN_HOME_OPTS: "-R"
+      JUPYTER_TOKEN: "admin"
+    ports:
+      - "8008:8888"
+    volumes:
+      - ./workspace:/home/jovyan/work
+    command: start-notebook.sh
+    restart: unless-stopped
+
+networks:
+  digitaltwins:
+    driver: bridge
