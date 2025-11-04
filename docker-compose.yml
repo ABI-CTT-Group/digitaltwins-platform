@@ -6,6 +6,20 @@ services:
     restart: unless-stopped
     networks:
       - digitaltwins
+  postgres:
+    extends:
+      file: ./services/postgres/docker-compose.yml
+      service: postgres
+    restart: unless-stopped
+    networks:
+      - digitaltwins
+  pgadmin: #optional. web interface for postgres
+    extends:
+      file: ./services/postgres/docker-compose.yml
+      service: pgadmin
+    restart: unless-stopped
+    networks:
+      - digitaltwins
   minio:
     extends:
       file: ./services/minio/docker-compose.yml
