@@ -1,4 +1,18 @@
 services:
+  portal-backend:
+    extends:
+      file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
+      service: backend
+    restart: unless-stopped
+    networks:
+      - digitaltwins
+  portal-frontend:
+    extends:
+      file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
+      service: frontend
+    restart: unless-stopped
+    networks:
+      - digitaltwins
   keycloak:
     extends:
       file: ./services/keycloak/docker-compose.yml
@@ -34,20 +48,20 @@ services:
     restart: unless-stopped
     networks:
       - digitaltwins
-  hapi-fhir:
-    extends:
-      file: ./services/hapi-fhir/docker-compose.yml
-      service: hapi-fhir
-    restart: unless-stopped
-    networks:
-      - digitaltwins
-  hapi-fhir-postgres:
-    extends:
-      file: ./services/hapi-fhir/docker-compose.yml
-      service: hapi-fhir-postgres
-    restart: unless-stopped
-    networks:
-      - digitaltwins
+#  hapi-fhir:
+#    extends:
+#      file: ./services/hapi-fhir/docker-compose.yml
+#      service: hapi-fhir
+#    restart: unless-stopped
+#    networks:
+#      - digitaltwins
+#  hapi-fhir-postgres:
+#    extends:
+#      file: ./services/hapi-fhir/docker-compose.yml
+#      service: hapi-fhir-postgres
+#    restart: unless-stopped
+#    networks:
+#      - digitaltwins
 
 
 volumes:
