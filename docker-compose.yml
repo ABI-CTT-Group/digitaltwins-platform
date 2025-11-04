@@ -54,6 +54,12 @@ volumes:
   keycloak_data:
     name: digitaltwins_keycloak_data
     driver: local
+  pgdata:
+    name: digitaltwins_pgdata
+    driver: local
+  pgadmin_data:
+    name: digitaltwins_pgadmin_data
+    driver: local
   minio_data:
     name: digitaltwins_minio_data
     driver: local
