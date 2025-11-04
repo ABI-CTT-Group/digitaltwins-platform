@@ -11,6 +11,13 @@ services:
     restart: unless-stopped
     networks:
       - digitaltwins
+  jupyterlab:
+    extends:
+      file: ./services/jupyterlab/docker-compose.yml
+      service: jupyterlab
+    restart: unless-stopped
+    networks:
+      - digitaltwins
   hapi-fhir:
     extends:
       file: ./services/hapi-fhir/docker-compose.yml
