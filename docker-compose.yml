@@ -1,4 +1,18 @@
 services:
+  portal-backend:
+    extends:
+      file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
+      service: backend
+    restart: unless-stopped
+    networks:
+      - digitaltwins
+  portal-frontend:
+    extends:
+      file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
+      service: frontend
+    restart: unless-stopped
+    networks:
+      - digitaltwins
   keycloak:
     extends:
       file: ./services/keycloak/docker-compose.yml
