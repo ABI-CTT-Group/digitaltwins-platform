@@ -35,6 +35,15 @@ interface IWorkflowOutput {
   sampleName: string
 }
 
+export interface ISeekAssayDetails {
+  seekId: string;
+  name: string;
+  relationships: {
+    studySeekId: string;
+    investigationSeekId: string;
+  }
+}
+
 export interface IAssayDetails {
   seekId: string;
   uuid: string;

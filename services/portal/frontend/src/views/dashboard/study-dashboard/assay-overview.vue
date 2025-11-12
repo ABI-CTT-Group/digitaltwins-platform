@@ -8,10 +8,13 @@
                 <v-row justify="center">
                     <v-col cols="12" md="10">
                         <div class="plugin-title">
-                          <h1>Assay Ready to Launch</h1>
-                          <p class="subtitle">Integrate your clinical tools, workflows, and datasets seamlessly</p>
+                          <h1>Assay Report Center</h1>
+                          <h3 v-if="!!seekAssay" class="subtitle">Assay: {{ seekAssay?.name }}</h3>
+                          <p v-else class="subtitle">Integrate your clinical tools, workflows, and datasets seamlessly</p>
+
                         </div>
                         <div class="function-button mb-10 w-75">
+                          
                           <AssayBasicCardButtons
                             :assay-seek-id="assayId"
                             category="assay"
@@ -23,38 +26,26 @@
                         </div>
 
                         <v-card class="pa-6 mb-10 " elevation="4">
-                          <h2 class="pipeline-title font-weight-medium mb-4">Workflow Overview</h2>
-                          <v-row>
-                              <v-col cols="12" md="6">
-                                <p><strong>Name:</strong> <span class="mx-2">{{ workflow!.name }}</span></p>
-                                <p><strong>Version:</strong> <span class="mx-2">{{ workflow!.version }}</span></p>
-                              </v-col>
-                              <v-col cols="12" md="6">
-                                <p><strong>Status:</strong>  <workflow-status-tag class="mx-2" :status="WorkflowStatus.PENDING" /></p>
-                              </v-col>
-                          </v-row>
-                        </v-card>
-
-                        <v-card class="pa-6 mb-10" elevation="4">
-                          <h2 class="pipeline-title font-weight-medium mb-4">Workflow Tools</h2>
-                          <v-row dense>
-                              <v-col
-                                v-for="tool in workflow.tools"
-                                :key="tool.id"
-                                cols="12"
-                                md="6"
-                              >
-                                <v-card class="mb-4 tool-card" variant="tonal" >
-                                    <v-card-title class="text-h6">{{ tool.name }}</v-card-title>
-                                    <v-card-text>
-                                    <p><strong>Type:</strong> {{ tool.type }}</p>
-                                    <p><strong>Image:</strong> {{ tool.image }}</p>
-                                    <p><strong>Command:</strong> {{ tool.command }}</p>
-                                    <p><strong>Description:</strong> {{ tool.description }}</p>
-                                    </v-card-text>
-                                </v-card>
-                              </v-col>
-                          </v-row>
+                          <h2 class="pipeline-title font-weight-medium mb-4">Cohorts</h2>
+                          <div class="overflow-y-auto" style="height: 50vh;">
+                              <v-row v-for="cohort in cohorts" :key="cohort.uuid" class="d-flex align-center px-10" no-gutters>
+                                  <v-col cols="12" md="6">
+                                    <p><strong>{{ capitalize(cohort.name) }}</strong> <span class="mx-2 px-2 rounded-sm bg-grey-darken-4 text-orange">{{ cohort.uuid }}</span></p>
+                                  </v-col>
+                                  <v-col cols="12" md="6" class="d-flex justify-center">
+                                    <v-btn
+                                    color="cyan"
+                                    :text="'Get Report'"
+                                    variant="tonal"
+                                    :width="200"
+                                    rounded="md"
+                                    class="hover-animate ma-3"
+                                    ></v-btn>
+                                  </v-col>
+                                  <v-divider :thickness="3"></v-divider>
+                              </v-row>
+                            </div>
+                          
                         </v-card>
                     </v-col>
                 </v-row>
@@ -70,11 +61,13 @@ import { useRoute } from 'vue-router';
 import { asyncComputed } from '@vueuse/core'
 import { ref, computed, onMounted, onBeforeMount, watchEffect} from 'vue';
 import { useDashboardPageStore } from '@/store/states';
-import { useDashboardWorkflowDetail } from "@/plugins/dashboard_api";
+import { useDashboardWorkflowDetail, useDashboardSeekAssay } from "@/plugins/dashboard_api";
 import AssayOverviewEmpty from '@/components/dt-components/AssayOverviewEmpty.vue';
 import AssayBasicCardButtons from '@/components/dt-components/AssayBasicCardButtons.vue';
 import WorkflowStatusTag from '@/components/dt-components/workflow/WorkflowStatusTag.vue';
 import { WorkflowStatus } from '@/components/dt-components/workflow/workflowStatus';
+import { ISeekAssayDetails } from '@/models/apiTypes';
+import { capitalize } from '@/utils/common';
 
 import { storeToRefs } from "pinia";
 
@@ -85,77 +78,22 @@ const { allAssayDetailsOfStudy } = storeToRefs(useDashboardPageStore());
 const assayId = route.query.assayId as string;
 const assayDetails = allAssayDetailsOfStudy.value[assayId];
 const assayReadyToLaunch = ref(false);
-
+const seekAssay = ref<ISeekAssayDetails>();
+const assayPromise = useDashboardSeekAssay(assayId);
+const cohorts = ref<Array<any>>([
+  {name: "Cohort 1", id: "uuid-1"},
+  {name: "Cohort 2", id: "uuid-2"},
+  {name: "Cohort 3", id: "uuid-3"},
+]);
 
 onBeforeMount(async ()=>{
     assayReadyToLaunch.value = assayDetails?.isAssayReadyToLaunch || false;
+    seekAssay.value = await assayPromise;
 }) 
 onMounted(() => {
   
 });
 
-const workflow =  asyncComputed(async () => {
-    //If the assay is not ready to launch, then return
-    if (!assayReadyToLaunch.value) return;
-
-    const workflowId = assayDetails?.workflow?.seekId;
-    const workflowFromSeek = await useDashboardWorkflowDetail(workflowId as string);
-    console.log("workflowFromSeek: ", workflowFromSeek);
-    
-    return {
-      name: workflowFromSeek.origin?.attributes.title,
-      uuid: "",
-      author: 'Dr. Jane Smith',
-      version: '1.2.0',
-      license: workflowFromSeek.origin?.attributes.license,
-      tools: [
-        {
-          id: 1,
-          name: 'FastQC',
-          type: 'Quality Control',
-          image: 'biocontainers/fastqc:v0.11.9_cv8',
-          command: 'fastqc input.fq',
-          description: 'Performs quality checks on raw sequence data.'
-        },
-        {
-          id: 2,
-          name: 'BWA',
-          type: 'Alignment',
-          image: 'biocontainers/bwa:v0.7.17_cv1',
-          command: 'bwa mem ref.fa input.fq > aligned.sam',
-          description: 'Aligns sequencing reads to a reference genome.'
-        },
-        {
-          id: 3,
-          name: 'GATK HaplotypeCaller',
-          type: 'Variant Calling',
-          image: 'broadinstitute/gatk:4.1.8.1',
-          command: 'gatk HaplotypeCaller -I input.bam -O output.vcf',
-          description: 'Calls genetic variants from aligned sequence data.'
-        }
-      ],
-      datasets: [
-        {
-          id: 'd1',
-          name: 'Human Genome Reference (GRCh38)',
-          description: 'The full reference genome used for alignment and variant calling.'
-        },
-        {
-          id: 'd2',
-          name: 'Sample Sequencing Reads',
-          description: 'Raw FASTQ reads from whole genome sequencing samples.'
-        }
-      ]
-    }
-  }, {
-    name: '',
-    uuid:'',
-    author: '',
-    version: '',
-    license: '',
-    tools: [],
-    datasets: []
-  });
 
 const handleAssayUploadClicked = async (assay_seek_id:string) => {
   
@@ -189,7 +127,7 @@ const handleAssayLaunchClicked = async (assay_seek_id:string) => {
 
 .plugin-title {
   text-align: center;
-  margin-bottom: 60px;
+  margin-bottom: 50px;
 }
 
 .plugin-title h1 {

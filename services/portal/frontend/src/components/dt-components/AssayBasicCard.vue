@@ -10,7 +10,7 @@
         >
             <v-card-text>
                 <div class="d-flex justify-space-between align-center mb-4">
-                    <div class="title font-weight-black text-grey-lighten-3 pr-5">{{ data.name }}</div>
+                    <div class="title font-weight-black text-grey-lighten-3 pr-5">{{ capitalize(data.name) }}</div>
                     <div v-if="data.category === 'Assays'" class="d-flex align-center">
                         <v-icon
                             icon="mdi-border-radius"
@@ -48,7 +48,7 @@
                     @on-save= "handleAssaySave"
                 >
                     <template #title>
-                        <h2 class="dialog-title mb-6">Update Assay <span class="dialog-title-name" >"{{ data.name }}"</span> </h2>
+                        <h2 class="dialog-title mb-6">Update Assay <span class="dialog-title-name" >"{{capitalize(data.name)}}"</span> </h2>
                     </template>
                     <template #description>
                         <p class="mb-4 dialog-description">
@@ -83,6 +83,7 @@ import AssayContent from '@/components/dt-components/AssayContent.vue';
 import AssayBasicCardButtons from './AssayBasicCardButtons.vue';
 import { storeToRefs } from "pinia";
 import { useDashboardPageStore } from '@/store/states';
+import { capitalize } from '@/utils/common';
 
 const {
     assayExecute, 

@@ -90,6 +90,8 @@ const handleSubmit = async (data:IWorkflowInformationStep)=>{
 }
 
 const handleAnnotation = async (id:string, annotation:IAnnotation)=>{
+    console.log(annotation);
+    
     const a = await useCreateWorkflowAnnotation(id, annotation)
     step.value += 1;
 }
