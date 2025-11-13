@@ -217,7 +217,7 @@ async def execute_build(
 
 
 @router.get("/{workflow_id}/builds", response_model=List[WorkflowBuildResponse])
-async def get_plugin_builds(workflow_id: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+async def get_workflow_builds(workflow_id: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     # Check if plugin exists
     workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()  # type: ignore
     if workflow is None:
@@ -339,6 +339,7 @@ async def delete_plugin(workflow_id: str, db: Session = Depends(get_db)):
                         minio.delete_objects(delete_keys=object_keys)
                     # Delete dataset in dataset folder
                     dataset_path = builder.dataset_dir / prefix
+                    print("delete: ", dataset_path)
                     force_rmtree(dataset_path)
             db.delete(workflow)
             db.commit()

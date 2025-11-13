@@ -81,9 +81,9 @@ const assayReadyToLaunch = ref(false);
 const seekAssay = ref<ISeekAssayDetails>();
 const assayPromise = useDashboardSeekAssay(assayId);
 const cohorts = ref<Array<any>>([
-  {name: "Cohort 1", id: "uuid-1"},
-  {name: "Cohort 2", id: "uuid-2"},
-  {name: "Cohort 3", id: "uuid-3"},
+  {name: "Cohort 1", uuid: "uuid-1"},
+  {name: "Cohort 2", uuid: "uuid-2"},
+  {name: "Cohort 3", uuid: "uuid-3"},
 ]);
 
 onBeforeMount(async ()=>{

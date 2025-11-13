@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 import logging
 import shutil
-from app.utils.utils import force_rmtree
+from app.utils.utils import force_rmtree, safe_path
 import re
 from app.client.minio import MinioClient
 
@@ -14,6 +14,9 @@ from app.models.db_model import (
     BuildStatus, SessionLocal, PluginBuild, WorkflowBuild)
 from datetime import datetime
 from fastapi import BackgroundTasks
+from app.builder.logger import get_logger
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     from app.builder.build_tool import PluginBuilder
@@ -48,11 +51,13 @@ def copy_item(src: Path, dst: Path, exclude: set = None):
 
     if src.name in exclude:
         return
-
     if src.is_dir():
-        shutil.copytree(src, dst / src.name, dirs_exist_ok=True)
+        shutil.copytree(safe_path(src), safe_path(dst / src.name), dirs_exist_ok=True)
     else:
-        shutil.copy2(src, dst / src.name)
+        try:
+            shutil.copy2(safe_path(src), safe_path(dst / src.name))
+        except Exception as e:
+            logger.error(f"Failed to copy item {src} to {dst}: {e}")
 
 
 def is_git_url(repo_url: str) -> bool:

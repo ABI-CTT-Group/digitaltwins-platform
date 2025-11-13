@@ -6,6 +6,7 @@ import boto3
 from botocore.exceptions import ClientError
 from pathlib import Path
 from typing import List
+from app.utils.utils import safe_open
 
 logger = logging.getLogger(__name__)
 
@@ -108,27 +109,63 @@ class MinioClient:
         except Exception as e:
             logger.error(f"Failed to update metadata for minio bucket: {e}")
 
+    # def upload_directory(self, local_path: str, remote_prefix: str) -> str:
+    #     """Upload a directory to minio bucket"""
+    #     try:
+    #         local_path = Path(local_path)
+    #         if not local_path.exists():
+    #             raise FileNotFoundError(f"Local path does not exist: {local_path}")
+    #         uploaded_files = []
+    #
+    #         # Walk through the directory
+    #         for root, dirs, files in os.walk(local_path):
+    #             for file in files:
+    #                 file_path = Path(root) / file
+    #                 relative_path = file_path.relative_to(local_path).as_posix()
+    #                 object_name = f"{remote_prefix}/{relative_path}"
+    #
+    #                 # Determine MIME type
+    #                 extra_args = self._determine_mime_type(str(file_path))
+    #                 with open(file_path, 'rb') as f:
+    #                     self.client.upload_fileobj(f, self.bucket_name, object_name, ExtraArgs=extra_args)
+    #                 uploaded_files.append(object_name)
+    #                 logger.info(f"Uploaded file: {object_name}")
+    #         return f"s3://{self.bucket_name}/{remote_prefix}"
+    #
+    #     except Exception as e:
+    #         logger.error(f"Failed to upload directory {local_path}: {e}")
+    #         raise
+
     def upload_directory(self, local_path: str, remote_prefix: str) -> str:
-        """Upload a directory to minio bucket"""
+        """
+        Upload a directory to S3/MinIO bucket.
+        Handles Windows long paths and cross-platform.
+        """
         try:
-            local_path = Path(local_path)
+            local_path = Path(local_path).resolve()
             if not local_path.exists():
                 raise FileNotFoundError(f"Local path does not exist: {local_path}")
+
             uploaded_files = []
 
-            # Walk through the directory
+            # Use normal os.walk on absolute path (no \\?\ prefix)
             for root, dirs, files in os.walk(local_path):
                 for file in files:
                     file_path = Path(root) / file
+                    # Relative path from the base local_path
                     relative_path = file_path.relative_to(local_path).as_posix()
                     object_name = f"{remote_prefix}/{relative_path}"
 
                     # Determine MIME type
                     extra_args = self._determine_mime_type(str(file_path))
-                    with open(file_path, 'rb') as f:
+
+                    # Open file safely (Windows long path safe)
+                    with safe_open(file_path, "rb") as f:
                         self.client.upload_fileobj(f, self.bucket_name, object_name, ExtraArgs=extra_args)
+
                     uploaded_files.append(object_name)
                     logger.info(f"Uploaded file: {object_name}")
+
             return f"s3://{self.bucket_name}/{remote_prefix}"
 
         except Exception as e:
