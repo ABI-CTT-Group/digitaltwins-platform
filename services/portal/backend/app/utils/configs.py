@@ -1,5 +1,5 @@
 from pathlib import Path
-from digitaltwins import Querier, Uploader, Workflow
+# from digitaltwins import Querier, Uploader, Workflow
 
 class DotDict:
     def __init__(self, dictionary):
@@ -18,12 +18,12 @@ class DotDict:
 
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent.parent.parent
-config_path = root_dir / "configs.ini"
-querier = Querier(config_path)
-uploader = Uploader(config_path)
-workflow_dtp_executor = Workflow(config_path)
-digitaltwins_configs = DotDict({
-    "querier": querier,
-    "uploader": uploader,
-    "workflow_dtp_executor": workflow_dtp_executor,
-})
+# config_path = root_dir / "configs.ini"
+# querier = Querier(config_path)
+# uploader = Uploader(config_path)
+# workflow_dtp_executor = Workflow(config_path)
+# digitaltwins_configs = DotDict({
+#     "querier": querier,
+#     "uploader": uploader,
+#     "workflow_dtp_executor": workflow_dtp_executor,
+# })
