@@ -1,1 +1,1 @@
-from .configs import digitaltwins_configs
+# from .configs import digitaltwins_configs
