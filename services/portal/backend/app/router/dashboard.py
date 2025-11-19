@@ -122,6 +122,20 @@ async def get_dashboard_category_children_by_uuid(seek_id: str = Query(None), ca
     return children
 
 
+@router.get("/assays/{assay_seek_id}")
+async def get_seek_assay_by_id(assay_seek_id: str, client: DigitalTWINSAPIClient = Depends(get_client)):
+    res = await client.get(f"/assays/{assay_seek_id}")
+    assay_res = res.json().get('assay')
+    return {
+        "seekId": assay_res.get("id", None),
+        "name": assay_res.get("attributes").get("title", None),
+        "relationships": {
+            "studySeekId": assay_res.get("relationships").get("study").get("data").get("id"),
+            "investigationSeekId": assay_res.get("relationships").get("investigation").get("data").get("id"),
+        }
+    }
+
+
 @router.get("/workflows")
 async def get_dashboard_workflows(client: DigitalTWINSAPIClient = Depends(get_client)):
     sops_res = await client.get("/workflows")
@@ -144,6 +158,7 @@ async def get_dashboard_workflows(client: DigitalTWINSAPIClient = Depends(get_cl
         }
         workflows.append(temp)
     return workflows
+
 
 @router.get("/workflow-detail")
 async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
@@ -173,6 +188,7 @@ async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
         }
     except KeyError as e:
         return None
+
 
 # @router.get("/workflow-detail")
 # async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None),

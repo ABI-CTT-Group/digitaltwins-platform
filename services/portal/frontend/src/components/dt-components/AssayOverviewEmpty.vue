@@ -3,7 +3,7 @@
     <v-row justify="center">
       <v-col cols="12" md="10" lg="8">
         <h2 class="title font-weight-bold mb-4 focus-in-expand">
-          Oops! It seems this assay is not ready to launch.
+          Oops! Assay is not ready to launch.
         </h2>
         <p class="text-white text-opacity-80 mb-8">
           Please double-check that the workflow, datasets, and cohorts are set up correctly. If the issue continues, kindly reach out to your system administrator for assistance.

@@ -1,5 +1,5 @@
 import http from "./http";
-import { IDashboardCategory, IDashboardWorkflow, IAssayDetails, IAssayLaunch, IAssayDataset, IProjectDetail } from "@/models/apiTypes";
+import { IDashboardCategory, IDashboardWorkflow, IAssayDetails, IAssayLaunch, IAssayDataset, IProjectDetail, ISeekAssayDetails } from "@/models/apiTypes";
 
 export async function useDashboardProgrammes() {
     const programmes = http.get<IDashboardCategory[]>("/dashboard/programmes");
@@ -18,6 +18,11 @@ export async function useDashboardWorkflows() {
 
 export async function useDashboardWorkflowDetail(seek_id: string) {
     const details = http.get<IDashboardWorkflow>("/dashboard/workflow-detail", { seek_id });
+    return details;
+}
+
+export async function useDashboardSeekAssay(seek_id: string) {
+    const details = http.get<ISeekAssayDetails>(`/dashboard/assays/${seek_id}`);
     return details;
 }
 

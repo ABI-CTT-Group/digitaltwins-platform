@@ -14,6 +14,7 @@ from app.utils.builder_utils import (
     remove_tmp_folder,
     unique_name,
     update_minio_bucket_metadata)
+from app.utils.utils import safe_path
 
 logger = get_logger(__name__)
 
@@ -66,7 +67,10 @@ class WorkflowBuilder:
                     continue
                 copy_item(item, code_dir)
                 if item.is_file() and item.suffix == ".cwl":
-                    shutil.copy2(item, primary_dir / item.name)
+                    try:
+                        shutil.copy2(safe_path(item), safe_path(primary_dir / item.name))
+                    except Exception as e:
+                        logger.error(f"Failed to copy {item} to {primary_dir / item.name}: {e}")
             logger.info(f"Copied cwl artifacts from {project_dir} to {primary_dir}")
 
             dataset.save(save_dir=str(dataset_dir))

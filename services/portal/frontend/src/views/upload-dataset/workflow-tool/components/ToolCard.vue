@@ -77,7 +77,15 @@
             </v-list-item>
         </v-list>
       </template>
-      <template #name>{{ tool.name }}</template>
+      <template #name>
+        <v-tooltip :text="tool.name" location="top"  max-width="300">
+          <template #activator="{ props }">
+            <p v-bind="props" class="text-truncate" style="max-width:400px;">
+              {{ tool.name }}
+            </p>
+          </template>
+        </v-tooltip>
+      </template>
       <template #description>{{ tool.description }}</template>
       <template #tags>
         <v-chip v-if="!!tool.version" size="small" color="blue-lighten-4" text-color="blue-darken-3" class="mx-1 my-1">v{{ tool.version }}</v-chip>

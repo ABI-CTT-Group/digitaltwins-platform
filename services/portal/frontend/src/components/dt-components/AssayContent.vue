@@ -20,11 +20,11 @@
             <span class="assay-form-subtitle w-25 text-green">Inputs: </span>
             <div class="w-75">
                 <div class="w-75 d-flex flex-row mt-4" v-for="data in assayDetails!.workflow.inputs">
-                    <span class="w-25">{{ data.input.name.replaceAll("_", " ") }}:</span>
+                    <span class="w-25">{{ capitalize(data.input.name.replaceAll("_", " ")) }}:</span>
                     <div class="w-50 mx-1">
                         <v-select
                             v-model="data.datasetSelectedUUID"
-                            :label="`Select ${ data.input.category } Dataset`"
+                            :label="`Select ${ capitalize(data.input.category) } Dataset`"
                             :items="!!workflowInputDatasetSamples[data.input.name]?workflowInputDatasetSamples[data.input.name].datasetRenderItems:[]"
                             item-title="name"
                             item-value="uuid"
@@ -36,7 +36,7 @@
                         <v-select
                             v-if="data.input.category === 'measurement'"
                             v-model="data.sampleSelectedType"
-                            label="Sample Type"
+                            label="Select Sample"
                             :items="!!workflowInputDatasetSamples[data.input.name]?workflowInputDatasetSamples[data.input.name].selectedDatasetSampleTypes:[]"
                             item-title="name"
                             item-value="uuid"
@@ -51,18 +51,18 @@
             <span class="assay-form-subtitle w-25 text-orange">Outputs: </span>
             <div class="w-75">
                 <div class="w-75 d-flex flex-row mt-4" v-for="data in assayDetails!.workflow.outputs">
-                    <span class="w-25">{{ data.output.name.replaceAll("_", " ") }}:</span>
+                    <span class="w-25">{{ capitalize(data.output.name.replaceAll("_", " ")) }}:</span>
                     <div class="w-50 mx-1">
                         <v-text-field
                             v-model:model-value="data.datasetName"
-                            label="Dataset Name"
+                            label="Enter Dataset Name"
                             clearable
                         ></v-text-field>
                     </div>
                     <div class="w-50 mx-1">
                         <v-text-field
                             v-model:model-value="data.sampleName"
-                            label="Sample Type"
+                            label="Enter Sample"
                             clearable
                         ></v-text-field>
                     </div>
@@ -73,7 +73,7 @@
             <span class="assay-form-subtitle w-25 mt-4 text-cyan">Cohorts:</span>
             <v-responsive
                 class="my-2"
-                max-width="344"
+                max-width="444"
             >
                 <!-- <v-text-field
                 class="py-3"
@@ -86,8 +86,8 @@
                     v-model:model-value="cohortsPaticipants"
                     @update:model-value="handleCohortUpdate"
                     class="py-3"
-                    label="Enter Participants ranges"
-                    hint="Use commas and dashes, e.g. 1-5,6,7,9-15"
+                    label="Enter Participants Ranges"
+                    hint="Use commas and dashes, e.g. 1-5,6,7,9-15 (Ranges are inclusive)"
                     persistent-hint
                     :rules="[rules.cohort]"
                 />
@@ -104,6 +104,7 @@ import {IAssayDetails} from '@/models/apiTypes';
 import { useDashboardGetDatasets, useDashboardSelectedDatasetSampleTypes } from '@/plugins/dashboard_api';
 import { useDashboardWorkflowsStore, useDashboardWorkflowDetailStore } from '@/store/dashboard_store';
 import { storeToRefs } from "pinia";
+import { capitalize } from '@/utils/common';
 
 
 interface IItem {
