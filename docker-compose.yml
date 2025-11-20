@@ -2,14 +2,14 @@ services:
   portal-backend:
     extends:
       file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
-      service: backend
+      service: portal-backend
     restart: unless-stopped
     networks:
       - digitaltwins
   portal-frontend:
     extends:
       file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
-      service: frontend
+      service: portal-frontend
     restart: unless-stopped
     networks:
       - digitaltwins
@@ -67,6 +67,12 @@ services:
 volumes:
   keycloak_data:
     name: digitaltwins_keycloak_data
+    driver: local
+  portal_datasets:
+    name: digitaltwins_portal_datasets
+    driver: local
+  plugin_database:
+    name: digitaltwins_plugin_database
     driver: local
   pgdata:
     name: digitaltwins_pgdata
