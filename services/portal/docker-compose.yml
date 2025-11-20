@@ -185,8 +185,6 @@ services:
       - MINIO_SERVER_ACCESS_KEY=minioadmin
       - MINIO_SERVER_SECRET_KEY=minioadmin
     command: server /data --console-address ":9001" --address ":9000"
-    depends_on:
-      - hapi-fhir
   
   hapi-fhir:
     image: hapiproject/hapi:latest
