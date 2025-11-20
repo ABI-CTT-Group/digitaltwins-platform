@@ -1,5 +1,5 @@
 services:
-  backend:
+  portal-backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -25,7 +25,7 @@ services:
     env_file:
       - ./backend/.env
     volumes:
-      - digitaltwins_portal_datasets:/app/data
+      - portal_datasets:/app/data
       # - ./backend/data:/app/data
       - ./backend/datasets_tool:/datasets_tool
       - ./backend/datasets_measurement:/datasets_measurement
@@ -39,7 +39,7 @@ services:
     depends_on:
       - minio
 
-  frontend:
+  portal-frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -53,13 +53,13 @@ services:
     networks:
       - digitaltwins
     depends_on:
-      - backend
+      - portal-backend
   
   minio:
     image: quay.io/minio/minio:latest
     ports:
-      - '8004:9000'
-      - '8005:9001'
+      - '8004:9000' #backend
+      - '8005:9001' #frontend
     networks:
       - digitaltwins
     volumes:
@@ -70,8 +70,6 @@ services:
       - MINIO_SERVER_ACCESS_KEY=minioadmin
       - MINIO_SERVER_SECRET_KEY=minioadmin
     command: server /data --console-address ":9001" --address ":9000"
-    depends_on:
-      - hapi-fhir
   
   hapi-fhir:
     image: hapiproject/hapi:latest
@@ -99,17 +97,23 @@ services:
       POSTGRES_USER: "admin"
       POSTGRES_PASSWORD: "admin"
     volumes:
-      - hapi-fhir-postgres:/var/lib/postgresql/data
+      - hapi_fhir_postgres:/var/lib/postgresql/data
 
 networks:
   digitaltwins:
     driver: bridge
 
 volumes:
-  digitaltwins_portal_datasets:
+  portal_datasets:
     name: digitaltwins_portal_datasets
-  hapi-fhir-postgres:
+    driver: local
+  hapi_fhir_postgres:
+    name: digitaltwins_hapi_fhir_postgres
+    driver: local
   plugin_database:
+    name: digitaltwins_plugin_database
+    driver: local
   minio_data:
+    name: digitaltwins_minio_data
     driver: local
 
