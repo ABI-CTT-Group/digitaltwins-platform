@@ -35,7 +35,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
     networks:
-      - digitaltwins-portal-network
+      - digitaltwins
     depends_on:
       - minio
 
@@ -51,7 +51,7 @@ services:
       - "80:80"
     restart: unless-stopped
     networks:
-      - digitaltwins-portal-network
+      - digitaltwins
     depends_on:
       - backend
   
@@ -61,7 +61,7 @@ services:
       - '8004:9000'
       - '8005:9001'
     networks:
-      - digitaltwins-portal-network
+      - digitaltwins
     volumes:
       - 'minio_data:/data'
     environment:
@@ -80,7 +80,7 @@ services:
     ports:
       - "8006:8080"
     networks:
-      - digitaltwins-portal-network
+      - digitaltwins
     volumes:
       - ./hapi/application.yaml:/app/config/application.yaml
     environment:
@@ -93,7 +93,7 @@ services:
     container_name: hapi-fhir-postgres
     restart: always
     networks:
-      - digitaltwins-portal-network
+      - digitaltwins
     environment:
       POSTGRES_DB: "hapi"
       POSTGRES_USER: "admin"
@@ -102,7 +102,7 @@ services:
       - hapi-fhir-postgres:/var/lib/postgresql/data
 
 networks:
-  digitaltwins-portal-network:
+  digitaltwins:
     driver: bridge
 
 volumes:
