@@ -41,6 +41,16 @@ services:
     restart: unless-stopped
     networks:
       - digitaltwins
+  digitaltwins-api:
+    extends:
+      file: ./services/api/digitaltwins-api/docker-compose.yml
+      service: digitaltwins-api
+    restart: unless-stopped
+    depends_on:
+      - keycloak
+    networks:
+      - digitaltwins
+
   jupyterlab:
     extends:
       file: ./services/jupyterlab/docker-compose.yml
