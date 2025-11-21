@@ -73,6 +73,11 @@ services:
 #    networks:
 #      - digitaltwins
 
+include:
+  - path: services/airflow/docker-compose.yaml
+    project_directory: services/airflow
+#    to run only airflow with the root .env: sudo docker compose -f services/airflow/docker-compose.yaml --env-file ./.env up
+
 
 volumes:
   keycloak_data:
