@@ -20,7 +20,7 @@ services:
     restart: unless-stopped
     networks:
       - digitaltwins
-  postgres:
+  database:
     extends:
       file: ./services/postgres/docker-compose.yml
       service: postgres
