@@ -1,15 +1,4 @@
 services:
-#  keycloak-export:
-#    image: quay.io/keycloak/keycloak:26.3.2
-#    command: >
-#      export
-#      --realm=digitaltwins
-#      --dir=/opt/keycloak/data/export
-#      --users=realm_file
-#    volumes:
-#      - keycloak_data:/opt/keycloak/data
-#    profiles:
-#      - export
   keycloak:
     extends:
       file: ./services/keycloak/docker-compose.yml
@@ -104,6 +93,3 @@ networks:
 
 # create networks if not exists
 # sudo docker network create digitaltwins
-
-# create volumes if not exists
-# sudo docker volume create minio_data
