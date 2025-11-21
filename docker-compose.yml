@@ -1,4 +1,22 @@
 services:
+#  keycloak-export:
+#    image: quay.io/keycloak/keycloak:26.3.2
+#    command: >
+#      export
+#      --realm=digitaltwins
+#      --dir=/opt/keycloak/data/export
+#      --users=realm_file
+#    volumes:
+#      - keycloak_data:/opt/keycloak/data
+#    profiles:
+#      - export
+  keycloak:
+    extends:
+      file: ./services/keycloak/docker-compose.yml
+      service: keycloak
+    restart: unless-stopped
+    networks:
+      - digitaltwins
   portal-backend:
     extends:
       file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
@@ -10,13 +28,6 @@ services:
     extends:
       file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
       service: portal-frontend
-    restart: unless-stopped
-    networks:
-      - digitaltwins
-  keycloak:
-    extends:
-      file: ./services/keycloak/docker-compose.yml
-      service: keycloak
     restart: unless-stopped
     networks:
       - digitaltwins

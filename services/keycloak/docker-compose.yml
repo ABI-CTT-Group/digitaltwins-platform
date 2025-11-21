@@ -6,13 +6,16 @@
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.3.2
-    command: start-dev
+    command:
+      - start-dev
+      - --import-realm # will only import once on the first startup
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}
     ports:
       - "8009:8080"
     volumes:
+      - ./import:/opt/keycloak/data/import
       - keycloak_data:/opt/keycloak/data
     restart: unless-stopped
     networks:
