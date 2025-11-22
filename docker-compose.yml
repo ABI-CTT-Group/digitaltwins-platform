@@ -23,7 +23,7 @@ services:
   database:
     extends:
       file: ./services/postgres/docker-compose.yml
-      service: postgres
+      service: database
     restart: unless-stopped
     networks:
       - digitaltwins
@@ -32,6 +32,8 @@ services:
       file: ./services/postgres/docker-compose.yml
       service: pgadmin
     restart: unless-stopped
+    depends_on:
+      - database
     networks:
       - digitaltwins
   minio:
