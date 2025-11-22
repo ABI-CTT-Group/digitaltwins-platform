@@ -1,5 +1,5 @@
 services:
-  postgres:
+  database:
     image: postgres:16
     restart: unless-stopped
     environment:
@@ -11,6 +11,8 @@ services:
       - ./digitaltwins_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     ports:
       - "8003:5432"
+    networks:
+      - digitaltwins
 
   pgadmin:
     image: dpage/pgadmin4
@@ -18,13 +20,21 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-clin864@aucklanduni.ac.nz}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_LISTEN_ADDRESS: 0.0.0.0 # force IPv4 binding
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     ports:
       - "8004:80"
-
+    depends_on:
+      - database
+    networks:
+      - digitaltwins
 volumes:
   pgdata:
     driver: local
   pgadmin_data:
     driver: local
+
+networks:
+  digitaltwins:
+    driver: bridge
