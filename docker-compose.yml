@@ -76,10 +76,11 @@ services:
 #      - digitaltwins
 
 include:
+  # to run only a specific included project with the root .env: sudo docker compose -f services/<service_name>/docker-compose.yml --env-file ./.env up
   - path: services/airflow/docker-compose.yaml
     project_directory: services/airflow
-#    to run only airflow with the root .env: sudo docker compose -f services/airflow/docker-compose.yaml --env-file ./.env up
-
+  - path: services/seek/ldh-deployment/docker-compose.yml
+    project_directory: services/seek/ldh-deployment
 
 volumes:
   keycloak_data:
