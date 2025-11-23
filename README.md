@@ -45,6 +45,12 @@ These efforts are aimed at **supporting an ecosystem** to:
 
 ## Deploying the DigitalTWINS platform
 
+See [deploying the DigitalTWINS platform](docs/deploying.md)
+
+## Onboarding projects and workflows
+
+See [onboarding projects and workflows](docs/onboarding.md)
+
 ## Reporting issues
 To report an issue or suggest a new feature, please use the [issues page](https://github.com/ABI-CTT-Group/digitaltwins-platform/issues). Issue templates are provided to allow users to report bugs, and documentation or feature requests. Please check existing issues before submitting a new one.
 
