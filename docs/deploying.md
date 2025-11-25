@@ -23,7 +23,7 @@ This document describes how to deploy the DigitalTWINS Platform from the [deploy
     2. API Configuration
 
         ```bash
-        cp ./services/api/digitaltwins-api/config.ini.template ./services/api/digitaltwins-api/config.ini
+        cp ./services/api/digitaltwins-api/configs.ini.template ./services/api/digitaltwins-api/configs.ini
         ```
 
 3. Initialise the IAM service (keycloak)
