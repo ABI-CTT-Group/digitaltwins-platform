@@ -14,17 +14,23 @@ This document describes how to deploy the DigitalTWINS Platform from the [deploy
 
     Set up the necessary environment variables and configuration files.
     
-    1. Main Environment File
+    1. Main environment File
 
         ```bash
         cp .env.template .env
         ```
 
-    2. API Configuration
+    2. API configuration
 
         ```bash
         cp ./services/api/digitaltwins-api/configs.ini.template ./services/api/digitaltwins-api/configs.ini
         ```
+       
+    3. SEEK configuration
+   
+       ```bash
+       cp ./services/seek/ldh-deployment/docker-compose.env.tpl ./services/seek/ldh-deployment/docker-compose.env
+       ```
 
 3. Initialise the IAM service (keycloak)
 
@@ -84,15 +90,11 @@ This document describes how to deploy the DigitalTWINS Platform from the [deploy
       sudo docker volume create ${COMPOSE_PROJECT_NAME}_db
       ```
    3. SEEK's database setup
-      1. Copy the template docker compose file
-         ```bash
-         cp ./services/seek/ldh-deployment/docker-compose.env.tpl ./services/seek/ldh-deployment/docker-compose.env
-         ```
-      2. Edit `./services/seek/ldh-deployment/docker-compose.env`
-         - Replace `<root-password>` and `<db-password>` with a password. You can use openssl command to generate a password and save in the docker-compose.env file.
-            ```bash
-            cat docker-compose.env.tpl | sed "s|<db-password>|$(openssl rand -base64 21)|" | sed "s|<root-password>|$(openssl rand -base64 21)|" > docker-compose.env
-            ```
+   
+      Edit `./services/seek/ldh-deployment/docker-compose.env`. Replace `<root-password>` and `<db-password>` with a password. You can use openssl command to generate a password and save in the docker-compose.env file.
+      ```bash
+      cat docker-compose.env.tpl | sed "s|<db-password>|$(openssl rand -base64 21)|" | sed "s|<root-password>|$(openssl rand -base64 21)|" > docker-compose.env
+      ```
    4. Initial launch & admin setup
       1. Launch SEEK
          ```bash
@@ -100,7 +102,7 @@ This document describes how to deploy the DigitalTWINS Platform from the [deploy
          ```
       2. Set up server admin account 
          1. Navigate to http://localhost:8001
-         2. Register a new account (the first user will automatically be assigned server admin by default). 
+         2. Create a first account (the first user will then automatically be assigned as a server admin by default). 
          3. Log in and create your profile
       3. Custom configuration (in Browser)
          1. Enable Features (Server admin > Enable/disable features):
@@ -116,7 +118,7 @@ This document describes how to deploy the DigitalTWINS Platform from the [deploy
          2. Give it a title and create the token
          3. Copy/save the API token
          4. Update API Config
-            - Paste this token into ./services/api/digitaltwins-api/config.ini under the [seek] section:
+            - Paste this token into ./services/api/digitaltwins-api/configs.ini under the [seek] section:
             ```ini
             [seek]
             api_token=<your_token>
@@ -124,7 +126,7 @@ This document describes how to deploy the DigitalTWINS Platform from the [deploy
       5. Enable "git" support (Command Line)
          1. Enter the SEEK container
             ```bash
-            sudo docker exec -it <container_name> bash```
+            sudo docker exec -it <container_name> bash
             ```
             Note: `<container_name>` might be something like `seek-seek-1`
          2. Start the Rails console
