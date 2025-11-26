@@ -14,17 +14,23 @@ This document describes how to deploy the DigitalTWINS Platform from the [deploy
 
     Set up the necessary environment variables and configuration files.
     
-    1. Main Environment File
+    1. Main environment File
 
         ```bash
         cp .env.template .env
         ```
 
-    2. API Configuration
+    2. API configuration
 
         ```bash
         cp ./services/api/digitaltwins-api/configs.ini.template ./services/api/digitaltwins-api/configs.ini
         ```
+       
+    3. SEEK configuration
+   
+       ```bash
+       cp ./services/seek/ldh-deployment/docker-compose.env.tpl ./services/seek/ldh-deployment/docker-compose.env
+       ```
 
 3. Initialise the IAM service (keycloak)
 
@@ -84,15 +90,11 @@ This document describes how to deploy the DigitalTWINS Platform from the [deploy
       sudo docker volume create ${COMPOSE_PROJECT_NAME}_db
       ```
    3. SEEK's database setup
-      1. Copy the template docker compose file
-         ```bash
-         cp ./services/seek/ldh-deployment/docker-compose.env.tpl ./services/seek/ldh-deployment/docker-compose.env
-         ```
-      2. Edit `./services/seek/ldh-deployment/docker-compose.env`
-         - Replace `<root-password>` and `<db-password>` with a password. You can use openssl command to generate a password and save in the docker-compose.env file.
-            ```bash
-            cat docker-compose.env.tpl | sed "s|<db-password>|$(openssl rand -base64 21)|" | sed "s|<root-password>|$(openssl rand -base64 21)|" > docker-compose.env
-            ```
+   
+      Edit `./services/seek/ldh-deployment/docker-compose.env`. Replace `<root-password>` and `<db-password>` with a password. You can use openssl command to generate a password and save in the docker-compose.env file.
+      ```bash
+      cat docker-compose.env.tpl | sed "s|<db-password>|$(openssl rand -base64 21)|" | sed "s|<root-password>|$(openssl rand -base64 21)|" > docker-compose.env
+      ```
    4. Initial launch & admin setup
       1. Launch SEEK
          ```bash
