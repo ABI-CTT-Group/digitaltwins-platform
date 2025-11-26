@@ -126,7 +126,7 @@ This document describes how to deploy the DigitalTWINS Platform from the [deploy
       5. Enable "git" support (Command Line)
          1. Enter the SEEK container
             ```bash
-            sudo docker exec -it <container_name> bash```
+            sudo docker exec -it <container_name> bash
             ```
             Note: `<container_name>` might be something like `seek-seek-1`
          2. Start the Rails console
