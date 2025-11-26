@@ -116,7 +116,7 @@ This document describes how to deploy the DigitalTWINS Platform from the [deploy
          2. Give it a title and create the token
          3. Copy/save the API token
          4. Update API Config
-            - Paste this token into ./services/api/digitaltwins-api/config.ini under the [seek] section:
+            - Paste this token into ./services/api/digitaltwins-api/configs.ini under the [seek] section:
             ```ini
             [seek]
             api_token=<your_token>
