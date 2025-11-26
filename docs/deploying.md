@@ -102,7 +102,7 @@ This document describes how to deploy the DigitalTWINS Platform from the [deploy
          ```
       2. Set up server admin account 
          1. Navigate to http://localhost:8001
-         2. Register a new account (the first user will automatically be assigned server admin by default). 
+         2. Create a first account (the first user will then automatically be assigned as a server admin by default). 
          3. Log in and create your profile
       3. Custom configuration (in Browser)
          1. Enable Features (Server admin > Enable/disable features):
