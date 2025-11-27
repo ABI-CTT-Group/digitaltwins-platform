@@ -19,6 +19,12 @@ Set up the necessary environment variables and configuration files.
     ```bash
     cp .env.template .env
     ```
+   
+   Set the necessary variables:
+   - Portal service:
+     - `PORTAL_BACKEND_HOST_IP`: your host machine IP address for the portal backend. you can get your host ip by `hostname -I` (Linux command)
+   - Workflow service (airflow):
+     - `AIRFLOW_UID`: Run echo $(id -u) to find your user ID, then Update the AIRFLOW_UID variable in your .env file with this ID
 
 2. API configuration
 
@@ -58,17 +64,11 @@ Choose one of the following methods to configure Keycloak.
    Place the exported realm file in `./services/keycloak/import/digitaltwins-realm.json`
 
 ## 4. Initialise workflow service (airflow)
-1. Configure User ID from host machine
-   1. Run `echo $(id -u)` to find your user ID
-   2. Update the `AIRFLOW_UID` variable in your `.env` file with this ID
-2. (optional) Configure credentials. edit `.env`:
-    1. default airflow username: `_AIRFLOW_WWW_USER_USERNAME=admin`
-    2. default airflow password: `_AIRFLOW_WWW_USER_PASSWORD=admin`
-3. Initialize `airflow.cfg`
+1. Initialize `airflow.cfg`
    ```bash
    sudo docker compose run airflow-cli airflow config list
    ```
-4. Enable CORS. 
+2. Enable CORS. 
    
    Edit `./services/airflow/config/airflow.cfg` and update the [api] section:
    ```ini
@@ -76,7 +76,7 @@ Choose one of the following methods to configure Keycloak.
    access_control_allow_methods = POST, GET, OPTIONS, DELETE
    access_control_allow_origins = 
    ```
-5. Initialize the airflow database. 
+3. Initialize the airflow database. 
    ```bash
    sudo docker compose up airflow-init
    ```
