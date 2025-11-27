@@ -17,6 +17,7 @@ data/duke
 minio
 .venv
 .env
+doceker-compose.yml
 
 configs_old.ini
 configs_public_demo.ini

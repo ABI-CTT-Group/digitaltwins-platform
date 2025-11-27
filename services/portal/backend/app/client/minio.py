@@ -335,7 +335,7 @@ _clients: dict[str, MinioClient] = {}
 
 
 def get_minio_client(bucket_name: str = None) -> MinioClient:
-    bucket = bucket_name or os.getenv('MINIO_BUCKET_NAME', "workflow-tools")
+    bucket = bucket_name or "workflow-tools"
     if bucket not in _clients:
         client = MinioClient(bucket)
         _clients[bucket] = client
