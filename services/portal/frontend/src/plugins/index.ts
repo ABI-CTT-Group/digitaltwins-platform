@@ -17,9 +17,9 @@ import 'intro.js/introjs.css';
 import { defineStore, storeToRefs} from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import * as Vue from 'vue'
-
 // Types
 import type { App } from "vue";
+
 
 export function registerPlugins(app: App) {
   loadFonts();
