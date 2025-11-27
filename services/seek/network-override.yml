@@ -1,0 +1,13 @@
+services:
+  db:
+    networks:
+      - digitaltwins
+  seek:
+    networks:
+      - digitaltwins
+  workers:
+    networks:
+      - digitaltwins
+  solr:
+    networks:
+      - digitaltwins
