@@ -78,7 +78,9 @@ services:
 
 include:
   # to run only a specific included project with the root .env: sudo docker compose -f services/<service_name>/docker-compose.yml --env-file ./.env up
-  - path: services/airflow/docker-compose.yaml
+  - path:
+    - services/airflow/docker-compose.yaml
+    - services/airflow/network-override.yml
     project_directory: services/airflow
   - path:
     - services/seek/ldh-deployment/docker-compose.yml

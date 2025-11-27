@@ -1,0 +1,31 @@
+services:
+  postgres:
+    networks:
+      - digitaltwins
+  redis:
+    networks:
+      - digitaltwins
+  airflow-apiserver:
+    networks:
+      - digitaltwins
+  airflow-scheduler:
+    networks:
+      - digitaltwins
+  airflow-dag-processor:
+    networks:
+      - digitaltwins
+  airflow-worker:
+    networks:
+      - digitaltwins
+  airflow-triggerer:
+    networks:
+      - digitaltwins
+  airflow-init:
+    networks:
+      - digitaltwins
+  airflow-cli:
+    networks:
+      - digitaltwins
+  flower:
+    networks:
+      - digitaltwins
