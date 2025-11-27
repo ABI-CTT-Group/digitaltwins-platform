@@ -233,8 +233,7 @@ class PluginBuilder:
             logger.error(f"Failed to create SPARC dataset: {e}")
             raise RuntimeError(f"Failed to create SPARC dataset: {e}")
 
-    @staticmethod
-    def _replace_path_in_umd_js(project_dir: Path, has_backend: bool, expose_name: str,
+    def _replace_path_in_umd_js(self, project_dir: Path, has_backend: bool, expose_name: str,
                                 frontend_folder: Optional[str] = None):
         """Replace the path in file ends with .umd.js file for other files in the dist directory to the new path with the minio path"""
         other_files = []

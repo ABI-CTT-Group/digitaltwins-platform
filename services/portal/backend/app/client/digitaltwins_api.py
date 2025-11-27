@@ -15,7 +15,9 @@ class DigitalTWINSAPIClient:
         password: Optional[str] = None,
         token: Optional[str] = None,
     ):
-        self.base_url = os.getenv('DIGITALTWINS_API_URL', "http://130.216.217.184:8010").rstrip('/')
+        _url = os.getenv('DIGITALTWINS_API_BASE_URL', "http://localhost").rstrip('/')
+        _port = os.getenv('DIGITALTWINS_API_PORT', '8000')
+        self.base_url = f"{_url}:{_port}"
         self.username = username
         self.password = password
         self.token = token

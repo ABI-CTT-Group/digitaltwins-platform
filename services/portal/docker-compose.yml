@@ -17,7 +17,8 @@ services:
       - MINIO_PORT=${MINIO_PORT:-8004}
       - USE_SSL=${USE_SSL:-false}
       - FHIR_ENDPOINT=${FHIR_ENDPOINT:-hapi-fhir:8080/fhir}
-      - DIGITALTWINS_API_URL=${DIGITALTWINS_API_URL:-http://digitaltwins-api:8000/}
+      - DIGITALTWINS_API_BASE_URL=${DIGITALTWINS_API_BASE_URL:-http://digitaltwins-api}
+      - DIGITALTWINS_API_PORT=${DIGITALTWINS_API_PORT:-8000}
       - BACKEND_HOST_IP=${BACKEND_HOST_IP:-localhost}
       - PLUGIN_PORT=8002
     volumes:
@@ -38,8 +39,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    env_file:
-      - .env
     ports:
       - "80:80"
     restart: unless-stopped
@@ -62,8 +61,6 @@ services:
       - MINIO_ROOT_PASSWORD=minioadmin
       - MINIO_SERVER_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
       - MINIO_SERVER_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
-    env_file:
-      - .env
     command: server /data --console-address ":9001" --address ":9000"
   
   hapi-fhir:
