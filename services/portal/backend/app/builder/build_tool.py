@@ -259,7 +259,7 @@ class PluginBuilder:
         with open(umd_js_file_path, "r") as f:
             umd_js_content = f.read()
 
-        new_path_prefix = f"{self._http_protocol}://{os.environ.get('BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{expose_name}/primary/"
+        new_path_prefix = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{expose_name}/primary/"
         umd_js_content = umd_js_content.replace(new_path_prefix, expose_name)
 
         with open(umd_js_file_path, "w") as f:
@@ -344,7 +344,7 @@ class PluginBuilder:
 
     @staticmethod
     def _create_env_file(project_dir: Path):
-        host = os.environ.get('BACKEND_HOST_IP', None)
+        host = os.environ.get('PORTAL_BACKEND_HOST_IP', None)
         if host is None:
             raise RuntimeError("HOST environment variable not set")
         port = os.environ.get('PLUGIN_PORT', 8082)
@@ -555,11 +555,11 @@ class PluginBuilder:
             if cloned_dir:
                 # Remote plugin - use public directory path with metadata path
                 if label == "GUI":
-                    plugin_path = f"{self._http_protocol}://{os.environ.get('BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{metadata['expose']}/primary/my-app.umd.js"
+                    plugin_path = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{metadata['expose']}/primary/my-app.umd.js"
                     if has_backend:
-                        backend_path = f"{self._http_protocol}://{os.environ.get('BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{metadata['expose']}/code/{backend_folder}"
+                        backend_path = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{metadata['expose']}/code/{backend_folder}"
                 else:
-                    plugin_path = f"{self._http_protocol}://{os.environ.get('BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{metadata['expose']}/primary"
+                    plugin_path = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{metadata['expose']}/primary"
             else:
                 # Local plugin - use public directory path with metadata expose folder name
                 plugin_path = f"/{metadata['expose']}/my-app.umd.js"

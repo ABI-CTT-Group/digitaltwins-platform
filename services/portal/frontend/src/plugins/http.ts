@@ -21,7 +21,7 @@ const queue: Array<() => void> = [];
 (async () => {
   await loadRuntimeConfig();
   const runtimeConfig = getRuntimeConfig();
-  const Base_URL = runtimeConfig.BACKEND_HOST_IP;
+  const Base_URL = runtimeConfig.PORTAL_BACKEND_HOST_IP;
   const Port = runtimeConfig.BACKEND_PORT;
   const SSL = runtimeConfig.SSL;
 

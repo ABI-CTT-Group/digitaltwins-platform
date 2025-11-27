@@ -19,7 +19,7 @@ services:
       - FHIR_ENDPOINT=${FHIR_ENDPOINT:-hapi-fhir:8080/fhir}
       - DIGITALTWINS_API_BASE_URL=${DIGITALTWINS_API_BASE_URL:-http://digitaltwins-api}
       - DIGITALTWINS_API_PORT=${DIGITALTWINS_API_PORT:-8000}
-      - BACKEND_HOST_IP=${BACKEND_HOST_IP:-localhost}
+      - PORTAL_BACKEND_HOST_IP=${PORTAL_BACKEND_HOST_IP:-localhost}
       - PLUGIN_PORT=8002
     volumes:
       - portal_datasets:/app/data
@@ -50,8 +50,8 @@ services:
   minio:
     image: quay.io/minio/minio:latest
     ports:
-      - '8004:9000' #backend
-      - '8005:9001' #frontend
+      - '8104:9000' #backend
+      - '8105:9001' #frontend
     networks:
       - digitaltwins
     volumes:
@@ -67,7 +67,7 @@ services:
     image: hapiproject/hapi:latest
     restart: on-failure
     ports:
-      - "8006:8080"
+      - "8106:8080"
     networks:
       - digitaltwins
     volumes:

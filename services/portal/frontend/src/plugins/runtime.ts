@@ -1,5 +1,5 @@
 export type RuntimeConfig = {
-  BACKEND_HOST_IP: string,
+  PORTAL_BACKEND_HOST_IP: string,
   BACKEND_PORT: string|number,
   SSL: boolean
 };
