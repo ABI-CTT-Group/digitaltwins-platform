@@ -14,14 +14,12 @@ services:
       - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio:9000}
       - MINIO_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
-      - MINIO_EXPOSE_PORT=${MINIO_EXPOSE_PORT:-8004}
+      - MINIO_PORT=${MINIO_PORT:-8004}
       - USE_SSL=${USE_SSL:-false}
       - FHIR_ENDPOINT=${FHIR_ENDPOINT:-hapi-fhir:8080/fhir}
-      - DIGITALTWINS_API_URL=${DIGITALTWINS_API_URL:-http://localhost:8010/}
-      - HOST=${HOST:-localhost}
+      - DIGITALTWINS_API_URL=${DIGITALTWINS_API_URL:-http://digitaltwins-api:8000/}
+      - BACKEND_HOST_IP=${BACKEND_HOST_IP:-localhost}
       - PLUGIN_PORT=8002
-    env_file:
-      - .env
     volumes:
       - portal_datasets:/app/data
       - ./backend/datasets_tool:/datasets_tool
