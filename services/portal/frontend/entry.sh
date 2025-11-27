@@ -4,8 +4,9 @@ set -e  # Exit immediately if any command fails
 # ----------------------------
 # Set default values (can be overridden by environment variables)
 # ----------------------------
-: "${API_URL:=http://localhost}"       # Backend API URL
-: "${PORT:=8000}"                # Example feature flag
+: "${PORTAL_BACKEND_HOST_IP:=localhost}"       # Backend IP or hostname
+: "${BACKEND_PORT:=8000}"                # PORT
+: "${SSL:=false}"  # Full API URL
 
 # ----------------------------
 # Generate runtime-config.json
@@ -14,8 +15,9 @@ CONFIG_FILE="/usr/share/nginx/html/runtime-config.json"
 
 cat > "$CONFIG_FILE" <<EOF
 {
-  "API_URL": "${API_URL}",
-  "PORT": "${PORT}"
+  "PORTAL_BACKEND_HOST_IP": "${PORTAL_BACKEND_HOST_IP}",
+  "BACKEND_PORT": "${BACKEND_PORT}",
+  "SSL": ${SSL}
 }
 EOF
 
@@ -25,8 +27,8 @@ cat "$CONFIG_FILE"
 # ----------------------------
 #  Optional: Replace placeholders in index.html
 # ----------------------------
-# Example: if your index.html contains %API_URL% placeholders
-# sed -i "s|%API_URL%|${API_URL}|g" /usr/share/nginx/html/index.html
+# Example: if your index.html contains %PORTAL_BACKEND_HOST_IP% placeholders
+# sed -i "s|%PORTAL_BACKEND_HOST_IP%|${PORTAL_BACKEND_HOST_IP}|g" /usr/share/nginx/html/index.html
 
 # ----------------------------
 # Start Nginx in the foreground

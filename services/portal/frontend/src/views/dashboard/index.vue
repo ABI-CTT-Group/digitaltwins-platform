@@ -114,6 +114,7 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue';
 import DashboardCard from '@/components/dt-components/DashboardCard.vue';
 import Hero from '@/components/dt-components/Hero.vue';
 import clinicalImage from '@/assets/dashboard/clinical-01.jpg';
@@ -126,9 +127,15 @@ import fcMapImage from '@/assets/dashboard/fc-map.jpg'
 import annotatorImage from '@/assets/dashboard/annotator.jpg'
 import digitalRepositoryImage from '@/assets/dashboard/digital-repository.jpg'
 import { useRouter, useRoute } from 'vue-router';
-
+import { useDashboardPageStore } from '@/store/states';
 
 const router = useRouter();
+
+onMounted(() => {
+    localStorage.removeItem("dashboardPage");
+    const dashboardStore = useDashboardPageStore();
+    dashboardStore.$reset();
+});
 
 const handleExploreClicked = (title: string) => {
    

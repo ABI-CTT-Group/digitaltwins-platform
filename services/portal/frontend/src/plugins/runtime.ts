@@ -1,6 +1,7 @@
 export type RuntimeConfig = {
-  API_URL: string;
-  PORT: number|string;
+  PORTAL_BACKEND_HOST_IP: string,
+  BACKEND_PORT: string|number,
+  SSL: boolean
 };
 
 let _config: RuntimeConfig | null = null;

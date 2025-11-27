@@ -192,7 +192,7 @@ class WorkflowBuilder:
             # Determine the path based on whether it's a local plugin or remote
             if cloned_dir:
                 # Remote plugin - use public directory path with metadata path
-                plugin_path = f"http://{os.environ.get('HOST', 'localhost')}:{os.environ.get('MINIO_EXPOSE_PORT', 9000)}/workflows/{metadata['expose']}/primary"
+                plugin_path = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflows/{metadata['expose']}/primary"
             else:
                 # Local plugin - use public directory path with metadata expose folder name
                 plugin_path = f""
