@@ -43,6 +43,8 @@ These efforts are aimed at **supporting an ecosystem** to:
 
 **If you find the DigitalTWINS platform useful, please add a GitHub Star to support developments!**
 
+![architecture diagram](docs/images/architecture_diagram.png)
+
 ## Deploying the DigitalTWINS platform
 
 See [deploying the DigitalTWINS platform](docs/deploying.md)
