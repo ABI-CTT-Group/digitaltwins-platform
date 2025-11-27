@@ -1,4 +1,4 @@
-# populating data
+# Populating data
 
 This document outlines the steps to populate initial data into the DigitalTWINS Platform after deployment
 
