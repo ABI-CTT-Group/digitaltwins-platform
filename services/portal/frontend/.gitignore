@@ -31,4 +31,4 @@ pnpm-debug.log*
 test
 ts
 
-/public/configs.json
+/public/runtime-config.json
