@@ -22,7 +22,7 @@ Set up the necessary environment variables and configuration files.
    
    Set the necessary variables:
    - Portal service:
-     - `PORTAL_BACKEND_HOST_IP`: your host machine IP address for the portal backend. you can get your host ip by `hostname -I` (Linux command)
+     - `PORTAL_BACKEND_HOST_IP`: your host machine IP address for the portal backend. you can get your host ip by `curl ifconfig.me` (Linux command)
    - Workflow service (airflow):
      - `AIRFLOW_UID`: Run echo $(id -u) to find your user ID, then Update the AIRFLOW_UID variable in your .env file with this ID
 
