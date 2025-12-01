@@ -30,7 +30,7 @@ services:
       - plugin_database:/data
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
-    networks0
+    networks:
       - digitaltwins
     depends_on:
       - minio
