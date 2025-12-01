@@ -133,8 +133,8 @@ const router = useRouter();
 
 onMounted(() => {
     localStorage.removeItem("dashboardPage");
-    const dashboardStore = useDashboardPageStore();
-    dashboardStore.$reset();
+    // const dashboardStore = useDashboardPageStore();
+    // dashboardStore.$reset();
 });
 
 const handleExploreClicked = (title: string) => {

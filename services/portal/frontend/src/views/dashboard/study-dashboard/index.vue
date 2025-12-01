@@ -155,13 +155,14 @@ const handleBreadCrumbsClick = (res:PointerEvent) => {
 }
 
 const handleAssayEditClicked = async (seek_id:string, name:string) => {
+    console.log(allAssayDetailsOfStudy.value);
+    
     setCurrentAssayDetails(allAssayDetailsOfStudy.value[seek_id])
 }
 
 const handleAssaySave = async () => {
     currentAssayDetails.value!.isAssayReadyToLaunch = true;
-    console.log(currentAssayDetails.value);
-    
+  
     // setAllAssayDetailsOfStudy(currentAssayDetails.value!.seekId, currentAssayDetails.value!);
     // await saveAssayDetails(currentAssayDetails.value!);
 }
