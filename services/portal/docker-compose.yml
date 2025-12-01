@@ -54,8 +54,8 @@ services:
   minio:
     image: quay.io/minio/minio:latest
     ports:
-      - '8104:9000' #backend
-      - '8105:9001' #frontend
+      - '8004:9000' #backend
+      - '8005:9001' #frontend
     networks:
       - digitaltwins
     volumes:
@@ -71,7 +71,7 @@ services:
     image: hapiproject/hapi:latest
     restart: on-failure
     ports:
-      - "8106:8080"
+      - "8006:8080"
     networks:
       - digitaltwins
     volumes:
