@@ -41,6 +41,10 @@ services:
       dockerfile: Dockerfile
     ports:
       - "80:80"
+    environment:
+      - PORTAL_BACKEND_HOST_IP=${PORTAL_BACKEND_HOST_IP:-localhost}
+      - BACKEND_PORT=${BACKEND_PORT:-8000}
+      - SSL=${SSL:-false}
     restart: unless-stopped
     networks:
       - digitaltwins
