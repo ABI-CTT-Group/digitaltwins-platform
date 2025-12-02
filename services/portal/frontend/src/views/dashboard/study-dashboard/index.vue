@@ -293,6 +293,8 @@ watch(()=>currentCategoryData.value, (newVal)=>{
         allAssayDetailsOfStudy.value = {};
         currentCategoryData.value.forEach( async (item) => {
             const details = await useDashboardGetAssayDetails(item.seekId);
+            console.log("study dashboard line 296: ", details);
+            
             setAssayExecute(item.seekId, "Launch", "");
             if (!!details) {
                 setAllAssayDetailsOfStudy(item.seekId, details);
@@ -307,7 +309,7 @@ watch(()=>currentCategoryData.value, (newVal)=>{
                         inputs: [],
                         outputs: [],
                     },
-                    numberOfParticipants: 0,
+                    numberOfParticipants: [],
                     isAssayReadyToLaunch: false,
                 });
             }

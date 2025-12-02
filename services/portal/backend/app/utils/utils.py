@@ -9,6 +9,7 @@ from app.builder.logger import get_logger
 
 logger = get_logger(__name__)
 
+
 def force_rmtree(path: Path, keep_folder: bool = False, keep_gitkeep: bool = True):
     """
     Recursively delete a directory or its contents in a cross-platform safe way.
@@ -18,6 +19,7 @@ def force_rmtree(path: Path, keep_folder: bool = False, keep_gitkeep: bool = Tru
         keep_folder: If True, only deletes contents, keeps the folder itself.
         keep_gitkeep: If True and keep_folder=True, keeps a `.gitkeep` file inside.
     """
+
     def onerror(func, p, exc_info):
         """Error handler for shutil.rmtree: fixes read-only files."""
         try:
@@ -95,3 +97,16 @@ def safe_open(path: Path, mode="rb"):
         return open(s, mode)
     else:
         return open(p, mode)
+
+
+def get_workflow_type(tags) -> str:
+    tags_lower = [t.lower() if isinstance(t, str) else t for t in tags]
+    if 'script' in tags_lower and 'gui' in tags_lower:
+        workflow_type = 'error'
+    elif 'script' in tags_lower:
+        workflow_type = 'script'
+    elif 'gui' in tags_lower:
+        workflow_type = 'gui'
+    else:
+        workflow_type = 'other'
+    return workflow_type
