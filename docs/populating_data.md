@@ -45,7 +45,7 @@ Create the necessary associations in the database using the **pgAdmin** interfac
 2. Restart the Airflow service to load the new workflows
 
    ```bash
-   sudo docker compose restart airflow-apiserver
+   sudo docker compose --env-file ./.env --project-directory services/airflow restart
    ```
 
 3. Verify if the workflow is visible in the Airflow UI: `http://localhost:8002/dags`
