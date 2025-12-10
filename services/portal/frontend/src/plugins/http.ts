@@ -1,4 +1,4 @@
-import axios, { type AxiosRequestConfig } from "axios";
+import axios, { AxiosRequestConfig } from "axios";
 import { IRequests } from "@/models/apiTypes";
 import { getRuntimeConfig, loadRuntimeConfig } from "./runtime";
 
@@ -13,11 +13,37 @@ export interface IHttp {
   delete<T>(url: string, params?: unknown): Promise<T>;
 }
 
-
 let http: IHttp | null = null;
 const queue: Array<() => void> = [];
 
+// refreash token promise
+let refreshPromise: Promise<string | null> | null = null;
 
+// customised refreash token
+async function refreshAccessToken(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = axios
+      .post(
+        "/api/refresh",
+        {},
+        {
+          withCredentials: true, // with cookie（refresh_token）
+        }
+      )
+      .then((res) => {
+        const newToken = res.data.access_token;
+        if (newToken) sessionStorage.setItem("access_token", newToken);
+        return newToken;
+      })
+      .catch(() => null)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
+// =============== init ===============
 (async () => {
   await loadRuntimeConfig();
   const runtimeConfig = getRuntimeConfig();
@@ -25,11 +51,44 @@ const queue: Array<() => void> = [];
   const Port = runtimeConfig.BACKEND_PORT;
   const SSL = runtimeConfig.SSL;
 
-  const endpointUrl = `${SSL?'https://':'http://'}${Base_URL}:${Port}/api`;
-  
+  const endpointUrl = `${SSL ? "https://" : "http://"}${Base_URL}:${Port}/api`;
+
   axios.defaults.baseURL = endpointUrl;
-  axios.interceptors.request.use((config: AxiosRequestConfig | any) => config);
-  axios.interceptors.response.use((res) => res, (err) => Promise.reject(err));
+
+  // ============== request interceptors: automatically add access_token ==============
+  axios.interceptors.request.use((config: AxiosRequestConfig | any) => {
+    const token = sessionStorage.getItem("access_token");
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    config.withCredentials = true; // let browser bring cookie（include refresh_token）
+    return config;
+  });
+
+  // ============== respose interceptors：handle 401 ==============
+  axios.interceptors.response.use(
+    (res) => res,
+    async (err) => {
+      const originalRequest = err.config;
+
+      // not 401 -> reject
+      if (err.response?.status !== 401) return Promise.reject(err);
+
+      // avoid infinite loop
+      const newToken = await refreshAccessToken();
+      if (!newToken) {
+        console.warn("Refresh token expired → redirect to login");
+        sessionStorage.removeItem("access_token");
+        window.location.href = "/";
+        return Promise.reject(err);
+      }
+
+      // update header then send the request again
+      originalRequest.headers.Authorization = `Bearer ${newToken}`;
+      return axios(originalRequest);
+    }
+  );
 
   http = {
     get(url, params) {
@@ -40,7 +99,8 @@ const queue: Array<() => void> = [];
         .get(url, { params, responseType: "blob" })
         .then((res) => {
           const x_header_str = res.headers["x-volume"];
-          if (x_header_str) return { data: res.data, x_header_obj: JSON.parse(x_header_str) };
+          if (x_header_str)
+            return { data: res.data, x_header_obj: JSON.parse(x_header_str) };
           return res.data;
         })
         .catch((err) => {
@@ -61,7 +121,8 @@ const queue: Array<() => void> = [];
               responseType: "blob",
             });
             const x_header_str = response.headers["x-file-name"];
-            if (x_header_str) return { data: response.data, filename: x_header_str };
+            if (x_header_str)
+              return { data: response.data, filename: x_header_str };
             return response.data;
           } catch (error) {
             retries++;
@@ -78,7 +139,6 @@ const queue: Array<() => void> = [];
     },
   };
 
-
   queue.forEach((resolve) => resolve());
 })();
 
@@ -86,7 +146,6 @@ function waitForHttp(): Promise<IHttp> {
   if (http) return Promise.resolve(http);
   return new Promise((resolve) => queue.push(() => resolve(http!)));
 }
-
 
 const exportedHttp: IHttp = {
   get: (url, params) => waitForHttp().then((h) => h.get(url, params)),

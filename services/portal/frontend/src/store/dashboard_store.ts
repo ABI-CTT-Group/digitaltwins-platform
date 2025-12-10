@@ -5,9 +5,10 @@ import {
     useDashboardCategoryChildren, 
     useDashboardWorkflows, 
     useDashboardWorkflowDetail, 
-    useSaveAssayDetails
+    useSaveAssayDetails,
+    useDashboardAuth
  } from "@/plugins/dashboard_api";
-import { IDashboardCategory, IDashboardWorkflow, IAssayDetails } from "@/models/apiTypes";
+import { IDashboardCategory, IDashboardWorkflow, IAssayDetails, IDashboardAuthResponse, IDashboardAuth } from "@/models/apiTypes";
 
 export const useDashboardProgrammesStore = defineStore("DashboardProgrammes", () => {
     const dashboardProgrammes = ref<IDashboardCategory[]>();
@@ -61,5 +62,16 @@ export const useDashboardSaveAssayDetailsStore = defineStore("DashboardSaveAssay
     return {
         saveAssayDetailsStatus,
         saveAssayDetails,
+    };
+});
+
+export const useDashboardAuthStore = defineStore("DashboardAuth", () => {
+    const dashboardAuthResponse = ref<IDashboardAuthResponse>();
+    const authenticateDashboardUser = async (body: IDashboardAuth) => {
+        dashboardAuthResponse.value = await useDashboardAuth(body);
+    };
+    return {
+        dashboardAuthResponse,
+        authenticateDashboardUser,
     };
 });

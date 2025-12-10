@@ -8,25 +8,35 @@ from pathlib import Path
 import shutil
 from pprint import pprint
 import os
-from app.utils.utils import force_rmtree
+from app.utils.utils import force_rmtree, get_workflow_type
 from app.client.digitaltwins_api import DigitalTWINSAPIClient
+from fastapi import Header, HTTPException
 
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent.parent
-ADMIN_USER = os.getenv('DIGITALTWINS_ADMIN_USERNAME', "admin")
-ADMIN_PASS = os.getenv('DIGITALTWINS_ADMIN_PASSWORD', "admin")
 
 
-async def get_client() -> DigitalTWINSAPIClient:
-    """Create a client instance for dependency injection"""
-    digitaltwins_client = DigitalTWINSAPIClient(
-        username=ADMIN_USER,
-        password=ADMIN_PASS,
-    )
+# ADMIN_USER = os.getenv('DIGITALTWINS_ADMIN_USERNAME', "admin")
+# ADMIN_PASS = os.getenv('DIGITALTWINS_ADMIN_PASSWORD', "admin")
+async def get_token(authorization: str = Header(None)):
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing Authorization header")
+
+    # Authorization: Bearer xxx
+    scheme, _, token = authorization.partition(" ")
+
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(status_code=401, detail="Invalid Authorization header")
+
+    return token
+
+
+async def get_client(token: str = Depends(get_token)):
+    client = DigitalTWINSAPIClient(token=token)
     try:
-        yield digitaltwins_client
+        yield client
     finally:
-        await digitaltwins_client.close()
+        await client.close()
 
 
 router = APIRouter(prefix="/api/dashboard")
@@ -138,86 +148,60 @@ async def get_seek_assay_by_id(assay_seek_id: str, client: DigitalTWINSAPIClient
 
 @router.get("/workflows")
 async def get_dashboard_workflows(client: DigitalTWINSAPIClient = Depends(get_client)):
-    sops_res = await client.get("/workflows")
-    sops = sops_res.json().get('workflows')
-    workflows = []
-    for data in sops:
-        title = data['attributes']['title']
-        if " - " in title:
-            name = title.split(" - ")[0].rstrip()
-            workflow_type = title.split(" - ")[1].lstrip()
-        else:
-            name = title
-            workflow_type = None
-
+    workflows_res = await client.get("/workflows")
+    workflows = workflows_res.json().get('workflows')
+    workflows_response = []
+    for w in workflows:
+        title = w['attributes']['title']
+        w_seek_id = w.get("id", None)
+        w_res = await client.get(f"/workflows/{w_seek_id}")
+        workflow_detail = w_res.json().get('workflow')
+        tags = workflow_detail.get('attributes', {}).get('tags', [])
+        workflow_type = get_workflow_type(tags)
         temp = {
-            "seekId": data.get("id", None),
+            "seekId": w_seek_id,
             "uuid": "",
-            "name": name,
+            "name": title,
             "type": workflow_type,
         }
-        workflows.append(temp)
-    return workflows
+        workflows_response.append(temp)
+    return workflows_response
 
 
 @router.get("/workflow-detail")
-async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None)):
-    # if seek_id is None:
-    #     return None
-    # try:
-    #     data = digitaltwins_configs.querier.get_sop(sop_id=seek_id)
-    #     title = data['attributes']['title']
-    #     if not title:
-    #         name = None
-    #         workflow_type = None
-    #     else:
-    #         name = title.split(" - ")[0].rstrip()
-    #         workflow_type = title.split(" - ")[1].lstrip()
-
-    #     pprint(data.get("inputs", None))
-    #     print("out")
-    #     pprint(data.get("outputs", None))
-    #     return {
-    #         "seekId": seek_id,
-    #         "uuid": "",
-    #         "name": name,
-    #         "type": workflow_type,
-    #         "inputs": data.get("inputs", None),
-    #         "outputs": data.get("outputs", None),
-    #         "origin": data
-    #     }
-    # except KeyError as e:
-    #     return None
-    return {"message": "Functionality currently disabled."}
-
-
-# @router.get("/workflow-detail")
-# async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None),
-#                                                 client: DigitalTWINSAPIClient = Depends(get_client)):
-#     if seek_id is None:
-#         return None
-#     try:
-#         w_res = await client.get(f"/workflows/{seek_id}")
-#         workflow = w_res.json().get('workflow')
-#         title = workflow['attributes']['title']
-#         if " - " in title:
-#             name = title.split(" - ")[0].rstrip()
-#             workflow_type = title.split(" - ")[1].lstrip()
-#         else:
-#             name = title
-#             workflow_type = None
-#
-#         return {
-#             "seekId": seek_id,
-#             "uuid": "",
-#             "name": name,
-#             "type": workflow_type,
-#             "inputs": workflow.get("inputs", None),
-#             "outputs": workflow.get("outputs", None),
-#             "origin": workflow
-#         }
-#     except KeyError as e:
-#         return None
+async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None),
+                                                client: DigitalTWINSAPIClient = Depends(get_client)):
+    if seek_id is None:
+        return None
+    try:
+        w_res = await client.get(f"/workflows/{seek_id}")
+        workflow_detail = w_res.json().get('workflow')
+        title = workflow_detail['attributes']['title']
+        tags = workflow_detail.get('attributes', {}).get('tags', [])
+        workflow_type = get_workflow_type(tags)
+        inputs = []
+        outputs = []
+        for i in workflow_detail.get('attributes', {}).get('internals', {}).get('inputs', []):
+            inputs.append({
+                "name": i.get('name', ''),
+                "category": i.get('description', '')
+            })
+        for i in workflow_detail.get('attributes', {}).get('internals', {}).get('outputs', []):
+            outputs.append({
+                "name": i.get('name', ''),
+                "category": i.get('description', '')
+            })
+        return {
+            "seekId": seek_id,
+            "uuid": "",
+            "name": title,
+            "type": workflow_type,
+            "inputs": inputs,
+            "outputs": outputs,
+            # "origin": data
+        }
+    except KeyError as e:
+        return None
 
 
 @router.get("/workflow-cwl")
@@ -261,68 +245,71 @@ async def get_dashboard_dataset_detail_by_uuid(uuid: str = Query(None)):
 
 @router.post("/assay-details")
 async def set_dashboard_assay_details(details: assay_model.AssayDetails):
-    # assay_data = {
-    #     "assay_uuid": details.uuid,
-    #     "assay_seek_id": int(details.seekId),
-    #     "workflow_seek_id": int(details.workflow.seekId),
-    #     "cohort": details.numberOfParticipants,
-    #     "ready": details.isAssayReadyToLaunch,
-    #     "inputs": [
-    #         {"name": i.get("input").get("name"),
-    #          "category": i.get("input").get("category"),
-    #          "dataset_uuid": i.get("datasetSelectedUUID"),
-    #          "sample_type": i.get("sampleSelectedType")} for i in details.workflow.inputs
-    #     ],
-    #     "outputs": [
-    #         {"name": o.get("output").get("name"),
-    #          "category": o.get("output").get("category"),
-    #          "dataset_name": o.get("datasetName"),
-    #          "sample_name": o.get("sampleName")} for o in details.workflow.outputs
-    #     ]
-    # }
+    assay_data = {
+        "assay_uuid": details.uuid,
+        "assay_seek_id": int(details.seekId),
+        "workflow_seek_id": int(details.workflow.seekId),
+        "cohort": details.numberOfParticipants,
+        "ready": details.isAssayReadyToLaunch,
+        "inputs": [
+            {"name": i.get("input").get("name"),
+             "category": i.get("input").get("category"),
+             "dataset_uuid": i.get("datasetSelectedUUID"),
+             "sample_type": i.get("sampleSelectedType")} for i in details.workflow.inputs
+        ],
+        "outputs": [
+            {"name": o.get("output").get("name"),
+             "category": o.get("output").get("category"),
+             "dataset_name": o.get("datasetName"),
+             "sample_name": o.get("sampleName")} for o in details.workflow.outputs
+        ]
+    }
     # digitaltwins_configs.uploader.upload_assay(assay_data)
     # return True
     return {"message": "Functionality currently disabled."}
 
 
 @router.get("/assay-details")
-async def get_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
-    # try:
-    #     assay_detail = digitaltwins_configs.querier.get_assay(seek_id, get_params=True)
-    #     params = assay_detail.get("params", None)
-    #     if params is None:
-    #         return None
-    #     details = {
-    #         "seekId": str(params.get("assay_seek_id", None)),
-    #         "uuid": str(params.get("assay_uuid", "")),
-    #         "workflow": {
-    #             "seekId": str(params.get("workflow_seek_id", None)),
-    #             "uuid": str(params.get("workflow_uuid", "")),
-    #             "inputs": [{
-    #                 "input": {
-    #                     "name": i.get("name", None),
-    #                     "category": i.get("category", None),
-    #                 },
-    #                 "datasetSelectedUUID": i.get("dataset_uuid", None),
-    #                 "sampleSelectedType": i.get("sample_type", None),
-    #             } for i in params.get("inputs", [])],
-    #             "outputs": [{
-    #                 "output": {
-    #                     "name": o.get("name", None),
-    #                     "category": o.get("category", None),
-    #                 },
-    #                 "datasetName": o.get("dataset_name", None),
-    #                 "sampleName": o.get("sample_name", None),
-    #             } for o in params.get("outputs", [])],
-    #         },
-    #         "numberOfParticipants": params.get("cohort", None),
-    #         "isAssayReadyToLaunch": params.get("ready", None)
-    #     }
-    #     return details
-    # except (TypeError, IndexError):
-    #     print("TypeError|IndexError")
-    #     return None
-    return {"message": "Functionality currently disabled."}
+async def get_dashboard_assay_detail_by_uuid(seek_id: str = Query(None),
+                                             client: DigitalTWINSAPIClient = Depends(get_client)):
+    try:
+        # w_res = await client.get(f"/assay_detail/{seek_id}")
+        # workflow_detail = w_res.json().get('workflow')
+        # assay_detail = digitaltwins_configs.querier.get_assay(seek_id, get_params=True)
+        assay_detail = {}
+        params = assay_detail.get("params", None)
+        if params is None:
+            return None
+        details = {
+            "seekId": str(params.get("assay_seek_id", None)),
+            "uuid": str(params.get("assay_uuid", "")),
+            "workflow": {
+                "seekId": str(params.get("workflow_seek_id", None)),
+                "uuid": str(params.get("workflow_uuid", "")),
+                "inputs": [{
+                    "input": {
+                        "name": i.get("name", None),
+                        "category": i.get("category", None),
+                    },
+                    "datasetSelectedUUID": i.get("dataset_uuid", None),
+                    "sampleSelectedType": i.get("sample_type", None),
+                } for i in params.get("inputs", [])],
+                "outputs": [{
+                    "output": {
+                        "name": o.get("name", None),
+                        "category": o.get("category", None),
+                    },
+                    "datasetName": o.get("dataset_name", None),
+                    "sampleName": o.get("sample_name", None),
+                } for o in params.get("outputs", [])],
+            },
+            "numberOfParticipants": params.get("cohort", None),
+            "isAssayReadyToLaunch": params.get("ready", None)
+        }
+        return details
+    except (TypeError, IndexError):
+        print("TypeError|IndexError")
+        return None
 
 
 @router.get("/assay-project")

@@ -192,8 +192,12 @@ onMounted(async () => {
             name: workflow.name + " - " + workflow.type
         }
     });
+    console.log("assay content line 195:",workflowRenderItems.value);
+    
     
     if(!!String(assayDetails.value?.workflow.seekId)){
+        console.log(assayDetails.value);
+        
         await getDashboardWorkflowDetail(String(assayDetails.value?.workflow.seekId));
         dashboardWorkflowDetail.value!.inputs!.map( (input) => {
             workflowInputDatasetSamples.value[input.name] = { category: input.category, datasetRenderItems: [], selectedDatasetSampleTypes: [] };

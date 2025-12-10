@@ -35,6 +35,10 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUser } from "@/plugins/hooks/user";
+import { useDashboardAuthStore } from '@/store/dashboard_store';
+import { storeToRefs } from "pinia";
+const { dashboardAuthResponse } = storeToRefs(useDashboardAuthStore());
+const { authenticateDashboardUser } = useDashboardAuthStore();
 
 const publicData = {
     user1: {
@@ -70,6 +74,11 @@ const submit = async (event:any) => {
         const results = await event
         loading.value = false
         if (results.valid === true){
+            await authenticateDashboardUser({username: userName.value, password: password.value});
+            console.log("login successfully!!");
+            
+            console.log(dashboardAuthResponse.value);
+            
             switch (userName.value.toLowerCase()) {
                 case "admin":
                     router.push({name: 'Home'})
@@ -90,40 +99,40 @@ const checkApi = async (validatingStr: string, type: string): Promise<any> => {
         timeout.value = setTimeout(() => {
             if (type === 'userName'){
                 if (!validatingStr) return resolve('Please enter a user name.')
-                if (validatingStr.toLowerCase() === publicData.user1.userName || validatingStr.toLowerCase() === publicData.admin.userName){
-                    isUser.value = true;
-                    return resolve(true);
-                }else{
-                    isUser.value = false;
-                    return resolve('User does not exist.')
-                }
+                // if (validatingStr.toLowerCase() === publicData.user1.userName || validatingStr.toLowerCase() === publicData.admin.userName){
+                //     isUser.value = true;
+                //     return resolve(true);
+                // }else{
+                //     isUser.value = false;
+                //     return resolve('User does not exist.')
+                // }
             }else if(type === 'password'){
                 if (!validatingStr) return resolve('Please enter a password.')
-                if (isUser.value){
+                // if (isUser.value){
               
-                    switch (userName.value.toLowerCase()) {
-                        case publicData.user1.userName:
-                            if (validatingStr.toLowerCase() === publicData.user1.password.toLocaleLowerCase()) {
-                                role.value = publicData.user1.role;
-                                return resolve(true)
-                            }
-                            break;
-                        case publicData.user2.userName:
-                            if (validatingStr.toLowerCase() === publicData.user1.password) {
-                                role.value = publicData.user2.role;
-                                return resolve(true);
-                            }
+                //     switch (userName.value.toLowerCase()) {
+                //         case publicData.user1.userName:
+                //             if (validatingStr.toLowerCase() === publicData.user1.password.toLocaleLowerCase()) {
+                //                 role.value = publicData.user1.role;
+                //                 return resolve(true)
+                //             }
+                //             break;
+                //         case publicData.user2.userName:
+                //             if (validatingStr.toLowerCase() === publicData.user1.password) {
+                //                 role.value = publicData.user2.role;
+                //                 return resolve(true);
+                //             }
                             
-                            break;
-                        case publicData.admin.userName:
-                            if (validatingStr.toLowerCase() === publicData.admin.password.toLocaleLowerCase()) {
-                                role.value = publicData.admin.role;
-                                return resolve(true);
-                            }
-                            break;
-                    }
-                    return resolve('Password is incorrect.')
-                }
+                //             break;
+                //         case publicData.admin.userName:
+                //             if (validatingStr.toLowerCase() === publicData.admin.password.toLocaleLowerCase()) {
+                //                 role.value = publicData.admin.role;
+                //                 return resolve(true);
+                //             }
+                //             break;
+                //     }
+                //     return resolve('Password is incorrect.')
+                // }
             }else{
                 return resolve(false)
             }
