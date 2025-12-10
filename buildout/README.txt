@@ -85,14 +85,11 @@ KC_HTTPS_KEY_STORE_PASSWORD (for the server.jks you created for https on keycloa
 KC_CLIENT_SECRET            (this is the keycloak "api" client in the digitaltwins realm)
 SEEK_ADMIN_PASSWORD         (the admin user, the 1st user created in the seek system)
 
-Then you can run
-- portal0.yaml # does a bunch of stuff
-- portal1.yaml # sets up https on the keycloak service
-- portal2.yaml # starts up the seek service
-- portal3.yaml # sets up the seek admin user, the seek features we want, and the api token
-- More stuff maybe to come here?
-- portal9.yaml # stop/start all, and ensure it stays started across reboots
-
+Then you can run the playbook
+build_all.yaml
+which should leave you with a functioning system
+(modulo the fix.sh that may need to be carried out, or anything else
+that breaks it in the meantime).
 
 This does all the steps the Chin-Chien has listed on
 
