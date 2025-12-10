@@ -75,10 +75,7 @@ const submit = async (event:any) => {
         loading.value = false
         if (results.valid === true){
             await authenticateDashboardUser({username: userName.value, password: password.value});
-            console.log("login successfully!!");
-            
-            console.log(dashboardAuthResponse.value);
-            
+ 
             switch (userName.value.toLowerCase()) {
                 case "admin":
                     router.push({name: 'Home'})

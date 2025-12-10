@@ -11,6 +11,7 @@ import os
 from app.utils.utils import force_rmtree, get_workflow_type
 from app.client.digitaltwins_api import DigitalTWINSAPIClient
 from fastapi import Header, HTTPException
+from httpx import HTTPStatusError, RequestError
 
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent.parent
@@ -59,138 +60,209 @@ async def proxy_request(client: DigitalTWINSAPIClient = Depends(get_client)):
 
 @router.get("/programmes")
 async def get_programmes(client: DigitalTWINSAPIClient = Depends(get_client)):
-    response = await client.get("/programs", {"get_details": False})
-    if response.status_code == 200:
-        programmes = []
-        for data in response.json().get('programs'):
+    try:
+        response = await client.get("/programs", {"get_details": False})
+        print(response)
+    except HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+
+    programmes = []
+    for data in response.json().get('programs'):
+        try:
             program_res = await client.get(f"/programs/{data['id']}")
-            if program_res.status_code == 200:
-                program = program_res.json().get('program')
-                category = program.get("type", None)
-                temp = {
-                    "seekId": program.get("id", None),
-                    "name": program.get("attributes").get("title", None),
-                    "category": category.capitalize() if category is not None else None,
-                    "description": program.get("attributes").get("description", None),
-                }
-                programmes.append(temp)
-        return programmes
-    else:
-        raise HTTPException(status_code=response.status_code, detail=response.text)
+        except HTTPStatusError as e:
+            continue
+        if program_res.status_code == 200:
+            program = program_res.json().get('program')
+            category = program.get("type", None)
+            temp = {
+                "seekId": program.get("id", None),
+                "name": program.get("attributes").get("title", None),
+                "category": category.capitalize() if category is not None else None,
+                "description": program.get("attributes").get("description", None),
+            }
+            programmes.append(temp)
+    return programmes
 
 
 @router.get("/category-children")
-async def get_dashboard_category_children_by_uuid(seek_id: str = Query(None), category: str = Query(None),
-                                                  client: DigitalTWINSAPIClient = Depends(get_client)):
+async def get_dashboard_category_children_by_uuid(
+        seek_id: str = Query(None),
+        category: str = Query(None),
+        client: DigitalTWINSAPIClient = Depends(get_client)
+):
     if seek_id is None or category is None:
         return None
+
     category = category.lower()
+
     if category == "assays":
         return None
-    if category == "programmes":
-        program_res = await client.get(f"/programs/{seek_id}")
-        program = program_res.json().get('program')
-        dependencies = program.get("relationships").get("projects").get("data")
-    elif category == "projects":
-        project_res = await client.get(f"/projects/{seek_id}")
-        project = project_res.json().get('project')
-        dependencies = project.get("relationships").get("investigations").get("data")
-    elif category == "investigations":
-        investigation_res = await client.get(f"/investigations/{seek_id}")
-        investigation = investigation_res.json().get('investigation')
-        dependencies = investigation.get("relationships").get("studies").get("data")
-    elif category == "studies":
-        study_res = await client.get(f"/studies/{seek_id}")
-        study = study_res.json().get('study')
-        dependencies = study.get("relationships").get("assays").get("data")
-    else:
-        return None
-    children = []
-    for data in dependencies:
-        if data.get("type") == "projects":
-            res = await client.get(f"/projects/{data.get('id')}")
-            child = res.json().get('project')
-        elif data.get("type") == "investigations":
-            res = await client.get(f"/investigations/{data.get('id')}")
-            child = res.json().get('investigation')
-        elif data.get("type") == "studies":
-            res = await client.get(f"/studies/{data.get('id')}")
-            child = res.json().get('study')
-        elif data.get("type") == "assays":
-            res = await client.get(f"/assays/{data.get('id')}")
-            child = res.json().get('assay')
+
+    try:
+        if category == "programmes":
+            res = await client.get(f"/programs/{seek_id}")
+            print(res)
+            root_obj = res.json().get('program')
+            print(root_obj)
+            dependencies = root_obj.get("relationships").get("projects").get("data")
+        elif category == "projects":
+            res = await client.get(f"/projects/{seek_id}")
+            root_obj = res.json().get('project')
+            dependencies = root_obj.get("relationships").get("investigations").get("data")
+        elif category == "investigations":
+            res = await client.get(f"/investigations/{seek_id}")
+            root_obj = res.json().get('investigation')
+            dependencies = root_obj.get("relationships").get("studies").get("data")
+        elif category == "studies":
+            res = await client.get(f"/studies/{seek_id}")
+            root_obj = res.json().get('study')
+            dependencies = root_obj.get("relationships").get("assays").get("data")
         else:
             return None
-        send_category = child.get("type", None)
-        temp = {
-            "seekId": child.get("id", None),
-            "name": child.get("attributes").get("title", None),
-            "category": send_category.capitalize() if send_category is not None else None,
-            "description": child.get("attributes").get("description", None),
-        }
-        children.append(temp)
+    except HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except RequestError as e:
+
+        raise HTTPException(status_code=500, detail=str(e))
+
+    children = []
+    for data in dependencies:
+        try:
+            obj_type = data.get("type")
+            obj_id = data.get("id")
+
+            if obj_type == "projects":
+                res = await client.get(f"/projects/{obj_id}")
+                child = res.json().get('project')
+            elif obj_type == "investigations":
+                res = await client.get(f"/investigations/{obj_id}")
+                child = res.json().get('investigation')
+            elif obj_type == "studies":
+                res = await client.get(f"/studies/{obj_id}")
+                child = res.json().get('study')
+            elif obj_type == "assays":
+                res = await client.get(f"/assays/{obj_id}")
+                child = res.json().get('assay')
+            else:
+                continue
+
+            send_category = child.get("type", None)
+            temp = {
+                "seekId": child.get("id", None),
+                "name": child.get("attributes").get("title", None),
+                "category": send_category.capitalize() if send_category else None,
+                "description": child.get("attributes").get("description", None),
+            }
+            children.append(temp)
+
+        except HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+        except RequestError as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
     return children
 
 
 @router.get("/assays/{assay_seek_id}")
-async def get_seek_assay_by_id(assay_seek_id: str, client: DigitalTWINSAPIClient = Depends(get_client)):
-    res = await client.get(f"/assays/{assay_seek_id}")
-    assay_res = res.json().get('assay')
-    return {
-        "seekId": assay_res.get("id", None),
-        "name": assay_res.get("attributes").get("title", None),
-        "relationships": {
-            "studySeekId": assay_res.get("relationships").get("study").get("data").get("id"),
-            "investigationSeekId": assay_res.get("relationships").get("investigation").get("data").get("id"),
+async def get_seek_assay_by_id(
+        assay_seek_id: str,
+        client: DigitalTWINSAPIClient = Depends(get_client)
+):
+    try:
+        res = await client.get(f"/assays/{assay_seek_id}")
+        assay_res = res.json().get('assay')
+        if assay_res is None:
+            raise HTTPException(status_code=404, detail="Assay not found")
+
+        relationships = assay_res.get("relationships", {})
+        study_data = relationships.get("study", {}).get("data")
+        investigation_data = relationships.get("investigation", {}).get("data")
+
+        return {
+            "seekId": assay_res.get("id", None),
+            "name": assay_res.get("attributes", {}).get("title", None),
+            "relationships": {
+                "studySeekId": study_data.get("id") if study_data else None,
+                "investigationSeekId": investigation_data.get("id") if investigation_data else None,
+            }
         }
-    }
+
+    except HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except RequestError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/workflows")
 async def get_dashboard_workflows(client: DigitalTWINSAPIClient = Depends(get_client)):
-    workflows_res = await client.get("/workflows")
-    workflows = workflows_res.json().get('workflows')
+    try:
+        workflows_res = await client.get("/workflows")
+        workflows = workflows_res.json().get('workflows', [])
+    except HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except RequestError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
     workflows_response = []
+
     for w in workflows:
-        title = w['attributes']['title']
-        w_seek_id = w.get("id", None)
-        w_res = await client.get(f"/workflows/{w_seek_id}")
-        workflow_detail = w_res.json().get('workflow')
-        tags = workflow_detail.get('attributes', {}).get('tags', [])
-        workflow_type = get_workflow_type(tags)
-        temp = {
-            "seekId": w_seek_id,
-            "uuid": "",
-            "name": title,
-            "type": workflow_type,
-        }
-        workflows_response.append(temp)
+        try:
+            title = w.get('attributes', {}).get('title', None)
+            w_seek_id = w.get("id", None)
+            if not w_seek_id:
+                continue
+
+            w_res = await client.get(f"/workflows/{w_seek_id}")
+            workflow_detail = w_res.json().get('workflow', {})
+            tags = workflow_detail.get('attributes', {}).get('tags', [])
+            workflow_type = get_workflow_type(tags)
+
+            temp = {
+                "seekId": w_seek_id,
+                "uuid": "",
+                "name": title,
+                "type": workflow_type,
+            }
+            workflows_response.append(temp)
+
+        except HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+        except RequestError as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
     return workflows_response
 
 
 @router.get("/workflow-detail")
-async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None),
-                                                client: DigitalTWINSAPIClient = Depends(get_client)):
+async def get_dashboard_workflow_detail_by_uuid(
+    seek_id: str = Query(None),
+    client: DigitalTWINSAPIClient = Depends(get_client)
+):
     if seek_id is None:
         return None
+
     try:
         w_res = await client.get(f"/workflows/{seek_id}")
         workflow_detail = w_res.json().get('workflow')
-        title = workflow_detail['attributes']['title']
-        tags = workflow_detail.get('attributes', {}).get('tags', [])
+        if not workflow_detail:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+
+        attributes = workflow_detail.get('attributes', {})
+        title = attributes.get('title', '')
+        tags = attributes.get('tags', [])
         workflow_type = get_workflow_type(tags)
-        inputs = []
-        outputs = []
-        for i in workflow_detail.get('attributes', {}).get('internals', {}).get('inputs', []):
-            inputs.append({
-                "name": i.get('name', ''),
-                "category": i.get('description', '')
-            })
-        for i in workflow_detail.get('attributes', {}).get('internals', {}).get('outputs', []):
-            outputs.append({
-                "name": i.get('name', ''),
-                "category": i.get('description', '')
-            })
+
+        internals = attributes.get('internals', {})
+        inputs = [
+            {"name": i.get('name', ''), "category": i.get('description', '')}
+            for i in internals.get('inputs', [])
+        ]
+        outputs = [
+            {"name": i.get('name', ''), "category": i.get('description', '')}
+            for i in internals.get('outputs', [])
+        ]
+
         return {
             "seekId": seek_id,
             "uuid": "",
@@ -198,9 +270,13 @@ async def get_dashboard_workflow_detail_by_uuid(seek_id: str = Query(None),
             "type": workflow_type,
             "inputs": inputs,
             "outputs": outputs,
-            # "origin": data
         }
-    except KeyError as e:
+
+    except HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except RequestError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except KeyError:
         return None
 
 
