@@ -1,0 +1,45 @@
+name: Server Rebuild via SSH
+
+on:
+  push:
+    branches:
+      - buildout
+
+jobs:
+  ssh_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Checkout code (Optional, but good practice)
+        uses: actions/checkout@v4
+
+      - name: 2. Set up SSH Agent and add Private Key
+        # This action installs the key so subsequent steps can use 'ssh'
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
+
+      - name: 3. Execute Remote Rebuild Script
+        run: |
+          # The key is now loaded in the ssh agent.
+          # Use 'ssh' to connect to your server and run commands sequentially.
+          
+          # Replace user@host and the commands with your actual details:
+          ssh -o StrictHostKeyChecking=no ubuntu@130.216.216.243 << 'EOF'
+            # --- Commands executed on the remote server ---
+            
+           # # 1. Navigate to the repository directory
+            cd digitaltwins-platform
+            export TZ=Pacific/Auckland
+            date >> github.log
+            
+           # # 2. Pull the latest code
+           # #git pull origin main
+           # #git submodule update --remote --recursive
+           # 
+           # # 3. Restart the service or run the build script
+           # docker compose down
+           # docker compose up -d
+           # 
+            # --- End of remote commands ---
+          EOF
