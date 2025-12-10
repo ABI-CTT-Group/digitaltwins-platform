@@ -10,23 +10,33 @@ from pprint import pprint
 import os
 from app.utils.utils import force_rmtree, get_workflow_type
 from app.client.digitaltwins_api import DigitalTWINSAPIClient
+from fastapi import Header, HTTPException
 
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent.parent
-ADMIN_USER = os.getenv('DIGITALTWINS_ADMIN_USERNAME', "admin")
-ADMIN_PASS = os.getenv('DIGITALTWINS_ADMIN_PASSWORD', "admin")
 
 
-async def get_client() -> DigitalTWINSAPIClient:
-    """Create a client instance for dependency injection"""
-    digitaltwins_client = DigitalTWINSAPIClient(
-        username=ADMIN_USER,
-        password=ADMIN_PASS,
-    )
+# ADMIN_USER = os.getenv('DIGITALTWINS_ADMIN_USERNAME', "admin")
+# ADMIN_PASS = os.getenv('DIGITALTWINS_ADMIN_PASSWORD', "admin")
+async def get_token(authorization: str = Header(None)):
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing Authorization header")
+
+    # Authorization: Bearer xxx
+    scheme, _, token = authorization.partition(" ")
+
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(status_code=401, detail="Invalid Authorization header")
+
+    return token
+
+
+async def get_client(token: str = Depends(get_token)):
+    client = DigitalTWINSAPIClient(token=token)
     try:
-        yield digitaltwins_client
+        yield client
     finally:
-        await digitaltwins_client.close()
+        await client.close()
 
 
 router = APIRouter(prefix="/api/dashboard")
