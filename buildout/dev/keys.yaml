@@ -1,0 +1,13 @@
+- name: keys setup
+  gather_facts: false
+  hosts: portal drai_mp
+
+  tasks:
+
+  - name: user access
+    authorized_key:
+      user: "{{ ansible_user }}"
+      state: present
+      key: "{{ lookup('file', item) }}"
+    with_fileglob:
+      - "public_keys/*.pub"
