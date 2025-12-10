@@ -1,0 +1,90 @@
+#!/bin/bash
+# Examples for using the api to create stuff in SEEK
+
+SEEK_TOKEN_FILE_NAME=${SEEK_TOKEN_FILE_NAME:=~/keys/seek_api_token.txt}
+IP=$(curl -s ifconfig.me)
+BASE_API_URL=http://${IP}:8001
+
+[[ -f "$SEEK_TOKEN_FILE_NAME" ]] || {
+    echo "No seek token file: $SEEK_TOKEN_FILE_NAME"
+    exit 1
+}
+
+SEEK_API_TOKEN=$(<"$SEEK_TOKEN_FILE_NAME") || exit 1
+
+## Create a programme
+#curl -X POST $BASE_API_URL/programmes \
+#  -H "Authorization: Token token=$SEEK_API_TOKEN" \
+#  -H "Content-Type: application/json" \
+#  -H "Accept: application/json" \
+#  -d '{
+#    "data": {
+#      "type": "programmes",
+#      "attributes": {
+#        "title": "Hello World",
+#        "description": "A simple hello world programme"
+#      }
+#    }
+#  }'
+
+# Create a programme and retain its PROGRAMME_ID
+PROGRAMME_ID=$(curl -X POST $BASE_API_URL/programmes \
+  -H "Authorization: Token token=$SEEK_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "data": {
+      "type": "programmes",
+      "attributes": {
+        "title": "Hello World",
+        "description": "A simple hello world programme"
+      }
+    }
+  }' | jq -r '.data.id')
+
+#echo $PROGRAMME_ID
+
+TFILE=/tmp/tmp.$$.json
+cat > $TFILE <<EOF
+{
+    "data": {
+      "type": "projects",
+      "attributes": {
+        "title": "Hello Project"
+      },
+      "relationships": {
+        "programmes": {
+          "data": [
+            {
+              "id": "$PROGRAMME_ID",
+              "type": "programmes"
+            }
+          ]
+        }
+      }
+    }
+}
+EOF
+
+
+# Create a project under a given PROGRAMME_ID
+curl -X POST $BASE_API_URL/projects \
+  -H "Authorization: Token token=$SEEK_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  --data @$TFILE
+
+exit
+
+
+# Delete a project
+PROJECT_ID=1
+curl -X DELETE $BASE_API_URL/projects/$PROJECT_ID \
+  -H "Authorization: Token token=$SEEK_API_TOKEN" \
+  -H "Accept: application/json"
+
+# Delete a programme
+PROGRAMME_ID=1
+curl -X DELETE $BASE_API_URL/programmes/$PROGRAMME_ID \
+  -H "Authorization: Token token=$SEEK_API_TOKEN" \
+  -H "Accept: application/json"

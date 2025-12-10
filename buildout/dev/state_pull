@@ -1,0 +1,44 @@
+
+BUCKET=terraform-states
+BUCKET_PATH=digitaltwins/dev
+FILE="terraform.tfstate"
+UTC_TIMESTAMP=$(TZ=UTC stat -c '%Y' "$FILE")  # Get timestamp as seconds since epoch
+MY_TS=$(TZ=UTC date -d "@$UTC_TIMESTAMP" '+%Y-%m-%dT%H:%M:%S.%6N' | cut -c1-26)
+
+REMOTE_INFO=$(openstack object list -f json $BUCKET --long -c Name -c "Last Modified" -c Bytes --sort-column "Last Modified" --sort-descending --marker "$BUCKET_PATH/terraform.sfstate" --end-marker "$BUCKET_PATH/terraform.ufstate")
+
+REMOTE_BYTES=$(echo $REMOTE_INFO | jq -r '.[0]."Bytes"')
+LOCAL_BYTES=$(stat -c %s $FILE)
+REMOTE_TS=$(echo $REMOTE_INFO | jq -r '.[0]."Last Modified"')
+
+MY_TS="${MY_TS%.*}"
+REMOTE_TS="${REMOTE_TS%.*}"
+
+if [[ "$LOCAL_BYTES" = "$REMOTE_BYTES" ]]; then
+    echo remote filesize matches local filesize: $LOCAL_BYTES
+fi
+
+if [[ "$MY_TS" = "$REMOTE_TS" ]]; then
+    echo remote state file timestamp matches local: $MY_TS
+    echo leaving the local file as it sits
+    exit 0
+fi
+
+if [[ "$MY_TS" > "$REMOTE_TS" ]]; then
+
+    echo "Your local statefile is newer than the remote one."
+    echo "     local : $MY_TS"
+    echo "     remote: $REMOTE_TS"
+
+    read -p "Do you want to continue? (y/n): " -n 1 -r
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo
+    else
+        echo
+        echo "Exiting..."
+        exit 1
+    fi
+fi
+
+openstack object save $BUCKET $BUCKET_PATH/$FILE --file $FILE
+touch -d "$REMOTE_TS UTC" $FILE

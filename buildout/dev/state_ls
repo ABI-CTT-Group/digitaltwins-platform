@@ -1,0 +1,1 @@
+openstack object list -f json terraform-states --long -c Name -c "Last Modified" --sort-column "Last Modified" --sort-descending --marker "digitaltwins/dev/terraform.sfstate" --end-marker "digitaltwins/dev/terraform.ufstate"

@@ -1,0 +1,35 @@
+all:
+  vars:
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+#    ansible_user: ubuntu
+#    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o ProxyCommand=\"ssh -W %h:%p -q rocky@{{ jump_host }}\""
+
+  children:
+
+    portal:
+      hosts:
+        abi_portal:
+      vars:
+        ansible_user: ubuntu
+
+    drai_mp:
+      hosts:
+        abi_mp:
+      vars:
+        ansible_user: ubuntu
+
+    drai_mp2:
+      hosts:
+        abi_mp2:
+      vars:
+        ansible_user: ubuntu
+
+# Get "abi_portal" set up in your ~/.ssh/config
+# file - something like:
+# Host abi_portal
+#     HostName 130.216.216.198
+#     User ubuntu
+#     IdentityFile ~/keys/drai-inn-keypair.key
+#     StrictHostKeyChecking no
+#     UserKnownHostsFile /dev/null
+

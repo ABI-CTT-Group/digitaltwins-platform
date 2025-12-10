@@ -1,0 +1,46 @@
+# By default Keycloak requires HTTPS to be enabled for external IP addresses,
+# if you access Keycloak with an internal IP address, this is not required.
+# However, if you access Keycloak from a external network,
+# you need to add your proxy configs/SSL certificate to Keycloak, see docker-compose-https.yml as an example
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3.2
+    command:
+      - start-dev
+      - --import-realm # will only import once on the first startup
+      - --hostname-strict=false
+      - --https-key-store-file=/opt/keycloak/conf/server.jks
+      - --https-key-store-password=${KC_HTTPS_KEY_STORE_PASSWORD}
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}
+    ports:
+      - "8009:8443"
+      #- "8009:8080"
+    volumes:
+      - ./import:/opt/keycloak/data/import
+      - keycloak_data:/opt/keycloak/data
+      - ./server.jks:/opt/keycloak/conf/server.jks
+    restart: unless-stopped
+    networks:
+      - digitaltwins
+
+volumes:
+  keycloak_data:
+    driver: local
+
+networks:
+  digitaltwins:
+    driver: bridge
+
+# Keycloak Admin Console
+# http://localhost:8080/admin
+
+# keycloak account console
+# http://localhost:8080/realms/<myrealm>/account
+# http://localhost:8080/realms/digitaltwins/account
+
+
+# creating network
+# sudo docker network create digitaltwins

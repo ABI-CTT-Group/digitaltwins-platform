@@ -1,0 +1,16 @@
+
+# Added by MP to stop possibly sensitive buildout stuff going into the repo
+# clouds.yaml may contain project info with a password
+clouds.yaml
+
+# don't want the terraform state file(s) in the repo
+terraform.tfstate*
+.terraform*
+
+public_keys
+
+env
+
+old
+data
+server.jks

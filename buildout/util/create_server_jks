@@ -1,0 +1,16 @@
+# create self-signed server.jks for the keycloak instance
+# Improve this, register a domain?? Get a real cert? (except we won't be able to renew ...?)
+
+export GCLOUD_PROJECT=mygen3
+
+S=$(gsecret get digitaltwins_dev_keycloak_admin)
+
+keytool -genkeypair \
+ -alias keycloak \
+ -keyalg RSA \
+ -keystore server.jks \
+ -storepass "$S" \
+ -keypass "$S" \
+ -validity 3650 \
+ -dname "CN=localhost, OU=Dev, O=MyCompany, L=City, ST=State, C=NZ"
+

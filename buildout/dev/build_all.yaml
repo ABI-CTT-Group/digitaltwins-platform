@@ -1,0 +1,348 @@
+- name: keycloak setup
+  gather_facts: false
+  hosts: portal drai_mp
+
+  tasks:
+
+#########################
+# Make sure required env variables are set
+  - name: Verify SEEK_ADMIN_PASSWORD environment variable is set
+    ansible.builtin.fail:
+      msg: "FATAL: The required environment variable SEEK_ADMIN_PASSWORD must be set to run this playbook."
+    when: lookup('env', 'SEEK_ADMIN_PASSWORD') | length == 0
+
+  - name: Verify KC_HTTPS_KEY_STORE_PASSWORD environment variable is set
+    ansible.builtin.fail:
+      msg: "FATAL: The required environment variable KC_HTTPS_KEY_STORE_PASSWORD must be set to run this playbook."
+    when: lookup('env', 'KC_HTTPS_KEY_STORE_PASSWORD') | length == 0
+
+  - name: Verify KC_CLIENT_SECRET environment variable is set
+    ansible.builtin.fail:
+      msg: "FATAL: The required environment variable KC_CLIENT_SECRET must be set to run this playbook."
+    when: lookup('env', 'KC_CLIENT_SECRET') | length == 0
+#########################
+
+  - name: Generate ED25519 SSH Keypair for application user
+    community.crypto.openssh_keypair:
+      path: .ssh/id_ed25519
+      type: ed25519
+      size: 256  # Mandatory for ed25519, though 256 is the default
+      force: no  # Do not overwrite if the key already exists
+      mode: '0600'
+
+  - name: Fetch the remote public key file
+    ansible.builtin.fetch:
+      src: .ssh/id_ed25519.pub
+      dest: "/tmp/fetched_keys_{{ inventory_hostname }}.pub"
+      flat: yes
+      fail_on_missing: yes
+
+  - name: Add fetched public keys to localhost authorized_keys
+    ansible.posix.authorized_key:
+      user: "rocky"
+      state: present
+      # Use the 'item' variable (the host name) in the lookup path
+      key: "{{ lookup('file', '/tmp/fetched_keys_{{ item }}.pub') }}"
+      comment: '{{ item }} - remote access key'
+    delegate_to: localhost
+    # Loop over all hosts that were active in the current play
+    loop: "{{ play_hosts }}"
+    # Ensure the loop only runs once on the control machine, 
+    # but processes all keys sequentially.
+    run_once: true
+
+  - name: Add 'gendev' SSH configuration block using blockinfile
+    ansible.builtin.blockinfile:
+      path: .ssh/config
+      block: |
+        Host gendev
+            User rocky
+            Hostname 163.7.144.201
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            LogLevel ERROR
+      marker: "# {mark} ANSIBLE MANAGED BLOCK for gendev"
+      create: true
+      state: present
+      mode: '0644'
+
+
+###
+  - name: user access
+    authorized_key:
+      user: "{{ ansible_user }}"
+      state: present
+      key: "{{ lookup('file', item) }}"
+    with_fileglob:
+      - "public_keys/*.pub"
+
+  - name: Ensure the keys directory is present
+    ansible.builtin.file:
+      path: keys
+      state: directory
+      mode: '0700'
+
+  - name: install required software
+    become: true
+    ansible.builtin.package:
+      name:
+        - "{{ item }}"
+      state: present
+    loop:
+      - jq
+      - curl
+      - telnet
+      - firewalld
+      - net-tools
+      - openssl
+      - units
+      - bc
+      - zip
+      - postgresql-client
+      - certbot
+
+  - name: Add user to the docker group
+    become: yes
+    ansible.builtin.user:
+      name: "{{ ansible_user }}"
+      groups: docker
+      append: yes
+
+  - name: Enable and start Docker service
+    become: yes
+    ansible.builtin.systemd:
+      name: docker
+      enabled: true
+      state: started
+
+  - name: Reset SSH connection to pick up group changes
+    meta: reset_connection
+
+  - name: Read git checkout platform
+    ansible.builtin.git:
+      repo: https://github.com/ABI-CTT-Group/digitaltwins-platform.git
+      dest: ./digitaltwins-platform
+      force: yes
+      recursive: yes  # submodules
+
+  - name: update submodules
+    ansible.builtin.command: git submodule update --remote --recursive
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: Read git checkout buildout
+    ansible.builtin.git:
+      repo: gendev:git/twins_buildout.git
+      dest: ./twins_buildout
+      force: yes
+      version: main
+
+  # I don't understand why I need this next step, but it doesn't seem to get the host's DNS setup here
+  # and hangs/times out when attempting to pull containers
+  - name: Write docker daemon config for DNS
+    become: yes
+    ansible.builtin.copy:
+      dest: /etc/docker/daemon.json
+      content: |
+        {
+          "dns": ["8.8.8.8", "8.8.4.4"]
+        }
+      mode: '0644'
+
+  - name: Restart Docker
+    become: yes
+    ansible.builtin.systemd:
+      name: docker
+      state: restarted
+
+  - name: check for .env
+    stat:
+      path: "./digitaltwins-platform/.env"
+    register: file_check1
+
+  - name: .env
+    ansible.builtin.command: cp .env.template .env
+    args:
+      chdir: ./digitaltwins-platform
+    when: not file_check1.stat.exists
+
+  - name: airflow_uid
+    shell: |
+      MYIP=$(curl ifconfig.me)
+      sed -i "s/PORTAL_BACKEND_HOST_IP=.*/PORTAL_BACKEND_HOST_IP=$MYIP/g" .env
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: airflow_uid
+    shell: |
+      MYUID=$(id -u)
+      sed -i "s/AIRFLOW_UID=.*/AIRFLOW_UID=$MYUID/g" .env
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: check for api .configs.ini
+    stat:
+      path: "./digitaltwins-platform/services/api/digitaltwins-api/configs.ini"
+    register: file_check2
+
+  - name: api configs.ini
+    ansible.builtin.command: cp ./services/api/digitaltwins-api/configs.ini.template ./services/api/digitaltwins-api/configs.ini
+    args:
+      chdir: ./digitaltwins-platform
+    when: not file_check2.stat.exists
+
+  - name: check for file
+    stat:
+      path: "./digitaltwins-platform/services/seek/ldh-deployment/docker-compose.env"
+    register: file_check3
+
+  - name: seek database password setup
+    shell: |
+      cat ./services/seek/ldh-deployment/docker-compose.env.tpl | sed "s|<db-password>|$(openssl rand -base64 21)|" | sed "s|<root-password>|$(openssl rand -base64 21)|" > ./services/seek/ldh-deployment/docker-compose.env
+    args:
+      chdir: ./digitaltwins-platform
+    when: not file_check3.stat.exists
+
+  - name: volume create
+    shell: |
+        . ./.env && docker volume create ${COMPOSE_PROJECT_NAME}_filestore && docker volume create ${COMPOSE_PROJECT_NAME}_db
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: Initialize airflow.cfg
+    ansible.builtin.command: docker compose run airflow-cli airflow config list
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: allow_headers
+    shell: |
+      sed -i "s/^access_control_allow_headers.*$/access_control_allow_headers = origin, content-type, accept/" ./services/airflow/config/airflow.cfg
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: allow_methods
+    shell: |
+      sed -i "s/^access_control_allow_methods.*/access_control_allow_methods = POST, GET, OPTIONS, DELETE/" ./services/airflow/config/airflow.cfg
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: allow_origins
+    shell: |
+      sed -i "s/^access_control_allow_origins.*/access_control_allow_origins = /" ./services/airflow/config/airflow.cfg
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: Set FACT from environment variable
+    ansible.builtin.set_fact:
+      kc_https_key_store_password: "{{ lookup('env', 'KC_HTTPS_KEY_STORE_PASSWORD') }}"
+
+  - name: keystore password 1
+    shell: |
+      sed -i "s/KC_HTTPS_KEY_STORE_PASSWORD=.*/KC_HTTPS_KEY_STORE_PASSWORD=\"{{ kc_https_key_store_password }}\"/g" .env
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: keystore password 2
+    shell: |
+      sed -i "s/#KC_HTTPS_KEY_STORE_PASSWORD=/KC_HTTPS_KEY_STORE_PASSWORD=/g" .env
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: Set FACT from environment variable
+    ansible.builtin.set_fact:
+      kc_client_secret: "{{ lookup('env', 'KC_CLIENT_SECRET') }}"
+
+  - name: keystore password
+    shell: |
+      sed -i "s/CLIENT_SECRET=.*/CLIENT_SECRET=\"{{ kc_client_secret }}\"/g" .env
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: airflow-init
+    ansible.builtin.command: docker compose up airflow-init
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: PWD replace
+    shell: |
+      sed -i 's/\${PWD}\//.\//g' ./services/seek/ldh-deployment/docker-compose.yml
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: docker down
+    ansible.builtin.command: docker compose down
+    args:
+      chdir: ./digitaltwins-platform
+
+###
+
+  - name: Copy production configuration file to remote server
+    ansible.builtin.copy:
+      src: keycloak-docker-compose.yml
+      dest: ./digitaltwins-platform/services/keycloak/docker-compose.yml
+      mode: '0644'
+
+  - name: Copy production configuration file to remote server
+    ansible.builtin.copy:
+      src: server.jks
+      dest: ./digitaltwins-platform/services/keycloak/server.jks
+      mode: '0644'
+
+  - name: Copy production configuration file to remote server
+    ansible.builtin.copy:
+      src: ../data/digitaltwins-realm.json
+      dest: ./digitaltwins-platform/services/keycloak/import/digitaltwins-realm.json
+      mode: '0644'
+
+
+########
+
+  - name: Startup seek
+    ansible.builtin.command: docker compose -f services/seek/ldh-deployment/docker-compose.yml --env-file ./.env up -d
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: Sleep on the remote host for a bit
+    ansible.builtin.shell: sleep 60
+    changed_when: true # Ensures the task reports 'changed' every time it runs
+
+######### 
+
+  - name: Set FACT from environment variable
+    ansible.builtin.set_fact:
+      seek_admin_password: "{{ lookup('env', 'SEEK_ADMIN_PASSWORD') }}"
+
+  - name: admin user
+    ansible.builtin.command: "./create-admin-user.sh admin {{ seek_admin_password }} matt.pestle@auckland.ac.nz"
+    args:
+      chdir: ./twins_buildout/util
+
+  - name: features 
+    ansible.builtin.command: "./enable-features.sh"
+    args:
+      chdir: ./twins_buildout/util
+
+  - name: token 
+    ansible.builtin.command: "./generate-token.sh"
+    args:
+      chdir: ./twins_buildout/util
+
+
+##########
+
+  - name: all down
+    ansible.builtin.command: docker compose down
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: Start docker compose services
+    shell: |
+      docker compose up -d
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: Configure services to restart automatically
+    shell: |
+      docker update --restart unless-stopped $(docker compose ps -q)
+    args:
+      chdir: ./digitaltwins-platform

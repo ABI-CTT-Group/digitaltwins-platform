@@ -1,0 +1,10 @@
+---
+# master.yml - This file calls other playbooks sequentially
+
+- name: Execute the first configuration stage
+  ansible.builtin.import_playbook:
+    file: playbook1.yml
+
+- name: Execute the second configuration stage
+  ansible.builtin.import_playbook:
+    file: playbook2.yml
