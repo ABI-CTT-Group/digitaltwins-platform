@@ -324,7 +324,7 @@ const hanleHelpClick = () => {
 
 onMounted(async () => {
 
-    if (!user.value) router.push({name: 'Login'});
+    // if (!user.value) router.push({name: 'Login'});
 
     const flag = isClinicianView.value;
 

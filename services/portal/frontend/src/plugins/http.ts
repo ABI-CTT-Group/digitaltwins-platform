@@ -24,7 +24,7 @@ async function refreshAccessToken(): Promise<string | null> {
   if (!refreshPromise) {
     refreshPromise = axios
       .post(
-        "/api/refresh",
+        "/refresh",
         {},
         {
           withCredentials: true, // with cookie（refresh_token）

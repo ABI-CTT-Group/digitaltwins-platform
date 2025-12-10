@@ -32,7 +32,6 @@ async def lifespan(app: FastAPI):
     print("ending lifespan")
     pass
 
-
 app = FastAPI(title="DigitalTWINS Portal API", verison="1.0.0", lifespan=lifespan)
 app.include_router(dashboard.router)
 app.include_router(clinical_report_viewer.router)
@@ -40,14 +39,36 @@ app.include_router(workflow_tool_plugin.router)
 
 app.include_router(workflow_router.router)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["http://localhost", "*"],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+ALLOWED_ORIGINS = [
+    "http://localhost",
+]
+@app.middleware("http")
+async def dynamic_cors(request: Request, call_next):
+    origin = request.headers.get("origin")
 
+    _use_ssl = os.environ.get('USE_SSL', 'false') == 'true'
+    _domain = os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')
+    ALLOWED_ORIGINS.append(f"http{'s' if _use_ssl else ''}://{_domain}")
+
+    if request.method == "OPTIONS":
+        response = Response(status_code=200)
+    else:
+        response = await call_next(request)
+
+    if origin in ALLOWED_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Authorization,Content-Type"
+
+    return response
 
 @app.get('/')
 async def root():
@@ -81,13 +102,13 @@ async def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow()}
 
 
-@app.post("/api/sign_in", response_model=DashBoardSignInResponse)
+@app.post("/api/login", response_model=DashBoardSignInResponse)
 async def sign_in(data: LoginRequest, response: Response):
     username = data.username
     password = data.password
     dtp_client = DigitalTWINSAPIClient(username=username, password=password)
     try:
-        res = await dtp_client.get("/login")
+        res = await dtp_client.post("/login")
         tokens = res.json()
         response.set_cookie(
             key="refresh_token",
@@ -103,32 +124,30 @@ async def sign_in(data: LoginRequest, response: Response):
         logger.error(e)
         raise HTTPException(status_code=401, detail=str(e))
 
+
 @app.post("/api/refresh")
-async def refresh(request: Request):
+async def refresh(request: Request, response: Response):
     refresh_token: Optional[str] = request.cookies.get("refresh_token")
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Refresh token missing")
     dtp_client = DigitalTWINSAPIClient(token=refresh_token)
-    # async with httpx.AsyncClient() as client:
-    #     res = await client.post(
-    #         TOKEN_URL,
-    #         data={
-    #             "client_id": CLIENT_ID,
-    #             "client_secret": CLIENT_SECRET,
-    #             "grant_type": "refresh_token",
-    #             "refresh_token": refresh_token,
-    #         }
-    #     )
+    try:
+        res = await dtp_client.post("/token")
+        tokens = res.json()
+        response.set_cookie(
+            key="refresh_token",
+            value=tokens.get("refresh_token"),
+            httponly=True,
+            secure=True,
+            samesite="strict",
+            max_age=tokens.get("refresh_expires_in", 1800),
+        )
 
+        return {"access_token": tokens.get("access_token")}
+    except Exception as e:
+        logger.error(e)
+        raise HTTPException(status_code=401, detail=str(e))
 
-
-    # if res.status_code != 200:
-    #     raise HTTPException(status_code=401, detail="Refresh failed")
-    #
-    # tokens = res.json()
-    new_access_token = 'tokens["access_token"]'
-
-    return {"access_token": new_access_token}
 
 if __name__ == '__main__':
     # uvicorn.run(app)

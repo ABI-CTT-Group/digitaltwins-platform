@@ -55,7 +55,7 @@ export async function useDashboardProjectDetailsViaAssayId(seek_id: string) {
 
 
 export async function useDashboardAuth(body: {username: string, password: string}) {
-  const authResponse = await http.post<IDashboardAuthResponse>("/sign_in", body);
+  const authResponse = await http.post<IDashboardAuthResponse>("/login", body);
   sessionStorage.setItem("access_token", authResponse.access_token);
   return authResponse;
 }
