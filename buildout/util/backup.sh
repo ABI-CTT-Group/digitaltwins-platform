@@ -23,14 +23,19 @@ date
 
 
 # On the system to be copied
+export COMPOSE_FILE="~/digitaltwins-platform/docker-compose.yml"
+
 docker compose down
 
 sudo su -  << EOF
 cd /var/lib/docker/volumes/; tar cvf $BACKUP_FILE digitaltwins*/_data
-EOF || {
-    echo "Error creating tar archive. Quitting"
-    exit 1
-}
+EOF
+
+if [ $? -ne 0 ]; then
+  echo "Archive command failed."
+  docker compose up -d
+  exit 1
+fi
 
 docker compose up -d
 
