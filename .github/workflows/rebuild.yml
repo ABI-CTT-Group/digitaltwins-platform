@@ -31,8 +31,8 @@ jobs:
             
            # # 1. Navigate to the repository directory
             cd digitaltwins-platform || exit 1
-            git pull origin {{ vars.DEV_BUILDOUT_BRANCH }} || {
-                echo Failure pulling {{vars.DEV_BUILDOUT_BRANCH }} ... quitting
+            git pull origin buildout || {
+                echo Failure pulling buildout... quitting
                 exit 1
             }
             git submodule update --recursive || {
