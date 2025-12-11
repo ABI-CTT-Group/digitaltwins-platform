@@ -35,12 +35,12 @@ EOF || {
 docker compose up -d
 
 #
-## copy mp.tar to the backup system, then on that backup system
+## copy $BACKUP_FILE to the backup system, then on that backup system
 #
 #sudo su - <<EOF
 #cd /var/lib/docker/volumes/
 #rm -rf digitaltwins*/_data
-#tar xvf /tmp/mp.tar
+#tar xvf $BACKUP_FILE
 #EOF
 #
 ## Some passwords will then need to be sorted out:
