@@ -30,12 +30,20 @@ jobs:
             # --- Commands executed on the remote server ---
             
            # # 1. Navigate to the repository directory
-            cd digitaltwins-platform
-            git pull origin {{ vars.DEV_BUILDOUT_BRANCH }}
-            git submodule update --recursive
+            cd digitaltwins-platform || exit 1
+            git pull origin {{ vars.DEV_BUILDOUT_BRANCH }} || {
+                echo Failure pulling {{vars.DEV_BUILDOUT_BRANCH }} ... quitting
+                exit 1
+            }
+            git submodule update --recursive || {
+                echo Failure recursively updating submodules ... quitting
+                exit 1
+            }
 
             # We'll exit here and let the remote system sort out anything else...
+            echo Kicking off local rebuild script in background and exiting...
             ./buildout/util/rebuild.sh &
 
+            exit 0
             # --- End of remote commands ---
           EOF
