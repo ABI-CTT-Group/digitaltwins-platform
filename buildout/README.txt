@@ -1,8 +1,6 @@
 How to build out digital twins platform (terraform/ansible)
 on an openstack cloud platform (here we use nectar).
 
-Mod
-
 matt.pestle@auckland.ac.nz
 Nov 2025
 
