@@ -19,8 +19,7 @@ date
 echo Rebuilding...
 echo
 
-
 cd digitaltwins-platform
-git pull origin main
-git submodule update --remote --recursive
-git switch buildout
+
+docker compose down
+docker compose up -d

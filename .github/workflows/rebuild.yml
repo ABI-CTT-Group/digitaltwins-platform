@@ -31,7 +31,7 @@ jobs:
            # # 1. Navigate to the repository directory
             cd digitaltwins-platform
             #git pull origin main
-            git pull
+            git pull origin checkout
             git submodule update --remote --recursive
             ./buildout/util/rebuild.sh
 
