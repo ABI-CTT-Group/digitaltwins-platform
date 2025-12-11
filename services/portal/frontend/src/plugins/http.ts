@@ -35,12 +35,19 @@ async function refreshAccessToken(): Promise<string | null> {
         if (newToken) sessionStorage.setItem("access_token", newToken);
         return newToken;
       })
-      .catch(() => null)
+      .catch((err) => null)
       .finally(() => {
         refreshPromise = null;
       });
   }
   return refreshPromise;
+}
+
+function redirectToLogin(msg?: string) {
+  console.warn(msg || "Redirecting to login page...");
+  refreshPromise = null;
+  sessionStorage.removeItem("access_token");
+  window.location.href = "/";
 }
 
 // =============== init ===============
@@ -74,13 +81,18 @@ async function refreshAccessToken(): Promise<string | null> {
 
       // not 401 -> reject
       if (err.response?.status !== 401) return Promise.reject(err);
-
+      
+      if (err.response?.status === 401){
+        if (err.response?.data?.detail === "Refresh token missing" || err.response?.data?.detail === "Refresh token invalid"){
+          redirectToLogin(err.response?.data?.detail)
+          return Promise.reject(err)
+        }
+      }
+      
       // avoid infinite loop
       const newToken = await refreshAccessToken();
       if (!newToken) {
-        console.warn("Refresh token expired → redirect to login");
-        sessionStorage.removeItem("access_token");
-        window.location.href = "/";
+        redirectToLogin("Refresh token expired → redirect to login")
         return Promise.reject(err);
       }
 
