@@ -7,11 +7,15 @@ jobs:
   manual_job:
     runs-on: ubuntu-latest
     steps:
-      - name: initiate backup
-        # 🟢 Use '|' for multi-line command and ensure proper indentation
+      # Step 1: Set up the SSH agent (uses: is now in its own step)
+      - name: Setup SSH Agent
         uses: webfactory/ssh-agent@v0.9.1
         with:
           ssh-private-key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
+
+      # Step 2: Initiate the backup (run: is now in its own step)
+      - name: Execute Remote Backup Script
+        # 💡 IMPORTANT: Ensure the final EOF is un-indented for the shell heredoc.
         run: |
           echo "Sending backup command to docker host"
           
@@ -20,5 +24,3 @@ jobs:
             cd digitaltwins-platform || exit 1
             ./buildout/util/backup.sh
           EOF
-          # 👆 The closing 'EOF' marker must be left-aligned
-          # to the start of the 'ssh' command line when using a heredoc
