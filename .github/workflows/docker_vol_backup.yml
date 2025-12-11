@@ -9,6 +9,7 @@ jobs:
     steps:
       - name: initiate backup
         # 🟢 Use '|' for multi-line command and ensure proper indentation
+        uses: webfactory/ssh-agent@v0.9.1
         with:
           ssh-private-key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
         run: |
