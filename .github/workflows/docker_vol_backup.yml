@@ -8,13 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: initiate backup
-        # 🐛 FIX: The entire multi-line shell command
-        # must be consistently indented under the 'run:' key.
+        # 🟢 Use '|' for multi-line command and ensure proper indentation
         run: |
           echo "Sending backup command to docker host"
           
-          # Replace user@host and the commands with your actual details:
+          # Start of Heredoc
           ssh -o StrictHostKeyChecking=no ${{ vars.DEV_DEPLOY_USER }}@${{ vars.DEV_DEPLOY_IP }} << 'EOF'
             cd digitaltwins-platform || exit 1
             ./buildout/util/backup.sh
           EOF
+          # 👆 The closing 'EOF' marker must be left-aligned
+          # to the start of the 'ssh' command line when using a heredoc
