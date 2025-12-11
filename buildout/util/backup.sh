@@ -30,11 +30,11 @@ EOF
 
 if [ $? -ne 0 ]; then
   echo "Archive command failed."
-  docker compose up -d
+  docker compose up -d &
   exit 1
 fi
 
-docker compose up -d
+docker compose up -d &
 
 #
 ## copy $BACKUP_FILE to the backup system, then on that backup system
