@@ -25,7 +25,7 @@ jobs:
           # Use 'ssh' to connect to your server and run commands sequentially.
           
           # Replace user@host and the commands with your actual details:
-          ssh -o StrictHostKeyChecking=no ${{ vars.DEV_DEPLOY_USER }}@${{ vars.DEV_DEPLOY_IP }}" << 'EOF'
+          ssh -o StrictHostKeyChecking=no ${{ vars.DEV_DEPLOY_USER }}@${{ vars.DEV_DEPLOY_IP }} << 'EOF'
             # --- Commands executed on the remote server ---
             
            # # 1. Navigate to the repository directory
