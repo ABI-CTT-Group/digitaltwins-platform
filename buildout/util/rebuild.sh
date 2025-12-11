@@ -16,5 +16,11 @@ LOG_FILE=$LOG_DIR/rebuild_$now.log
 exec > $LOG_FILE 2>&1
 
 date
-echo hello world
+echo Rebuilding...
 echo
+
+
+cd digitaltwins-platform
+git pull origin main
+git submodule update --remote --recursive
+git switch buildout
