@@ -14,6 +14,7 @@ from datetime import datetime
 from app.models.dashboard import LoginRequest, DashBoardSignInResponse
 from app.client.digitaltwins_api import DigitalTWINSAPIClient
 from typing import Optional
+from httpx import HTTPStatusError
 
 configure_logging()
 logger = get_logger(__name__)
@@ -144,9 +145,15 @@ async def refresh(request: Request, response: Response):
         )
 
         return {"access_token": tokens.get("access_token")}
+    except HTTPStatusError as e:
+        if e.response.status_code == 401:
+            raise HTTPException(status_code=401, detail="Refresh token invalid")
+        else:
+            logger.error(e)
+            raise HTTPException(status_code=502, detail="Upstream service error")
     except Exception as e:
         logger.error(e)
-        raise HTTPException(status_code=401, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 if __name__ == '__main__':
