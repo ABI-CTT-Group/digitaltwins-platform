@@ -4,7 +4,7 @@ name: Server Rebuild via SSH
 on:
   push:
     branches:
-      - {{ vars.DEV_BUILDOUT_BRANCH }}
+      - buildout
 
 jobs:
   ssh_deploy:
