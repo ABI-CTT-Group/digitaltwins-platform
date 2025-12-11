@@ -21,10 +21,7 @@ exec > $LOG_FILE 2>&1
 
 date
 
-
 # On the system to be copied
-export COMPOSE_FILE="~/digitaltwins-platform/docker-compose.yml"
-
 docker compose down
 
 sudo su -  << EOF
