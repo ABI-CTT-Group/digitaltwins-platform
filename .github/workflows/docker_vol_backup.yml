@@ -23,10 +23,6 @@ jobs:
   manual_job:
     runs-on: ubuntu-latest
     steps:
-#      - name: Print inputs
-#        run: |
-#          echo "Log Level: ${{ github.event.inputs.logLevel }}"
-#          echo "Environment: ${{ github.event.inputs.environment }}"
       - name: initiate backup
         run: echo "Sending backup command to docker host"
 
