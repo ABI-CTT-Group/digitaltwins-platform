@@ -25,15 +25,14 @@ jobs:
           # Use 'ssh' to connect to your server and run commands sequentially.
           
           # Replace user@host and the commands with your actual details:
-          ssh -o StrictHostKeyChecking=no ubuntu@130.216.216.243 << 'EOF'
+          ssh -o StrictHostKeyChecking=no ${{ vars.DEV_DEPLOY_USER }}@${{ vars.DEV_DEPLOY_IP }}" << 'EOF'
             # --- Commands executed on the remote server ---
             
            # # 1. Navigate to the repository directory
             cd digitaltwins-platform
-            export TZ=Pacific/Auckland
-            date >> github.log
-            
-           # # 2. Pull the latest code
+            ./buildout/util/rebuild.sh
+
+           # 2. Pull the latest code
            # #git pull origin main
            # #git submodule update --remote --recursive
            # 
