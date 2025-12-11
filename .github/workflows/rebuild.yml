@@ -1,9 +1,10 @@
 name: Server Rebuild via SSH
+# MP Dec 2025
 
 on:
   push:
     branches:
-      - buildout
+      - {{ vars.DEV_BUILDOUT_BRANCH }}
 
 jobs:
   ssh_deploy:
@@ -30,18 +31,11 @@ jobs:
             
            # # 1. Navigate to the repository directory
             cd digitaltwins-platform
-            #git pull origin main
-            git pull origin buildout
+            git pull origin {{ vars.DEV_BUILDOUT_BRANCH }}
             git submodule update --recursive
-            ./buildout/util/rebuild.sh
 
-           # 2. Pull the latest code
-           # #git pull origin main
-           # #git submodule update --remote --recursive
-           # 
-           # # 3. Restart the service or run the build script
-           # docker compose down
-           # docker compose up -d
-           # 
+            # We'll exit here and let the remote system sort out anything else...
+            ./buildout/util/rebuild.sh &
+
             # --- End of remote commands ---
           EOF
