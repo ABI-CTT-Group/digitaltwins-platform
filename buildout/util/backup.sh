@@ -1,5 +1,12 @@
 # Backup the docker volumes
+# matt.pestle@auckland.ac.nz
+# Dec 2025
 #
+# These just get tar-ed to a local file in ~/backups.
+# Log goes into ~/logs.
+#
+# See the stuff below the last "exit" command
+# for instructions on how to restore elsewhere.
 
 export TZ=Pacific/Auckland
 LOG_DIR=${LOG_DIR:=~/logs}
@@ -36,15 +43,49 @@ fi
 
 docker compose up -d &
 
+exit
+
+
+# After a backup, you may wish to restore it elsewhere, to, say, $TGT_VM
+# where you have already installed the system (ie., you've run build_all.yaml)
+# Here's a template.
+
+SRC_VM=abi_portal
+TGT_VM=abi_mp
+
+BACKUP_FILE=docker_vols_20251212131901.tar.gz
+
+scp $SRC_VM:backups/$BACKUP_FILE $TGT_VM:/tmp/
+
+# Then go onto the $TGT_VM and
+cd digitaltwins-platform
+docker compose down
+
+sudo su - <<EOF
+cd /var/lib/docker/volumes/
+rm -rf digitaltwins*/_data
+tar xvf /tmp/$BACKUP_FILE
+EOF
+
 #
-## copy $BACKUP_FILE to the backup system, then on that backup system
+# Finally, some manual things will then need to be sorted out:
+# 1. services/seek/ldh-deployment/docker-compose.env - copy from prod to dev
+# 2. services/api/digitaltwins-api/configs.ini - the api token needs to be copied from prod
+# 3. the site base host of seek needs to be updated to reflect new environment
 #
-#sudo su - <<EOF
-#cd /var/lib/docker/volumes/
-#rm -rf digitaltwins*/_data
-#tar xvf $BACKUP_FILE
-#EOF
-#
-## Some passwords will then need to be sorted out:
-## 1. services/seek/ldh-deployment/docker-compose.env - copy from prod to dev
-## 2. services/api/digitaltwins-api/configs.ini - the api token needs to be copied from prod
+# These can be accomplished with the following steps:
+
+# 1.
+scp $SRC_VM:digitaltwins-platform/services/seek/ldh-deployment/docker-compose.env \
+    $TGT_VM:digitaltwins-platform/services/seek/ldh-deployment/docker-compose.env
+
+# 2.
+API_TOKEN=$(ssh $SRC_VM "grep api_token digitaltwins-platform/services/api/digitaltwins-api/configs.ini" | \
+    awk -F= '{print $2}' | tr -d \"
+)
+#echo $API_TOKEN
+ssh $TGT_VM sed -i "s/api_token=.*/api_token=\"$API_TOKEN\"/" \
+    digitaltwins-platform/services/api/digitaltwins-api/configs.ini
+
+# 3.
+ssh $TGT_VM digitaltwins-platform/buildout/util/swap_seek_ip.sh

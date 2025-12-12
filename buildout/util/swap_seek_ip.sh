@@ -4,7 +4,7 @@ CONTAINER_NAME="digitaltwins-platform-seek-1"
 
 IP=$(curl -s ifconfig.me)
 
-echo "Enabling desired SEEK features in container: $CONTAINER_NAME"
+echo "Setting site base hostname to $IP"
 
 cat << RUBY_SCRIPT | docker exec -i "$CONTAINER_NAME" bash -c 'cd /seek && RAILS_ENV=production bundle exec rails runner -'
 Seek::Config.site_base_host = "http://$IP:8001"
