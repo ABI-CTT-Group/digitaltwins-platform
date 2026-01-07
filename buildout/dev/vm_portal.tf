@@ -7,7 +7,7 @@ resource "openstack_networking_port_v2" "port_auckland_public_portal" {
 # portal VM
 resource "openstack_compute_instance_v2" "portal" {
   name            = "drai_portal"
-  flavor_id       = data.openstack_compute_flavor_v2.r3_medium.id
+  flavor_id       = data.openstack_compute_flavor_v2.m3_xxlarge.id
   key_pair        = data.openstack_compute_keypair_v2.drai_inn_keypair.id
   network {
     port =  openstack_networking_port_v2.port_auckland_public_portal.id 
