@@ -1,0 +1,26 @@
+name: Docker volume backup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  manual_job:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Set up the SSH agent (uses: is now in its own step)
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
+
+      # Step 2: Initiate the backup (run: is now in its own step)
+      - name: Execute Remote Backup Script
+        # 💡 IMPORTANT: Ensure the final EOF is un-indented for the shell heredoc.
+        run: |
+          echo "Sending backup command to docker host"
+          
+          # Start of Heredoc
+          ssh -o StrictHostKeyChecking=no ${{ vars.DEV_DEPLOY_USER }}@${{ vars.DEV_DEPLOY_IP }} << 'EOF'
+            cd digitaltwins-platform || exit 1
+            ./buildout/util/backup.sh
+          EOF
