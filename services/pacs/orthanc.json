@@ -6,7 +6,7 @@
 //     "admin": "orthanc"
     "${ORTHANC_ADMIN_USER}": "${ORTHANC_ADMIN_PASSWORD}"
   },
-  "DicomAet": "DIGITALTWINS",
+  "DicomAet": "${ORTHANC_AET}",
   "DicomPort": 4242,
   "HttpPort": 8042,
   "DicomModalities": {},
