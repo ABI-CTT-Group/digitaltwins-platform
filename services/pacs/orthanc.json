@@ -1,0 +1,27 @@
+{
+  "Name": "DigitalTwins PACS",
+  "RemoteAccessAllowed": true,
+  "AuthenticationEnabled": true,
+  "RegisteredUsers": {
+//     "admin": "orthanc"
+    "${ORTHANC_ADMIN_USER}": "${ORTHANC_ADMIN_PASSWORD}"
+  },
+  "DicomAet": "DIGITALTWINS",
+  "DicomPort": 4242,
+  "HttpPort": 8042,
+  "DicomModalities": {},
+  "DicomWeb": {
+    "Enable": true,
+    "Root": "/dicom-web/"
+  },
+  "StorageDirectory": "/var/lib/orthanc/db"
+//   "PostgreSQL": {
+//     "EnableIndex": true,
+//     "EnableStorage": true,
+//     "Host": "postgres",
+//     "Port": 5432,
+//     "Database": "${POSTGRES_DB}",
+//     "Username": "${POSTGRES_USER}",
+//     "Password": "${POSTGRES_PASSWORD}"
+//   }
+}

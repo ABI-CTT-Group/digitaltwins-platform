@@ -86,6 +86,10 @@ include:
     - services/seek/ldh-deployment/docker-compose.yml
     - services/seek/network-override.yml
     project_directory: services/seek/ldh-deployment
+  - path:
+    # PACS (Orthanc)
+    - services/pacs/docker-compose.yml
+    project_directory: services/pacs
 
 volumes:
   keycloak_data:
