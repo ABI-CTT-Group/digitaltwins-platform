@@ -1,6 +1,6 @@
 services:
   orthanc:
-    image: jodogne/orthanc:latest
+    image: jodogne/orthanc:1.12.10
     container_name: digitaltwins-orthanc
     init: true
     ports:
