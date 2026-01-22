@@ -25,14 +25,8 @@ Set up the necessary environment variables and configuration files.
      - `PORTAL_BACKEND_HOST_IP`: your host machine IP address for the portal backend. you can get your host ip by `curl ifconfig.me` (Linux command)
    - Workflow service (airflow):
      - `AIRFLOW_UID`: Run echo $(id -u) to find your user ID, then Update the AIRFLOW_UID variable in your .env file with this ID
-
-2. API configuration
-
-    ```bash
-    cp ./services/api/digitaltwins-api/configs.ini.template ./services/api/digitaltwins-api/configs.ini
-    ```
     
-3. SEEK configuration
+2. SEEK configuration
 
    ```bash
    cp ./services/seek/ldh-deployment/docker-compose.env.tpl ./services/seek/ldh-deployment/docker-compose.env
@@ -48,20 +42,32 @@ Choose one of the following methods to configure Keycloak.
 3. Stop Keycloak: `sudo docker compose down`
 
 ### Method 2: Auto Configuration from an existing Realm
-1. (optional) Export Realm from an existing deployment
-   1. Stop the existing Keycloak instance
-   2. Run the export command:
+1. Export Realm from an existing deployment
+   1. Run the export command:
       ```bash
       sudo docker compose run --rm keycloak export --realm <YOUR_REALM> --dir /opt/keycloak/data/export --users realm_file
       ```
-   3. Copy the export files to your host machine
+   2. Copy the export files to your host machine
       ```bash
       sudo docker compose run --rm --user root --entrypoint /bin/sh  -v $(pwd)/export:/backup keycloak -c "cp -r /opt/keycloak/data/export/* /backup/"
       ```
       A realm file will be created in your host, e.g. $(pwd)/export/digitaltwins-realm.json
 2. Import Realm
       
-   Place the exported realm file in `./services/keycloak/import/digitaltwins-realm.json`
+   1. Place the exported realm file in `./services/keycloak/import/digitaltwins-realm.json`
+   2. Start Keycloak with the import option:
+      ```bash
+      sudo docker compose up -d keycloak
+      ```
+   3. get your Keycloak client secret
+      1. Log in to Keycloak admin console at `http://localhost:8009`
+          - check your username and password in the .env file if you changed it. default admin/admin
+      2. Navigate to `Manage realm > digitaltwins > Clients > choose api on the client list > Credentials > copy the Client Secret`
+      3. update the `.env` file with the copied client secret:
+         ```
+         KEYCLOAK_CLIENT_SECRET=<your_keycloak_client_secret_here>
+         ```
+
 
 ## 4. Initialise workflow service (airflow)
 1. Initialize `airflow.cfg`
@@ -119,11 +125,9 @@ Choose one of the following methods to configure Keycloak.
       1. In the SEEK UI, go to My Profile > Actions > API Tokens > New API Token
       2. Give it a title and create the token
       3. Copy/save the API token
-      4. Update API Config
-         - Paste this token into ./services/api/digitaltwins-api/configs.ini under the [seek] section:
-         ```ini
-         [seek]
-         api_token=<your_token>
+      4. Add the API token to .env
+         ```
+         SEEK_API_TOKEN=<your_seek_api_token_here>
          ```
    5. Enable "git" support (Command Line)
       1. Enter the SEEK container
