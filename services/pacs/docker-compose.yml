@@ -1,0 +1,22 @@
+services:
+  orthanc:
+    image: jodogne/orthanc:1.12.10
+    container_name: digitaltwins-orthanc
+    init: true
+    ports:
+      - "${ORTHANC_HTTP_PORT:-8042}:8042"  # Web UI and REST API
+      - "${ORTHANC_DICOM_PORT:-4242}:4242"  # DICOM protocol
+    volumes:
+      - ./orthanc.json:/etc/orthanc/orthanc.json:ro
+      - ./data:/var/lib/orthanc/db
+    environment:
+      - ORTHANC_ADMIN_USER=${ORTHANC_ADMIN_USER}
+      - ORTHANC_ADMIN_PASSWORD=${ORTHANC_ADMIN_PASSWORD}
+      - ORTHANC_AET=${ORTHANC_AET}
+    restart: unless-stopped
+    networks:
+      - digitaltwins
+
+networks:
+  digitaltwins:
+    driver: bridge
