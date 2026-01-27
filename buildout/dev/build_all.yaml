@@ -39,7 +39,7 @@
 
   - name: Add fetched public keys to localhost authorized_keys
     ansible.posix.authorized_key:
-      user: "rocky"
+      user: "ubuntu"
       state: present
       # Use the 'item' variable (the host name) in the lookup path
       key: "{{ lookup('file', '/tmp/fetched_keys_{{ item }}.pub') }}"
@@ -56,7 +56,7 @@
       path: .ssh/config
       block: |
         Host gendev
-            User rocky
+            User ubuntu
             Hostname 163.7.144.201
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
@@ -124,19 +124,21 @@
       dest: ./digitaltwins-platform
       force: yes
       recursive: yes  # submodules
+      version: buildout
 
   - name: update submodules
     ansible.builtin.command: git submodule update --remote --recursive
     args:
       chdir: ./digitaltwins-platform
 
-  - name: Read git checkout buildout
-    ansible.builtin.git:
-      repo: gendev:git/twins_buildout.git
-      dest: ./twins_buildout
-      force: yes
-      version: main
-
+#  - name: Read git checkout buildout
+#    ansible.builtin.git:
+#      #repo: gendev:git/twins_buildout.git
+#      repo: https://github.com/ABI-CTT-Group/digitaltwins-platform.git
+#      dest: ./twins_buildout
+#      force: yes
+#      version: buildout
+#
   # I don't understand why I need this next step, but it doesn't seem to get the host's DNS setup here
   # and hangs/times out when attempting to pull containers
   - name: Write docker daemon config for DNS
@@ -203,6 +205,26 @@
       chdir: ./digitaltwins-platform
     when: not file_check3.stat.exists
 
+  - name: Set kc_client_secret from environment variable
+    ansible.builtin.set_fact:
+      kc_client_secret: "{{ lookup('env', 'KC_CLIENT_SECRET') }}"
+
+  - name: Ensure KEYCLOAK_CLIENT_SECRET is set in .env
+    ansible.builtin.lineinfile:
+      path: ./digitaltwins-platform/.env
+      regexp: '^KEYCLOAK_CLIENT_SECRET='
+      line: KEYCLOAK_CLIENT_SECRET={{ kc_client_secret }}
+      create: true
+      mode: '0600'  # Restrict permissions since it contains a secret
+
+  - name: Ensure api_token is dummy for the moment in .env
+    ansible.builtin.lineinfile:
+      path: ./digitaltwins-platform/.env
+      regexp: '^SEEK_API_TOKEN='
+      line: SEEK_API_TOKEN=dummy
+      create: true
+      mode: '0600'  # Restrict permissions since it contains a secret
+
   - name: volume create
     shell: |
         . ./.env && docker volume create ${COMPOSE_PROJECT_NAME}_filestore && docker volume create ${COMPOSE_PROJECT_NAME}_db
@@ -247,10 +269,6 @@
       sed -i "s/#KC_HTTPS_KEY_STORE_PASSWORD=/KC_HTTPS_KEY_STORE_PASSWORD=/g" .env
     args:
       chdir: ./digitaltwins-platform
-
-  - name: Set FACT from environment variable
-    ansible.builtin.set_fact:
-      kc_client_secret: "{{ lookup('env', 'KC_CLIENT_SECRET') }}"
 
   - name: keystore password
     shell: |
@@ -308,25 +326,24 @@
 
 ######### 
 
-  - name: Set FACT from environment variable
+  - name: Set SEEK_ADMIN_PASSWORD from environment variable
     ansible.builtin.set_fact:
       seek_admin_password: "{{ lookup('env', 'SEEK_ADMIN_PASSWORD') }}"
 
   - name: admin user
     ansible.builtin.command: "./create-admin-user.sh admin {{ seek_admin_password }} matt.pestle@auckland.ac.nz"
     args:
-      chdir: ./twins_buildout/util
+      chdir: ./digitaltwins-platform/buildout/util
 
   - name: features 
     ansible.builtin.command: "./enable-features.sh"
     args:
-      chdir: ./twins_buildout/util
+      chdir: ./digitaltwins-platform/buildout/util
 
   - name: token 
     ansible.builtin.command: "./generate-token.sh"
     args:
-      chdir: ./twins_buildout/util
-
+      chdir: ./digitaltwins-platform/buildout/util
 
 ##########
 
