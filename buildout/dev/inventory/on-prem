@@ -18,6 +18,12 @@ all:
       vars:
         ansible_user: ubuntu
 
+    drai_cc:
+      hosts:
+        abi_cc:
+      vars:
+        ansible_user: ubuntu
+
     drai_mp2:
       hosts:
         abi_mp2:
