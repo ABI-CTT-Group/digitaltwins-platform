@@ -15,6 +15,15 @@
   - name: Print current directory
     ansible.builtin.debug:
       msg: "Current directory is: {{ current_dir.stdout }}"
+
+  - name: Install pip3 on remote host
+    ansible.builtin.apt:
+      name: python3-pip
+      state: present
+      update_cache: true
+    become: true
+
+
   - name: Install Python Kubernetes client
     ansible.builtin.pip:
       name:
