@@ -160,11 +160,11 @@
       dest: /tmp/observability/
     loop:
       - "{{ observability_dir }}/grafana-10.5.4.tgz"
-      - "{{ observability_dir }}/grafana-values.yml"
+      - "{{ observability_dir }}/grafana-values.yaml"
       - "{{ observability_dir }}/loki-6.49.0.tgz"
-      - "{{ observability_dir }}/loki-values.yml"
+      - "{{ observability_dir }}/loki-values.yaml"
       - "{{ observability_dir }}/mimir-distributed-6.1.0-weekly.378.tgz"
-      - "{{ observability_dir }}/mimir-values.yml"
+      - "{{ observability_dir }}/mimir-values.yaml"
     ignore_errors: yes
   # Set KUBECONFIG environment
   - name: Set KUBECONFIG environment variable
