@@ -15,7 +15,13 @@
   - name: Print current directory
     ansible.builtin.debug:
       msg: "Current directory is: {{ current_dir.stdout }}"
-
+  - name: Install Python Kubernetes client
+    ansible.builtin.pip:
+      name:
+        - kubernetes
+        - pyyaml
+      executable: pip3
+    become: true
   - name: Download k3s installation script
     ansible.builtin.get_url:
       url: https://get.k3s.io
