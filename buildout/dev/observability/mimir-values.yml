@@ -1,0 +1,147 @@
+mimir:
+  structuredConfig:
+    ingest_storage:
+      enabled: false
+    ingester:
+      push_grpc_method_enabled: true
+    blocks_storage:
+      backend: s3
+      s3:
+        endpoint: mimir-minio.mimir.svc.cluster.local:9000
+        bucket_name: mimir-blocks
+        access_key_id: mimir-k3s
+        secret_access_key: supersecret-k3s
+        insecure: true
+
+      tsdb:
+        dir: /data/tsdb
+
+      bucket_store:
+        sync_dir: /data/tsdb-sync
+
+    limits:
+      max_global_series_per_user: 1500000
+      max_global_series_per_metric: 200000
+      max_label_names_per_series: 100
+
+runtimeConfig:
+   ingester_limits:
+     max_ingestion_rate: 1000000
+     max_series: 30000000
+     max_tenants: 10000
+     max_inflight_push_requests: 300000
+   distributor_limits:
+     max_ingestion_rate: 5000000
+     max_inflight_push_requests: 500000
+     max_inflight_push_requests_bytes: 80000000
+   overrides:
+     anonymous:
+       ingestion_tenant_shard_size: 9
+       max_global_series_per_user: 1500000
+       max_fetched_series_per_query: 300000
+       ingestion_rate: 500000
+       ingestion_burst_size: 800000
+       compactor_blocks_retention_period: 1y
+
+
+compactor:
+  persistentVolume:
+    size: 20Gi
+  resources:
+    limits:
+      memory: 3Gi
+    requests:
+      cpu: 1
+      memory: 2Gi
+
+distributor:
+  replicas: 2
+  resources:
+    limits:
+      memory: 6Gi
+    requests:
+      cpu: 2
+      memory: 4Gi
+
+ingester:
+  persistentVolume:
+    size: 50Gi
+  replicas: 3
+  resources:
+    limits:
+      memory: 6Gi
+    requests:
+      cpu: 2
+      memory: 4Gi
+
+querier:
+  replicas: 1
+  resources:
+    limits:
+      memory: 6Gi
+    requests:
+      cpu: 2
+      memory: 4Gi
+
+query_frontend:
+  replicas: 1
+  resources:
+    limits:
+      memory: 3Gi
+    requests:
+      cpu: 2
+      memory: 2Gi
+
+
+store_gateway:
+  persistentVolume:
+    size: 10Gi
+  replicas: 3
+  resources:
+    limits:
+      memory: 2Gi
+    requests:
+      cpu: 1
+      memory: 1Gi
+gateway:
+  replicas: 1
+  resources:
+    limits:
+      memory: 1Gi
+    requests:
+      cpu: 1
+      memory: 512Mi
+minio:
+  enabled: true
+  replicas: 1
+  mode: standalone
+  rootUser: mimir-k3s
+  rootPassword: supersecret-k3s
+  persistence:
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  buckets:
+    - name: mimir-blocks
+      policy: none
+      purge: false
+  service:
+    type: ClusterIP
+    port: 9000
+
+alertmanager:
+  enabled: false
+ruler:
+  enabled: false
+overrides_exporter:
+  enabled: false
+alertmanager:
+  enabled: false
+kafka:
+  enabled: false
+

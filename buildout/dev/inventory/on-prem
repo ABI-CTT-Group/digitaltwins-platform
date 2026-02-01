@@ -24,6 +24,12 @@ all:
       vars:
         ansible_user: ubuntu
 
+    drai_cc:
+      hosts:
+        abi_cc:
+      vars:
+        ansible_user: ubuntu
+
 # Get "abi_portal" set up in your ~/.ssh/config
 # file - something like:
 # Host abi_portal

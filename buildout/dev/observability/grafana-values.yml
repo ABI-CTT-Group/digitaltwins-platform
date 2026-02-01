@@ -1,0 +1,11 @@
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+plugins: ""
+grafana.ini:
+  server:
+    protocol: https
+    http_port: 3000
+    root_url: https://130.216.216.243:30333/
+    domain: 130.216.216.243
