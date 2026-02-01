@@ -1,10 +1,10 @@
   # Install k3s
 - name: VM setup(kubernetes,observability)
-  gather_facts: false
+  gather_facts: true
   hosts: portal drai_mp drai_cc
   become: true
   vars:
-    observability_dir: "/home/ubuntu/digitaltwins-platform/buildout/dev/observability"
+    observability_dir: "/home/rche591/digitaltwins-platform/buildout/dev/observability"
 
 
   tasks:
