@@ -770,7 +770,7 @@ data:
                 "enable": true,
                 "hide": true,
                 "iconColor": "rgba(0, 211, 255, 1)",
-                "name": "Annotations & Alerts",
+                "name": "Annotations &amp; Alerts",
                 "type": "dashboard"
             }
             ]
@@ -783,10 +783,7 @@ data:
         "links": [],
         "panels": [
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "decimals": 0,
@@ -846,10 +843,7 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "editorMode": "code",
                 "expr": "time() - node_boot_time_seconds",
                 "hide": false,
@@ -864,10 +858,7 @@ data:
             "type": "stat"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "mappings": [
@@ -926,10 +917,7 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "count(rate(container_last_seen{name=~\".+\"}[$interval]))",
                 "intervalFactor": 2,
                 "refId": "A",
@@ -940,10 +928,7 @@ data:
             "type": "stat"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "decimals": 1,
@@ -1009,10 +994,7 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "editorMode": "code",
                 "expr": "min((node_filesystem_size_bytes{fstype=~\"xfs|ext4\"} - node_filesystem_free_bytes{fstype=~\"xfs|ext4\"} )/ node_filesystem_size_bytes{fstype=~\"xfs|ext4\"})",
                 "hide": false,
@@ -1026,10 +1008,7 @@ data:
             "type": "stat"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "decimals": 0,
@@ -1095,10 +1074,7 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "editorMode": "code",
                 "expr": "((node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes) * 100",
                 "intervalFactor": 2,
@@ -1111,10 +1087,7 @@ data:
             "type": "stat"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "decimals": 0,
@@ -1179,10 +1152,7 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "editorMode": "code",
                 "expr": "(node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes)",
                 "intervalFactor": 2,
@@ -1196,10 +1166,7 @@ data:
             "type": "stat"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "color": {
@@ -1267,10 +1234,7 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "editorMode": "code",
                 "expr": "node_load1/ count by(job, instance)(count by(job, instance, cpu)(node_cpu_seconds_total))",
                 "intervalFactor": 2,
@@ -1283,10 +1247,7 @@ data:
             "type": "stat"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "color": {
@@ -1343,60 +1304,6 @@ data:
                 "unit": "bytes"
                 },
                 "overrides": [
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "SENT"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "SENT"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
                 {
                     "matcher": {
                     "id": "byName",
@@ -1611,10 +1518,7 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "sum(rate(container_network_receive_bytes_total{id=\"/\"}[$interval])) by (id)",
                 "intervalFactor": 2,
                 "legendFormat": "RECEIVED",
@@ -1622,10 +1526,7 @@ data:
                 "step": 600
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "- sum(rate(container_network_transmit_bytes_total{id=\"/\"}[$interval])) by (id)",
                 "hide": false,
                 "intervalFactor": 2,
@@ -1638,10 +1539,7 @@ data:
             "type": "timeseries"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "color": {
@@ -1724,222 +1622,6 @@ data:
                         "value": "hidden"
                     }
                     ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "{id=\"/\",instance=\"cadvisor:8080\",job=\"prometheus\"}"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BA43A9",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "{id=\"/\",instance=\"cadvisor:8080\",job=\"prometheus\"}"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BA43A9",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "{id=\"/\",instance=\"cadvisor:8080\",job=\"prometheus\"}"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BA43A9",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "{id=\"/\",instance=\"cadvisor:8080\",job=\"prometheus\"}"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BA43A9",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "{id=\"/\",instance=\"cadvisor:8080\",job=\"prometheus\"}"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BA43A9",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "{id=\"/\",instance=\"cadvisor:8080\",job=\"prometheus\"}"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BA43A9",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "{id=\"/\",instance=\"cadvisor:8080\",job=\"prometheus\"}"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BA43A9",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "{id=\"/\",instance=\"cadvisor:8080\",job=\"prometheus\"}"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BA43A9",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
                 }
                 ]
             },
@@ -1966,10 +1648,7 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "sum(rate(container_cpu_system_seconds_total[1m]))",
                 "hide": true,
                 "intervalFactor": 2,
@@ -1978,10 +1657,7 @@ data:
                 "step": 120
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "sum(rate(container_cpu_system_seconds_total{name=~\".+\"}[1m]))",
                 "hide": true,
                 "interval": "",
@@ -1991,10 +1667,7 @@ data:
                 "step": 10
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "sum(rate(container_cpu_system_seconds_total{id=\"/\"}[1m]))",
                 "hide": true,
                 "interval": "",
@@ -2005,10 +1678,7 @@ data:
                 "step": 20
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "sum(rate(process_cpu_seconds_total[$interval])) * 100",
                 "hide": false,
                 "interval": "",
@@ -2019,10 +1689,7 @@ data:
                 "step": 600
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "sum(rate(container_cpu_system_seconds_total{name=~\".+\"}[1m])) + sum(rate(container_cpu_system_seconds_total{id=\"/\"}[1m])) + sum(rate(process_cpu_seconds_total[1m]))",
                 "hide": true,
                 "intervalFactor": 2,
@@ -2035,10 +1702,7 @@ data:
             "type": "timeseries"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "color": {
@@ -2168,582 +1832,6 @@ data:
                         "value": "hidden"
                     }
                     ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Belegete Festplatte"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Free Disk Space"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Used Disk Space"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "{}"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Belegete Festplatte"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Free Disk Space"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Used Disk Space"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "{}"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Belegete Festplatte"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Free Disk Space"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Used Disk Space"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "{}"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Belegete Festplatte"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Free Disk Space"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Used Disk Space"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "{}"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Belegete Festplatte"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Free Disk Space"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Used Disk Space"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "{}"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Belegete Festplatte"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Free Disk Space"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Used Disk Space"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "{}"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Belegete Festplatte"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Free Disk Space"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Used Disk Space"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "{}"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Belegete Festplatte"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Free Disk Space"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Used Disk Space"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "{}"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#BF1B00",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
                 }
                 ]
             },
@@ -2770,10 +1858,7 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "editorMode": "code",
                 "expr": "node_filesystem_size_bytes{fstype=\"ext4\"} - node_filesystem_free_bytes{fstype=\"ext4\"}",
                 "hide": false,
@@ -2788,10 +1873,7 @@ data:
             "type": "timeseries"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "color": {
@@ -2891,342 +1973,6 @@ data:
                         "value": "hidden"
                     }
                     ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Available Memory"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Unavailable Memory"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Available Memory"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Unavailable Memory"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Available Memory"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Unavailable Memory"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Available Memory"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Unavailable Memory"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Available Memory"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Unavailable Memory"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Available Memory"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Unavailable Memory"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Available Memory"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Unavailable Memory"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Available Memory"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "Unavailable Memory"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
                 }
                 ]
             },
@@ -3253,10 +1999,7 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "container_memory_rss{name=~\".+\"}",
                 "hide": true,
                 "intervalFactor": 2,
@@ -3265,10 +2008,7 @@ data:
                 "step": 20
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "sum(container_memory_rss{name=~\".+\"})",
                 "hide": false,
                 "intervalFactor": 2,
@@ -3277,10 +2017,7 @@ data:
                 "step": 20
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "container_memory_usage_bytes{name=~\".+\"}",
                 "hide": false,
                 "intervalFactor": 2,
@@ -3289,10 +2026,7 @@ data:
                 "step": 20
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "container_memory_rss{id=\"/\"}",
                 "hide": false,
                 "intervalFactor": 2,
@@ -3301,10 +2035,7 @@ data:
                 "step": 20
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "sum(container_memory_rss)",
                 "hide": false,
                 "intervalFactor": 2,
@@ -3313,10 +2044,7 @@ data:
                 "step": 20
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "node_memory_Buffers",
                 "hide": false,
                 "intervalFactor": 2,
@@ -3325,10 +2053,7 @@ data:
                 "step": 30
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "node_memory_MemFree",
                 "hide": false,
                 "intervalFactor": 2,
@@ -3337,10 +2062,7 @@ data:
                 "step": 20
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "node_memory_MemAvailable",
                 "hide": false,
                 "intervalFactor": 2,
@@ -3349,10 +2071,7 @@ data:
                 "step": 20
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "node_memory_MemTotal - node_memory_MemAvailable",
                 "hide": false,
                 "intervalFactor": 2,
@@ -3361,10 +2080,7 @@ data:
                 "step": 600
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "node_memory_Inactive",
                 "hide": false,
                 "intervalFactor": 2,
@@ -3373,10 +2089,7 @@ data:
                 "step": 30
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "node_memory_KernelStack",
                 "hide": false,
                 "intervalFactor": 2,
@@ -3385,10 +2098,7 @@ data:
                 "step": 30
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "node_memory_Active",
                 "hide": true,
                 "intervalFactor": 2,
@@ -3397,10 +2107,7 @@ data:
                 "step": 30
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "node_memory_MemTotal - (node_memory_Active + node_memory_MemFree + node_memory_Inactive)",
                 "hide": true,
                 "intervalFactor": 2,
@@ -3409,10 +2116,7 @@ data:
                 "step": 40
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "node_memory_MemFree + node_memory_Inactive ",
                 "hide": true,
                 "intervalFactor": 2,
@@ -3421,10 +2125,7 @@ data:
                 "step": 30
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "container_memory_rss{name=~\".+\"}",
                 "hide": true,
                 "intervalFactor": 2,
@@ -3433,10 +2134,7 @@ data:
                 "step": 30
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "node_memory_Inactive + node_memory_MemFree + node_memory_MemAvailable",
                 "hide": false,
                 "intervalFactor": 2,
@@ -3449,10 +2147,7 @@ data:
             "type": "timeseries"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "color": {
@@ -3550,342 +2245,6 @@ data:
                         "value": "hidden"
                     }
                     ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "IN on /sda"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "OUT on /sda"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#890F02",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "IN on /sda"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "OUT on /sda"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#890F02",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "IN on /sda"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "OUT on /sda"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#890F02",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "IN on /sda"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "OUT on /sda"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#890F02",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "IN on /sda"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "OUT on /sda"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#890F02",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "IN on /sda"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "OUT on /sda"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#890F02",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "IN on /sda"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "OUT on /sda"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#890F02",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "IN on /sda"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#7EB26D",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byName",
-                    "options": "OUT on /sda"
-                    },
-                    "properties": [
-                    {
-                        "id": "color",
-                        "value": {
-                        "fixedColor": "#890F02",
-                        "mode": "fixed"
-                        }
-                    }
-                    ]
-                },
-                {
-                    "matcher": {
-                    "id": "byType",
-                    "options": "time"
-                    },
-                    "properties": [
-                    {
-                        "id": "custom.axisPlacement",
-                        "value": "hidden"
-                    }
-                    ]
                 }
                 ]
             },
@@ -3912,10 +2271,7 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "editorMode": "code",
                 "expr": "-sum(rate(node_disk_read_bytes_total[$interval])) by (device)",
                 "hide": false,
@@ -3927,10 +2283,7 @@ data:
                 "step": 600
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "editorMode": "code",
                 "expr": "sum(rate(node_disk_written_bytes_total[$interval])) by (device)",
                 "intervalFactor": 2,
@@ -3945,10 +2298,7 @@ data:
             "type": "timeseries"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "color": {
@@ -3963,7 +2313,7 @@ data:
                     "barAlignment": 0,
                     "barWidthFactor": 0.6,
                     "drawStyle": "line",
-                    "fillOpacity": 10,
+                    "fillOpacity": 50,
                     "gradientMode": "none",
                     "hideFrom": {
                     "legend": false,
@@ -3972,7 +2322,7 @@ data:
                     },
                     "insertNulls": false,
                     "lineInterpolation": "linear",
-                    "lineWidth": 2,
+                    "lineWidth": 1,
                     "pointSize": 5,
                     "scaleDistribution": {
                     "type": "linear"
@@ -3982,7 +2332,7 @@ data:
                     "spanNulls": false,
                     "stacking": {
                     "group": "A",
-                    "mode": "none"
+                    "mode": "normal"
                     },
                     "thresholdsStyle": {
                     "mode": "off"
@@ -4029,10 +2379,7 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "sum(rate(container_network_receive_bytes_total{name=~\".+\"}[$interval])) by (name)",
                 "intervalFactor": 2,
                 "legendFormat": "{{name}}",
@@ -4040,10 +2387,7 @@ data:
                 "step": 240
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "- rate(container_network_transmit_bytes_total{name=~\".+\"}[$interval])",
                 "hide": true,
                 "intervalFactor": 2,
@@ -4056,10 +2400,7 @@ data:
             "type": "timeseries"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "color": {
@@ -4140,10 +2481,7 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "sum(rate(container_network_transmit_bytes_total{name=~\".+\"}[$interval])) by (name)",
                 "intervalFactor": 2,
                 "legendFormat": "{{name}}",
@@ -4151,10 +2489,7 @@ data:
                 "step": 240
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "rate(container_network_transmit_bytes_total{id=\"/\"}[$interval])",
                 "hide": true,
                 "intervalFactor": 2,
@@ -4167,10 +2502,7 @@ data:
             "type": "timeseries"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "color": {
@@ -4251,10 +2583,7 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\".+\"}[$interval])) by (name) * 100",
                 "hide": false,
                 "interval": "",
@@ -4269,10 +2598,7 @@ data:
             "type": "timeseries"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "color": {
@@ -4353,10 +2679,7 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "sum(container_memory_swap{name=~\".+\"}) by (name)",
                 "hide": false,
                 "intervalFactor": 2,
@@ -4365,10 +2688,7 @@ data:
                 "step": 240
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "container_memory_usage_bytes{name=~\".+\"}",
                 "hide": true,
                 "intervalFactor": 2,
@@ -4381,10 +2701,7 @@ data:
             "type": "timeseries"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "color": {
@@ -4465,10 +2782,7 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "sum(container_memory_rss{name=~\".+\"}) by (name)",
                 "hide": false,
                 "intervalFactor": 2,
@@ -4477,10 +2791,7 @@ data:
                 "step": 240
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "container_memory_usage_bytes{name=~\".+\"}",
                 "hide": true,
                 "intervalFactor": 2,
@@ -4493,10 +2804,7 @@ data:
             "type": "timeseries"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "custom": {
@@ -4565,28 +2873,19 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "{name=~\".+\", name=~\".+\", name=~\".+\"}",
                 "range": true,
                 "refId": "A"
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "{name=~\".+\"}",
                 "range": true,
                 "refId": "B"
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "{name=~\".+\"}",
                 "range": true,
                 "refId": "C"
@@ -4607,10 +2906,7 @@ data:
             "type": "table"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "custom": {
@@ -4673,28 +2969,19 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "{name=~\".+\", name=~\".+\"}",
                 "range": true,
                 "refId": "A"
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "{name=~\".+\"}",
                 "range": true,
                 "refId": "B"
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "{name=~\".+\"}",
                 "range": true,
                 "refId": "C"
@@ -4715,10 +3002,7 @@ data:
             "type": "table"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": "$datasource",
             "fieldConfig": {
                 "defaults": {
                 "custom": {
@@ -4768,28 +3052,19 @@ data:
             "pluginVersion": "12.3.1",
             "targets": [
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "{name=~\".+\", name=~\".+\"}",
                 "range": true,
                 "refId": "A"
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "{name=~\".+\"}",
                 "range": true,
                 "refId": "B"
                 },
                 {
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
-                },
+                "datasource": "$datasource",
                 "expr": "{name=~\".+\"}",
                 "range": true,
                 "refId": "C"
@@ -4822,12 +3097,23 @@ data:
         "templating": {
             "list": [
             {
+                "name": "datasource",
+                "label": "Datasource",
+                "type": "datasource",
+                "query": "prometheus",
+                "current": {
+                "text": "Prometheus",
+                "value": "bfarpzr2nqccgf"
+                },
+                "refresh": 1
+            },
+            {
                 "allValue": ".+",
                 "current": {
                 "text": "All",
                 "value": "$__all"
                 },
-                "datasource": "bfarpzr2nqccgf",
+                "datasource": "$datasource",
                 "includeAll": true,
                 "label": "Container Group",
                 "multi": true,
@@ -4934,7 +3220,7 @@ data:
                 "text": [],
                 "value": []
                 },
-                "datasource": "bfarpzr2nqccgf",
+                "datasource": "$datasource",
                 "includeAll": false,
                 "label": "Node",
                 "multi": true,
@@ -4955,7 +3241,7 @@ data:
         "timezone": "browser",
         "title": "Docker and system monitoring",
         "uid": "cd1183f7-8550-4ea9-8aea-894b7cc19715",
-        "version": 15
+        "version": 16
         }
   docker-metric-dashboard2.json: |
         {
