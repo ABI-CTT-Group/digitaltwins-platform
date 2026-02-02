@@ -1,10 +1,41 @@
-  # Install k3s
+  # this is a sub-playbook only include the tasks
+  # suggest in the parent playbook include the following setting
+  # gather_facts: true
+  # become: true
+  # vars:
+  #   observability_dir: "{{ lookup('env', 'PWD') }}/observability"
+  
+  - name: Show current working directory
+    ansible.builtin.shell: pwd
+    register: current_dir
+  - name: Print current remote node directory
+    ansible.builtin.debug:
+      msg: "Current remote node work directory is: {{ current_dir.stdout }}"
+  - name: Print current control node directory
+    ansible.builtin.debug:
+      msg: "Current control node work directory is: {{  lookup('env', 'PWD') }}"
+  # Install kube and k3s
+  - name: Install pip3 on remote host
+    ansible.builtin.apt:
+      name: python3-pip
+      state: present
+      update_cache: true
+    become: true
+
+  - name: Install Python Kubernetes client
+    ansible.builtin.pip:
+      name:
+        - kubernetes
+        - pyyaml
+      executable: pip3
+    become: true
   - name: Download k3s installation script
     ansible.builtin.get_url:
       url: https://get.k3s.io
       dest: /tmp/k3s-install.sh
       mode: '0755'
     ignore_errors: yes
+    become: true
     register: k3s_download
   - name: Check if k3s is already installed
     ansible.builtin.stat:
@@ -33,26 +64,32 @@
       state: started
       enabled: yes
     ignore_errors: yes
+
   # Install k9s
+
   - name: Check if k9s is already installed
     ansible.builtin.stat:
-      path: "{{ ansible_user_home }}/.local/bin/k9s"
+      path: "/usr/local/bin/k9s"
     register: k9s_binary
-    ignore_errors: yes
-  - name: Install k9s via webinstall
-    ansible.builtin.shell: curl -sS https://webinstall.dev/k9s | bash
-    args:
-      creates: "{{ ansible_user_home }}/.local/bin/k9s"
-    become: false
+  - name: Download k9s
+    ansible.builtin.get_url:
+      url: "https://github.com/derailed/k9s/releases/latest/download/k9s_Linux_amd64.tar.gz"
+      dest: "/tmp/k9s.tar.gz"
     when: not k9s_binary.stat.exists
-    ignore_errors: yes
-  - name: Add k9s to PATH in .bashrc
-    ansible.builtin.lineinfile:
-      path: "{{ ansible_user_home }}/.bashrc"
-      line: 'export PATH=$PATH:$HOME/.local/bin'
-      state: present
-    become: false
-    ignore_errors: yes
+
+  - name: Extract k9s
+    ansible.builtin.unarchive:
+      src: "/tmp/k9s.tar.gz"
+      dest: "/usr/local/bin"
+      remote_src: yes
+    become: true
+    when: not k9s_binary.stat.exists
+
+  - name: Ensure k9s is executable
+    ansible.builtin.file:
+      path: "/usr/local/bin/k9s"
+      mode: "0755"
+
   # Install Helm
   - name: Check if helm is already installed
     ansible.builtin.stat:
@@ -84,6 +121,9 @@
       - 10.42.0.0/16
       - 10.43.0.0/16
     ignore_errors: yes
+    become: true
+
+    
   - name: Add k3s interfaces to trusted zone
     ansible.posix.firewalld:
       zone: trusted
@@ -94,6 +134,8 @@
       - cni0
       - flannel.1
     ignore_errors: yes
+    become: true
+
   - name: Enable masquerade
     ansible.posix.firewalld:
       masquerade: yes
@@ -117,22 +159,22 @@
       src: "{{ item }}"
       dest: /tmp/observability/
     loop:
-      - "{{ observability_dir }}/grafana-10.5.4.tgz"
       - "{{ observability_dir }}/grafana-values.yaml"
-      - "{{ observability_dir }}/loki-6.49.0.tgz"
       - "{{ observability_dir }}/loki-values.yaml"
-      - "{{ observability_dir }}/mimir-distributed-6.1.0-weekly.378.tgz"
       - "{{ observability_dir }}/mimir-values.yaml"
-      - "{{ observability_dir }}/configmap-dashboard.yaml"
-      
+      - "{{ observability_dir }}/charts/grafana-10.5.4.tgz"
+      - "{{ observability_dir }}/charts/loki-6.49.0.tgz"
+      - "{{ observability_dir }}/charts/mimir-distributed-6.1.0-weekly.378.tgz"
+      - "{{ observability_dir }}/dashboards/cm-log-dashboards.yaml"
+      - "{{ observability_dir }}/dashboards/cm-metric-dashboards.yaml"
     ignore_errors: yes
   # Set KUBECONFIG environment
   - name: Set KUBECONFIG environment variable
     ansible.builtin.lineinfile:
-      path: "{{ ansible_user_home }}/.bashrc"
+      path: "{{ ansible_env.HOME}}/.bashrc"
       line: 'export KUBECONFIG=/etc/rancher/k3s/k3s.yaml'
       state: present
-    become: false
+    become: true
     ignore_errors: yes
   # Deploy Grafana Stack
   - name: Add Grafana helm repo
@@ -158,7 +200,22 @@
     environment:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
     ignore_errors: yes
-
+  - name: Apply Grafana dashboard ConfigMaps (ignore failures)
+    vars:
+      kubeconf: /etc/rancher/k3s/k3s.yaml
+      grafana_ns: grafana
+      cm_files:
+        - /tmp/observability/cm-log-dashboards.yaml
+        - /tmp/observability/cm-metric-dashboards.yaml
+    kubernetes.core.k8s:
+      state: present
+      apply: true
+      wait: true
+      kubeconfig: "{{ kubeconf }}"
+      namespace: "{{ grafana_ns }}"
+      src: "{{ item }}"
+    loop: "{{ cm_files }}"
+    ignore_errors: yes
   - name: Deploy Grafana
     kubernetes.core.helm:
       name: grafana

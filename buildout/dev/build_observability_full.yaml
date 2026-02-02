@@ -1,27 +1,27 @@
-  # Install k3s
 - name: VM setup(kubernetes,observability)
-  gather_facts: true
   hosts: portal drai_mp drai_cc
+  gather_facts: true
   become: true
   vars:
-    observability_dir: "/home/rche591/digitaltwins-platform/buildout/dev/observability"
+    observability_dir: "{{ lookup('env', 'PWD') }}/observability"
 
   tasks:
   - name: Show current working directory
     ansible.builtin.shell: pwd
     register: current_dir
-
-  - name: Print current directory
+  - name: Print current remote node directory
     ansible.builtin.debug:
-      msg: "Current directory is: {{ current_dir.stdout }}"
-
+      msg: "Current remote node work directory is: {{ current_dir.stdout }}"
+  - name: Print current control node directory
+    ansible.builtin.debug:
+      msg: "Current control node work directory is: {{  lookup('env', 'PWD') }}"
+  # Install kube and k3s
   - name: Install pip3 on remote host
     ansible.builtin.apt:
       name: python3-pip
       state: present
       update_cache: true
     become: true
-
 
   - name: Install Python Kubernetes client
     ansible.builtin.pip:
@@ -65,6 +65,8 @@
       state: started
       enabled: yes
     ignore_errors: yes
+
+  # Install k9s
 
   - name: Check if k9s is already installed
     ansible.builtin.stat:
