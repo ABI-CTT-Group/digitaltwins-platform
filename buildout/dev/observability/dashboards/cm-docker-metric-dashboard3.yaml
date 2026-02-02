@@ -215,4 +215,16 @@ data:
                 "datasource": { "uid": "$ds" },
                 "name": "service",
                 "options": [],
-
+                "query": "label_values(container_last_seen{instance=\"$instance\"}, service)",
+                "refresh": 1,
+                "type": "query"
+            }
+            ]
+        },
+        "time": { "from": "now-6h", "to": "now" },
+        "timepicker": {},
+        "timezone": "",
+        "title": "Docker Container Service Status",
+        "uid": "docker-service-status",
+        "version": 4
+        }
