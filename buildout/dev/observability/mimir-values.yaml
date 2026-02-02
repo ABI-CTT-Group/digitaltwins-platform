@@ -55,7 +55,7 @@ compactor:
       memory: 2Gi
 
 distributor:
-  replicas: 2
+  replicas: 1
   resources:
     limits:
       memory: 6Gi
@@ -66,12 +66,12 @@ distributor:
 ingester:
   persistentVolume:
     size: 50Gi
-  replicas: 3
+  replicas: 1
   resources:
     limits:
       memory: 6Gi
     requests:
-      cpu: 2
+      cpu: 1
       memory: 4Gi
 
 querier:
@@ -96,7 +96,7 @@ query_frontend:
 store_gateway:
   persistentVolume:
     size: 10Gi
-  replicas: 3
+  replicas: 1
   resources:
     limits:
       memory: 2Gi
