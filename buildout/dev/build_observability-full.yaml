@@ -220,7 +220,6 @@
         - strategic-merge
         - merge
       wait: true
-      validate: false
       kubeconfig: "{{ kubeconf }}"
       namespace: "{{ grafana_ns }}"
       src: "{{ item }}"
