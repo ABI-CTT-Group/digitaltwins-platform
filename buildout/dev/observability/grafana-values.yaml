@@ -50,8 +50,8 @@ dashboardProviders:
 
 dashboardsConfigMaps:
   #metric: "docker-metric-dashboard1,docker-metric-dashboard2,docker-metric-dashboard2,vm-metric-dashboard"
-  metric: "docker-metric-dashboard1"
-  log: "docker-log-dashboard"
+  metric: "metric-dashboards"
+  log: "log-dashboards"
 
 
 #dashboardProviders:

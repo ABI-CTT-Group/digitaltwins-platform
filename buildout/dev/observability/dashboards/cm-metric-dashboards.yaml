@@ -1,762 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-dashboards
+  name: metric-dashboards
   labels:
     grafana_dashboard: "1"
 data:
-  docker-log-dashboard.json: |
-    {
-      "annotations": {
-        "list": [
-          {
-            "builtIn": 1,
-            "datasource": {
-              "type": "grafana",
-              "uid": "-- Grafana --"
-            },
-            "enable": true,
-            "hide": true,
-            "iconColor": "rgba(0, 211, 255, 1)",
-            "name": "Annotations & Alerts",
-            "type": "dashboard"
-          }
-        ]
-      },
-      "editable": true,
-      "fiscalYearStartMonth": 0,
-      "graphTooltip": 0,
-      "id": 12,
-      "links": [],
-      "panels": [
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "${datasource}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "bars",
-                "fillOpacity": 100,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "normal"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 24,
-            "x": 0,
-            "y": 0
-          },
-          "id": 2,
-          "options": {
-            "legend": {
-              "calcs": [
-                "sum"
-              ],
-              "displayMode": "table",
-              "placement": "right",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "12.3.1",
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${datasource}"
-              },
-              "expr": "sum by (service_name) (count_over_time({service_name=~\"$service_name\"} |~ \"$search\" [$__interval]))",
-              "refId": "A"
-            }
-          ],
-          "title": "Log Rate by Service",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "${datasource}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 8,
-            "x": 0,
-            "y": 8
-          },
-          "id": 3,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "sum"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "12.3.1",
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${datasource}"
-              },
-              "expr": "sum(count_over_time({service_name=~\"$service_name\"} |~ \"$search\" [$__range]))",
-              "refId": "A"
-            }
-          ],
-          "title": "Total Log Lines",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "${datasource}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 8,
-            "x": 8,
-            "y": 8
-          },
-          "id": 4,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "12.3.1",
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${datasource}"
-              },
-              "expr": "count(count by (service_name) (count_over_time({service_name=~\"$service_name\"} |~ \"$search\" [5m])))",
-              "refId": "A"
-            }
-          ],
-          "title": "Active Services",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "${datasource}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 4,
-            "w": 8,
-            "x": 16,
-            "y": 8
-          },
-          "id": 5,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "percentChangeColorMode": "standard",
-            "reduceOptions": {
-              "calcs": [
-                "lastNotNull"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "showPercentChange": false,
-            "textMode": "auto",
-            "wideLayout": true
-          },
-          "pluginVersion": "12.3.1",
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${datasource}"
-              },
-              "expr": "count(count by (container_name) (count_over_time({service_name=~\"$service_name\"} |~ \"$search\" [5m])))",
-              "refId": "A"
-            }
-          ],
-          "title": "Active Containers",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "${datasource}"
-          },
-          "fieldConfig": {
-            "defaults": {},
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 12,
-            "w": 24,
-            "x": 0,
-            "y": 12
-          },
-          "id": 6,
-          "options": {
-            "dedupStrategy": "none",
-            "enableInfiniteScrolling": false,
-            "enableLogDetails": true,
-            "prettifyLogMessage": false,
-            "showCommonLabels": false,
-            "showControls": false,
-            "showLabels": false,
-            "showTime": true,
-            "sortOrder": "Descending",
-            "wrapLogMessage": true
-          },
-          "pluginVersion": "12.3.1",
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${datasource}"
-              },
-              "expr": "{service_name=~\"$service_name\"} |~ \"$search\"",
-              "refId": "A"
-            }
-          ],
-          "title": "Container Logs",
-          "type": "logs"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "${datasource}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 24
-          },
-          "id": 7,
-          "options": {
-            "legend": {
-              "calcs": [
-                "sum"
-              ],
-              "displayMode": "table",
-              "placement": "right",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.1",
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${datasource}"
-              },
-              "expr": "sum by (container_name) (count_over_time({service_name=~\"$service_name\"} |~ \"$search\" [$__interval]))",
-              "refId": "A"
-            }
-          ],
-          "title": "Log Rate by Container",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "${datasource}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 24
-          },
-          "id": 8,
-          "options": {
-            "legend": {
-              "calcs": [
-                "sum"
-              ],
-              "displayMode": "table",
-              "placement": "right",
-              "showLegend": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.1",
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${datasource}"
-              },
-              "expr": "sum by (app) (count_over_time({service_name=~\"$service_name\"} |~ \"$search\" [$__interval]))",
-              "refId": "A"
-            }
-          ],
-          "title": "Log Rate by App",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "${datasource}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              },
-              "mappings": []
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 32
-          },
-          "id": 9,
-          "options": {
-            "displayLabels": [
-              "percent"
-            ],
-            "legend": {
-              "displayMode": "table",
-              "placement": "right",
-              "showLegend": true,
-              "values": [
-                "value"
-              ]
-            },
-            "pieType": "pie",
-            "reduceOptions": {
-              "calcs": [
-                "sum"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "sort": "desc",
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "12.3.1",
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${datasource}"
-              },
-              "expr": "sum by (service_name) (count_over_time({service_name=~\"$service_name\"} |~ \"$search\" [$__range]))",
-              "refId": "A"
-            }
-          ],
-          "title": "Log Distribution by Service",
-          "type": "piechart"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "${datasource}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              },
-              "mappings": []
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 32
-          },
-          "id": 10,
-          "options": {
-            "displayLabels": [
-              "percent"
-            ],
-            "legend": {
-              "displayMode": "table",
-              "placement": "right",
-              "showLegend": true,
-              "values": [
-                "value"
-              ]
-            },
-            "pieType": "pie",
-            "reduceOptions": {
-              "calcs": [
-                "sum"
-              ],
-              "fields": "",
-              "values": false
-            },
-            "sort": "desc",
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "12.3.1",
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "${datasource}"
-              },
-              "expr": "sum by (container_name) (count_over_time({service_name=~\"$service_name\"} |~ \"$search\" [$__range]))",
-              "refId": "A"
-            }
-          ],
-          "title": "Log Distribution by Container",
-          "type": "piechart"
-        }
-      ],
-      "preload": false,
-      "refresh": "15m",
-      "schemaVersion": 42,
-      "tags": [
-        "docker",
-        "logs",
-        "loki"
-      ],
-      "templating": {
-        "list": [
-          {
-            "current": {
-              "text": "dititaltwins-docker-log",
-              "value": "cf9x8yxxkq7eoa"
-            },
-            "includeAll": false,
-            "label": "Datasource",
-            "name": "datasource",
-            "options": [],
-            "query": "loki",
-            "refresh": 1,
-            "regex": "",
-            "type": "datasource"
-          },
-          {
-            "allValue": ".+",
-            "current": {
-              "text": [
-                "keycloak"
-              ],
-              "value": [
-                "keycloak"
-              ]
-            },
-            "datasource": {
-              "type": "loki",
-              "uid": "${datasource}"
-            },
-            "definition": "label_values(service_name)",
-            "includeAll": true,
-            "label": "Service Name",
-            "multi": true,
-            "name": "service_name",
-            "options": [],
-            "query": "label_values(service_name)",
-            "refresh": 1,
-            "regex": "",
-            "sort": 1,
-            "type": "query"
-          },
-          {
-            "current": {
-              "text": "",
-              "value": ""
-            },
-            "label": "Search Keyword",
-            "name": "search",
-            "options": [
-              {
-                "selected": true,
-                "text": "",
-                "value": ""
-              }
-            ],
-            "query": "",
-            "type": "textbox"
-          }
-        ]
-      },
-      "time": {
-        "from": "now-6h",
-        "to": "now"
-      },
-      "timepicker": {},
-      "timezone": "",
-      "title": "Docker Container Logs",
-      "uid": "docker-logs",
-      "version": 9
-    }
   docker-metric-dashboard1.json: |
         {
         "annotations": {
@@ -3270,7 +2518,7 @@ data:
             {
             "datasource": {
                 "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -3344,7 +2592,7 @@ data:
                 ],
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "editorMode": "code",
                 "expr": "count(rate(container_last_seen{name=~\".+\"}[30s]))",
@@ -3370,7 +2618,7 @@ data:
             {
             "datasource": {
                 "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -3483,7 +2731,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "sum(rate(container_cpu_system_seconds_total[1m]))",
                 "hide": true,
@@ -3495,7 +2743,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "sum(rate(container_cpu_system_seconds_total{name=~\".+\"}[1m]))",
                 "hide": true,
@@ -3508,7 +2756,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "sum(rate(container_cpu_system_seconds_total{id=\"/\"}[1m]))",
                 "hide": true,
@@ -3522,7 +2770,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "sum(rate(process_cpu_seconds_total[$interval])) * 100",
                 "hide": false,
@@ -3536,7 +2784,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "sum(rate(container_cpu_system_seconds_total{name=~\".+\"}[1m])) + sum(rate(container_cpu_system_seconds_total{id=\"/\"}[1m])) + sum(rate(process_cpu_seconds_total[1m]))",
                 "hide": true,
@@ -3552,7 +2800,7 @@ data:
             {
             "datasource": {
                 "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -3710,7 +2958,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "editorMode": "code",
                 "expr": "node_filesystem_avail_bytes{fstype=\"ext4\"}",
@@ -3725,7 +2973,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "editorMode": "code",
                 "expr": "node_filesystem_size_bytes{fstype=\"ext4\"} - node_filesystem_avail_bytes{fstype=\"ext4\"}",
@@ -3744,7 +2992,7 @@ data:
             {
             "datasource": {
                 "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -3873,7 +3121,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "editorMode": "code",
                 "expr": "container_memory_rss{name=~\".+\"}",
@@ -3888,7 +3136,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "editorMode": "code",
                 "expr": "sum(container_memory_rss{name=~\".+\"})",
@@ -3903,7 +3151,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "editorMode": "code",
                 "expr": "container_memory_usage_bytes{name=~\".+\"}",
@@ -3918,7 +3166,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "editorMode": "code",
                 "expr": "container_memory_rss{id=\"/\"}",
@@ -3933,7 +3181,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "sum(container_memory_rss)",
                 "format": "time_series",
@@ -3946,7 +3194,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "node_memory_Buffers",
                 "format": "time_series",
@@ -3959,7 +3207,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "editorMode": "code",
                 "expr": "node_memory_MemFree",
@@ -3974,7 +3222,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "node_memory_MemAvailable",
                 "format": "time_series",
@@ -3987,7 +3235,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "node_memory_MemTotal - node_memory_MemAvailable",
                 "format": "time_series",
@@ -4000,7 +3248,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "node_memory_Inactive",
                 "format": "time_series",
@@ -4013,7 +3261,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "node_memory_KernelStack",
                 "format": "time_series",
@@ -4026,7 +3274,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "node_memory_Active",
                 "format": "time_series",
@@ -4039,7 +3287,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "node_memory_MemTotal - (node_memory_Active + node_memory_MemFree + node_memory_Inactive)",
                 "format": "time_series",
@@ -4052,7 +3300,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "node_memory_MemFree + node_memory_Inactive ",
                 "format": "time_series",
@@ -4065,7 +3313,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "container_memory_rss{name=~\".+\"}",
                 "format": "time_series",
@@ -4078,7 +3326,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "node_memory_Inactive + node_memory_MemFree + node_memory_MemAvailable",
                 "format": "time_series",
@@ -4095,7 +3343,7 @@ data:
             {
             "datasource": {
                 "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -4192,7 +3440,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "editorMode": "code",
                 "expr": "sum(rate(node_disk_read_bytes_total[$interval])) by (device)",
@@ -4206,7 +3454,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "editorMode": "code",
                 "expr": "sum(rate(node_disk_written_bytes_total[$interval])) by (device)",
@@ -4220,7 +3468,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "",
                 "intervalFactor": 2,
@@ -4233,7 +3481,7 @@ data:
             {
             "datasource": {
                 "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -4335,7 +3583,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "{__name__=~\"^node_load.*\"}",
                 "intervalFactor": 2,
@@ -4351,7 +3599,7 @@ data:
             {
             "datasource": {
                 "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -4463,7 +3711,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "sum(rate(container_network_receive_bytes_total{id=\"/\"}[$interval])) by (id)",
                 "intervalFactor": 2,
@@ -4474,7 +3722,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "- sum(rate(container_network_transmit_bytes_total{id=\"/\"}[$interval])) by (id)",
                 "hide": false,
@@ -4490,7 +3738,7 @@ data:
             {
             "datasource": {
                 "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -4574,7 +3822,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\".+\"}[$interval])) by (name) * 100",
                 "format": "time_series",
@@ -4593,7 +3841,7 @@ data:
             {
             "datasource": {
                 "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -4677,7 +3925,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "sum(container_memory_rss{name=~\".+\"}) by (name)",
                 "hide": false,
@@ -4689,7 +3937,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "container_memory_usage_bytes{name=~\".+\"}",
                 "hide": true,
@@ -4705,7 +3953,7 @@ data:
             {
             "datasource": {
                 "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -4789,7 +4037,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "sum(rate(container_network_transmit_bytes_total{name=~\".+\"}[$interval])) by (name)",
                 "intervalFactor": 2,
@@ -4800,7 +4048,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "rate(container_network_transmit_bytes_total{id=\"/\"}[$interval])",
                 "hide": true,
@@ -4816,7 +4064,7 @@ data:
             {
             "datasource": {
                 "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -4900,7 +4148,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "container_memory_rss{name=~\".+\"}",
                 "hide": true,
@@ -4912,7 +4160,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "container_memory_usage_bytes{name=~\".+\"}",
                 "hide": true,
@@ -4924,7 +4172,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "sum(container_memory_cache{name=~\".+\"}) by (name)",
                 "hide": false,
@@ -4940,7 +4188,7 @@ data:
             {
             "datasource": {
                 "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -5024,7 +4272,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "sum(rate(container_network_receive_bytes_total{name=~\".+\"}[$interval])) by (name)",
                 "intervalFactor": 2,
@@ -5035,7 +4283,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "- rate(container_network_transmit_bytes_total{name=~\".+\"}[$interval])",
                 "hide": true,
@@ -5051,7 +4299,7 @@ data:
             {
             "datasource": {
                 "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
+                "uid": "${datasource}"
             },
             "fieldConfig": {
                 "defaults": {
@@ -5116,7 +4364,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "cadvisor_version_info",
                 "intervalFactor": 2,
@@ -5127,7 +4375,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "prometheus_build_info",
                 "intervalFactor": 2,
@@ -5138,7 +4386,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "node_exporter_build_info",
                 "intervalFactor": 2,
@@ -5149,7 +4397,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "cadvisor_version_info",
                 "intervalFactor": 2,
@@ -5160,7 +4408,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "cadvisor_version_info",
                 "intervalFactor": 2,
@@ -5171,7 +4419,7 @@ data:
                 {
                 "datasource": {
                     "type": "prometheus",
-                    "uid": "bfarpzr2nqccgf"
+                    "uid": "${datasource}"
                 },
                 "expr": "cadvisor_version_info",
                 "intervalFactor": 2,
@@ -5206,6 +4454,23 @@ data:
         ],
         "templating": {
             "list": [
+            {
+                "current": {
+                "text": "default",
+                "value": "default"
+                },
+                "hide": 0,
+                "includeAll": false,
+                "label": "Datasource",
+                "multi": false,
+                "name": "datasource",
+                "options": [],
+                "query": "prometheus",
+                "refresh": 1,
+                "regex": "",
+                "skipUrlSync": false,
+                "type": "datasource"
+            },
             {
                 "auto": true,
                 "auto_count": 50,
@@ -5302,7 +4567,10 @@ data:
                 "text": "cadvisor",
                 "value": "cadvisor"
                 },
-                "datasource": "bfarpzr2nqccgf",
+                "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+                },
                 "definition": "label_values(container_cpu_user_seconds_total, job)",
                 "includeAll": false,
                 "label": "Job",
@@ -5320,7 +4588,10 @@ data:
                 "text": "All",
                 "value": "$__all"
                 },
-                "datasource": "bfarpzr2nqccgf",
+                "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+                },
                 "definition": "label_values(container_cpu_user_seconds_total{job=~\"$job\"}, instance)",
                 "includeAll": true,
                 "label": "Host:",
@@ -5338,7 +4609,10 @@ data:
                 "text": "",
                 "value": ""
                 },
-                "datasource": "bfarpzr2nqccgf",
+                "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+                },
                 "definition": "label_values(container_cpu_user_seconds_total{instance=~\"$node:(.*)\"}, instance)",
                 "includeAll": false,
                 "label": "Port",
@@ -5356,7 +4630,10 @@ data:
                 "text": "All",
                 "value": "$__all"
                 },
-                "datasource": "bfarpzr2nqccgf",
+                "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+                },
                 "definition": "label_values(container_cpu_user_seconds_total{instance=~\"10.115.220.32:8080|10.115.220.33:8080\", name!=\"cadvisor\"}, name)",
                 "includeAll": true,
                 "label": "Prod",
@@ -5375,7 +4652,10 @@ data:
                 "text": "All",
                 "value": "$__all"
                 },
-                "datasource": "bfarpzr2nqccgf",
+                "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+                },
                 "definition": "label_values(container_cpu_user_seconds_total{instance=~\"10.115.222.21:8080|10.115.222.22:8080\", name!=\"cadvisor\"}, name)",
                 "includeAll": true,
                 "label": "NonProd",
@@ -5397,18 +4677,15 @@ data:
         "timezone": "browser",
         "title": "Docker Container & Host Metrics",
         "uid": "4dMaCsRZz",
-        "version": 9
-        }  
+        "version": 10
+        }
   docker-metric-dashboard3.json: |
         {
         "annotations": {
             "list": [
             {
                 "builtIn": 1,
-                "datasource": {
-                "type": "grafana",
-                "uid": "-- Grafana --"
-                },
+                "datasource": { "type": "grafana", "uid": "-- Grafana --" },
                 "enable": true,
                 "hide": true,
                 "iconColor": "rgba(0, 211, 255, 1)",
@@ -5424,33 +4701,20 @@ data:
         "links": [],
         "panels": [
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": { "uid": "$ds" },
             "fieldConfig": {
                 "defaults": {
                 "custom": {
                     "align": "auto",
-                    "cellOptions": {
-                    "type": "auto"
-                    },
-                    "footer": {
-                    "reducers": []
-                    },
+                    "cellOptions": { "type": "auto" },
+                    "footer": { "reducers": [] },
                     "inspect": false
                 },
                 "mappings": [
                     {
                     "options": {
-                        "0": {
-                        "color": "red",
-                        "text": "stopped"
-                        },
-                        "1": {
-                        "color": "green",
-                        "text": "running"
-                        }
+                        "0": { "color": "red", "text": "stopped" },
+                        "1": { "color": "green", "text": "running" }
                     },
                     "type": "value"
                     }
@@ -5458,35 +4722,19 @@ data:
                 "thresholds": {
                     "mode": "absolute",
                     "steps": [
-                    {
-                        "color": "green",
-                        "value": 0
-                    },
-                    {
-                        "color": "red",
-                        "value": 80
-                    }
+                    { "color": "green", "value": 0 },
+                    { "color": "red", "value": 80 }
                     ]
                 }
                 },
                 "overrides": []
             },
-            "gridPos": {
-                "h": 12,
-                "w": 24,
-                "x": 0,
-                "y": 0
-            },
+            "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
             "id": 1,
             "options": {
                 "cellHeight": "sm",
                 "showHeader": true,
-                "sortBy": [
-                {
-                    "desc": false,
-                    "displayName": "service"
-                }
-                ]
+                "sortBy": [{ "desc": false, "displayName": "service" }]
             },
             "pluginVersion": "12.3.1",
             "targets": [
@@ -5501,15 +4749,10 @@ data:
             "type": "table"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": { "uid": "$ds" },
             "fieldConfig": {
                 "defaults": {
-                "color": {
-                    "mode": "palette-classic"
-                },
+                "color": { "mode": "palette-classic" },
                 "custom": {
                     "axisBorderShow": false,
                     "axisCenteredZero": false,
@@ -5521,65 +4764,34 @@ data:
                     "drawStyle": "line",
                     "fillOpacity": 0,
                     "gradientMode": "none",
-                    "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                    },
+                    "hideFrom": { "legend": false, "tooltip": false, "viz": false },
                     "insertNulls": false,
                     "lineInterpolation": "linear",
                     "lineWidth": 1,
                     "pointSize": 5,
-                    "scaleDistribution": {
-                    "type": "linear"
-                    },
+                    "scaleDistribution": { "type": "linear" },
                     "showPoints": "auto",
                     "showValues": false,
                     "spanNulls": false,
-                    "stacking": {
-                    "group": "A",
-                    "mode": "none"
-                    },
-                    "thresholdsStyle": {
-                    "mode": "off"
-                    }
+                    "stacking": { "group": "A", "mode": "none" },
+                    "thresholdsStyle": { "mode": "off" }
                 },
                 "mappings": [],
                 "thresholds": {
                     "mode": "absolute",
                     "steps": [
-                    {
-                        "color": "green",
-                        "value": 0
-                    },
-                    {
-                        "color": "red",
-                        "value": 80
-                    }
+                    { "color": "green", "value": 0 },
+                    { "color": "red", "value": 80 }
                     ]
                 }
                 },
                 "overrides": []
             },
-            "gridPos": {
-                "h": 11,
-                "w": 12,
-                "x": 0,
-                "y": 12
-            },
+            "gridPos": { "h": 11, "w": 12, "x": 0, "y": 12 },
             "id": 2,
             "options": {
-                "legend": {
-                "calcs": [],
-                "displayMode": "list",
-                "placement": "bottom",
-                "showLegend": true
-                },
-                "tooltip": {
-                "hideZeros": false,
-                "mode": "single",
-                "sort": "none"
-                }
+                "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+                "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
             },
             "pluginVersion": "12.3.1",
             "targets": [
@@ -5593,15 +4805,10 @@ data:
             "type": "timeseries"
             },
             {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-            },
+            "datasource": { "uid": "$ds" },
             "fieldConfig": {
                 "defaults": {
-                "color": {
-                    "mode": "palette-classic"
-                },
+                "color": { "mode": "palette-classic" },
                 "custom": {
                     "axisBorderShow": false,
                     "axisCenteredZero": false,
@@ -5613,65 +4820,34 @@ data:
                     "drawStyle": "line",
                     "fillOpacity": 0,
                     "gradientMode": "none",
-                    "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                    },
+                    "hideFrom": { "legend": false, "tooltip": false, "viz": false },
                     "insertNulls": false,
                     "lineInterpolation": "linear",
                     "lineWidth": 1,
                     "pointSize": 5,
-                    "scaleDistribution": {
-                    "type": "linear"
-                    },
+                    "scaleDistribution": { "type": "linear" },
                     "showPoints": "auto",
                     "showValues": false,
                     "spanNulls": false,
-                    "stacking": {
-                    "group": "A",
-                    "mode": "none"
-                    },
-                    "thresholdsStyle": {
-                    "mode": "off"
-                    }
+                    "stacking": { "group": "A", "mode": "none" },
+                    "thresholdsStyle": { "mode": "off" }
                 },
                 "mappings": [],
                 "thresholds": {
                     "mode": "absolute",
                     "steps": [
-                    {
-                        "color": "green",
-                        "value": 0
-                    },
-                    {
-                        "color": "red",
-                        "value": 80
-                    }
+                    { "color": "green", "value": 0 },
+                    { "color": "red", "value": 80 }
                     ]
                 }
                 },
                 "overrides": []
             },
-            "gridPos": {
-                "h": 11,
-                "w": 12,
-                "x": 12,
-                "y": 12
-            },
+            "gridPos": { "h": 11, "w": 12, "x": 12, "y": 12 },
             "id": 3,
             "options": {
-                "legend": {
-                "calcs": [],
-                "displayMode": "list",
-                "placement": "bottom",
-                "showLegend": true
-                },
-                "tooltip": {
-                "hideZeros": false,
-                "mode": "single",
-                "sort": "none"
-                }
+                "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+                "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
             },
             "pluginVersion": "12.3.1",
             "targets": [
@@ -5688,22 +4864,20 @@ data:
         "preload": false,
         "refresh": "1m",
         "schemaVersion": 42,
-        "tags": [
-            "docker",
-            "service",
-            "status"
-        ],
+        "tags": ["docker", "service", "status"],
         "templating": {
             "list": [
             {
-                "current": {
-                "text": "",
-                "value": ""
-                },
-                "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-                },
+                "name": "ds",
+                "type": "datasource",
+                "query": "prometheus",
+                "refresh": 1,
+                "current": { "text": "", "value": "" },
+                "options": []
+            },
+            {
+                "current": { "text": "", "value": "" },
+                "datasource": { "uid": "$ds" },
                 "name": "instance",
                 "options": [],
                 "query": "label_values(container_last_seen, instance)",
@@ -5711,33 +4885,11 @@ data:
                 "type": "query"
             },
             {
-                "current": {
-                "text": "",
-                "value": ""
-                },
-                "datasource": {
-                "type": "prometheus",
-                "uid": "bfarpzr2nqccgf"
-                },
+                "current": { "text": "", "value": "" },
+                "datasource": { "uid": "$ds" },
                 "name": "service",
                 "options": [],
-                "query": "label_values(container_last_seen{instance=\"$instance\"}, service)",
-                "refresh": 1,
-                "type": "query"
-            }
-            ]
-        },
-        "time": {
-            "from": "now-6h",
-            "to": "now"
-        },
-        "timepicker": {},
-        "timezone": "",
-        "title": "Docker Container Service Status",
-        "uid": "docker-service-status",
-        "version": 3
-        }
-  VM-metric-dashboard.json: |
+  vm-metric-dashboard.json: |
         {
         "annotations": {
             "list": [

@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: docker-log-dashboard
+  name: log-dashboards
   labels:
     grafana_dashboard: "1"
 data:

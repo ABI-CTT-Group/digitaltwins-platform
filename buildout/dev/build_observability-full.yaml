@@ -165,11 +165,8 @@
       - "{{ observability_dir }}/charts/grafana-10.5.4.tgz"
       - "{{ observability_dir }}/charts/loki-6.49.0.tgz"
       - "{{ observability_dir }}/charts/mimir-distributed-6.1.0-weekly.378.tgz"
-      - "{{ observability_dir }}/dashboards/cm-docker-log-dashboard.yaml"
-      - "{{ observability_dir }}/dashboards/cm-docker-metric-dashboard1.yaml"
-      - "{{ observability_dir }}/dashboards/cm-docker-metric-dashboard2.yaml"
-      - "{{ observability_dir }}/dashboards/cm-docker-metric-dashboard3.yaml"
-      - "{{ observability_dir }}/dashboards/cm-vm-metric-dashboard.yaml"
+      - "{{ observability_dir }}/dashboards/cm-log-dashboards.yaml"
+      - "{{ observability_dir }}/dashboards/cm-metric-dashboards.yaml"
     ignore_errors: yes
   # Set KUBECONFIG environment
   - name: Set KUBECONFIG environment variable
@@ -208,11 +205,8 @@
       kubeconf: /etc/rancher/k3s/k3s.yaml
       grafana_ns: grafana
       cm_files:
-        - /tmp/observability/cm-docker-log-dashboard.yaml
-        - /tmp/observability/cm-docker-metric-dashboard1.yaml
-        - /tmp/observability/cm-docker-metric-dashboard2.yaml
-        - /tmp/observability/cm-docker-metric-dashboard3.yaml
-        - /tmp/observability/cm-vm-metric-dashboard.yaml
+        - /tmp/observability/cm-log-dashboards.yaml
+        - /tmp/observability/cm-metric-dashboards.yaml
     kubernetes.core.k8s:
       state: present
       apply: true
