@@ -6,7 +6,6 @@
   vars:
     observability_dir: "/home/rche591/digitaltwins-platform/buildout/dev/observability"
 
-
   tasks:
   - name: Show current working directory
     ansible.builtin.shell: pwd
