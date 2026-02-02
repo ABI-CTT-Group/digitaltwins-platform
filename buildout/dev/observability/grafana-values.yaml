@@ -27,19 +27,43 @@ datasources:
         type: prometheus
         url: http://mimir-gateway.mimir.svc.cluster.local/prometheus
         access: proxy
-
 dashboardProviders:
   dashboardproviders.yaml:
     apiVersion: 1
     providers:
-      - name: 'default'
-        orgId: 1
-        folder: ''
-        type: file
-        disableDeletion: false
-        editable: true
-        options:
-          path: /var/lib/grafana/dashboards/default
+    - name: 'metric'
+      orgId: 1
+      folder: 'Metric'
+      type: file
+      disableDeletion: false
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/metric
+    - name: 'log'
+      orgId: 1
+      folder: 'Log'
+      type: file
+      disableDeletion: false
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/log
 
 dashboardsConfigMaps:
-  default: grafana-dashboards
+  metric: "docker-metric-dashboard1,docker-metric-dashboard2,docker-metric-dashboard2,vm-metric-dashboard"
+  log: "docker-log-dashboard"
+
+
+#dashboardProviders:
+#  dashboardproviders.yaml:
+#    apiVersion: 1
+#    providers:
+#      - name: 'default'
+#        orgId: 1
+#        folder: ''
+#        type: file
+#        disableDeletion: false
+#        editable: true
+#        options:
+#          path: /var/lib/grafana/dashboards/default
+#dashboardsConfigMaps:
+#  default: grafana-dashboards

@@ -159,13 +159,17 @@
       src: "{{ item }}"
       dest: /tmp/observability/
     loop:
-      - "{{ observability_dir }}/grafana-10.5.4.tgz"
       - "{{ observability_dir }}/grafana-values.yaml"
-      - "{{ observability_dir }}/loki-6.49.0.tgz"
       - "{{ observability_dir }}/loki-values.yaml"
-      - "{{ observability_dir }}/mimir-distributed-6.1.0-weekly.378.tgz"
       - "{{ observability_dir }}/mimir-values.yaml"
-      - "{{ observability_dir }}/configmap-dashboard.yaml"
+      - "{{ observability_dir }}/charts/grafana-10.5.4.tgz"
+      - "{{ observability_dir }}/charts/loki-6.49.0.tgz"
+      - "{{ observability_dir }}/charts/mimir-distributed-6.1.0-weekly.378.tgz"
+      - "{{ observability_dir }}/dashboards/cm-docker-log-dashboard.yaml"
+      - "{{ observability_dir }}/dashboards/cm-docker-metric-dashboard1.yaml"
+      - "{{ observability_dir }}/dashboards/cm-docker-metric-dashboard2.yaml"
+      - "{{ observability_dir }}/dashboards/cm-docker-metric-dashboard3.yaml"
+      - "{{ observability_dir }}/dashboards/cm-vm-metric-dashboard.yaml"
     ignore_errors: yes
   # Set KUBECONFIG environment
   - name: Set KUBECONFIG environment variable
@@ -199,14 +203,29 @@
     environment:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
     ignore_errors: yes
-  - name: Apply Grafana dashboards ConfigMap
+  - name: Apply Grafana dashboard ConfigMaps (ignore failures)
+    vars:
+      kubeconf: /etc/rancher/k3s/k3s.yaml
+      grafana_ns: grafana
+      cm_files:
+        - /tmp/observability/cm-docker-log-dashboard.yaml
+        - /tmp/observability/cm-docker-metric-dashboard1.yaml
+        - /tmp/observability/cm-docker-metric-dashboard2.yaml
+        - /tmp/observability/cm-docker-metric-dashboard3.yaml
+        - /tmp/observability/cm-vm-metric-dashboard.yaml
     kubernetes.core.k8s:
       state: present
-      src: /tmp/observability/configmap-dashboard.yaml
-      namespace: grafana
-    environment:
-      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-    ignore_errors: no
+      apply: true
+      merge_type:
+        - strategic-merge
+        - merge
+      wait: true
+      validate: false
+      kubeconfig: "{{ kubeconf }}"
+      namespace: "{{ grafana_ns }}"
+      src: "{{ item }}"
+    loop: "{{ cm_files }}"
+    ignore_errors: yes
   - name: Deploy Grafana
     kubernetes.core.helm:
       name: grafana
