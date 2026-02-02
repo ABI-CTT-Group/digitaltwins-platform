@@ -1,9 +1,9 @@
 
 service:
   type: NodePort
-  port: 30333
+  port: 80
   targetPort: 3000
-
+  nodePort: 30333
 
 plugins: ""
 
