@@ -20,7 +20,8 @@ persistence:
 initChownData:
   securityContext:
     runAsNonRoot: true
-
+    runAsUser: 472
+    
 datasources:
   datasources.yaml:
     apiVersion: 1

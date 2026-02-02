@@ -136,5 +136,9 @@ TO DO:
 ```bash
   ansible-playbook build_observability_full.yaml -i inventory/on-prem -l portal
 ```
-- run k9s to get admin password from secret grafana in the namespace grafana in the k3s cluster
-- login to system with the http://vm-ip:30333
+- Run k9s to get admin password from secret grafana in the namespace grafana in the k3s cluster
+- Login to system with URL  http://the-vm-ip:30333
+- The deployment will set the datasource and dashboards for both logs and metrics
+- The dashboardsare stored at folder `buildout/dev/observability/dashboards`, which will be applied as configmap in deployment
+- The helm chart package file and the customized values.yaml of grafana,mimir,loki are in folder `buildout/dev/observability`
+  User can adjust the configuration and resources request in the customized values.yaml
