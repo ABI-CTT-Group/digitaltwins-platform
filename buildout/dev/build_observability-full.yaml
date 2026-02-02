@@ -216,9 +216,6 @@
     kubernetes.core.k8s:
       state: present
       apply: true
-      merge_type:
-        - strategic-merge
-        - merge
       wait: true
       kubeconfig: "{{ kubeconf }}"
       namespace: "{{ grafana_ns }}"
