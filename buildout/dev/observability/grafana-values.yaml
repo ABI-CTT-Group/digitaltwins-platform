@@ -1,6 +1,9 @@
 
 service:
   type: NodePort
+  port: 80
+  targetPort: 3000
+
 plugins: ""
 
 grafana.ini:
