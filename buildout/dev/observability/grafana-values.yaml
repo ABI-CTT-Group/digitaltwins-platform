@@ -13,6 +13,8 @@ grafana.ini:
     domain: 130.216.216.45
   users:
     viewers_can_edit: true
+persistence:
+  enabled: true
 
 datasources:
   datasources.yaml:
