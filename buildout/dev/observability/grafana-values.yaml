@@ -8,7 +8,7 @@ plugins: ""
 
 grafana.ini:
   server:
-    protocol: https
-    http_port: 3000
-    root_url: https://130.216.216.243:30333/
-    domain: 130.216.216.243
+    root_url: https://130.216.216.45:30333/
+    domain: 130.216.216.45
+  users:
+    viewers_can_edit: true
