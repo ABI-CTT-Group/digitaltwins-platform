@@ -4,7 +4,7 @@
   hosts: portal drai_mp drai_cc
   become: true
   vars:
-    observability_dir: "~/digitaltwins-platform/buildout/dev/observability"
+    observability_dir: "{{ ansible_env.HOME }}/digitaltwins-platform/buildout/dev/observability"
 
   tasks:
   - name: Show current working directory
