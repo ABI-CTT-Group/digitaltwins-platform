@@ -137,4 +137,4 @@ TO DO:
   ansible-playbook build_observability_full.yaml -i inventory/on-prem -l portal
 ```
 - run k9s to get admin password from secret grafana in the namespace grafana in the k3s cluster
-- login to system with the http://m-publicip:30333
+- login to system with the http://vm-ip:30333
