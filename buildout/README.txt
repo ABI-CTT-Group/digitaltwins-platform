@@ -123,6 +123,8 @@ TO DO:
 
 Observability
 
-- Observability use grafana stack deployed in a kubernetes cluster (light weight kubernetes, k3s)
-- K9s is a good tool to manage the clusterd 
-- run playbook build_observability_full.yaml to deploy observability to target VM 
+- Observability use grafana stack which deployed in a kubernetes cluster (light weight kubernetes, k3s)
+- The component of grafana stack include grafana, loki, mimir, alloy, the related resource are stored in folder `/buildout/dev/observability`
+- K9s is a high efficient tool to manage the k8s cluster and will be deployed by ansible 
+- run the playbook `build_observability_full.yaml` to deploy all observability to target VM 
+- in `build_observability_full.yaml`, adjust the `observability_dir` as in your system
