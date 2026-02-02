@@ -165,6 +165,7 @@
       - "{{ observability_dir }}/loki-values.yaml"
       - "{{ observability_dir }}/mimir-distributed-6.1.0-weekly.378.tgz"
       - "{{ observability_dir }}/mimir-values.yaml"
+      - "{{ observability_dir }}/configmap-dashboard.yaml"
     ignore_errors: yes
   # Set KUBECONFIG environment
   - name: Set KUBECONFIG environment variable
@@ -198,6 +199,14 @@
     environment:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
     ignore_errors: yes
+  - name: Apply Grafana dashboards ConfigMap
+    kubernetes.core.k8s:
+      state: present
+      src: /tmp/observability/configmap-dashboard.yaml
+      namespace: grafana
+    environment:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    ignore_errors: no
   - name: Deploy Grafana
     kubernetes.core.helm:
       name: grafana

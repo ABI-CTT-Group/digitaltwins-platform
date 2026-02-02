@@ -158,14 +158,7 @@
     environment:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
     ignore_errors: yes
-  - name: Apply Grafana dashboards ConfigMap
-    kubernetes.core.k8s:
-      state: present
-      src: /tmp/observability/configmap-dashboard.yaml
-      namespace: grafana
-    environment:
-      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-    ignore_errors: no
+
   - name: Deploy Grafana
     kubernetes.core.helm:
       name: grafana
