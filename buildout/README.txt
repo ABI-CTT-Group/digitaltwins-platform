@@ -121,14 +121,18 @@ TO DO:
 - Maybe figure out backups? Although if you solve the previous step, that's
   that backup strategy, isn't it? Just archive the docker volumes.
 
-Observability
+# Observability
+
 - The work branch is `buildout+observability`
 - Observability use grafana stack which deployed in a kubernetes cluster (light weight kubernetes, k3s)
 - The components of grafana stack include grafana, loki, mimir, alloy, the related resource are stored in folder `/buildout/dev/observability`
-- K9s is a high efficient tool to manage the k8s cluster and will be deployed by ansible  to target VM  
-- Switch to branch `buildout+observability`, navigate to folder `/buildout/dev`
-- Run the ansible playbook `build_observability_full.yaml` to deploy all observability to target VM 
+- K9s is a high efficient tool to manage the k8s cluster and will be deployed by ansible to target VM
 
-  `ansible-playbook build_observability_full.yaml -i inventory/on-prem -l portal`
-  
-- in `build_observability_full.yaml`, adjust the `observability_dir` to match in your working system
+## Setup Instructions
+
+- Switch to branch `buildout+observability`, navigate to folder `/buildout/dev`
+- Run the ansible playbook `build_observability_full.yaml` to deploy all observability to target VM
+```bash
+  ansible-playbook build_observability_full.yaml -i inventory/on-prem -l portal
+```
+- In `build_observability_full.yaml`, adjust the `observability_dir` to match in your working system
