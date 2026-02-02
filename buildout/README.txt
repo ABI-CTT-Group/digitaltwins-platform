@@ -131,7 +131,6 @@ TO DO:
 ## Setup Instructions
 
 - Switch to branch `buildout+observability`, navigate to folder `/buildout/dev`
-- In `build_observability_full.yaml`, adjust the `observability_dir` to match in your working system
 - Run the ansible playbook `build_observability_full.yaml` to deploy all observability to target VM
 ```bash
   ansible-playbook build_observability_full.yaml -i inventory/on-prem -l portal
