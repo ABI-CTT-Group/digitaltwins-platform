@@ -17,6 +17,10 @@ plugins: ""
 persistence:
   enabled: true
 
+initChownData:
+  securityContext:
+    runAsNonRoot: true
+
 datasources:
   datasources.yaml:
     apiVersion: 1
