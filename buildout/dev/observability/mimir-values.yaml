@@ -58,10 +58,11 @@ distributor:
   replicas: 1
   resources:
     limits:
-      memory: 6Gi
+      cpu: 1
+      memory: 2Gi
     requests:
-      cpu: 2
-      memory: 4Gi
+      cpu: 0.5
+      memory: 1Gi
 
 ingester:
   persistentVolume:
@@ -69,28 +70,31 @@ ingester:
   replicas: 1
   resources:
     limits:
-      memory: 6Gi
-    requests:
       cpu: 1
-      memory: 4Gi
+      memory: 2Gi
+    requests:
+      cpu: 0.5
+      memory: 1Gi
 
 querier:
   replicas: 1
   resources:
     limits:
-      memory: 6Gi
+      cpu: 1
+      memory: 2Gi
     requests:
-      cpu: 2
-      memory: 4Gi
+      cpu: 0.5
+      memory: 1Gi
 
 query_frontend:
   replicas: 1
   resources:
     limits:
-      memory: 3Gi
-    requests:
-      cpu: 2
+      cpu: 1
       memory: 2Gi
+    requests:
+      cpu: 0.5
+      memory: 1Gi
 
 
 store_gateway:
@@ -99,18 +103,20 @@ store_gateway:
   replicas: 1
   resources:
     limits:
+      cpu: 1
       memory: 2Gi
     requests:
-      cpu: 1
+      cpu: 0.5
       memory: 1Gi
 gateway:
   replicas: 1
   resources:
     limits:
-      memory: 1Gi
-    requests:
       cpu: 1
-      memory: 512Mi
+      memory: 2Gi
+    requests:
+      cpu: 0.5
+      memory: 1Gi
 minio:
   enabled: true
   replicas: 1

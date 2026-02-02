@@ -1,14 +1,12 @@
 
 service:
-  type: NodePort
-  port: 80
-  targetPort: 3000
+  type: ClusterIP
 
 plugins: ""
 
 grafana.ini:
   server:
-    root_url: https://130.216.216.45:30333/
+    root_url: https://130.216.216.45:8088/
     domain: 130.216.216.45
   users:
     viewers_can_edit: true
