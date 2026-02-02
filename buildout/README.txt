@@ -120,3 +120,9 @@ TO DO:
   instance that looks like the copied one.
 - Maybe figure out backups? Although if you solve the previous step, that's
   that backup strategy, isn't it? Just archive the docker volumes.
+
+Observability
+
+- Observability use grafana stack deployed in a kubernetes cluster (light weight kubernetes, k3s)
+- K9s is a good tool to manage the clusterd 
+- run playbook build_observability_full.yaml to deploy observability to target VM 
