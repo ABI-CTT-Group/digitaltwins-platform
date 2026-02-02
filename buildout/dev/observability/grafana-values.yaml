@@ -7,12 +7,12 @@ service:
 
 plugins: ""
 
-grafana.ini:
+#grafana.ini:
 #  server:
 #    root_url: http://130.216.216.45:30333/
 #    domain: 130.216.216.45
-  users:
-    viewers_can_edit: true
+#  users:
+#    viewers_can_edit: true
 
 persistence:
   enabled: true
