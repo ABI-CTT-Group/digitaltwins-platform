@@ -13,3 +13,17 @@ grafana.ini:
     domain: 130.216.216.45
   users:
     viewers_can_edit: true
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: dititaltwins-log
+        type: loki
+        url: http://loki.loki.svc.cluster.local:3100
+        access: proxy
+        isDefault: true
+      - name: dititaltwins-metric
+        type: prometheus
+        url: http://mimir-gateway.mimir.svc.cluster.local/prometheus
+        access: proxy
