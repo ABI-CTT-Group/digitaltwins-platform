@@ -1,8 +1,10 @@
 service:
-  type: ClusterIP
-  port: 80
+  type: NodePort
+  port: 30333
   targetPort: 3000
+
 plugins: ""
+
 grafana.ini:
   server:
     protocol: https
