@@ -20,6 +20,11 @@
     ansible.builtin.fail:
       msg: "FATAL: The required environment variable KC_CLIENT_SECRET must be set to run this playbook."
     when: lookup('env', 'KC_CLIENT_SECRET') | length == 0
+
+  - name: Verify KC_BOOTSTRAP_ADMIN_PASSWORD environment variable is set
+    ansible.builtin.fail:
+      msg: "FATAL: The required environment variable KC_BOOTSTRAP_ADMIN_PASSWORD must be set to run this playbook."
+    when: lookup('env', 'KC_BOOTSTRAP_ADMIN_PASSWORD') | length == 0
 #########################
 
   - name: Generate ED25519 SSH Keypair for application user
@@ -214,6 +219,18 @@
       path: ./digitaltwins-platform/.env
       regexp: '^KEYCLOAK_CLIENT_SECRET='
       line: KEYCLOAK_CLIENT_SECRET={{ kc_client_secret }}
+      create: true
+      mode: '0600'  # Restrict permissions since it contains a secret
+
+  - name: Set kc_bookstrap_admin_password from environment variable
+    ansible.builtin.set_fact:
+      kc_bootstrap_admin_password: "{{ lookup('env', 'KC_BOOTSTRAP_ADMIN_PASSWORD') }}"
+
+  - name: Ensure KC_BOOTSTRAP_ADMIN_PASSWORD is set in .env
+    ansible.builtin.lineinfile:
+      path: ./digitaltwins-platform/.env
+      regexp: '^KC_BOOTSTRAP_ADMIN_PASSWORD='
+      line: KC_BOOTSTRAP_ADMIN_PASSWORD="{{ kc_bootstrap_admin_password }}"
       create: true
       mode: '0600'  # Restrict permissions since it contains a secret
 
