@@ -83,6 +83,10 @@ KC_HTTPS_KEY_STORE_PASSWORD (for the server.jks you created for https on keycloa
 KC_CLIENT_SECRET            (this is the keycloak "api" client in the digitaltwins realm)
 SEEK_ADMIN_PASSWORD         (the admin user, the 1st user created in the seek system)
 
+KC_HTTPS_KEY_STORE_PASSWORD is used in util/create_server_jks to create a self-signed
+cert used by keycloak, a step that needs to be done manually once, at some point. I
+haven't made it part of the playbook. Maybe it should be?
+
 Then you can run the playbook
 build_all.yaml
 which should leave you with a functioning system
