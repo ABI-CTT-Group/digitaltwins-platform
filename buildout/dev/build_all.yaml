@@ -346,6 +346,3 @@
       docker update --restart unless-stopped $(docker compose ps -q)
     args:
       chdir: ./digitaltwins-platform
-
-
-  - import_tasks: build_observability.yaml
