@@ -1,0 +1,78 @@
+
+service:
+  type: NodePort
+  port: 80
+  targetPort: 3000
+  nodePort: 30333
+
+plugins: ""
+
+#grafana.ini:
+#  server:
+#    root_url: http://130.216.216.45:30333/
+#    domain: 130.216.216.45
+#  users:
+#    viewers_can_edit: true
+
+persistence:
+  enabled: true
+
+initChownData:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 472
+    
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: dititaltwins-log
+        type: loki
+        url: http://loki.loki.svc.cluster.local:3100
+        access: proxy
+        isDefault: true
+      - name: dititaltwins-metric
+        type: prometheus
+        url: http://mimir-gateway.mimir.svc.cluster.local/prometheus
+        access: proxy
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+    - name: 'metric'
+      orgId: 1
+      folder: 'Metric'
+      type: file
+      disableDeletion: false
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/metric
+    - name: 'log'
+      orgId: 1
+      folder: 'Log'
+      type: file
+      disableDeletion: false
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/log
+
+dashboardsConfigMaps:
+  #metric: "docker-metric-dashboard1,docker-metric-dashboard2,docker-metric-dashboard2,vm-metric-dashboard"
+  metric: "metric-dashboards"
+  log: "log-dashboards"
+
+
+#dashboardProviders:
+#  dashboardproviders.yaml:
+#    apiVersion: 1
+#    providers:
+#      - name: 'default'
+#        orgId: 1
+#        folder: ''
+#        type: file
+#        disableDeletion: false
+#        editable: true
+#        options:
+#          path: /var/lib/grafana/dashboards/default
+#dashboardsConfigMaps:
+#  default: grafana-dashboards

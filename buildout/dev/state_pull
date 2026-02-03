@@ -1,4 +1,5 @@
 
+#!/usr/bin/env bash
 BUCKET=terraform-states
 BUCKET_PATH=digitaltwins/dev
 FILE="terraform.tfstate"

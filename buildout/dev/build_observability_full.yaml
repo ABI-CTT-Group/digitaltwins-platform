@@ -1,0 +1,412 @@
+- name: VM setup(kubernetes,observability)
+  hosts: portal drai_mp drai_cc
+  gather_facts: true
+  become: true
+  vars:
+    observability_dir: "{{ lookup('env', 'PWD') }}/observability"
+
+  tasks:
+  - name: Show current working directory
+    ansible.builtin.shell: pwd
+    register: current_dir
+  - name: Print current remote node directory
+    ansible.builtin.debug:
+      msg: "Current remote node work directory is: {{ current_dir.stdout }}"
+  - name: Print current control node directory
+    ansible.builtin.debug:
+      msg: "Current control node work directory is: {{  lookup('env', 'PWD') }}"
+  # Install kube and k3s
+  - name: Install pip3 on remote host
+    ansible.builtin.apt:
+      name: python3-pip
+      state: present
+      update_cache: true
+    become: true
+
+  - name: Install Python Kubernetes client
+    ansible.builtin.pip:
+      name:
+        - kubernetes
+        - pyyaml
+      executable: pip3
+    become: true
+  - name: Download k3s installation script
+    ansible.builtin.get_url:
+      url: https://get.k3s.io
+      dest: /tmp/k3s-install.sh
+      mode: '0755'
+    ignore_errors: yes
+    become: true
+    register: k3s_download
+  - name: Check if k3s is already installed
+    ansible.builtin.stat:
+      path: /usr/local/bin/k3s
+    register: k3s_binary
+    ignore_errors: yes
+  - name: Install k3s (latest version)
+    ansible.builtin.shell: sh /tmp/k3s-install.sh
+    when: 
+      - not k3s_binary.stat.exists
+      - k3s_download is succeeded
+    ignore_errors: yes
+    register: k3s_install
+  - name: Wait for k3s to be ready
+    ansible.builtin.wait_for:
+      port: 6443
+      delay: 5
+      timeout: 300
+    when: 
+      - not k3s_binary.stat.exists
+      - k3s_install is succeeded
+    ignore_errors: yes
+  - name: Ensure k3s service is running
+    ansible.builtin.systemd:
+      name: k3s
+      state: started
+      enabled: yes
+    ignore_errors: yes
+
+  # Install k9s
+
+  - name: Check if k9s is already installed
+    ansible.builtin.stat:
+      path: "/usr/local/bin/k9s"
+    register: k9s_binary
+  - name: Download k9s
+    ansible.builtin.get_url:
+      url: "https://github.com/derailed/k9s/releases/latest/download/k9s_Linux_amd64.tar.gz"
+      dest: "/tmp/k9s.tar.gz"
+    when: not k9s_binary.stat.exists
+
+  - name: Extract k9s
+    ansible.builtin.unarchive:
+      src: "/tmp/k9s.tar.gz"
+      dest: "/usr/local/bin"
+      remote_src: yes
+    become: true
+    when: not k9s_binary.stat.exists
+
+  - name: Ensure k9s is executable
+    ansible.builtin.file:
+      path: "/usr/local/bin/k9s"
+      mode: "0755"
+
+  # Install Helm
+  - name: Check if helm is already installed
+    ansible.builtin.stat:
+      path: /usr/local/bin/helm
+    register: helm_binary
+    ignore_errors: yes
+  - name: Download helm installation script
+    ansible.builtin.get_url:
+      url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+      dest: /tmp/get-helm-3.sh
+      mode: '0755'
+    when: not helm_binary.stat.exists
+    ignore_errors: yes
+    register: helm_download
+  - name: Install helm
+    ansible.builtin.shell: bash /tmp/get-helm-3.sh
+    when: 
+      - not helm_binary.stat.exists
+      - helm_download is succeeded
+    ignore_errors: yes
+  # Configure firewalld for k3s
+  - name: Add k3s pod network to trusted zone
+    ansible.posix.firewalld:
+      zone: trusted
+      source: "{{ item }}"
+      permanent: yes
+      state: enabled
+    loop:
+      - 10.42.0.0/16
+      - 10.43.0.0/16
+    ignore_errors: yes
+    become: true
+
+    
+  - name: Add k3s interfaces to trusted zone
+    ansible.posix.firewalld:
+      zone: trusted
+      interface: "{{ item }}"
+      permanent: yes
+      state: enabled
+    loop:
+      - cni0
+      - flannel.1
+    ignore_errors: yes
+    become: true
+
+  - name: Enable masquerade
+    ansible.posix.firewalld:
+      masquerade: yes
+      permanent: yes
+      state: enabled
+    ignore_errors: yes
+  - name: Reload firewalld
+    ansible.builtin.systemd:
+      name: firewalld
+      state: reloaded
+    ignore_errors: yes
+  # Copy observability files to remote
+  - name: Create observability directory on remote
+    ansible.builtin.file:
+      path: /tmp/observability
+      state: directory
+      mode: '0755'
+    ignore_errors: yes
+  - name: Copy observability files
+    ansible.builtin.copy:
+      src: "{{ item }}"
+      dest: /tmp/observability/
+    loop:
+      - "{{ observability_dir }}/grafana-values.yaml"
+      - "{{ observability_dir }}/loki-values.yaml"
+      - "{{ observability_dir }}/mimir-values.yaml"
+      - "{{ observability_dir }}/charts/grafana-10.5.4.tgz"
+      - "{{ observability_dir }}/charts/loki-6.49.0.tgz"
+      - "{{ observability_dir }}/charts/mimir-distributed-6.1.0-weekly.378.tgz"
+      - "{{ observability_dir }}/dashboards/cm-log-dashboards.yaml"
+      - "{{ observability_dir }}/dashboards/cm-metric-dashboards.yaml"
+    ignore_errors: yes
+  # Set KUBECONFIG environment
+  - name: Set KUBECONFIG environment variable
+    ansible.builtin.lineinfile:
+      path: "{{ ansible_env.HOME}}/.bashrc"
+      line: 'export KUBECONFIG=/etc/rancher/k3s/k3s.yaml'
+      state: present
+    become: true
+    ignore_errors: yes
+  # Deploy Grafana Stack
+  - name: Add Grafana helm repo
+    kubernetes.core.helm_repository:
+      name: grafana
+      repo_url: https://grafana.github.io/helm-charts
+    environment:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    ignore_errors: yes
+  - name: Update helm repos
+    ansible.builtin.command: helm repo update
+    environment:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    changed_when: false
+    ignore_errors: yes
+  # Deploy Grafana
+  - name: Create grafana namespace
+    kubernetes.core.k8s:
+      name: grafana
+      api_version: v1
+      kind: Namespace
+      state: present
+    environment:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    ignore_errors: yes
+  - name: Apply Grafana dashboard ConfigMaps (ignore failures)
+    vars:
+      kubeconf: /etc/rancher/k3s/k3s.yaml
+      grafana_ns: grafana
+      cm_files:
+        - /tmp/observability/cm-log-dashboards.yaml
+        - /tmp/observability/cm-metric-dashboards.yaml
+    kubernetes.core.k8s:
+      state: present
+      apply: true
+      wait: true
+      kubeconfig: "{{ kubeconf }}"
+      namespace: "{{ grafana_ns }}"
+      src: "{{ item }}"
+    loop: "{{ cm_files }}"
+    ignore_errors: yes
+  - name: Deploy Grafana
+    kubernetes.core.helm:
+      name: grafana
+      chart_ref: /tmp/observability/grafana-10.5.4.tgz
+      release_namespace: grafana
+      values_files:
+        - /tmp/observability/grafana-values.yaml
+      create_namespace: false
+    environment:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    ignore_errors: yes
+    register: grafana_deploy
+  # Deploy Loki
+  - name: Create loki namespace
+    kubernetes.core.k8s:
+      name: loki
+      api_version: v1
+      kind: Namespace
+      state: present
+    environment:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    ignore_errors: yes
+  - name: Deploy Loki
+    kubernetes.core.helm:
+      name: loki
+      chart_ref: /tmp/observability/loki-6.49.0.tgz
+      release_namespace: loki
+      values_files:
+        - /tmp/observability/loki-values.yaml
+      create_namespace: false
+    environment:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    ignore_errors: yes
+    register: loki_deploy
+  # Deploy Mimir
+  - name: Create mimir namespace
+    kubernetes.core.k8s:
+      name: mimir
+      api_version: v1
+      kind: Namespace
+      state: present
+    environment:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    ignore_errors: yes
+  - name: Deploy Mimir
+    kubernetes.core.helm:
+      name: mimir
+      chart_ref: /tmp/observability/mimir-distributed-6.1.0-weekly.378.tgz
+      release_namespace: mimir
+      values_files:
+        - /tmp/observability/mimir-values.yaml
+      create_namespace: false
+    environment:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    ignore_errors: yes
+    register: mimir_deploy
+  # Install Alloy
+  - name: Check if alloy is already installed
+    ansible.builtin.stat:
+      path: /usr/local/bin/alloy
+    register: alloy_binary
+    ignore_errors: yes
+  - name: Download and install alloy
+    ansible.builtin.shell: |
+      curl -fsSL https://github.com/grafana/alloy/releases/latest/download/alloy-linux-amd64.zip | funzip > /usr/local/bin/alloy
+      chmod +x /usr/local/bin/alloy
+    when: not alloy_binary.stat.exists
+    ignore_errors: yes
+  - name: Create alloy user
+    ansible.builtin.user:
+      name: alloy
+      system: yes
+      create_home: no
+      shell: /usr/sbin/nologin
+      state: present
+    ignore_errors: yes
+  - name: Create alloy config directory
+    ansible.builtin.file:
+      path: /etc/alloy
+      state: directory
+      owner: alloy
+      group: alloy
+      mode: '0755'
+    ignore_errors: yes
+  - name: Copy alloy config file
+    ansible.builtin.copy:
+      src: "{{ observability_dir }}/config.alloy"
+      dest: /etc/alloy/config.alloy
+      owner: alloy
+      group: alloy
+      mode: '0644'
+    ignore_errors: yes
+  - name: Copy alloy systemd service file
+    ansible.builtin.copy:
+      src: "{{ observability_dir }}/alloy.service"
+      dest: /etc/systemd/system/alloy.service
+      mode: '0644'
+    ignore_errors: yes
+  - name: Add alloy user to docker group
+    ansible.builtin.user:
+      name: alloy
+      groups: docker
+      append: yes
+    ignore_errors: yes
+  - name: Create alloy data directory
+    ansible.builtin.file:
+      path: /var/lib/alloy
+      state: directory
+      owner: alloy
+      group: alloy
+      mode: '0755'
+    ignore_errors: yes
+  - name: Reload systemd daemon
+    ansible.builtin.systemd:
+      daemon_reload: yes
+    ignore_errors: yes
+  - name: Enable and start alloy service
+    ansible.builtin.systemd:
+      name: alloy
+      state: started
+      enabled: yes
+    ignore_errors: yes
+    register: alloy_service
+  # Setup port forwarding (using nohup to run in background)
+  - name: Create port-forward script
+    ansible.builtin.copy:
+      dest: /usr/local/bin/k3s-port-forward.sh
+      mode: '0755'
+      content: |
+        #!/bin/bash
+        export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+        
+        # Kill existing port-forward processes
+        pkill -f "kubectl.*port-forward" || true
+        
+        # Start port forwarding
+        nohup kubectl -n loki port-forward svc/loki-gateway 3100:80 > /var/log/loki-port-forward.log 2>&1 &
+        nohup kubectl -n mimir port-forward svc/mimir-gateway 9005:8080 > /var/log/mimir-port-forward.log 2>&1 &
+        nohup kubectl -n kube-system port-forward svc/metrics-server 8443:443 > /var/log/metrics-port-forward.log 2>&1 &
+    ignore_errors: yes
+  - name: Execute port-forward script
+    ansible.builtin.shell: /usr/local/bin/k3s-port-forward.sh
+    async: 10
+    poll: 0
+    ignore_errors: yes
+  - name: Create systemd service for port forwarding
+    ansible.builtin.copy:
+      dest: /etc/systemd/system/k3s-port-forward.service
+      mode: '0644'
+      content: |
+        [Unit]
+        Description=K3s Port Forward Service
+        After=k3s.service
+        Requires=k3s.service
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/bin/k3s-port-forward.sh
+        RemainAfterExit=yes
+        [Install]
+        WantedBy=multi-user.target
+    ignore_errors: yes
+  - name: Enable port-forward service
+    ansible.builtin.systemd:
+      name: k3s-port-forward
+      daemon_reload: yes
+      enabled: yes
+    ignore_errors: yes
+  # Cleanup
+  - name: Clean up temporary files
+    ansible.builtin.file:
+      path: "{{ item }}"
+      state: absent
+    loop:
+      - /tmp/k3s-install.sh
+      - /tmp/get-helm-3.sh
+      - /tmp/observability
+    ignore_errors: yes
+  # Summary report
+  - name: Generate deployment summary
+    ansible.builtin.debug:
+      msg:
+        - "=========================================="
+        - "Deployment Summary:"
+        - "=========================================="
+        - "K3s Installation: {{ 'SUCCESS' if k3s_install is succeeded else 'FAILED/SKIPPED' }}"
+        - "Grafana Deployment: {{ 'SUCCESS' if grafana_deploy is succeeded else 'FAILED/SKIPPED' }}"
+        - "Loki Deployment: {{ 'SUCCESS' if loki_deploy is succeeded else 'FAILED/SKIPPED' }}"
+        - "Mimir Deployment: {{ 'SUCCESS' if mimir_deploy is succeeded else 'FAILED/SKIPPED' }}"
+        - "Alloy Service: {{ 'SUCCESS' if alloy_service is succeeded else 'FAILED/SKIPPED' }}"
+        - "=========================================="
+        - "Port forwards: Loki (3100), Mimir (9005), Metrics-server (8443)"
+        - "Use 'k9s' command to manage your cluster"
+        - "Check failed tasks and review logs for errors"

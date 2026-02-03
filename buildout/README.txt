@@ -124,3 +124,24 @@ TO DO:
   instance that looks like the copied one.
 - Maybe figure out backups? Although if you solve the previous step, that's
   that backup strategy, isn't it? Just archive the docker volumes.
+
+# Observability
+
+- The work branch is `buildout+observability`
+- Observability use grafana stack which deployed in a kubernetes cluster (light weight kubernetes, k3s)
+- The components of grafana stack include grafana, loki, mimir, alloy, the related resource are stored in folder `/buildout/dev/observability`
+- K9s is a high efficient tool to manage the k8s cluster and will be deployed by ansible to target VM
+
+## Setup Instructions
+
+- Switch to branch `buildout+observability`, navigate to folder `/buildout/dev`
+- Run the ansible playbook `build_observability_full.yaml` to deploy all observability to target VM
+```bash
+  ansible-playbook build_observability_full.yaml -i inventory/on-prem -l portal
+```
+- Run k9s to get admin password from secret grafana in the namespace grafana in the k3s cluster
+- Login to system with URL  http://the-vm-ip:30333
+- The deployment will set the datasource and dashboards for both logs and metrics
+- The dashboardsare stored at folder `buildout/dev/observability/dashboards`, which will be applied as configmap in deployment
+- The helm chart package file and the customized values.yaml of grafana,mimir,loki are in folder `buildout/dev/observability`
+  User can adjust the configuration and resources request in the customized values.yaml

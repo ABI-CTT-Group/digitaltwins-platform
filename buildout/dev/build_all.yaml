@@ -1,6 +1,6 @@
-- name: keycloak setup
+- name: VM setup(keycloak,kubernetes,observability)
   gather_facts: false
-  hosts: portal drai_mp
+  hosts: portal drai_mp drai_cc
 
   tasks:
 
