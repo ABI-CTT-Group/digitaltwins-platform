@@ -430,3 +430,11 @@
       group: "{{ ansible_user }}"
       mode: '0600'
     become: true
+
+  - name: Ensure KUBECONFIG is in .bash_aliases
+    ansible.builtin.lineinfile:
+      path: ./.bash_aliases
+      regexp: '^export KUBECONFIG='
+      line: "export KUBECONFIG=~/.kube/config"
+      create: true
+      mode: '0600'  # Restrict permissions since it contains a secret
