@@ -315,17 +315,17 @@
   - name: admin user
     ansible.builtin.command: "./create-admin-user.sh admin {{ seek_admin_password }} matt.pestle@auckland.ac.nz"
     args:
-      chdir: ./twins_buildout/util
+      chdir: ./digitaltwins-platform/buildout/util
 
   - name: features 
     ansible.builtin.command: "./enable-features.sh"
     args:
-      chdir: ./twins_buildout/util
+      chdir: ./digitaltwins-platform/buildout/util
 
   - name: token 
     ansible.builtin.command: "./generate-token.sh"
     args:
-      chdir: ./twins_buildout/util
+      chdir: ./digitaltwins-platform/buildout/util
 
 
 ##########

@@ -6,6 +6,13 @@ services:
     restart: unless-stopped
     networks:
       - digitaltwins
+  cadvisor:
+    extends:
+      file: ./services/cadvisor/docker-compose.yml
+      service: cadvisor
+    restart: unless-stopped
+    networks:
+      - digitaltwins
   portal-backend:
     extends:
       file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
