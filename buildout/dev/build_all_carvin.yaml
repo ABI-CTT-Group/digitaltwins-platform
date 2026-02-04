@@ -1,5 +1,9 @@
+#run ansible playbook as root user in the control node
+#ansible-playbook build_all_carvin.yaml -i inventory/on-prem -l drai_cc
+#some task with sed command need write permission in the target node, set become: true 
 - name: VM setup(keycloak,kubernetes,observability)
-  gather_facts: false
+  gather_facts: true
+  become: false
   hosts: portal drai_mp drai_cc
 
   tasks:
@@ -42,34 +46,34 @@
       flat: yes
       fail_on_missing: yes
 
-  - name: Add fetched public keys to localhost authorized_keys
-    ansible.posix.authorized_key:
-      user: "ubuntu"
-      state: present
-      # Use the 'item' variable (the host name) in the lookup path
-      key: "{{ lookup('file', '/tmp/fetched_keys_{{ item }}.pub') }}"
-      comment: '{{ item }} - remote access key'
-    delegate_to: localhost
-    # Loop over all hosts that were active in the current play
-    loop: "{{ play_hosts }}"
-    # Ensure the loop only runs once on the control machine, 
-    # but processes all keys sequentially.
-    run_once: true
+#  - name: Add fetched public keys to localhost authorized_keys
+#    ansible.posix.authorized_key:
+#      user: "root"
+#      state: present
+#      # Use the 'item' variable (the host name) in the lookup path
+#      key: "{{ lookup('file', '/tmp/fetched_keys_{{ item }}.pub') }}"
+#      comment: '{{ item }} - remote access key'
+#    delegate_to: localhost
+#    # Loop over all hosts that were active in the current play
+#    loop: "{{ play_hosts }}"
+#    # Ensure the loop only runs once on the control machine,
+#    # but processes all keys sequentially.
+#    run_once: true
 
-  - name: Add 'gendev' SSH configuration block using blockinfile
-    ansible.builtin.blockinfile:
-      path: .ssh/config
-      block: |
-        Host gendev
-            User ubuntu
-            Hostname 163.7.144.201
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
-            LogLevel ERROR
-      marker: "# {mark} ANSIBLE MANAGED BLOCK for gendev"
-      create: true
-      state: present
-      mode: '0644'
+#  - name: Add 'gendev' SSH configuration block using blockinfile
+#    ansible.builtin.blockinfile:
+#      path: .ssh/config
+#      block: |
+#        Host gendev
+#            User ubuntu
+#            Hostname 122.57.79.149
+#            StrictHostKeyChecking no
+#            UserKnownHostsFile /dev/null
+#            LogLevel ERROR
+#      marker: "# {mark} ANSIBLE MANAGED BLOCK for gendev"
+#      create: true
+#      state: present
+#      mode: '0644'
 
 
 ###
@@ -129,7 +133,7 @@
       dest: ./digitaltwins-platform
       force: yes
       recursive: yes  # submodules
-      version: buildout
+      version: buildout+observability
 
   - name: update submodules
     ansible.builtin.command: git submodule update --remote --recursive
@@ -254,18 +258,21 @@
       chdir: ./digitaltwins-platform
 
   - name: allow_headers
+    become: true
     shell: |
       sed -i "s/^access_control_allow_headers.*$/access_control_allow_headers = origin, content-type, accept/" ./services/airflow/config/airflow.cfg
     args:
       chdir: ./digitaltwins-platform
 
   - name: allow_methods
+    become: true
     shell: |
       sed -i "s/^access_control_allow_methods.*/access_control_allow_methods = POST, GET, OPTIONS, DELETE/" ./services/airflow/config/airflow.cfg
     args:
       chdir: ./digitaltwins-platform
 
   - name: allow_origins
+    become: true
     shell: |
       sed -i "s/^access_control_allow_origins.*/access_control_allow_origins = /" ./services/airflow/config/airflow.cfg
     args:
@@ -276,18 +283,21 @@
       kc_https_key_store_password: "{{ lookup('env', 'KC_HTTPS_KEY_STORE_PASSWORD') }}"
 
   - name: keystore password 1
+    become: true
     shell: |
       sed -i "s/KC_HTTPS_KEY_STORE_PASSWORD=.*/KC_HTTPS_KEY_STORE_PASSWORD=\"{{ kc_https_key_store_password }}\"/g" .env
     args:
       chdir: ./digitaltwins-platform
 
   - name: keystore password 2
+    become: true
     shell: |
       sed -i "s/#KC_HTTPS_KEY_STORE_PASSWORD=/KC_HTTPS_KEY_STORE_PASSWORD=/g" .env
     args:
       chdir: ./digitaltwins-platform
 
   - name: keystore password
+    become: true
     shell: |
       sed -i "s/CLIENT_SECRET=.*/CLIENT_SECRET=\"{{ kc_client_secret }}\"/g" .env
     args:
@@ -299,6 +309,7 @@
       chdir: ./digitaltwins-platform
 
   - name: PWD replace
+    become: true
     shell: |
       sed -i 's/\${PWD}\//.\//g' ./services/seek/ldh-deployment/docker-compose.yml
     args:
@@ -341,7 +352,7 @@
     ansible.builtin.shell: sleep 60
     changed_when: true # Ensures the task reports 'changed' every time it runs
 
-######### 
+#########
 
   - name: Set SEEK_ADMIN_PASSWORD from environment variable
     ansible.builtin.set_fact:
@@ -352,12 +363,13 @@
     args:
       chdir: ./digitaltwins-platform/buildout/util
 
-  - name: features 
+  - name: features
     ansible.builtin.command: "./enable-features.sh"
     args:
       chdir: ./digitaltwins-platform/buildout/util
 
-  - name: token 
+  - name: token
+    become: false
     ansible.builtin.command: "./generate-token.sh"
     args:
       chdir: ./digitaltwins-platform/buildout/util
@@ -380,3 +392,6 @@
       docker update --restart unless-stopped $(docker compose ps -q)
     args:
       chdir: ./digitaltwins-platform
+
+
+- import_playbook: build_observability_full.yaml
