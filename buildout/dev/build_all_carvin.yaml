@@ -381,5 +381,5 @@
     args:
       chdir: ./digitaltwins-platform
 
+  - include_tasks: build_observability_sub.yml
 
-- import_playbook: build_observability_sub.yaml
