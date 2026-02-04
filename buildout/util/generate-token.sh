@@ -6,7 +6,7 @@
 SEEK_TOKEN_FILE_NAME=${SEEK_TOKEN_FILE_NAME:=~/keys/seek_api_token.txt}
 CONTAINER_NAME="digitaltwins-platform-seek-1"
 USERNAME=${1:-admin}
-CONFIG_FILE=~/digitaltwins-platform/services/api/digitaltwins-api/configs.ini
+CONFIG_FILE=/home/ubuntu/digitaltwins-platform/services/api/digitaltwins-api/configs.ini
 
 [[ -f "$CONFIG_FILE" ]] || {
     echo "No config file $CONFIG_FILE"

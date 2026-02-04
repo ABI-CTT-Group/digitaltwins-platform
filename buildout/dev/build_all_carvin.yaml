@@ -1,7 +1,7 @@
 - name: VM setup(keycloak,kubernetes,observability)
+  gather_facts: false
   hosts: portal drai_mp drai_cc
-  gather_facts: true
-  become: true
+
   tasks:
 
 #########################
@@ -42,34 +42,34 @@
       flat: yes
       fail_on_missing: yes
 
-  - name: Add fetched public keys to localhost authorized_keys
-    ansible.posix.authorized_key:
-      user: "root"
-      state: present
-      # Use the 'item' variable (the host name) in the lookup path
-      key: "{{ lookup('file', '/tmp/fetched_keys_{{ item }}.pub') }}"
-      comment: '{{ item }} - remote access key'
-    delegate_to: localhost
-    # Loop over all hosts that were active in the current play
-    loop: "{{ play_hosts }}"
-    # Ensure the loop only runs once on the control machine,
-    # but processes all keys sequentially.
-    run_once: true
+#  - name: Add fetched public keys to localhost authorized_keys
+#    ansible.posix.authorized_key:
+#      user: "root"
+#      state: present
+#      # Use the 'item' variable (the host name) in the lookup path
+#      key: "{{ lookup('file', '/tmp/fetched_keys_{{ item }}.pub') }}"
+#      comment: '{{ item }} - remote access key'
+#    delegate_to: localhost
+#    # Loop over all hosts that were active in the current play
+#    loop: "{{ play_hosts }}"
+#    # Ensure the loop only runs once on the control machine,
+#    # but processes all keys sequentially.
+#    run_once: true
 
-  - name: Add 'gendev' SSH configuration block using blockinfile
-    ansible.builtin.blockinfile:
-      path: .ssh/config
-      block: |
-        Host gendev
-            User ubuntu
-            Hostname 122.57.79.149
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
-            LogLevel ERROR
-      marker: "# {mark} ANSIBLE MANAGED BLOCK for gendev"
-      create: true
-      state: present
-      mode: '0644'
+#  - name: Add 'gendev' SSH configuration block using blockinfile
+#    ansible.builtin.blockinfile:
+#      path: .ssh/config
+#      block: |
+#        Host gendev
+#            User ubuntu
+#            Hostname 122.57.79.149
+#            StrictHostKeyChecking no
+#            UserKnownHostsFile /dev/null
+#            LogLevel ERROR
+#      marker: "# {mark} ANSIBLE MANAGED BLOCK for gendev"
+#      create: true
+#      state: present
+#      mode: '0644'
 
 
 ###
@@ -381,5 +381,5 @@
     args:
       chdir: ./digitaltwins-platform
 
-  - include_tasks: build_observability_sub.yml
 
+- import_playbook: build_observability_full.yaml
