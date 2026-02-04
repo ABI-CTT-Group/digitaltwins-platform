@@ -1,7 +1,7 @@
 - name: VM setup(keycloak,kubernetes,observability)
-  gather_facts: false
   hosts: portal drai_mp drai_cc
-
+  gather_facts: true
+  become: true
   tasks:
 
 #########################
