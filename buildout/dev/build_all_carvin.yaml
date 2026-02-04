@@ -130,7 +130,7 @@
       dest: ./digitaltwins-platform
       force: yes
       recursive: yes  # submodules
-      version: buildout
+      version: buildout+observability
 
   - name: update submodules
     ansible.builtin.command: git submodule update --remote --recursive
