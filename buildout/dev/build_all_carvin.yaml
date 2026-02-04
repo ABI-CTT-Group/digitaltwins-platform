@@ -44,7 +44,7 @@
 
   - name: Add fetched public keys to localhost authorized_keys
     ansible.posix.authorized_key:
-      user: "ubuntu"
+      user: "root"
       state: present
       # Use the 'item' variable (the host name) in the lookup path
       key: "{{ lookup('file', '/tmp/fetched_keys_{{ item }}.pub') }}"
@@ -52,7 +52,7 @@
     delegate_to: localhost
     # Loop over all hosts that were active in the current play
     loop: "{{ play_hosts }}"
-    # Ensure the loop only runs once on the control machine, 
+    # Ensure the loop only runs once on the control machine,
     # but processes all keys sequentially.
     run_once: true
 
@@ -62,7 +62,7 @@
       block: |
         Host gendev
             User ubuntu
-            Hostname 163.7.144.201
+            Hostname 122.57.79.149
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
             LogLevel ERROR
@@ -380,3 +380,6 @@
       docker update --restart unless-stopped $(docker compose ps -q)
     args:
       chdir: ./digitaltwins-platform
+
+
+- import_playbook: build_observability_sub.yaml
