@@ -1,3 +1,6 @@
+#run ansible playbook as root user in the control node
+#ansible-playbook build_all_carvin.yaml -i inventory/on-prem -l drai_cc
+#some task with sed command need write permission in the target node, set become: true 
 - name: VM setup(keycloak,kubernetes,observability)
   gather_facts: true
   become: false
