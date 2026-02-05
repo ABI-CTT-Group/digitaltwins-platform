@@ -5,6 +5,9 @@ service:
   targetPort: 3000
   nodePort: 30333
 
+adminUser: admin
+adminPassword: strongpassword
+
 plugins: ""
 
 #grafana.ini:
@@ -18,9 +21,8 @@ persistence:
   enabled: true
 
 initChownData:
-  securityContext:
-    runAsNonRoot: true
-    runAsUser: 472
+  enabled: false
+
     
 datasources:
   datasources.yaml:
