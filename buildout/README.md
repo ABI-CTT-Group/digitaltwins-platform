@@ -1,8 +1,9 @@
 How to build out digital twins platform (terraform/ansible)
-on an openstack cloud platform (here we use nectar).
+on an openstack cloud platform (here we use nectar). Includes
+an observability stack in k3s.
 
-matt.pestle@auckland.ac.nz
-Nov 2025
+carvin.chen@auckland.ac.nz, matt.pestle@auckland.ac.nz
+Feb 2026
 
 Create your nectar password for connecting to the cloud provider.
 (see nectar tutorial)
@@ -80,7 +81,7 @@ Host abi_portal
 But one way or another, you need to get so you can get on the VM and then
 put the appropriate definition in inventory/on-prem
 
-Set and export these 3 environment variables with your secrets:
+Set and export these environment variables with your secrets (see `env.template`):
 - KC_HTTPS_KEY_STORE_PASSWORD (for the server.jks you created for https on keycloak)
 - KC_CLIENT_SECRET            (this is the keycloak "api" client in the digitaltwins realm)
 - SEEK_ADMIN_PASSWORD         (the admin user, the 1st user created in the seek system)
