@@ -6,6 +6,20 @@
     observability_dir: "{{ lookup('env', 'PWD') }}/observability"
 
   tasks:
+
+#########################
+# Make sure required env variables are set
+  - name: Verify GRAFANA_ADMIN_PASSWORD environment variable is set
+    ansible.builtin.fail:
+      msg: "FATAL: The required environment variable GRAFANA_ADMIN_PASSWORD must be set to run this playbook."
+    when: lookup('env', 'GRAFANA_ADMIN_PASSWORD') | length == 0
+
+  - name: Set grafan_admin_password from environment variable
+    ansible.builtin.set_fact:
+      grafana_admin_password: "{{ lookup('env', 'GRAFANA_ADMIN_PASSWORD') }}"
+#########################
+
+
   - name: Show current working directory
     ansible.builtin.shell: pwd
     register: current_dir
@@ -224,6 +238,9 @@
       release_namespace: grafana
       values_files:
         - /tmp/observability/grafana-values.yaml
+      values:
+        adminUser: "admin"
+        adminPassword: "{{ grafana_admin_password }}"
       create_namespace: false
     environment:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
@@ -268,10 +285,6 @@
       release_namespace: mimir
       values_files:
         - /tmp/observability/mimir-values.yaml
-      values:
-        nginx:
-          service:
-            port: 81
       create_namespace: false
     environment:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
@@ -442,3 +455,26 @@
       line: "export KUBECONFIG=~/.kube/config"
       create: true
       mode: '0600'  # Restrict permissions since it contains a secret
+
+  - name: Configure K3s service to disable Traefik
+    ansible.builtin.lineinfile:
+      path: /etc/systemd/system/k3s.service
+      # MATCH: We look for the line ending in "server \"
+      # We use \\ to match a literal backslash in regex
+      insertafter: '^\s*server\s*\\$'
+      
+      # THE NEW LINE: Add the flag with its own backslash for continuation
+      line: '    --disable traefik \'
+      
+      # IDEMPOTENCE: Ensure we don't add it if it's already there
+      regexp: '^\s*--disable traefik'
+      
+      state: present
+    notify: Restart K3s
+
+  handlers:
+    - name: Restart K3s
+      ansible.builtin.service:
+        name: k3s
+        state: restarted
+        daemon_reload: yes  # Critical: Reloads the unit file changes
