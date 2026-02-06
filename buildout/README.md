@@ -31,43 +31,43 @@ so I've put my dev one into the dev directory.
 Or equivalently match the cloud name in provider.tf somehow.
 
 
-backend.tf - So far I have been unable to use nectar's object store to store the terraform
-state file, so currently I am doing this locally and then using state_push
+backend.tf - So far Matt has been unable to use nectar's object store to store the terraform
+state file, so currently we are doing this locally and then using state_push
 and state_pull so others (with access to our openstack project)
-can use the same state. Have advised Sean Matheny about this (NeSI's object store works
+can use the same state. We have advised Sean Matheny about this (NeSI's object store works
 for this purpose). He's investigating.
 
 In the meantime, this backend.tf defines a local state file which can be pushed
 to a Nectar object store using state_push, or pulled from using state_pull. So if you
-want to adjust what I have done,
+want to adjust what Matt has done,
 - state_pull
 - make your terraform changes and apply
 - state_push
 
-so the next time I come along I can do the same. There's no locking here with this method,
+so the next time someone else comes along they can do the same. There's no locking here with this method,
 but there's few enough of us using this we can probably get away with it.
 
-I created a container/bucket named terraform-states and I am pushing the state file
+Matt created a container/bucket named terraform-states and this script is pushing the state file
 to digitaltwins/dev/terraform.tfstate in that container
-(I wonder if my bucket should be named something a little more specific to this project??)
+(should the bucket be named something a little more specific to this project??)
 
 
 existing_stuff.tf data entities about stuff that was created outside terraform
 in particular:
     - network names
     - image name used for the VM
-    - the flavor used for the VM (r3.medium - 16GB RAM)
-    - the keypair used for the VM (I created one called drai_keypair)
+    - the flavor used for the VM (r3.medium - 16GB RAM, eg.)
+    - the keypair used for the VM (we are using one called drai-inn-keypair)
 
-(note that my terraform defines a 100GB root file system volume, not the 8GB
+(note that the terraform defines a 100GB root file system volume, not the 8GB
 that would normally arrive with r3.medium).
 
-After the VM comes up and you have its IP, I have then set up my ssh configuration
+After the VM comes up and you have its IP, you can then set up your ssh configuration
 so that 
     ssh abi_portal
-gets me into the VM.
+gets you into the VM.
 
-I personally did this by putting this in my ~/.ssh/config:
+You can do this by putting this in your ~/.ssh/config:
 
 ```
 Host abi_portal
@@ -79,7 +79,8 @@ Host abi_portal
 ```
 
 But one way or another, you need to get so you can get on the VM and then
-put the appropriate definition in inventory/on-prem
+put the appropriate definition in inventory/on-prem (we are keeping this
+file in the repo, and it is hopefully up to date)
 
 Set and export these environment variables with your secrets (see `env.template`):
 - KC_HTTPS_KEY_STORE_PASSWORD (for the server.jks you created for https on keycloak)
@@ -149,7 +150,7 @@ the grafana admin password (see GCP in mygen3 project, under the digital_twins_g
 ```
 - restart docker with "docker compose down; docker compose up -d" . This is because the mimir
 installation grabs port 80 and kills the digital twins portal. Still more work to do here.
-I added the "--disable-traefik" in an attempt to avoid this port grab. Another option is
+Matt added the "--disable-traefik" in an attempt to avoid this port grab. Another option is
 to change the port with an nginx:system:port value setting.
 - Login to system with URL  http://the-vm-ip:30333 with admin $GRAFANA_ADMIN_PASSWORD
 - The deployment will set the datasource and dashboards for both logs and metrics
@@ -163,3 +164,26 @@ kubectl -n mimir port-forward svc/mimir-gateway  9005:8080 &
 kubectl -n kube-system port-forward svc/metrics-server 8443:443 &
 ```
 manually.
+
+
+## Ports
+
+Digital twins run up by itself seems to grab:
+- 80
+- 8080
+- 8000, 8001, 8002, 8003, 8004
+- 8008, 8009, 8010, 8011, 8012, 8014, 8015
+
+Observability run up by itself seems to grab:
+- 80 (temporarily)
+- 8443
+- 6444
+- 9005
+- 10250
+- and somewhere at the kernel level (k3s??) it's also clearly attaching 30333 to run grafana
+(although this doesn't show up in `ss -tpna`)
+
+There are a lot of other ports tied up, but only on localhost. So the above
+are the ones that I think need to be addressed at a firewall level. Or, probably
+better, if those don't need to be exposed, figure out how to bind them to 
+localhost instead of 0.0.0.0.
