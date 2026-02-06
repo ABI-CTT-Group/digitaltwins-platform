@@ -134,14 +134,24 @@ TO DO:
 
 ## Setup Instructions
 
-- Switch to branch `buildout+observability`, navigate to folder `/buildout/dev`
+
+- Switch to branch `buildout`, navigate to folder `/buildout/dev`
+(the buildout+observability branch has been merged to just buildout)
+- Ensure the GRAFANA_ADMIN_PASSWORD env variable is set with the value you want to use as
+the grafana admin password (see GCP in mygen3 project, under the digital_twins_grafana_admin secret)
+(see env.template)
 - Run the ansible playbook `build_observability_full.yaml` to deploy all observability to target VM
 ```bash
   ansible-playbook build_observability_full.yaml -i inventory/on-prem -l portal
 ```
-- Run k9s to get admin password from secret grafana in the namespace grafana in the k3s cluster
-- Login to system with URL  http://the-vm-ip:30333
+- Login to system with URL  http://the-vm-ip:30333 with admin $GRAFANA_ADMIN_PASSWORD
 - The deployment will set the datasource and dashboards for both logs and metrics
 - The dashboardsare stored at folder `buildout/dev/observability/dashboards`, which will be applied as configmap in deployment
 - The helm chart package file and the customized values.yaml of grafana,mimir,loki are in folder `buildout/dev/observability`
   User can adjust the configuration and resources request in the customized values.yaml
+- I think that after you run build_observability_full.yaml, which restarts k3s, you need to:
+```bash
+kubectl -n loki port-forward svc/loki-gateway 3100:80 &
+kubectl -n mimir port-forward svc/mimir-gateway  9005:8080 &
+kubectl -n kube-system port-forward svc/metrics-server 8443:443 &
+```
