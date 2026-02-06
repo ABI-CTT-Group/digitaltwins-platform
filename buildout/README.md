@@ -87,9 +87,13 @@ KC_HTTPS_KEY_STORE_PASSWORD is used in util/create_server_jks to create a self-s
 cert used by keycloak, a step that needs to be done manually once, at some point. I
 haven't made it part of the playbook. Maybe it should be?
 
-Then you can run the playbook
-build_all.yaml
-which should leave you with a functioning system
+GRAFANA_ADMIN is used to set the admin password for grafana in build_observability_full.yaml
+
+Then you can run the playbook build_all.yaml
+```bash
+  ansible-playbook build_all.yaml -i inventory/on-prem -l portal
+```
+which should leave you with a functioning digital twins system
 (modulo the fix.sh that may need to be carried out, or anything else
 that breaks it in the meantime).
 
@@ -116,8 +120,6 @@ in the system, however, running ansible again may clobber something? Best to che
 
 
 TO DO:
-- You should manually change the admin password on the keycloak instance
-  (it's admin/admin by default)
 - Get seek integrated with keycloak
 - Get portal integrated with keycloak
 - Figure out if you can just copy docker volumes to bring up another
@@ -127,7 +129,7 @@ TO DO:
 
 # Observability
 
-- The work branch is `buildout+observability`
+- The work branch is `buildout+observability`. Merging into buildout when desired.
 - Observability use grafana stack which deployed in a kubernetes cluster (light weight kubernetes, k3s)
 - The components of grafana stack include grafana, loki, mimir, alloy, the related resource are stored in folder `/buildout/dev/observability`
 - K9s is a high efficient tool to manage the k8s cluster and will be deployed by ansible to target VM
@@ -144,14 +146,19 @@ the grafana admin password (see GCP in mygen3 project, under the digital_twins_g
 ```bash
   ansible-playbook build_observability_full.yaml -i inventory/on-prem -l portal
 ```
+- restart docker with "docker compose down; docker compose up -d" . This is because the mimir
+installation grabs port 80 and kills the digital twins portal. Still more work to do here.
+I added the "--disable-traefik" in an attempt to avoid this port grab. Another option is
+to change the port with an nginx:system:port value setting.
 - Login to system with URL  http://the-vm-ip:30333 with admin $GRAFANA_ADMIN_PASSWORD
 - The deployment will set the datasource and dashboards for both logs and metrics
 - The dashboardsare stored at folder `buildout/dev/observability/dashboards`, which will be applied as configmap in deployment
 - The helm chart package file and the customized values.yaml of grafana,mimir,loki are in folder `buildout/dev/observability`
   User can adjust the configuration and resources request in the customized values.yaml
-- I think that after you run build_observability_full.yaml, which restarts k3s, you need to:
+- Carvin has found that after you run build_observability_full.yaml, which restarts k3s, you need to:
 ```bash
 kubectl -n loki port-forward svc/loki-gateway 3100:80 &
 kubectl -n mimir port-forward svc/mimir-gateway  9005:8080 &
 kubectl -n kube-system port-forward svc/metrics-server 8443:443 &
 ```
+manually.
