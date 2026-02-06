@@ -68,26 +68,26 @@ gets me into the VM.
 
 I personally did this by putting this in my ~/.ssh/config:
 
+```
 Host abi_portal
     HostName 130.216.217.226 # or whatever the resulting IP is
     User ubuntu
     IdentityFile ~/keys/drai-inn-keypair.key
     StrictHostKeyChecking no
     UserKnownHostsFile /dev/null
+```
 
 But one way or another, you need to get so you can get on the VM and then
 put the appropriate definition in inventory/on-prem
 
 Set and export these 3 environment variables with your secrets:
-KC_HTTPS_KEY_STORE_PASSWORD (for the server.jks you created for https on keycloak)
-KC_CLIENT_SECRET            (this is the keycloak "api" client in the digitaltwins realm)
-SEEK_ADMIN_PASSWORD         (the admin user, the 1st user created in the seek system)
-
-KC_HTTPS_KEY_STORE_PASSWORD is used in util/create_server_jks to create a self-signed
+- KC_HTTPS_KEY_STORE_PASSWORD (for the server.jks you created for https on keycloak)
+- KC_CLIENT_SECRET            (this is the keycloak "api" client in the digitaltwins realm)
+- SEEK_ADMIN_PASSWORD         (the admin user, the 1st user created in the seek system)
+- KC_HTTPS_KEY_STORE_PASSWORD is used in util/create_server_jks to create a self-signed
 cert used by keycloak, a step that needs to be done manually once, at some point. I
 haven't made it part of the playbook. Maybe it should be?
-
-GRAFANA_ADMIN is used to set the admin password for grafana in build_observability_full.yaml
+- GRAFANA_ADMIN is used to set the admin password for grafana in build_observability_full.yaml
 
 Then you can run the playbook build_all.yaml
 ```bash
@@ -152,7 +152,7 @@ I added the "--disable-traefik" in an attempt to avoid this port grab. Another o
 to change the port with an nginx:system:port value setting.
 - Login to system with URL  http://the-vm-ip:30333 with admin $GRAFANA_ADMIN_PASSWORD
 - The deployment will set the datasource and dashboards for both logs and metrics
-- The dashboardsare stored at folder `buildout/dev/observability/dashboards`, which will be applied as configmap in deployment
+- The dashboards are stored at folder `buildout/dev/observability/dashboards`, which will be applied as configmap in deployment
 - The helm chart package file and the customized values.yaml of grafana,mimir,loki are in folder `buildout/dev/observability`
   User can adjust the configuration and resources request in the customized values.yaml
 - Carvin has found that after you run build_observability_full.yaml, which restarts k3s, you need to:
