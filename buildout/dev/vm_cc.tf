@@ -4,14 +4,14 @@ resource "openstack_networking_port_v2" "port_auckland_public_cc" {
   network_id = data.openstack_networking_network_v2.auckland_public.id
 }
 
-<<<<<<< HEAD
 ## portal VM
 #resource "openstack_compute_instance_v2" "cc" {
+##  count = 0
 #  name            = "drai_cc"
 #  flavor_id       = data.openstack_compute_flavor_v2.m3_xlarge.id
 #  key_pair        = data.openstack_compute_keypair_v2.drai_inn_keypair.id
 #  network {
-#    port =  openstack_networking_port_v2.port_auckland_public_cc.id 
+#    port =  openstack_networking_port_v2.port_auckland_public_cc.id
 #  }
 #
 #  block_device {
@@ -23,27 +23,6 @@ resource "openstack_networking_port_v2" "port_auckland_public_cc" {
 #    volume_size           = var.portal_disk_size
 #  }
 #}
-=======
-# portal VM
-resource "openstack_compute_instance_v2" "cc" {
-#  count = 0
-  name            = "drai_cc"
-  flavor_id       = data.openstack_compute_flavor_v2.m3_xlarge.id
-  key_pair        = data.openstack_compute_keypair_v2.drai_inn_keypair.id
-  network {
-    port =  openstack_networking_port_v2.port_auckland_public_cc.id
-  }
-
-  block_device {
-    uuid                  = data.openstack_images_image_v2.portal_image.id
-    source_type           = "image"
-    destination_type      = "volume"
-    boot_index            = 0
-    delete_on_termination = true
-    volume_size           = var.portal_disk_size
-  }
-}
->>>>>>> buildout+observability
 
 # ssh_restricted security group on the port
 resource "openstack_networking_port_secgroup_associate_v2" "port_sec_group_cc" {
@@ -54,12 +33,9 @@ resource "openstack_networking_port_secgroup_associate_v2" "port_sec_group_cc" {
     data.openstack_networking_secgroup_v2.digital_twins.id
   ]
 }
-<<<<<<< HEAD
-=======
 
-resource "openstack_compute_volume_attach_v2" "vm_cc_data_backup" {
-  instance_id = openstack_compute_instance_v2.cc.id
-  volume_id   = data.openstack_blockstorage_volume_v3.data_backup.id
-  device = "/dev/vdb"
-}
->>>>>>> buildout+observability
+#resource "openstack_compute_volume_attach_v2" "vm_cc_data_backup" {
+#  instance_id = openstack_compute_instance_v2.cc.id
+#  volume_id   = data.openstack_blockstorage_volume_v3.data_backup.id
+#  device = "/dev/vdb"
+#}
