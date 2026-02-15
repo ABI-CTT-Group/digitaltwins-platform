@@ -1,6 +1,6 @@
 
 #!/usr/bin/env bash
-BUCKET=terraform-states-carvin
+BUCKET=terraform-states
 BUCKET_PATH=digitaltwins/dev
 FILE="terraform.tfstate"
 UTC_TIMESTAMP=$(TZ=UTC stat -c '%Y' "$FILE")  # Get timestamp as seconds since epoch
