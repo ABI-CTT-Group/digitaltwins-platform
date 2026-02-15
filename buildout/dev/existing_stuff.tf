@@ -20,7 +20,7 @@ data "openstack_networking_secgroup_v2" "digital_twins"         { name = "Digita
 #    name = "nesi-rocky-9-upstream.20251009"
 #    visibility = "community"
 #}
-#data "openstack_blockstorage_volume_v3" "data_backup" { name = "data-backup" }
+data "openstack_blockstorage_volume_v3" "data_backup" { name = "data-backup" }
 #data "openstack_images_image_v2" "portal_baseline_image" { name = "drai_portal_baseline_20251208" }
 #data "openstack_blockstorage_volume_v3" "database"                { name = "database_dev" }
 #data "openstack_blockstorage_volume_v3" "htsget_public"           { name = "htsget_public" }
