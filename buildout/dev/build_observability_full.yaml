@@ -162,26 +162,6 @@
       state: reloaded
     ignore_errors: yes
 
-# switch traefic port to 81 and 7443
-  - name: Patch Traefik service - change HTTP port to 81
-    ansible.builtin.command: 'kubectl patch svc traefik -n kube-system --type="json" -p=''[{"op": "replace", "path": "/spec/ports/0/port", "value":81}]'''
-    environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-    register: patch_http_result
-    changed_when: "'patched' in patch_http_result.stdout or 'no change' not in patch_http_result.stdout"
-  - name: Patch Traefik service - change HTTPS port to 7443
-    ansible.builtin.command: 'kubectl patch svc traefik -n kube-system --type="json" -p=''[{"op": "replace", "path": "/spec/ports/1/port", "value":7443}]'''
-    environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-    register: patch_https_result
-    changed_when: "'patched' in patch_https_result.stdout or 'no change' not in patch_https_result.stdout"
-  - name: Restart Traefik deployment
-    ansible.builtin.command: kubectl rollout restart deployment traefik -n kube-system
-    environment:
-      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-    register: restart_result
-    changed_when: "'restarted' in restart_result.stdout"
-
   # Copy observability files to remote
   - name: Create observability directory on remote
     ansible.builtin.file:
