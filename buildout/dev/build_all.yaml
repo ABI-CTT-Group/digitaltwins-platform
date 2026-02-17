@@ -380,3 +380,11 @@
       docker update --restart unless-stopped $(docker compose ps -q)
     args:
       chdir: ./digitaltwins-platform
+
+  - name: Ensure COMPOSE_FILE is in .bash_aliases
+    ansible.builtin.lineinfile:
+      path: ./.bash_aliases
+      regexp: '^export COMPOSE_FILE='
+      line: "export COMPOSE_FILE=~/digitaltwins-platform/docker-compose.yml"
+      create: true
+      mode: '0600'  # Restrict permissions since it contains a secret

@@ -6,6 +6,20 @@
     observability_dir: "{{ lookup('env', 'PWD') }}/observability"
 
   tasks:
+
+#########################
+# Make sure required env variables are set
+  - name: Verify GRAFANA_ADMIN_PASSWORD environment variable is set
+    ansible.builtin.fail:
+      msg: "FATAL: The required environment variable GRAFANA_ADMIN_PASSWORD must be set to run this playbook."
+    when: lookup('env', 'GRAFANA_ADMIN_PASSWORD') | length == 0
+
+  - name: Set grafan_admin_password from environment variable
+    ansible.builtin.set_fact:
+      grafana_admin_password: "{{ lookup('env', 'GRAFANA_ADMIN_PASSWORD') }}"
+#########################
+
+
   - name: Show current working directory
     ansible.builtin.shell: pwd
     register: current_dir
@@ -66,8 +80,6 @@
       enabled: yes
     ignore_errors: yes
 
-
- 
   # Install k9s
   - name: Check if k9s is already installed
     ansible.builtin.stat:
@@ -150,28 +162,6 @@
       state: reloaded
     ignore_errors: yes
 
- # switch Traefik PORT TO 81 AND 7443
-  - name: Patch Traefik service - change HTTP port to 81
-    ansible.builtin.command: 'kubectl patch svc traefik -n kube-system --type="json" -p=''[{"op": "replace", "path": "/spec/ports/0/port", "value":81}]'''
-    environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-    register: patch_http_result
-    changed_when: "'patched' in patch_http_result.stdout or 'no change' not in patch_http_result.stdout"
-
-  - name: Patch Traefik service - change HTTPS port to 7443
-    ansible.builtin.command: 'kubectl patch svc traefik -n kube-system --type="json" -p=''[{"op": "replace", "path": "/spec/ports/1/port", "value":7443}]'''
-    environment:
-        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-    register: patch_https_result
-    changed_when: "'patched' in patch_https_result.stdout or 'no change' not in patch_https_result.stdout"
-
-  - name: Restart Traefik deployment
-    ansible.builtin.command: kubectl rollout restart deployment traefik -n kube-system
-    environment:
-      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-    register: restart_result
-    changed_when: "'restarted' in restart_result.stdout"
-  
   # Copy observability files to remote
   - name: Create observability directory on remote
     ansible.builtin.file:
@@ -248,6 +238,9 @@
       release_namespace: grafana
       values_files:
         - /tmp/observability/grafana-values.yaml
+      values:
+        adminUser: "admin"
+        adminPassword: "{{ grafana_admin_password }}"
       create_namespace: false
     environment:
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
@@ -434,3 +427,86 @@
         - "Port forwards: Loki (3100), Mimir (9005), Metrics-server (8443)"
         - "Use 'k9s' command to manage your cluster"
         - "Check failed tasks and review logs for errors"
+
+
+  - name: Ensure the .kube directory exists for user ubuntu
+    ansible.builtin.file:
+      path: "/home/{{ ansible_user }}/.kube"
+      state: directory
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0750'
+
+  - name: Copy k3s.yaml to user kube config
+    ansible.builtin.copy:
+      src: /etc/rancher/k3s/k3s.yaml
+      # Renaming to 'config' allows kubectl to find it automatically
+      dest: "/home/{{ ansible_user }}/.kube/config"
+      remote_src: true
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0600'
+    become: true
+
+  - name: Ensure KUBECONFIG is in .bash_aliases
+    ansible.builtin.lineinfile:
+      path: ./.bash_aliases
+      regexp: '^export KUBECONFIG='
+      line: "export KUBECONFIG=~/.kube/config"
+      create: true
+      mode: '0600'  # Restrict permissions since it contains a secret
+
+  - name: Patch Traefik service - change HTTP port to 81
+    ansible.builtin.command: 'kubectl patch svc traefik -n kube-system --type="json" -p=''[{"op": "replace", "path": "/spec/ports/0/port", "value":81}]'''
+    environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    register: patch_http_result
+    changed_when: "'patched' in patch_http_result.stdout or 'no change' not in patch_http_result.stdout"
+
+  - name: Patch Traefik service - change HTTPS port to 7443
+    ansible.builtin.command: 'kubectl patch svc traefik -n kube-system --type="json" -p=''[{"op": "replace", "path": "/spec/ports/1/port", "value":7443}]'''
+    environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    register: patch_https_result
+    changed_when: "'patched' in patch_https_result.stdout or 'no change' not in patch_https_result.stdout"
+
+  - name: Restart Traefik deployment
+    ansible.builtin.command: kubectl rollout restart deployment traefik -n kube-system
+    environment:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    register: restart_result
+    changed_when: "'restarted' in restart_result.stdout"
+
+  - name: docker down
+    ansible.builtin.command: docker compose down
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: docker up
+    shell: |
+      docker compose up -d
+    args:
+      chdir: ./digitaltwins-platform
+
+#  - name: Configure K3s service to disable Traefik
+#    ansible.builtin.lineinfile:
+#      path: /etc/systemd/system/k3s.service
+#      # MATCH: We look for the line ending in "server \"
+#      # We use \\ to match a literal backslash in regex
+#      insertafter: '^\s*server\s*\\$'
+#      
+#      # THE NEW LINE: Add the flag with its own backslash for continuation
+#      line: '    --disable traefik \'
+#      
+#      # IDEMPOTENCE: Ensure we don't add it if it's already there
+#      regexp: '^\s*--disable traefik'
+#      
+#      state: present
+#    notify: Restart K3s
+#
+#  handlers:
+#    - name: Restart K3s
+#      ansible.builtin.service:
+#        name: k3s
+#        state: restarted
+#        daemon_reload: yes  # Critical: Reloads the unit file changes

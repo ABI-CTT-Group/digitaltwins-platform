@@ -24,6 +24,12 @@ resource "openstack_compute_instance_v2" "cc" {
   }
 }
 
+# The Volume
+resource "openstack_blockstorage_volume_v3" "data_backup" {
+  name = "data-backup"
+  size = 100
+}
+
 # ssh_restricted security group on the port
 resource "openstack_networking_port_secgroup_associate_v2" "port_sec_group_cc" {
   port_id = openstack_networking_port_v2.port_auckland_public_cc.id
@@ -36,6 +42,6 @@ resource "openstack_networking_port_secgroup_associate_v2" "port_sec_group_cc" {
 
 resource "openstack_compute_volume_attach_v2" "vm_cc_data_backup" {
   instance_id = openstack_compute_instance_v2.cc.id
-  volume_id   = data.openstack_blockstorage_volume_v3.data_backup.id
+  volume_id   = openstack_blockstorage_volume_v3.data_backup.id
   device = "/dev/vdb"
 }

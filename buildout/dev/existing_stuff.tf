@@ -9,7 +9,7 @@ data "openstack_images_image_v2" "portal_image"          { name = "NeCTAR Ubuntu
 data "openstack_compute_flavor_v2"      "r3_medium"      { name = "r3.medium" }
 data "openstack_compute_flavor_v2"      "m3_medium"      { name = "m3.medium" }
 data "openstack_compute_flavor_v2"      "m3_xxlarge"     { name = "m3.xxlarge" }
-data "openstack_compute_flavor_v2"      "m3_xlarge"     { name = "m3.xlarge" }
+data "openstack_compute_flavor_v2"      "m3_xlarge"      { name = "m3.xlarge" }
 
 data "openstack_compute_keypair_v2"     "drai_inn_keypair"    { name = "drai-inn-keypair" }
 
@@ -21,7 +21,7 @@ data "openstack_networking_secgroup_v2" "digital_twins"         { name = "Digita
 #    name = "nesi-rocky-9-upstream.20251009"
 #    visibility = "community"
 #}
-data "openstack_blockstorage_volume_v3" "data_backup" { name = "data-backup" }
+#data "openstack_blockstorage_volume_v3" "data_backup" { name = "data-backup" }
 #data "openstack_images_image_v2" "portal_baseline_image" { name = "drai_portal_baseline_20251208" }
 #data "openstack_blockstorage_volume_v3" "database"                { name = "database_dev" }
 #data "openstack_blockstorage_volume_v3" "htsget_public"           { name = "htsget_public" }
