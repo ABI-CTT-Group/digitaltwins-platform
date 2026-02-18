@@ -411,6 +411,67 @@
       - /tmp/get-helm-3.sh
       - /tmp/observability
     ignore_errors: yes
+
+  - name: Check if /dev/vdb already has a filesystem
+    command: lsblk -no FSTYPE /dev/vdb
+    register: vdb_fs
+    changed_when: false
+
+  - name: Create filesystem on /dev/vdb (ext4) if none exists
+    filesystem:
+      fstype: ext4
+      dev: /dev/vdb
+    when: vdb_fs.stdout == ""
+
+  - name: Create backup directory
+    file:
+      path: /home/ubuntu/data-backup
+      state: directory
+      owner: ubuntu
+      group: ubuntu
+      mode: '0755'
+  - name: Mount /dev/vdb to backup directory
+    mount:
+      path: /home/ubuntu/data-backup
+      src: /dev/vdb
+      fstype: ext4
+      state: mounted
+
+  - name: Ensure cron is installed
+    apt:
+      name: cron
+      state: present
+      update_cache: yes
+
+  - name: Ensure cron service is enabled and running
+    service:
+      name: cron
+      enabled: yes
+      state: started
+
+  - name: Copy backup scripts
+    copy:
+      src: "{{ item }}"
+      dest: "/home/ubuntu/data-backup/{{ item }}"
+      owner: ubuntu
+      group: ubuntu
+      mode: '0755'
+    loop:
+      - "{{ observability_dir }}/backup/backup_k3s_storage.sh"
+      - "{{ observability_dir }}/restore_k3s_storage.sh"
+
+  - name: Run initial backup
+    command: /home/ubuntu/data-backup/backup_k3s_storage.sh
+    become_user: ubuntu
+
+  - name: Add cron job for daily backup
+    cron:
+      name: "Daily K3s PVC backup"
+      user: root
+      minute: "15"
+      hour: "2"
+      job: "/home/ubuntu/data-backup/backup_k3s_pvcs.sh >/dev/null 2>&1"
+
   # Summary report
   - name: Generate deployment summary
     ansible.builtin.debug:
