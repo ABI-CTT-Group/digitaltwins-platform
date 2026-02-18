@@ -453,8 +453,6 @@
     copy:
       src: "{{ item }}"
       dest: "/home/ubuntu/data-backup/"
-      owner: ubuntu
-      group: ubuntu
       mode: '0755'
     loop:
       - "{{ observability_dir }}/backup/backup_k3s_storage.sh"
@@ -462,7 +460,6 @@
 
   - name: Run initial restore
     command: /home/ubuntu/data-backup/restore_k3s_storage.sh
-    become_user: ubuntu
 
   - name: Add cron job for daily backup
     cron:
