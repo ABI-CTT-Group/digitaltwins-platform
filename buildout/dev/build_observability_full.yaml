@@ -467,7 +467,7 @@
       user: root
       minute: "15"
       hour: "2"
-      job: "/home/ubuntu/data-backup/backup_k3s_pvcs.sh >/dev/null 2>&1"
+      job: "/home/ubuntu/data-backup/backup_k3s_storage.sh >/dev/null 2>&1"
 
   # Summary report
   - name: Generate deployment summary
