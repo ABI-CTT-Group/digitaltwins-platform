@@ -164,8 +164,21 @@ kubectl -n mimir port-forward svc/mimir-gateway  9005:8080 &
 kubectl -n kube-system port-forward svc/metrics-server 8443:443 &
 ```
 manually.
-
-
+- the observability helm chars, customized values.yaml, and dashboard json files are all in directory /buildout/dev/observability
+## backup of observability
+The crontab will be installed to the VM , as well as a backup cronjob will be deployed and run everyday.
+- the backup and restore scope includes:
+   - Grafana data stored in the persistent volume of grafana namespace 
+   - Log data in the persistent volume of loki namespace 
+   - Metric data stored in the  directory within the MinIO persistent volume of the mimir namespace
+- The number of backup files to retain can be configured in the backup script; it is currently set to 2.
+- The restore script automatically restores from the most recent backup file by default.
+- The backup directory is set to /home/ubuntu/data-backup/k3s-pvc
+  - In nectar environment, the data-backup is mounted to a volume data-backup in the cloud.
+  - If work in an isolated machine, please manually create the folder /home/ubuntu/data-backup/k3s-pvc for backup 
+- The backup and restore script is at directory /buildout/dev/observability/backup
+   please run restore_k3s_storage.sh -h to get the help of restore
+- After restored data, please wait for 10 minutes for the system reindex the logs and metrics.
 ## Ports
 
 Digital twins run up by itself seems to grab:
@@ -175,8 +188,8 @@ Digital twins run up by itself seems to grab:
 - 8008, 8009, 8010, 8011, 8012, 8014, 8015
 
 Observability run up by itself seems to grab:
-- 80 (temporarily)
-- 8443
+- 81
+- 7443
 - 6444
 - 9005
 - 10250
