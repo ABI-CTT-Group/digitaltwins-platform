@@ -5,10 +5,8 @@ loki:
 
   commonConfig:
     replication_factor: 1
-
   storage:
     type: filesystem
-
   schemaConfig:
     configs:
       - from: 2026-01-01
@@ -18,6 +16,8 @@ loki:
         index:
           prefix: loki_index_
           period: 24h
+  limits_config:
+    retention_period: 8760h
 
 singleBinary:
   replicas: 1
