@@ -24,7 +24,7 @@ singleBinary:
   persistence:
     enabled: true
     size: 60Gi
-
+    whenDeleted: Retain
 # Explicitly disable scalable targets
 read:
   replicas: 0
