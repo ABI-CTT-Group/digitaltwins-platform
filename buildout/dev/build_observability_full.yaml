@@ -452,7 +452,7 @@
   - name: Copy backup scripts
     copy:
       src: "{{ item }}"
-      dest: "/home/ubuntu/data-backup/{{ item }}"
+      dest: "/home/ubuntu/data-backup/"
       owner: ubuntu
       group: ubuntu
       mode: '0755'
