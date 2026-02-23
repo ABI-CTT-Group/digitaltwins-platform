@@ -1,5 +1,6 @@
 <template>
   <v-app class="container">
+    <AuthNavBar />
     <NavHome>{{ dashboardTitle }}</NavHome>
 
     <default-view />
@@ -8,6 +9,7 @@
 
 <script lang="ts" setup>
 import DefaultView from "./View.vue";
+import AuthNavBar from "@/components/AuthNavBar.vue";
 import NavHome from "@/components/dt-components/NavHome.vue";
 import { useRoute } from "vue-router";
 import { watch, ref, computed } from "vue";

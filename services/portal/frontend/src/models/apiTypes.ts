@@ -84,4 +84,6 @@ export interface IDashboardAuth{
 
 export interface IDashboardAuthResponse{
   access_token: string;
+  authenticated?: boolean;
+  user?: Record<string, any>;
 }

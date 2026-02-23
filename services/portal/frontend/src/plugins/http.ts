@@ -1,6 +1,7 @@
 import axios, { AxiosRequestConfig } from "axios";
 import { IRequests } from "@/models/apiTypes";
 import { getRuntimeConfig, loadRuntimeConfig } from "./runtime";
+import { getAccessToken } from "./keycloak";
 
 const maxRetries = 3;
 const retryDelay = 1000;
@@ -47,7 +48,9 @@ function redirectToLogin(msg?: string) {
   console.warn(msg || "Redirecting to login page...");
   refreshPromise = null;
   sessionStorage.removeItem("access_token");
-  window.location.href = "/";
+  if (window.location.pathname !== "/") {
+    window.location.href = "/";
+  }
 }
 
 // =============== init ===============
@@ -64,7 +67,10 @@ function redirectToLogin(msg?: string) {
 
   // ============== request interceptors: automatically add access_token ==============
   axios.interceptors.request.use((config: AxiosRequestConfig | any) => {
-    const token = sessionStorage.getItem("access_token");
+    // Try to get token from Keycloak first, then from sessionStorage
+    const keycloakToken = getAccessToken();
+    const token = keycloakToken || sessionStorage.getItem("access_token");
+    
     if (token) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
@@ -81,18 +87,26 @@ function redirectToLogin(msg?: string) {
 
       // not 401 -> reject
       if (err.response?.status !== 401) return Promise.reject(err);
+
+      // Do not redirect on login failures; let the form show the error message.
+      if (originalRequest?.url?.includes("/auth/login-keycloak")) {
+        return Promise.reject(err);
+      }
       
-      if (err.response?.status === 401){
-        if (err.response?.data?.detail === "Refresh token missing" || err.response?.data?.detail === "Refresh token invalid"){
-          redirectToLogin(err.response?.data?.detail)
-          return Promise.reject(err)
+      if (err.response?.status === 401) {
+        if (
+          err.response?.data?.detail === "Refresh token missing" ||
+          err.response?.data?.detail === "Refresh token invalid"
+        ) {
+          redirectToLogin(err.response?.data?.detail);
+          return Promise.reject(err);
         }
       }
       
       // avoid infinite loop
       const newToken = await refreshAccessToken();
       if (!newToken) {
-        redirectToLogin("Refresh token expired → redirect to login")
+        redirectToLogin("Refresh token expired → redirect to login");
         return Promise.reject(err);
       }
 
@@ -168,3 +182,4 @@ const exportedHttp: IHttp = {
 };
 
 export default exportedHttp;
+
