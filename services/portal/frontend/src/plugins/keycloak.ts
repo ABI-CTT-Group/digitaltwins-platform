@@ -12,9 +12,9 @@ export async function initKeycloak(): Promise<Keycloak.Keycloak> {
   }
 
   const keycloak = new Keycloak({
-    url: import.meta.env.VITE_KEYCLOAK_URL || 'https://keycloak.dev.drai.auckland.ac.nz/',
+    url: import.meta.env.VITE_KEYCLOAK_URL || 'https://130.216.216.243:8009/',
     realm: import.meta.env.VITE_KEYCLOAK_REALM || 'digitaltwins',
-    clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'digitaltwins-portal',
+    clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'api',
   });
 
   try {
