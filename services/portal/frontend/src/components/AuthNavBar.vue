@@ -21,27 +21,32 @@
             <v-menu>
                 <template v-slot:activator="{ props }">
                     <v-btn
-                        icon="mdi-account-circle"
                         variant="text"
                         v-bind="props"
                         size="large"
                         color="white"
-                    ></v-btn>
+                        class="text-capitalize user-menu-btn"
+                    >
+                        <div class="d-flex flex-column align-center">
+                            <v-icon icon="mdi-account-circle"></v-icon>
+                            <span class="text-truncate user-name-text">{{ firstName }}</span>
+                        </div>
+                    </v-btn>
                 </template>
 
                 <v-list class="user-menu-list">
                     <v-list-item class="user-info-item">
-                        <div class="pa-4 w-100">
-                            <div class="d-flex align-center gap-2 mb-3">
-                                <v-icon icon="mdi-account-circle" size="x-large" class="text-blue-darken-4"></v-icon>
-                                <div>
-                                    <p class="font-weight-bold text-blue-darken-4 mb-0" style="font-size: 15px;">{{ displayName }}</p>
-                                    <p class="text-caption text-blue-darken-3 mb-0">{{ userEmail }}</p>
+                        <div class="pa-5 w-100">
+                            <div class="d-flex align-center gap-3 mb-4">
+                                <v-icon icon="mdi-account-circle" size="40" class="text-blue-lighten-1"></v-icon>
+                                <div class="flex-grow-1">
+                                    <p class="font-weight-bold text-white mb-1" style="font-size: 16px; letter-spacing: 0.3px;">{{ displayName }}</p>
+                                    <p class="text-caption text-blue-lighten-1 mb-0" style="font-size: 12px; opacity: 0.85;">{{ userEmail }}</p>
                                 </div>
                             </div>
-                            <v-divider class="my-3"></v-divider>
+                            <v-divider class="my-4" style="border-color: rgba(66, 165, 245, 0.1);"></v-divider>
                             <div>
-                                <p class="text-caption font-weight-bold text-blue-darken-4 mb-2">Assigned Roles</p>
+                                <p class="text-caption font-weight-bold text-blue-lighten-2 mb-3" style="font-size: 12px; letter-spacing: 0.5px; text-transform: uppercase; opacity: 0.8;">Assigned Roles</p>
                                 <div class="d-flex flex-wrap gap-2">
                                     <v-chip size="small" v-for="role in userRoles" :key="role" class="menu-role-chip">
                                         <v-icon icon="mdi-badge-account" size="x-small" class="mr-1"></v-icon>
@@ -56,8 +61,8 @@
                     
                     <v-list-item @click="handleLogout" class="logout-item">
                         <v-list-item-title class="d-flex align-center">
-                            <v-icon icon="mdi-logout" class="mr-2 text-error"></v-icon>
-                            <span class="text-error">Logout</span>
+                            <v-icon icon="mdi-logout" class="mr-2" style="color: #e74c3c;"></v-icon>
+                            <span style="color: #e74c3c; font-weight: 500;">Logout</span>
                         </v-list-item-title>
                     </v-list-item>
                 </v-list>
@@ -84,6 +89,7 @@ const authStore = useAuthStore();
 
 const isLoggedIn = computed(() => authStore.isLoggedIn);
 const displayName = computed(() => authStore.displayName);
+const firstName = computed(() => authStore.displayName?.split(' ')[0] || '');
 const userEmail = computed(() => authStore.user?.email || '');
 const userRoles = computed(() => authStore.userRoles);
 
@@ -136,40 +142,47 @@ const handleLogin = async () => {
 }
 
 .user-menu-list {
-    background-color: #ffffff !important;
-    border-radius: 8px !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
-    min-width: 320px;
+    background-color: #1a2332 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25), 0 0 1px rgba(0, 0, 0, 0.1) !important;
+    min-width: 360px;
+    overflow: hidden;
+    border: 1px solid rgba(66, 165, 245, 0.1);
 }
 
 .user-info-item {
-    background-color: #ffffff !important;
+    background: linear-gradient(180deg, #242f42 0%, #1a2332 100%) !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
+    border-bottom: 1px solid rgba(66, 165, 245, 0.15);
 }
 
 .user-info-item:hover {
-    background-color: #ffffff !important;
+    background: linear-gradient(180deg, #2a3947 0%, #242f42 100%) !important;
 }
 
 .menu-role-chip {
-    background-color: #e3f2fd !important;
-    color: #0d47a1 !important;
-    font-weight: 500;
+    background-color: rgba(66, 165, 245, 0.15) !important;
+    color: #42a5f5 !important;
+    font-weight: 600;
+    border: 1px solid rgba(66, 165, 245, 0.3);
 }
 
 .logout-item {
-    background-color: #ffffff !important;
+    background-color: transparent !important;
     padding: 0 !important;
     height: 48px;
     display: flex;
     align-items: center;
     padding-left: 16px !important;
-    transition: background-color 0.2s ease;
+    transition: all 0.3s ease;
+    border-top: 1px solid rgba(66, 165, 245, 0.1);
 }
 
 .logout-item:hover {
-    background-color: #ffebee !important;
+    background-color: rgba(231, 76, 60, 0.08) !important;
+    border-left: 3px solid #e74c3c;
+    padding-left: 13px !important;
 }
 
 .user-profile-card {
@@ -213,5 +226,16 @@ const handleLogin = async () => {
     width: auto;
     object-fit: contain;
     margin-right: 16px;
+}
+
+.user-menu-btn {
+    min-width: 70px;
+}
+
+.user-name-text {
+    font-size: 10px;
+    font-weight: 500;
+    max-width: 60px;
+    line-height: 1;
 }
 </style>

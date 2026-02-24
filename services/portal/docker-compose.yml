@@ -21,6 +21,12 @@ services:
       - DIGITALTWINS_API_PORT=${DIGITALTWINS_API_PORT:-8000}
       - PORTAL_BACKEND_HOST_IP=${PORTAL_BACKEND_HOST_IP:-localhost}
       - PLUGIN_PORT=8002
+      - KEYCLOAK_SERVER_URL=${KEYCLOAK_SERVER_URL:-https://130.216.216.243:8009}
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-api}
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-xxxxxx}
+      - KEYCLOAK_VERIFY_SSL=${KEYCLOAK_VERIFY_SSL:-false}
+      - KEYCLOAK_CA_CERT=${KEYCLOAK_CA_CERT:-}
     volumes:
       - portal_datasets:/app/data
       - ./backend/datasets_tool:/datasets_tool
@@ -45,6 +51,9 @@ services:
       - PORTAL_BACKEND_HOST_IP=${PORTAL_BACKEND_HOST_IP:-localhost}
       - BACKEND_PORT=${BACKEND_PORT:-8000}
       - SSL=${SSL:-false}
+      - KEYCLOAK_SERVER_URL=${KEYCLOAK_SERVER_URL:-https://130.216.216.243:8009}
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-api}
     restart: unless-stopped
     networks:
       - digitaltwins
