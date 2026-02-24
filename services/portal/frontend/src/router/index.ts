@@ -130,6 +130,31 @@ router.beforeEach(async (to, from, next) => {
       // Redirect to login if not authenticated
       next({ name: 'Login' });
     } else {
+      if (to.name === 'Dashboard') {
+        const dashboardType = String(to.params?.dashboardType || '');
+
+        if (dashboardType === 'study') {
+          if (!authStore.hasAdminRole && !authStore.hasResearcherRole) {
+            if (authStore.hasClinicianRole) {
+              next({ name: 'Dashboard', params: { dashboardType: 'clinician' } });
+              return;
+            }
+            next({ name: 'Home' });
+            return;
+          }
+        }
+
+        if (dashboardType === 'clinician') {
+          if (!authStore.hasAdminRole && !authStore.hasClinicianRole) {
+            if (authStore.hasResearcherRole) {
+              next({ name: 'Dashboard', params: { dashboardType: 'study' } });
+              return;
+            }
+            next({ name: 'Home' });
+            return;
+          }
+        }
+      }
       next();
     }
   } else {
