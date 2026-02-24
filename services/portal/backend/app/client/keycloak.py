@@ -13,11 +13,11 @@ class KeycloakClient:
     """Keycloak authentication and authorization client"""
 
     def __init__(self):
-        self.server_url = os.getenv('KEYCLOAK_SERVER_URL', 'https://keycloak.dev.drai.auckland.ac.nz/')
+        self.server_url = os.getenv('KEYCLOAK_SERVER_URL', 'https://130.216.216.243:8009/')
         self.realm_name = os.getenv('KEYCLOAK_REALM', 'digitaltwins')
-        self.client_id = os.getenv('KEYCLOAK_CLIENT_ID', 'digitaltwins-portal')
+        self.client_id = os.getenv('KEYCLOAK_CLIENT_ID', 'api')
         self.client_secret = os.getenv('KEYCLOAK_CLIENT_SECRET', '')
-        self.verify_ssl = os.getenv('KEYCLOAK_VERIFY_SSL', 'true').lower() == 'true'
+        self.verify_ssl = os.getenv('KEYCLOAK_VERIFY_SSL', 'false').lower() == 'true'
         self.ca_cert = os.getenv('KEYCLOAK_CA_CERT', '').strip()
         verify_value = self.ca_cert if self.ca_cert else self.verify_ssl
 
