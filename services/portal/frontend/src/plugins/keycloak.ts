@@ -22,6 +22,7 @@ export async function initKeycloak(): Promise<Keycloak.Keycloak> {
       onLoad: 'check-sso',
       silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
       pkceMethod: 'S256',
+      checkLoginIframe: false, // Disable to avoid insecure context error on HTTP deployments
     });
 
     keycloakInstance = keycloak;
