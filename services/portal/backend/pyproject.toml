@@ -23,7 +23,7 @@ dependencies = [
     "python-irodsclient==3.0.0",
     "python-jose==3.3.0",
     "python-keycloak==3.9.0",
-    "python-multipart==0.0.7",
+    "python-multipart>=0.0.18",
     "requests==2.32.4",
     "scikit-image==0.24.0",
     "setuptools>=69.0.0",

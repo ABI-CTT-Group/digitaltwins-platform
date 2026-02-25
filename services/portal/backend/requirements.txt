@@ -17,7 +17,7 @@ requests==2.32.4
 python-irodsclient==3.0.0
 python-keycloak==3.9.0
 python-jose==3.3.0
-python-multipart==0.0.7
+python-multipart>=0.0.18
 cryptography==42.0.2
 httpx==0.24.1
 sqlalchemy==2.0.23
