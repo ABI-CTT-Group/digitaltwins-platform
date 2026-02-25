@@ -84,7 +84,22 @@
                             </v-btn>
                         </v-form>
 
-                        <v-divider class="my-4"></v-divider>
+                        <v-divider class="my-6">
+                            <span class="text-grey">OR</span>
+                        </v-divider>
+
+                        <v-btn
+                            color="primary"
+                            size="large"
+                            block
+                            variant="outlined"
+                            prepend-icon="mdi-shield-account"
+                            @click="handleKeycloakLogin"
+                            :disabled="loading"
+                            class="keycloak-btn"
+                        >
+                            Sign In with Keycloak
+                        </v-btn>
                     </div>
                 </v-card>
             </div>
@@ -168,16 +183,22 @@ const handleFormLogin = async () => {
     }
 };
 
-// Keycloak login
-const handleLogin = async () => {
+// Keycloak direct login (no backend credentials)
+const handleKeycloakLogin = async () => {
     const keycloak = getKeycloak();
     if (keycloak) {
         try {
-            await keycloak.login();
+            // This redirects to Keycloak login page
+            // User credentials are handled entirely by Keycloak
+            await keycloak.login({
+                redirectUri: window.location.origin + '/home'
+            });
         } catch (error) {
             console.error('Keycloak login failed:', error);
             errorMessage.value = 'Keycloak login failed. Please try again.';
         }
+    } else {
+        errorMessage.value = 'Keycloak is not initialized. Please refresh the page.';
     }
 };
 
@@ -215,6 +236,17 @@ const handleEnter = async () => {
 .transparent-card {
     background-color: transparent !important;
     backdrop-filter: blur(2px);
+}
+
+.keycloak-btn {
+    border-width: 2px !important;
+    font-weight: 500;
+}
+
+.keycloak-btn:hover {
+    background-color: rgba(33, 150, 243, 0.1);
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
 }
 </style>
 

@@ -14,7 +14,7 @@ export async function initKeycloak(): Promise<Keycloak.Keycloak> {
   const keycloak = new Keycloak({
     url: import.meta.env.VITE_KEYCLOAK_URL || 'https://130.216.216.243:8009/',
     realm: import.meta.env.VITE_KEYCLOAK_REALM || 'digitaltwins',
-    clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'api',
+    clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'portal-frontend',
   });
 
   try {
@@ -28,11 +28,35 @@ export async function initKeycloak(): Promise<Keycloak.Keycloak> {
     
     if (authenticated) {
       console.log('User is authenticated');
-      // Setup token refresh
+      
+      // OPTION A: No auto-refresh (current setting)
+      // Token will expire naturally without auto-refresh
+      // User will need to re-authenticate when token expires
       keycloak.onTokenExpired = () => {
-        console.log('Token expired, refreshing...');
-        keycloak.refreshToken(30);
+        console.log('Token expired - user will need to re-authenticate');
+        // Optionally redirect to login
+        // window.location.href = '/login';
       };
+      
+      // OPTION B: Auto-refresh with session limit (uncomment to use)
+      // Respects Keycloak's SSO session max lifetime
+      // const loginTime = Date.now();
+      // const maxSessionHours = 8; // Maximum session duration
+      // 
+      // keycloak.onTokenExpired = () => {
+      //   const sessionDuration = (Date.now() - loginTime) / (1000 * 60 * 60);
+      //   
+      //   if (sessionDuration < maxSessionHours) {
+      //     console.log('Token expired, refreshing...');
+      //     keycloak.refreshToken(30).catch(() => {
+      //       console.log('Refresh failed, logging out');
+      //       logout();
+      //     });
+      //   } else {
+      //     console.log(`Max session time (${maxSessionHours}h) reached, logging out`);
+      //     logout();
+      //   }
+      // };
     }
 
     return keycloak;
@@ -124,4 +148,39 @@ export async function refreshToken(): Promise<boolean> {
     console.error('Token refresh failed:', error);
     return false;
   }
+}
+
+/**
+ * Setup idle timeout - logs out user after specified minutes of inactivity
+ * @param idleMinutes - Minutes of inactivity before auto-logout (default: 30)
+ */
+export function setupIdleTimeout(idleMinutes: number = 30): () => void {
+  let idleTimer: number | undefined;
+  const idleTime = idleMinutes * 60 * 1000; // Convert to milliseconds
+
+  const resetTimer = () => {
+    if (idleTimer) clearTimeout(idleTimer);
+    
+    idleTimer = window.setTimeout(async () => {
+      console.log(`User idle for ${idleMinutes} minutes, logging out...`);
+      await logout();
+    }, idleTime);
+  };
+
+  // Track user activity
+  const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+  events.forEach(event => {
+    document.addEventListener(event, resetTimer, true);
+  });
+
+  // Start timer
+  resetTimer();
+
+  // Return cleanup function
+  return () => {
+    if (idleTimer) clearTimeout(idleTimer);
+    events.forEach(event => {
+      document.removeEventListener(event, resetTimer, true);
+    });
+  };
 }

@@ -13,7 +13,7 @@ import { createApp } from "vue";
 
 // Plugins
 import { registerPlugins } from "@/plugins";
-import { initKeycloak } from "@/plugins/keycloak";
+import { initKeycloak, setupIdleTimeout } from "@/plugins/keycloak";
 
 
 const app = createApp(App);
@@ -21,6 +21,10 @@ const app = createApp(App);
 // Initialize Keycloak and then register plugins and mount app
 initKeycloak()
   .then(() => {
+    // Setup idle timeout: logout after 30 minutes of inactivity
+    // Adjust the number to change timeout duration
+    setupIdleTimeout(30); // 30 minutes
+    
     registerPlugins(app);
     app.mount("#app");
   })
