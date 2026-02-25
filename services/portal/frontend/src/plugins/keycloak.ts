@@ -35,29 +35,8 @@ export async function initKeycloak(): Promise<Keycloak.Keycloak> {
       // User will need to re-authenticate when token expires
       keycloak.onTokenExpired = () => {
         console.log('Token expired - user will need to re-authenticate');
-        // Optionally redirect to login
-        // window.location.href = '/login';
+        window.location.href = '/';
       };
-      
-      // OPTION B: Auto-refresh with session limit (uncomment to use)
-      // Respects Keycloak's SSO session max lifetime
-      // const loginTime = Date.now();
-      // const maxSessionHours = 8; // Maximum session duration
-      // 
-      // keycloak.onTokenExpired = () => {
-      //   const sessionDuration = (Date.now() - loginTime) / (1000 * 60 * 60);
-      //   
-      //   if (sessionDuration < maxSessionHours) {
-      //     console.log('Token expired, refreshing...');
-      //     keycloak.refreshToken(30).catch(() => {
-      //       console.log('Refresh failed, logging out');
-      //       logout();
-      //     });
-      //   } else {
-      //     console.log(`Max session time (${maxSessionHours}h) reached, logging out`);
-      //     logout();
-      //   }
-      // };
     }
 
     return keycloak;
@@ -155,7 +134,7 @@ export async function refreshToken(): Promise<boolean> {
  * Setup idle timeout - logs out user after specified minutes of inactivity
  * @param idleMinutes - Minutes of inactivity before auto-logout (default: 30)
  */
-export function setupIdleTimeout(idleMinutes: number = 30): () => void {
+export function setupIdleTimeout(idleMinutes: number = 5): () => void {
   let idleTimer: number | undefined;
   const idleTime = idleMinutes * 60 * 1000; // Convert to milliseconds
 
