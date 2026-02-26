@@ -23,7 +23,7 @@ initKeycloak()
   .then(() => {
     // Setup idle timeout: logout after 5 minutes of inactivity (for testing)
     // Change to 30 for production
-    setupIdleTimeout(5); // 5 minutes for testing
+    setupIdleTimeout(30); // 5 minutes for testing
     
     registerPlugins(app);
     app.mount("#app");
