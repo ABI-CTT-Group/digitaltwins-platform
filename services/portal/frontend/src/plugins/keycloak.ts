@@ -16,7 +16,7 @@ export async function initKeycloak(): Promise<Keycloak.Keycloak> {
     realm: import.meta.env.VITE_KEYCLOAK_REALM || 'digitaltwins',
     clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'portal-frontend',
   });
-
+  console.log(keycloak)
   try {
     const authenticated = await keycloak.init({
       onLoad: 'check-sso',
@@ -75,7 +75,7 @@ export function getUserRoles(): string[] {
   
   const roles = keycloakInstance.realmAccess?.roles || [];
   // Filter to only portal roles
-  return roles.filter(r => ['admin', 'researcher', 'clinician'].includes(r));
+  return roles.filter((r: string) => ['admin', 'researcher', 'clinician'].includes(r));
 }
 
 /**
@@ -133,34 +133,76 @@ export async function refreshToken(): Promise<boolean> {
 /**
  * Setup idle timeout - logs out user after specified minutes of inactivity
  * @param idleMinutes - Minutes of inactivity before auto-logout (default: 30)
+ * @param warningMinutes - Show warning when this many minutes remaining (default: 2)
  */
-export function setupIdleTimeout(idleMinutes: number = 5): () => void {
+export function setupIdleTimeout(idleMinutes: number = 30, warningMinutes: number = 2): () => void {
   let idleTimer: number | undefined;
+  let warningTimer: number | undefined;
+  let lastActivityTime = 0;
+  
   const idleTime = idleMinutes * 60 * 1000; // Convert to milliseconds
+  const warningTime = Math.max(0, (idleMinutes - warningMinutes) * 60 * 1000); // Show warning 2 min before logout
 
-  const resetTimer = () => {
-    if (idleTimer) clearTimeout(idleTimer);
-    
+  const handleUserActivity = () => {
+    // Debounce: only process if at least 1 second has passed since last activity
+    const now = Date.now();
+    if (now - lastActivityTime < 1000) {
+      return;
+    }
+    lastActivityTime = now;
+
+    window.dispatchEvent(new CustomEvent('idle-reset'));
+
+    console.log('🔄 User activity detected - resetting idle timer');
+
+    // Clear existing timers
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+      console.log('⏱️  Cleared logout timer');
+    }
+    if (warningTimer) {
+      clearTimeout(warningTimer);
+      console.log('⏱️  Cleared warning timer');
+    }
+
+    // Show warning before logout
+    warningTimer = window.setTimeout(() => {
+      console.warn(`⚠️  WARNING: User will be logged out in ${warningMinutes} minutes due to inactivity`);
+      window.dispatchEvent(
+        new CustomEvent('idle-warning', {
+          detail: { warningMinutes, idleMinutes },
+        })
+      );
+    }, warningTime);
+
+    // Set logout timer
     idleTimer = window.setTimeout(async () => {
-      console.log(`User idle for ${idleMinutes} minutes, logging out...`);
+      console.warn(`⛔ User idle for ${idleMinutes} minutes, logging out...`);
       await logout();
     }, idleTime);
+
+    console.log(`✅ Idle timer set for ${idleMinutes} minutes (${idleTime}ms)`);
   };
 
-  // Track user activity
+  // Track user activity with events (using capture phase for earliest detection)
   const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+  
   events.forEach(event => {
-    document.addEventListener(event, resetTimer, true);
+    document.addEventListener(event, handleUserActivity, true);
+    console.log(`📡 Listening for ${event} events`);
   });
 
-  // Start timer
-  resetTimer();
+  // Start timer immediately
+  console.log(`🕒 Setting up idle timeout: ${idleMinutes} minutes`);
+  handleUserActivity();
 
   // Return cleanup function
   return () => {
     if (idleTimer) clearTimeout(idleTimer);
+    if (warningTimer) clearTimeout(warningTimer);
     events.forEach(event => {
-      document.removeEventListener(event, resetTimer, true);
+      document.removeEventListener(event, handleUserActivity, true);
     });
+    console.log('🧹 Idle timeout cleanup complete');
   };
 }
