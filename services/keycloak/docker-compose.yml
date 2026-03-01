@@ -17,6 +17,7 @@ services:
     volumes:
       - ./import:/opt/keycloak/data/import
       - keycloak_data:/opt/keycloak/data
+      - ./digitaltwins-login-theme:/opt/keycloak/themes/digitaltwins-login-theme:ro
     restart: unless-stopped
     networks:
       - digitaltwins
