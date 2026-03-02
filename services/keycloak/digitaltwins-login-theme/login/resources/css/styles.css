@@ -36,16 +36,16 @@ body {
 
 .dtwins-page-title {
   text-align: center;
-  font-size: 2.5rem;
+  font-size: 2.2rem;
   font-weight: 700;
   line-height: 1.25;
-  color: #ffffff;
-  margin: 0 0 1.25rem;
+  color: #0f172a;
+  margin: 0 0 0.35rem;
 }
 
 .dtwins-card-title {
   text-align: center;
-  font-size: 1.45rem;
+  font-size: 1.3rem;
   font-weight: 600;
   color: #0f172a;
   margin-bottom: 1.1rem;
@@ -141,6 +141,57 @@ a {
 #kc-info a:hover,
 a:hover {
   color: #1d4ed8;
+}
+
+.dtwins-divider-wrap {
+  position: relative;
+  margin: 14px 0 12px;
+  text-align: center;
+}
+
+.dtwins-divider {
+  border: 0;
+  border-top: 1px solid #dbe3ed;
+  margin: 0;
+}
+
+.dtwins-or {
+  position: relative;
+  top: -11px;
+  display: inline-block;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+#kc-social-providers {
+  margin-top: 2px;
+}
+
+#kc-social-providers .kc-social-provider-name {
+  color: #0f172a;
+}
+
+.dtwins-idp-btn {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 10px !important;
+  border: 1px solid #cbd5e1 !important;
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.dtwins-idp-btn:hover {
+  background: #eef2f7 !important;
+  border-color: #94a3b8 !important;
 }
 
 .alert-error,

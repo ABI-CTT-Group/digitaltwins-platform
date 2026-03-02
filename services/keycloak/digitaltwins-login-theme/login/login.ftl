@@ -1,11 +1,12 @@
 <#import "template.ftl" as layout>
 <@layout.registrationLayout displayInfo=realm.password && realm.registrationAllowed && !registrationDisabled??; section>
   <#if section = "header">
-    <div class="dtwins-page-title">DigitalTWINS AI Portal</div>
-    <div class="dtwins-card-title">Sign In</div>
+    ${msg("loginAccountTitle")}
   <#elseif section = "form">
     <div id="kc-form">
       <div id="kc-form-wrapper">
+        <div class="dtwins-page-title">DigitalTWINS AI Portal</div>
+        <div class="dtwins-card-title">Sign In</div>
         <form id="kc-form-login" onsubmit="login.disabled = true; return true;" action="${url.loginAction}" method="post">
           <#if !usernameHidden??>
             <div class="form-group">
@@ -49,6 +50,29 @@
         </form>
       </div>
     </div>
+  <#elseif section = "socialProviders" >
+    <#if realm.password && social.providers??>
+      <div id="kc-social-providers" class="form-group">
+        <div class="dtwins-divider-wrap">
+          <hr class="dtwins-divider" />
+          <span class="dtwins-or">OR</span>
+        </div>
+        <ul class="${properties.kcFormSocialAccountListClass!}">
+          <#list social.providers as p>
+            <li class="${properties.kcFormSocialAccountListItemClass!}">
+              <a id="social-${p.alias}" class="${properties.kcFormSocialAccountListButtonClass!} dtwins-idp-btn" type="button" href="${p.loginUrl}">
+                <#if p.iconClasses?has_content>
+                  <i class="${p.iconClasses!}" aria-hidden="true"></i>
+                  <span class="kc-social-icon-text">${p.displayName!}</span>
+                <#else>
+                  <span class="kc-social-icon-text">${p.displayName!}</span>
+                </#if>
+              </a>
+            </li>
+          </#list>
+        </ul>
+      </div>
+    </#if>
   <#elseif section = "info" >
     <#if realm.password && realm.registrationAllowed && !registrationDisabled??>
       <div id="kc-info" class="text-center"></div>
