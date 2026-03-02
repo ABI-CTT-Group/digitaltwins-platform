@@ -27,7 +27,7 @@ body {
   min-width: 36rem;
   max-width: 36rem;
   margin: 0 auto;
-  padding: 30px 28px !important;
+  padding: 35px 33px !important;
 }
 
 #kc-page-title {
@@ -134,7 +134,7 @@ input[type="email"]:focus {
 
 #kc-login:disabled,
 #kc-login[disabled] {
-  background: rgba(148, 163, 184, 0.55) !important;
+  background: rgba(0, 150, 136, 0.5) !important;
   color: rgba(255, 255, 255, 0.75) !important;
   cursor: not-allowed;
   transform: none !important;
@@ -240,7 +240,7 @@ a:hover {
     border-radius: 12px;
     min-width: 100%;
     max-width: 100%;
-    padding: 16px 14px !important;
+    padding: 21px 19px !important;
   }
 
   .dtwins-login-panel {
