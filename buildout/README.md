@@ -144,6 +144,21 @@ TO DO:
 - Ensure the GRAFANA_ADMIN_PASSWORD env variable is set with the value you want to use as
 the grafana admin password (see GCP in mygen3 project, under the digital_twins_grafana_admin secret)
 (see env.template)
+- in grafana-values.yaml, modify the following configurations:
+```yml
+  grafana.ini:
+    server:
+      root_url: http://130.216.216.116:30333/
+      domain: 130.216.216.116
+    auth.generic_oauth:
+      enabled: true
+      name: Keycloak
+      client_id: grafana
+      client_secret: xxxxxxxx
+      auth_url: https://130.216.216.243:8009/realms/digitaltwins/protocol/openid-connect/auth
+      token_url: https://130.216.216.243:8009/realms/digitaltwins/protocol/openid-connect/token
+      api_url: https://130.216.216.243:8009/realms/digitaltwins/protocol/openid-connect/userinfo
+```
 - Run the ansible playbook `build_observability_full.yaml` to deploy all observability to target VM
 ```bash
   ansible-playbook build_observability_full.yaml -i inventory/on-prem -l portal

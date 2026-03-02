@@ -10,12 +10,23 @@ adminPassword: strongpassword
 
 plugins: ""
 
-#grafana.ini:
-#  server:
-#    root_url: http://130.216.216.45:30333/
-#    domain: 130.216.216.45
-#  users:
-#    viewers_can_edit: true
+grafana.ini:
+  server:
+    root_url: http://130.216.216.116:30333/
+    domain: 130.216.216.116
+  auth.generic_oauth:
+    enabled: true
+    name: Keycloak
+    allow_sign_up: true
+    client_id: grafana
+    client_secret: xxxxxxxx
+    scopes: openid email profile roles
+    email_attribute_path: email
+    login_attribute_path: preferred_username
+    name_attribute_path: full_name
+    auth_url: https://130.216.216.243:8009/realms/digitaltwins/protocol/openid-connect/auth
+    token_url: https://130.216.216.243:8009/realms/digitaltwins/protocol/openid-connect/token
+    api_url: https://130.216.216.243:8009/realms/digitaltwins/protocol/openid-connect/userinfo
 
 persistence:
   enabled: true
