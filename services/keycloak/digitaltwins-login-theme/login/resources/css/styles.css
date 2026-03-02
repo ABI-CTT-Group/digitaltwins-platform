@@ -56,7 +56,7 @@ body {
   background: rgba(15, 23, 42, 0.32);
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 14px;
-  padding: 16px 16px 12px;
+  padding: 21px 21px 17px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
@@ -130,6 +130,15 @@ input[type="email"]:focus {
 #kc-login:hover {
   background: #00796b !important;
   transform: translateY(-1px);
+}
+
+#kc-login:disabled,
+#kc-login[disabled] {
+  background: rgba(148, 163, 184, 0.55) !important;
+  color: rgba(255, 255, 255, 0.75) !important;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 #kc-form-options {
@@ -235,6 +244,6 @@ a:hover {
   }
 
   .dtwins-login-panel {
-    padding: 12px 12px 10px;
+    padding: 17px 17px 15px;
   }
 }

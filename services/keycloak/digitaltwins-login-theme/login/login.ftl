@@ -12,13 +12,13 @@
           <#if !usernameHidden??>
             <div class="form-group">
               <label for="username" class="control-label">${msg("usernameOrEmail")}</label>
-              <input tabindex="1" id="username" class="form-control" name="username" value="${(login.username!'')}" type="text" autofocus autocomplete="username" />
+              <input tabindex="1" id="username" class="form-control" name="username" value="${(login.username!'')}" type="text" autofocus autocomplete="username" required />
             </div>
           </#if>
 
           <div class="form-group">
             <label for="password" class="control-label">${msg("password")}</label>
-            <input tabindex="2" id="password" class="form-control" name="password" type="password" autocomplete="current-password" />
+            <input tabindex="2" id="password" class="form-control" name="password" type="password" autocomplete="current-password" required />
           </div>
 
           <div id="kc-form-options" class="form-group">
@@ -40,7 +40,7 @@
 
           <div id="kc-form-buttons" class="form-group">
             <input type="hidden" id="id-hidden-input" name="credentialId" <#if auth.selectedCredential?has_content>value="${auth.selectedCredential}"</#if>/>
-            <input tabindex="4" class="btn btn-primary btn-block btn-lg" name="login" id="kc-login" type="submit" value="${msg("doLogIn")}"/>
+            <input tabindex="4" class="btn btn-primary btn-block btn-lg" name="login" id="kc-login" type="submit" value="${msg("doLogIn")}" disabled />
           </div>
 
           <#if realm.password && realm.registrationAllowed && !registrationDisabled??>
@@ -49,6 +49,38 @@
             </div>
           </#if>
         </form>
+        <script>
+          (function () {
+            var form = document.getElementById('kc-form-login');
+            if (!form) return;
+
+            var usernameInput = document.getElementById('username');
+            var passwordInput = document.getElementById('password');
+            var loginButton = document.getElementById('kc-login');
+
+            if (!passwordInput || !loginButton) return;
+
+            function hasValue(input) {
+              return !!(input && input.value && input.value.trim().length > 0);
+            }
+
+            function updateLoginButtonState() {
+              var hasUsername = usernameInput ? hasValue(usernameInput) : true;
+              var hasPassword = hasValue(passwordInput);
+              loginButton.disabled = !(hasUsername && hasPassword);
+            }
+
+            if (usernameInput) {
+              usernameInput.addEventListener('input', updateLoginButtonState);
+              usernameInput.addEventListener('change', updateLoginButtonState);
+            }
+
+            passwordInput.addEventListener('input', updateLoginButtonState);
+            passwordInput.addEventListener('change', updateLoginButtonState);
+
+            updateLoginButtonState();
+          })();
+        </script>
         </div>
       </div>
     </div>
