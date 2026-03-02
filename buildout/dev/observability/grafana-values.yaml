@@ -27,7 +27,7 @@ grafana.ini:
     auth_url: https://130.216.216.243:8009/realms/digitaltwins/protocol/openid-connect/auth
     token_url: https://130.216.216.243:8009/realms/digitaltwins/protocol/openid-connect/token
     api_url: https://130.216.216.243:8009/realms/digitaltwins/protocol/openid-connect/userinfo
-
+    role_attribute_path: contains(resource_access.grafana.roles[*], 'admin') && 'Admin' || contains(resource_access.grafana.roles[*], 'editor') && 'Editor' || contains(resource_access.grafana.roles[*], 'viewer') && 'Viewer'
 persistence:
   enabled: true
 
