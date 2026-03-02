@@ -6,7 +6,7 @@
     <div id="kc-form">
       <div id="kc-form-wrapper">
         <div class="dtwins-page-title">DigitalTWINS AI Portal</div>
-        <div class="dtwins-card-title">Sign In</div>
+        <div class="dtwins-card-title"> </div>
         <form id="kc-form-login" onsubmit="login.disabled = true; return true;" action="${url.loginAction}" method="post">
           <#if !usernameHidden??>
             <div class="form-group">

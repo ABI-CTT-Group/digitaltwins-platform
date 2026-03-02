@@ -24,10 +24,10 @@ body {
   box-shadow: 0 14px 36px rgba(2, 6, 23, 0.28);
   border: 1px solid rgba(255, 255, 255, 0.26);
   width: 100%;
-  min-width: 30rem;
-  max-width: 30rem;
+  min-width: 36rem;
+  max-width: 36rem;
   margin: 0 auto;
-  padding: 22px 20px !important;
+  padding: 30px 28px !important;
 }
 
 #kc-page-title {
