@@ -1,5 +1,5 @@
 body {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.72), rgba(30, 41, 59, 0.72)),
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.38), rgba(30, 41, 59, 0.42)),
     url("../img/login_bg.jpg") center center / cover no-repeat fixed !important;
   min-height: 100vh;
 }
@@ -18,11 +18,11 @@ body {
 }
 
 .login-pf-page .card-pf {
-  background: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(2px);
+  background: rgba(255, 255, 255, 0.12) !important;
+  backdrop-filter: blur(10px);
   border-radius: 16px;
-  box-shadow: 0 12px 35px rgba(2, 6, 23, 0.22);
-  border: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: 0 14px 36px rgba(2, 6, 23, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.26);
   width: 100%;
   min-width: 30rem;
   max-width: 30rem;
@@ -39,15 +39,16 @@ body {
   font-size: 2.2rem;
   font-weight: 700;
   line-height: 1.25;
-  color: #0f172a;
+  color: #ffffff;
   margin: 0 0 0.35rem;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 
 .dtwins-card-title {
   text-align: center;
   font-size: 1.3rem;
   font-weight: 600;
-  color: #0f172a;
+  color: #e2e8f0;
   margin-bottom: 1.1rem;
 }
 
@@ -62,7 +63,7 @@ body {
 .control-label {
   display: block;
   margin-bottom: 6px;
-  color: #1e293b;
+  color: #f8fafc;
   font-size: 0.92rem;
   font-weight: 600;
 }
@@ -80,7 +81,9 @@ input[type="text"],
 input[type="password"],
 input[type="email"] {
   border-radius: 10px !important;
-  border: 1px solid #cbd5e1 !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
   min-height: 44px;
   height: 44px;
   font-size: 0.96rem;
@@ -89,12 +92,18 @@ input[type="email"] {
   box-sizing: border-box;
 }
 
+input[type="text"]::placeholder,
+input[type="password"]::placeholder,
+input[type="email"]::placeholder {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
 .pf-c-form-control:focus,
 input[type="text"]:focus,
 input[type="password"]:focus,
 input[type="email"]:focus {
-  border-color: #009688 !important;
-  box-shadow: 0 0 0 3px rgba(0, 150, 136, 0.15) !important;
+  border-color: #7dd3fc !important;
+  box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.28) !important;
 }
 
 .pf-c-button.pf-m-primary,
@@ -121,26 +130,26 @@ input[type="email"]:focus {
 }
 
 #kc-form-options .checkbox {
-  color: #475569;
+  color: #e2e8f0;
 }
 
 #kc-registration {
   margin-top: 1rem;
   text-align: center;
-  color: #475569;
+  color: #e2e8f0;
 }
 
 #kc-registration a,
 #kc-info a,
 a {
-  color: #2563eb;
+  color: #93c5fd;
   font-weight: 500;
 }
 
 #kc-registration a:hover,
 #kc-info a:hover,
 a:hover {
-  color: #1d4ed8;
+  color: #dbeafe;
 }
 
 .dtwins-divider-wrap {
@@ -151,7 +160,7 @@ a:hover {
 
 .dtwins-divider {
   border: 0;
-  border-top: 1px solid #dbe3ed;
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
   margin: 0;
 }
 
@@ -160,8 +169,8 @@ a:hover {
   top: -11px;
   display: inline-block;
   padding: 0 8px;
-  background: rgba(255, 255, 255, 0.95);
-  color: #64748b;
+  background: rgba(31, 41, 55, 0.45);
+  color: #e2e8f0;
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -172,16 +181,16 @@ a:hover {
 }
 
 #kc-social-providers .kc-social-provider-name {
-  color: #0f172a;
+  color: #f8fafc;
 }
 
 .dtwins-idp-btn {
   width: 100%;
   min-height: 44px;
   border-radius: 10px !important;
-  border: 1px solid #cbd5e1 !important;
-  background: #f8fafc !important;
-  color: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.38) !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #f8fafc !important;
   display: flex !important;
   align-items: center;
   justify-content: center;
@@ -190,8 +199,8 @@ a:hover {
 }
 
 .dtwins-idp-btn:hover {
-  background: #eef2f7 !important;
-  border-color: #94a3b8 !important;
+  background: rgba(255, 255, 255, 0.22) !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
 }
 
 .alert-error,
