@@ -65,7 +65,7 @@ Choose one of the following methods to configure Keycloak.
       2. Navigate to `Manage realm > digitaltwins > Clients > choose api on the client list > Credentials > copy the Client Secret`
       3. update the `.env` file with the copied client secret:
          ```
-         KEYCLOAK_CLIENT_SECRET=<your_keycloak_client_secret_here>
+         KEYCLOAK_CLIENT_SECRET=YOUR_KEYCLOAK_CLIENT_SECRET_HERE
          ```
 
 
