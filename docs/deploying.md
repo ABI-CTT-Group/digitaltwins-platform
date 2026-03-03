@@ -127,7 +127,7 @@ Choose one of the following methods to configure Keycloak.
       3. Copy/save the API token
       4. Add the API token to .env
          ```
-         SEEK_API_TOKEN=<your_seek_api_token_here>
+         SEEK_API_TOKEN=YOUR_SEEK_API_TOKEN_HERE
          ```
    5. Enable "git" support (Command Line)
       1. Enter the SEEK container
