@@ -6,7 +6,7 @@ This document describes how to deploy the DigitalTWINS Platform from the [deploy
 ## 1. Clone the repository
 
 ```bash
-git clone https://github.com/ABI-CTT-Group/digitaltwins-platform.git
+git clone --recursive https://github.com/ABI-CTT-Group/digitaltwins-platform.git
 cd digitaltwins-platform
 ```
 
