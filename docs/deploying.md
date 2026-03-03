@@ -142,7 +142,7 @@ Choose one of the following methods to configure Keycloak.
       3. In the rails console:
          ```ruby
          Seek::Config.git_support_enabled = true
-         Seek::Config.save
+         # Seek::Config.sav
          exit
          ```
       4. Exit the container
