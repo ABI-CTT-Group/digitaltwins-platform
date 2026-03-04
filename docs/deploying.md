@@ -88,22 +88,19 @@ Choose one of the following methods to configure Keycloak.
    ```
    
 ## 5. Initialise catalogue service (SEEK)
-1. Fix Pathing in the external submodule
-   1. Open `./services/seek/ldh-deployment/docker-compose.yml`
-   2. Replace all `${PWD}/` with `./`
-2. Create external volumes
+1. Create external volumes
    ```bash
    source .env
    sudo docker volume create ${COMPOSE_PROJECT_NAME}_filestore
    sudo docker volume create ${COMPOSE_PROJECT_NAME}_db
    ```
-3. SEEK's database setup
+2. SEEK's database setup
    
    Edit `./services/seek/ldh-deployment/docker-compose.env`. Replace `<root-password>` and `<db-password>` with a password. or optionally You can use openssl command to generate a password and save in the docker-compose.env file:
    ```bash
    cat ./services/seek/ldh-deployment/docker-compose.env | sed "s|<db-password>|$(openssl rand -base64 21)|" | sed "s|<root-password>|$(openssl rand -base64 21)|" > ./services/seek/ldh-deployment/docker-compose.env
    ```
-4. Initial launch & admin setup
+3. Initial launch & admin setup
    1. Launch SEEK
       ```bash
       sudo docker compose -f services/seek/ldh-deployment/docker-compose.yml --env-file ./.env up
