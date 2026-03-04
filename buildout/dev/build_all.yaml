@@ -298,11 +298,11 @@
     args:
       chdir: ./digitaltwins-platform
 
-  - name: PWD replace
-    shell: |
-      sed -i 's/\${PWD}\//.\//g' ./services/seek/ldh-deployment/docker-compose.yml
-    args:
-      chdir: ./digitaltwins-platform
+#  - name: PWD replace
+#    shell: |
+#      sed -i 's/\${PWD}\//.\//g' ./services/seek/ldh-deployment/docker-compose.yml
+#    args:
+#      chdir: ./digitaltwins-platform
 
   - name: docker down
     ansible.builtin.command: docker compose down
