@@ -9,14 +9,19 @@ services:
     command:
       - start-dev
       - --import-realm # will only import once on the first startup
+      - --hostname-strict=false
+      - --https-key-store-file=/opt/keycloak/conf/server.jks
+      - --https-key-store-password=${KC_HTTPS_KEY_STORE_PASSWORD}
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}
     ports:
-      - "8009:8080"
+      - "8009:8443"
+#      - "8009:8080"
     volumes:
       - ./import:/opt/keycloak/data/import
       - keycloak_data:/opt/keycloak/data
+      - ./server.jks:/opt/keycloak/conf/server.jks
     restart: unless-stopped
     networks:
       - digitaltwins

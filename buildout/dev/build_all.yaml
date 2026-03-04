@@ -325,7 +325,7 @@
 
   - name: Copy production configuration file to remote server
     ansible.builtin.copy:
-      src: ../data/digitaltwins-realm.json
+      src: ../data/digitaltwins-realm_20260304.json
       dest: ./digitaltwins-platform/services/keycloak/import/digitaltwins-realm.json
       mode: '0644'
 

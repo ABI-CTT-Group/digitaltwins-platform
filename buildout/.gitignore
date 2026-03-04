@@ -13,6 +13,13 @@ env
 
 old
 data
+
+# We'll create these once
+#   server.jks is the self signed cert for keycloak
 server.jks
+
+#   nginx.key and .crt is the cert for the frontend portal
+nginx.key
+nginx.crt
 
 backups
