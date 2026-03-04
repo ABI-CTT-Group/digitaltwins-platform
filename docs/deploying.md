@@ -6,7 +6,7 @@ This document describes how to deploy the DigitalTWINS Platform from the [deploy
 ## 1. Clone the repository
 
 ```bash
-git clone https://github.com/ABI-CTT-Group/digitaltwins-platform.git
+git clone --recursive https://github.com/ABI-CTT-Group/digitaltwins-platform.git
 cd digitaltwins-platform
 ```
 
@@ -65,7 +65,7 @@ Choose one of the following methods to configure Keycloak.
       2. Navigate to `Manage realm > digitaltwins > Clients > choose api on the client list > Credentials > copy the Client Secret`
       3. update the `.env` file with the copied client secret:
          ```
-         KEYCLOAK_CLIENT_SECRET=<your_keycloak_client_secret_here>
+         KEYCLOAK_CLIENT_SECRET=YOUR_KEYCLOAK_CLIENT_SECRET_HERE
          ```
 
 
@@ -88,22 +88,19 @@ Choose one of the following methods to configure Keycloak.
    ```
    
 ## 5. Initialise catalogue service (SEEK)
-1. Fix Pathing in the external submodule
-   1. Open `./services/seek/ldh-deployment/docker-compose.yml`
-   2. Replace all `${PWD}/` with `./`
-2. Create external volumes
+1. Create external volumes
    ```bash
    source .env
    sudo docker volume create ${COMPOSE_PROJECT_NAME}_filestore
    sudo docker volume create ${COMPOSE_PROJECT_NAME}_db
    ```
-3. SEEK's database setup
+2. SEEK's database setup
    
-   Edit `./services/seek/ldh-deployment/docker-compose.env`. Replace `<root-password>` and `<db-password>` with a password. You can use openssl command to generate a password and save in the docker-compose.env file.
+   Edit `./services/seek/ldh-deployment/docker-compose.env`. Replace `<root-password>` and `<db-password>` with a password. or optionally You can use openssl command to generate a password and save in the docker-compose.env file:
    ```bash
-   cat docker-compose.env.tpl | sed "s|<db-password>|$(openssl rand -base64 21)|" | sed "s|<root-password>|$(openssl rand -base64 21)|" > docker-compose.env
+   cat ./services/seek/ldh-deployment/docker-compose.env | sed "s|<db-password>|$(openssl rand -base64 21)|" | sed "s|<root-password>|$(openssl rand -base64 21)|" > ./services/seek/ldh-deployment/docker-compose.env
    ```
-4. Initial launch & admin setup
+3. Initial launch & admin setup
    1. Launch SEEK
       ```bash
       sudo docker compose -f services/seek/ldh-deployment/docker-compose.yml --env-file ./.env up
@@ -127,7 +124,7 @@ Choose one of the following methods to configure Keycloak.
       3. Copy/save the API token
       4. Add the API token to .env
          ```
-         SEEK_API_TOKEN=<your_seek_api_token_here>
+         SEEK_API_TOKEN=YOUR_SEEK_API_TOKEN_HERE
          ```
    5. Enable "git" support (Command Line)
       1. Enter the SEEK container
@@ -142,7 +139,7 @@ Choose one of the following methods to configure Keycloak.
       3. In the rails console:
          ```ruby
          Seek::Config.git_support_enabled = true
-         Seek::Config.save
+         # Seek::Config.sav
          exit
          ```
       4. Exit the container
