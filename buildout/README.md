@@ -187,3 +187,24 @@ There are a lot of other ports tied up, but only on localhost. So the above
 are the ones that I think need to be addressed at a firewall level. Or, probably
 better, if those don't need to be exposed, figure out how to bind them to 
 localhost instead of 0.0.0.0.
+
+
+
+# To move DB from VM X to VM Y
+# on VM Y
+docker compose down -v
+docker volume rm digitaltwins-platform_db digitaltwins-platform_filestore
+docker volume create digitaltwins-platform_db
+docker volume create digitaltwins-platform_filestore
+
+# copy over  ./services/seek/ldh-deployment/docker-compose.env from VM X to VM Y
+# for its passwords
+# adjust digitaltwins-platform/services/seek/ldh-deployment/docker-compose.yml
+
+#sudo su -
+cd /var/lib/docker/volumes
+extract the backup from VM X
+
+#go back to ubuntu
+docker compose up -d
+
