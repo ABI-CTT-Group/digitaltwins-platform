@@ -190,21 +190,63 @@ localhost instead of 0.0.0.0.
 
 
 
-# To move DB from VM X to VM Y
-# on VM Y
+# Certs for SSL
+
+I'm going to go the path of creating my own CA and signing a cert for
+our domain, putting the required things into the required webservers.
+
+- `util/create_root_ca` will create the CA
+- `util/create_app_cert` will use that CA to sign a server and bundle a server.jks for keycloak
+
+These created the DigitalTwinsKeycloakInternalCA.pem file, which needs to be "trusted" by any
+client that wants to browse up the domain `test.digitaltwins.auckland.ac.nz`.
+
+You can "trust" by getting your hands on this file (look in ~/keys of the portal VM)
+onto your local machine, and then:
+
+For macOS:
+`sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain DigitalTwinsKeycloakInternalCA.pem`
+
+For Windows (PowerShell Administrator):
+`Import-Certificate -FilePath ".\DigitalTwinsKeycloakInternalCA.pem" -CertStoreLocation Cert:\LocalMachine\Root`
+
+The only thing I've done so far is get this onto the keycloak app, so
+https://test.digitaltwins.auckland.ac.nz:8009
+is the website to use.
+Until we can register that domain in the DNS, you can put this entry into your /etc/hosts file (or
+equivalent under Windows):
+
+```
+130.216.216.243 test.digitaltwins.auckland.ac.nz
+```
+
+
+# To copy data from VM X to VM Y
+
+## on VM X
+
+- take a backup of the data using the util/backup.sh
+- This shuts down and then archives everything in /var/lib/docker/volumes/digitaltwins*
+except digitaltwins-platform_cache
+to a file in ~/backups
+(and then starts up docker compose again).
+- Copy the resulting file over to VM Y, where you will extract it later.
+
+
+## on VM Y
+```
 docker compose down -v
 docker volume rm digitaltwins-platform_db digitaltwins-platform_filestore
 docker volume create digitaltwins-platform_db
 docker volume create digitaltwins-platform_filestore
+```
 
-# copy over  ./services/seek/ldh-deployment/docker-compose.env from VM X to VM Y
-# for its passwords
-# adjust digitaltwins-platform/services/seek/ldh-deployment/docker-compose.yml
+- copy over  `./services/seek/ldh-deployment/docker-compose.env` from VM X to VM Y for its passwords
+- adjust `digitaltwins-platform/services/seek/ldh-deployment/docker-compose.yml`
 
-#sudo su -
+- sudo su -, and then
 cd /var/lib/docker/volumes
-extract the backup from VM X
-
-#go back to ubuntu
-docker compose up -d
+- As root, extract the backup from VM X taken with the util/backup.sh utility using:
+tar --xattrs --acls --numeric-owner -xzvf $BACKUP_FILE -C /var/lib/docker/volumes/
+- return to ubuntu and `docker compose up -d`
 
