@@ -46,6 +46,7 @@
                         @on-explore="handleExploreClicked"
                     />
                     <DashboardCard 
+                        v-if="showStudyDashboard"
                         :src="studyImage" 
                         :title="'Study dashboard'"
                         location="Te Whatu Ora AI Lab"
@@ -59,6 +60,7 @@
                     class="d-flex justify-space-around align-center"
                 >  
                     <DashboardCard 
+                        v-if="showClinicianDashboard"
                         :src="clinicalImage"
                         :title="'Clinician dashboard'"
                         location="Te Whatu Ora AI Lab"
@@ -114,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, computed } from 'vue';
 import DashboardCard from '@/components/dt-components/DashboardCard.vue';
 import Hero from '@/components/dt-components/Hero.vue';
 import clinicalImage from '@/assets/dashboard/clinical-01.jpg';
@@ -128,8 +130,12 @@ import annotatorImage from '@/assets/dashboard/annotator.jpg'
 import digitalRepositoryImage from '@/assets/dashboard/digital-repository.jpg'
 import { useRouter, useRoute } from 'vue-router';
 import { useDashboardPageStore } from '@/store/states';
+import { useAuthStore } from '@/store/auth_store';
 
 const router = useRouter();
+const authStore = useAuthStore();
+const showStudyDashboard = computed(() => authStore.hasAdminRole || authStore.hasResearcherRole);
+const showClinicianDashboard = computed(() => authStore.hasAdminRole || authStore.hasClinicianRole);
 
 onMounted(() => {
     localStorage.removeItem("dashboardPage");

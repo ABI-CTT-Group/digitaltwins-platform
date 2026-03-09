@@ -1,6 +1,6 @@
 # terminial-> venv/Scripts/activate.bat
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import io
@@ -15,6 +15,7 @@ from app.models.dashboard import LoginRequest, DashBoardSignInResponse
 from app.client.digitaltwins_api import DigitalTWINSAPIClient
 from typing import Optional
 from httpx import HTTPStatusError
+from app.utils.auth import get_current_user
 
 configure_logging()
 logger = get_logger(__name__)
@@ -154,6 +155,102 @@ async def refresh(request: Request, response: Response):
     except Exception as e:
         logger.error(e)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/api/auth/test")
+async def auth_test(request: Request, user_info=Depends(get_current_user)):
+    authorization = request.headers.get("authorization", "")
+    _, _, token = authorization.partition(" ")
+    return {
+        "authenticated": True,
+        "access_token": token,
+        "user": user_info,
+    }
+
+
+@app.get("/api/auth/keycloak-status")
+async def keycloak_status():
+    """Check Keycloak server connectivity and configuration"""
+    from app.client.keycloak import get_keycloak_client
+    import requests
+    
+    try:
+        keycloak_client = get_keycloak_client()
+        server_url = keycloak_client.server_url.rstrip('/')
+        realm = keycloak_client.realm_name
+        
+        # Try to fetch the public key to test connectivity
+        try:
+            public_key = keycloak_client.get_public_key()
+            return {
+                "status": "connected",
+                "server_url": server_url,
+                "realm": realm,
+                "client_id": keycloak_client.client_id,
+                "message": "Keycloak server is reachable and configured correctly"
+            }
+        except Exception as e:
+            # Try a simple HTTP request to test basic connectivity
+            try:
+                certs_url = f"{server_url}/realms/{realm}/.well-known/openid-configuration"
+                resp = requests.get(certs_url, verify=False, timeout=5)
+                return {
+                    "status": "connection_error",
+                    "server_url": server_url,
+                    "realm": realm,
+                    "client_id": keycloak_client.client_id,
+                    "error": str(e),
+                    "http_status": resp.status_code if resp else "no_response",
+                    "message": "Server responds but key fetch failed"
+                }
+            except Exception as e2:
+                return {
+                    "status": "unreachable",
+                    "server_url": server_url,
+                    "realm": realm,
+                    "client_id": keycloak_client.client_id,
+                    "error": str(e2),
+                    "message": "Cannot reach Keycloak server - check URL and network"
+                }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "message": "Failed to initialize Keycloak client"
+        }
+
+
+@app.post("/api/auth/login-keycloak")
+async def login_test(data: LoginRequest, response: Response):
+    """Login endpoint that authenticates with Keycloak and returns real JWT token"""
+    from app.client.keycloak import get_keycloak_client
+    
+    username = data.username
+    password = data.password
+    
+    try:
+        keycloak_client = get_keycloak_client()
+        # Authenticate with Keycloak using username and password
+        token_response = keycloak_client.authenticate_with_credentials(username, password)
+        
+        # Set refresh token in HTTP-only cookie
+        refresh_token = token_response.get("refresh_token")
+        if refresh_token:
+            response.set_cookie(
+                key="refresh_token",
+                value=refresh_token,
+                httponly=True,
+                secure=True,
+                samesite="strict",
+                max_age=token_response.get("refresh_expires_in", 1800),
+            )
+        
+        logger.info(f"Keycloak login successful for user: {username}")
+        return {"access_token": token_response.get("access_token")}
+    
+    except Exception as e:
+        logger.error(f"Keycloak login failed for user {username}: {e}")
+        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
 
 
 if __name__ == '__main__':

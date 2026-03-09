@@ -3,7 +3,10 @@ import {
   createRouter,
   createWebHistory,
   createWebHashHistory,
+  RouteRecordRaw,
 } from "vue-router";
+import { useAuthStore } from "@/store/auth_store";
+import { isAuthenticated } from "@/plugins/keycloak";
 import Login from "@/views/index.vue";
 import Home from "@/views/dashboard/index.vue";
 import Dashboard from "@/views/dashboard/study-dashboard/index.vue";
@@ -29,6 +32,7 @@ const routes = [
   {
     path:"/home",
     component: Layout,
+    meta: { requiresAuth: true },
     children:[
           {
             path: "/home",
@@ -39,16 +43,18 @@ const routes = [
             path: "/dashboard:dashboardType",
             name: "Dashboard",
             component: Dashboard,
-            // props: (route:any) => ({ dashboardType: route.params.dashboardType })
+            meta: { requiresAuth: true },
           },
           {
             path: "/how-it-works",
             name: "TutorialDashboard",
-            component:TutorialDashboard
+            component:TutorialDashboard,
+            meta: { requiresAuth: true },
           },
           {
             path: "/catalogue-dashboard",
             component:CatalogueDashboard,
+            meta: { requiresAuth: true },
             children:[
               {
                 path: "/catalogue-dashboard",
@@ -66,11 +72,13 @@ const routes = [
             path: "/launched-assay",
             name: "LaunchedAssayOverview",
             component: LaunchedAssayOverview,
+            meta: { requiresAuth: true },
           },
           {
             path: "/upload-dataset",
             name: "UploadDataset",
             component: UploadDataset,
+            meta: { requiresAuth: true },
             children:[
               {
                 path: "/upload-tool-dataset",
@@ -88,6 +96,7 @@ const routes = [
             path: "/plugin-home",
             name: "PluginHome",
             component: PluginHome,
+            meta: { requiresAuth: true },
           },
     ]
   },
@@ -95,6 +104,7 @@ const routes = [
     path: "/tool-view",
     name: "ToolPluginView",
     component: ToolPluginView,
+    meta: { requiresAuth: true },
   }
 ];
 
@@ -106,20 +116,50 @@ const router = createRouter({
   routes,
 });
 
-// export default router;
+// Navigation guard for authentication
+router.beforeEach(async (to, from, next) => {
+  const authStore = useAuthStore();
+  const requiresAuth = to.meta?.requiresAuth;
+  const hasToken = !!sessionStorage.getItem('access_token');
 
-// const router = createRouter({
-//   history: createWebHashHistory(),
-//   linkActiveClass: "active",
-//   routes,
-// });
-// export default router;
+  // Update auth state in case token was updated
+  authStore.updateAuthState();
 
-// console.log(process.env.BASE_URL);
+  if (requiresAuth) {
+    if (!isAuthenticated() && !hasToken) {
+      // Redirect to login if not authenticated
+      next({ name: 'Login' });
+    } else {
+      if (to.name === 'Dashboard') {
+        const dashboardType = String(to.params?.dashboardType || '');
 
-// const router = createRouter({
-//   history: createWebHistory(),
-//   routes,
-// });
+        if (dashboardType === 'study') {
+          if (!authStore.hasAdminRole && !authStore.hasResearcherRole) {
+            if (authStore.hasClinicianRole) {
+              next({ name: 'Dashboard', params: { dashboardType: 'clinician' } });
+              return;
+            }
+            next({ name: 'Home' });
+            return;
+          }
+        }
+
+        if (dashboardType === 'clinician') {
+          if (!authStore.hasAdminRole && !authStore.hasClinicianRole) {
+            if (authStore.hasResearcherRole) {
+              next({ name: 'Dashboard', params: { dashboardType: 'study' } });
+              return;
+            }
+            next({ name: 'Home' });
+            return;
+          }
+        }
+      }
+      next();
+    }
+  } else {
+    next();
+  }
+});
 
 export default router;
