@@ -95,7 +95,7 @@
         <v-chip v-if="!!tool.deploy_status" size="small" :color="deployStatusColor" :text-color="deployStatusTextColor" class="mx-1 mr-1 my-1">deploy: {{ tool.deploy_status }}</v-chip>
       </template>
       <template #time>
-        <v-chip v-if="!!tool.created_at" size="small" color="green-lighten-4" text-color="green-darken-2" class="ms-auto">{{ formatDate(tool.created_at) }}</v-chip>
+        <!-- <v-chip v-if="!!tool.created_at" size="small" color="green-lighten-4" text-color="green-darken-2" class="ms-auto">{{ formatDate(tool.created_at) }}</v-chip> -->
       </template>
     </CardUI>
 </template>

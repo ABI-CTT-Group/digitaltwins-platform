@@ -112,7 +112,6 @@
 </template>
 
 <script setup lang="ts">
-import axios from 'axios'
 import { ref, watch, reactive, watchEffect} from 'vue'
 import { IToolInformationStep, CheckNameResponse } from '@/models/uiTypes'
 import { useCheckPluginName } from '@/plugins/plugin_api'

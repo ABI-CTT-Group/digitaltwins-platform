@@ -19,7 +19,7 @@
             </div>
         </div>
     <div >
-        <remote-component-app :src="remoteApp.path" :expose="remoteApp.expose" />
+        <remote-component-app :src="remoteApp!.path" :expose="remoteApp!.expose" />
     </div>
 </template>
 

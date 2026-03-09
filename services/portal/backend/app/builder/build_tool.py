@@ -269,51 +269,73 @@ class PluginBuilder:
     def _replace_vite_build_config(file_path: Path, new_name: str) -> bool:
         """
         Replace `name`, `formats`, and `fileName` fields in a Vite config file.
+        Only replaces 'name' inside the lib: { ... } block to avoid corrupting
+        other 'name' fields (e.g. globalName in replaceNamedImportsFromGlobals).
 
-        Returns a dict indicating which fields were replaced.
+        Returns True if successful, False otherwise.
         """
-        patterns = {
-            "name": re.compile(r'name:\s*["\']([^"\']*)["\']', re.IGNORECASE),
-            "formats": re.compile(r'formats:\s*\[.*?]', re.IGNORECASE | re.DOTALL),
-            "fileName": re.compile(r'fileName\s*:\s*.*', re.IGNORECASE)
-        }
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             replaced = {"name": False, "formats": False, "fileName": False}
 
-            # replace name
-            def name_replacer(match):
-                replaced["name"] = True
-                quote = '"' if '"' in match.group(0) else "'"
-                return f'name: {quote}{new_name}{quote}'
+            # Replace 'name' ONLY inside the lib: { ... } block.
+            # Pattern: find `lib: {` then the first `name: 'xxx'` inside it.
+            # We use a multi-step approach: locate the lib block, replace name inside it only.
+            def replace_lib_name(text: str) -> str:
+                # Match lib: { ... } block (non-greedy, handles multi-line)
+                lib_block_pattern = re.compile(
+                    r'(lib\s*:\s*\{)(.*?)((?=\}[\s\r\n]*,)|\})',
+                    re.DOTALL
+                )
+                name_in_lib_pattern = re.compile(r'(name\s*:\s*)["\']([^"\']*)["\']')
 
-            content = patterns["name"].sub(name_replacer, content)
+                def lib_replacer(m):
+                    replaced["name"] = True
+                    prefix = m.group(1)
+                    body = m.group(2)
+                    suffix = m.group(3)
+                    # Replace name inside the lib block
+                    new_body = name_in_lib_pattern.sub(
+                        lambda nm: f"{nm.group(1)}'{new_name}'",
+                        body,
+                        count=1
+                    )
+                    return prefix + new_body + suffix
 
-            # replace formats
+                return lib_block_pattern.sub(lib_replacer, text, count=1)
+
+            content = replace_lib_name(content)
+
+            # Replace formats (safe — unique enough in context)
+            formats_pattern = re.compile(r'formats:\s*\[.*?]', re.IGNORECASE | re.DOTALL)
+
             def formats_replacer(match):
                 replaced["formats"] = True
                 return "formats: ['umd']"
 
-            content = patterns["formats"].sub(formats_replacer, content)
+            content = formats_pattern.sub(formats_replacer, content)
 
-            # replace fileName
+            # Replace fileName (safe — unique enough in context)
+            filename_pattern = re.compile(r'fileName\s*:\s*\(format\)\s*=>\s*`[^`]*`', re.IGNORECASE)
+
             def filename_replacer(match):
                 replaced["fileName"] = True
                 return "fileName: (format) => `my-app.${format}.js`"
 
-            content = patterns["fileName"].sub(filename_replacer, content)
+            content = filename_pattern.sub(filename_replacer, content)
 
             # Write back to file
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
-            logger.info(f"Updated name in {file_path}")
+            logger.info(f"Updated vite build config in {file_path}: {replaced}")
             return True
         except Exception as e:
             logger.error(f"Error processing {file_path}: {e}")
             return False
+
 
     def _update_vite_config(self, project_dir: Path, plugin_expose_name: str):
         """Update the vite.config.js file to use the unique name"""

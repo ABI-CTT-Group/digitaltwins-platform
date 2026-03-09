@@ -122,7 +122,7 @@ const handleLaunch = async (id:string) => {
     const metadata = await useMinIoWorkflowToolMetadata();
     if (!!metadata && metadata.components.length >0){
         const toolMetadata = metadata.components.find((tool:PluginMinIOToolMetadata)=>tool.id == id)
-        if(!!toolMetadata){
+        if(toolMetadata){
             remoteAppStore.setRemoteApp({
                 path: toolMetadata.path,
                 expose: toolMetadata.expose,
@@ -151,7 +151,7 @@ const handleDeploy = async (id:string) =>{
 }
 
 const handleDeleteTool = async (res: any) =>{
-    if(!!res){
+    if(res){
         await handleRefresh()
     }
 }

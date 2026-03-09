@@ -55,7 +55,7 @@ services:
     image: quay.io/minio/minio:latest
     ports:
       - '8004:9000' #backend
-      - '8005:9001' #frontend
+      - '8007:9001' #frontend
     networks:
       - digitaltwins
     volumes:

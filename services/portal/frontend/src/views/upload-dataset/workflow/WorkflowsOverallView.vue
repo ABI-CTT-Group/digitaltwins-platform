@@ -112,7 +112,7 @@ const handleRegister = ()=>{
 
 const handleDeleteWorkflow = async (id: string) =>{
     const res = await useDeleteWorkflow(id)
-    if(!!res){
+    if(res){
         await handleRefresh()
     }
 }

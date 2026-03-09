@@ -12,12 +12,12 @@ return atob(passkey);
 export const useUser = () => {
   const { setUser } = currentUserStore();
   const { user } = storeToRefs(currentUserStore());
-  if (!!user.value) {
+  if (user.value) {
     localStorage.setItem('tumourAppRole', encryptKey(encryptKey(user.value.role) + '-'+ Date.now()));
   }else{
     // try to get the user from local storage
     const localData = typeof window !== "undefined" ? window.localStorage.getItem('tumourAppRole') : null;
-    if(!!localData){
+    if(localData){
       const decryptedData = decryptKey(localData);
       const [encryptRole, timestamp] = decryptedData.split('-');
       const role = decryptKey(encryptRole);

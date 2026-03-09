@@ -195,7 +195,7 @@ onMounted(async () => {
     console.log("assay content line 195:",workflowRenderItems.value);
     
     
-    if(!!String(assayDetails.value?.workflow.seekId)){
+    if(String(assayDetails.value?.workflow.seekId)){
         console.log(assayDetails.value);
         
         await getDashboardWorkflowDetail(String(assayDetails.value?.workflow.seekId));
