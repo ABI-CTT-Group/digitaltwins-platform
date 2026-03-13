@@ -5,8 +5,8 @@ services:
     environment:
       - NB_UID=1000
       - NB_GID=1000
-      - CHOWN_HOME="yes"
-      - CHOWN_HOME_OPTS="-R"
+      - CHOWN_HOME=yes
+      - CHOWN_HOME_OPTS=-R
       - JUPYTER_TOKEN=${JUPYTERLAB_TOKEN:-admin}
     ports:
       - "8008:8888"
