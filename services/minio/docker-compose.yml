@@ -21,8 +21,8 @@ services:
     depends_on:
       - minio
     environment:
-      - MINIO_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY}
-      - MINIO_SECRET_KEY=${MINIO_SERVER_SECRET_KEY}
+      - MINIO_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
     volumes:
       - ./init-minio.sh:/init-minio.sh
     entrypoint: /bin/sh /init-minio.sh
