@@ -15,6 +15,20 @@ services:
       - MINIO_SERVER_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
     command: server /data --console-address ":9001" --address ":9000"
 
+  # MinIO bucket initialization
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    environment:
+      - MINIO_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SERVER_SECRET_KEY}
+    volumes:
+      - ./init-minio.sh:/init-minio.sh
+    entrypoint: /bin/sh /init-minio.sh
+    networks:
+      - digitaltwins
+
 volumes:
   minio_data:
     driver: local
