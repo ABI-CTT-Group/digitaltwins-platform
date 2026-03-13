@@ -36,13 +36,6 @@ services:
       - database
     networks:
       - digitaltwins
-  minio:
-    extends:
-      file: ./services/minio/docker-compose.yml
-      service: minio
-    restart: unless-stopped
-    networks:
-      - digitaltwins
   digitaltwins-api:
     extends:
       file: ./services/api/digitaltwins-api/docker-compose.yml
@@ -78,14 +71,22 @@ services:
 
 include:
   # to run only a specific included project with the root .env: sudo docker compose -f services/<service_name>/docker-compose.yml --env-file ./.env up
+
+  # Airflow
   - path:
     - services/airflow/docker-compose.yml
     - services/airflow/network-override.yml
     project_directory: services/airflow
+  # SEEK
   - path:
     - services/seek/ldh-deployment/docker-compose.yml
     - services/seek/network-override.yml
     project_directory: services/seek/ldh-deployment
+  # MinIO
+  - path:
+    - services/minio/docker-compose.yml
+    project_directory: services/minio
+  # PACS
   - path:
     # PACS (Orthanc)
     - services/pacs/docker-compose.yml
@@ -106,9 +107,6 @@ volumes:
     driver: local
   pgadmin_data:
     name: digitaltwins_pgadmin_data
-    driver: local
-  minio_data:
-    name: digitaltwins_minio_data
     driver: local
   hapi_fhir_postgres:
     name: digitaltwins_hapi_fhir_postgres
