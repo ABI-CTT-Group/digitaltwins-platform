@@ -94,6 +94,11 @@ class PluginDeployment(Base):
     status = Column(String, default=DeployStatus.PENDING.value, nullable=False)
     source_path = Column(String, nullable=True)
     up = Column(Boolean, default=False, nullable=True)
+    # Nginx routing metadata
+    route_prefix = Column(String, nullable=True)       # e.g. /plugin/annotator
+    internal_host = Column(String, nullable=True)       # Docker container name, e.g. annotator-backend
+    internal_port = Column(String, nullable=True)       # Container internal port, e.g. 8082
+    has_websocket = Column(Boolean, default=False, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -245,6 +250,10 @@ class PluginDeployResponse(PluginDeployBase):
     deploy_id: str
     status: str
     up: bool
+    route_prefix: Optional[str] = None
+    internal_host: Optional[str] = None
+    internal_port: Optional[str] = None
+    has_websocket: Optional[bool] = None
     created_at: datetime
     updated_at: datetime
 

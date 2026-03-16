@@ -19,6 +19,9 @@ COPY --from=builder /app/build /usr/share/nginx/html
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# Create directory for dynamically generated plugin nginx configs
+RUN mkdir -p /etc/nginx/conf.d/plugins
+
 COPY entry.sh /entry.sh
 RUN chmod +x /entry.sh
 

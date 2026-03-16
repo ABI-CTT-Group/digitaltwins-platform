@@ -365,26 +365,23 @@ class PluginBuilder:
         return version
 
     @staticmethod
-    def _create_env_file(project_dir: Path):
-        host = os.environ.get('PORTAL_BACKEND_HOST_IP', None)
-        if host is None:
-            raise RuntimeError("HOST environment variable not set")
-        port = os.environ.get('PLUGIN_PORT', 8082)
-        use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
+    def _create_env_file(project_dir: Path, expose_name: str):
         config = {
-            "VITE_PLUGIN_API_URL": f"http{'s' if use_ssl else ''}://{host}",
-            "VITE_PLUGIN_API_PORT": port
+            "VITE_PLUGIN_ROUTE_PREFIX": f"/plugin/{expose_name}"
         }
         env_path = project_dir / ".env"
         if env_path.exists():
             env = dotenv_values(env_path)
+            # Remove legacy env vars that are no longer needed in production builds
+            env.pop("VITE_PLUGIN_API_URL", None)
+            env.pop("VITE_PLUGIN_API_PORT", None)
             config.update(env)
         else:
             env_path.touch(exist_ok=True)
         with open(env_path, "w", encoding="utf-8") as f:
             for key, val in config.items():
                 f.write(f"{key}={val}\n")
-        logger.info(f"Updated env file in {env_path}")
+        logger.info(f"Updated env file in {env_path} with route prefix /plugin/{expose_name}")
 
     def build(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
         """Complete plugin build process"""
@@ -475,10 +472,10 @@ class PluginBuilder:
                 new_version = self._update_plugin_version(frontend_path, plugin_id)
                 version = new_version if new_version is not None else version
 
-                # Step 2.3: update plugin backend endpoint by create .env in frontend folder, if the plugin has backend
+                # Step 2.3: create .env file with route prefix for nginx proxy
                 if has_backend:
                     logger.info("Step 2.3: Create .env file for frontend...")
-                    self._create_env_file(frontend_path)
+                    self._create_env_file(frontend_path, plugin_unique_expose_name)
 
                 # Step 3: npm install
                 logger.info("Step 3: Running npm install")

@@ -27,6 +27,9 @@ services:
       - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-xxxxxx}
       - KEYCLOAK_VERIFY_SSL=${KEYCLOAK_VERIFY_SSL:-false}
       - KEYCLOAK_CA_CERT=${KEYCLOAK_CA_CERT:-}
+      # Nginx plugin config (shared volume with portal-frontend)
+      - NGINX_PLUGINS_CONF_DIR=/nginx-plugins-conf
+      - NGINX_CONTAINER_NAME=portal-frontend
     volumes:
       - portal_datasets:/app/data
       - ./backend/datasets_tool:/datasets_tool
@@ -35,6 +38,7 @@ services:
       - ./backend/configs.ini:/app/configs.ini
       - plugin_database:/data
       - /var/run/docker.sock:/var/run/docker.sock
+      - nginx_plugin_configs:/nginx-plugins-conf
     restart: unless-stopped
     networks:
       - digitaltwins
@@ -45,6 +49,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    container_name: portal-frontend
     ports:
       - "80:80"
     environment:
@@ -57,6 +62,8 @@ services:
       - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-xxxxxx}
       - KEYCLOAK_VERIFY_SSL=${KEYCLOAK_VERIFY_SSL:-false}
       - KEYCLOAK_CA_CERT=${KEYCLOAK_CA_CERT:-}
+    volumes:
+      - nginx_plugin_configs:/etc/nginx/conf.d/plugins
     restart: unless-stopped
     networks:
       - digitaltwins
@@ -145,4 +152,7 @@ volumes:
     driver: local
   minio_data:
     name: digitaltwins_minio_data
+    driver: local
+  nginx_plugin_configs:
+    name: digitaltwins_nginx_plugin_configs
     driver: local
