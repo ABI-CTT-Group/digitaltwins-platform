@@ -57,6 +57,9 @@ import Fuse from "fuse.js";
 import NoData from '../components/NoData.vue';
 import Search from '../components/Search.vue';
 import Refresh from "../components/Refresh.vue";
+// need to remove this after testing
+import toolConfig from "@/assets/demo/tool_config.json";
+localStorage.setItem("app_config", JSON.stringify(toolConfig));
 
 const router = useRouter();
 const remoteAppStore = useRemoteAppStore();

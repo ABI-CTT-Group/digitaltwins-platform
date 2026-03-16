@@ -105,9 +105,33 @@ services:
     volumes:
       - hapi_fhir_postgres:/var/lib/postgresql/data
 
+  minio-init:
+    image: quay.io/minio/mc:latest
+    depends_on:
+      - minio
+    networks:
+      - digitaltwins
+    restart: "no"
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Waiting for MinIO...';
+      until mc alias set myminio http://minio:9000 minioadmin minioadmin; do
+        sleep 2;
+      done;
+      echo 'MinIO is up!';
+      for BUCKET in workflows workflow-tools processes measurements; do
+        echo \"Creating bucket '$$BUCKET'...\";
+        mc mb myminio/$$BUCKET --ignore-existing;
+        echo '{\"Version\": \"2012-10-17\", \"Statement\": [{\"Effect\": \"Allow\", \"Principal\": \"*\", \"Action\": [\"s3:GetObject\", \"s3:GetObjectVersion\", \"s3:PutObject\"], \"Resource\": \"arn:aws:s3:::'$$BUCKET'/*\"}]}' > /tmp/$$BUCKET-policy.json;
+        mc anonymous set-json /tmp/$$BUCKET-policy.json myminio/$$BUCKET;
+      done;
+      echo 'Buckets created and policies applied successfully.';
+      "
+
 networks:
   digitaltwins:
     driver: bridge
+    name: digitaltwins
 
 volumes:
   portal_datasets:

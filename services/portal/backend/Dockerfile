@@ -4,13 +4,17 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     gcc \
+    gnupg \
     libpq-dev \
     python3-dev \
-    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
-    && apt-get install -y nodejs \
-    && corepack enable \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Volta for dynamic Node.js version management
+ENV VOLTA_HOME="/root/.volta"
+ENV PATH="$VOLTA_HOME/bin:$PATH"
+RUN curl https://get.volta.sh | bash \
+    && volta install node@22 yarn@1.22.22
 
 # Add Docker official GPG
 RUN curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg

@@ -1,0 +1,22 @@
+{
+  "user_info": {
+    "uuid": "user-001"
+  },
+  "assay_info": {
+    "uuid": "assay-001",
+    "name": "test-segmentation-app",
+    "cohorts": [
+      "sub-1",
+      "sub-2",
+      "sub-3"
+    ],
+    "datasets": [
+      "workdir"
+    ]
+  },
+  "system": {
+    "minio": {
+      "public_path": "http://minio:9000/measurements/"
+    }
+  }
+}
