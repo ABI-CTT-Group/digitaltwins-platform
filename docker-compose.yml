@@ -103,6 +103,8 @@ volumes:
     driver: local
   pgadmin_data:
     driver: local
+  notebook_workspace:
+    driver: local
   hapi_fhir_postgres:
     driver: local
 
