@@ -94,22 +94,22 @@ include:
 
 volumes:
   keycloak_data:
-    name: digitaltwins_keycloak_data
+    name: digitaltwins-keycloak_data
     driver: local
   portal_datasets:
-    name: digitaltwins_portal_datasets
+    name: digitaltwins-portal_datasets
     driver: local
   plugin_database:
-    name: digitaltwins_plugin_database
+    name: digitaltwins-plugin_database
     driver: local
   pgdata:
-    name: digitaltwins_pgdata
+    name: digitaltwins-pgdata
     driver: local
   pgadmin_data:
-    name: digitaltwins_pgadmin_data
+    name: digitaltwins-pgadmin_data
     driver: local
   hapi_fhir_postgres:
-    name: digitaltwins_hapi_fhir_postgres
+    name: digitaltwins-hapi_fhir_postgres
     driver: local
 
 networks:
