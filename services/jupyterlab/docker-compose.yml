@@ -11,9 +11,13 @@ services:
     ports:
       - "8008:8888"
     volumes:
-      - ./workspace:/home/jovyan/work
+      - notebook_workspace:/home/jovyan/work
     command: start-notebook.sh
     restart: unless-stopped
+
+volumes:
+  notebook_workspace:
+    driver: local
 
 networks:
   digitaltwins:
