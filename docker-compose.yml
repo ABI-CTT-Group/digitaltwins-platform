@@ -1,11 +1,4 @@
 services:
-  keycloak:
-    extends:
-      file: ./services/keycloak/docker-compose.yml
-      service: keycloak
-    restart: unless-stopped
-    networks:
-      - digitaltwins
   portal-backend:
     extends:
       file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
@@ -20,40 +13,6 @@ services:
     restart: unless-stopped
     networks:
       - digitaltwins
-  database:
-    extends:
-      file: ./services/postgres/docker-compose.yml
-      service: database
-    restart: unless-stopped
-    networks:
-      - digitaltwins
-  pgadmin: #optional. web interface for postgres
-    extends:
-      file: ./services/postgres/docker-compose.yml
-      service: pgadmin
-    restart: unless-stopped
-    depends_on:
-      - database
-    networks:
-      - digitaltwins
-  digitaltwins-api:
-    extends:
-      file: ./services/api/digitaltwins-api/docker-compose.yml
-      service: digitaltwins-api
-    restart: unless-stopped
-    depends_on:
-      - keycloak
-    networks:
-      - digitaltwins
-
-  jupyterlab:
-    extends:
-      file: ./services/jupyterlab/docker-compose.yml
-      service: jupyterlab
-    restart: unless-stopped
-    networks:
-      - digitaltwins
-
 #  hapi-fhir:
 #    extends:
 #      file: ./services/hapi-fhir/docker-compose.yml
@@ -72,6 +31,14 @@ services:
 include:
   # to run only a specific included project with the root .env: sudo docker compose -f services/<service_name>/docker-compose.yml --env-file ./.env up
 
+  # Keycloak
+  - path:
+    - services/keycloak/docker-compose.yml
+    project_directory: services/keycloak
+  # postgres
+  - path:
+    - services/postgres/docker-compose.yml
+    project_directory: services/postgres
   # Airflow
   - path:
     - services/airflow/docker-compose.yml
@@ -91,19 +58,19 @@ include:
     # PACS (Orthanc)
     - services/pacs/docker-compose.yml
     project_directory: services/pacs
+  # digitaltwins-api
+  - path:
+    - services/api/digitaltwins-api/docker-compose.yml
+    project_directory: services/api/digitaltwins-api
+  # JupyterLab
+  - path:
+    - services/jupyterlab/docker-compose.yml
+    project_directory: services/jupyterlab
 
 volumes:
-  keycloak_data:
-    driver: local
   portal_datasets:
     driver: local
   plugin_database:
-    driver: local
-  pgdata:
-    driver: local
-  pgadmin_data:
-    driver: local
-  notebook_workspace:
     driver: local
   hapi_fhir_postgres:
     driver: local
