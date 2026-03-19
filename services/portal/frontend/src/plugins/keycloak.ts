@@ -153,12 +153,12 @@ export function setupIdleTimeout(idleMinutes: number = 30, warningMinutes: numbe
 
     window.dispatchEvent(new CustomEvent('idle-reset'));
 
-    console.log('🔄 User activity detected - resetting idle timer');
+    // console.log('🔄 User activity detected - resetting idle timer');
 
     // Clear existing timers
     if (idleTimer) {
       clearTimeout(idleTimer);
-      console.log('⏱️  Cleared logout timer');
+      // console.log('⏱️  Cleared logout timer');
     }
     if (warningTimer) {
       clearTimeout(warningTimer);
@@ -181,7 +181,7 @@ export function setupIdleTimeout(idleMinutes: number = 30, warningMinutes: numbe
       await logout();
     }, idleTime);
 
-    console.log(`✅ Idle timer set for ${idleMinutes} minutes (${idleTime}ms)`);
+    // console.log(`✅ Idle timer set for ${idleMinutes} minutes (${idleTime}ms)`);
   };
 
   // Track user activity with events (using capture phase for earliest detection)

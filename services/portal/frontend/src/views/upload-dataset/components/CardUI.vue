@@ -6,7 +6,7 @@
         max-height="230" 
         rounded="lg" 
         elevation="2"
-        :disabled="isDeleting"
+        :disabled="isDeleting || isDisabled"
         :loading="isDeleting"
         :style="cardStyle" >
         <div class="d-flex justify-space-between align-start">
@@ -64,10 +64,12 @@
 const props = withDefaults(
   defineProps<{
     isDeleting?: boolean
+    isDisabled?: boolean
     cardStyle?: string
   }>(),
   {
     isDeleting: false,
+    isDisabled: false,
     cardStyle: "",
   }
 )

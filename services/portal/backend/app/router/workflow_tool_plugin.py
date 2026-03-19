@@ -50,7 +50,7 @@ adapter = get_fhir_adapter()
 fhir_async_client = get_fhir_async_client()
 
 
-def _parse_docker_compose_routing(backend_dir: Path) -> dict:
+def _parse_docker_compose_routing(backend_dir: Path, expose_name: str = "") -> dict:
     """Extract container_name and internal port from docker-compose.yml for nginx routing."""
     for fname in ("docker-compose.yml", "docker-compose.yaml"):
         compose_path = backend_dir / fname
@@ -67,11 +67,11 @@ def _parse_docker_compose_routing(backend_dir: Path) -> dict:
             return {}
         # Use the first service
         service_name, service_conf = next(iter(services.items()))
-        # Try explicit container_name, otherwise use directory-based name
+        # Try explicit container_name, otherwise use project-based name
         container_name = service_conf.get("container_name")
         if not container_name:
-            # Docker Compose default: <project>-<service>-1, project = directory name
-            project = backend_dir.name
+            # With -p flag: <expose_name>-<service>-1, fallback to directory name
+            project = expose_name if expose_name else backend_dir.name
             container_name = f"{project}-{service_name}-1"
         # Extract internal port from ports mapping (e.g. "8002:8082" → "8082")
         internal_port = "8082"  # default
@@ -414,7 +414,7 @@ async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = 
                         # Generate nginx config for this plugin
                         expose_name = latest_build.expose_name
                         backend_dir = Path(result["backend_dir"])
-                        routing = _parse_docker_compose_routing(backend_dir)
+                        routing = _parse_docker_compose_routing(backend_dir, expose_name)
                         if routing and expose_name:
                             route_prefix = f"/plugin/{expose_name}"
                             deploy_record.route_prefix = route_prefix
@@ -479,8 +479,10 @@ async def execute_plugin_backend_by_docker(deploy_id: str, command: Literal["up"
         raise HTTPException(status_code=404, detail="Plugin Deploy record not found")
     if deploy_record.status == DeployStatus.COMPLETED.value:
         if command == "up":
+            expose_name = deploy_record.route_prefix.replace("/plugin/", "") if deploy_record.route_prefix else ""
             result = deployer.compose_up({
-                "backend_dir": deploy_record.source_path
+                "backend_dir": deploy_record.source_path,
+                "expose_name": expose_name,
             })
             if result["success"]:
                 deploy_record.up = True
@@ -496,8 +498,10 @@ async def execute_plugin_backend_by_docker(deploy_id: str, command: Literal["up"
                     deployer.reload_nginx()
                 logger.info("Successfully executed docker compose up for plugin deployment")
         elif command == "down":
+            expose_name = deploy_record.route_prefix.replace("/plugin/", "") if deploy_record.route_prefix else ""
             result = deployer.compose_down({
-                "backend_dir": deploy_record.source_path
+                "backend_dir": deploy_record.source_path,
+                "expose_name": expose_name,
             })
             if result["success"]:
                 deploy_record.up = False

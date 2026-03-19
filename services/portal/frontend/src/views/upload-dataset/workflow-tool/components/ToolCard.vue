@@ -1,9 +1,10 @@
 
 <template>
   <!-- rgba(15, 25, 35, 0.15) -->
-    <CardUI 
+    <CardUI
       card-style="background: rgba(75, 204, 255, 0.03);"
       :is-deleting="isDeleting"
+      :is-disabled="!!disabled"
       v-model:menu="menu"
     >
       <template #launch>
@@ -50,7 +51,7 @@
             size="small" 
             class="text-white mx-2" 
             rounded="md" 
-            :disabled="(tool.status != 'completed') ? true : false"
+            :disabled="disabled || tool.status != 'completed'"
             @click.stop="onLaunch">
             Launch
         </v-btn>
@@ -109,6 +110,7 @@ import { formatDate } from '../../components/utils';
 
 const props = defineProps<{
   tool: PluginResponse
+  disabled?: boolean
 }>()
 
 const menu = ref(false);

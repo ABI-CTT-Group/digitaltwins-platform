@@ -123,13 +123,20 @@ location {route_prefix}/ {{
         except Exception as e:
             logger.error(f"An unexpected error occurred when running docker compose up: {e}")
 
+    @staticmethod
+    def _build_compose_command(
+        expose_name: str,
+        action: str = "up --build -d --force-recreate",
+    ) -> str:
+        """Build a docker compose command with project name scoped to the plugin."""
+        return f"docker compose -p {expose_name} {action}"
+
     def deploy(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
 
         deploy_logs = []
         expose_name = plugin.get("expose_name", )
         dataset_path = plugin.get("dataset_path", "unknown")
         backend_folder = plugin.get("backend_folder", "unknown")
-        backend_deploy_command = plugin.get("backend_deploy_command", "docker compose up --build -d")
 
         try:
             # Step 1 get backend dir
@@ -138,9 +145,10 @@ location {route_prefix}/ {{
             # Step 2: check if docker-compose.yml exist
             logger.info("Step 2: Check docker compose file...")
             self._check_compose_file(backend_dir)
-            # Step 3 deploy backend in docker
-            logger.info("Step 3: Start docker compose...")
-            self._compose_execute(backend_dir, backend_deploy_command)
+            # Step 3 deploy backend in docker with project name = expose_name
+            logger.info(f"Step 3: Start docker compose with project name '{expose_name}'...")
+            deploy_command = self._build_compose_command(expose_name, "up --build -d --force-recreate")
+            self._compose_execute(backend_dir, deploy_command)
             return {
                 "success": True,
                 "backend_dir": str(backend_dir) if backend_dir else None,
@@ -161,25 +169,26 @@ location {route_prefix}/ {{
 
     def compose_up(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
         dir_path = plugin.get("backend_dir", "unknown")
+        expose_name = plugin.get("expose_name", "")
         if dir_path is None or dir_path == "unknown":
             return {"success": False, "backend_dir": None}
 
         backend_dir = Path(dir_path)
-        command = plugin.get("command", "docker compose up -d")
+        command = self._build_compose_command(expose_name, "up -d") if expose_name else "docker compose up -d"
 
         if backend_dir.exists():
             try:
                 self._compose_execute(backend_dir, command)
-                logger.info(f"successfully run docker compose up -d for {backend_dir}")
+                logger.info(f"successfully run compose up for project '{expose_name}' at {backend_dir}")
                 return {
                     "success": True,
-                    "message": f"successfully run docker compose up -d for {backend_dir}",
+                    "message": f"successfully run compose up for project '{expose_name}' at {backend_dir}",
                 }
             except Exception as e:
-                logger.error(f"Failed run docker compose up -d for {backend_dir}, error: {e}")
+                logger.error(f"Failed compose up for project '{expose_name}' at {backend_dir}, error: {e}")
                 return {
                     "success": False,
-                    "message": f"Failed run docker compose up -d for {backend_dir}, error: {e}",
+                    "message": f"Failed compose up for project '{expose_name}' at {backend_dir}, error: {e}",
                 }
         else:
             logger.error(f"Docker compose up failed, backend_dir {backend_dir} does not exist")
@@ -190,25 +199,26 @@ location {route_prefix}/ {{
 
     def compose_down(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
         dir_path = plugin.get("backend_dir", "unknown")
+        expose_name = plugin.get("expose_name", "")
         if dir_path is None or dir_path == "unknown":
             return {"success": False, "backend_dir": None}
 
         backend_dir = Path(dir_path)
-        command = plugin.get("command", "docker compose down")
+        command = self._build_compose_command(expose_name, "down") if expose_name else "docker compose down"
 
         if backend_dir.exists():
             try:
                 self._compose_execute(backend_dir, command)
-                logger.info(f"successfully run docker compose down for {backend_dir}")
+                logger.info(f"successfully run compose down for project '{expose_name}' at {backend_dir}")
                 return {
                     "success": True,
-                    "message": f"successfully run docker compose down for {backend_dir}",
+                    "message": f"successfully run compose down for project '{expose_name}' at {backend_dir}",
                 }
             except Exception as e:
-                logger.error(f"Failed run docker compose down for {backend_dir}, error: {e}")
+                logger.error(f"Failed compose down for project '{expose_name}' at {backend_dir}, error: {e}")
                 return {
                     "success": False,
-                    "message": f"Failed run docker compose down for {backend_dir}, error: {e}",
+                    "message": f"Failed compose down for project '{expose_name}' at {backend_dir}, error: {e}",
                 }
         else:
             logger.error(f"Docker compose down failed, backend_dir {backend_dir} does not exist")
@@ -223,25 +233,29 @@ location {route_prefix}/ {{
         Remove all images and volumes which belong to this compose
         """
         dir_path = plugin.get("backend_dir", "unknown")
+        expose_name = plugin.get("expose_name", "")
         if dir_path is None or dir_path == "unknown":
             return {"success": False, "backend_dir": None}
 
         backend_dir = Path(dir_path)
-        command = plugin.get("command", "docker compose down --rmi all --volumes")
+        command = self._build_compose_command(expose_name, "down --rmi all --volumes") if expose_name else "docker compose down --rmi all --volumes"
 
         if backend_dir.exists():
             try:
                 self._compose_execute(backend_dir, command)
-                logger.info(f"successfully removed all images and volumes for {backend_dir}")
+                # Also remove the nginx config for this plugin
+                self.remove_nginx_conf(expose_name)
+                self.reload_nginx()
+                logger.info(f"successfully removed all images and volumes for project '{expose_name}' at {backend_dir}")
                 return {
                     "success": True,
-                    "message": f"successfully removed all images and volumes for {backend_dir}",
+                    "message": f"successfully removed all images and volumes for project '{expose_name}' at {backend_dir}",
                 }
             except Exception as e:
-                logger.error(f"Failed removed all images and volumes for {backend_dir}, error: {e}")
+                logger.error(f"Failed removed all images and volumes for project '{expose_name}' at {backend_dir}, error: {e}")
                 return {
                     "success": False,
-                    "message": f"Failed removed all images and volumes for {backend_dir}, error: {e}",
+                    "message": f"Failed removed all images and volumes for project '{expose_name}' at {backend_dir}, error: {e}",
                 }
         else:
             logger.error(f"Removed all images and volumes failed, backend_dir {backend_dir} does not exist")
