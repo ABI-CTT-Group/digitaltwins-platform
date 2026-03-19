@@ -117,6 +117,17 @@
       groups: docker
       append: yes
 
+  - name: Transfer Docker image cache to isolated VM
+    ansible.posix.synchronize:
+      src: "docker_cache/full_docker_cache.tar" # Update this to your actual local path
+      dest: "/home/ubuntu/full_docker_cache.tar"
+      mode: push
+
+  - name: Load cached Docker images into local daemon
+    ansible.builtin.command: docker load -i /home/ubuntu/full_docker_cache.tar
+    register: docker_load_output
+    changed_when: "'Loaded image' in docker_load_output.stdout"
+
   - name: Enable and start Docker service
     become: yes
     ansible.builtin.systemd:
@@ -127,16 +138,52 @@
   - name: Reset SSH connection to pick up group changes
     meta: reset_connection
 
+## Because git pulling has basically stopped functioning in the last couple days...
+#  - name: Sync code to VM (Honoring .gitignore)
+#    ansible.posix.synchronize:
+#      src: /home/ubuntu/twins/digitaltwins-platform/
+#      dest: /home/ubuntu/digitaltwins-platform/
+#      archive: yes
+#      delete: yes
+#      rsync_opts:
+#        - '--filter=":- .gitignore"'
+#        - '--exclude=.git/'
+
+#  - name: Raw git clone (Using a full login shell)
+#    ansible.builtin.shell: >
+#      bash -lc 'git clone --quiet --depth 1 
+#      --branch buildout 
+#      --recurse-submodules 
+#      --shallow-submodules 
+#      https://github.com/ABI-CTT-Group/digitaltwins-platform.git 
+#      ./digitaltwins-platform'
+#    args:
+#      creates: ./digitaltwins-platform
+#      executable: /bin/bash
+#
+#  - name: Raw git clone (bypassing Ansible's stubborn git module)
+#    ansible.builtin.command: >
+#      git clone --quiet --depth 1
+#      --branch buildout 
+#      --recurse-submodules 
+#      --shallow-submodules 
+#      https://github.com/ABI-CTT-Group/digitaltwins-platform.git 
+#      ./digitaltwins-platform
+#    args:
+#      creates: ./digitaltwins-platform
+#
+
   - name: Read git checkout platform
     ansible.builtin.git:
       repo: https://github.com/ABI-CTT-Group/digitaltwins-platform.git
       dest: ./digitaltwins-platform
+      depth: 1
       force: yes
       recursive: yes  # submodules
       version: buildout
 
   - name: update submodules
-    ansible.builtin.command: git submodule update --remote --recursive
+    ansible.builtin.command: git submodule update --remote --recursive --depth 1
     args:
       chdir: ./digitaltwins-platform
 
@@ -191,16 +238,16 @@
     args:
       chdir: ./digitaltwins-platform
 
-  - name: check for api .configs.ini
-    stat:
-      path: "./digitaltwins-platform/services/api/digitaltwins-api/configs.ini"
-    register: file_check2
+#  - name: check for api .configs.ini
+#    stat:
+#      path: "./digitaltwins-platform/services/api/digitaltwins-api/configs.ini"
+#    register: file_check2
 
-  - name: api configs.ini
-    ansible.builtin.command: cp ./services/api/digitaltwins-api/configs.ini.template ./services/api/digitaltwins-api/configs.ini
-    args:
-      chdir: ./digitaltwins-platform
-    when: not file_check2.stat.exists
+#  - name: api configs.ini
+#    ansible.builtin.command: cp ./services/api/digitaltwins-api/configs.ini.template ./services/api/digitaltwins-api/configs.ini
+#    args:
+#      chdir: ./digitaltwins-platform
+#    when: not file_check2.stat.exists
 
   - name: check for file
     stat:

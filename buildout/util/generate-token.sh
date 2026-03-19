@@ -6,13 +6,13 @@
 SEEK_TOKEN_FILE_NAME=${SEEK_TOKEN_FILE_NAME:=~/keys/seek_api_token.txt}
 CONTAINER_NAME="digitaltwins-platform-seek-1"
 USERNAME=${1:-admin}
-CONFIG_FILE=~/digitaltwins-platform/services/api/digitaltwins-api/configs.ini
+#CONFIG_FILE=~/digitaltwins-platform/services/api/digitaltwins-api/configs.ini
 ENV_FILE=~/digitaltwins-platform/.env
 
-[[ -f "$CONFIG_FILE" ]] || {
-    echo "No config file $CONFIG_FILE"
-    exit 1
-}
+#[[ -f "$CONFIG_FILE" ]] || {
+#    echo "No config file $CONFIG_FILE"
+#    exit 1
+#}
 
 API_TOKEN=$(cat << RUBY_SCRIPT | docker exec -i $CONTAINER_NAME bash -c 'cd /seek && RAILS_ENV=production bundle exec rails runner -'
 # Find the user (adjust username as needed)
@@ -40,6 +40,6 @@ RUBY_SCRIPT
    exit 1
 }
 
-sed -i "s/api_token=.*/api_token=\"$API_TOKEN\"/g" $CONFIG_FILE
+#sed -i "s/api_token=.*/api_token=\"$API_TOKEN\"/g" $CONFIG_FILE
 sed -i "s/SEEK_API_TOKEN=.*/SEEK_API_TOKEN=\"$API_TOKEN\"/g" $ENV_FILE
 echo $API_TOKEN > "$SEEK_TOKEN_FILE_NAME"

@@ -242,11 +242,22 @@ docker volume create digitaltwins-platform_filestore
 ```
 
 - copy over  `./services/seek/ldh-deployment/docker-compose.env` from VM X to VM Y for its passwords
-- adjust `digitaltwins-platform/services/seek/ldh-deployment/docker-compose.yml`
+- copy the SEEK_API_TOKEN in `.env` from VM X to VM Y
+- adjust `digitaltwins-platform/services/seek/ldh-deployment/docker-compose.yml` (?? MP - what does this mean??)
 
 - sudo su -, and then
 cd /var/lib/docker/volumes
 - As root, extract the backup from VM X taken with the util/backup.sh utility using:
 tar --xattrs --acls --numeric-owner -xzvf $BACKUP_FILE -C /var/lib/docker/volumes/
 - return to ubuntu and `docker compose up -d`
+
+
+To bundle up the docker cache required to run your system: On a machine that has been connected
+to the Internet and built the system:
+
+`docker save -o full_docker_cache.tar $(docker images --format "{{.Repository}}:{{.Tag}}" | grep -v "^<none>")`
+
+Copy the resulting full_docker_cache.tar to the new isolated VM. Then,
+
+`docker load -i /home/ubuntu/full_docker_cache.tar`
 
