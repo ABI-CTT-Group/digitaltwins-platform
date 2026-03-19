@@ -101,7 +101,6 @@ CREATE TABLE public.code_parameter (
 --
 
 CREATE TABLE public.dataset (
-    project_uuid uuid NOT NULL,
     dataset_uuid uuid DEFAULT public.uuid_generate_v1() NOT NULL,
     dataset_id integer,
     version integer DEFAULT 1,
@@ -179,29 +178,6 @@ CREATE TABLE public.manifest (
 CREATE TABLE public.performance (
     dataset_uuid uuid,
     performance_uuid uuid NOT NULL
-);
-
-
---
--- Name: program; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.program (
-    program_uuid uuid DEFAULT public.uuid_generate_v1() NOT NULL,
-    program_name character varying,
-    seek_id character varying
-);
-
-
---
--- Name: project; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.project (
-    program_uuid uuid NOT NULL,
-    project_uuid uuid DEFAULT public.uuid_generate_v1() NOT NULL,
-    project_name character varying,
-    seek_id character varying
 );
 
 
@@ -335,22 +311,6 @@ ALTER TABLE ONLY public.performance
 
 
 --
--- Name: program program_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.program
-    ADD CONSTRAINT program_pkey PRIMARY KEY (program_uuid);
-
-
---
--- Name: project project_uuid; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.project
-    ADD CONSTRAINT project_uuid PRIMARY KEY (project_uuid);
-
-
---
 -- Name: resource resource_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -447,22 +407,6 @@ ALTER TABLE ONLY public.submission
 
 
 --
--- Name: project program; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.project
-    ADD CONSTRAINT program FOREIGN KEY (program_uuid) REFERENCES public.program(program_uuid) NOT VALID;
-
-
---
--- Name: dataset project; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.dataset
-    ADD CONSTRAINT project FOREIGN KEY (project_uuid) REFERENCES public.project(project_uuid) NOT VALID;
-
-
---
 -- Name: dataset_mapping sample_uuid; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -483,4 +427,3 @@ ALTER TABLE ONLY public.dataset_mapping
 --
 
 \unrestrict rVxlDSj6hKJ32vEUehLG4MzBqXPoDXuCKjqQnbaecqMmPMqi9d7BlQPU3rbLbQc
-

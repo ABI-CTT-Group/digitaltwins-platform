@@ -27,14 +27,7 @@ Research objects can be created through the catalog service (SEEK) UI or via the
 
 * [**TODO:** Implementation details for populating data via the DigitalTWINS platform API.]
 
-### 2. Database initialization
-
-Create the necessary associations in the database using the **pgAdmin** interface: http://localhost:8004
-
-* **Programme:** In the `programme` table, create an entry and add the corresponding **SEEK ID**.
-* **Project:** In the `project` table, create an entry and add the corresponding **SEEK ID**.
-
-### 3. Workflow upload (Airflow)
+### 2. Workflow upload (Airflow)
 
 1. Have your workflow code in [Airflow Dags](https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dags.html) format and place in `services/airflow/dags/`. You can use the example workflows in `./example/airflow` for testing
    
@@ -50,7 +43,7 @@ Create the necessary associations in the database using the **pgAdmin** interfac
 
 3. Verify if the workflow is visible in the Airflow UI: `http://localhost:8002/dags`
 
-### 4. Upload measurement dataset
+### 3. Upload measurement dataset
 
 Measurement datasets can be uploaded using the following methods:
 
