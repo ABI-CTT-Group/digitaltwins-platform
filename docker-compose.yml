@@ -1,21 +1,4 @@
 services:
-<<<<<<< HEAD
-  keycloak:
-    extends:
-      file: ./services/keycloak/docker-compose.yml
-      service: keycloak
-    restart: unless-stopped
-    networks:
-      - digitaltwins
-  cadvisor:
-    extends:
-      file: ./services/cadvisor/docker-compose.yml
-      service: cadvisor
-    restart: unless-stopped
-    networks:
-      - digitaltwins
-=======
->>>>>>> main
   portal-backend:
     extends:
       file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
