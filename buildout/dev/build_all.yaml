@@ -388,11 +388,25 @@
     args:
       chdir: ./digitaltwins-platform
 
-  - name: Sleep on the remote host for a bit
-    ansible.builtin.shell: sleep 60
-    changed_when: true # Ensures the task reports 'changed' every time it runs
+#  - name: Sleep on the remote host for a bit
+#    ansible.builtin.shell: sleep 60
+#    changed_when: true # Ensures the task reports 'changed' every time it runs
+#
 
-######### 
+# Better solution to the "wait" problem...
+
+  - name: Wait for background migrations to create the users table
+    ansible.builtin.command: >
+      docker exec digitaltwins-platform-seek-1 bash -c 
+      'cd /seek && RAILS_ENV=production bundle exec rails runner "exit(ActiveRecord::Base.connection.table_exists?(:users) ? 0 : 1)"'
+    register: table_check
+    # Try up to 15 times, waiting 10 seconds between attempts (max 150 seconds)
+    retries: 15
+    delay: 10
+    # Keep looping until the command returns an exit code of 0 (Success)
+    until: table_check.rc == 0
+    # This prevents Ansible from reporting 'changed' since we are only reading state, not modifying it
+    changed_when: false
 
   - name: Set SEEK_ADMIN_PASSWORD from environment variable
     ansible.builtin.set_fact:
@@ -412,8 +426,6 @@
     ansible.builtin.command: "./generate-token.sh"
     args:
       chdir: ./digitaltwins-platform/buildout/util
-
-##########
 
   - name: all down
     ansible.builtin.command: docker compose down
