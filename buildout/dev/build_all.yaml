@@ -117,6 +117,9 @@
       groups: docker
       append: yes
 
+  - name: Reset SSH connection to pick up group changes
+    meta: reset_connection
+
   - name: Transfer Docker image cache to isolated VM
     ansible.posix.synchronize:
       src: "docker_cache/full_docker_cache.tar" # Update this to your actual local path
@@ -134,9 +137,6 @@
       name: docker
       enabled: true
       state: started
-
-  - name: Reset SSH connection to pick up group changes
-    meta: reset_connection
 
 ## Because git pulling has basically stopped functioning in the last couple days...
 #  - name: Sync code to VM (Honoring .gitignore)
