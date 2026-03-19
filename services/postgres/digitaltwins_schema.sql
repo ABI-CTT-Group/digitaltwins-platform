@@ -2,8 +2,10 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 16.9 (Ubuntu 16.9-0ubuntu0.24.04.1)
--- Dumped by pg_dump version 16.9 (Ubuntu 16.9-0ubuntu0.24.04.1)
+\restrict rVxlDSj6hKJ32vEUehLG4MzBqXPoDXuCKjqQnbaecqMmPMqi9d7BlQPU3rbLbQc
+
+-- Dumped from database version 16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)
+-- Dumped by pg_dump version 16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -43,7 +45,8 @@ CREATE TABLE public.assay (
     assay_seek_id integer,
     workflow_seek_id integer,
     cohort integer,
-    ready boolean
+    ready boolean,
+    workspace_id character varying
 );
 
 
@@ -284,18 +287,6 @@ CREATE TABLE public.submission (
 
 
 --
--- Name: workflow; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.workflow (
-    dataset_uuid uuid,
-    field_type character varying,
-    field_name character varying,
-    field_label character varying
-);
-
-
---
 -- Name: code_description code_description_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -392,14 +383,6 @@ ALTER TABLE ONLY public.submission
 
 
 --
--- Name: manifest dataset; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.manifest
-    ADD CONSTRAINT dataset FOREIGN KEY (dataset_uuid) REFERENCES public.dataset(dataset_uuid);
-
-
---
 -- Name: dataset_description dataset; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -408,11 +391,11 @@ ALTER TABLE ONLY public.dataset_description
 
 
 --
--- Name: dataset_mapping dataset_uuid; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: manifest dataset; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.dataset_mapping
-    ADD CONSTRAINT dataset_uuid FOREIGN KEY (dataset_uuid) REFERENCES public.dataset(dataset_uuid);
+ALTER TABLE ONLY public.manifest
+    ADD CONSTRAINT dataset FOREIGN KEY (dataset_uuid) REFERENCES public.dataset(dataset_uuid);
 
 
 --
@@ -429,6 +412,14 @@ ALTER TABLE ONLY public.code_description
 
 ALTER TABLE ONLY public.code_parameter
     ADD CONSTRAINT dataset_uuid FOREIGN KEY (dataset_uuid) REFERENCES public.dataset(dataset_uuid) NOT VALID;
+
+
+--
+-- Name: dataset_mapping dataset_uuid; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.dataset_mapping
+    ADD CONSTRAINT dataset_uuid FOREIGN KEY (dataset_uuid) REFERENCES public.dataset(dataset_uuid);
 
 
 --
@@ -490,4 +481,6 @@ ALTER TABLE ONLY public.dataset_mapping
 --
 -- PostgreSQL database dump complete
 --
+
+\unrestrict rVxlDSj6hKJ32vEUehLG4MzBqXPoDXuCKjqQnbaecqMmPMqi9d7BlQPU3rbLbQc
 
