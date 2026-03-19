@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
-\restrict rVxlDSj6hKJ32vEUehLG4MzBqXPoDXuCKjqQnbaecqMmPMqi9d7BlQPU3rbLbQc
+\restrict fg8fi7qmLCYfuZmkt243hF7mBZWIPItBQB7ry4yXDs1Zj9todHDakZfbw1OdHyO
 
--- Dumped from database version 16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)
--- Dumped by pg_dump version 16.13 (Ubuntu 16.13-0ubuntu0.24.04.1)
+-- Dumped from database version 16.13 (Debian 16.13-1.pgdg13+1)
+-- Dumped by pg_dump version 16.13 (Debian 16.13-1.pgdg13+1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -101,13 +101,11 @@ CREATE TABLE public.code_parameter (
 --
 
 CREATE TABLE public.dataset (
-    project_uuid uuid NOT NULL,
     dataset_uuid uuid DEFAULT public.uuid_generate_v1() NOT NULL,
-    dataset_id integer,
-    version integer DEFAULT 1,
-    category character varying NOT NULL,
+    seek_id character varying,
     dataset_name character varying,
-    seek_id character varying
+    version integer DEFAULT 1,
+    category character varying NOT NULL
 );
 
 
@@ -183,29 +181,6 @@ CREATE TABLE public.performance (
 
 
 --
--- Name: program; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.program (
-    program_uuid uuid DEFAULT public.uuid_generate_v1() NOT NULL,
-    program_name character varying,
-    seek_id character varying
-);
-
-
---
--- Name: project; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.project (
-    program_uuid uuid NOT NULL,
-    project_uuid uuid DEFAULT public.uuid_generate_v1() NOT NULL,
-    project_name character varying,
-    seek_id character varying
-);
-
-
---
 -- Name: resource; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -221,6 +196,7 @@ CREATE TABLE public.resource (
 
 CREATE TABLE public.sample (
     sample_uuid uuid DEFAULT public.uuid_generate_v1() NOT NULL,
+    sample_name character varying,
     was_derived_from_sample character varying,
     pool_id character varying,
     sample_experimental_group character varying,
@@ -247,6 +223,7 @@ CREATE TABLE public.sample (
 
 CREATE TABLE public.subject (
     subject_uuid uuid DEFAULT public.uuid_generate_v1() NOT NULL,
+    subject_name character varying,
     pool_id character varying,
     subject_experimental_group character varying,
     age character varying,
@@ -332,22 +309,6 @@ ALTER TABLE ONLY public.dataset
 
 ALTER TABLE ONLY public.performance
     ADD CONSTRAINT performance_pkey PRIMARY KEY (performance_uuid);
-
-
---
--- Name: program program_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.program
-    ADD CONSTRAINT program_pkey PRIMARY KEY (program_uuid);
-
-
---
--- Name: project project_uuid; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.project
-    ADD CONSTRAINT project_uuid PRIMARY KEY (project_uuid);
 
 
 --
@@ -447,22 +408,6 @@ ALTER TABLE ONLY public.submission
 
 
 --
--- Name: project program; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.project
-    ADD CONSTRAINT program FOREIGN KEY (program_uuid) REFERENCES public.program(program_uuid) NOT VALID;
-
-
---
--- Name: dataset project; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.dataset
-    ADD CONSTRAINT project FOREIGN KEY (project_uuid) REFERENCES public.project(project_uuid) NOT VALID;
-
-
---
 -- Name: dataset_mapping sample_uuid; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -482,5 +427,5 @@ ALTER TABLE ONLY public.dataset_mapping
 -- PostgreSQL database dump complete
 --
 
-\unrestrict rVxlDSj6hKJ32vEUehLG4MzBqXPoDXuCKjqQnbaecqMmPMqi9d7BlQPU3rbLbQc
+\unrestrict fg8fi7qmLCYfuZmkt243hF7mBZWIPItBQB7ry4yXDs1Zj9todHDakZfbw1OdHyO
 
