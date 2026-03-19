@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 14UdzQPi9Zw0oPij34ve6w7VhZ1Td7WkjZFNh2QVSaDsSqXLyx9nOA2TFOFXZ8F
+\restrict S0lfgO4xWu3LBI6EnBAMKqIT6MzVJJxn37qEgMXpDqGrmViafb6hX2PG1c41ptE
 
 -- Dumped from database version 16.13 (Debian 16.13-1.pgdg13+1)
 -- Dumped by pg_dump version 16.13 (Debian 16.13-1.pgdg13+1)
@@ -102,10 +102,10 @@ CREATE TABLE public.code_parameter (
 
 CREATE TABLE public.dataset (
     dataset_uuid uuid DEFAULT public.uuid_generate_v1() NOT NULL,
-    dataset_id character varying,
+    seek_id character varying,
+    dataset_name character varying,
     version integer DEFAULT 1,
-    category character varying NOT NULL,
-    dataset_name character varying
+    category character varying NOT NULL
 );
 
 
@@ -425,5 +425,5 @@ ALTER TABLE ONLY public.dataset_mapping
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 14UdzQPi9Zw0oPij34ve6w7VhZ1Td7WkjZFNh2QVSaDsSqXLyx9nOA2TFOFXZ8F
+\unrestrict S0lfgO4xWu3LBI6EnBAMKqIT6MzVJJxn37qEgMXpDqGrmViafb6hX2PG1c41ptE
 
