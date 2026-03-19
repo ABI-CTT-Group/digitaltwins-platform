@@ -34,8 +34,7 @@ docker compose down
 # sudo tar --xattrs --acls --numeric-owner -xzvf $BACKUP_FILE -C /var/lib/docker/volumes/
 
 sudo su -  << EOF
-cd /var/lib/docker/volumes; tar --xattrs --acls -czvf $BACKUP_FILE --exclude='digitaltwins-platform_cache' -C /var/lib/d
-ocker/volumes/ digitaltwins*
+cd /var/lib/docker/volumes; tar --xattrs --acls -czvf $BACKUP_FILE --exclude='digitaltwins-platform_cache' -C /var/lib/docker/volumes/ digitaltwins*
 EOF
 
 if [ $? -ne 0 ]; then
