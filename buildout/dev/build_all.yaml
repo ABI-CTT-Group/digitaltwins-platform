@@ -88,27 +88,27 @@
       state: directory
       mode: '0700'
 
-  - name: install required software
-    become: true
-    ansible.builtin.package:
-      name:
-        - "{{ item }}"
-      state: present
-      update_cache: yes
-      cache_valid_time: 3600
-    loop:
-      - jq
-      - curl
-      - telnet
-      - firewalld
-      - net-tools
-      - openssl
-      - units
-      - bc
-      - zip
-      - postgresql-client
-#      - "postgresql-client=14+238"
-      - certbot
+#  - name: install required software
+#    become: true
+#    ansible.builtin.package:
+#      name:
+#        - "{{ item }}"
+#      state: present
+#      update_cache: yes
+#      cache_valid_time: 3600
+#    loop:
+#      - jq
+#      - curl
+#      - telnet
+#      - firewalld
+#      - net-tools
+#      - openssl
+#      - units
+#      - bc
+#      - zip
+#      - postgresql-client
+##      - "postgresql-client=14+238"
+#      - certbot
 
   - name: Add user to the docker group
     become: yes
@@ -138,16 +138,33 @@
       enabled: true
       state: started
 
-## Because git pulling has basically stopped functioning in the last couple days...
-#  - name: Sync code to VM (Honoring .gitignore)
-#    ansible.posix.synchronize:
-#      src: /home/ubuntu/twins/digitaltwins-platform/
-#      dest: /home/ubuntu/digitaltwins-platform/
-#      archive: yes
-#      delete: yes
-#      rsync_opts:
-#        - '--filter=":- .gitignore"'
-#        - '--exclude=.git/'
+# Because git pulling has basically stopped functioning in the last couple days...
+  - name: Sync code to VM
+    ansible.posix.synchronize:
+      src: /home/ubuntu/twins/clean_src/digitaltwins-platform/
+      dest: /home/ubuntu/digitaltwins-platform/
+      archive: yes
+      delete: yes
+      rsync_opts:
+        - '--filter=":- .gitignore"'
+        - '--exclude=.git/'
+
+#  - name: Read git checkout platform
+#    ansible.builtin.git:
+#      repo: https://github.com/ABI-CTT-Group/digitaltwins-platform.git
+#      dest: ./digitaltwins-platform
+#      depth: 1
+#      force: yes
+#      recursive: yes  # submodules
+#      version: buildout
+#
+#  - name: update submodules
+#    ansible.builtin.command: git submodule update --remote --recursive --depth 1
+#    args:
+#      chdir: ./digitaltwins-platform
+
+
+
 
 #  - name: Raw git clone (Using a full login shell)
 #    ansible.builtin.shell: >
@@ -173,19 +190,6 @@
 #      creates: ./digitaltwins-platform
 #
 
-  - name: Read git checkout platform
-    ansible.builtin.git:
-      repo: https://github.com/ABI-CTT-Group/digitaltwins-platform.git
-      dest: ./digitaltwins-platform
-      depth: 1
-      force: yes
-      recursive: yes  # submodules
-      version: buildout
-
-  - name: update submodules
-    ansible.builtin.command: git submodule update --remote --recursive --depth 1
-    args:
-      chdir: ./digitaltwins-platform
 
 #  - name: Read git checkout buildout
 #    ansible.builtin.git:
