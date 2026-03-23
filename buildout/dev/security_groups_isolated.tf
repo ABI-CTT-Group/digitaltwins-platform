@@ -27,55 +27,65 @@ resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_2" {
   security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
 }
 
-resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_8001" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 8001
-  port_range_max    = 8001
-  description       = "port 8001 from everywhere - admin - close later?"
-  security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
-}
+#resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_8000" {
+#  direction         = "ingress"
+#  ethertype         = "IPv4"
+#  protocol          = "tcp"
+#  port_range_min    = 8000
+#  port_range_max    = 8000
+#  description       = "port 8000 from everywhere - admin - close later?"
+#  security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
+#}
 
-resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_8004" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 8004
-  port_range_max    = 8004
-  description       = "port 8004 from everywhere - admin - close later?"
-  security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
-}
+#resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_8001" {
+#  direction         = "ingress"
+#  ethertype         = "IPv4"
+#  protocol          = "tcp"
+#  port_range_min    = 8001
+#  port_range_max    = 8001
+#  description       = "port 8001 from everywhere - admin - close later?"
+#  security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
+#}
+#
+#resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_8004" {
+#  direction         = "ingress"
+#  ethertype         = "IPv4"
+#  protocol          = "tcp"
+#  port_range_min    = 8004
+#  port_range_max    = 8004
+#  description       = "port 8004 from everywhere - admin - close later?"
+#  security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
+#}
+#
+#resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_8009" {
+#  direction         = "ingress"
+#  ethertype         = "IPv4"
+#  protocol          = "tcp"
+#  port_range_min    = 8009
+#  port_range_max    = 8009
+#  description       = "port 8009 from everywhere - rest api - close later?"
+#  security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
+#}
+#
+#resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_8010" {
+#  direction         = "ingress"
+#  ethertype         = "IPv4"
+#  protocol          = "tcp"
+#  port_range_min    = 8010
+#  port_range_max    = 8010
+#  description       = "port 8010 from everywhere - rest api - close later?"
+#  security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
+#}
 
-resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_8009" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 8009
-  port_range_max    = 8009
-  description       = "port 8009 from everywhere - rest api - close later?"
-  security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
-}
-
-resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_8010" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 8010
-  port_range_max    = 8010
-  description       = "port 8010 from everywhere - rest api - close later?"
-  security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
-}
-
-resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_80xx" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "tcp"
-  port_range_min    = 8000
-  port_range_max    = 8012
-  description       = "port 8000-8012 from everywhere"
-  security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
-}
+#resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_80xx" {
+#  direction         = "ingress"
+#  ethertype         = "IPv4"
+#  protocol          = "tcp"
+#  port_range_min    = 8000
+#  port_range_max    = 8012
+#  description       = "port 8000-8012 from everywhere"
+#  security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
+#}
 
 resource "openstack_networking_secgroup_v2" "ssh_restricted_i" {
   name        = "drai_ssh_restricted_i"
