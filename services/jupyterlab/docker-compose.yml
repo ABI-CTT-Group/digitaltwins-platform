@@ -9,7 +9,7 @@ services:
       - CHOWN_HOME_OPTS=-R
       - JUPYTER_TOKEN=${JUPYTERLAB_TOKEN:-admin}
     ports:
-      - "8008:8888"
+      - "${JUPYTERLAB_BIND_ADDRESS:-0.0.0.0}:8008:8888"
     volumes:
       - notebook_workspace:/home/jovyan/work
     command: start-notebook.sh
@@ -19,6 +19,6 @@ volumes:
   notebook_workspace:
     driver: local
 
-networks:
-  digitaltwins:
-    driver: bridge
+#networks:
+#  digitaltwins:
+#    driver: bridge

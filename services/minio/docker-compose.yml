@@ -2,8 +2,10 @@ services:
   minio:
     image: quay.io/minio/minio:latest
     ports:
-      - '8011:9000' #api
-      - '8012:9001' # web gui
+#      - '8011:9000' #api
+#      - '8012:9001' # web gui
+      - '${MINIO_BIND_ADDRESS:-0.0.0.0}:8011:9000' #api
+      - '${MINIO_BIND_ADDRESS:-0.0.0.0}:8012:9001' # web gui
     networks:
       - digitaltwins
     volumes:
@@ -40,6 +42,6 @@ volumes:
   minio_data:
     driver: local
 
-networks:
-  digitaltwins:
-    driver: bridge
+#networks:
+#  digitaltwins:
+#    driver: bridge

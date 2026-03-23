@@ -16,7 +16,7 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}
     ports:
-      - "8009:8443"
+      - "${KEYCLOAK_BIND_ADDRESS:-0.0.0.0}:8009:8443"
 #      - "8009:8080"
     volumes:
       - ./import:/opt/keycloak/data/import
@@ -30,9 +30,9 @@ volumes:
   keycloak_data:
     driver: local
 
-networks:
-  digitaltwins:
-    driver: bridge
+#networks:
+#  digitaltwins:
+#    driver: bridge
 
 # Keycloak Admin Console
 # http://localhost:8080/admin

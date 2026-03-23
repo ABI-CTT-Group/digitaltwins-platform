@@ -17,7 +17,7 @@ services:
     networks:
       - digitaltwins
 
-
-networks:
-  digitaltwins:
-    driver: bridge
+#
+#networks:
+#  digitaltwins:
+#    driver: bridge
