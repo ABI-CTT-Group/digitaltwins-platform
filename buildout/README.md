@@ -261,3 +261,33 @@ Copy the resulting full_docker_cache.tar to the new isolated VM. Then,
 
 `docker load -i /home/ubuntu/full_docker_cache.tar`
 
+# install antivirus software
+## AIDE
+- AIDE is a file system monitoring software for intrution detection
+- Run the bash file in `buildout/dev/antivirus/install_aide.sh` in the VM, will install and configure the AIDE
+- The installation will spend about 3 hours, it will initialize the database of the whole filesystem
+- The database update should be manually confirmed and implement by admininistrator
+  ```
+   sudo aide --config=/etc/aide/aide.conf --update
+   sudo mv /var/lib/aide/aide.db /var/lib/aide/aide.db.old
+   sudo mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db
+  ``` 
+- The crontab dayly cronjob will running at 6:25 AM by default
+  Run command `vi /etc/crontab` to change the running time to 2:00 AM
+- The scan script is AIDE's native script store at `/etc/cron.daily/aide`
+- Use command `sudo mail` to check the report mail
+  or use command `cat /var/mail/root` to check the mail 
+- The scanning detail log is at `/var/log/aide/aide.log` 
+- AIDE URL: `https://aide.github.io/`
+## Clamav
+- Clamav is an antivirus sofware for linux
+- Run the bash file in `buildout/dev/antivirus/install_clamav.sh` in the VM will install and configure the Clamav
+- The cronjob will running at 5:00 AM to scan the virus
+- The cronjob script is stored at `homt/root/scan_clamav.sh`
+- Run command `sudo crontab -e` to modify the cronjob schedule
+- Use command `sudo mail` to check the report mail
+  or use command `cat /var/mail/root` to check the mail 
+- The scanning detail log is at `/var/log/clamav/clamav.log` 
+- Clamav URL: `https://docs.clamav.net/`
+
+
