@@ -15,7 +15,7 @@ services:
       - digitaltwins
 
   pgadmin:
-    image: dpage/pgadmin4
+    image: dpage/pgadmin4:frozen-20260324
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-clin864@aucklanduni.ac.nz}

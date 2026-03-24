@@ -1,6 +1,6 @@
 services:
   minio:
-    image: quay.io/minio/minio:latest
+    image: quay.io/minio/minio:frozen-20260324
     ports:
 #      - '8011:9000' #api
 #      - '8012:9001' # web gui
@@ -25,7 +25,7 @@ services:
 
   # MinIO bucket initialization
   minio-init:
-    image: minio/mc:latest
+    image: minio/mc:frozen-20260324
     depends_on:
       minio:
         condition: service_healthy

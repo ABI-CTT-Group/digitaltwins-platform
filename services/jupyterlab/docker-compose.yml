@@ -1,6 +1,6 @@
 services:
   jupyterlab:
-    image: jupyter/base-notebook
+    image: jupyter/base-notebook:frozen-20260324
     user: root
     environment:
       - NB_UID=1000

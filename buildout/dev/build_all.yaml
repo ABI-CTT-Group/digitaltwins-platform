@@ -2,6 +2,8 @@
   gather_facts: false
 #  hosts: portal drai_mp drai_cc
   hosts: portal drai_mp
+  environment:
+    COMPOSE_PULL: "never"
 
   tasks:
 
@@ -120,14 +122,14 @@
   - name: Reset SSH connection to pick up group changes
     meta: reset_connection
 
-  - name: Transfer Docker image cache to isolated VM
-    ansible.posix.synchronize:
-      src: "docker_cache/full_docker_cache.tar" # Update this to your actual local path
-      dest: "/home/ubuntu/full_docker_cache.tar"
-      mode: push
+#  - name: Transfer Docker image cache to isolated VM
+#    ansible.posix.synchronize:
+#      src: "docker_cache/full_docker_cache2.tar" # Update this to your actual local path
+#      dest: "/home/ubuntu/full_docker_cache.tar"
+#      mode: push
 
   - name: Load cached Docker images into local daemon
-    ansible.builtin.command: docker load -i /home/ubuntu/full_docker_cache.tar
+    ansible.builtin.command: docker load -i /home/ubuntu/airgap_bundle_20260324.tar
     register: docker_load_output
     changed_when: "'Loaded image' in docker_load_output.stdout"
 
@@ -201,16 +203,16 @@
 #
   # I don't understand why I need this next step, but it doesn't seem to get the host's DNS setup here
   # and hangs/times out when attempting to pull containers
-  - name: Write docker daemon config for DNS
-    become: yes
-    ansible.builtin.copy:
-      dest: /etc/docker/daemon.json
-      content: |
-        {
-          "dns": ["8.8.8.8", "8.8.4.4"]
-        }
-      mode: '0644'
-
+#  - name: Write docker daemon config for DNS
+#    become: yes
+#    ansible.builtin.copy:
+#      dest: /etc/docker/daemon.json
+#      content: |
+#        {
+#          "dns": ["8.8.8.8", "8.8.4.4"]
+#        }
+#      mode: '0644'
+#
   - name: Restart Docker
     become: yes
     ansible.builtin.systemd:
@@ -388,7 +390,8 @@
 ########
 
   - name: Startup seek
-    ansible.builtin.command: docker compose -f services/seek/ldh-deployment/docker-compose.yml --env-file ./.env up -d
+#    ansible.builtin.command: docker compose -f services/seek/ldh-deployment/docker-compose.yml --env-file ./.env up -d
+    ansible.builtin.command: docker compose up -d seek
     args:
       chdir: ./digitaltwins-platform
 
