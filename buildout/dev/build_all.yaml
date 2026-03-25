@@ -129,10 +129,10 @@
       enabled: true
       state: started
 
-#  - name: Load cached Docker images into local daemon
-#    ansible.builtin.command: docker load -i /mnt/docker_cache/airgap_bundle_20260324.tar
-#    register: docker_load_output
-#    changed_when: "'Loaded image' in docker_load_output.stdout"
+  - name: Load cached Docker images into local daemon
+    ansible.builtin.command: docker load -i /mnt/docker_cache/airgap_bundle_20260324.tar
+    register: docker_load_output
+    changed_when: "'Loaded image' in docker_load_output.stdout"
 
 # Because git pulling has basically stopped functioning in the last couple days...
   - name: Sync code to VM
@@ -350,24 +350,12 @@
     args:
       chdir: ./digitaltwins-platform
 
-#  - name: PWD replace
-#    shell: |
-#      sed -i 's/\${PWD}\//.\//g' ./services/seek/ldh-deployment/docker-compose.yml
-#    args:
-#      chdir: ./digitaltwins-platform
-
   - name: docker down
     ansible.builtin.command: docker compose down
     args:
       chdir: ./digitaltwins-platform
 
 ###
-
-  - name: Copy production configuration file to remote server
-    ansible.builtin.copy:
-      src: keycloak-docker-compose.yml
-      dest: ./digitaltwins-platform/services/keycloak/docker-compose.yml
-      mode: '0644'
 
   - name: Copy production configuration file to remote server
     ansible.builtin.copy:
