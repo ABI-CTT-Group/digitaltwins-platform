@@ -8,7 +8,7 @@ services:
       - "${ORTHANC_DICOM_PORT:-4242}:4242"  # DICOM protocol
     volumes:
       - ./orthanc.json:/etc/orthanc/orthanc.json:ro
-      - ./data:/var/lib/orthanc/db
+      - orthanc_data:/var/lib/orthanc/db
     environment:
       - ORTHANC_ADMIN_USER=${ORTHANC_ADMIN_USER}
       - ORTHANC_ADMIN_PASSWORD=${ORTHANC_ADMIN_PASSWORD}
@@ -16,6 +16,10 @@ services:
     restart: unless-stopped
     networks:
       - digitaltwins
+
+volumes:
+  orthanc_data:
+    driver: local
 
 networks:
   digitaltwins:
