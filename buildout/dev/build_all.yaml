@@ -122,23 +122,17 @@
   - name: Reset SSH connection to pick up group changes
     meta: reset_connection
 
-#  - name: Transfer Docker image cache to isolated VM
-#    ansible.posix.synchronize:
-#      src: "docker_cache/full_docker_cache2.tar" # Update this to your actual local path
-#      dest: "/home/ubuntu/full_docker_cache.tar"
-#      mode: push
-
-  - name: Load cached Docker images into local daemon
-    ansible.builtin.command: docker load -i /home/ubuntu/airgap_bundle_20260324.tar
-    register: docker_load_output
-    changed_when: "'Loaded image' in docker_load_output.stdout"
-
   - name: Enable and start Docker service
     become: yes
     ansible.builtin.systemd:
       name: docker
       enabled: true
       state: started
+
+#  - name: Load cached Docker images into local daemon
+#    ansible.builtin.command: docker load -i /mnt/docker_cache/airgap_bundle_20260324.tar
+#    register: docker_load_output
+#    changed_when: "'Loaded image' in docker_load_output.stdout"
 
 # Because git pulling has basically stopped functioning in the last couple days...
   - name: Sync code to VM
@@ -213,11 +207,12 @@
 #        }
 #      mode: '0644'
 #
-  - name: Restart Docker
-    become: yes
-    ansible.builtin.systemd:
-      name: docker
-      state: restarted
+
+#  - name: Restart Docker
+#    become: yes
+#    ansible.builtin.systemd:
+#      name: docker
+#      state: restarted
 
   - name: check for .env
     stat:

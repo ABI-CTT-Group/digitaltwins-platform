@@ -31,3 +31,16 @@ resource "openstack_networking_port_secgroup_associate_v2" "port_sec_group_mp" {
     ,resource.openstack_networking_secgroup_v2.web_server_i.id
   ]
 }
+
+# docker_cache volume
+resource "openstack_blockstorage_volume_v3" "docker_cache" {
+  name = "docker_cache"
+  size = 50
+  availability_zone = "auckland"
+}
+
+resource "openstack_compute_volume_attach_v2" "vm_mp_docker_cache" {
+  instance_id = openstack_compute_instance_v2.mp.id
+  volume_id   = openstack_blockstorage_volume_v3.docker_cache.id
+  device = "/dev/vdb"
+}
