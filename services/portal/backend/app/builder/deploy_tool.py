@@ -255,6 +255,9 @@ location {route_prefix}/ {{
                 # Also remove the nginx config for this plugin
                 self.remove_nginx_conf(expose_name)
                 self.reload_nginx()
+                # Remove any remaining Docker volumes whose names start with expose_name
+                if expose_name:
+                    self._remove_volumes_by_prefix(expose_name)
                 logger.info(f"successfully removed all images and volumes for project '{expose_name}' at {backend_dir}")
                 return {
                     "success": True,
@@ -272,3 +275,20 @@ location {route_prefix}/ {{
                 "success": False,
                 "message": f"Removed all images and volumes failed, because {backend_dir} does not exist",
             }
+
+    def _remove_volumes_by_prefix(self, expose_name: str) -> None:
+        """Find and remove all Docker volumes whose names start with expose_name."""
+        try:
+            result = subprocess.run(
+                ["docker", "volume", "ls", "--filter", f"name={expose_name}", "--quiet"],
+                capture_output=True,
+                text=True,
+            )
+            volumes = [v.strip() for v in result.stdout.splitlines() if v.strip().startswith(expose_name)]
+            if not volumes:
+                logger.info(f"No extra volumes found with prefix '{expose_name}'")
+                return
+            subprocess.run(["docker", "volume", "rm"] + volumes, capture_output=True, text=True)
+            logger.info(f"Removed volumes with prefix '{expose_name}': {volumes}")
+        except Exception as e:
+            logger.warning(f"Failed to remove volumes with prefix '{expose_name}': {e}")
