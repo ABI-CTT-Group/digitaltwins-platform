@@ -133,7 +133,7 @@ const toolInfomationFormData = reactive<IToolInformationStep>({
     version:"0.0.0",
     description:"",
     frontend_folder:"",
-    frontend_build_command:"npm run build",
+    frontend_build_command:"npm run build:plugin",
     has_backend:true,
     backend_folder:"",
     backend_deploy_command:"docker compose up --build -d",

@@ -53,7 +53,7 @@ import { ref, onBeforeMount, watch, onUnmounted } from "vue"
 // @ts-ignore - vue-toastification is installed but missing type declarations
 import { useToast } from "vue-toastification"
 import ToolCard from "./components/ToolCard.vue"
-import { useWorkflowTools, useMinIoWorkflowToolMetadata, useWorkflowToolBuild, useDeleteTool, useToolApproval, useDeployTool, useDockerCompose } from '@/plugins/plugin_api';
+import { useWorkflowTools, useToolMetadata, useWorkflowToolBuild, useDeleteTool, useToolApproval, useDeployTool, useDockerCompose } from '@/plugins/plugin_api';
 import { PluginResponse, PluginMinIOToolMetadata } from '@/models/uiTypes';
 import { useRemoteAppStore } from '@/store/remoteStore'
 import { useRouter } from 'vue-router'
@@ -128,7 +128,7 @@ const handleRegister = ()=>{
     emit("register")
 }
 const handleLaunch = async (id:string) => {
-    const metadata = await useMinIoWorkflowToolMetadata();
+    const metadata = await useToolMetadata();
     if (!!metadata && metadata.components.length >0){
         const toolMetadata = metadata.components.find((tool:PluginMinIOToolMetadata)=>tool.id == id)
         if(toolMetadata){

@@ -6,8 +6,6 @@ import logging
 import shutil
 from app.utils.utils import force_rmtree, safe_path
 import re
-from app.client.minio import MinioClient
-
 from typing import Dict, Any, Union, Type, TYPE_CHECKING
 import threading
 from app.models.db_model import (
@@ -79,24 +77,6 @@ def remove_tmp_folder(path: Path, logger: logging.Logger):
     # force_rmtree(dataset_dir)
     # logger.info("Cleaning up sparc dataset")
 
-
-def update_minio_bucket_metadata(minio_client: MinioClient, component_entry: Dict[str, Any], logger: logging.Logger):
-    component_exists = False
-    existing_metadata = minio_client.metadata
-    for i, component in enumerate(existing_metadata.get("components", [])):
-        # TODO: need to tweak, using DigitalTWIN Platform tool dataset uuid
-        if component.get("name") == component_entry.get("name"):
-            existing_metadata["components"][i] = component_entry
-            component_exists = True
-            logger.info(f"Updated existing component: {component_entry['name']}")
-            break
-
-    if not component_exists:
-        existing_metadata["components"].append(component_entry)
-        logger.info(f"Added new component: {component_entry['name']}")
-
-    logger.info(f"Write metadata to MinIO metadata file")
-    minio_client.update_metadata(existing_metadata)
 
 
 def execute_build_in_background(

@@ -3,7 +3,7 @@ import json
 import yaml
 import uvicorn
 from fastapi import APIRouter, FastAPI, Depends, HTTPException, BackgroundTasks, Request, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from app.database.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -42,7 +42,7 @@ from fhir_cda import Annotator
 
 configure_logging()
 logger = get_logger(__name__)
-router = APIRouter(prefix="/api/workflow-tools")
+router = APIRouter(prefix="/api/tools")
 builder = PluginBuilder()
 deployer = PluginDeployer()
 minio = get_minio_client()
@@ -258,30 +258,8 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
             db.delete(plugin)
             db.commit()
 
-        try:
-            logger.info(f"Deleting plugin {plugin_id}: modify the minio metadata.json")
-            # delete the record form the metadata.json file in MinIO
-            metadata_file = await get_metadata_json()
-            delete_plugin_component = next((c for c in metadata_file["components"] if c['id'] == plugin_id), None)
-            if delete_plugin_component is not None:
-                object_keys = minio.list_objects(prefix=delete_plugin_component.get("expose"))
-                if len(object_keys) > 0:
-                    minio.delete_objects(delete_keys=object_keys)
-                # Update metadata.json file in minio
-                metadata_file["components"] = [component for component in metadata_file["components"] if
-                                               component['id'] != plugin_id]
-                minio.update_metadata(metadata_file)
-                logger.info(f"Deleting plugin {plugin_id} successfully, and metadata updated successfully.")
-                return {"status": True, "message": "Plugin deleted successfully, and metadata updated successfully."}
-            else:
-                logger.info(
-                    f"Deleting plugin {plugin_id} successfully. and there is no tool component information in metadata.json")
-                return {"status": True,
-                        "message": "Plugin deleted successfully and no longer found in the metadata file."}
-        except Exception as e:
-            logger.info(
-                f"Deleting plugin {plugin_id} successfully, but not find the metadata.json file in Minio, failed due to {e}")
-            return {"status": True, "message": str(e)}
+        logger.info(f"Deleting plugin {plugin_id} successfully.")
+        return {"status": True, "message": "Plugin deleted successfully."}
     except Exception as e:
         logger.info("Deleting plugin failed due to exception {}".format(e))
         return {"status": False, "message": str(e)}
@@ -579,7 +557,7 @@ async def get_build_download_url(build_id: str, db: Session = Depends(get_db)):
 
     try:
         build_record = get_build_record_or_404(build_id, db, PluginBuild)
-        url, s3_path = get_public_url_for_build(build_record, "workflow-tools")
+        url, s3_path = get_public_url_for_build(build_record, "tools")
 
         return {
             "build_id": build_id,
@@ -596,7 +574,7 @@ async def get_build_direct_url(build_id: str, db: Session = Depends(get_db)):
     """Get a direct public URL for a build's artifacts (no expiration)"""
     try:
         build_record = get_build_record_or_404(build_id, db, PluginBuild)
-        url, s3_path = get_public_url_for_build(build_record, "workflow-tools")
+        url, s3_path = get_public_url_for_build(build_record, "tools")
 
         return {
             "build_id": build_id,
@@ -628,15 +606,61 @@ async def get_test_build_info():
 
 
 @router.get("/metadata")
-async def get_metadata_json():
-    try:
-        obj = minio.get_object("metadata.json")
-        data = obj['Body'].read().decode('utf-8')
-        return json.loads(data)
-    except ClientError as e:
-        raise HTTPException(status_code=404, detail=f"File not found: metadata.json")
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail=f"File is not valid JSON: metadata.json")
+async def get_metadata_json(db: Session = Depends(get_db)):
+    use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
+    http_protocol = 'https' if use_ssl else 'http'
+    host = os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')
+    port = os.environ.get('MINIO_PORT', '9000')
+
+    plugins = db.query(Plugin).all()
+    components = []
+    for plugin in plugins:
+        latest_build = (db.query(PluginBuild)
+            .filter(PluginBuild.plugin_id == plugin.id,
+                    PluginBuild.status == BuildStatus.COMPLETED.value)
+            .order_by(PluginBuild.created_at.desc())
+            .first())
+        if not latest_build or not latest_build.expose_name:
+            continue
+
+        build_ts = int(latest_build.created_at.timestamp()) if latest_build.created_at else 0
+        is_local = latest_build.s3_path is None
+
+        if plugin.label == "GUI":
+            if is_local:
+                path = f"/{latest_build.expose_name}/my-app.umd.js?v={build_ts}"
+            else:
+                path = f"{http_protocol}://{host}:{port}/tools/{latest_build.expose_name}/primary/my-app.umd.js?v={build_ts}"
+        else:
+            if is_local:
+                path = f"/{latest_build.expose_name}"
+            else:
+                path = f"{http_protocol}://{host}:{port}/tools/{latest_build.expose_name}/primary"
+
+        components.append({
+            "uuid": plugin.uuid or "",
+            "id": plugin.id,
+            "name": plugin.name,
+            "path": path,
+            "expose": latest_build.expose_name if plugin.label == "GUI" else None,
+            "label": plugin.label,
+            "description": plugin.description or "",
+            "version": plugin.version,
+            "created_at": plugin.created_at.isoformat() if plugin.created_at else "",
+            "author": plugin.author or "",
+            "repository_url": plugin.repository_url,
+            "is_local": is_local,
+            "frontend_folder": plugin.frontend_folder if plugin.label == "GUI" else None,
+            "has_backend": plugin.has_backend if plugin.label == "GUI" else False,
+            "backend_folder": plugin.backend_folder if plugin.has_backend else None,
+            "backend_deploy_command": plugin.backend_deploy_command if (plugin.has_backend and plugin.label == "GUI") else None,
+            "config": plugin.plugin_metadata or {},
+        })
+
+    return JSONResponse(
+        content={"components": components},
+        headers={"Cache-Control": "no-cache, no-store"}
+    )
 
 
 @router.get("/get-file/{object_key:path}")

@@ -22,8 +22,7 @@ from app.utils.builder_utils import (
     copy_item,
     is_git_url,
     remove_tmp_folder,
-    unique_name,
-    update_minio_bucket_metadata)
+    unique_name)
 
 logger = get_logger(__name__)
 
@@ -259,7 +258,7 @@ class PluginBuilder:
         with open(umd_js_file_path, "r") as f:
             umd_js_content = f.read()
 
-        new_path_prefix = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{expose_name}/primary/"
+        new_path_prefix = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/tools/{expose_name}/primary/"
         umd_js_content = umd_js_content.replace(new_path_prefix, expose_name)
 
         with open(umd_js_file_path, "w") as f:
@@ -569,41 +568,6 @@ class PluginBuilder:
             else:
                 logger.info("Skiping cleanup for local path")
 
-            # Step 8: update metadata.json in MinIO
-            # Determine the path based on whether it's a local plugin or remote
-            if cloned_dir:
-                # Remote plugin - use public directory path with metadata path
-                if label == "GUI":
-                    plugin_path = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{metadata['expose']}/primary/my-app.umd.js"
-                    if has_backend:
-                        backend_path = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{metadata['expose']}/code/{backend_folder}"
-                else:
-                    plugin_path = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{metadata['expose']}/primary"
-            else:
-                # Local plugin - use public directory path with metadata expose folder name
-                plugin_path = f"/{metadata['expose']}/my-app.umd.js"
-
-            component_entry = {
-                "uuid": "",
-                "id": plugin_id,
-                "name": plugin_name,
-                "path": plugin_path,
-                "expose": metadata.get("expose", "MyApp") if label == "GUI" else None,
-                "label": label,
-                "description": description,
-                "version": version,
-                "created_at": created_at,
-                "author": author,
-                "repository_url": repo_url,
-                "is_local": not bool(cloned_dir),
-                "frontend_folder": frontend_folder if label == "GUI" else None,
-                "has_backend": has_backend if label == "GUI" else False,
-                "backend_folder": backend_folder if has_backend else None,
-                "backend_deploy_command": backend_deploy_command if (has_backend and label == "GUI") else None,
-                "config": config
-            }
-
-            update_minio_bucket_metadata(minio_client, component_entry, logger)
             logger.info("Build process completed successfully")
 
             return {

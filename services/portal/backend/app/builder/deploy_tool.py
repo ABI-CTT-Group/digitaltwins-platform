@@ -45,6 +45,7 @@ location {route_prefix}/ {{
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection $connection_upgrade;
     proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
@@ -98,16 +99,23 @@ location {route_prefix}/ {{
             raise Exception("Docker compose file is not exist")
 
     @staticmethod
-    def _compose_execute(backend_dir: Path, command: str):
+    def _compose_execute(backend_dir: Path, command: str, extra_env: dict = None):
         try:
             logger.info(f"Running command {command} for deployment of {backend_dir}")
+            # Merge current process env with any extra vars (e.g. PLUGIN_ROUTE_PREFIX).
+            # docker compose picks up env vars from the process environment to substitute
+            # ${VAR} references in docker-compose.yml.
+            env = os.environ.copy()
+            if extra_env:
+                env.update(extra_env)
             with subprocess.Popen(
                     shlex.split(command),
                     cwd=backend_dir,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True,
-                    bufsize=1
+                    bufsize=1,
+                    env=env,
             ) as process:
                 for line in process.stdout:
                     logger.info(line.strip())
@@ -148,7 +156,7 @@ location {route_prefix}/ {{
             # Step 3 deploy backend in docker with project name = expose_name
             logger.info(f"Step 3: Start docker compose with project name '{expose_name}'...")
             deploy_command = self._build_compose_command(expose_name, "up --build -d --force-recreate")
-            self._compose_execute(backend_dir, deploy_command)
+            self._compose_execute(backend_dir, deploy_command, extra_env={"PLUGIN_ROUTE_PREFIX": f"/plugin/{expose_name}"})
             return {
                 "success": True,
                 "backend_dir": str(backend_dir) if backend_dir else None,
@@ -178,7 +186,8 @@ location {route_prefix}/ {{
 
         if backend_dir.exists():
             try:
-                self._compose_execute(backend_dir, command)
+                extra_env = {"PLUGIN_ROUTE_PREFIX": f"/plugin/{expose_name}"} if expose_name else None
+                self._compose_execute(backend_dir, command, extra_env=extra_env)
                 logger.info(f"successfully run compose up for project '{expose_name}' at {backend_dir}")
                 return {
                     "success": True,

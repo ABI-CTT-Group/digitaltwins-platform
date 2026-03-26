@@ -39,6 +39,12 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - nginx_plugin_configs:/nginx-plugins-conf
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - digitaltwins
     depends_on:
@@ -48,12 +54,20 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_KEYCLOAK_URL=${KEYCLOAK_SERVER_URL}
     container_name: portal-frontend
     ports:
       - "80:80"
     volumes:
       - nginx_plugin_configs:/etc/nginx/conf.d/plugins
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:80" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
     networks:
       - digitaltwins
     depends_on:
@@ -115,12 +129,14 @@ services:
         sleep 2;
       done;
       echo 'MinIO is up!';
-      for BUCKET in workflows workflow-tools processes measurements; do
-        echo \"Creating bucket '$$BUCKET'...\";
+      for BUCKET in measurements models workflows processes; do
+        echo \"Creating private bucket '$$BUCKET'...\";
         mc mb myminio/$$BUCKET --ignore-existing;
-        echo '{\"Version\": \"2012-10-17\", \"Statement\": [{\"Effect\": \"Allow\", \"Principal\": \"*\", \"Action\": [\"s3:GetObject\", \"s3:GetObjectVersion\", \"s3:PutObject\"], \"Resource\": \"arn:aws:s3:::'$$BUCKET'/*\"}]}' > /tmp/$$BUCKET-policy.json;
-        mc anonymous set-json /tmp/$$BUCKET-policy.json myminio/$$BUCKET;
       done;
+      echo 'Creating public bucket tools...';
+      mc mb myminio/tools --ignore-existing;
+      echo '{\"Version\": \"2012-10-17\", \"Statement\": [{\"Effect\": \"Allow\", \"Principal\": \"*\", \"Action\": [\"s3:GetObject\", \"s3:GetObjectVersion\", \"s3:PutObject\"], \"Resource\": \"arn:aws:s3:::tools/*\"}]}' > /tmp/tools-policy.json;
+      mc anonymous set-json /tmp/tools-policy.json myminio/tools;
       echo 'Buckets created and policies applied successfully.';
       "
 

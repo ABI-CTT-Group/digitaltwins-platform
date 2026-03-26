@@ -1,6 +1,5 @@
 import os
 import logging
-import json
 import mimetypes
 import boto3
 from botocore.exceptions import ClientError
@@ -29,85 +28,8 @@ class MinioClient:
             region_name='us-east-1'  # MinIO doesn't require specific region
         )
 
-        self._ensure_bucket_exists()
-        self.ensure_public_access()
-        self.metadata = self._ensure_metadata()
-
-    def _ensure_bucket_exists(self):
-        """Ensure the MinIO bucket exists"""
-        try:
-            self.client.head_bucket(Bucket=self.bucket_name)
-            logger.info(f"Bucket {self.bucket_name} already exists")
-        except ClientError as e:
-            error_code = e.response['Error']['Code']
-            if error_code == '404':
-                self.client.create_bucket(Bucket=self.bucket_name)
-                logger.info(f"Bucket {self.bucket_name} created")
-                self._set_public_read_policy()
-            else:
-                logger.error(f"Failed to create bucket {self.bucket_name}:{e}")
-                raise
-
-    def _set_public_read_policy(self):
-        """Set public read policy for minio bucket"""
-        try:
-            public_read_policy = {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Principal": "*",
-                        "Action": [
-                            "s3:GetObject",
-                            "s3:GetObjectVersion",
-                            "s3:PutObject"
-                        ],
-                        "Resource": f"arn:aws:s3:::{self.bucket_name}/*"
-                    }
-                ]
-            }
-
-            policy_json = json.dumps(public_read_policy)
-            self.client.put_bucket_policy(Bucket=self.bucket_name, Policy=policy_json)
-            logger.info(f"Set public read policy for bucket: {self.bucket_name}")
-        except Exception as e:
-            logger.error(f"Failed to set public read policy for bucket {self.bucket_name}: {e}")
-            raise
-
-    def _ensure_metadata(self):
-        try:
-            self.client.head_object(Bucket=self.bucket_name, Key="metadata.json")
-            exists = True
-        except ClientError as e:
-            if e.response["Error"]["Code"] == "404":
-                exists = False
-            else:
-                raise
-
-        if exists:
-            obj = self.client.get_object(Bucket=self.bucket_name, Key="metadata.json")
-            self.metadata = json.loads(obj["Body"].read().decode("utf-8"))
-        else:
-            self.metadata = {
-                "components": []
-            }
-            self.update_metadata(self.metadata)
-
-        return self.metadata
-
     def set_bucket_name(self, bucket_name):
         self.bucket_name = bucket_name
-
-    def update_metadata(self, metadata):
-        try:
-            self.client.put_object(
-                Bucket=self.bucket_name,
-                Key="metadata.json",
-                Body=json.dumps(metadata, indent=2),
-                ContentType="application/json")
-            logger.info("Updated metadata.json to MinIO successfully")
-        except Exception as e:
-            logger.error(f"Failed to update metadata for minio bucket: {e}")
 
     # def upload_directory(self, local_path: str, remote_prefix: str) -> str:
     #     """Upload a directory to minio bucket"""
@@ -281,36 +203,6 @@ class MinioClient:
             logger.error(f"Failed to check if object exists: {object_name}: {e}")
             raise
 
-    def ensure_public_access(self):
-        """Ensure the bucket has public read access enable"""
-        try:
-            # Check current policy
-            try:
-                response = self.client.get_bucket_policy(Bucket=self.bucket_name)
-                current_policy = json.loads(response['Policy'])
-
-                # Check if public read is already enabled
-                has_public_read = False
-                for statement in current_policy.get('Statement', []):
-                    if (statement.get('Effect') == 'Allow') and (
-                            statement.get('Principal') == '*' and
-                            's3:GetObject' in statement.get('Action', [])):
-                        has_public_read = True
-                        break
-                if not has_public_read:
-                    self._set_public_read_policy()
-                    logger.info("Updated bucket policy to enable public read access")
-                else:
-                    logger.info("Public read access already enabled")
-            except ClientError as e:
-                if e.response['Error']['Code'] == 'NoSuchBucketPolicy':
-                    # No policy exists, create one
-                    self._set_public_read_policy()
-                    logger.info("Created bucket policy to enable public read access")
-        except Exception as e:
-            logger.error(f"Failed to ensure public access: {e}")
-            raise
-
     def get_object(self, key: str):
         try:
             return self.client.get_object(Bucket=self.bucket_name, Key=key)
@@ -335,7 +227,7 @@ _clients: dict[str, MinioClient] = {}
 
 
 def get_minio_client(bucket_name: str = None) -> MinioClient:
-    bucket = bucket_name or "workflow-tools"
+    bucket = bucket_name or "tools"
     if bucket not in _clients:
         client = MinioClient(bucket)
         _clients[bucket] = client

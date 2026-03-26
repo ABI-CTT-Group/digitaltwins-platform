@@ -8,7 +8,10 @@
     "cohorts": [
       "sub-1",
       "sub-2",
-      "sub-3"
+      "sub-3",
+      "sub-4",
+      "sub-5",
+      "sub-6"
     ],
     "datasets": [
       "workdir"
@@ -16,7 +19,7 @@
   },
   "system": {
     "minio": {
-      "public_path": "http://minio:9000/measurements/"
+      "base_url": "http://minio:9000/measurements/"
     }
   }
 }

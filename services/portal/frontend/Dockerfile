@@ -5,10 +5,12 @@ WORKDIR /app
 
 COPY . .
 
+ARG VITE_KEYCLOAK_URL
+ENV VITE_KEYCLOAK_URL=$VITE_KEYCLOAK_URL
+
 RUN corepack enable && corepack prepare yarn@stable --activate
 
 RUN yarn install
-
 
 RUN yarn build
 

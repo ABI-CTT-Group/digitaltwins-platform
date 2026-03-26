@@ -2,7 +2,7 @@ import os
 import json
 import uvicorn
 from fastapi import APIRouter, FastAPI, Depends, HTTPException, BackgroundTasks, Request, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from app.database.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -22,7 +22,6 @@ from app.models.db_model import (
 from app.builder.logger import get_logger, configure_logging
 from app.client.minio import get_minio_client
 from app.client.fhir import get_fhir_adapter, get_fhir_async_client
-from botocore.exceptions import ClientError
 from app.builder.build_workflow import WorkflowBuilder
 from app.utils.workflow_tool_utils import get_build_record_or_404, get_public_url_for_build, get_latest_build_record
 from app.utils.builder_utils import execute_build_in_background
@@ -100,15 +99,50 @@ async def get_plugins(skip: int = 0, limit: int = 100, db: Session = Depends(get
 
 
 @router.get("/metadata")
-async def get_metadata_json():
-    try:
-        obj = minio.get_object("metadata.json")
-        data = obj['Body'].read().decode('utf-8')
-        return json.loads(data)
-    except ClientError as e:
-        raise HTTPException(status_code=404, detail=f"File not found: metadata.json")
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail=f"File is not valid JSON: metadata.json")
+async def get_metadata_json(db: Session = Depends(get_db)):
+    use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
+    http_protocol = 'https' if use_ssl else 'http'
+    host = os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')
+    port = os.environ.get('MINIO_PORT', '9000')
+
+    workflows = db.query(Workflow).all()
+    components = []
+    for workflow in workflows:
+        latest_build = (db.query(WorkflowBuild)
+            .filter(WorkflowBuild.workflow_id == workflow.id,
+                    WorkflowBuild.status == BuildStatus.COMPLETED.value)
+            .order_by(WorkflowBuild.created_at.desc())
+            .first())
+        if not latest_build or not latest_build.expose_name:
+            continue
+
+        build_ts = int(latest_build.created_at.timestamp()) if latest_build.created_at else 0
+        is_local = latest_build.s3_path is None
+
+        if is_local:
+            path = ""
+        else:
+            path = f"{http_protocol}://{host}:{port}/workflows/{latest_build.expose_name}/primary"
+
+        components.append({
+            "uuid": workflow.uuid or "",
+            "id": workflow.id,
+            "name": workflow.name,
+            "path": path,
+            "expose": latest_build.expose_name,
+            "description": workflow.description or "",
+            "version": workflow.version,
+            "created_at": workflow.created_at.isoformat() if workflow.created_at else "",
+            "author": workflow.author or "",
+            "repository_url": workflow.repository_url,
+            "is_local": is_local,
+            "config": {},
+        })
+
+    return JSONResponse(
+        content={"components": components},
+        headers={"Cache-Control": "no-cache, no-store"}
+    )
 
 
 @router.get("/builds/{build_id}", response_model=WorkflowBuildResponse)
@@ -344,30 +378,8 @@ async def delete_plugin(workflow_id: str, db: Session = Depends(get_db)):
             db.delete(workflow)
             db.commit()
 
-        try:
-            logger.info(f"Deleting workflow {workflow_id}: modify the minio metadata.json")
-            # delete the record form the metadata.json file in MinIO
-            metadata_file = await get_metadata_json()
-            delete_plugin_component = next((c for c in metadata_file["components"] if c['id'] == workflow_id), None)
-            if delete_plugin_component is not None:
-                object_keys = minio.list_objects(prefix=delete_plugin_component.get("expose"))
-                if len(object_keys) > 0:
-                    minio.delete_objects(delete_keys=object_keys)
-                # Update metadata.json file in minio
-                metadata_file["components"] = [component for component in metadata_file["components"] if
-                                               component['id'] != workflow_id]
-                minio.update_metadata(metadata_file)
-                logger.info(f"Deleting plugin {workflow_id} successfully, and metadata updated successfully.")
-                return {"status": True, "message": "Plugin deleted successfully, and metadata updated successfully."}
-            else:
-                logger.info(
-                    f"Deleting plugin {workflow_id} successfully. and there is no tool component information in metadata.json")
-                return {"status": True,
-                        "message": "Plugin deleted successfully and no longer found in the metadata file."}
-        except Exception as e:
-            logger.info(
-                f"Deleting plugin {workflow_id} successfully, but not find the metadata.json file in Minio, failed due to {e}")
-            return {"status": True, "message": str(e)}
+        logger.info(f"Deleting workflow {workflow_id} successfully.")
+        return {"status": True, "message": "Workflow deleted successfully."}
     except Exception as e:
         logger.info("Deleting plugin failed due to exception {}".format(e))
         return {"status": False, "message": str(e)}

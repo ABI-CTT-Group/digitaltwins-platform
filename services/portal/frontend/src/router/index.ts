@@ -13,7 +13,7 @@ import Dashboard from "@/views/dashboard/study-dashboard/index.vue";
 import TutorialDashboard from "@/views/dashboard/tutorial-dashboard/index.vue";
 import CatalogueDashboard from "@/views/dashboard/catalogue-dashboard/index.vue";
 import CatalogueDashboardView from "@/views/dashboard/catalogue-dashboard/catalogue-dashboard-view.vue";
-import WorkflowToolsViewer from "@/views/dashboard/catalogue-dashboard/workflow-tools-viewer.vue";
+import ToolsViewer from "@/views/dashboard/catalogue-dashboard/tools-viewer.vue";
 import Layout from "@/layouts/Default.vue";
 import LaunchedAssayOverview from "@/views/dashboard/study-dashboard/assay-overview.vue";
 import UploadDataset from "@/views/upload-dataset/index.vue";
@@ -62,9 +62,9 @@ const routes = [
                 component: CatalogueDashboardView,
               },
               {
-                path: "/catalogue-dashboard-workflow-tools",
-                name: "WorkflowToolsViewer",
-                component: WorkflowToolsViewer,
+                path: "/catalogue-dashboard-tools",
+                name: "ToolsViewer",
+                component: ToolsViewer,
               }
             ]
           },
