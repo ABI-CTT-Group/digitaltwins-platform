@@ -57,15 +57,15 @@ resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_2" {
 #  security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
 #}
 #
-#resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_8009" {
-#  direction         = "ingress"
-#  ethertype         = "IPv4"
-#  protocol          = "tcp"
-#  port_range_min    = 8009
-#  port_range_max    = 8009
-#  description       = "port 8009 from everywhere - rest api - close later?"
-#  security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
-#}
+resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_8009" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 8009
+  port_range_max    = 8009
+  description       = "port 8009 from everywhere - rest api - close later?"
+  security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
+}
 #
 #resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_8010" {
 #  direction         = "ingress"

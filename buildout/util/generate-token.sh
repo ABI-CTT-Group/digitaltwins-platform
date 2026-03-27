@@ -14,7 +14,7 @@ ENV_FILE=~/digitaltwins-platform/.env
 #    exit 1
 #}
 
-API_TOKEN=$(cat << RUBY_SCRIPT | docker exec -i $CONTAINER_NAME bash -c 'cd /seek && RAILS_ENV=production bundle exec rails runner -'
+API_TOKEN=$(cat << RUBY_SCRIPT | podman exec -i $CONTAINER_NAME bash -c 'cd /seek && RAILS_ENV=production bundle exec rails runner -'
 # Find the user (adjust username as needed)
 user = User.find_by(login: "$USERNAME")
 

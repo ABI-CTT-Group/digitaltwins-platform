@@ -5,6 +5,7 @@ data "openstack_networking_network_v2"  "auckland_public"       { name = "auckla
 data "openstack_networking_network_v2"  "auckland_public_data"  { name = "auckland-public-data" }
 
 data "openstack_images_image_v2" "portal_image"          { name = "NeCTAR Ubuntu 22.04 LTS (Jammy) amd64 (with Docker)" }
+data "openstack_images_image_v2" "portal_image2"          { name = "NeCTAR Ubuntu 24.04 LTS (Noble) amd64" }
 
 data "openstack_compute_flavor_v2"      "r3_medium"      { name = "r3.medium" }
 data "openstack_compute_flavor_v2"      "m3_medium"      { name = "m3.medium" }
@@ -15,6 +16,7 @@ data "openstack_compute_keypair_v2"     "drai_inn_keypair"    { name = "drai-inn
 
 data "openstack_networking_secgroup_v2" "digital_twins"         { name = "DigitalTWINS platform" }
 
+data "openstack_blockstorage_volume_v3" "docker_cache2" { name = "docker_cache2" }
 
 # templates...
 #data "openstack_images_image_v2"        "nesi-rocky-9-upstream"   {
