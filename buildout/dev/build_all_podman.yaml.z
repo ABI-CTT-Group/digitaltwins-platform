@@ -2,8 +2,8 @@
   gather_facts: false
 #  hosts: portal drai_mp drai_cc
   hosts: portal drai_mp
-  environment:
-    DOCKER_HOST: "unix:///run/user/1001/podman/podman.sock"
+#  environment:
+#    DOCKER_HOST: "unix:///run/podman/podman.sock"
 
 #  environment:
 #    COMPOSE_PULL: "never"
@@ -122,6 +122,10 @@
     become: true
     ansible.builtin.command: ufw reload
 
+
+
+
+
   - name: install required software
     become: true
     ansible.builtin.package:
@@ -131,35 +135,20 @@
       update_cache: yes
       cache_valid_time: 3600
     loop:
-      - podman-docker
+      - jq
+      - curl
+      - telnet
+      - podman
+      - podman-compose
+      - net-tools
+      - bc
       - zip
-
-  - name: Install modern Docker Compose V2 binary for Podman
-    become: true
-    get_url:
-      url: "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64"
-      dest: /usr/bin/docker-compose
-      mode: '0755'
-      force: yes  # Ensures it overwrites the old v1.29 binary
-
-
-  - name: Enable lingering for ubuntu user
-    become: true
-    command: loginctl enable-linger ubuntu
-
-  - name: Ensure the user-level podman socket is running
-    become: false
-    systemd:
-      name: podman.socket
-      scope: user
-      state: started
-      enabled: yes
-
-  - name: Set DOCKER_HOST environment variable for the user
-    ansible.builtin.lineinfile:
-      path: "~/.bashrc"
-      line: "export DOCKER_HOST=unix:///run/user/1001/podman/podman.sock"
-      state: present
+#      - openssl
+#      - firewalld
+#      - units
+#      - postgresql-client
+#      - certbot
+#      - iptables-persistent
 
 
 
@@ -398,14 +387,6 @@
       create: true
       mode: '0600'  # Restrict permissions since it contains a secret
 
-
-
-# sudo systemctl enable ssh
-# sudo ufw allow ssh  # If you are using a firewall
-
-
-
-
 #  - name: Create the Twins service running as ubuntu user
 #    become: true
 #    ansible.builtin.copy:
@@ -443,3 +424,9 @@
 #      daemon_reload: yes  # This tells systemd to look for the new file
 #      enabled: yes        # This ensures it starts on reboot
 #      state: started      # This starts it right now  
+
+  - name: Set DOCKER_HOST environment variable for the user
+    ansible.builtin.lineinfile:
+      path: "~/.bashrc"
+      line: "export DOCKER_HOST=unix:///run/podman/podman.sock"
+      state: present

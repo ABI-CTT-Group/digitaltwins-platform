@@ -1,0 +1,15 @@
+#!/bin/bash
+
+docker compose stop -v
+
+# Stop all running containers
+docker stop $(docker ps -q)
+
+# Remove all containers (including stopped ones)
+docker rm $(docker ps -a -q)
+
+# Force remove all images
+docker rmi -f $(docker images -q)
+
+# Removes all unused networks and dangling build cache
+docker system prune -a --volumes -f
