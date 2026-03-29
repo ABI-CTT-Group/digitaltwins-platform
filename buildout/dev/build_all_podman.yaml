@@ -46,20 +46,20 @@
     # but processes all keys sequentially.
     run_once: true
 
-  - name: Add 'gendev' SSH configuration block using blockinfile
-    ansible.builtin.blockinfile:
-      path: .ssh/config
-      block: |
-        Host gendev
-            User {{ ansible_user }}
-            Hostname 163.7.144.201
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
-            LogLevel ERROR
-      marker: "# {mark} ANSIBLE MANAGED BLOCK for gendev"
-      create: true
-      state: present
-      mode: '0644'
+#  - name: Add 'gendev' SSH configuration block using blockinfile
+#    ansible.builtin.blockinfile:
+#      path: .ssh/config
+#      block: |
+#        Host gendev
+#            User {{ ansible_user }}
+#            Hostname 163.7.144.201
+#            StrictHostKeyChecking no
+#            UserKnownHostsFile /dev/null
+#            LogLevel ERROR
+#      marker: "# {mark} ANSIBLE MANAGED BLOCK for gendev"
+#      create: true
+#      state: present
+#      mode: '0644'
 
 
 ###
@@ -82,94 +82,95 @@
       opts: defaults
       state: mounted  # This both mounts it NOW and adds it to /etc/fstab
   
-  # Firewall Security (UFW)
   - name: Allow Standard Web and SSH traffic
     become: true
     community.general.ufw:
       rule: allow
       port: "{{ item }}"
       proto: tcp
-    loop: ['22', '80', '443']
+    loop: ['22', '80', '443', '8080', '8443']
 
-  - name: Enable Firewall
+  - name: Allow UFW to route redirected traffic
+    become: true
+    ansible.builtin.lineinfile:
+      path: /etc/default/ufw
+      regexp: '^DEFAULT_FORWARD_POLICY='
+      line: 'DEFAULT_FORWARD_POLICY="ACCEPT"'
+
+  - name: Configure UFW Port Forwarding (80 -> 8080, 443 -> 8443)
+    become: true
+    ansible.builtin.blockinfile: 
+      path: /etc/ufw/before.rules
+      insertbefore: BOF 
+      marker: "# {mark} ANSIBLE MANAGED PORT FORWARDING"
+      block: |
+        *nat
+        :PREROUTING ACCEPT [0:0]
+        -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
+        -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443
+        COMMIT
+        # Blank line after COMMIT is safer for UFW parsing
+
+  - name: Enable Firewall and Set Default Deny
     become: true
     community.general.ufw:
       state: enabled
+      direction: incoming
       policy: deny
 
-  - name: install required software
+  - name: Reload UFW to ensure everything is fresh
     become: true
-    ansible.builtin.package:
-      name:
-        - "{{ item }}"
+    ansible.builtin.command: ufw reload
+
+
+
+
+
+#  - name: install required software
+#    become: true
+#    ansible.builtin.package:
+#      name:
+#        - "{{ item }}"
+#      state: present
+#      update_cache: yes
+#      cache_valid_time: 3600
+#    loop:
+#      - jq
+#      - curl
+#      - telnet
+#      - firewalld
+#      - net-tools
+#      - openssl
+#      - units
+#      - bc
+#      - zip
+##      - postgresql-client
+##      - certbot
+#      - podman
+#      - podman-compose
+##      - iptables-persistent
+
+
+  - name: Ensure external podman volumes exist
+    containers.podman.podman_volume:
+      name: "{{ item }}"
       state: present
-      update_cache: yes
-      cache_valid_time: 3600
     loop:
-      - jq
-      - curl
-      - telnet
-      - firewalld
-      - net-tools
-      - openssl
-      - units
-      - bc
-      - zip
-      - postgresql-client
-      - certbot
-      - podman-docker
-      - iptables-persistent
+      - digitaltwins-platform_filestore
+      - digitaltwins-platform_db
 
-  - name: Install modern Docker Compose V2 binary for Podman
-    become: true
-    get_url:
-      url: "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64"
-      dest: /usr/bin/docker-compose
-      mode: '0755'
-      force: yes  # Ensures it overwrites the old v1.29 binary
 
-  - name: Ensure the container socket is accessible on every reboot
-    become: true
-    ansible.builtin.copy:
-      dest: /etc/tmpfiles.d/podman-socket.conf
-      content: |
-        # Type  Path                      Mode User Group Age Argument
-        z       /run/podman/podman.sock   0666 root root  -   -
-        L+      /var/run/docker.sock      -    -    -     -   /run/podman/podman.sock
-      mode: '0644'
-    register: tmpfile_created
 
-  - name: Apply the socket permissions immediately
-    become: true
-    ansible.builtin.command: systemd-tmpfiles --create /etc/tmpfiles.d/podman-socket.conf
-    when: tmpfile_created.changed
 
-  - name: Enable Lingering for ubuntu user
-    become: true
-    ansible.builtin.command: "loginctl enable-linger {{ ansible_user }}"
-    args:
-      creates: "/var/lib/systemd/linger/{{ ansible_user }}"
-  
-  - name: Set up Port Forwarding for 80 and 443
-    become: true
-    ansible.builtin.iptables:
-      table: nat 
-      chain: PREROUTING
-      protocol: tcp
-      destination_port: "{{ item.external }}"
-      jump: REDIRECT
-      to_ports: "{{ item.internal }}"
-      comment: "Cloud Port Forwarding" 
-    loop:
-      - { external: 80, internal: 8080 }
-      - { external: 443, internal: 8443 }
-    register: iptables_changed
 
-  - name: Save iptables rules to disk
-    become: true
-    ansible.builtin.shell: netfilter-persistent save
-    when: iptables_changed.changed
-  
+
+#  - name: Enable Lingering for ubuntu user
+#    become: true
+#    ansible.builtin.command: "loginctl enable-linger {{ ansible_user }}"
+#    args:
+#      creates: "/var/lib/systemd/linger/{{ ansible_user }}"
+ 
+ 
   - name: user access
     authorized_key:
       user: "{{ ansible_user }}"
@@ -185,7 +186,7 @@
       mode: '0700'
 
   - name: Load cached Docker images into local daemon
-    ansible.builtin.command: podman --remote --url unix:///run/podman/podman.sock load -i /mnt/docker_cache/airgap_bundle_20260324.tar
+    ansible.builtin.command: podman load -i /mnt/docker_cache/airgap_bundle_20260324.tar
     register: docker_load_output
     changed_when: "'Loaded image' in docker_load_output.stdout"
 
@@ -242,7 +243,7 @@
     when: not file_check3.stat.exists
 
   - name: Initialize airflow.cfg
-    ansible.builtin.command: podman --remote --url unix:///run/podman/podman.sock compose run airflow-cli airflow config list
+    ansible.builtin.command: podman compose run airflow-cli airflow config list
     args:
       chdir: ./digitaltwins-platform
 
@@ -274,12 +275,12 @@
       chdir: ./digitaltwins-platform
 
   - name: airflow-init
-    ansible.builtin.command: podman --remote --url unix:///run/podman/podman.sock compose up airflow-init
+    ansible.builtin.command: podman compose up airflow-init
     args:
       chdir: ./digitaltwins-platform
 
   - name: docker down
-    ansible.builtin.command: podman --remote --url unix:///run/podman/podman.sock compose down
+    ansible.builtin.command: podman compose down
     args:
       chdir: ./digitaltwins-platform
 
@@ -300,20 +301,20 @@
 
 ########
 
-  - name: volume create1
-    shell: |
-        podman --remote --url unix:///run/podman/podman.sock volume create digitaltwins-platform_filestore
-    args:
-      chdir: ./digitaltwins-platform
-
-  - name: volume create2
-    shell: |
-        podman --remote --url unix:///run/podman/podman.sock volume create digitaltwins-platform_db
-    args:
-      chdir: ./digitaltwins-platform
+#  - name: volume create1
+#    shell: |
+#        podman volume create digitaltwins-platform_filestore
+#    args:
+#      chdir: ./digitaltwins-platform
+#
+#  - name: volume create2
+#    shell: |
+#        podman volume create digitaltwins-platform_db
+#    args:
+#      chdir: ./digitaltwins-platform
 
   - name: Startup seek
-    ansible.builtin.command: podman --remote --url unix:///run/podman/podman.sock compose up -d seek
+    ansible.builtin.command: podman compose up -d seek
     args:
       chdir: ./digitaltwins-platform
 
@@ -321,7 +322,7 @@
 
   - name: Wait for background migrations to create the users table
     ansible.builtin.command: >
-      podman --remote --url unix:///run/podman/podman.sock exec digitaltwins-platform-seek-1 bash -c 
+      podman exec digitaltwins-platform-seek-1 bash -c 
       'cd /seek && RAILS_ENV=production bundle exec rails runner "exit(ActiveRecord::Base.connection.table_exists?(:users) ? 0 : 1)"'
     register: table_check
     # Try up to 15 times, waiting 10 seconds between attempts (max 150 seconds)
@@ -352,13 +353,13 @@
       chdir: ./digitaltwins-platform/buildout/util
 
   - name: all down
-    ansible.builtin.command: podman --remote --url unix:///run/podman/podman.sock compose down
+    ansible.builtin.command: podman compose down
     args:
       chdir: ./digitaltwins-platform
 
   - name: Start docker compose services
     shell: |
-      podman --remote --url unix:///run/podman/podman.sock compose up -d
+      podman compose up -d
     args:
       chdir: ./digitaltwins-platform
 
@@ -370,43 +371,43 @@
       create: true
       mode: '0600'  # Restrict permissions since it contains a secret
 
-  - name: Create the Twins service running as ubuntu user
-    become: true
-    ansible.builtin.copy:
-      dest: "/etc/systemd/system/twins.service"
-      content: |
-        [Unit]
-        Description=Digital Twins Platform Stack
-        # We still bind to the system socket, but run the command as ubuntu
-        BindsTo=podman.socket
-        After=network-online.target podman.socket
-        JobTimeoutSec=60
-  
-        [Service]
-        Type=oneshot
-        RemainAfterExit=yes
-        ## CRITICAL: Run as the ubuntu user
-        User={{ ansible_user }}
-        Group={{ ansible_user }}
-        WorkingDirectory=/home/{{ ansible_user }}/digitaltwins-platform
-        
-        # Use the system-wide socket we permissioned with 0666
-        Environment=DOCKER_HOST=unix:///run/podman/podman.sock
-        
-        ExecStart=/usr/bin/podman --remote --url unix:///run/podman/podman.sock compose up -d
-        ExecStop=/usr/bin/podman --remote --url unix:///run/podman/podman.sock compose down
-  
-        [Install]
-        WantedBy=multi-user.target
-      mode: '0644'
+#  - name: Create the Twins service running as ubuntu user
+#    become: true
+#    ansible.builtin.copy:
+#      dest: "/etc/systemd/system/twins.service"
+#      content: |
+#        [Unit]
+#        Description=Digital Twins Platform Stack
+#        # We still bind to the system socket, but run the command as ubuntu
+#        BindsTo=podman.socket
+#        After=network-online.target podman.socket
+#        JobTimeoutSec=60
+#  
+#        [Service]
+#        Type=oneshot
+#        RemainAfterExit=yes
+#        ## CRITICAL: Run as the ubuntu user
+#        User={{ ansible_user }}
+#        Group={{ ansible_user }}
+#        WorkingDirectory=/home/{{ ansible_user }}/digitaltwins-platform
+#        
+#        # Use the system-wide socket we permissioned with 0666
+#        Environment=DOCKER_HOST=unix:///run/podman/podman.sock
+#        
+#        ExecStart=/usr/bin/podman compose up -d
+#        ExecStop=/usr/bin/podman compose down
+#  
+#        [Install]
+#        WantedBy=multi-user.target
+#      mode: '0644'
 
-  - name: Reload systemd and enable the twins service
-    become: true
-    ansible.builtin.systemd:
-      name: twins.service
-      daemon_reload: yes  # This tells systemd to look for the new file
-      enabled: yes        # This ensures it starts on reboot
-      state: started      # This starts it right now  
+#  - name: Reload systemd and enable the twins service
+#    become: true
+#    ansible.builtin.systemd:
+#      name: twins.service
+#      daemon_reload: yes  # This tells systemd to look for the new file
+#      enabled: yes        # This ensures it starts on reboot
+#      state: started      # This starts it right now  
 
   - name: Set DOCKER_HOST environment variable for the user
     ansible.builtin.lineinfile:
