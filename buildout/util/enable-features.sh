@@ -8,7 +8,7 @@ IP=$(curl -s ifconfig.me)
 
 echo "Enabling desired SEEK features in container: $CONTAINER_NAME"
 
-cat << RUBY_SCRIPT | podman exec -i "$CONTAINER_NAME" bash -c 'cd /seek && RAILS_ENV=production bundle exec rails runner -'
+cat << RUBY_SCRIPT | podman --remote --url unix:///run/podman/podman.sock exec -i "$CONTAINER_NAME" bash -c 'cd /seek && RAILS_ENV=production bundle exec rails runner -'
 # Enable Omniauth
 Seek::Config.omniauth_enabled = true
 

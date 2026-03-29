@@ -3,7 +3,10 @@
 #  hosts: portal drai_mp drai_cc
   hosts: portal drai_mp
   environment:
-    COMPOSE_PULL: "never"
+    DOCKER_HOST: "unix:///run/podman/podman.sock"
+
+#  environment:
+#    COMPOSE_PULL: "never"
 
   tasks:
 #########################
@@ -31,7 +34,7 @@
 
   - name: Add fetched public keys to localhost authorized_keys
     ansible.posix.authorized_key:
-      user: "ubuntu"
+      user: "{{ ansible_user }}"
       state: present
       # Use the 'item' variable (the host name) in the lookup path
       key: "{{ lookup('file', '/tmp/fetched_keys_{{ item }}.pub') }}"
@@ -48,7 +51,7 @@
       path: .ssh/config
       block: |
         Host gendev
-            User ubuntu
+            User {{ ansible_user }}
             Hostname 163.7.144.201
             StrictHostKeyChecking no
             UserKnownHostsFile /dev/null
@@ -61,25 +64,23 @@
 
 ###
 
-  - name: Mount existing volume /dev/vdb to /mnt/docker_cache
+  - name: Ensure mount directory exists
     become: true
-    block:
-      - name: Ensure mount directory exists
-        ansible.builtin.file:
-          path: /mnt/docker_cache
-          state: directory
-          mode: '0755'
-          owner: "1001"  # Set this to your Podman user's UID
-          group: "1001"
+    ansible.builtin.file:
+      path: /mnt/docker_cache
+      state: directory
+      mode: '0755'
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
   
-      - name: Mount /dev/vdb and update fstab
-        ansible.posix.mount:
-          path: /mnt/docker_cache
-          src: /dev/vdb
-          fstype: auto    # Tells mount to detect the existing ext4/xfs automatically
-          opts: defaults
-          state: mounted  # This both mounts it NOW and adds it to /etc/fstab
-  
+  - name: Mount /dev/vdb and update fstab
+    become: true
+    ansible.posix.mount:
+      path: /mnt/docker_cache
+      src: /dev/vdb
+      fstype: auto    # Tells mount to detect the existing ext4/xfs automatically
+      opts: defaults
+      state: mounted  # This both mounts it NOW and adds it to /etc/fstab
   
   # Firewall Security (UFW)
   - name: Allow Standard Web and SSH traffic
@@ -117,6 +118,7 @@
       - postgresql-client
       - certbot
       - podman-docker
+      - iptables-persistent
 
   - name: Install modern Docker Compose V2 binary for Podman
     become: true
@@ -126,12 +128,77 @@
       mode: '0755'
       force: yes  # Ensures it overwrites the old v1.29 binary
 
-  - name: Enable Podman socket for the user # Not run as root
-    ansible.builtin.systemd:
-      name: podman.socket
-      state: started
-      enabled: yes
-      scope: user  # Critical: manages the socket for UID 1001, not root
+  - name: Ensure the container socket is accessible on every reboot
+    become: true
+    ansible.builtin.copy:
+      dest: /etc/tmpfiles.d/podman-socket.conf
+      content: |
+        # Type  Path                      Mode User Group Age Argument
+        z       /run/podman/podman.sock   0666 root root  -   -
+        L+      /var/run/docker.sock      -    -    -     -   /run/podman/podman.sock
+      mode: '0644'
+    register: tmpfile_created
+
+  - name: Apply the socket permissions immediately
+    become: true
+    ansible.builtin.command: systemd-tmpfiles --create /etc/tmpfiles.d/podman-socket.conf
+    when: tmpfile_created.changed
+
+  - name: Enable Lingering for ubuntu user
+    become: true
+    ansible.builtin.command: "loginctl enable-linger {{ ansible_user }}"
+    args:
+      creates: "/var/lib/systemd/linger/{{ ansible_user }}"
+  
+  - name: Set up Port Forwarding for 80 and 443
+    become: true
+    ansible.builtin.iptables:
+      table: nat 
+      chain: PREROUTING
+      protocol: tcp
+      destination_port: "{{ item.external }}"
+      jump: REDIRECT
+      to_ports: "{{ item.internal }}"
+      comment: "Cloud Port Forwarding" 
+    loop:
+      - { external: 80, internal: 8080 }
+      - { external: 443, internal: 8443 }
+    register: iptables_changed
+
+  - name: Save iptables rules to disk
+    become: true
+    ansible.builtin.shell: netfilter-persistent save
+    when: iptables_changed.changed
+  
+  - name: user access
+    authorized_key:
+      user: "{{ ansible_user }}"
+      state: present
+      key: "{{ lookup('file', item) }}"
+    with_fileglob:
+      - "public_keys/*.pub"
+
+  - name: Ensure the keys directory is present
+    ansible.builtin.file:
+      path: keys
+      state: directory
+      mode: '0700'
+
+  - name: Load cached Docker images into local daemon
+    ansible.builtin.command: podman --remote --url unix:///run/podman/podman.sock load -i /mnt/docker_cache/airgap_bundle_20260324.tar
+    register: docker_load_output
+    changed_when: "'Loaded image' in docker_load_output.stdout"
+
+# Because git pulling has basically stopped functioning in the last couple days...
+  - name: Sync code to VM
+    ansible.posix.synchronize:
+      src: /home/{{ ansible_user }}/twins/clean_src/digitaltwins-platform/
+      dest: /home/{{ ansible_user }}/digitaltwins-platform/
+      archive: yes
+      delete: yes
+      rsync_opts:
+        - '--filter=":- .gitignore"'
+        - '--exclude=.git/'
 
   - name: Create certs directory
     ansible.builtin.file:
@@ -151,148 +218,6 @@
       dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs
       mode: '0600'
 
-  - name: Set DOCKER_HOST environment variable for the user
-    ansible.builtin.lineinfile:
-      path: "~/.bashrc"
-      line: "export DOCKER_HOST=unix:///run/user/{{ ansible_user_uid }}/podman/podman.sock"
-      state: present
-
-  - name: Allow non-root users to bind to ports 80 and 443
-    become: true
-    ansible.posix.sysctl:
-      name: net.ipv4.ip_unprivileged_port_start
-      value: '80'
-      state: present
-      reload: yes
-
-  - name: Allow Podman to run after logout (Linger)
-    become: true
-    ansible.builtin.command:
-      cmd: "loginctl enable-linger {{ ansible_user }}"
-      creates: "/var/lib/systemd/linger/{{ ansible_user }}"
-
-
-  - name: Set up Port Forwarding for 80 and 443
-    become: true
-    ansible.builtin.iptables:
-      table: nat
-      chain: PREROUTING
-      protocol: tcp
-      destination_port: "{{ item.external }}"
-      jump: REDIRECT
-      to_ports: "{{ item.internal }}"
-      comment: "Cloud Port Forwarding"
-    loop:
-      - { external: 80, internal: 8080 }
-      - { external: 443, internal: 8443 }
-  
-  - name: Open High Ports in Firewall
-    become: true
-    community.general.ufw:
-      rule: allow
-      port: "{{ item }}"
-      proto: tcp
-    loop:
-      - '8080'
-      - '8443'
-
-  - name: user access
-    authorized_key:
-      user: "{{ ansible_user }}"
-      state: present
-      key: "{{ lookup('file', item) }}"
-    with_fileglob:
-      - "public_keys/*.pub"
-
-  - name: Ensure the keys directory is present
-    ansible.builtin.file:
-      path: keys
-      state: directory
-      mode: '0700'
-
-  - name: Load cached Docker images into local daemon
-    ansible.builtin.command: podman load -i /mnt/docker_cache/airgap_bundle_20260324.tar
-    register: docker_load_output
-    changed_when: "'Loaded image' in docker_load_output.stdout"
-
-# Because git pulling has basically stopped functioning in the last couple days...
-  - name: Sync code to VM
-    ansible.posix.synchronize:
-      src: /home/ubuntu/twins/clean_src/digitaltwins-platform/
-      dest: /home/ubuntu/digitaltwins-platform/
-      archive: yes
-      delete: yes
-      rsync_opts:
-        - '--filter=":- .gitignore"'
-        - '--exclude=.git/'
-
-#  - name: Read git checkout platform
-#    ansible.builtin.git:
-#      repo: https://github.com/ABI-CTT-Group/digitaltwins-platform.git
-#      dest: ./digitaltwins-platform
-#      depth: 1
-#      force: yes
-#      recursive: yes  # submodules
-#      version: buildout
-#
-#  - name: update submodules
-#    ansible.builtin.command: git submodule update --remote --recursive --depth 1
-#    args:
-#      chdir: ./digitaltwins-platform
-
-
-#  - name: Raw git clone (Using a full login shell)
-#    ansible.builtin.shell: >
-#      bash -lc 'git clone --quiet --depth 1 
-#      --branch buildout 
-#      --recurse-submodules 
-#      --shallow-submodules 
-#      https://github.com/ABI-CTT-Group/digitaltwins-platform.git 
-#      ./digitaltwins-platform'
-#    args:
-#      creates: ./digitaltwins-platform
-#      executable: /bin/bash
-#
-#  - name: Raw git clone (bypassing Ansible's stubborn git module)
-#    ansible.builtin.command: >
-#      git clone --quiet --depth 1
-#      --branch buildout 
-#      --recurse-submodules 
-#      --shallow-submodules 
-#      https://github.com/ABI-CTT-Group/digitaltwins-platform.git 
-#      ./digitaltwins-platform
-#    args:
-#      creates: ./digitaltwins-platform
-#
-
-
-#  - name: Read git checkout buildout
-#    ansible.builtin.git:
-#      #repo: gendev:git/twins_buildout.git
-#      repo: https://github.com/ABI-CTT-Group/digitaltwins-platform.git
-#      dest: ./twins_buildout
-#      force: yes
-#      version: buildout
-#
-  # I don't understand why I need this next step, but it doesn't seem to get the host's DNS setup here
-  # and hangs/times out when attempting to pull containers
-#  - name: Write docker daemon config for DNS
-#    become: yes
-#    ansible.builtin.copy:
-#      dest: /etc/docker/daemon.json
-#      content: |
-#        {
-#          "dns": ["8.8.8.8", "8.8.4.4"]
-#        }
-#      mode: '0644'
-#
-
-#  - name: Restart Docker
-#    become: yes
-#    ansible.builtin.systemd:
-#      name: docker
-#      state: restarted
-
   - name: check for .env
     stat:
       path: "./digitaltwins-platform/.env"
@@ -303,37 +228,6 @@
       src: ../data/.env
       dest: ./digitaltwins-platform/.env
       mode: '0600'
-
-#  - name: .env
-#    ansible.builtin.command: cp .env.template .env
-#    args:
-#      chdir: ./digitaltwins-platform
-#    when: not file_check1.stat.exists
-
-#  - name: airflow_uid
-#    shell: |
-#      MYIP=$(curl ifconfig.me)
-#      sed -i "s/PORTAL_BACKEND_HOST_IP=.*/PORTAL_BACKEND_HOST_IP=$MYIP/g" .env
-#    args:
-#      chdir: ./digitaltwins-platform
-
-#  - name: airflow_uid
-#    shell: |
-#      MYUID=$(id -u)
-#      sed -i "s/AIRFLOW_UID=.*/AIRFLOW_UID=$MYUID/g" .env
-#    args:
-#      chdir: ./digitaltwins-platform
-
-#  - name: check for api .configs.ini
-#    stat:
-#      path: "./digitaltwins-platform/services/api/digitaltwins-api/configs.ini"
-#    register: file_check2
-
-#  - name: api configs.ini
-#    ansible.builtin.command: cp ./services/api/digitaltwins-api/configs.ini.template ./services/api/digitaltwins-api/configs.ini
-#    args:
-#      chdir: ./digitaltwins-platform
-#    when: not file_check2.stat.exists
 
   - name: check for file
     stat:
@@ -347,48 +241,19 @@
       chdir: ./digitaltwins-platform
     when: not file_check3.stat.exists
 
-#  - name: Set kc_client_secret from environment variable
-#    ansible.builtin.set_fact:
-#      kc_client_secret: "{{ lookup('env', 'KC_CLIENT_SECRET') }}"
-#
-#  - name: Ensure KEYCLOAK_CLIENT_SECRET is set in .env
-#    ansible.builtin.lineinfile:
-#      path: ./digitaltwins-platform/.env
-#      regexp: '^KEYCLOAK_CLIENT_SECRET='
-#      line: KEYCLOAK_CLIENT_SECRET={{ kc_client_secret }}
-#      create: true
-#      mode: '0600'  # Restrict permissions since it contains a secret
-
-#  - name: Set kc_bookstrap_admin_password from environment variable
-#    ansible.builtin.set_fact:
-#      kc_bootstrap_admin_password: "{{ lookup('env', 'KC_BOOTSTRAP_ADMIN_PASSWORD') }}"
-#
-#  - name: Ensure KC_BOOTSTRAP_ADMIN_PASSWORD is set in .env
-#    ansible.builtin.lineinfile:
-#      path: ./digitaltwins-platform/.env
-#      regexp: '^KC_BOOTSTRAP_ADMIN_PASSWORD='
-#      line: KC_BOOTSTRAP_ADMIN_PASSWORD="{{ kc_bootstrap_admin_password }}"
-#      create: true
-#      mode: '0600'  # Restrict permissions since it contains a secret
-
-#  - name: Ensure api_token is dummy for the moment in .env
-#    ansible.builtin.lineinfile:
-#      path: ./digitaltwins-platform/.env
-#      regexp: '^SEEK_API_TOKEN='
-#      line: SEEK_API_TOKEN=dummy
-#      create: true
-#      mode: '0600'  # Restrict permissions since it contains a secret
-
-  - name: volume create
-    shell: |
-        . ./.env && podman volume create ${COMPOSE_PROJECT_NAME}_filestore && podman volume create ${COMPOSE_PROJECT_NAME}_db
-    args:
-      chdir: ./digitaltwins-platform
-
   - name: Initialize airflow.cfg
-    ansible.builtin.command: podman compose run airflow-cli airflow config list
+    ansible.builtin.command: podman --remote --url unix:///run/podman/podman.sock compose run airflow-cli airflow config list
     args:
       chdir: ./digitaltwins-platform
+
+  # The last config list puts a wonky ownership on the .cfg file, which we need to adjust, so ...
+  - name: Force ubuntu ownership on Airflow config
+    become: true
+    ansible.builtin.file:
+      path: "/home/{{ ansible_user }}/digitaltwins-platform/services/airflow/config/airflow.cfg"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0644'
 
   - name: allow_headers
     shell: |
@@ -408,35 +273,13 @@
     args:
       chdir: ./digitaltwins-platform
 
-#  - name: Set FACT from environment variable
-#    ansible.builtin.set_fact:
-#      kc_https_key_store_password: "{{ lookup('env', 'KC_HTTPS_KEY_STORE_PASSWORD') }}"
-#
-#  - name: keystore password 1
-#    shell: |
-#      sed -i "s/KC_HTTPS_KEY_STORE_PASSWORD=.*/KC_HTTPS_KEY_STORE_PASSWORD=\"{{ kc_https_key_store_password }}\"/g" .env
-#    args:
-#      chdir: ./digitaltwins-platform
-#
-#  - name: keystore password 2
-#    shell: |
-#      sed -i "s/#KC_HTTPS_KEY_STORE_PASSWORD=/KC_HTTPS_KEY_STORE_PASSWORD=/g" .env
-#    args:
-#      chdir: ./digitaltwins-platform
-
-#  - name: keystore password
-#    shell: |
-#      sed -i "s/CLIENT_SECRET=.*/CLIENT_SECRET=\"{{ kc_client_secret }}\"/g" .env
-#    args:
-#      chdir: ./digitaltwins-platform
-
   - name: airflow-init
-    ansible.builtin.command: podman compose up airflow-init
+    ansible.builtin.command: podman --remote --url unix:///run/podman/podman.sock compose up airflow-init
     args:
       chdir: ./digitaltwins-platform
 
   - name: docker down
-    ansible.builtin.command: podman compose down
+    ansible.builtin.command: podman --remote --url unix:///run/podman/podman.sock compose down
     args:
       chdir: ./digitaltwins-platform
 
@@ -457,22 +300,28 @@
 
 ########
 
-  - name: Startup seek
-#    ansible.builtin.command: docker compose -f services/seek/ldh-deployment/docker-compose.yml --env-file ./.env up -d
-    ansible.builtin.command: podman compose up -d seek
+  - name: volume create1
+    shell: |
+        podman --remote --url unix:///run/podman/podman.sock volume create digitaltwins-platform_filestore
     args:
       chdir: ./digitaltwins-platform
 
-#  - name: Sleep on the remote host for a bit
-#    ansible.builtin.shell: sleep 60
-#    changed_when: true # Ensures the task reports 'changed' every time it runs
-#
+  - name: volume create2
+    shell: |
+        podman --remote --url unix:///run/podman/podman.sock volume create digitaltwins-platform_db
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: Startup seek
+    ansible.builtin.command: podman --remote --url unix:///run/podman/podman.sock compose up -d seek
+    args:
+      chdir: ./digitaltwins-platform
 
 # Better solution to the "wait" problem...
 
   - name: Wait for background migrations to create the users table
     ansible.builtin.command: >
-      podman exec digitaltwins-platform-seek-1 bash -c 
+      podman --remote --url unix:///run/podman/podman.sock exec digitaltwins-platform-seek-1 bash -c 
       'cd /seek && RAILS_ENV=production bundle exec rails runner "exit(ActiveRecord::Base.connection.table_exists?(:users) ? 0 : 1)"'
     register: table_check
     # Try up to 15 times, waiting 10 seconds between attempts (max 150 seconds)
@@ -503,56 +352,64 @@
       chdir: ./digitaltwins-platform/buildout/util
 
   - name: all down
-    ansible.builtin.command: podman compose down
+    ansible.builtin.command: podman --remote --url unix:///run/podman/podman.sock compose down
     args:
       chdir: ./digitaltwins-platform
 
   - name: Start docker compose services
     shell: |
-      podman compose up -d
+      podman --remote --url unix:///run/podman/podman.sock compose up -d
     args:
       chdir: ./digitaltwins-platform
 
-
-  - name: Create a bulletproof systemd service for the twins stack
-    ansible.builtin.copy:
-      dest: "~/.config/systemd/user/twins.service"
-      content: |
-        [Unit]
-        Description=Digital Twins Platform Stack
-        After=network-online.target
-  
-        [Service]
-        Type=simple
-        # Point to your project folder
-        WorkingDirectory=/home/{{ ansible_user }}/digitaltwins-platform
-        # The exact command to start your stack
-        ExecStart=/usr/bin/podman compose up
-        # The command to stop it cleanly
-        ExecStop=/usr/bin/podman compose down
-        Restart=always
-  
-        [Install]
-        WantedBy=default.target
-      mode: '0644'
-  
-  - name: Force systemd to see the new service
-    ansible.builtin.systemd:
-      daemon_reload: yes
-      scope: user
-  
-  - name: Start and Enable the service
-    ansible.builtin.systemd:
-      name: twins
-      state: started
-      enabled: yes
-      scope: user
-  
-
   - name: Ensure COMPOSE_FILE is in .bash_aliases
     ansible.builtin.lineinfile:
-      path: ./.bash_aliases
+      path: "~/.bashrc"
       regexp: '^export COMPOSE_FILE='
       line: "export COMPOSE_FILE=~/digitaltwins-platform/docker-compose.yml"
       create: true
       mode: '0600'  # Restrict permissions since it contains a secret
+
+  - name: Create the Twins service running as ubuntu user
+    become: true
+    ansible.builtin.copy:
+      dest: "/etc/systemd/system/twins.service"
+      content: |
+        [Unit]
+        Description=Digital Twins Platform Stack
+        # We still bind to the system socket, but run the command as ubuntu
+        BindsTo=podman.socket
+        After=network-online.target podman.socket
+        JobTimeoutSec=60
+  
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ## CRITICAL: Run as the ubuntu user
+        User={{ ansible_user }}
+        Group={{ ansible_user }}
+        WorkingDirectory=/home/{{ ansible_user }}/digitaltwins-platform
+        
+        # Use the system-wide socket we permissioned with 0666
+        Environment=DOCKER_HOST=unix:///run/podman/podman.sock
+        
+        ExecStart=/usr/bin/podman --remote --url unix:///run/podman/podman.sock compose up -d
+        ExecStop=/usr/bin/podman --remote --url unix:///run/podman/podman.sock compose down
+  
+        [Install]
+        WantedBy=multi-user.target
+      mode: '0644'
+
+  - name: Reload systemd and enable the twins service
+    become: true
+    ansible.builtin.systemd:
+      name: twins.service
+      daemon_reload: yes  # This tells systemd to look for the new file
+      enabled: yes        # This ensures it starts on reboot
+      state: started      # This starts it right now  
+
+  - name: Set DOCKER_HOST environment variable for the user
+    ansible.builtin.lineinfile:
+      path: "~/.bashrc"
+      line: "export DOCKER_HOST=unix:///run/podman/podman.sock"
+      state: present

@@ -35,7 +35,7 @@ echo "Email: $EMAIL"
 [ "$KEYCLOAK_MODE" = true ] && echo "Mode: Keycloak (no local password)" || echo "Mode: Local authentication"
 echo ""
 
-cat << RUBY_SCRIPT | podman exec -i "$CONTAINER_NAME" bash -c 'cd /seek && RAILS_ENV=production bundle exec rails runner -'
+cat << RUBY_SCRIPT | podman --remote --url unix:///run/podman/podman.sock exec -i "$CONTAINER_NAME" bash -c 'cd /seek && RAILS_ENV=production bundle exec rails runner -'
 user = User.find_by(login: "$USERNAME")
 if user
   puts "User '$USERNAME' already exists"
