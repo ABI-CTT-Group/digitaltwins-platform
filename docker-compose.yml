@@ -58,10 +58,10 @@ include:
     # PACS (Orthanc)
     - services/pacs/docker-compose.yml
     project_directory: services/pacs
-  # digitaltwins-api
-  - path:
-    - services/api/digitaltwins-api/docker-compose.yml
-    project_directory: services/api/digitaltwins-api
+#  # digitaltwins-api
+#  - path:
+#    - services/api/digitaltwins-api/docker-compose.yml
+#    project_directory: services/api/digitaltwins-api
   # JupyterLab
   - path:
     - services/jupyterlab/docker-compose.yml
@@ -78,6 +78,16 @@ volumes:
 networks:
   digitaltwins:
     driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/24
+  default:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.21.0.0/24
 
 # create networks if not exists
 # sudo docker network create digitaltwins
