@@ -3,66 +3,21 @@
 #  hosts: portal drai_mp drai_cc
   hosts: portal drai_mp
   environment:
-    DOCKER_HOST: "unix:///run/user/1001/podman/podman.sock"
+    DOCKER_HOST: "{{ lookup('env', 'DOCKER_HOST') | default('unix:///var/run/docker.sock', true) }}"
 
 #  environment:
 #    COMPOSE_PULL: "never"
 
   tasks:
-#########################
-# Make sure required env variables are set
+
+
+  #########################
+  # Make sure required env variables are set
   - name: Verify SEEK_ADMIN_PASSWORD environment variable is set
     ansible.builtin.fail:
       msg: "FATAL: The required environment variable SEEK_ADMIN_PASSWORD must be set to run this playbook."
     when: lookup('env', 'SEEK_ADMIN_PASSWORD') | length == 0
-#########################
-
-#  - name: Generate ED25519 SSH Keypair for application user
-#    community.crypto.openssh_keypair:
-#      path: .ssh/id_ed25519
-#      type: ed25519
-#      size: 256  # Mandatory for ed25519, though 256 is the default
-#      force: no  # Do not overwrite if the key already exists
-#      mode: '0600'
-
-#  - name: Fetch the remote public key file
-#    ansible.builtin.fetch:
-#      src: .ssh/id_ed25519.pub
-#      dest: "/tmp/fetched_keys_{{ inventory_hostname }}.pub"
-#      flat: yes
-#      fail_on_missing: yes
-
-#  - name: Add fetched public keys to localhost authorized_keys
-#    ansible.posix.authorized_key:
-#      user: "{{ ansible_user }}"
-#      state: present
-#      # Use the 'item' variable (the host name) in the lookup path
-#      key: "{{ lookup('file', '/tmp/fetched_keys_{{ item }}.pub') }}"
-#      comment: '{{ item }} - remote access key'
-#    delegate_to: localhost
-#    # Loop over all hosts that were active in the current play
-#    loop: "{{ play_hosts }}"
-#    # Ensure the loop only runs once on the control machine, 
-#    # but processes all keys sequentially.
-#    run_once: true
-
-#  - name: Add 'gendev' SSH configuration block using blockinfile
-#    ansible.builtin.blockinfile:
-#      path: .ssh/config
-#      block: |
-#        Host gendev
-#            User {{ ansible_user }}
-#            Hostname 163.7.144.201
-#            StrictHostKeyChecking no
-#            UserKnownHostsFile /dev/null
-#            LogLevel ERROR
-#      marker: "# {mark} ANSIBLE MANAGED BLOCK for gendev"
-#      create: true
-#      state: present
-#      mode: '0644'
-
-
-###
+  #########################
 
   - name: Ensure mount directory exists
     become: true
@@ -143,9 +98,9 @@
       force: yes  # Ensures it overwrites the old v1.29 binary
 
 
-  - name: Enable lingering for ubuntu user
+  - name: Enable lingering for user
     become: true
-    command: loginctl enable-linger ubuntu
+    command: loginctl enable-linger {{ ansible_user }}
 
   - name: Ensure the user-level podman socket is running
     become: false
@@ -155,15 +110,15 @@
       state: started
       enabled: yes
 
+  - name: Set DOCKER_HOST from environment variable
+    ansible.builtin.set_fact:
+      docker_host: "{{ lookup('env', 'DOCKER_HOST') }}"
+
   - name: Set DOCKER_HOST environment variable for the user
     ansible.builtin.lineinfile:
       path: "~/.bashrc"
-      line: "export DOCKER_HOST=unix:///run/user/1001/podman/podman.sock"
+      line: "export DOCKER_HOST={{ docker_host }}"
       state: present
-
-
-
-
 
   - name: Ensure external podman volumes exist
     containers.podman.podman_volume:
@@ -173,15 +128,6 @@
       - digitaltwins-platform_filestore
       - digitaltwins-platform_db
 
-
-
-#  - name: Enable Lingering for ubuntu user
-#    become: true
-#    ansible.builtin.command: "loginctl enable-linger {{ ansible_user }}"
-#    args:
-#      creates: "/var/lib/systemd/linger/{{ ansible_user }}"
- 
- 
   - name: user access
     authorized_key:
       user: "{{ ansible_user }}"
@@ -241,20 +187,22 @@
       dest: ./digitaltwins-platform/.env
       mode: '0600'
 
-  - name: check for file
+  - name: check for seek env file
     stat:
       path: "./digitaltwins-platform/services/seek/ldh-deployment/docker-compose.env"
     register: file_check3
 
-  - name: seek database password setup
-    shell: |
-      cat ./services/seek/ldh-deployment/docker-compose.env.tpl | sed "s|<db-password>|$(openssl rand -base64 21)|" | sed "s|<root-password>|$(openssl rand -base64 21)|" > ./services/seek/ldh-deployment/docker-compose.env
-    args:
-      chdir: ./digitaltwins-platform
+  - name: Create seek env file
+    ansible.builtin.copy:
+      dest: "./digitaltwins-platform/services/seek/ldh-deployment/docker-compose.env"
+      content: |
+        MYSQL_HOST=db
+        MYSQL_ROOT_PASSWORD={{ lookup('env', 'MYSQL_ROOT_PASSWORD ') }}
+        MYSQL_DATABASE=seek
+        MYSQL_USER=seek
+        MYSQL_PASSWORD={{ lookup('env', 'MYSQL_PASSWORD ') }}
+      mode: '0600'
     when: not file_check3.stat.exists
-
-#podman run --rm -it   -v ./config:/opt/airflow/config:Z   docker.io/apache/airflow:latest   bash -c "airflow config list --defaults > /opt/airflow/config/airflow.cfg"
-
 
   - name: Initialize airflow.cfg
     ansible.builtin.command: podman compose run airflow-cli airflow config list
@@ -262,10 +210,11 @@
       chdir: ./digitaltwins-platform
 
   # The last config list puts a wonky ownership on the .cfg file, which we need to adjust, so ...
-  - name: Force ubuntu ownership on Airflow config
+  - name: Force ownership on Airflow config
     become: true
     ansible.builtin.file:
-      path: "/home/{{ ansible_user }}/digitaltwins-platform/services/airflow/config/airflow.cfg"
+      #path: "/home/{{ ansible_user }}/digitaltwins-platform/services/airflow/config/airflow.cfg"
+      path: "./digitaltwins-platform/services/airflow/config/airflow.cfg"
       owner: "{{ ansible_user }}"
       group: "{{ ansible_user }}"
       mode: '0644'
@@ -288,24 +237,11 @@
     args:
       chdir: ./digitaltwins-platform
 
-#podman run --rm -it \
-#  --name airflow-init-manual \
-#  --env-file .env \
-#  -v ./dags:/opt/airflow/dags:Z \
-#  -v ./logs:/opt/airflow/logs:Z \
-#  -v ./plugins:/opt/airflow/plugins:Z \
-#  -v ./config:/opt/airflow/config:Z \
-#  docker.io/apache/airflow:latest \
-#  airflow db migrate
-
-
   - name: airflow-init
     ansible.builtin.command: podman compose up airflow-init
     args:
       chdir: ./digitaltwins-platform
 
-# podman stop -a
-# podman rm -a
   - name: docker down
     ansible.builtin.command: podman compose down
     args:
@@ -313,40 +249,25 @@
 
 ###
 
-  - name: Copy production configuration file to remote server
+  - name: Copy server.jks to remote server
     ansible.builtin.copy:
       src: server.jks
       dest: ./digitaltwins-platform/services/keycloak/server.jks
       mode: '0644'
 
-  - name: Copy production configuration file to remote server
+  - name: Copy realm import to remote server
     ansible.builtin.copy:
 #      src: ../data/digitaltwins_realm_202603051056.json
       src: ../data/realm-cc-digitaltwins_20260322.json
       dest: ./digitaltwins-platform/services/keycloak/import/digitaltwins-realm.json
       mode: '0644'
 
-########
-
-#  - name: volume create1
-#    shell: |
-#        podman volume create digitaltwins-platform_filestore
-#    args:
-#      chdir: ./digitaltwins-platform
-#
-#  - name: volume create2
-#    shell: |
-#        podman volume create digitaltwins-platform_db
-#    args:
-#      chdir: ./digitaltwins-platform
-
   - name: Startup seek
     ansible.builtin.command: podman compose up -d seek
     args:
       chdir: ./digitaltwins-platform
 
-# Better solution to the "wait" problem...
-
+  # Better solution to the "wait" problem...
   - name: Wait for background migrations to create the users table
     ansible.builtin.command: >
       podman exec digitaltwins-platform-seek-1 bash -c 
@@ -398,48 +319,48 @@
       create: true
       mode: '0600'  # Restrict permissions since it contains a secret
 
+  - name: grab DOCKER_HOST value
+    ansible.builtin.set_fact:
+      docker_host: "{{ lookup('env', 'DOCKER_HOST') }}"
 
+  - name: Create podman-compose systemd user service
+    copy:
+      dest: "~/.config/systemd/user/twins.service"
+      content: |
+        [Unit]
+        Description=podman Compose App
+        After=podman.socket
+        Requires=podman.socket
+        
+        [Service]
+        Type=simple
+        # No 'RemainAfterExit' needed for simple foreground processes
+        WorkingDirectory=/home/ubuntu/digitaltwins-platform
+        Environment="DOCKER_HOST={{ docker_host }}"
+        
+        # We use 'up' without '-d' so systemd can track the process directly
+        ExecStart=/usr/bin/podman compose up
+        ExecStop=/usr/bin/podman compose down
+        
+        # If it doesn't fork/launch in 10s, kill it so I can log in!
+        TimeoutStartSec=10
+        Restart=no
+        
+        # Give it 30s to shut down gracefully
+        TimeoutStopSec=30
+        
+        [Install]
+        WantedBy=default.target
+      mode: '0644'
 
-# sudo systemctl enable ssh
-# sudo ufw allow ssh  # If you are using a firewall
+  - name: Reload systemd user manager
+    ansible.builtin.systemd:
+      scope: user
+      daemon_reload: yes
 
-
-
-
-#  - name: Create the Twins service running as ubuntu user
-#    become: true
-#    ansible.builtin.copy:
-#      dest: "/etc/systemd/system/twins.service"
-#      content: |
-#        [Unit]
-#        Description=Digital Twins Platform Stack
-#        # We still bind to the system socket, but run the command as ubuntu
-#        BindsTo=podman.socket
-#        After=network-online.target podman.socket
-#        JobTimeoutSec=60
-#  
-#        [Service]
-#        Type=oneshot
-#        RemainAfterExit=yes
-#        ## CRITICAL: Run as the ubuntu user
-#        User={{ ansible_user }}
-#        Group={{ ansible_user }}
-#        WorkingDirectory=/home/{{ ansible_user }}/digitaltwins-platform
-#        
-#        # Use the system-wide socket we permissioned with 0666
-#        Environment=DOCKER_HOST=unix:///run/podman/podman.sock
-#        
-#        ExecStart=/usr/bin/podman compose up -d
-#        ExecStop=/usr/bin/podman compose down
-#  
-#        [Install]
-#        WantedBy=multi-user.target
-#      mode: '0644'
-
-#  - name: Reload systemd and enable the twins service
-#    become: true
-#    ansible.builtin.systemd:
-#      name: twins.service
-#      daemon_reload: yes  # This tells systemd to look for the new file
-#      enabled: yes        # This ensures it starts on reboot
-#      state: started      # This starts it right now  
+  - name: Enable and start the twins service
+    ansible.builtin.systemd:
+      name: twins.service
+      scope: user
+      enabled: yes
+      state: started
