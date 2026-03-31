@@ -74,6 +74,8 @@ volumes:
     driver: local
   hapi_fhir_postgres:
     driver: local
+  nginx_plugin_configs:
+    driver: local
 
 networks:
   digitaltwins:
