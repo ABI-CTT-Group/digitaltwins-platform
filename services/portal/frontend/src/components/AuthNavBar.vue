@@ -72,7 +72,7 @@
         <div v-else class="d-flex gap-2">
             <v-btn class="text-white" variant="text" @click="handleLogin">
                 <v-icon icon="mdi-login" class="mr-1"></v-icon>
-                Sign In
+                Login
             </v-btn>
         </div>
     </v-app-bar>

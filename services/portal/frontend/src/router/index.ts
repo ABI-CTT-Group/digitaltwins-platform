@@ -7,7 +7,6 @@ import {
 } from "vue-router";
 import { useAuthStore } from "@/store/auth_store";
 import { isAuthenticated } from "@/plugins/keycloak";
-import Login from "@/views/index.vue";
 import Home from "@/views/dashboard/index.vue";
 import Dashboard from "@/views/dashboard/study-dashboard/index.vue";
 import TutorialDashboard from "@/views/dashboard/tutorial-dashboard/index.vue";
@@ -25,17 +24,11 @@ import ToolPluginView from "@/views/toolPlugin/tool-plugin-view.vue";
 
 const routes = [
   {
-    path: "/",
-    name: "Login",
-    component: Login,
-  },
-  {
-    path:"/home",
+    path:"/",
     component: Layout,
-    meta: { requiresAuth: true },
     children:[
           {
-            path: "/home",
+            path: "",
             name: "Home",
             component: Home,
           },
@@ -136,8 +129,8 @@ router.beforeEach(async (to, from, next) => {
   if (requiresAuth) {
     if (!isAuthenticated() && !hasToken) {
       // Redirect to login if not authenticated
-      console.warn('⚠️ Router Guard: NOT authenticated & no sessionStorage token → redirecting to Login');
-      next({ name: 'Login' });
+      console.warn('⚠️ Router Guard: NOT authenticated & no sessionStorage token → redirecting to Home');
+      next({ name: 'Home' });
     } else {
       if (to.name === 'Dashboard') {
         const dashboardType = String(to.params?.dashboardType || '');
