@@ -23,7 +23,8 @@ FROM nginx:stable-alpine
 
 COPY --from=builder /app/build /usr/share/nginx/html
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx template (will be processed by entry.sh at runtime)
+COPY nginx.conf.template /etc/nginx/conf.d/default.conf.template
 
 # Create directory for dynamically generated plugin nginx configs
 RUN mkdir -p /etc/nginx/conf.d/plugins

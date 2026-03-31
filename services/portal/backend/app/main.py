@@ -56,7 +56,7 @@ async def dynamic_cors(request: Request, call_next):
     origin = request.headers.get("origin")
 
     _use_ssl = os.environ.get('USE_SSL', 'false') == 'true'
-    _domain = os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')
+    _domain = os.environ.get('PORTAL_BACKEND_HOST', 'localhost')
     ALLOWED_ORIGINS.append(f"http{'s' if _use_ssl else ''}://{_domain}")
 
     if request.method == "OPTIONS":
