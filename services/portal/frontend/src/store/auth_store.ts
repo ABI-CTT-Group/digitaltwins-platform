@@ -18,7 +18,7 @@ interface UserInfo {
 }
 
 export const useAuthStore = defineStore('auth', () => {
-  const isLoggedIn = ref<boolean>(isAuthenticated() || !!sessionStorage.getItem('access_token'));
+  const isLoggedIn = ref<boolean>(isAuthenticated());
   const user = ref<UserInfo | null>(null);
   const accessToken = ref<string | undefined>(undefined);
 
@@ -37,51 +37,12 @@ export const useAuthStore = defineStore('auth', () => {
     return username || 'User';
   });
 
-  function parseJwt(token: string): any | null {
-    try {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split('')
-          .map((c) => `%${('00' + c.charCodeAt(0).toString(16)).slice(-2)}`)
-          .join('')
-      );
-      return JSON.parse(jsonPayload);
-    } catch {
-      return null;
-    }
-  }
-
-  function filterRoles(roles: string[]): string[] {
-    const validRoles = ['admin', 'researcher', 'clinician'];
-    return roles.filter((role) => validRoles.includes(role));
-  }
-
   function updateAuthState() {
-    const keycloakAuthed = isAuthenticated();
-    const sessionToken = sessionStorage.getItem('access_token');
-    isLoggedIn.value = keycloakAuthed || !!sessionToken;
+    isLoggedIn.value = isAuthenticated();
 
-    if (keycloakAuthed) {
+    if (isLoggedIn.value) {
       user.value = getUserInfo();
       accessToken.value = getAccessToken();
-      return;
-    }
-
-    if (sessionToken) {
-      const payload = parseJwt(sessionToken);
-      const allRoles = payload?.realm_access?.roles || payload?.roles || [];
-      user.value = payload
-        ? {
-            username: payload.preferred_username || payload.username,
-            email: payload.email,
-            givenName: payload.given_name,
-            familyName: payload.family_name,
-            roles: filterRoles(allRoles),
-          }
-        : null;
-      accessToken.value = sessionToken;
       return;
     }
 
@@ -91,11 +52,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     try {
-      const keycloakAuthed = isAuthenticated();
-      if (keycloakAuthed) {
+      if (isAuthenticated()) {
         await keycloakLogout();
       }
-      sessionStorage.removeItem('access_token');
+      sessionStorage.removeItem('access_token'); // Clean up any legacy data
       isLoggedIn.value = false;
       user.value = null;
       accessToken.value = undefined;

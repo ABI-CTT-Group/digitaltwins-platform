@@ -56,6 +56,8 @@ services:
       dockerfile: Dockerfile
       args:
         - VITE_KEYCLOAK_URL=${KEYCLOAK_SERVER_URL}
+        - VITE_KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
+        - VITE_KEYCLOAK_CLIENT_ID=portal-frontend
     container_name: portal-frontend
     ports:
       - "80:80"

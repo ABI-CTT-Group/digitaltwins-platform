@@ -10,11 +10,10 @@ export async function initKeycloak(): Promise<Keycloak.Keycloak> {
   if (keycloakInstance) {
     return keycloakInstance;
   }
-
   const keycloak = new Keycloak({
-    url: import.meta.env.VITE_KEYCLOAK_URL || 'https://130.216.216.243:8009/',
-    realm: import.meta.env.VITE_KEYCLOAK_REALM || 'digitaltwins',
-    clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'portal-frontend',
+    url: import.meta.env.VITE_KEYCLOAK_URL,
+    realm: import.meta.env.VITE_KEYCLOAK_REALM,
+    clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID,
   });
   console.log(keycloak)
   try {
@@ -26,16 +25,40 @@ export async function initKeycloak(): Promise<Keycloak.Keycloak> {
     });
 
     keycloakInstance = keycloak;
-    
+
+    console.log('=== 🔑 Keycloak Init Result ===');
+    console.log('Authenticated:', authenticated);
+    console.log('Token:', keycloak.token);
+    console.log('Token (first 50):', keycloak.token?.substring(0, 50));
+    console.log('Refresh Token:', !!keycloak.refreshToken);
+    console.log('Token Parsed:', keycloak.tokenParsed);
+    console.log('================================');
+
     if (authenticated) {
       console.log('User is authenticated');
-      
-      // OPTION A: No auto-refresh (current setting)
-      // Token will expire naturally without auto-refresh
-      // User will need to re-authenticate when token expires
-      keycloak.onTokenExpired = () => {
-        console.log('Token expired - user will need to re-authenticate');
-        window.location.href = '/';
+
+      // OPTION B: Auto-refresh token on expiry
+      // Silently refreshes the token; only logs out after max session time or refresh failure
+      const loginTime = Date.now();
+      const maxSessionHours = 8;
+
+      keycloak.onTokenExpired = async () => {
+        const sessionHours = (Date.now() - loginTime) / (1000 * 60 * 60);
+        if (sessionHours >= maxSessionHours) {
+          console.log(`Session exceeded ${maxSessionHours}h limit — logging out`);
+          window.location.href = '/';
+          return;
+        }
+
+        try {
+          const refreshed = await keycloak.updateToken(30);
+          if (refreshed) {
+            console.log('Token refreshed successfully');
+          }
+        } catch (err) {
+          console.error('Token refresh failed — redirecting to login', err);
+          window.location.href = '/';
+        }
       };
     }
 
@@ -64,7 +87,11 @@ export function isAuthenticated(): boolean {
  * Get access token
  */
 export function getAccessToken(): string | undefined {
-  return keycloakInstance?.token;
+  const token = keycloakInstance?.token;
+  console.log('[getAccessToken] keycloakInstance exists:', !!keycloakInstance);
+  console.log('[getAccessToken] authenticated:', keycloakInstance?.authenticated);
+  console.log('[getAccessToken] token present:', !!token);
+  return token;
 }
 
 /**
@@ -72,7 +99,7 @@ export function getAccessToken(): string | undefined {
  */
 export function getUserRoles(): string[] {
   if (!keycloakInstance) return [];
-  
+
   const roles = keycloakInstance.realmAccess?.roles || [];
   // Filter to only portal roles
   return roles.filter((r: string) => ['admin', 'researcher', 'clinician'].includes(r));
@@ -90,7 +117,7 @@ export function hasRole(role: string): boolean {
  */
 export function getUserInfo() {
   if (!keycloakInstance) return null;
-  
+
   return {
     username: keycloakInstance.tokenParsed?.preferred_username,
     email: keycloakInstance.tokenParsed?.email,
@@ -120,7 +147,7 @@ export async function logout(): Promise<void> {
  */
 export async function refreshToken(): Promise<boolean> {
   if (!keycloakInstance) return false;
-  
+
   try {
     const refreshed = await keycloakInstance.updateToken(30);
     return refreshed;
@@ -139,7 +166,7 @@ export function setupIdleTimeout(idleMinutes: number = 30, warningMinutes: numbe
   let idleTimer: number | undefined;
   let warningTimer: number | undefined;
   let lastActivityTime = 0;
-  
+
   const idleTime = idleMinutes * 60 * 1000; // Convert to milliseconds
   const warningTime = Math.max(0, (idleMinutes - warningMinutes) * 60 * 1000); // Show warning 2 min before logout
 
@@ -186,7 +213,7 @@ export function setupIdleTimeout(idleMinutes: number = 30, warningMinutes: numbe
 
   // Track user activity with events (using capture phase for earliest detection)
   const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-  
+
   events.forEach(event => {
     document.addEventListener(event, handleUserActivity, true);
     console.log(`📡 Listening for ${event} events`);

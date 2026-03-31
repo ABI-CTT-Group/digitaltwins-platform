@@ -76,14 +76,4 @@ export interface IProjectDetail{
   seekId: string;
   title: string
 }
-
-export interface IDashboardAuth{
-  username: string;
-  password: string;
-}
-
-export interface IDashboardAuthResponse{
-  access_token: string;
-  authenticated?: boolean;
-  user?: Record<string, any>;
-}
+

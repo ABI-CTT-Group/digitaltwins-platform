@@ -43,59 +43,18 @@
                         </v-btn>
                     </div>
 
-                    <!-- Login Form -->
+                    <!-- Keycloak Login (sole login entry) -->
                     <div v-else>
-                        <v-form @submit.prevent="handleFormLogin" class="login-form">
-                            <v-text-field
-                                v-model="username"
-                                label="Username"
-                                type="text"
-                                outlined
-                                required
-                                class="mb-4"
-                                :disabled="loading"
-                                @keyup.enter="handleFormLogin"
-                            ></v-text-field>
-
-                            <v-text-field
-                                v-model="password"
-                                label="Password"
-                                type="password"
-                                outlined
-                                required
-                                class="mb-6"
-                                :disabled="loading"
-                                @keyup.enter="handleFormLogin"
-                            ></v-text-field>
-
-                            <v-alert v-if="errorMessage" type="error" class="mb-4">
-                                {{ errorMessage }}
-                            </v-alert>
-
-                            <v-btn
-                                color="#009688"
-                                size="large"
-                                type="submit"
-                                block
-                                :loading="loading"
-                                :disabled="!username || !password || loading"
-                            >
-                                Sign In
-                            </v-btn>
-                        </v-form>
-
-                        <v-divider class="my-6">
-                            <span class="text-grey">OR</span>
-                        </v-divider>
+                        <v-alert v-if="errorMessage" type="error" class="mb-4">
+                            {{ errorMessage }}
+                        </v-alert>
 
                         <v-btn
                             color="primary"
                             size="large"
                             block
-                            variant="outlined"
                             prepend-icon="mdi-shield-account"
                             @click="handleKeycloakLogin"
-                            :disabled="loading"
                             class="keycloak-btn"
                         >
                             Sign In with Keycloak
@@ -111,18 +70,13 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/store/auth_store';
-import { getKeycloak, isAuthenticated as checkAuthenticated, logout as keycloakLogout } from '@/plugins/keycloak';
-import http from '@/plugins/http';
+import { getKeycloak, isAuthenticated as checkAuthenticated } from '@/plugins/keycloak';
 
 const router = useRouter();
 const authStore = useAuthStore();
 
 const isAuthenticated = ref(false);
-const username = ref('');
-const password = ref('');
-const loading = ref(false);
 const errorMessage = ref('');
-const errorTimerId = ref<number | undefined>(undefined);
 
 const displayName = computed(() => authStore.displayName);
 const userEmail = computed(() => authStore.user?.email || '');
@@ -133,55 +87,6 @@ onMounted(async () => {
     authStore.updateAuthState();
     isAuthenticated.value = checkAuthenticated();
 });
-
-const showLoginError = (message: string) => {
-    errorMessage.value = message;
-
-    if (errorTimerId.value !== undefined) {
-        window.clearTimeout(errorTimerId.value);
-    }
-
-    errorTimerId.value = window.setTimeout(() => {
-        errorMessage.value = '';
-        username.value = '';
-        password.value = '';
-        errorTimerId.value = undefined;
-    }, 5000);
-};
-
-// Form-based login
-const handleFormLogin = async () => {
-    if (!username.value || !password.value) {
-        errorMessage.value = 'Please enter username and password';
-        return;
-    }
-
-    loading.value = true;
-    errorMessage.value = '';
-
-    try {
-        const response = await http.post('/auth/login-keycloak', {
-            username: username.value,
-            password: password.value,
-        });
-
-        // Store the access token
-        if (response.access_token) {
-            sessionStorage.setItem('access_token', response.access_token);
-            
-            // Update auth store and redirect
-            authStore.updateAuthState();
-            await router.push({ name: 'Home' });
-        } else {
-            showLoginError('Login failed: No access token received');
-        }
-    } catch (error: any) {
-        console.error('Login error:', error);
-        showLoginError(error.response?.data?.detail || 'Login failed. Please check your credentials.');
-    } finally {
-        loading.value = false;
-    }
-};
 
 // Keycloak direct login (no backend credentials)
 const handleKeycloakLogin = async () => {
@@ -229,10 +134,6 @@ const handleEnter = async () => {
     font-size: 2.8rem;
 }
 
-.login-form {
-    width: 100%;
-}
-
 .transparent-card {
     background-color: transparent !important;
     backdrop-filter: blur(2px);
@@ -249,4 +150,3 @@ const handleEnter = async () => {
     transition: all 0.3s ease;
 }
 </style>
-
