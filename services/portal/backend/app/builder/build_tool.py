@@ -258,7 +258,7 @@ class PluginBuilder:
         with open(umd_js_file_path, "r") as f:
             umd_js_content = f.read()
 
-        new_path_prefix = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/tools/{expose_name}/primary/"
+        new_path_prefix = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/tools/{expose_name}/primary/"
         umd_js_content = umd_js_content.replace(new_path_prefix, expose_name)
 
         with open(umd_js_file_path, "w") as f:

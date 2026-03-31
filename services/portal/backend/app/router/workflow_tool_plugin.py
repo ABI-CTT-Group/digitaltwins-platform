@@ -609,7 +609,7 @@ async def get_test_build_info():
 async def get_metadata_json(db: Session = Depends(get_db)):
     use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
     http_protocol = 'https' if use_ssl else 'http'
-    host = os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')
+    host = os.environ.get('PORTAL_BACKEND_HOST', 'localhost')
     port = os.environ.get('MINIO_PORT', '9000')
 
     plugins = db.query(Plugin).all()
