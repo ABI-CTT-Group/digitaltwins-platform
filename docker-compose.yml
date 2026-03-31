@@ -78,16 +78,6 @@ volumes:
 networks:
   digitaltwins:
     driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.20.0.0/24
-  default:
-    driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.21.0.0/24
 
 # create networks if not exists
 # sudo docker network create digitaltwins
