@@ -106,8 +106,10 @@ def shuttle_down_deployed_backend(plugin_id: str, deployer: PluginDeployer):
             deploys = session.query(PluginDeployment).filter(PluginDeployment.plugin_id == plugin_id).all()
             for deployment in deploys:
                 logger.info("Start to shuttle down the deployment {}".format(deployment.id))
+                expose_name = deployment.route_prefix.replace("/plugin/", "") if deployment.route_prefix else ""
                 deploy_dict = {
-                    "backend_dir": deployment.source_path
+                    "backend_dir": deployment.source_path,
+                    "expose_name": expose_name,
                 }
                 logger.info("the deployment is {}".format(deploy_dict))
                 deployer.delete(deploy_dict)

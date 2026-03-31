@@ -5,10 +5,16 @@ WORKDIR /app
 
 COPY . .
 
+ARG VITE_KEYCLOAK_URL
+ARG VITE_KEYCLOAK_REALM
+ARG VITE_KEYCLOAK_CLIENT_ID
+ENV VITE_KEYCLOAK_URL=$VITE_KEYCLOAK_URL
+ENV VITE_KEYCLOAK_REALM=$VITE_KEYCLOAK_REALM
+ENV VITE_KEYCLOAK_CLIENT_ID=$VITE_KEYCLOAK_CLIENT_ID
+
 RUN corepack enable && corepack prepare yarn@stable --activate
 
 RUN yarn install
-
 
 RUN yarn build
 
@@ -18,6 +24,9 @@ FROM nginx:stable-alpine
 COPY --from=builder /app/build /usr/share/nginx/html
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Create directory for dynamically generated plugin nginx configs
+RUN mkdir -p /etc/nginx/conf.d/plugins
 
 COPY entry.sh /entry.sh
 RUN chmod +x /entry.sh

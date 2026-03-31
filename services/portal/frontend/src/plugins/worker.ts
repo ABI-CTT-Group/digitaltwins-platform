@@ -1,7 +1,7 @@
 import * as Copper from "copper3d";
 
 export function convertInitMaskData(data: any) {
-  let masks: any = {};
+  const masks: any = {};
 
   for (let i = 1; i < 4; i++) {
     const labelMask = restructData(
@@ -74,7 +74,7 @@ function deepCopy(obj: any): unknown {
   }
 
   if (obj instanceof Array) {
-    let copiedArray = [];
+    const copiedArray = [];
     for (let i = 0; i < obj.length; i++) {
       copiedArray[i] = deepCopy(obj[i]);
     }
@@ -82,8 +82,8 @@ function deepCopy(obj: any): unknown {
   }
 
   if (obj instanceof Object) {
-    let copiedObject: any = {};
-    for (let key in obj) {
+    const copiedObject: any = {};
+    for (const key in obj) {
       if (obj.hasOwnProperty(key)) {
         copiedObject[key] = deepCopy(obj[key]);
       }
@@ -95,7 +95,7 @@ function deepCopy(obj: any): unknown {
 }
 
 function pruningData(originArr: Copper.paintImageType[]) {
-  let pruningArray = [];
+  const pruningArray = [];
   for (let i = 0; i < originArr.length; i++) {
     pruningArray.push(originArr[i].image.data);
   }
@@ -113,10 +113,10 @@ function restructData(
 ) {
   const reformatData = [];
 
-  let start_c: unknown = new Date();
+  const start_c: unknown = new Date();
 
   for (let i = 0; i < len; i++) {
-    let exportTemp = {
+    const exportTemp = {
       sliceIndex: 0,
       dataFormat:
         "RGBA - Each successive 4-digit number forms a pixel point in data array",

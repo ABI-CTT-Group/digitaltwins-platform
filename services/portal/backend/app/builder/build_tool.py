@@ -22,8 +22,7 @@ from app.utils.builder_utils import (
     copy_item,
     is_git_url,
     remove_tmp_folder,
-    unique_name,
-    update_minio_bucket_metadata)
+    unique_name)
 
 logger = get_logger(__name__)
 
@@ -259,7 +258,7 @@ class PluginBuilder:
         with open(umd_js_file_path, "r") as f:
             umd_js_content = f.read()
 
-        new_path_prefix = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{expose_name}/primary/"
+        new_path_prefix = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/tools/{expose_name}/primary/"
         umd_js_content = umd_js_content.replace(new_path_prefix, expose_name)
 
         with open(umd_js_file_path, "w") as f:
@@ -269,51 +268,73 @@ class PluginBuilder:
     def _replace_vite_build_config(file_path: Path, new_name: str) -> bool:
         """
         Replace `name`, `formats`, and `fileName` fields in a Vite config file.
+        Only replaces 'name' inside the lib: { ... } block to avoid corrupting
+        other 'name' fields (e.g. globalName in replaceNamedImportsFromGlobals).
 
-        Returns a dict indicating which fields were replaced.
+        Returns True if successful, False otherwise.
         """
-        patterns = {
-            "name": re.compile(r'name:\s*["\']([^"\']*)["\']', re.IGNORECASE),
-            "formats": re.compile(r'formats:\s*\[.*?]', re.IGNORECASE | re.DOTALL),
-            "fileName": re.compile(r'fileName\s*:\s*.*', re.IGNORECASE)
-        }
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             replaced = {"name": False, "formats": False, "fileName": False}
 
-            # replace name
-            def name_replacer(match):
-                replaced["name"] = True
-                quote = '"' if '"' in match.group(0) else "'"
-                return f'name: {quote}{new_name}{quote}'
+            # Replace 'name' ONLY inside the lib: { ... } block.
+            # Pattern: find `lib: {` then the first `name: 'xxx'` inside it.
+            # We use a multi-step approach: locate the lib block, replace name inside it only.
+            def replace_lib_name(text: str) -> str:
+                # Match lib: { ... } block (non-greedy, handles multi-line)
+                lib_block_pattern = re.compile(
+                    r'(lib\s*:\s*\{)(.*?)((?=\}[\s\r\n]*,)|\})',
+                    re.DOTALL
+                )
+                name_in_lib_pattern = re.compile(r'(name\s*:\s*)["\']([^"\']*)["\']')
 
-            content = patterns["name"].sub(name_replacer, content)
+                def lib_replacer(m):
+                    replaced["name"] = True
+                    prefix = m.group(1)
+                    body = m.group(2)
+                    suffix = m.group(3)
+                    # Replace name inside the lib block
+                    new_body = name_in_lib_pattern.sub(
+                        lambda nm: f"{nm.group(1)}'{new_name}'",
+                        body,
+                        count=1
+                    )
+                    return prefix + new_body + suffix
 
-            # replace formats
+                return lib_block_pattern.sub(lib_replacer, text, count=1)
+
+            content = replace_lib_name(content)
+
+            # Replace formats (safe — unique enough in context)
+            formats_pattern = re.compile(r'formats:\s*\[.*?]', re.IGNORECASE | re.DOTALL)
+
             def formats_replacer(match):
                 replaced["formats"] = True
                 return "formats: ['umd']"
 
-            content = patterns["formats"].sub(formats_replacer, content)
+            content = formats_pattern.sub(formats_replacer, content)
 
-            # replace fileName
+            # Replace fileName (safe — unique enough in context)
+            filename_pattern = re.compile(r'fileName\s*:\s*\(format\)\s*=>\s*`[^`]*`', re.IGNORECASE)
+
             def filename_replacer(match):
                 replaced["fileName"] = True
                 return "fileName: (format) => `my-app.${format}.js`"
 
-            content = patterns["fileName"].sub(filename_replacer, content)
+            content = filename_pattern.sub(filename_replacer, content)
 
             # Write back to file
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
-            logger.info(f"Updated name in {file_path}")
+            logger.info(f"Updated vite build config in {file_path}: {replaced}")
             return True
         except Exception as e:
             logger.error(f"Error processing {file_path}: {e}")
             return False
+
 
     def _update_vite_config(self, project_dir: Path, plugin_expose_name: str):
         """Update the vite.config.js file to use the unique name"""
@@ -343,26 +364,23 @@ class PluginBuilder:
         return version
 
     @staticmethod
-    def _create_env_file(project_dir: Path):
-        host = os.environ.get('PORTAL_BACKEND_HOST_IP', None)
-        if host is None:
-            raise RuntimeError("HOST environment variable not set")
-        port = os.environ.get('PLUGIN_PORT', 8082)
-        use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
+    def _create_env_file(project_dir: Path, expose_name: str):
         config = {
-            "VITE_PLUGIN_API_URL": f"http{'s' if use_ssl else ''}://{host}",
-            "VITE_PLUGIN_API_PORT": port
+            "VITE_PLUGIN_ROUTE_PREFIX": f"/plugin/{expose_name}"
         }
         env_path = project_dir / ".env"
         if env_path.exists():
             env = dotenv_values(env_path)
+            # Remove legacy env vars that are no longer needed in production builds
+            env.pop("VITE_PLUGIN_API_URL", None)
+            env.pop("VITE_PLUGIN_API_PORT", None)
             config.update(env)
         else:
             env_path.touch(exist_ok=True)
         with open(env_path, "w", encoding="utf-8") as f:
             for key, val in config.items():
                 f.write(f"{key}={val}\n")
-        logger.info(f"Updated env file in {env_path}")
+        logger.info(f"Updated env file in {env_path} with route prefix /plugin/{expose_name}")
 
     def build(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
         """Complete plugin build process"""
@@ -453,10 +471,10 @@ class PluginBuilder:
                 new_version = self._update_plugin_version(frontend_path, plugin_id)
                 version = new_version if new_version is not None else version
 
-                # Step 2.3: update plugin backend endpoint by create .env in frontend folder, if the plugin has backend
+                # Step 2.3: create .env file with route prefix for nginx proxy
                 if has_backend:
                     logger.info("Step 2.3: Create .env file for frontend...")
-                    self._create_env_file(frontend_path)
+                    self._create_env_file(frontend_path, plugin_unique_expose_name)
 
                 # Step 3: npm install
                 logger.info("Step 3: Running npm install")
@@ -550,41 +568,6 @@ class PluginBuilder:
             else:
                 logger.info("Skiping cleanup for local path")
 
-            # Step 8: update metadata.json in MinIO
-            # Determine the path based on whether it's a local plugin or remote
-            if cloned_dir:
-                # Remote plugin - use public directory path with metadata path
-                if label == "GUI":
-                    plugin_path = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{metadata['expose']}/primary/my-app.umd.js"
-                    if has_backend:
-                        backend_path = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{metadata['expose']}/code/{backend_folder}"
-                else:
-                    plugin_path = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{metadata['expose']}/primary"
-            else:
-                # Local plugin - use public directory path with metadata expose folder name
-                plugin_path = f"/{metadata['expose']}/my-app.umd.js"
-
-            component_entry = {
-                "uuid": "",
-                "id": plugin_id,
-                "name": plugin_name,
-                "path": plugin_path,
-                "expose": metadata.get("expose", "MyApp") if label == "GUI" else None,
-                "label": label,
-                "description": description,
-                "version": version,
-                "created_at": created_at,
-                "author": author,
-                "repository_url": repo_url,
-                "is_local": not bool(cloned_dir),
-                "frontend_folder": frontend_folder if label == "GUI" else None,
-                "has_backend": has_backend if label == "GUI" else False,
-                "backend_folder": backend_folder if has_backend else None,
-                "backend_deploy_command": backend_deploy_command if (has_backend and label == "GUI") else None,
-                "config": config
-            }
-
-            update_minio_bucket_metadata(minio_client, component_entry, logger)
             logger.info("Build process completed successfully")
 
             return {

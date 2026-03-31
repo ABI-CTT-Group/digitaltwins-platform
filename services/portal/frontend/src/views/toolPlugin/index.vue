@@ -45,6 +45,7 @@
 import { ref, onMounted, shallowRef } from 'vue'
 import { useRemoteAppStore } from '@/store/remoteStore'
 import { useRouter } from 'vue-router'
+import { useToolMetadata } from '@/plugins/plugin_api'
 
 const router = useRouter()
 
@@ -62,17 +63,14 @@ const remoteAppStore = useRemoteAppStore()
 
 onMounted(async () => {
   try {
-    const res = await fetch('/plugins/metadata.json')
-    if (!res.ok) throw new Error(`Failed to fetch list.json: ${res.status}`)
-
-    const data = await res.json()
-    if (Array.isArray(data.conponents)) {
-      items.value = data.conponents
+    const data = await useToolMetadata()
+    if (Array.isArray(data.components)) {
+      items.value = data.components
     } else {
-      console.warn('list.json is not an array')
+      console.warn('metadata components is not an array')
     }
   } catch (err) {
-    console.error('Error loading list.json:', err)
+    console.error('Error loading tool metadata:', err)
   }
 })
 

@@ -1,7 +1,7 @@
 import os
 import shutil
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Literal
 
 from sparc_me import Dataset
 from .logger import get_logger
@@ -13,7 +13,7 @@ from app.utils.builder_utils import (
     is_git_url,
     remove_tmp_folder,
     unique_name,
-    update_minio_bucket_metadata)
+)
 from app.utils.utils import safe_path
 
 logger = get_logger(__name__)
@@ -30,6 +30,8 @@ class WorkflowBuilder:
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
         self.dataset_dir = Path(dataset_dir)
         self.dataset_dir.mkdir(parents=True, exist_ok=True)
+        self.use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
+        self._http_protocol: Literal['http', 'https'] = 'https' if self.use_ssl else 'http'
 
     def create_sparc_dataset(self,
                              project_dir: Path,
@@ -188,31 +190,6 @@ class WorkflowBuilder:
             else:
                 logger.info("Skiping cleanup for local path")
 
-            # Step 5: update metadata.json in MinIO
-            # Determine the path based on whether it's a local plugin or remote
-            if cloned_dir:
-                # Remote plugin - use public directory path with metadata path
-                plugin_path = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflows/{metadata['expose']}/primary"
-            else:
-                # Local plugin - use public directory path with metadata expose folder name
-                plugin_path = f""
-
-            component_entry = {
-                "uuid": "",
-                "id": workflow_id,
-                "name": workflow_name,
-                "path": plugin_path,
-                "expose": metadata.get("expose", ""),
-                "description": description,
-                "version": version,
-                "created_at": created_at,
-                "author": author,
-                "repository_url": repo_url,
-                "is_local": not bool(cloned_dir),
-                "config": config
-            }
-
-            update_minio_bucket_metadata(minio_client, component_entry, logger)
             logger.info("Build process completed successfully")
 
             return {

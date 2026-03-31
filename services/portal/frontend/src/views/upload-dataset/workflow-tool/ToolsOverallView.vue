@@ -14,6 +14,7 @@
                 rounded="md"
                 prepend-icon="mdi-plus-circle-outline"
                 class="hover-animate my-2"
+                :disabled="dockerComposeBusy"
                 @click="handleRegister"
             ></v-btn>
         </div>
@@ -28,8 +29,9 @@
                 <div v-if="displayTools.length > 0" class="d-flex flex-wrap ga-10 pa-5 justify-start">
                     <ToolCard
                         v-for="tool in displayTools"
-                        :key="tool.id" 
+                        :key="tool.id"
                         :tool="tool"
+                        :disabled="dockerComposeBusy"
                         @launch="(id:string) => handleLaunch(id)"
                         @rebuild="(id:string) => handleRebuild(id)"
                         @deploy="(id:string) => handleDeploy(id)"
@@ -48,8 +50,10 @@
 
 <script setup lang="ts">
 import { ref, onBeforeMount, watch, onUnmounted } from "vue"
+// @ts-ignore - vue-toastification is installed but missing type declarations
+import { useToast } from "vue-toastification"
 import ToolCard from "./components/ToolCard.vue"
-import { useWorkflowTools, useMinIoWorkflowToolMetadata, useWorkflowToolBuild, useDeleteTool, useToolApproval, useDeployTool, useDockerCompose } from '@/plugins/plugin_api';
+import { useWorkflowTools, useToolMetadata, useWorkflowToolBuild, useDeleteTool, useToolApproval, useDeployTool, useDockerCompose } from '@/plugins/plugin_api';
 import { PluginResponse, PluginMinIOToolMetadata } from '@/models/uiTypes';
 import { useRemoteAppStore } from '@/store/remoteStore'
 import { useRouter } from 'vue-router'
@@ -57,10 +61,15 @@ import Fuse from "fuse.js";
 import NoData from '../components/NoData.vue';
 import Search from '../components/Search.vue';
 import Refresh from "../components/Refresh.vue";
+// need to remove this after testing
+import toolConfig from "@/assets/demo/tool_config.json";
+localStorage.setItem("app_config", JSON.stringify(toolConfig));
 
 const router = useRouter();
 const remoteAppStore = useRemoteAppStore();
+const toast = useToast();
 const isAnyToolStatusPending = ref(false);
+const dockerComposeBusy = ref(false);
 let refreshInterval: number | undefined;
 
 const emit = defineEmits(["register"]);
@@ -119,10 +128,10 @@ const handleRegister = ()=>{
     emit("register")
 }
 const handleLaunch = async (id:string) => {
-    const metadata = await useMinIoWorkflowToolMetadata();
+    const metadata = await useToolMetadata();
     if (!!metadata && metadata.components.length >0){
         const toolMetadata = metadata.components.find((tool:PluginMinIOToolMetadata)=>tool.id == id)
-        if(!!toolMetadata){
+        if(toolMetadata){
             remoteAppStore.setRemoteApp({
                 path: toolMetadata.path,
                 expose: toolMetadata.expose,
@@ -151,19 +160,25 @@ const handleDeploy = async (id:string) =>{
 }
 
 const handleDeleteTool = async (res: any) =>{
-    if(!!res){
+    if(res){
         await handleRefresh()
     }
 }
 
 const handleExecuteDockerCompose = async (id: string, command: "up" | "down") => {
+    dockerComposeBusy.value = true;
     try {
-        const res = await useDockerCompose(id, command);
-        console.log(res);
-        
+        const res = await useDockerCompose(id, command) as any;
+        if (res?.success) {
+            toast.success(`Docker compose ${command} succeeded.`);
+        } else {
+            toast.error(res?.message || `Docker compose ${command} failed.`);
+        }
     } catch (error) {
         console.error(`Error executing Docker Compose ${command}:`, error);
-        alert(`An error occurred while executing Docker Compose ${command}.`);
+        toast.error(`An error occurred while executing Docker Compose ${command}.`);
+    } finally {
+        dockerComposeBusy.value = false;
     }
 }
 

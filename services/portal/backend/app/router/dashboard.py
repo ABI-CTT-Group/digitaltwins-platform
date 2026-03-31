@@ -29,6 +29,14 @@ async def get_token(authorization: str = Header(None)):
     if scheme.lower() != "bearer" or not token:
         raise HTTPException(status_code=401, detail="Invalid Authorization header")
 
+    # 🔍 DEBUG: Print the token issuer comparison
+    print(f"🔍 [get_token] Received token (first 50 chars): {token}...")
+
+    # 🧪 TEMP HARDCODE: Use internal Keycloak token for testing
+    # HARDCODED_TOKEN = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJWN3M1Y2J0azRYWEFZbUp2T1BLamFHMVdPSkR4cFFBdkI4cndvVDNCSEU4In0.eyJleHAiOjE3NzQ5NDU4MTksImlhdCI6MTc3NDk0NTUxOSwianRpIjoib25ydHJvOmE3MGE4ODVhLTMzNzUtY2ExOS1kZGRjLWQxN2Q4MmZhOTFmNyIsImlzcyI6Imh0dHA6Ly9rZXljbG9hazo4MDgwL3JlYWxtcy9kaWdpdGFsdHdpbnMiLCJhdWQiOlsiZ3JhZmFuYSIsImFjY291bnQiXSwic3ViIjoiYjFkYzhmODUtZDYxMy00OWFlLWE1NWMtMWYwMzhlOTU1NzhjIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiYXBpIiwic2lkIjoiNjI5N2VmYmYtYTkyYi00ZjBkLTllODEtMmZmNmFhZjUyNWFhIiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwOi8vbG9jYWxob3N0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJvZmZsaW5lX2FjY2VzcyIsImRlZmF1bHQtcm9sZXMtZGlnaXRhbHR3aW5zIiwiYWRtaW4iLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImdyYWZhbmEiOnsicm9sZXMiOlsiYWRtaW4iXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoiZW1haWwgcHJvZmlsZSIsImVtYWlsX3ZlcmlmaWVkIjpmYWxzZSwibmFtZSI6ImFkbWluIGFkbWluIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiYWRtaW4iLCJnaXZlbl9uYW1lIjoiYWRtaW4iLCJmYW1pbHlfbmFtZSI6ImFkbWluIiwiZW1haWwiOiJjbGluODY0QGF1Y2tsYW5kdW5pLmFjLm56In0.o4G9xu8ffVoxrdFTFSxoKx8o5pQV8xv6PYxwmwfZvrW4cDQZj-Ey4-5hCk1d6IDKxTY6llBhRjFNjkJCByQLM4NaA27mpLgD8kvltsMTUaTU_i4sB9HwsZh_AHwoIL18M2YKhwmSBFO2-pthzEq9Y06cJeAiMAbYKWAPdzmwwhUcqZlSnQjYKFrl47cEee5qbSg2SlbEcrHHy7NUJrC_ZldlOiJkBEn0EVoF1Mx1z_9XNMWLSh8ZDLSEs0CJL4XSeb9XNrIJkFgM1h4q--VwBSHQ1aG9q26hYAnQWQSweuCaKdyR4et4cJ9WF5n7mwYsCjWp5HB50POcYta4ZirJqg"
+    # print(f"🧪 [get_token] USING HARDCODED TOKEN instead of request token")
+    # return HARDCODED_TOKEN
+    
     return token
 
 
@@ -60,6 +68,12 @@ async def proxy_request(client: DigitalTWINSAPIClient = Depends(get_client)):
 
 @router.get("/programmes")
 async def get_programmes(client: DigitalTWINSAPIClient = Depends(get_client)):
+    # 🔍 DEBUG: Print incoming request info
+    print("=" * 50)
+    print("🔍 [/programmes] Backend received request")
+    print(f"🔍 [/programmes] Client token: {client.token if client.token else 'NONE'}...")
+    print(f"🔍 [/programmes] Client token present: {bool(client.token)}")
+    print("=" * 50)
     try:
         response = await client.get("/programs", {"get_details": False})
         print(response)

@@ -3,14 +3,16 @@ import {
   createRouter,
   createWebHistory,
   createWebHashHistory,
+  RouteRecordRaw,
 } from "vue-router";
-import Login from "@/views/index.vue";
+import { useAuthStore } from "@/store/auth_store";
+import { isAuthenticated } from "@/plugins/keycloak";
 import Home from "@/views/dashboard/index.vue";
 import Dashboard from "@/views/dashboard/study-dashboard/index.vue";
 import TutorialDashboard from "@/views/dashboard/tutorial-dashboard/index.vue";
 import CatalogueDashboard from "@/views/dashboard/catalogue-dashboard/index.vue";
 import CatalogueDashboardView from "@/views/dashboard/catalogue-dashboard/catalogue-dashboard-view.vue";
-import WorkflowToolsViewer from "@/views/dashboard/catalogue-dashboard/workflow-tools-viewer.vue";
+import ToolsViewer from "@/views/dashboard/catalogue-dashboard/tools-viewer.vue";
 import Layout from "@/layouts/Default.vue";
 import LaunchedAssayOverview from "@/views/dashboard/study-dashboard/assay-overview.vue";
 import UploadDataset from "@/views/upload-dataset/index.vue";
@@ -22,16 +24,11 @@ import ToolPluginView from "@/views/toolPlugin/tool-plugin-view.vue";
 
 const routes = [
   {
-    path: "/",
-    name: "Login",
-    component: Login,
-  },
-  {
-    path:"/home",
+    path:"/",
     component: Layout,
     children:[
           {
-            path: "/home",
+            path: "",
             name: "Home",
             component: Home,
           },
@@ -39,16 +36,18 @@ const routes = [
             path: "/dashboard:dashboardType",
             name: "Dashboard",
             component: Dashboard,
-            // props: (route:any) => ({ dashboardType: route.params.dashboardType })
+            meta: { requiresAuth: true },
           },
           {
             path: "/how-it-works",
             name: "TutorialDashboard",
-            component:TutorialDashboard
+            component:TutorialDashboard,
+            meta: { requiresAuth: true },
           },
           {
             path: "/catalogue-dashboard",
             component:CatalogueDashboard,
+            meta: { requiresAuth: true },
             children:[
               {
                 path: "/catalogue-dashboard",
@@ -56,9 +55,9 @@ const routes = [
                 component: CatalogueDashboardView,
               },
               {
-                path: "/catalogue-dashboard-workflow-tools",
-                name: "WorkflowToolsViewer",
-                component: WorkflowToolsViewer,
+                path: "/catalogue-dashboard-tools",
+                name: "ToolsViewer",
+                component: ToolsViewer,
               }
             ]
           },
@@ -66,11 +65,13 @@ const routes = [
             path: "/launched-assay",
             name: "LaunchedAssayOverview",
             component: LaunchedAssayOverview,
+            meta: { requiresAuth: true },
           },
           {
             path: "/upload-dataset",
             name: "UploadDataset",
             component: UploadDataset,
+            meta: { requiresAuth: true },
             children:[
               {
                 path: "/upload-tool-dataset",
@@ -88,6 +89,7 @@ const routes = [
             path: "/plugin-home",
             name: "PluginHome",
             component: PluginHome,
+            meta: { requiresAuth: true },
           },
     ]
   },
@@ -95,6 +97,7 @@ const routes = [
     path: "/tool-view",
     name: "ToolPluginView",
     component: ToolPluginView,
+    meta: { requiresAuth: true },
   }
 ];
 
@@ -106,20 +109,59 @@ const router = createRouter({
   routes,
 });
 
-// export default router;
+// Navigation guard for authentication
+router.beforeEach(async (to, from, next) => {
+  const authStore = useAuthStore();
+  const requiresAuth = to.meta?.requiresAuth;
+  const hasToken = !!sessionStorage.getItem('access_token');
 
-// const router = createRouter({
-//   history: createWebHashHistory(),
-//   linkActiveClass: "active",
-//   routes,
-// });
-// export default router;
+  // 🔍 DEBUG: Log router guard decision
+  console.log('=== 🛡️ Router Guard ===');
+  console.log(`Navigating: ${from.path} → ${to.path} (name: ${String(to.name)})`);
+  console.log(`requiresAuth: ${requiresAuth}`);
+  console.log(`isAuthenticated(): ${isAuthenticated()}`);
+  console.log(`hasToken (sessionStorage): ${hasToken}`);
+  console.log('========================');
 
-// console.log(process.env.BASE_URL);
+  // Update auth state in case token was updated
+  authStore.updateAuthState();
 
-// const router = createRouter({
-//   history: createWebHistory(),
-//   routes,
-// });
+  if (requiresAuth) {
+    if (!isAuthenticated() && !hasToken) {
+      // Redirect to login if not authenticated
+      console.warn('⚠️ Router Guard: NOT authenticated & no sessionStorage token → redirecting to Home');
+      next({ name: 'Home' });
+    } else {
+      if (to.name === 'Dashboard') {
+        const dashboardType = String(to.params?.dashboardType || '');
+
+        if (dashboardType === 'study') {
+          if (!authStore.hasAdminRole && !authStore.hasResearcherRole) {
+            if (authStore.hasClinicianRole) {
+              next({ name: 'Dashboard', params: { dashboardType: 'clinician' } });
+              return;
+            }
+            next({ name: 'Home' });
+            return;
+          }
+        }
+
+        if (dashboardType === 'clinician') {
+          if (!authStore.hasAdminRole && !authStore.hasClinicianRole) {
+            if (authStore.hasResearcherRole) {
+              next({ name: 'Dashboard', params: { dashboardType: 'study' } });
+              return;
+            }
+            next({ name: 'Home' });
+            return;
+          }
+        }
+      }
+      next();
+    }
+  } else {
+    next();
+  }
+});
 
 export default router;

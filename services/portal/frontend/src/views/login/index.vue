@@ -2,149 +2,151 @@
     <div class="fill-height d-flex flex-column justify-center align-center">
         <div class="h-70">
             <div class="mx-5 my-10 text-center">
-                <h1 class=" title">DigitalTWINS AI Portal</h1>
+                <h1 class=" title">DigitalTWINS AI Platform</h1>
             </div>
             <div class="mx-auto rounded w-66 form-login">
-                <v-form validate-on="submit lazy" @submit.prevent="submit">
-                    <v-text-field
-                        v-model="userName"
-                        :rules="rulesUser"
-                        label="Username"
-                    ></v-text-field>
-                    <v-text-field
-                        v-model="password"
-                        :rules="rulesPassword"
-                        type="password"
-                        label="Password"
-                    ></v-text-field>
-                    <v-btn
-                        :loading="loading"
-                        class="mt-2"
-                        text="Sign in"
-                        type="submit"
-                        color="#009688"
-                        block
-                    ></v-btn>
-                </v-form>
+                <v-card class="pa-8 transparent-card">
+                    <v-card-title class="text-center mb-6">
+                        {{ isAuthenticated ? 'Welcome Back!' : 'Sign In' }}
+                    </v-card-title>
+
+                    <!-- Authenticated User Card -->
+                    <div v-if="isAuthenticated" class="text-center">
+                        <v-avatar size="80" class="mb-4">
+                            <v-icon icon="mdi-account-circle" size="80"></v-icon>
+                        </v-avatar>
+                        <div class="mb-4">
+                            <p class="text-h6">{{ displayName }}</p>
+                            <p class="text-subtitle2 text-grey">{{ userEmail }}</p>
+                        </div>
+                        <div class="mb-6">
+                            <v-chip v-for="role in userRoles" :key="role" class="mr-2 mb-2" color="primary">
+                                {{ role }}
+                            </v-chip>
+                        </div>
+                        <v-btn
+                            color="#009688"
+                            size="large"
+                            @click="handleEnter"
+                            class="mb-3"
+                            block
+                        >
+                            Enter Portal
+                        </v-btn>
+                        <v-btn
+                            color="error"
+                            variant="outlined"
+                            @click="handleLogout"
+                            block
+                        >
+                            Logout
+                        </v-btn>
+                    </div>
+
+                    <!-- Keycloak Login (sole login entry) -->
+                    <div v-else>
+                        <v-alert v-if="errorMessage" type="error" class="mb-4">
+                            {{ errorMessage }}
+                        </v-alert>
+
+                        <v-btn
+                            color="primary"
+                            size="large"
+                            block
+                            prepend-icon="mdi-shield-account"
+                            @click="handleKeycloakLogin"
+                            class="keycloak-btn"
+                        >
+                            Sign In with Keycloak
+                        </v-btn>
+                    </div>
+                </v-card>
             </div>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useUser } from "@/plugins/hooks/user";
-import { useDashboardAuthStore } from '@/store/dashboard_store';
-import { storeToRefs } from "pinia";
-const { dashboardAuthResponse } = storeToRefs(useDashboardAuthStore());
-const { authenticateDashboardUser } = useDashboardAuthStore();
+import { useAuthStore } from '@/store/auth_store';
+import { getKeycloak, isAuthenticated as checkAuthenticated } from '@/plugins/keycloak';
 
-const publicData = {
-    user1: {
-        userName: 'participant_1',
-        password: '123456',
-        role: 'clinician'
-    },
-    user2: {
-        userName: 'researcher_1',
-        password: '123456',
-        role: 'researcher'
-    },
-    admin: {
-        userName: 'admin',
-        password: 'admin',
-        role: 'admin'
-    }
-}
-
-const userName = ref('');
-const role = ref('');
-const password = ref('');
-const loading = ref(false);
-const rulesUser = [(value:string) => checkApi(value, 'userName')];
-const rulesPassword = [(value:string) => checkApi(value, 'password')];
-const timeout = ref<null|NodeJS.Timeout>(null);
 const router = useRouter();
-const isUser = ref(false);
-const { setUser } = useUser();
+const authStore = useAuthStore();
 
-const submit = async (event:any) => {
-        loading.value = true
-        const results = await event
-        loading.value = false
-        if (results.valid === true){
-            await authenticateDashboardUser({username: userName.value, password: password.value});
- 
-            switch (userName.value.toLowerCase()) {
-                case "admin":
-                    router.push({name: 'Home'})
-                    break;
-                default:
+const isAuthenticated = ref(false);
+const errorMessage = ref('');
 
-                    router.push({name: 'Home'})
-                    break;
-            }
-            setUser(userName.value, role.value);
+const displayName = computed(() => authStore.displayName);
+const userEmail = computed(() => authStore.user?.email || '');
+const userRoles = computed(() => authStore.userRoles);
+
+onMounted(async () => {
+    // Update auth state
+    authStore.updateAuthState();
+    isAuthenticated.value = checkAuthenticated();
+});
+
+// Keycloak direct login (no backend credentials)
+const handleKeycloakLogin = async () => {
+    const keycloak = getKeycloak();
+    if (keycloak) {
+        try {
+            // This redirects to Keycloak login page
+            // User credentials are handled entirely by Keycloak
+            await keycloak.login({
+                redirectUri: window.location.origin + '/home'
+            });
+        } catch (error) {
+            console.error('Keycloak login failed:', error);
+            errorMessage.value = 'Keycloak login failed. Please try again.';
         }
-      }
+    } else {
+        errorMessage.value = 'Keycloak is not initialized. Please refresh the page.';
+    }
+};
 
-const checkApi = async (validatingStr: string, type: string): Promise<any> => {
-    return new Promise(resolve => {
-        clearTimeout(timeout.value as NodeJS.Timeout);
-        
-        timeout.value = setTimeout(() => {
-            if (type === 'userName'){
-                if (!validatingStr) return resolve('Please enter a user name.')
-                // if (validatingStr.toLowerCase() === publicData.user1.userName || validatingStr.toLowerCase() === publicData.admin.userName){
-                //     isUser.value = true;
-                //     return resolve(true);
-                // }else{
-                //     isUser.value = false;
-                //     return resolve('User does not exist.')
-                // }
-            }else if(type === 'password'){
-                if (!validatingStr) return resolve('Please enter a password.')
-                // if (isUser.value){
-              
-                //     switch (userName.value.toLowerCase()) {
-                //         case publicData.user1.userName:
-                //             if (validatingStr.toLowerCase() === publicData.user1.password.toLocaleLowerCase()) {
-                //                 role.value = publicData.user1.role;
-                //                 return resolve(true)
-                //             }
-                //             break;
-                //         case publicData.user2.userName:
-                //             if (validatingStr.toLowerCase() === publicData.user1.password) {
-                //                 role.value = publicData.user2.role;
-                //                 return resolve(true);
-                //             }
-                            
-                //             break;
-                //         case publicData.admin.userName:
-                //             if (validatingStr.toLowerCase() === publicData.admin.password.toLocaleLowerCase()) {
-                //                 role.value = publicData.admin.role;
-                //                 return resolve(true);
-                //             }
-                //             break;
-                //     }
-                //     return resolve('Password is incorrect.')
-                // }
-            }else{
-                return resolve(false)
-            }
-            return resolve(true)
-        }, 1000)
-    })
-}
+// Logout
+const handleLogout = async () => {
+    try {
+        await authStore.logout();
+        // Redirect to login after logout
+        await router.push({ name: 'Login' });
+    } catch (error) {
+        console.error('Logout error:', error);
+    }
+};
+
+// Enter portal
+const handleEnter = async () => {
+    await router.push({ name: 'Home' });
+};
 </script>
 
 <style scoped>
-.form-login{
+.form-login {
     min-width: 30rem;
 }
-.title{
-    line-height: 1.6; 
+
+.title {
+    line-height: 1.6;
     font-size: 2.8rem;
+}
+
+.transparent-card {
+    background-color: transparent !important;
+    backdrop-filter: blur(2px);
+}
+
+.keycloak-btn {
+    border-width: 2px !important;
+    font-weight: 500;
+}
+
+.keycloak-btn:hover {
+    background-color: rgba(33, 150, 243, 0.1);
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
 }
 </style>

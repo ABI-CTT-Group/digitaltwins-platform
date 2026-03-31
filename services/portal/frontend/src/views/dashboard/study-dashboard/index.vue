@@ -135,7 +135,7 @@ const handleBreadCrumbsClick = (res:PointerEvent) => {
     setCurrentCategory(clickedCrumb);
     const data = exploredCard.value.find(item => item.category === clickedCrumb)?.data;
     
-    if (!!data) {
+    if (data) {
         setCurrentCategoryData(data);
     }else{
         setCurrentCategoryData(dashboardProgrammes.value!);
@@ -217,7 +217,7 @@ const handleAssayDownloadClicked = async (assay_seek_id:string) => {
         .catch(error => {
             console.error('Error:', error);
         });
-    };
+    }
     
 }
 
@@ -296,7 +296,7 @@ watch(()=>currentCategoryData.value, (newVal)=>{
             console.log("study dashboard line 296: ", details);
             
             setAssayExecute(item.seekId, "Launch", "");
-            if (!!details) {
+            if (details) {
                 setAllAssayDetailsOfStudy(item.seekId, details);
                 
             }else{

@@ -1,13 +1,14 @@
 import os
 import json
+import yaml
 import uvicorn
 from fastapi import APIRouter, FastAPI, Depends, HTTPException, BackgroundTasks, Request, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from app.database.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from datetime import datetime
-from typing import List, Dict, Any, Literal
+from typing import List, Dict, Any, Literal, Optional
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import uuid
@@ -41,12 +42,105 @@ from fhir_cda import Annotator
 
 configure_logging()
 logger = get_logger(__name__)
-router = APIRouter(prefix="/api/workflow-tools")
+router = APIRouter(prefix="/api/tools")
 builder = PluginBuilder()
 deployer = PluginDeployer()
 minio = get_minio_client()
 adapter = get_fhir_adapter()
 fhir_async_client = get_fhir_async_client()
+
+
+def _parse_docker_compose_routing(backend_dir: Path, expose_name: str = "") -> dict:
+    """Extract container_name and internal port from docker-compose.yml for nginx routing."""
+    for fname in ("docker-compose.yml", "docker-compose.yaml"):
+        compose_path = backend_dir / fname
+        if compose_path.exists():
+            break
+    else:
+        return {}
+
+    try:
+        with open(compose_path, "r", encoding="utf-8") as f:
+            compose = yaml.safe_load(f)
+        services = compose.get("services", {})
+        if not services:
+            return {}
+        # Use the first service
+        service_name, service_conf = next(iter(services.items()))
+        # Try explicit container_name, otherwise use project-based name
+        container_name = service_conf.get("container_name")
+        if not container_name:
+            # With -p flag: <expose_name>-<service>-1, fallback to directory name
+            project = expose_name if expose_name else backend_dir.name
+            container_name = f"{project}-{service_name}-1"
+        # Extract internal port from ports mapping (e.g. "8002:8082" → "8082")
+        internal_port = "8082"  # default
+        ports = service_conf.get("ports", [])
+        if ports:
+            port_str = str(ports[0])
+            if ":" in port_str:
+                internal_port = port_str.split(":")[-1]
+            else:
+                internal_port = port_str
+        # Check if websocket is likely (default True for plugins with backend)
+        has_websocket = True
+        return {
+            "internal_host": container_name,
+            "internal_port": internal_port,
+            "has_websocket": has_websocket,
+        }
+    except Exception as e:
+        logger.error(f"Failed to parse docker-compose for routing: {e}")
+        return {}
+
+
+@router.get("/debug/nginx-config")
+async def get_nginx_config():
+    """Debug endpoint: show current nginx plugin configs and main nginx.conf."""
+    import subprocess as _sp
+    result = {"plugin_configs": {}, "nginx_main_conf": None, "nginx_test": None}
+
+    # 1. Read all plugin config files from shared volume
+    conf_dir = Path(os.environ.get("NGINX_PLUGINS_CONF_DIR", "/nginx-plugins-conf"))
+    if conf_dir.exists():
+        for f in sorted(conf_dir.iterdir()):
+            if f.suffix == ".conf":
+                result["plugin_configs"][f.name] = f.read_text(encoding="utf-8")
+    else:
+        result["plugin_configs"] = f"Directory {conf_dir} does not exist"
+
+    # 2. Read main nginx.conf from portal-frontend container
+    container = os.environ.get("NGINX_CONTAINER_NAME", "portal-frontend")
+    try:
+        r = _sp.run(
+            ["docker", "exec", container, "cat", "/etc/nginx/nginx.conf"],
+            capture_output=True, text=True, timeout=5,
+        )
+        result["nginx_main_conf"] = r.stdout if r.returncode == 0 else r.stderr
+    except Exception as e:
+        result["nginx_main_conf"] = f"Error: {e}"
+
+    # 3. Read plugin configs as seen by nginx container
+    try:
+        r = _sp.run(
+            ["docker", "exec", container, "ls", "-la", "/etc/nginx/conf.d/plugins/"],
+            capture_output=True, text=True, timeout=5,
+        )
+        result["nginx_plugins_in_container"] = r.stdout if r.returncode == 0 else r.stderr
+    except Exception as e:
+        result["nginx_plugins_in_container"] = f"Error: {e}"
+
+    # 4. Test nginx config validity
+    try:
+        r = _sp.run(
+            ["docker", "exec", container, "nginx", "-t"],
+            capture_output=True, text=True, timeout=5,
+        )
+        result["nginx_test"] = r.stderr.strip() if r.returncode == 0 else f"FAILED: {r.stderr}"
+    except Exception as e:
+        result["nginx_test"] = f"Error: {e}"
+
+    return result
 
 
 @router.get("/", response_model=List[PluginResponse])
@@ -136,6 +230,17 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
             builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).all()
             if plugin.has_backend:
                 logger.info(f"Shuttle down backend for plugin {plugin_id}")
+                # Remove nginx configs for all deployments of this plugin
+                deployments = db.query(PluginDeployment).filter(
+                    PluginDeployment.plugin_id == plugin.id).all()
+                nginx_changed = False
+                for dep in deployments:
+                    if dep.route_prefix:
+                        expose_name = dep.route_prefix.replace("/plugin/", "")
+                        deployer.remove_nginx_conf(expose_name)
+                        nginx_changed = True
+                if nginx_changed:
+                    deployer.reload_nginx()
                 shuttle_down_deployed_backend(plugin.id, deployer)
             for build in builds:
                 logger.info("Deleting build {}".format(build.id))
@@ -153,30 +258,8 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
             db.delete(plugin)
             db.commit()
 
-        try:
-            logger.info(f"Deleting plugin {plugin_id}: modify the minio metadata.json")
-            # delete the record form the metadata.json file in MinIO
-            metadata_file = await get_metadata_json()
-            delete_plugin_component = next((c for c in metadata_file["components"] if c['id'] == plugin_id), None)
-            if delete_plugin_component is not None:
-                object_keys = minio.list_objects(prefix=delete_plugin_component.get("expose"))
-                if len(object_keys) > 0:
-                    minio.delete_objects(delete_keys=object_keys)
-                # Update metadata.json file in minio
-                metadata_file["components"] = [component for component in metadata_file["components"] if
-                                               component['id'] != plugin_id]
-                minio.update_metadata(metadata_file)
-                logger.info(f"Deleting plugin {plugin_id} successfully, and metadata updated successfully.")
-                return {"status": True, "message": "Plugin deleted successfully, and metadata updated successfully."}
-            else:
-                logger.info(
-                    f"Deleting plugin {plugin_id} successfully. and there is no tool component information in metadata.json")
-                return {"status": True,
-                        "message": "Plugin deleted successfully and no longer found in the metadata file."}
-        except Exception as e:
-            logger.info(
-                f"Deleting plugin {plugin_id} successfully, but not find the metadata.json file in Minio, failed due to {e}")
-            return {"status": True, "message": str(e)}
+        logger.info(f"Deleting plugin {plugin_id} successfully.")
+        return {"status": True, "message": "Plugin deleted successfully."}
     except Exception as e:
         logger.info("Deleting plugin failed due to exception {}".format(e))
         return {"status": False, "message": str(e)}
@@ -305,6 +388,25 @@ async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = 
                         deploy_record.status = DeployStatus.COMPLETED.value
                         deploy_record.source_path = result["backend_dir"]
                         deploy_record.up = True
+
+                        # Generate nginx config for this plugin
+                        expose_name = latest_build.expose_name
+                        backend_dir = Path(result["backend_dir"])
+                        routing = _parse_docker_compose_routing(backend_dir, expose_name)
+                        if routing and expose_name:
+                            route_prefix = f"/plugin/{expose_name}"
+                            deploy_record.route_prefix = route_prefix
+                            deploy_record.internal_host = routing["internal_host"]
+                            deploy_record.internal_port = routing["internal_port"]
+                            deploy_record.has_websocket = routing.get("has_websocket", True)
+                            deployer.generate_nginx_conf(
+                                expose_name=expose_name,
+                                internal_host=routing["internal_host"],
+                                internal_port=routing["internal_port"],
+                                has_websocket=routing.get("has_websocket", True),
+                            )
+                            deployer.reload_nginx()
+                            logger.info(f"Nginx config generated for plugin {expose_name}")
                     else:
                         deploy_record.status = BuildStatus.FAILED.value
                         deploy_record.error = result["error_message"]
@@ -355,18 +457,37 @@ async def execute_plugin_backend_by_docker(deploy_id: str, command: Literal["up"
         raise HTTPException(status_code=404, detail="Plugin Deploy record not found")
     if deploy_record.status == DeployStatus.COMPLETED.value:
         if command == "up":
+            expose_name = deploy_record.route_prefix.replace("/plugin/", "") if deploy_record.route_prefix else ""
             result = deployer.compose_up({
-                "backend_dir": deploy_record.source_path
+                "backend_dir": deploy_record.source_path,
+                "expose_name": expose_name,
             })
             if result["success"]:
                 deploy_record.up = True
+                # Ensure nginx config exists and reload
+                if deploy_record.route_prefix and deploy_record.internal_host:
+                    expose_name = deploy_record.route_prefix.replace("/plugin/", "")
+                    deployer.generate_nginx_conf(
+                        expose_name=expose_name,
+                        internal_host=deploy_record.internal_host,
+                        internal_port=deploy_record.internal_port or "8082",
+                        has_websocket=deploy_record.has_websocket or False,
+                    )
+                    deployer.reload_nginx()
                 logger.info("Successfully executed docker compose up for plugin deployment")
         elif command == "down":
+            expose_name = deploy_record.route_prefix.replace("/plugin/", "") if deploy_record.route_prefix else ""
             result = deployer.compose_down({
-                "backend_dir": deploy_record.source_path
+                "backend_dir": deploy_record.source_path,
+                "expose_name": expose_name,
             })
             if result["success"]:
                 deploy_record.up = False
+                # Optionally remove nginx config when container is down
+                if deploy_record.route_prefix:
+                    expose_name = deploy_record.route_prefix.replace("/plugin/", "")
+                    deployer.remove_nginx_conf(expose_name)
+                    deployer.reload_nginx()
                 logger.info("Successfully executed docker compose down for plugin deployment")
         db.commit()
         return {
@@ -436,7 +557,7 @@ async def get_build_download_url(build_id: str, db: Session = Depends(get_db)):
 
     try:
         build_record = get_build_record_or_404(build_id, db, PluginBuild)
-        url, s3_path = get_public_url_for_build(build_record, "workflow-tools")
+        url, s3_path = get_public_url_for_build(build_record, "tools")
 
         return {
             "build_id": build_id,
@@ -453,7 +574,7 @@ async def get_build_direct_url(build_id: str, db: Session = Depends(get_db)):
     """Get a direct public URL for a build's artifacts (no expiration)"""
     try:
         build_record = get_build_record_or_404(build_id, db, PluginBuild)
-        url, s3_path = get_public_url_for_build(build_record, "workflow-tools")
+        url, s3_path = get_public_url_for_build(build_record, "tools")
 
         return {
             "build_id": build_id,
@@ -485,15 +606,61 @@ async def get_test_build_info():
 
 
 @router.get("/metadata")
-async def get_metadata_json():
-    try:
-        obj = minio.get_object("metadata.json")
-        data = obj['Body'].read().decode('utf-8')
-        return json.loads(data)
-    except ClientError as e:
-        raise HTTPException(status_code=404, detail=f"File not found: metadata.json")
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail=f"File is not valid JSON: metadata.json")
+async def get_metadata_json(db: Session = Depends(get_db)):
+    use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
+    http_protocol = 'https' if use_ssl else 'http'
+    host = os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')
+    port = os.environ.get('MINIO_PORT', '9000')
+
+    plugins = db.query(Plugin).all()
+    components = []
+    for plugin in plugins:
+        latest_build = (db.query(PluginBuild)
+            .filter(PluginBuild.plugin_id == plugin.id,
+                    PluginBuild.status == BuildStatus.COMPLETED.value)
+            .order_by(PluginBuild.created_at.desc())
+            .first())
+        if not latest_build or not latest_build.expose_name:
+            continue
+
+        build_ts = int(latest_build.created_at.timestamp()) if latest_build.created_at else 0
+        is_local = latest_build.s3_path is None
+
+        if plugin.label == "GUI":
+            if is_local:
+                path = f"/{latest_build.expose_name}/my-app.umd.js?v={build_ts}"
+            else:
+                path = f"{http_protocol}://{host}:{port}/tools/{latest_build.expose_name}/primary/my-app.umd.js?v={build_ts}"
+        else:
+            if is_local:
+                path = f"/{latest_build.expose_name}"
+            else:
+                path = f"{http_protocol}://{host}:{port}/tools/{latest_build.expose_name}/primary"
+
+        components.append({
+            "uuid": plugin.uuid or "",
+            "id": plugin.id,
+            "name": plugin.name,
+            "path": path,
+            "expose": latest_build.expose_name if plugin.label == "GUI" else None,
+            "label": plugin.label,
+            "description": plugin.description or "",
+            "version": plugin.version,
+            "created_at": plugin.created_at.isoformat() if plugin.created_at else "",
+            "author": plugin.author or "",
+            "repository_url": plugin.repository_url,
+            "is_local": is_local,
+            "frontend_folder": plugin.frontend_folder if plugin.label == "GUI" else None,
+            "has_backend": plugin.has_backend if plugin.label == "GUI" else False,
+            "backend_folder": plugin.backend_folder if plugin.has_backend else None,
+            "backend_deploy_command": plugin.backend_deploy_command if (plugin.has_backend and plugin.label == "GUI") else None,
+            "config": plugin.plugin_metadata or {},
+        })
+
+    return JSONResponse(
+        content={"components": components},
+        headers={"Cache-Control": "no-cache, no-store"}
+    )
 
 
 @router.get("/get-file/{object_key:path}")
