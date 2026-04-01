@@ -20,7 +20,7 @@ services:
       - DIGITALTWINS_API_BASE_URL=${DIGITALTWINS_API_BASE_URL:-http://digitaltwins-api}
       - DIGITALTWINS_API_PORT=${DIGITALTWINS_API_PORT:-8000}
       - PORTAL_BACKEND_HOST=${PORTAL_BACKEND_HOST:-localhost}
-      - KEYCLOAK_BASE_URL=${KEYCLOAK_BASE_URL:-https://130.216.216.243:8009}
+      - PORTAL_KEYCLOAK_BASE_URL=${PORTAL_KEYCLOAK_BASE_URL:-https://130.216.216.243:8009}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-api}
       - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-xxxxxx}
@@ -28,7 +28,7 @@ services:
       - KEYCLOAK_CA_CERT=${KEYCLOAK_CA_CERT:-}
       # Nginx plugin config (shared volume with portal-frontend)
       - NGINX_PLUGINS_CONF_DIR=/nginx-plugins-conf
-      - NGINX_CONTAINER_NAME=portal-frontend
+      - NGINX_CONTAINER_NAME=digitaltwins-platform-portal-frontend
     volumes:
       - portal_datasets:/app/data
       - ./backend/datasets_tool:/datasets_tool
@@ -55,10 +55,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_KEYCLOAK_URL=${KEYCLOAK_BASE_URL}
+        - VITE_KEYCLOAK_URL=${PORTAL_KEYCLOAK_BASE_URL}
         - VITE_KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
         - VITE_KEYCLOAK_CLIENT_ID=portal-frontend
-    container_name: portal-frontend
+    container_name: digitaltwins-platform-portal-frontend
     ports:
       - "80:80"
     environment:
