@@ -2,7 +2,7 @@
 # Script to enable SEEK features via podman container Rails console
 # Usage: ./enable-features.sh
 
-CONTAINER_NAME="digitaltwins-platform-seek-1"
+CONTAINER_NAME="seek"
 
 IP=$(curl -s ifconfig.me)
 

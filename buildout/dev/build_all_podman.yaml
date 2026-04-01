@@ -270,7 +270,7 @@
   # Better solution to the "wait" problem...
   - name: Wait for background migrations to create the users table
     ansible.builtin.command: >
-      podman exec digitaltwins-platform-seek-1 bash -c 
+      podman exec seek bash -c 
       'cd /seek && RAILS_ENV=production bundle exec rails runner "exit(ActiveRecord::Base.connection.table_exists?(:users) ? 0 : 1)"'
     register: table_check
     # Try up to 15 times, waiting 10 seconds between attempts (max 150 seconds)

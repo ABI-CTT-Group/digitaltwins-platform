@@ -5,7 +5,7 @@
 #   Local user: ./create-admin-user.sh <username> <password> <email>
 #   Keycloak user: ./create-admin-user.sh <username> -keycloak <email>
 
-CONTAINER_NAME="digitaltwins-platform-seek-1"
+CONTAINER_NAME="seek"
 USERNAME=${1:-}
 PASSWORD=${2:-}
 EMAIL=${3:-}

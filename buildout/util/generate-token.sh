@@ -4,7 +4,7 @@
 #   ./generate-token.sh [username] # default username is "admin""
 
 SEEK_TOKEN_FILE_NAME=${SEEK_TOKEN_FILE_NAME:=~/keys/seek_api_token.txt}
-CONTAINER_NAME="digitaltwins-platform-seek-1"
+CONTAINER_NAME="seek"
 USERNAME=${1:-admin}
 #CONFIG_FILE=~/digitaltwins-platform/services/api/digitaltwins-api/configs.ini
 ENV_FILE=~/digitaltwins-platform/.env
