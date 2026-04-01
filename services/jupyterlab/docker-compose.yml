@@ -1,25 +1,31 @@
 services:
-  keycloak:
-    image: quay.io/keycloak/keycloak:latest
-    command: start-dev --http-relative-path /auth
-    environment:
-      - KC_HTTP_ENABLED=true
-      - KC_HOSTNAME_STRICT=false
-      - KEYCLOAK_ADMIN=admin
-      - KEYCLOAK_ADMIN_PASSWORD=admin
-    networks:
-      - digitaltwins
-
   jupyterlab:
     image: jupyter/base-notebook:frozen-20260324
-    container_name: jupyterlab # <--- AND THIS ONE
+    container_name: jupyterlab
+    user: root
     environment:
-      - JUPYTER_TOKEN="admin"
-      - JUPYTER_SERVER_APP_BASE_URL=/jupyter
-    command: start-notebook.sh --ServerApp.base_url=/jupyter --ServerApp.token=''
+      - NB_UID=1001
+      - NB_GID=1001
+      - CHOWN_HOME=yes
+      - CHOWN_HOME_OPTS=-R
+      - JUPYTER_TOKEN=${JUPYTERLAB_TOKEN:-admin}
     networks:
       - digitaltwins
-    
-networks:
-  digitaltwins:
-    external: true  # This tells the child "look for this in the parent"
+    ports:
+      - "${JUPYTERLAB_BIND_ADDRESS:-0.0.0.0}:8008:8888"
+    volumes:
+      - ./notebook_workspace:/home/jovyan/work
+    command: >
+      start-notebook.sh 
+      --NotebookApp.base_url='/jupyter' 
+      --NotebookApp.allow_origin='https://test.digitaltwins.auckland.ac.nz'
+      --NotebookApp.trust_xheaders=True
+    restart: unless-stopped
+
+#volumes:
+#  notebook_workspace:
+#    driver: local
+#
+#networks:
+#  digitaltwins:
+#    driver: bridge

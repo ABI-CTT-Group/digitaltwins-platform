@@ -305,6 +305,12 @@
     args:
       chdir: ./digitaltwins-platform
 
+  - name: Ensure notebook_workspace directory exists for jupyter
+    ansible.builtin.file:
+      path: ./digitaltwins-platform/notebook_workspace
+      state: directory
+      mode: '0775'
+  
   - name: Start docker compose services
     shell: |
       podman compose up -d
