@@ -13,7 +13,7 @@ class KeycloakClient:
     """Keycloak authentication and authorization client"""
 
     def __init__(self):
-        self.server_url = os.getenv('KEYCLOAK_BASE_URL', 'https://130.216.216.243:8009/')
+        self.server_url = os.getenv('PORTAL_KEYCLOAK_BASE_URL')
         self.realm_name = os.getenv('KEYCLOAK_REALM', 'digitaltwins')
         self.client_id = os.getenv('KEYCLOAK_CLIENT_ID', 'api')
         self.client_secret = os.getenv('KEYCLOAK_CLIENT_SECRET', '')
