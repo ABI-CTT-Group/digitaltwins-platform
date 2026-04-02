@@ -47,7 +47,7 @@ These efforts are aimed at **supporting an ecosystem** to:
 
 ## Deploying the DigitalTWINS platform
 
-See [Deploying the DigitalTWINS platform](docs/deploying.md)
+See [docs/deployment.md](docs/deployment.md)
 
 ## Populating data
 
