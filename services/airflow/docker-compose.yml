@@ -334,3 +334,4 @@ services:
 
 volumes:
   postgres-db-volume:
+    name: digitaltwins-platform_airflow_postgres-db-volume
