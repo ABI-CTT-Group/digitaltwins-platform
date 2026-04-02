@@ -14,7 +14,7 @@ resource "openstack_compute_instance_v2" "mp" {
   }
 
   block_device {
-    uuid                  = data.openstack_images_image_v2.portal_image.id
+    uuid                  = data.openstack_images_image_v2.portal_image2.id
     source_type           = "image"
     destination_type      = "volume"
     boot_index            = 0

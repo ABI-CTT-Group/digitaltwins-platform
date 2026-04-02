@@ -11,3 +11,25 @@
       key: "{{ lookup('file', item) }}"
     with_fileglob:
       - "public_keys/*.pub"
+
+  - name: Ensure the keys directory is present
+    ansible.builtin.file:
+      path: keys
+      state: directory
+      mode: '0700'
+
+  - name: Ensure the keys/public_keys directory is present
+    ansible.builtin.file:
+      path: keys/public_keys
+      state: directory
+      mode: '0700'
+
+  - name: Copy public keys
+    ansible.builtin.synchronize:
+      src: "public_keys/"
+      dest: "./keys/public_keys/"
+      recursive: yes
+      rsync_opts:
+        - "--include=*.pub"
+        - "--exclude=*"
+

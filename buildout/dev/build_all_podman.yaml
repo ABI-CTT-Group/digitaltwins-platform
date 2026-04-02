@@ -110,6 +110,10 @@
       state: started
       enabled: yes
 
+## End of root stuff (apart from the weird one )
+
+
+
   - name: Set DOCKER_HOST from environment variable
     ansible.builtin.set_fact:
       docker_host: "{{ lookup('env', 'DOCKER_HOST') }}"
@@ -119,6 +123,14 @@
       path: "~/.bashrc"
       line: "export DOCKER_HOST={{ docker_host }}"
       state: present
+
+  - name: Ensure COMPOSE_FILE is in .bash_aliases
+    ansible.builtin.lineinfile:
+      path: "~/.bashrc"
+      regexp: '^export COMPOSE_FILE='
+      line: "export COMPOSE_FILE=~/digitaltwins-platform/docker-compose.yml"
+      create: true
+      mode: '0600'  # Restrict permissions since it contains a secret
 
   - name: Ensure external podman volumes exist
     containers.podman.podman_volume:
@@ -141,6 +153,21 @@
       path: keys
       state: directory
       mode: '0700'
+
+  - name: Ensure the keys/public_keys directory is present
+    ansible.builtin.file:
+      path: keys/public_keys
+      state: directory
+      mode: '0700'
+
+  - name: Copy public keys
+    ansible.builtin.synchronize:
+      src: "public_keys/"
+      dest: "./keys/public_keys/"
+      recursive: yes
+      rsync_opts:
+        - "--include=*.pub"
+        - "--exclude=*"
 
   - name: Load cached Docker images into local daemon
     ansible.builtin.command: podman load -i /mnt/docker_cache/airgap_bundle_20260324.tar
@@ -204,20 +231,23 @@
       mode: '0600'
     when: not file_check3.stat.exists
 
+# the user 0:0 bit is so that it runs as root *inside* the container,
+# thus it will be owned by ubuntu:ubuntu *outside* the container, so that we 
+# can subsequently edit it.
   - name: Initialize airflow.cfg
-    ansible.builtin.command: podman compose run airflow-cli airflow config list
+    ansible.builtin.command: podman compose run --user 0:0 airflow-cli airflow config list
     args:
       chdir: ./digitaltwins-platform
 
-  # The last config list puts a wonky ownership on the .cfg file, which we need to adjust, so ...
-  - name: Force ownership on Airflow config
-    become: true
-    ansible.builtin.file:
-      #path: "/home/{{ ansible_user }}/digitaltwins-platform/services/airflow/config/airflow.cfg"
-      path: "./digitaltwins-platform/services/airflow/config/airflow.cfg"
-      owner: "{{ ansible_user }}"
-      group: "{{ ansible_user }}"
-      mode: '0644'
+#  # The last config list puts a wonky ownership on the .cfg file, which we need to adjust, so ...
+#  - name: Force ownership on Airflow config
+#    become: true
+#    ansible.builtin.file:
+#      #path: "/home/{{ ansible_user }}/digitaltwins-platform/services/airflow/config/airflow.cfg"
+#      path: "./digitaltwins-platform/services/airflow/config/airflow.cfg"
+#      owner: "{{ ansible_user }}"
+#      group: "{{ ansible_user }}"
+#      mode: '0644'
 
   - name: allow_headers
     shell: |
@@ -257,10 +287,15 @@
 
   - name: Copy realm import to remote server
     ansible.builtin.copy:
-#      src: ../data/digitaltwins_realm_202603051056.json
       src: ../data/realm-cc-digitaltwins_20260322.json
       dest: ./digitaltwins-platform/services/keycloak/import/digitaltwins-realm.json
       mode: '0644'
+
+  - name: Copy realm import to keys
+    ansible.builtin.copy:
+      src: ../data/realm-cc-digitaltwins_20260322.json
+      dest: ./keys/digitaltwins-realm.json
+      mode: '0600'
 
   - name: Startup seek
     ansible.builtin.command: podman compose up -d seek
@@ -311,19 +346,23 @@
       state: directory
       mode: '0775'
   
+  - name: Ensure pgdata directory exists
+    ansible.builtin.file:
+      path: ./pgdata
+      state: directory
+      mode: '0755'
+  
+  - name: Ensure pgdata_admin directory exists
+    ansible.builtin.file:
+      path: ./pgadmin_data
+      state: directory
+      mode: '0755'
+  
   - name: Start docker compose services
     shell: |
       podman compose up -d
     args:
       chdir: ./digitaltwins-platform
-
-  - name: Ensure COMPOSE_FILE is in .bash_aliases
-    ansible.builtin.lineinfile:
-      path: "~/.bashrc"
-      regexp: '^export COMPOSE_FILE='
-      line: "export COMPOSE_FILE=~/digitaltwins-platform/docker-compose.yml"
-      create: true
-      mode: '0600'  # Restrict permissions since it contains a secret
 
   - name: grab DOCKER_HOST value
     ansible.builtin.set_fact:
