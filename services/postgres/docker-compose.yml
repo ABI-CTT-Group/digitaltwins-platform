@@ -7,8 +7,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
       POSTGRES_DB: ${POSTGRES_DB:-digitaltwins}
     volumes:
-#      - postgres_data:/var/lib/postgresql/data
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
       - ./digitaltwins_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     ports:
       - "8003:5432"
@@ -31,8 +30,7 @@ services:
     networks:
       - digitaltwins
 volumes:
-#  postgres_data:
-  pgdata:
+  postgres_data:
     driver: local
   pgadmin_data:
     driver: local
