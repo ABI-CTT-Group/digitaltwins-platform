@@ -28,9 +28,10 @@ cp .env.template .env
 Set the following variables in your new `.env` file:
 
 - **Portal Service**
-  - `PORTAL_BACKEND_HOST_IP`: Your host machine IP address for the portal backend. 
+  - `PORTAL_BACKEND_HOST`: Your host machine IP address for the portal backend. 
     > [!TIP]
     > You can find your host IP address by running `curl ifconfig.me` on a Linux terminal.
+  - `PORTAL_KEYCLOAK_BASE_URL`: your host machine IP address and keycloak port number
 
 - **Workflow Service (Airflow)**
   - `AIRFLOW_UID`: Your local user ID.
