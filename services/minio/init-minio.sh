@@ -6,5 +6,6 @@ mc mb --ignore-existing digitaltwins/model
 mc mb --ignore-existing digitaltwins/workflow
 mc mb --ignore-existing digitaltwins/tool
 mc mb --ignore-existing digitaltwins/process
+mc mb --ignore-existing digitaltwins/airflow-workspace
 echo 'Buckets created successfully'
 exit 0
