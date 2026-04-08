@@ -2,6 +2,12 @@
   gather_facts: false
 #  hosts: portal drai_mp drai_cc
   hosts: portal drai_mp
+
+  vars:
+    podman_version: "5.4.0" # Define this in your group_vars
+    podman_docker_version: "v5.1.1" # Define this in your group_vars
+
+
   environment:
     DOCKER_HOST: "{{ lookup('env', 'DOCKER_HOST') | default('unix:///var/run/docker.sock', true) }}"
 
@@ -86,13 +92,15 @@
       update_cache: yes
       cache_valid_time: 3600
     loop:
-      - podman-docker
-      - zip
+#      - podman-docker
+      - podman-docker={{ podman_version }}
+#      - zip
 
   - name: Install modern Docker Compose V2 binary for Podman
     become: true
     get_url:
-      url: "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64"
+#      url: "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64"
+      url: "https://github.com/docker/compose/releases/download/{{ podman_docker_version }}/docker-compose-linux-x86_64"
       dest: /usr/bin/docker-compose
       mode: '0755'
       force: yes  # Ensures it overwrites the old v1.29 binary
@@ -132,13 +140,13 @@
       create: true
       mode: '0600'  # Restrict permissions since it contains a secret
 
-  - name: Ensure external podman volumes exist
-    containers.podman.podman_volume:
-      name: "{{ item }}"
-      state: present
-    loop:
-      - digitaltwins-platform_filestore
-      - digitaltwins-platform_db
+#  - name: Ensure external podman volumes exist
+#    containers.podman.podman_volume:
+#      name: "{{ item }}"
+#      state: present
+#    loop:
+#      - digitaltwins-platform_filestore
+#      - digitaltwins-platform_db
 
   - name: user access
     authorized_key:
@@ -169,10 +177,10 @@
         - "--include=*.pub"
         - "--exclude=*"
 
-  - name: Load cached Docker images into local daemon
-    ansible.builtin.command: podman load -i /mnt/docker_cache/airgap_bundle_20260324.tar
-    register: docker_load_output
-    changed_when: "'Loaded image' in docker_load_output.stdout"
+#  - name: Load cached Docker images into local daemon
+#    ansible.builtin.command: podman load -i /mnt/docker_cache/airgap_bundle_20260324.tar
+#    register: docker_load_output
+#    changed_when: "'Loaded image' in docker_load_output.stdout"
 
 # Because git pulling has basically stopped functioning in the last couple days...
   - name: Sync code to VM
