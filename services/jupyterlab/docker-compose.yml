@@ -1,6 +1,6 @@
 services:
   jupyterlab:
-    image: jupyter/base-notebook
+    image: jupyter/base-notebook:lab-4.0.7
     user: root
     environment:
       - NB_UID=1000
