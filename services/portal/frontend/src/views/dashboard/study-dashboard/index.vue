@@ -78,6 +78,7 @@ import SubmitSheet from '@/components/dt-components/SubmitSheet.vue';
 import { reWriteCategoryDetails } from './utils';
 import HelpIcon from '@/components/commonBar/HelpIcon.vue';
 
+// for testing only, will be removed later
 const username = 'admin';
 const password = 'ctt_digitaltwins_0';
 
@@ -260,7 +261,13 @@ const handleAssayExpandClicked = (assay_seek_id:string, name:string) => {
 }
 
 const handleExploreClicked = async (seek_id:string, name:string, category:string, des:string) => {
+    console.log(name, category);
+    
     const explored = exploredCard.value.find(item => item.category === category);
+    console.log(explored);
+    
+    console.log(currentCategoryData.value);
+    
     if (!explored){
         setExploredCard(category, currentCategoryData.value)
     }else{
@@ -284,10 +291,16 @@ const handleExploreClicked = async (seek_id:string, name:string, category:string
     if (category == "Programmes"){
         dashboardCategoryChildren.value!.sort((a, b) => a.name.localeCompare(b.name));
     }
+    console.log("dashboard category children: ", dashboardCategoryChildren.value);
     setCurrentCategoryData(dashboardCategoryChildren.value!);
 }
 
 watch(()=>currentCategoryData.value, (newVal)=>{
+    
+    if (!newVal || newVal.length === 0 || currentCategory.value !== "Assays"){
+        return
+    }
+    
     if(newVal[0].category === "Assays"){
         assayExecute.value = {};
         allAssayDetailsOfStudy.value = {};

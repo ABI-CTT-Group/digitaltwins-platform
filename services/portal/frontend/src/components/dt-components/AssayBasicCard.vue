@@ -35,7 +35,8 @@
                     variant="tonal"
                     rounded="md"
                     class="hover-animate"
-                    @click.once = "handleExploreClicked(data.seekId, data.name, data.category, data.description)"
+                    :loading="loading"
+                    @click="handleExploreClicked(data.seekId, data.name, data.category, data.description)"
                 ></v-btn>
                 <Dialog
                     :showDialog="data.category === 'Assays' && !isClinicianView"
@@ -76,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { IDashboardCategory } from '@/models/apiTypes';
 import Dialog from '@/components/commonBar/Dialog.vue';
 import AssayContent from '@/components/dt-components/AssayContent.vue';
@@ -89,10 +90,15 @@ const {
     assayExecute, 
     allAssayDetailsOfStudy, 
     currentAssayDetails,
-    isClinicianView
+    isClinicianView,
+    currentCategoryData
  } = storeToRefs(useDashboardPageStore());
 
  const loading = ref(false);
+
+ watch(currentCategoryData, () => {
+    loading.value = false;
+ }, { deep: true });
 
 const props = withDefaults(defineProps<{
     data: IDashboardCategory,
@@ -112,6 +118,7 @@ const handleAssaySave = () => {
     emit("AssaySave");
 };
 const handleExploreClicked = (seekId: string, name: string, category: string, description: string) => {
+    loading.value = true;
     emit("ExploreClicked", seekId, name, category, description);
 };
 const handleAssayLaunchClicked = (seekId: string) => {

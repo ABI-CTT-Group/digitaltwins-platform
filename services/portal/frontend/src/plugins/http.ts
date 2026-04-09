@@ -29,13 +29,7 @@ axios.defaults.baseURL = "/api";
 axios.interceptors.request.use((config: AxiosRequestConfig | any) => {
   // Get token from Keycloak (sole source of truth)
   const token = getAccessToken();
-
-  // 🔍 DEBUG: log token status for every outgoing request
-  console.log(`[HTTP Interceptor] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
-  console.log(`[HTTP Interceptor] Token present: ${!!token}`);
   if (token) {
-    console.log(`[HTTP Interceptor] Token (first 50 chars): ${token.substring(0, 50)}...`);
-    console.log(`[HTTP Interceptor] Full token:`, token);
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
   } else {
