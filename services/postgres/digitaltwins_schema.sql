@@ -44,7 +44,7 @@ CREATE TABLE public.assay (
     assay_uuid uuid DEFAULT public.uuid_generate_v1() NOT NULL,
     assay_seek_id integer,
     workflow_seek_id integer,
-    cohort integer,
+    cohort character varying[],
     ready boolean,
     workspace_id character varying
 );
