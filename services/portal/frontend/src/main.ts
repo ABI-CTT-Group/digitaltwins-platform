@@ -21,9 +21,8 @@ const app = createApp(App);
 // Initialize Keycloak and then register plugins and mount app
 initKeycloak()
   .then(() => {
-    // Setup idle timeout: logout after 5 minutes of inactivity (for testing)
-    // Change to 30 for production
-    setupIdleTimeout(30); // 5 minutes for testing
+    // Setup idle timeout: logout after 30 minutes of inactivity
+    setupIdleTimeout(30);
     
     registerPlugins(app);
     app.mount("#app");

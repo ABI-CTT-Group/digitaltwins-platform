@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Union
+from typing import Union, List
 
 class AssayWorkflowDetails(BaseModel):
     uuid: str
@@ -12,5 +12,5 @@ class AssayDetails(BaseModel):
     uuid: str
     seekId: str
     workflow: AssayWorkflowDetails
-    numberOfParticipants: int
+    numberOfParticipants: List[int]
     isAssayReadyToLaunch: bool

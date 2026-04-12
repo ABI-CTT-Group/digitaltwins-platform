@@ -10,7 +10,7 @@
         >
             <v-card-text>
                 <div class="d-flex justify-space-between align-center mb-4">
-                    <div class="title font-weight-black text-grey-lighten-3 pr-5">{{ capitalize(data.name) }}</div>
+                    <div class="title font-weight-black text-grey-lighten-3 pr-5">{{ !!data.tag ? `${capitalize(data.name)} - ${data.tag}` : capitalize(data.name) }}</div>
                     <div v-if="data.category === 'Assays'" class="d-flex align-center">
                         <v-icon
                             icon="mdi-border-radius"
@@ -36,7 +36,7 @@
                     rounded="md"
                     class="hover-animate"
                     :loading="loading"
-                    @click="handleExploreClicked(data.seekId, data.name, data.category, data.description)"
+                    @click="handleExploreClicked(data.seekId, data.name, data.category, data?.description)"
                 ></v-btn>
                 <Dialog
                     :showDialog="data.category === 'Assays' && !isClinicianView"
@@ -45,6 +45,8 @@
                     btnColor = "deep-orange"
                     btnVariant="tonal"
                     btnRounded="md"
+                    :btnLoading="isAssayConfigLoading"
+                    :validateFn="validateAssay"
                     @on-open = "handleAssayEditClicked(data.seekId, data.name)"
                     @on-save= "handleAssaySave"
                 >
@@ -53,12 +55,12 @@
                     </template>
                     <template #description>
                         <p class="mb-4 dialog-description">
-                            Config the assay's: workflow, dataset and cohorts. 
+                            Config the assay's: workflow, dataset and cohorts.
                             <br/>
                             Click `Save` button to save your configurations. Click grey area to cancel.
                         </p>
                     </template>
-                    <AssayContent v-model="currentAssayDetails" />
+                    <AssayContent ref="assayContentRef" v-model="currentAssayDetails" />
                 </Dialog>
 
                 <div  v-if="data.category === 'Assays'">
@@ -77,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { IDashboardCategory } from '@/models/apiTypes';
 import Dialog from '@/components/commonBar/Dialog.vue';
 import AssayContent from '@/components/dt-components/AssayContent.vue';
@@ -85,16 +87,30 @@ import AssayBasicCardButtons from './AssayBasicCardButtons.vue';
 import { storeToRefs } from "pinia";
 import { useDashboardPageStore } from '@/store/states';
 import { capitalize } from '@/utils/common';
+import { useToast } from 'vue-toastification';
 
 const {
-    assayExecute, 
-    allAssayDetailsOfStudy, 
+    allAssayDetailsOfStudy,
     currentAssayDetails,
     isClinicianView,
     currentCategoryData
  } = storeToRefs(useDashboardPageStore());
 
+const toast = useToast();
+const assayContentRef = ref<{ validate: () => Promise<boolean> }>();
+
+const validateAssay = async (): Promise<boolean> => {
+    const valid = await assayContentRef.value?.validate();
+    if (valid === false) {
+        toast.warning("Please fill in all required fields before saving.");
+    }
+    return valid ?? true;
+};
+
  const loading = ref(false);
+ const isAssayConfigLoading = computed(() =>
+    props.data.category === 'Assays' && !allAssayDetailsOfStudy.value[props.data.seekId]
+ );
 
  watch(currentCategoryData, () => {
     loading.value = false;
@@ -117,16 +133,12 @@ const handleAssayEditClicked = (seekId: string, name: string) => {
 const handleAssaySave = () => {
     emit("AssaySave");
 };
-const handleExploreClicked = (seekId: string, name: string, category: string, description: string) => {
+const handleExploreClicked = (seekId: string, name: string, category: string, description: string='') => {
     loading.value = true;
     emit("ExploreClicked", seekId, name, category, description);
 };
 const handleAssayLaunchClicked = (seekId: string) => {
-    loading.value = true;
     emit("AssayLaunchClicked", seekId);
-    setTimeout(() => {
-        loading.value = false;
-    }, 10000);
 };
 const handleAssayMonitorClicked = (seekId: string) => {
     emit("AssayMonitorClicked", seekId);

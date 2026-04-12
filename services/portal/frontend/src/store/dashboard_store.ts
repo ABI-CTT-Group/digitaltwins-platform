@@ -55,8 +55,9 @@ export const useDashboardWorkflowDetailStore = defineStore("DashboardWorkflowDet
 
 export const useDashboardSaveAssayDetailsStore = defineStore("DashboardSaveAssayDetails", () => {
     const saveAssayDetailsStatus = ref<boolean>();
-    const saveAssayDetails = async (body: IAssayDetails) => {
+    const saveAssayDetails = async (body: IAssayDetails): Promise<boolean> => {
         saveAssayDetailsStatus.value = await useSaveAssayDetails(body);
+        return !!saveAssayDetailsStatus.value;
     };
     return {
         saveAssayDetailsStatus,

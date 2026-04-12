@@ -51,9 +51,11 @@
         class="hover-animate"
         max-width="100"
         block
-        :text="btnText" 
+        :text="btnText"
         :variant="btnVariant"
         :rounded="btnRounded"
+        :loading="btnLoading"
+        :disabled="btnLoading"
         @click="openDialog"
       ></v-btn>
     </div>
@@ -74,9 +76,11 @@ interface DialogProps {
     saveBtnName?: string;
     btnHeight?:string;
     btnRounded?:string;
+    btnLoading?: boolean;
+    validateFn?: () => boolean | Promise<boolean>;
 }
 
-withDefaults(defineProps<DialogProps>(), {
+const props = withDefaults(defineProps<DialogProps>(), {
     max: 600,
     min: 600,
     icon: "mdi-cog-outline",
@@ -87,7 +91,8 @@ withDefaults(defineProps<DialogProps>(), {
     showDialog: true,
     saveBtnName: "Save",
     btnHeight:"",
-    btnRounded:"lg"
+    btnRounded:"lg",
+    btnLoading: false,
 });
 
 const dialog = ref(false);
@@ -110,7 +115,11 @@ const handleDialogCancel = () => {
     dialog.value = false;
 }
 
-const handleDialogSave = () => {
+const handleDialogSave = async () => {
+    if (props.validateFn) {
+        const valid = await props.validateFn();
+        if (!valid) return;
+    }
     dialog.value = false;
     isSaved.value = true;
     emit("onSave");

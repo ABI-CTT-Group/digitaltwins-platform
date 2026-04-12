@@ -18,9 +18,7 @@ export async function initKeycloak(): Promise<Keycloak.Keycloak> {
   console.log(keycloak)
   try {
     const authenticated = await keycloak.init({
-      //nLoad: 'check-sso',
-      //silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
-      //pkceMethod: 'S256',
+      // onLoad: 'check-sso', // Disabled — causes login_required errors on HTTP local dev
       checkLoginIframe: false, // Disable to avoid insecure context error on HTTP deployments
     });
 

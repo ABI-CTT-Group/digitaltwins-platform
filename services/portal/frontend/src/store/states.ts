@@ -10,7 +10,7 @@ interface IAllAssayDetailsOfStudy {
   [key: string]: IAssayDetails;
 }
 interface IAssayBtnText {
-  [key: string]: {text:string, url:string};
+  [key: string]: {text:string, url:string, isLaunching?: boolean};
 }
 
 export const currentUserStore = defineStore("currentUser", () => {
@@ -79,6 +79,11 @@ export const useDashboardPageStore = defineStore("dashboardPage", () => {
       url: url,
     };
   }
+  const setAssayLaunching = (uuid: string, isLaunching: boolean) => {
+    if (assayExecute.value![uuid]) {
+      assayExecute.value![uuid].isLaunching = isLaunching;
+    }
+  }
   const setClinicianView = (state:boolean) => {
     isClinicianView.value = state;
   }
@@ -102,6 +107,7 @@ export const useDashboardPageStore = defineStore("dashboardPage", () => {
     setAllAssayDetailsOfStudy,
     setCurrentAssayDetails,
     setAssayExecute,
+    setAssayLaunching,
     setClinicianView
   }
 }, {

@@ -8,7 +8,8 @@
             rounded="md"
             class="hover-animate mx-1"
             :disabled="!allAssayDetailsOfStudy[assaySeekId]?.isAssayReadyToLaunch"
-            @click.once = "handleAssayLaunchClicked(assaySeekId)"
+            :loading="assayExecute?.[assaySeekId]?.isLaunching ?? false"
+            @click="handleAssayLaunchClicked(assaySeekId)"
         >
         </v-btn>
         <div v-if="!isClinicianView">
