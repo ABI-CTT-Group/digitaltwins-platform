@@ -31,7 +31,7 @@ export async function useSaveAssayDetails(body: IAssayDetails) {
     return success;
   }
 
-export async function useDashboardGetAssayDetails(seek_id: string) {
+export async function useDashboardGetAssayConfigDetails(seek_id: string) {
     const details = http.get<IAssayDetails>("/dashboard/assay-details", { seek_id });
     return details;
 }
@@ -52,4 +52,4 @@ export async function useDashboardProjectDetailsViaAssayId(seek_id: string) {
     const projectDetail = http.get<IProjectDetail>("/dashboard/assay-project", { seek_id });
     return projectDetail;
 }
-
+

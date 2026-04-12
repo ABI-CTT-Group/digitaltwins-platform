@@ -18,26 +18,14 @@ export async function initKeycloak(): Promise<Keycloak.Keycloak> {
   console.log(keycloak)
   try {
     const authenticated = await keycloak.init({
-      //nLoad: 'check-sso',
-      //silentCheckSsoRedirectUri: `${window.location.origin}/silent-check-sso.html`,
-      //pkceMethod: 'S256',
+      // onLoad: 'check-sso', // Disabled — causes login_required errors on HTTP local dev
       checkLoginIframe: false, // Disable to avoid insecure context error on HTTP deployments
     });
 
     keycloakInstance = keycloak;
 
-    console.log('=== 🔑 Keycloak Init Result ===');
-    console.log('Authenticated:', authenticated);
-    console.log('Token:', keycloak.token);
-    console.log('Token (first 50):', keycloak.token?.substring(0, 50));
-    console.log('Refresh Token:', !!keycloak.refreshToken);
-    console.log('Token Parsed:', keycloak.tokenParsed);
-    console.log('================================');
-
     if (authenticated) {
-      console.log('User is authenticated');
-
-      // OPTION B: Auto-refresh token on expiry
+      // Auto-refresh token on expiry
       // Silently refreshes the token; only logs out after max session time or refresh failure
       const loginTime = Date.now();
       const maxSessionHours = 8;
@@ -88,9 +76,6 @@ export function isAuthenticated(): boolean {
  */
 export function getAccessToken(): string | undefined {
   const token = keycloakInstance?.token;
-  console.log('[getAccessToken] keycloakInstance exists:', !!keycloakInstance);
-  console.log('[getAccessToken] authenticated:', keycloakInstance?.authenticated);
-  console.log('[getAccessToken] token present:', !!token);
   return token;
 }
 

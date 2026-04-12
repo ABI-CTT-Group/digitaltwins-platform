@@ -64,11 +64,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
+import { useToast } from 'vue-toastification';
 import { useRouter, useRoute } from 'vue-router';
 import { useUser } from "@/plugins/hooks/user";
 import { storeToRefs } from "pinia";
 import { useDashboardPageStore } from '@/store/states';
-import { useDashboardGetAssayDetails, useDashboardGetAssayLaunch } from "@/plugins/dashboard_api";
+import { useDashboardGetAssayConfigDetails, useDashboardGetAssayLaunch, useDashboardWorkflowDetail } from "@/plugins/dashboard_api";
 import { useDashboardProgrammesStore, useDashboardCategoryChildrenStore, useDashboardSaveAssayDetailsStore } from '@/store/dashboard_store';
 import {IDashboardCategory, IAssayDetails} from "@/models/apiTypes";
 import AssayBasicCard from '@/components/dt-components/AssayBasicCard.vue';
@@ -77,7 +78,9 @@ import DownloadSheet from '@/components/dt-components/DownloadSheet.vue';
 import SubmitSheet from '@/components/dt-components/SubmitSheet.vue';
 import { reWriteCategoryDetails } from './utils';
 import HelpIcon from '@/components/commonBar/HelpIcon.vue';
+import { getApiErrorMessage } from '@/utils/common';
 
+// for testing only, will be removed later
 const username = 'admin';
 const password = 'ctt_digitaltwins_0';
 
@@ -112,10 +115,13 @@ const {
     setBreadCrumbsItems, 
     setDetailsRenderItems,
     setAssayExecute,
-    setAllAssayDetailsOfStudy, 
+    setAssayLaunching,
+    setAllAssayDetailsOfStudy,
     setCurrentAssayDetails,
     setClinicianView
 } = useDashboardPageStore();
+
+const toast = useToast();
 
 const breadCrumbs = ["Programmes", "Projects", "Investigations", "Studies", "Assays"];
 // const isSwitchClicked = ref(false);
@@ -161,10 +167,18 @@ const handleAssayEditClicked = async (seek_id:string, name:string) => {
 }
 
 const handleAssaySave = async () => {
-    currentAssayDetails.value!.isAssayReadyToLaunch = true;
-  
-    // setAllAssayDetailsOfStudy(currentAssayDetails.value!.seekId, currentAssayDetails.value!);
-    // await saveAssayDetails(currentAssayDetails.value!);
+    try {
+        const success = await saveAssayDetails(currentAssayDetails.value!);
+        if (success) {
+            currentAssayDetails.value!.isAssayReadyToLaunch = true;
+            setAllAssayDetailsOfStudy(currentAssayDetails.value!.seekId, currentAssayDetails.value!);
+            toast.success("Assay configuration saved successfully.");
+        } else {
+            toast.error("Save failed. Please try again.");
+        }
+    } catch (e: any) {
+        toast.error(getApiErrorMessage(e, "Save"));
+    }
 }
 
 const handleAssayUploadClicked = async (assay_seek_id:string) => {
@@ -240,27 +254,40 @@ const handleAssayMonitorClicked = async (assay_seek_id:string) => {
 
 const handleAssayLaunchClicked = async (assay_seek_id:string) => {
     setCurrentAssayDetails(allAssayDetailsOfStudy.value[assay_seek_id])
-    const res = await useDashboardGetAssayLaunch(assay_seek_id);
-    if (res.type === "airflow"){
-        setAssayExecute(assay_seek_id, "Monitor", res.data);
-    }else if (res.type === "gui"){
-        // if (!!res.data){
-        //     router.push({name: "PluginRegister", query: { assayId: assay_seek_id }});
-        // }
-    }else if (res.type === "EP3 workflow launch"){
-        window.open(res.data, '_blank')
+    setAssayLaunching(assay_seek_id, true);
+    try {
+        const res = await useDashboardGetAssayLaunch(assay_seek_id);
+        if (!res) {
+            toast.warning("Launch is not available for this assay. Please check the configuration.");
+            return;
+        }
+        if (res.message) {
+            toast.info(res.message, { timeout: 6000 });
+        } else if (res.type === "airflow") {
+            setAssayExecute(assay_seek_id, "Monitor", res.data);
+            toast.success("Workflow launched successfully. Click Monitor to track progress.");
+        } else if (res.type === "gui") {
+            // if (!!res.data){
+            //     router.push({name: "PluginRegister", query: { assayId: assay_seek_id }});
+            // }
+        } else if (res.type === "EP3 workflow launch") {
+            window.open(res.data, '_blank');
+        }
+    } catch (e: any) {
+        toast.error(getApiErrorMessage(e, "Launch"));
+    } finally {
+        setAssayLaunching(assay_seek_id, false);
     }
 }
 
 const handleAssayExpandClicked = (assay_seek_id:string, name:string) => {
-    console.log(name);
-    console.log("dadaasd");
-    
+
     router.push({name: "LaunchedAssayOverview", query: { assayId: assay_seek_id }});
 }
 
 const handleExploreClicked = async (seek_id:string, name:string, category:string, des:string) => {
-    const explored = exploredCard.value.find(item => item.category === category);
+    const explored = exploredCard.value.find(item => item.category === category)
+
     if (!explored){
         setExploredCard(category, currentCategoryData.value)
     }else{
@@ -284,36 +311,41 @@ const handleExploreClicked = async (seek_id:string, name:string, category:string
     if (category == "Programmes"){
         dashboardCategoryChildren.value!.sort((a, b) => a.name.localeCompare(b.name));
     }
+
     setCurrentCategoryData(dashboardCategoryChildren.value!);
 }
 
 watch(()=>currentCategoryData.value, (newVal)=>{
+
+    if (!newVal || newVal.length === 0 || currentCategory.value !== "Assays"){
+        return
+    }
+
     if(newVal[0].category === "Assays"){
         assayExecute.value = {};
         allAssayDetailsOfStudy.value = {};
-        currentCategoryData.value.forEach( async (item) => {
-            const details = await useDashboardGetAssayDetails(item.seekId);
-            console.log("study dashboard line 296: ", details);
-            
-            setAssayExecute(item.seekId, "Launch", "");
-            if (details) {
-                setAllAssayDetailsOfStudy(item.seekId, details);
-                
-            }else{
-                setAllAssayDetailsOfStudy(item.seekId, {
-                    uuid: "",
-                    seekId: item.seekId,
-                    workflow:{
+
+        const loadSequentially = async () => {
+            for (const item of currentCategoryData.value) {
+                const details = await useDashboardGetAssayConfigDetails(item.seekId);
+                setAssayExecute(item.seekId, "Launch", "");
+                if (details) {
+                    setAllAssayDetailsOfStudy(item.seekId, details);
+                } else {
+                    // init assay details
+                    const workflowDetail = await useDashboardWorkflowDetail(item.workflow_seek_id!);
+                    workflowDetail.type = !!item.tag ? item.tag : "unknown workflow type";
+                    setAllAssayDetailsOfStudy(item.seekId, {
                         uuid: "",
-                        seekId: "",
-                        inputs: [],
-                        outputs: [],
-                    },
-                    numberOfParticipants: [],
-                    isAssayReadyToLaunch: false,
-                });
+                        seekId: item.seekId,
+                        workflow: workflowDetail,
+                        numberOfParticipants: [],
+                        isAssayReadyToLaunch: false,
+                    });
+                }
             }
-        })
+        };
+        loadSequentially();
     }
 })
 

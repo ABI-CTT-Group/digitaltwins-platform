@@ -7,21 +7,21 @@ export interface IRequests {
 }
 
 export interface IDashboardCategory {
-  uuid: string;
   seekId: string;
   name: string;
   category: string;
-  description: string;
+  description?: string;
+  workflow_seek_id?: string;
+  tag?: string;
 }
 
 export interface IDashboardWorkflow {
   uuid: string;
   seekId: string;
   name: string;
-  type: string;
-  inputs?: { category: string; name: string; }[];
-  outputs?: { category: string; name: string; }[];
-  origin?: any;
+  type?: string;
+  inputs?: IWorkflowInput[];
+  outputs?: IWorkflowOutput[];
 }
 
 interface IWorkflowInput {
@@ -47,19 +47,15 @@ export interface ISeekAssayDetails {
 export interface IAssayDetails {
   seekId: string;
   uuid: string;
-  workflow: {
-    uuid: string;
-    seekId: string;
-    inputs: IWorkflowInput[];
-    outputs: IWorkflowOutput[];
-  };
+  workflow: IDashboardWorkflow;
   numberOfParticipants: Array<number>;
   isAssayReadyToLaunch: boolean;
 }
 
 export interface IAssayLaunch {
-  type: string;
-  data: any;
+  type?: string;
+  data?: any;
+  message?: string;
 }
 
 export interface IAssayDataset {
@@ -76,4 +72,4 @@ export interface IProjectDetail{
   seekId: string;
   title: string
 }
-
+

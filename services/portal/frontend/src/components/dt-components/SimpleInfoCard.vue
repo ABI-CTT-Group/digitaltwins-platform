@@ -4,7 +4,17 @@
     class="tech-card neon-border"
     elevation="12"
     :width="width || 400"
+    :loading="isLoading"
   >
+    <template v-slot:loader="{ isActive }">
+      <v-progress-linear
+        :active="isActive"
+        color="blue-accent-2"
+        height="4"
+        indeterminate
+      ></v-progress-linear>
+    </template>
+
     <v-card-title class="text-center title font-weight-bold text-blue-lighten-2">
       {{ title }}
     </v-card-title>
@@ -23,6 +33,7 @@
         rounded="md"
         color="blue-accent-2"
         class="glow-btn mb-2"
+        :disabled="isLoading"
         @click="handleBtnClick"
       >
         Explore More
@@ -33,8 +44,10 @@
 </template>
 <script setup lang="ts">
 import { useRouter, useRoute } from 'vue-router';
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 const router = useRouter();
+
+const isLoading = ref(false);
 
 const props = defineProps<{
     herf:string,
@@ -44,11 +57,21 @@ const props = defineProps<{
     height?:number
 }>()
 
-const handleBtnClick = ()=>{
+const handleBtnClick = async ()=>{
+  isLoading.value = true;
   if(props.herf.startsWith("http")){
     window.open(props.herf, '_blank');
+    setTimeout(() => {
+      isLoading.value = false;
+    }, 800);
   }else{
-    router.push({name:props.herf})
+    try {
+      await router.push({name:props.herf});
+    } catch (e) {
+      console.error(e);
+    } finally {
+      isLoading.value = false;
+    }
   } 
 }
 

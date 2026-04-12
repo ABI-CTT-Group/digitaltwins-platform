@@ -114,15 +114,6 @@ router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
   const requiresAuth = to.meta?.requiresAuth;
   const hasToken = !!sessionStorage.getItem('access_token');
-
-  // 🔍 DEBUG: Log router guard decision
-  console.log('=== 🛡️ Router Guard ===');
-  console.log(`Navigating: ${from.path} → ${to.path} (name: ${String(to.name)})`);
-  console.log(`requiresAuth: ${requiresAuth}`);
-  console.log(`isAuthenticated(): ${isAuthenticated()}`);
-  console.log(`hasToken (sessionStorage): ${hasToken}`);
-  console.log('========================');
-
   // Update auth state in case token was updated
   authStore.updateAuthState();
 

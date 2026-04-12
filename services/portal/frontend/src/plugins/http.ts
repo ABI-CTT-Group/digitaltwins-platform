@@ -1,6 +1,6 @@
 import axios, { AxiosRequestConfig } from "axios";
 import { IRequests } from "@/models/apiTypes";
-import { getAccessToken } from "./keycloak";
+import { getAccessToken, getKeycloak } from "./keycloak";
 
 const maxRetries = 3;
 const retryDelay = 1000;
@@ -29,13 +29,7 @@ axios.defaults.baseURL = "/api";
 axios.interceptors.request.use((config: AxiosRequestConfig | any) => {
   // Get token from Keycloak (sole source of truth)
   const token = getAccessToken();
-
-  // 🔍 DEBUG: log token status for every outgoing request
-  console.log(`[HTTP Interceptor] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
-  console.log(`[HTTP Interceptor] Token present: ${!!token}`);
   if (token) {
-    console.log(`[HTTP Interceptor] Token (first 50 chars): ${token.substring(0, 50)}...`);
-    console.log(`[HTTP Interceptor] Full token:`, token);
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
   } else {
@@ -45,15 +39,71 @@ axios.interceptors.request.use((config: AxiosRequestConfig | any) => {
 });
 
 // ============== response interceptors：handle 401 ==============
+let isRefreshing = false;
+let refreshSubscribers: Array<(token: string) => void> = [];
+
+function onTokenRefreshed(token: string) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
+function addRefreshSubscriber(cb: (token: string) => void) {
+  refreshSubscribers.push(cb);
+}
+
 axios.interceptors.response.use(
   (res) => res,
   async (err) => {
     // not 401 -> reject
     if (err.response?.status !== 401) return Promise.reject(err);
 
-    // 401 → redirect to login (Keycloak token expired or invalid)
-    redirectToLogin("Token expired or invalid → redirect to login");
-    return Promise.reject(err);
+    const originalRequest = err.config;
+
+    // Prevent infinite retry loops
+    if (originalRequest._retry) {
+      redirectToLogin("Token refresh failed → redirect to login");
+      return Promise.reject(err);
+    }
+
+    // Try to refresh the token before giving up
+    if (!isRefreshing) {
+      isRefreshing = true;
+      const keycloak = getKeycloak();
+
+      try {
+        if (keycloak) {
+          await keycloak.updateToken(5);
+          const newToken = keycloak.token;
+          if (newToken) {
+            isRefreshing = false;
+            onTokenRefreshed(newToken);
+
+            // Retry original request with new token
+            originalRequest._retry = true;
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            return axios(originalRequest);
+          }
+        }
+        // No keycloak or no token after refresh
+        isRefreshing = false;
+        redirectToLogin("Token expired or invalid → redirect to login");
+        return Promise.reject(err);
+      } catch (refreshErr) {
+        isRefreshing = false;
+        refreshSubscribers = [];
+        redirectToLogin("Token refresh failed → redirect to login");
+        return Promise.reject(err);
+      }
+    }
+
+    // Another request is already refreshing — queue this one
+    return new Promise((resolve) => {
+      addRefreshSubscriber((newToken: string) => {
+        originalRequest._retry = true;
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        resolve(axios(originalRequest));
+      });
+    });
   }
 );
 

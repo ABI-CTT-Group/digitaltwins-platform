@@ -1,19 +1,9 @@
 <template>
-    <div class=" py-2 my-5 mx-5 d-flex flex-column align-start">
+    <v-form ref="formRef" class="py-2 my-5 mx-5 d-flex flex-column align-start" @submit.prevent>
         <div class="d-flex flex-row ma-2 workflow">
             <span class="assay-form-subtitle w-25 mt-4 text-deep-orange">Workflow: </span>
-            <div class="w-66">
-                <v-select
-                    v-model="assayDetails!.workflow.seekId"
-                    label="Select Workflow"
-                    :items="workflowRenderItems"
-                    item-title="name"
-                    item-value="seekId"
-                    variant="outlined"
-                    :menu-props="{ contentClass: 'my-select-menu' }"
-                    @update:model-value="handleWorkflowSelected"
-                >
-                </v-select>
+            <div class="w-66 mt-4">
+                <span class="workflow-name">{{ assayDetails!.workflow.name }}{{ assayDetails!.workflow.type ? ' - ' + assayDetails!.workflow.type : '' }}</span>
             </div>
         </div>
         <div class="d-flex flex-row ma-2 input">
@@ -29,6 +19,7 @@
                             item-title="name"
                             item-value="uuid"
                             variant="outlined"
+                            :rules="[v => !!v || 'Please select a dataset']"
                             @update:model-value="(value)=>handleDatasetSelected(value, data.input.name, data.input.category)"
                         ></v-select>
                     </div>
@@ -41,6 +32,7 @@
                             item-title="name"
                             item-value="uuid"
                             variant="outlined"
+                            :rules="[v => !!v || 'Please select a sample type']"
                             @update:model-value="handleSampleSelected(data.input.name)"
                         ></v-select>
                     </div>
@@ -57,6 +49,7 @@
                             v-model:model-value="data.datasetName"
                             label="Enter Dataset Name"
                             clearable
+                            :rules="[v => !!v?.trim() || 'Dataset name is required']"
                         ></v-text-field>
                     </div>
                     <div class="w-50 mx-1">
@@ -64,6 +57,7 @@
                             v-model:model-value="data.sampleName"
                             label="Enter Sample"
                             clearable
+                            :rules="[v => !!v?.trim() || 'Sample name is required']"
                         ></v-text-field>
                     </div>
                 </div>
@@ -75,13 +69,6 @@
                 class="my-2"
                 max-width="444"
             >
-                <!-- <v-text-field
-                class="py-3"
-                v-model:model-value="assayDetails!.numberOfParticipants"
-                :rules="[rules.required]"
-                label="Number of Participants"
-                clearable
-                ></v-text-field> -->
                 <v-text-field
                     v-model:model-value="cohortsPaticipants"
                     @update:model-value="handleCohortUpdate"
@@ -93,7 +80,7 @@
                 />
         </v-responsive>
         </div>
-    </div>
+    </v-form>
 </template>
 
 <script setup lang="ts">
@@ -102,16 +89,9 @@ import { ref, watch, onMounted, onBeforeMount } from 'vue';
 import { IWorkflowData } from '@/models/uiTypes';
 import {IAssayDetails} from '@/models/apiTypes';
 import { useDashboardGetDatasets, useDashboardSelectedDatasetSampleTypes } from '@/plugins/dashboard_api';
-import { useDashboardWorkflowsStore, useDashboardWorkflowDetailStore } from '@/store/dashboard_store';
-import { storeToRefs } from "pinia";
+
 import { capitalize } from '@/utils/common';
 
-
-interface IItem {
-    seekId: string;
-    uuid: string;
-    name: string;
-}
 
 interface IRenderWorkflowInputDatasetSamples {
     [key: string]: {
@@ -125,18 +105,13 @@ interface IRenderWorkflowInputDatasetSamples {
     }
 }
 
+const formRef = ref();
 const cohortsPaticipants = ref<string>("");
-const workflowRenderItems = ref<IItem[]>();
-// const inputRenderItems = ref<IInput[]>([]);
-// const outputRenderItems = ref<IOutput[]>([]);
 const datasetRenderItems = ref<string[]>();
-const { dashboardWorkflows } = storeToRefs(useDashboardWorkflowsStore());
-const { getDashboardWorkflows } = useDashboardWorkflowsStore();
-const { dashboardWorkflowDetail } = storeToRefs(useDashboardWorkflowDetailStore());
-const { getDashboardWorkflowDetail } = useDashboardWorkflowDetailStore();
 
 const assayDetails = defineModel<IAssayDetails>();
 const workflowInputDatasetSamples = ref<IRenderWorkflowInputDatasetSamples>({});
+
 
 const rules = {
     required: (value: number) => {
@@ -184,63 +159,26 @@ onBeforeMount(()=>{
 })
 
 onMounted(async () => {
-    await getDashboardWorkflows();
-    workflowRenderItems.value = dashboardWorkflows.value!.map(workflow => {
-        return {
-            seekId: workflow.seekId,
-            uuid: workflow.uuid,
-            name: workflow.name + " - " + workflow.type
-        }
-    });
-    console.log("assay content line 195:",workflowRenderItems.value);
-    
-    
-    if(String(assayDetails.value?.workflow.seekId)){
-        console.log(assayDetails.value);
-        
-        await getDashboardWorkflowDetail(String(assayDetails.value?.workflow.seekId));
-        dashboardWorkflowDetail.value!.inputs!.map( (input) => {
-            workflowInputDatasetSamples.value[input.name] = { category: input.category, datasetRenderItems: [], selectedDatasetSampleTypes: [] };
-        });
-        for(let key in workflowInputDatasetSamples.value) {
-            const datasets = await getDatasets(workflowInputDatasetSamples.value[key].category);
-            workflowInputDatasetSamples.value[key].datasetRenderItems = datasets.map(dataset => {
-                return { uuid: dataset.uuid, name: dataset.name, sampleTypes: [] };
-            });
-            const inputData = assayDetails.value!.workflow.inputs.find(data => {
-                if (data.input.name === key) {
-                    return data
-                }
-            });
-            if(inputData?.input.category === "measurement"){
-                workflowInputDatasetSamples.value[key].selectedDatasetSampleTypes = await useDashboardSelectedDatasetSampleTypes(inputData.datasetSelectedUUID);
-                
-            }else{
-                workflowInputDatasetSamples.value[key].selectedDatasetSampleTypes = [];
-            }
-            
-        }
+
+    if (assayDetails.value?.numberOfParticipants?.length) {
+        cohortsPaticipants.value = compressRangeList(assayDetails.value.numberOfParticipants);
+    }
+
+    const inputs = assayDetails.value?.workflow.inputs ?? [];
+    for (const inputData of inputs) {
+        const { name, category } = inputData.input;
+        const datasets = await getDatasets(category);
+        const sampleTypes = category === "measurement" && inputData.datasetSelectedUUID
+            ? await useDashboardSelectedDatasetSampleTypes(inputData.datasetSelectedUUID)
+            : [];
+        workflowInputDatasetSamples.value[name] = {
+            category,
+            datasetRenderItems: datasets.map(d => ({ uuid: d.uuid, name: d.name, sampleTypes: [] })),
+            selectedDatasetSampleTypes: sampleTypes,
+        };
     }
     
 });
-
-const handleWorkflowSelected = async (value: string) => {
-    await getDashboardWorkflowDetail(value);
-    assayDetails.value!.workflow.inputs = dashboardWorkflowDetail.value!.inputs!.map( (input) => {
-        workflowInputDatasetSamples.value[input.name] = { category: input.category, datasetRenderItems: [], selectedDatasetSampleTypes: [] };
-        return { input, datasetSelectedUUID: "", sampleSelectedType: "" };
-    });
-    for(let key in workflowInputDatasetSamples.value) {
-        const datasets = await getDatasets(workflowInputDatasetSamples.value[key].category);
-        workflowInputDatasetSamples.value[key].datasetRenderItems = datasets.map(dataset => {
-            return { uuid: dataset.uuid, name: dataset.name, sampleTypes: [] };
-        });
-    }
-    assayDetails.value!.workflow.outputs = dashboardWorkflowDetail.value!.outputs!.map(output => {
-        return { output, datasetName: "New Dataset 1", sampleName: output.name };
-    });
-};
-
 
 const handleDatasetSelected = async (value: string, inputName:string, inputCategory:string) => {
     let sampleTypes:string[] = []
@@ -317,16 +255,18 @@ const handleCohortUpdate = (value:string) => {
 };
 
 
-const findWorkflow = (workflow: string) => {
-    const workflowName = workflow.split("-")[0];
-    const workflowType = workflow.split("-")[1];
-    return dashboardWorkflows.value!.find(workflow => workflow.name === workflowName && workflow.type === workflowType);
-};
-
 const getDatasets = async (workflowCategory:string) => {
     const datasets = await useDashboardGetDatasets(workflowCategory);
     return datasets;
 };
+
+const validate = async (): Promise<boolean> => {
+    if (!formRef.value) return true;
+    const { valid } = await formRef.value.validate();
+    return valid;
+};
+
+defineExpose({ validate });
 
 </script>
 
@@ -336,6 +276,10 @@ const getDatasets = async (workflowCategory:string) => {
     background: linear-gradient(145deg, #242323, #1e1e1e);
     box-shadow:  1px 1px 5px #d3d3d3,
                 -1px -1px 5px #ededed;
+}
+.workflow-name{
+    font-size: 1rem;
+    font-weight: 500;
 }
 .assay-form-subtitle{
     font-size: 1rem;
