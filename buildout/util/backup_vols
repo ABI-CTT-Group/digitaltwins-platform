@@ -1,0 +1,20 @@
+# Back up the data volumes of importance to us
+
+#DOCKER_VOLS_DIR=/var/lib/docker/volumes
+DOCKER_VOLS_DIR=/pvol/docker/volumes
+
+for v in \
+digitaltwins-platform_seek_cache \
+digitaltwins-platform_seek_db \
+digitaltwins-platform_seek_filestore \
+digitaltwins-platform_seek_solr \
+digitaltwins-platform_minio_data \
+digitaltwins-platform_postgres_data \
+
+do
+	echo $v
+	sudo docker run --rm \
+        -v $DOCKER_VOLS_DIR/$v:/volume \
+        -v $(pwd):/backup \
+        alpine tar -cvf /backup/${v}.tar -C /volume .
+done
