@@ -354,8 +354,7 @@ async def set_dashboard_assay_details(details: assay_model.AssayDetails, client:
         "assay_uuid": details.uuid,
         "assay_seek_id": int(details.seekId),
         "workflow_seek_id": int(details.workflow.seekId),
-        # "cohort": details.numberOfParticipants,
-        "cohort": 2,
+        "cohort": [str(n) for n in details.numberOfParticipants],
         "ready": details.isAssayReadyToLaunch,
         "inputs": [
             {"name": i.get("input").get("name"),
@@ -417,8 +416,7 @@ async def get_dashboard_assay_detail_by_uuid(seek_id: str = Query(None),
                     "sampleName": o.get("sample_name", None),
                 } for o in configs.get("outputs", [])],
             },
-            # "numberOfParticipants": configs.get("cohort", None),
-            "numberOfParticipants": [configs.get("cohort", None)],
+            "numberOfParticipants": [int(n) for n in (configs.get("cohort") or []) if str(n).isdigit()],
             "isAssayReadyToLaunch": configs.get("ready", None)
         }
         return details
