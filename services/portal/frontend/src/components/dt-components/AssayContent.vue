@@ -3,7 +3,7 @@
         <div class="d-flex flex-row ma-2 workflow">
             <span class="assay-form-subtitle w-25 mt-4 text-deep-orange">Workflow: </span>
             <div class="w-66 mt-4">
-                <span class="workflow-name">{{ assayDetails!.workflow.name }}{{ assayDetails!.workflow.type ? ' - ' + assayDetails!.workflow.type : '' }}</span>
+                <span class="workflow-name">{{ workflowDisplayName }}</span>
             </div>
         </div>
         <div class="d-flex flex-row ma-2 input">
@@ -88,7 +88,7 @@
 import { ref, watch, onMounted, onBeforeMount } from 'vue';
 import { IWorkflowData } from '@/models/uiTypes';
 import {IAssayDetails} from '@/models/apiTypes';
-import { useDashboardGetDatasets, useDashboardSelectedDatasetSampleTypes } from '@/plugins/dashboard_api';
+import { useDashboardGetDatasets, useDashboardSelectedDatasetSampleTypes, useDashboardWorkflowDetail } from '@/plugins/dashboard_api';
 
 import { capitalize } from '@/utils/common';
 
@@ -108,6 +108,7 @@ interface IRenderWorkflowInputDatasetSamples {
 const formRef = ref();
 const cohortsPaticipants = ref<string>("");
 const datasetRenderItems = ref<string[]>();
+const workflowDisplayName = ref<string>("");
 
 const assayDetails = defineModel<IAssayDetails>();
 const workflowInputDatasetSamples = ref<IRenderWorkflowInputDatasetSamples>({});
@@ -162,6 +163,19 @@ onMounted(async () => {
 
     if (assayDetails.value?.numberOfParticipants?.length) {
         cohortsPaticipants.value = compressRangeList(assayDetails.value.numberOfParticipants);
+    }
+
+    if (assayDetails.value?.workflow?.seekId) {
+        const name = assayDetails.value.workflow.name;
+        const type = assayDetails.value.workflow.type;
+        if (name) {
+            workflowDisplayName.value = type ? `${name} - ${type}` : name;
+        } else {
+            const workflowDetail = await useDashboardWorkflowDetail(assayDetails.value.workflow.seekId);
+            workflowDisplayName.value = workflowDetail.type
+                ? `${workflowDetail.name} - ${workflowDetail.type}`
+                : workflowDetail.name;
+        }
     }
 
     const inputs = assayDetails.value?.workflow.inputs ?? [];

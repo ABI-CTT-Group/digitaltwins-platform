@@ -286,33 +286,35 @@ const handleAssayExpandClicked = (assay_seek_id:string, name:string) => {
 }
 
 const handleExploreClicked = async (seek_id:string, name:string, category:string, des:string) => {
-    const explored = exploredCard.value.find(item => item.category === category)
+    try {
+        const explored = exploredCard.value.find(item => item.category === category)
 
-    if (!explored){
-        setExploredCard(category, currentCategoryData.value)
-    }else{
-        explored.data = currentCategoryData.value;
+        if (!explored){
+            setExploredCard(category, currentCategoryData.value)
+        }else{
+            explored.data = currentCategoryData.value;
+        }
+
+        await getDashboardCategoryChildren(seek_id, category);
+
+        detailsRenderItems.value.categories.push({category: category, name: name, description: reWriteCategoryDetails(category)});
+        detailsRenderItems.value.description = des;
+
+        setBreadCrumbsCategory(category);
+
+        const index = breadCrumbs.findIndex(item => item === category);
+        setCurrentCategory(breadCrumbs[index+1]);
+        breadCrumbsItems.value.push({ title: currentCategory.value, disabled: false });
+
+        // temporary
+        if (category == "Programmes"){
+            dashboardCategoryChildren.value!.sort((a, b) => a.name.localeCompare(b.name));
+        }
+
+        setCurrentCategoryData(dashboardCategoryChildren.value!);
+    } catch (e: any) {
+        toast.error(getApiErrorMessage(e, "Explore"));
     }
-
-    await getDashboardCategoryChildren(seek_id, category);
-
-    detailsRenderItems.value.categories.push({category: category, name: name, description: reWriteCategoryDetails(category)});
-    detailsRenderItems.value.description = des;
-
-    setBreadCrumbsCategory(category);
-
-    const index = breadCrumbs.findIndex(item => item === category);
-    setCurrentCategory(breadCrumbs[index+1]);
-    breadCrumbsItems.value.push({ title: currentCategory.value, disabled: false });
-    
-    
-    
-    // temporary
-    if (category == "Programmes"){
-        dashboardCategoryChildren.value!.sort((a, b) => a.name.localeCompare(b.name));
-    }
-
-    setCurrentCategoryData(dashboardCategoryChildren.value!);
 }
 
 watch(()=>currentCategoryData.value, (newVal)=>{
