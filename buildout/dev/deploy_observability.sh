@@ -41,12 +41,13 @@ log "Observability source directory: $OBSERVABILITY_DIR"
 # ==============================================================================
 # 2. Install python3-pip and Python kubernetes client
 # ==============================================================================
-log "Installing python3-pip..."
+log "Installing python3-pip and python3-yaml via apt..."
 sudo apt-get update -qq
-sudo apt-get install -y python3-pip
+sudo apt-get install -y python3-pip python3-yaml
 
-log "Installing Python kubernetes + pyyaml..."
-sudo pip3 install kubernetes pyyaml
+log "Installing Python kubernetes client..."
+# --break-system-packages is required on Python 3.12+ (PEP 668) for system-wide installs
+sudo pip3 install --break-system-packages kubernetes
 
 # ==============================================================================
 # 3. Install Docker
@@ -77,12 +78,24 @@ $(lsb_release -cs) stable" \
 
   sudo systemctl enable docker
   sudo systemctl start  docker
-
-  log "Adding ${CURRENT_USER} to docker group..."
-  sudo usermod -aG docker "${CURRENT_USER}"
-  warn "Docker group membership takes effect on next login / use 'newgrp docker'"
 else
   log "Docker already installed, skipping."
+fi
+
+# Always ensure current user is in the docker group (idempotent).
+# Then activate the new group membership for this shell session immediately
+# so subsequent docker commands in this script don't require re-login.
+log "Ensuring ${CURRENT_USER} is in the docker group..."
+sudo usermod -aG docker "${CURRENT_USER}"
+if ! id -nG "${CURRENT_USER}" | grep -qw docker; then
+  warn "Could not verify docker group membership for ${CURRENT_USER}"
+fi
+# Re-exec this script under the docker group so the rest of the session
+# inherits the membership — only triggers on the first run (no DOCKER_GROUP_ACTIVE set).
+if [[ -z "${DOCKER_GROUP_ACTIVE:-}" ]]; then
+  log "Activating docker group for current session (re-exec via sg)..."
+  export DOCKER_GROUP_ACTIVE=1
+  exec sg docker -c "bash \"$0\" $(printf '%q ' "$@")"
 fi
 
 # ==============================================================================
@@ -118,6 +131,27 @@ fi
 log "Ensuring k3s service is running..."
 sudo systemctl enable k3s 2>/dev/null || true
 sudo systemctl start  k3s 2>/dev/null || true
+
+# k3s.yaml is root:root 600 by default.
+# Wait for k3s to write it (it may take a few seconds after systemctl start).
+log "Waiting for /etc/rancher/k3s/k3s.yaml to appear..."
+for i in $(seq 1 30); do
+  sudo test -f /etc/rancher/k3s/k3s.yaml && break
+  sleep 2
+done
+if ! sudo test -f /etc/rancher/k3s/k3s.yaml; then
+  err "k3s.yaml never appeared — k3s may not have started correctly. Aborting."
+  exit 1
+fi
+# Make it group-readable so kubectl/helm can fall back to it even without a copy.
+sudo chmod 644 /etc/rancher/k3s/k3s.yaml
+# Also copy to ~/.kube/config as the canonical location for this user.
+log "Setting up kubeconfig for ${CURRENT_USER}..."
+mkdir -p "${HOME}/.kube"
+sudo cp /etc/rancher/k3s/k3s.yaml "${HOME}/.kube/config"
+sudo chown "${CURRENT_USER}:${CURRENT_USER}" "${HOME}/.kube/config"
+chmod 600 "${HOME}/.kube/config"
+export KUBECONFIG="${HOME}/.kube/config"
 
 # ==============================================================================
 # 5. Install k9s
@@ -190,10 +224,13 @@ done
 # 9. Set KUBECONFIG in ~/.bashrc
 # ==============================================================================
 log "Setting KUBECONFIG in ~/.bashrc..."
-if ! grep -q 'export KUBECONFIG=/etc/rancher/k3s/k3s.yaml' ~/.bashrc 2>/dev/null; then
-  echo 'export KUBECONFIG=/etc/rancher/k3s/k3s.yaml' | sudo tee -a ~/.bashrc > /dev/null
+if grep -q 'export KUBECONFIG=' ~/.bashrc 2>/dev/null; then
+  sed -i 's|^export KUBECONFIG=.*|export KUBECONFIG=~/.kube/config|' ~/.bashrc
+else
+  echo 'export KUBECONFIG=~/.kube/config' >> ~/.bashrc
 fi
-export KUBECONFIG="$KUBECONFIG_PATH"
+# KUBECONFIG already exported after k3s setup above; no-op but kept for clarity
+export KUBECONFIG="${HOME}/.kube/config"
 
 # ==============================================================================
 # 10. Add Grafana helm repo and update
@@ -259,15 +296,22 @@ fi
 # ==============================================================================
 log "Checking for alloy..."
 if [[ ! -f /usr/local/bin/alloy ]]; then
+  log "Installing unzip (required to extract alloy)..."
+  sudo apt-get install -y unzip
+
   log "Downloading and installing alloy..."
+  ALLOY_TMP=$(mktemp -d)
   if curl -fsSL \
     "https://github.com/grafana/alloy/releases/latest/download/alloy-linux-amd64.zip" \
-    | funzip > /tmp/alloy; then
-    sudo mv /tmp/alloy /usr/local/bin/alloy
-    sudo chmod +x /usr/local/bin/alloy
+    -o "${ALLOY_TMP}/alloy.zip"; then
+    unzip -j "${ALLOY_TMP}/alloy.zip" -d "${ALLOY_TMP}/"
+    # The binary inside the zip may be named 'alloy' or 'alloy-linux-amd64'
+    ALLOY_BIN=$(find "${ALLOY_TMP}" -maxdepth 1 -type f -not -name "*.zip" | head -1)
+    sudo install -m 0755 "${ALLOY_BIN}" /usr/local/bin/alloy
   else
-    warn "Alloy download/install failed"
+    warn "Alloy download failed"
   fi
+  sudo rm -rf "${ALLOY_TMP}"
 fi
 
 log "Creating alloy system user..."
@@ -339,14 +383,8 @@ sudo systemctl daemon-reload
 sudo systemctl enable k3s-port-forward 2>/dev/null || true
 
 # ==============================================================================
-# 16. Setup ~/.kube/config for current user
+# 16. Persist KUBECONFIG in shell config files
 # ==============================================================================
-log "Setting up kubeconfig for user ${CURRENT_USER}..."
-mkdir -p "/home/${CURRENT_USER}/.kube"
-sudo cp "$KUBECONFIG_PATH" "/home/${CURRENT_USER}/.kube/config"
-sudo chown "${CURRENT_USER}:${CURRENT_USER}" "/home/${CURRENT_USER}/.kube/config"
-sudo chmod 0600 "/home/${CURRENT_USER}/.kube/config"
-
 log "Setting KUBECONFIG in .bash_aliases..."
 BASH_ALIASES="./.bash_aliases"
 if grep -q '^export KUBECONFIG=' "$BASH_ALIASES" 2>/dev/null; then
@@ -375,11 +413,17 @@ kubectl rollout restart deployment traefik -n kube-system || warn "Traefik resta
 # ==============================================================================
 # 18. Docker Compose down / up
 # ==============================================================================
-log "Running docker compose down in ./digitaltwins-platform..."
-(cd ./digitaltwins-platform && docker compose down) || warn "docker compose down failed"
+# docker-compose.yml lives at the repo root (two levels above buildout/dev/).
+COMPOSE_DIR="$(realpath "${SCRIPT_DIR}/../..")"
+if [[ ! -f "${COMPOSE_DIR}/docker-compose.yml" ]]; then
+  warn "docker-compose.yml not found at ${COMPOSE_DIR} — skipping docker compose steps"
+else
+  log "Running docker compose down in ${COMPOSE_DIR}..."
+  sg docker -c "cd '${COMPOSE_DIR}' && docker compose down" || warn "docker compose down failed"
 
-log "Running docker compose up -d in ./digitaltwins-platform..."
-(cd ./digitaltwins-platform && docker compose up -d) || warn "docker compose up failed"
+  log "Running docker compose up -d in ${COMPOSE_DIR}..."
+  sg docker -c "cd '${COMPOSE_DIR}' && docker compose up -d" || warn "docker compose up failed"
+fi
 
 # ==============================================================================
 # 19. Cleanup temporary files
@@ -408,3 +452,8 @@ echo "   Metrics-server -> localhost:8443"
 echo " Use 'k9s' to manage your cluster"
 echo " Review /var/log/*-port-forward.log for port-forward status"
 echo "=========================================="
+echo ""
+echo " ACTION REQUIRED — to use docker without sudo in new terminals:"
+echo "   newgrp docker        (activates group in current shell)"
+echo "   — or — log out and back in"
+echo ""
