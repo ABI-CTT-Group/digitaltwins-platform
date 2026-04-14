@@ -1,24 +1,38 @@
 terraform {
+
+  # As yet unable to get this to work with Nectar. Sean is investigating.
+
   backend "s3" {
-    bucket  = "terraform-states-carvin"
-    key     = "drai_cc/dev/terraform.tfstate"
-
+    bucket  = "terraform-states-carvin"             # Your object store bucket/container
+    key     = "digitaltwins/dev/terraform.tfstate"    # Path within the bucket for the state file
     endpoints = {
-      s3  = "https://object.akl-1.cloud.nesi.org.nz"
-      sts = "https://object.akl-1.cloud.nesi.org.nz"
-      iam = "https://object.akl-1.cloud.nesi.org.nz"
-    }
-    region = "akl-1"
+      s3  = "https://swift.rc.nectar.org.au/"
+      sts  = "https://swift.rc.nectar.org.au/"
+      iam  = "https://swift.rc.nectar.org.au/"
+    } # Your object store API endpoint
+    region   = "us-east-1"
 
-    use_path_style              = true
+    
+    # S3-compatible settings
     skip_credentials_validation = true
-    skip_region_validation      = true
     skip_metadata_api_check     = true
-    skip_requesting_account_id  = true
-    skip_s3_checksum            = true
+    #force_path_style            = true
+    skip_region_validation      = true
+    #use_legacy_workflow         = true  # Try this for older OpenStack versions
+    sse_customer_key            = null  # Explicitly set to null
 
-    # Credentials via environment variables (set before running terraform):
-    #   export AWS_ACCESS_KEY_ID=<your-access-key>
-    #   export AWS_SECRET_ACCESS_KEY=<your-secret-key>
+    # Optional settings for some backends:
+    use_path_style = true    # needed for many S3-compatible stores
+    skip_requesting_account_id = true
+    skip_s3_checksum = true
+
+    # Optional if you do not want Terraform to validate credentials or region:
+
+    # S3 Access credentials (avoid hard-coding; better to use env vars)
+    # Set and export these in the calling environment:
+    #    export AWS_ACCESS_KEY_ID=$(gsecret get terraform_states_s3_key)
+    #    export AWS_SECRET_ACCESS_KEY=$(gsecret get terraform_states_s3_secret)
+    #access_key = "xxxxxx"
+    #secret_key = "xxxxxx"
   }
 }
