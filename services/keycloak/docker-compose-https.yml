@@ -1,12 +1,8 @@
-# create https-key-store-file, Run:
-# keytool -genkeypair \
-#  -alias keycloak \
-#  -keyalg RSA \
-#  -keystore server.jks \
-#  -storepass change_me \
-#  -keypass change_me \
-#  -validity 365 \
-#  -dname "CN=localhost, OU=Dev, O=MyCompany, L=City, ST=State, C=NZ"
+# Generate a self-signed X.509 cert (run once before first deploy):
+# openssl req -x509 -newkey rsa:2048 -days 3650 -nodes \
+#   -keyout services/keycloak/tls.key \
+#   -out    services/keycloak/tls.crt \
+#   -subj "/CN=localhost/OU=Dev/O=DigitalTWINS/L=Auckland/ST=Auckland/C=NZ"
 
 services:
   keycloak:
@@ -15,8 +11,8 @@ services:
       - start
       - --hostname-strict=false
       - --http-enabled=true
-      - --https-key-store-file=/opt/keycloak/conf/server.jks
-      - --https-key-store-password=${KC_HTTPS_KEY_STORE_PASSWORD}
+      - --https-certificate-file=/opt/keycloak/conf/tls.crt
+      - --https-certificate-key-file=/opt/keycloak/conf/tls.key
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}
@@ -24,7 +20,8 @@ services:
       - "8009:8443"
     volumes:
       - keycloak_data:/opt/keycloak/data
-      - ./server.jks:/opt/keycloak/conf/server.jks
+      - ./tls.crt:/opt/keycloak/conf/tls.crt:ro
+      - ./tls.key:/opt/keycloak/conf/tls.key:ro
       - ./digitaltwins-login-theme:/opt/keycloak/themes/digitaltwins-login-theme:ro
 
     restart: unless-stopped

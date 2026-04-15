@@ -39,7 +39,6 @@ check_env() {
 }
 
 check_env SEEK_ADMIN_PASSWORD
-check_env KC_HTTPS_KEY_STORE_PASSWORD
 check_env KC_CLIENT_SECRET
 check_env KC_BOOTSTRAP_ADMIN_PASSWORD
 
@@ -93,6 +92,15 @@ fi
 echo "==> Updating submodules..."
 git -C "$PLATFORM_DIR" submodule update --remote --recursive
 
+echo "==> Configuring configs.ini of api...."
+API_CONFIGS="$PLATFORM_DIR/services/api/digitaltwins-api/configs.ini"
+if [[ ! -f "$API_CONFIGS" ]]; then
+    if [[ -d "$API_CONFIGS" ]]; then
+        rm -rf "$API_CONFIGS"
+    fi
+    cp "${API_CONFIGS}.template" "$API_CONFIGS"
+fi
+
 ###############################################################################
 # 5. Write Docker daemon DNS config and restart
 ###############################################################################
@@ -112,6 +120,7 @@ if [[ ! -f "$PLATFORM_DIR/.env" ]]; then
     cp "$PLATFORM_DIR/.env.template" "$PLATFORM_DIR/.env"
 fi
 
+
 # Update PORTAL_BACKEND_HOST_IP with the current public IP
 MYIP=$(curl -s ifconfig.me)
 sed -i "s/PORTAL_BACKEND_HOST_IP=.*/PORTAL_BACKEND_HOST_IP=$MYIP/g" "$PLATFORM_DIR/.env"
@@ -124,8 +133,10 @@ sed -i "s/AIRFLOW_UID=.*/AIRFLOW_UID=$MYUID/g" "$PLATFORM_DIR/.env"
 # 7. Set up API configs.ini
 ###############################################################################
 echo "==> Configuring API configs.ini..."
-API_CONFIGS="$PLATFORM_DIR/services/api/digitaltwins-api/configs.ini"
 if [[ ! -f "$API_CONFIGS" ]]; then
+    if [[ -d "$API_CONFIGS" ]]; then
+        rm -rf "$API_CONFIGS"
+    fi
     cp "${API_CONFIGS}.template" "$API_CONFIGS"
 fi
 
@@ -219,8 +230,17 @@ echo "==> Deploying Keycloak production config..."
 cp "$BUILDOUT_DIR/keycloak-docker-compose.yml" \
    "$PLATFORM_DIR/services/keycloak/docker-compose.yml"
 
-cp "$BUILDOUT_DIR/server.jks" \
-   "$PLATFORM_DIR/services/keycloak/server.jks"
+KC_TLS_DIR="$PLATFORM_DIR/services/keycloak"
+if [[ ! -f "${KC_TLS_DIR}/tls.crt" || ! -f "${KC_TLS_DIR}/tls.key" ]]; then
+    echo "==> Generating self-signed X.509 certificate for Keycloak..."
+    openssl req -x509 -newkey rsa:2048 -days 3650 -nodes \
+        -keyout "${KC_TLS_DIR}/tls.key" \
+        -out    "${KC_TLS_DIR}/tls.crt" \
+        -subj "/CN=localhost/OU=Dev/O=DigitalTWINS/L=Auckland/ST=Auckland/C=NZ"
+    chmod 600 "${KC_TLS_DIR}/tls.key"
+else
+    echo "==> Keycloak TLS certificate already exists — skipping generation."
+fi
 
 cp "$BUILDOUT_DIR/../data/digitaltwins-realm.json" \
    "$PLATFORM_DIR/services/keycloak/import/digitaltwins-realm.json"

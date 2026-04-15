@@ -5,6 +5,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+#secret files
+*.tls
+*.crt
+*.pem
+*.rsa
+*.ini
+
 # C extensions
 *.so
 
