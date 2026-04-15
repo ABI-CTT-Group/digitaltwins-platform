@@ -33,6 +33,11 @@ grafana.ini:
 persistence:
   enabled: true
 
+# SQLite (Grafana's default DB) only supports one writer at a time.
+# Recreate ensures the old pod releases the file lock before the new one starts.
+deploymentStrategy:
+  type: Recreate
+
 initChownData:
   enabled: false
 
