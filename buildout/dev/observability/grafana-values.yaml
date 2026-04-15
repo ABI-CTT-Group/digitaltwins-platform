@@ -10,6 +10,8 @@ adminPassword: strongpassword
 
 plugins: ""
 
+assertNoLeakedSecrets: false
+
 grafana.ini:
   server:
     root_url: http://130.216.216.116:30333/

@@ -3,11 +3,11 @@
 
 data "openstack_networking_network_v2"  "auckland_public"    { name = "auckland-public" }
 
-data "openstack_images_image_v2"        "portal_image"       { name = "NeCTAR Ubuntu 22.04 LTS (Jammy) amd64 (with Docker)" }
+data "openstack_images_image_v2"        "portal_image"       { name = "NeCTAR Ubuntu 24.04 LTS (Noble) amd64" }
 
 data "openstack_compute_flavor_v2"      "m3_xlarge"          { name = "m3.xlarge" }
 
-data "openstack_compute_keypair_v2"     "drai_inn_keypair"   { name = "drai-inn-keypair" }
+data "openstack_compute_keypair_v2"     "drai_inn_keypair"   { name = "drai-inn-cc-keypair" }
 
 data "openstack_networking_secgroup_v2" "digital_twins"      { name = "DigitalTWINS platform" }
 

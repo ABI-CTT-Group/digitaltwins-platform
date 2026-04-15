@@ -26,8 +26,9 @@ resource "openstack_compute_instance_v2" "cc" {
 
 # The Volume
 resource "openstack_blockstorage_volume_v3" "data_backup" {
-  name = "data-backup"
-  size = 100
+  name              = "data-backup"
+  size              = 100
+  availability_zone = "auckland"
 }
 
 # ssh_restricted security group on the port
