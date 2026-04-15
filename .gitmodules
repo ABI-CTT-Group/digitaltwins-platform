@@ -1,7 +1,6 @@
 [submodule "services/portal/DigitalTWINS-Portal"]
 	path = services/portal/DigitalTWINS-Portal
 	url = https://github.com/ABI-CTT-Group/DigitalTWINS-Portal.git
-	branch = main
 [submodule "services/api/digitaltwins-api"]
 	path = services/api/digitaltwins-api
 	url = https://github.com/ABI-CTT-Group/digitaltwins-api.git
