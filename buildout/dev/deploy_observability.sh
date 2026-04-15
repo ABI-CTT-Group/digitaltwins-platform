@@ -153,6 +153,11 @@ sudo chown "${CURRENT_USER}:${CURRENT_USER}" "${HOME}/.kube/config"
 chmod 600 "${HOME}/.kube/config"
 export KUBECONFIG="${HOME}/.kube/config"
 
+# Now that k3s is running the CNI interfaces (flannel.1, cni0) exist — reload
+# firewalld so the --add-interface rules applied earlier actually take effect.
+log "Reloading firewalld now that k3s CNI interfaces are up..."
+sudo systemctl reload firewalld 2>/dev/null || true
+
 # ==============================================================================
 # 5. Install k9s
 # ==============================================================================
@@ -189,15 +194,26 @@ fi
 # ==============================================================================
 # 7. Configure firewalld for k3s
 # ==============================================================================
-log "Configuring firewalld for k3s..."
+log "Configuring firewalld for k3s (permanent rules — reload happens after k3s starts CNI interfaces)..."
 for cidr in 10.42.0.0/16 10.43.0.0/16; do
   sudo firewall-cmd --zone=trusted --add-source="$cidr" --permanent 2>/dev/null || true
 done
+# Note: cni0 / flannel.1 are created by k3s AFTER it starts, so --add-interface here
+# only takes effect on the next reload (done below, after k3s is running).
 for iface in cni0 flannel.1; do
   sudo firewall-cmd --zone=trusted --add-interface="$iface" --permanent 2>/dev/null || true
 done
 sudo firewall-cmd --add-masquerade --permanent 2>/dev/null || true
-sudo systemctl reload firewalld 2>/dev/null || true
+# Allow forwarding through the flannel overlay (needed for pod-to-pod traffic)
+sudo firewall-cmd --permanent --direct \
+  --add-rule ipv4 filter FORWARD 0 -i flannel.1 -j ACCEPT 2>/dev/null || true
+sudo firewall-cmd --permanent --direct \
+  --add-rule ipv4 filter FORWARD 0 -o flannel.1 -j ACCEPT 2>/dev/null || true
+# Ensure IP forwarding is enabled at the kernel level
+sudo sysctl -w net.ipv4.ip_forward=1 2>/dev/null || true
+echo "net.ipv4.ip_forward = 1" | sudo tee /etc/sysctl.d/99-ip-forward.conf > /dev/null
+# Do NOT reload firewalld yet — CNI interfaces don't exist until k3s starts.
+# The reload is done below, after k3s is confirmed running.
 
 # ==============================================================================
 # 8. Copy observability files to /tmp/observability
@@ -354,9 +370,9 @@ export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 pkill -f "kubectl.*port-forward" || true
 
 # Start port forwarding
-nohup kubectl -n loki        port-forward svc/loki-gateway    3100:80   > /tmp/loki-port-forward.log    2>&1 &
-nohup kubectl -n mimir       port-forward svc/mimir-gateway   9005:8080 > /tmp/mimir-port-forward.log   2>&1 &
-nohup kubectl -n kube-system port-forward svc/metrics-server  8443:443  > /tmp/metrics-port-forward.log 2>&1 &
+nohup sudo kubectl -n loki        port-forward svc/loki-gateway    3100:80   > /tmp/loki-port-forward.log    2>&1 &
+nohup sudo kubectl -n mimir       port-forward svc/mimir-gateway   9005:8080 > /tmp/mimir-port-forward.log   2>&1 &
+nohup sudo kubectl -n kube-system port-forward svc/metrics-server  8443:443  > /tmp/metrics-port-forward.log 2>&1 &
 PFEOF
 sudo chmod 0755 /usr/local/bin/k3s-port-forward.sh
 
