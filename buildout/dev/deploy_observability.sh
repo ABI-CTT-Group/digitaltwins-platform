@@ -394,6 +394,27 @@ extraSecretMounts:
     defaultMode: 0440
     mountPath: /etc/ssl/grafana
     readOnly: true
+
+# Kubelet health probes must use HTTPS once Grafana is TLS-only.
+# Without scheme: HTTPS the probes send plain HTTP, fail the TLS handshake,
+# and Kubernetes terminates the pod in a crash loop.
+livenessProbe:
+  httpGet:
+    path: /api/health
+    port: 3000
+    scheme: HTTPS
+  initialDelaySeconds: 60
+  timeoutSeconds: 30
+  failureThreshold: 10
+
+readinessProbe:
+  httpGet:
+    path: /api/health
+    port: 3000
+    scheme: HTTPS
+  initialDelaySeconds: 10
+  timeoutSeconds: 10
+  failureThreshold: 5
 EOF
   log "TLS overlay values written to ${GRAFANA_TLS_VALUES}"
 fi
