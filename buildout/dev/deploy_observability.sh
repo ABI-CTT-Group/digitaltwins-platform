@@ -41,6 +41,10 @@ if [[ -z "${GRAFANA_ADMIN_PASSWORD:-}" ]]; then
   err "FATAL: The required environment variable GRAFANA_ADMIN_PASSWORD must be set."
   exit 1
 fi
+if [[ -z "${KC_HTTPS_KEY_STORE_PASSWORD:-}" ]]; then
+  err "FATAL: The required environment variable KC_HTTPS_KEY_STORE_PASSWORD must be set."
+  exit 1
+fi
 
 log "Current remote work directory: $(pwd)"
 log "Observability source directory: $OBSERVABILITY_DIR"
@@ -603,10 +607,71 @@ log "Restarting Traefik deployment..."
 kubectl rollout restart deployment traefik -n kube-system || warn "Traefik restart failed"
 
 # ==============================================================================
-# 18. Docker Compose down / up
+# 18. Pre-flight: platform prerequisites before Docker Compose
 # ==============================================================================
 # docker-compose.yml lives at the repo root (two levels above buildout/dev/).
 COMPOSE_DIR="$(realpath "${SCRIPT_DIR}/../..")"
+
+# --- Initialise git submodules (e.g. services/seek/ldh-deployment) ----------
+log "Initialising git submodules in ${COMPOSE_DIR}..."
+git -C "${COMPOSE_DIR}" submodule update --init --recursive \
+  || warn "git submodule update failed — submodule content may be missing"
+
+# --- Fix SEEK ldh-deployment: replace \${PWD}/ with ./ in volume paths ------
+SEEK_COMPOSE="${COMPOSE_DIR}/services/seek/ldh-deployment/docker-compose.yml"
+if [[ -f "${SEEK_COMPOSE}" ]]; then
+  log "Patching SEEK docker-compose.yml: replacing \${PWD}/ with ./..."
+  sed -i 's/\${PWD}\//.\//g' "${SEEK_COMPOSE}"
+fi
+
+# --- Remove directories Docker auto-created for missing file bind-mounts -----
+# (Docker silently creates a directory when a bind-mount source file is absent.
+#  The container then fails to start because it can't mount a dir over a file.)
+for ghost_dir in \
+    "${COMPOSE_DIR}/services/seek/ldh-deployment/nginx.conf.http" \
+    "${COMPOSE_DIR}/services/seek/ldh-deployment/nginx.conf.https" \
+    "${COMPOSE_DIR}/services/keycloak/server.jks" \
+    "${SCRIPT_DIR}/nginx.conf.http" \
+    "${SCRIPT_DIR}/nginx.conf.https"; do
+  if [[ -d "${ghost_dir}" ]]; then
+    log "Removing ghost directory: ${ghost_dir}"
+    sudo rm -rf "${ghost_dir}"
+  fi
+done
+
+# --- Generate Keycloak TLS keystore (server.jks) if missing ------------------
+KC_JKS="${COMPOSE_DIR}/services/keycloak/server.jks"
+if [[ ! -f "${KC_JKS}" ]]; then
+  log "Generating Keycloak TLS keystore at ${KC_JKS}..."
+  sudo apt-get install -y --no-install-recommends default-jre-headless -qq
+  keytool -genkeypair \
+    -alias keycloak \
+    -keyalg RSA \
+    -keysize 2048 \
+    -keystore "${KC_JKS}" \
+    -storepass "${KC_HTTPS_KEY_STORE_PASSWORD}" \
+    -keypass  "${KC_HTTPS_KEY_STORE_PASSWORD}" \
+    -validity 3650 \
+    -dname "CN=localhost, OU=Dev, O=DigitalTWINS, L=Auckland, ST=Auckland, C=NZ" \
+    -noprompt
+  log "Keycloak keystore generated."
+else
+  log "Keycloak keystore already exists — skipping generation."
+fi
+
+# --- Ensure KC_HTTPS_KEY_STORE_PASSWORD is written to .env ------------------
+ENV_FILE="${COMPOSE_DIR}/.env"
+if [[ -f "${ENV_FILE}" ]]; then
+  if grep -q '^#*KC_HTTPS_KEY_STORE_PASSWORD=' "${ENV_FILE}"; then
+    sed -i "s|^#*KC_HTTPS_KEY_STORE_PASSWORD=.*|KC_HTTPS_KEY_STORE_PASSWORD=${KC_HTTPS_KEY_STORE_PASSWORD}|" "${ENV_FILE}"
+  else
+    echo "KC_HTTPS_KEY_STORE_PASSWORD=${KC_HTTPS_KEY_STORE_PASSWORD}" >> "${ENV_FILE}"
+  fi
+fi
+
+# ==============================================================================
+# 19. Docker Compose down / up
+# ==============================================================================
 if [[ ! -f "${COMPOSE_DIR}/docker-compose.yml" ]]; then
   warn "docker-compose.yml not found at ${COMPOSE_DIR} — skipping docker compose steps"
   DOCKER_COMPOSE_STATUS="SKIPPED (no docker-compose.yml at ${COMPOSE_DIR})"
@@ -625,7 +690,7 @@ else
 fi
 
 # ==============================================================================
-# 19. Cleanup temporary files
+# 20. Cleanup temporary files
 # ==============================================================================
 log "Cleaning up temporary files..."
 rm -f /tmp/k3s-install.sh /tmp/get-helm-3.sh 2>/dev/null || true
