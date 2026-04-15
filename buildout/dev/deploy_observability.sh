@@ -252,10 +252,6 @@ for iface in cni0 flannel.1; do
   sudo firewall-cmd --zone=trusted --add-interface="$iface" --permanent 2>/dev/null || true
 done
 
-log "Configuring firewalld — Docker bridge (trusted zone)..."
-# ---- Trust Docker bridge so containers can reach the host and each other -----
-sudo firewall-cmd --zone=trusted --add-interface=docker0 --permanent 2>/dev/null || true
-
 log "Configuring firewalld — masquerade + FORWARD chain..."
 # ---- Masquerade (NAT for pods/containers leaving the host) -------------------
 sudo firewall-cmd --zone=public  --add-masquerade --permanent 2>/dev/null || true
