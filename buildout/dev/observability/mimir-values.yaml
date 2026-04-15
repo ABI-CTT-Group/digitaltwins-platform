@@ -11,7 +11,6 @@ mimir:
     ingester:
       push_grpc_method_enabled: true
       ring:
-        replication_factor: 1
         zone_awareness_enabled: false
 
     distributor:
@@ -20,7 +19,6 @@ mimir:
 
     store_gateway:
       sharding_ring:
-        replication_factor: 1
         zone_awareness_enabled: false
 
     blocks_storage:
