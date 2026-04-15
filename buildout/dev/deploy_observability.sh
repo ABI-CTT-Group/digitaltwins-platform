@@ -354,9 +354,9 @@ export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 pkill -f "kubectl.*port-forward" || true
 
 # Start port forwarding
-nohup kubectl -n loki        port-forward svc/loki-gateway    3100:80   > /var/log/loki-port-forward.log    2>&1 &
-nohup kubectl -n mimir       port-forward svc/mimir-gateway   9005:8080 > /var/log/mimir-port-forward.log   2>&1 &
-nohup kubectl -n kube-system port-forward svc/metrics-server  8443:443  > /var/log/metrics-port-forward.log 2>&1 &
+nohup kubectl -n loki        port-forward svc/loki-gateway    3100:80   > /tmp/loki-port-forward.log    2>&1 &
+nohup kubectl -n mimir       port-forward svc/mimir-gateway   9005:8080 > /tmp/mimir-port-forward.log   2>&1 &
+nohup kubectl -n kube-system port-forward svc/metrics-server  8443:443  > /tmp/metrics-port-forward.log 2>&1 &
 PFEOF
 sudo chmod 0755 /usr/local/bin/k3s-port-forward.sh
 
@@ -419,10 +419,10 @@ if [[ ! -f "${COMPOSE_DIR}/docker-compose.yml" ]]; then
   warn "docker-compose.yml not found at ${COMPOSE_DIR} — skipping docker compose steps"
 else
   log "Running docker compose down in ${COMPOSE_DIR}..."
-  sg docker -c "cd '${COMPOSE_DIR}' && docker compose down" || warn "docker compose down failed"
+  sg docker -c "cd '${COMPOSE_DIR}' && docker compose down" || warn "docker compose down failed (non-fatal)"
 
   log "Running docker compose up -d in ${COMPOSE_DIR}..."
-  sg docker -c "cd '${COMPOSE_DIR}' && docker compose up -d" || warn "docker compose up failed"
+  sg docker -c "cd '${COMPOSE_DIR}' && docker compose up -d" || warn "docker compose up failed (non-fatal — services may not be present on this host)"
 fi
 
 # ==============================================================================
@@ -450,7 +450,7 @@ echo "   Loki           -> localhost:3100"
 echo "   Mimir          -> localhost:9005"
 echo "   Metrics-server -> localhost:8443"
 echo " Use 'k9s' to manage your cluster"
-echo " Review /var/log/*-port-forward.log for port-forward status"
+echo " Review /tmp/*-port-forward.log for port-forward status"
 echo "=========================================="
 echo ""
 echo " ACTION REQUIRED — to use docker without sudo in new terminals:"
