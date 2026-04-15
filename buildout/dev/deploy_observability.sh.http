@@ -22,16 +22,10 @@ err()  { echo -e "${RED}[ERROR]${NC} $*"; }
 # --- Status tracking (mirrors ansible summary report) -------------------------
 K3S_STATUS="SKIPPED"
 GRAFANA_STATUS="FAILED/SKIPPED"
-GRAFANA_TLS_STATUS="FAILED/SKIPPED"
 LOKI_STATUS="FAILED/SKIPPED"
 MIMIR_STATUS="FAILED/SKIPPED"
 ALLOY_STATUS="FAILED/SKIPPED"
 DOCKER_COMPOSE_STATUS="SKIPPED"
-
-# --- Resolve public IP once at startup ----------------------------------------
-# Used for TLS cert SANs, Grafana root_url, and the summary report.
-HOST_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
-log "Detected host IP: ${HOST_IP}"
 
 # ==============================================================================
 # 1. Verify required environment variables
@@ -342,82 +336,17 @@ helm repo update || true
 log "Creating grafana namespace..."
 kubectl create namespace grafana --dry-run=client -o yaml | kubectl apply -f - || true
 
-# --- 11a. Generate self-signed TLS certificate for Grafana --------------------
-log "Generating self-signed TLS certificate for Grafana (valid 10 years)..."
-GRAFANA_TLS_DIR="/tmp/grafana-tls"
-mkdir -p "${GRAFANA_TLS_DIR}"
-
-openssl req -x509 -nodes -days 3650 \
-  -newkey rsa:2048 \
-  -keyout "${GRAFANA_TLS_DIR}/tls.key" \
-  -out    "${GRAFANA_TLS_DIR}/tls.crt" \
-  -subj   "/CN=${HOST_IP}/O=DigitalTwins/OU=Observability" \
-  -addext "subjectAltName=IP:${HOST_IP},DNS:localhost" \
-  2>/dev/null
-
-if [[ -f "${GRAFANA_TLS_DIR}/tls.crt" ]]; then
-  GRAFANA_TLS_STATUS="SUCCESS"
-  log "Certificate generated: ${GRAFANA_TLS_DIR}/tls.crt"
-  log "  CN=${HOST_IP}  SAN=IP:${HOST_IP},DNS:localhost  validity=3650 days"
-else
-  GRAFANA_TLS_STATUS="FAILED"
-  warn "TLS certificate generation failed — Grafana will fall back to HTTP"
-fi
-
-# --- 11b. Create (or replace) the TLS secret in the grafana namespace ---------
-if [[ "${GRAFANA_TLS_STATUS}" == "SUCCESS" ]]; then
-  log "Creating Kubernetes TLS secret 'grafana-tls' in namespace grafana..."
-  kubectl create secret tls grafana-tls \
-    --cert="${GRAFANA_TLS_DIR}/tls.crt" \
-    --key="${GRAFANA_TLS_DIR}/tls.key" \
-    -n grafana \
-    --dry-run=client -o yaml | kubectl apply -f -
-fi
-
-# --- 11c. Write a TLS overlay values file ------------------------------------
-# This overlay is merged on top of grafana-values.yaml by helm (later values
-# files win on collision), so it overrides root_url and adds the TLS settings
-# without touching the base values file in the repo.
-GRAFANA_TLS_VALUES="/tmp/observability/grafana-tls-values.yaml"
-if [[ "${GRAFANA_TLS_STATUS}" == "SUCCESS" ]]; then
-  cat > "${GRAFANA_TLS_VALUES}" << EOF
-grafana.ini:
-  server:
-    protocol: https
-    cert_file: /etc/ssl/grafana/tls.crt
-    cert_key: /etc/ssl/grafana/tls.key
-    root_url: https://${HOST_IP}:30333/
-    domain: ${HOST_IP}
-
-# Mount the TLS secret into the Grafana pod
-extraSecretMounts:
-  - name: grafana-tls
-    secretName: grafana-tls
-    defaultMode: 0440
-    mountPath: /etc/ssl/grafana
-    readOnly: true
-EOF
-  log "TLS overlay values written to ${GRAFANA_TLS_VALUES}"
-fi
-
 log "Applying Grafana dashboard ConfigMaps..."
 for cm in /tmp/observability/cm-log-dashboards.yaml /tmp/observability/cm-metric-dashboards.yaml; do
   kubectl apply -f "$cm" -n grafana || warn "Failed to apply $cm"
 done
 
 log "Deploying Grafana..."
-GRAFANA_HELM_CMD=(
-  helm upgrade --install grafana /tmp/observability/grafana-10.5.4.tgz
-  --namespace grafana
-  --values /tmp/observability/grafana-values.yaml
-  --set adminUser=admin
-  --set "adminPassword=${GRAFANA_ADMIN_PASSWORD}"
-)
-# Append the TLS overlay only when the cert was generated successfully
-[[ "${GRAFANA_TLS_STATUS}" == "SUCCESS" ]] && \
-  GRAFANA_HELM_CMD+=(--values "${GRAFANA_TLS_VALUES}")
-
-if "${GRAFANA_HELM_CMD[@]}"; then
+if helm upgrade --install grafana /tmp/observability/grafana-10.5.4.tgz \
+  --namespace grafana \
+  --values /tmp/observability/grafana-values.yaml \
+  --set adminUser=admin \
+  --set adminPassword="${GRAFANA_ADMIN_PASSWORD}"; then
   GRAFANA_STATUS="SUCCESS"
 else
   warn "Grafana deployment failed"
@@ -616,23 +545,23 @@ status_colour() {
   esac
 }
 
+HOST_IP=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+
 echo ""
 echo -e "${GREEN}============================================================${NC}"
 echo -e "${GREEN}  Deployment Summary${NC}"
 echo -e "${GREEN}============================================================${NC}"
-printf " %-26s %s\n" "K3s:"              "$(status_colour "${K3S_STATUS}")"
-printf " %-26s %s\n" "Grafana:"          "$(status_colour "${GRAFANA_STATUS}")"
-printf " %-26s %s\n" "Grafana TLS cert:" "$(status_colour "${GRAFANA_TLS_STATUS}")"
-printf " %-26s %s\n" "Loki:"             "$(status_colour "${LOKI_STATUS}")"
-printf " %-26s %s\n" "Mimir:"            "$(status_colour "${MIMIR_STATUS}")"
-printf " %-26s %s\n" "Alloy:"            "$(status_colour "${ALLOY_STATUS}")"
-printf " %-26s %s\n" "Docker Compose:"   "$(status_colour "${DOCKER_COMPOSE_STATUS}")"
+printf " %-22s %s\n" "K3s:"            "$(status_colour "${K3S_STATUS}")"
+printf " %-22s %s\n" "Grafana:"        "$(status_colour "${GRAFANA_STATUS}")"
+printf " %-22s %s\n" "Loki:"           "$(status_colour "${LOKI_STATUS}")"
+printf " %-22s %s\n" "Mimir:"          "$(status_colour "${MIMIR_STATUS}")"
+printf " %-22s %s\n" "Alloy:"          "$(status_colour "${ALLOY_STATUS}")"
+printf " %-22s %s\n" "Docker Compose:" "$(status_colour "${DOCKER_COMPOSE_STATUS}")"
 echo ""
 echo -e "${GREEN}------------------------------------------------------------${NC}"
 echo " Service Access URLs"
 echo -e "${GREEN}------------------------------------------------------------${NC}"
-GRAFANA_SCHEME="http"; [[ "${GRAFANA_TLS_STATUS}" == "SUCCESS" ]] && GRAFANA_SCHEME="https"
-printf " %-28s %s\n" "Grafana:"        "${GRAFANA_SCHEME}://${HOST_IP}:30333"
+printf " %-28s %s\n" "Grafana:"        "http://${HOST_IP}:30333"
 printf " %-28s %s\n" "Keycloak (HTTPS):" "https://${HOST_IP}:8009"
 printf " %-28s %s\n" "SEEK:"           "http://${HOST_IP}:8001"
 printf " %-28s %s\n" "Airflow:"        "http://${HOST_IP}:8002"
@@ -653,8 +582,6 @@ echo ""
 echo -e "${GREEN}------------------------------------------------------------${NC}"
 echo " Verification Commands"
 echo -e "${GREEN}------------------------------------------------------------${NC}"
-echo "  kubectl get secret grafana-tls -n grafana -o yaml  # inspect TLS secret"
-echo "  openssl x509 -in /tmp/grafana-tls/tls.crt -noout -text  # inspect cert"
 echo "  kubectl get pods -A                    # all k3s pods"
 echo "  kubectl get pods -n mimir -o wide      # mimir pod IPs"
 echo "  kubectl get pods -n loki  -o wide      # loki pod IPs"

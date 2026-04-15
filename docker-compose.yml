@@ -1,7 +1,7 @@
 services:
   keycloak:
     extends:
-      file: ./services/keycloak/docker-compose.yml
+      file: ./services/keycloak/docker-compose-https.yml
       service: keycloak
     restart: unless-stopped
     networks:
