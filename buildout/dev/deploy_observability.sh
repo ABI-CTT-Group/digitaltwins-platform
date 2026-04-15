@@ -376,7 +376,9 @@ fi
 # without touching the base values file in the repo.
 GRAFANA_TLS_VALUES="/tmp/observability/grafana-tls-values.yaml"
 if [[ "${GRAFANA_TLS_STATUS}" == "SUCCESS" ]]; then
-  cat > "${GRAFANA_TLS_VALUES}" << EOF
+  # /tmp/observability is owned by root (created with sudo mkdir), so use
+  # sudo tee to write there — same pattern used for all other files in this dir.
+  sudo tee "${GRAFANA_TLS_VALUES}" > /dev/null << EOF
 grafana.ini:
   server:
     protocol: https
