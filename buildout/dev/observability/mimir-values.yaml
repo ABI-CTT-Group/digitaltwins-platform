@@ -8,9 +8,6 @@ mimir:
     # ingesters/store-gateways spread across multiple availability zones, which
     # is impossible with replicas:1 and causes "at least 2 live replicas required"
     # errors in the distributor.
-    common:
-      replication_factor: 1
-
     ingester:
       push_grpc_method_enabled: true
       ring:
