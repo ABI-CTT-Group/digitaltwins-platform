@@ -257,10 +257,21 @@ log "Configuring firewalld — masquerade + FORWARD chain..."
 sudo firewall-cmd --zone=public  --add-masquerade --permanent 2>/dev/null || true
 sudo firewall-cmd --zone=trusted --add-masquerade --permanent 2>/dev/null || true
 
-# ---- Allow forwarding through flannel overlay (pod-to-pod) -------------------
-# Without explicit FORWARD ACCEPT rules, firewalld drops packets between pods
-# (e.g., mimir-gateway → distributor, loki-gateway → loki) even when the source
-# CIDR is trusted, because FORWARD is a separate chain.
+# ---- Allow forwarding for pod-to-pod traffic ---------------------------------
+# Interface-based rules (-i cni0 / -i flannel.1) only match traffic that enters
+# through those specific interfaces.  On a single-node k3s cluster each pod has
+# its own veth pair; intra-node packets enter the FORWARD chain from a veth
+# interface (e.g. veth3a2b1c), NOT from cni0 — so interface rules never fire.
+#
+# CIDR-based rules match regardless of which veth interface the packet comes in
+# on, and also cover the memberlist gossip port (7946 TCP/UDP) used by Mimir and
+# Loki for ring management between pods.
+sudo firewall-cmd --permanent --direct \
+  --add-rule ipv4 filter FORWARD 0 -s 10.42.0.0/16 -j ACCEPT 2>/dev/null || true
+sudo firewall-cmd --permanent --direct \
+  --add-rule ipv4 filter FORWARD 0 -d 10.42.0.0/16 -j ACCEPT 2>/dev/null || true
+# Keep interface rules as well — they cover multi-node flannel VXLAN traffic
+# (packets arrive on flannel.1 when the destination is on a different node).
 for iface in flannel.1 cni0; do
   sudo firewall-cmd --permanent --direct \
     --add-rule ipv4 filter FORWARD 0 -i "$iface" -j ACCEPT 2>/dev/null || true

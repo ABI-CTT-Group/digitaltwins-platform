@@ -2,8 +2,30 @@ mimir:
   structuredConfig:
     ingest_storage:
       enabled: false
+
+    # Single-node deployment: disable zone awareness and use replication_factor=1.
+    # The default (zone_awareness_enabled=true, replication_factor=3) requires
+    # ingesters/store-gateways spread across multiple availability zones, which
+    # is impossible with replicas:1 and causes "at least 2 live replicas required"
+    # errors in the distributor.
+    common:
+      replication_factor: 1
+
     ingester:
       push_grpc_method_enabled: true
+      ring:
+        replication_factor: 1
+        zone_awareness_enabled: false
+
+    distributor:
+      ring:
+        zone_awareness_enabled: false
+
+    store_gateway:
+      sharding_ring:
+        replication_factor: 1
+        zone_awareness_enabled: false
+
     blocks_storage:
       backend: s3
       s3:
@@ -68,6 +90,8 @@ ingester:
   persistentVolume:
     size: 50Gi
   replicas: 1
+  zoneAwareReplication:
+    enabled: false
   resources:
     limits:
       cpu: 1
@@ -101,6 +125,8 @@ store_gateway:
   persistentVolume:
     size: 10Gi
   replicas: 1
+  zoneAwareReplication:
+    enabled: false
   resources:
     limits:
       cpu: 1
