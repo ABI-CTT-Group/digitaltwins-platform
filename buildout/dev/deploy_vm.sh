@@ -8,6 +8,25 @@ PLATFORM_DIR="$HOME/digitaltwins-platform"
 BUILDOUT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"  # dir containing this script
 UTIL_DIR="$PLATFORM_DIR/buildout/util"
 
+# --- Load .env if present (vars already in the environment take precedence) ---
+_ENV_FILE="${PLATFORM_DIR}/.env"
+if [[ -f "${_ENV_FILE}" ]]; then
+  echo "==> Loading environment from ${_ENV_FILE}..."
+  while IFS='=' read -r _key _val || [[ -n "${_key}" ]]; do
+    # skip blank lines and comments
+    [[ "${_key}" =~ ^[[:space:]]*# ]] && continue
+    [[ -z "${_key// }" ]] && continue
+    # strip trailing inline comment and surrounding quotes from value
+    _val="${_val%%[[:space:]]*#*}"
+    _val="${_val%\"}" ; _val="${_val#\"}"
+    _val="${_val%\'}" ; _val="${_val#\'}"
+    # only export if not already set in the calling environment
+    [[ -z "${!_key+x}" ]] && export "${_key}=${_val}"
+  done < "${_ENV_FILE}"
+  unset _key _val
+fi
+unset _ENV_FILE
+
 ###############################################################################
 # 1. Verify required environment variables
 ###############################################################################

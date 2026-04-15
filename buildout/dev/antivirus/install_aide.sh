@@ -1,13 +1,15 @@
-sudo apt update
-
 #!/bin/bash
 set -euo pipefail
+
+sudo apt update
 
 export DEBIAN_FRONTEND=noninteractive
 echo "postfix postfix/main_mailer_type select Local only" | sudo debconf-set-selections
 echo "postfix postfix/mailname string $(hostname -f)" | sudo debconf-set-selections
 
-sudo apt install aide -y
+sudo apt install -y aide cron
+sudo systemctl enable cron
+sudo systemctl start cron
 
 sudo tee -a /etc/aide/aide.conf << 'EOF'
 # ── Exclude noisy / irrelevant paths ──────────────────────────
