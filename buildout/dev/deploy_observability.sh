@@ -25,6 +25,7 @@ GRAFANA_STATUS="FAILED/SKIPPED"
 LOKI_STATUS="FAILED/SKIPPED"
 MIMIR_STATUS="FAILED/SKIPPED"
 ALLOY_STATUS="FAILED/SKIPPED"
+DOCKER_COMPOSE_STATUS="SKIPPED"
 
 # ==============================================================================
 # 1. Verify required environment variables
@@ -158,6 +159,14 @@ export KUBECONFIG="${HOME}/.kube/config"
 log "Reloading firewalld now that k3s CNI interfaces are up..."
 sudo systemctl reload firewalld 2>/dev/null || true
 
+# Docker's iptables chains (including DOCKER-FORWARD, introduced in Docker 26+)
+# are created at Docker daemon startup.  k3s flannel and firewalld --reload can
+# flush those chains.  Restart Docker here so it re-creates every chain it owns
+# in the now-stable iptables environment before docker compose runs later.
+log "Restarting Docker to restore iptables chains after k3s/firewalld init..."
+sudo systemctl restart docker
+sleep 3
+
 # ==============================================================================
 # 5. Install k9s
 # ==============================================================================
@@ -197,6 +206,16 @@ fi
 # Ensure firewalld is running before we configure it
 sudo systemctl enable firewalld
 sudo systemctl start  firewalld
+
+# ---- Reset to factory defaults -----------------------------------------------
+# Wipe all custom permanent zone files and direct rules so the resulting state
+# is 100% defined by this script — no residue from manual changes or prior runs.
+log "Resetting firewalld to factory defaults..."
+sudo rm -f /etc/firewalld/zones/public.xml
+sudo rm -f /etc/firewalld/zones/trusted.xml
+sudo rm -f /etc/firewalld/direct.xml
+sudo firewall-cmd --complete-reload   # load the clean defaults from /usr/lib/firewalld/zones/
+log "Firewalld reset complete."
 
 log "Configuring firewalld — external platform ports..."
 # ---- External-facing ports (opened in the public/default zone) ---------------
@@ -483,12 +502,27 @@ kubectl rollout restart deployment traefik -n kube-system || warn "Traefik resta
 COMPOSE_DIR="$(realpath "${SCRIPT_DIR}/../..")"
 if [[ ! -f "${COMPOSE_DIR}/docker-compose.yml" ]]; then
   warn "docker-compose.yml not found at ${COMPOSE_DIR} — skipping docker compose steps"
+  DOCKER_COMPOSE_STATUS="SKIPPED (no docker-compose.yml at ${COMPOSE_DIR})"
 else
+  # Restart Docker one more time immediately before docker compose to guarantee
+  # the DOCKER-FORWARD chain and all other Docker iptables chains exist.
+  # k3s flannel and firewalld --reload earlier in this script can flush them;
+  # a clean restart recreates them before Docker tries to use them.
+  log "Restarting Docker to ensure clean iptables chains before docker compose..."
+  sudo systemctl restart docker
+  sleep 5
+
   log "Running docker compose down in ${COMPOSE_DIR}..."
-  sg docker -c "cd '${COMPOSE_DIR}' && docker compose down" || warn "docker compose down failed (non-fatal)"
+  sg docker -c "cd '${COMPOSE_DIR}' && docker compose down" \
+    || warn "docker compose down failed (non-fatal)"
 
   log "Running docker compose up -d in ${COMPOSE_DIR}..."
-  sg docker -c "cd '${COMPOSE_DIR}' && docker compose up -d" || warn "docker compose up failed (non-fatal — services may not be present on this host)"
+  if sg docker -c "cd '${COMPOSE_DIR}' && docker compose up -d"; then
+    DOCKER_COMPOSE_STATUS="SUCCESS"
+  else
+    DOCKER_COMPOSE_STATUS="FAILED"
+    warn "docker compose up failed — check 'docker compose -f ${COMPOSE_DIR}/docker-compose.yml logs'"
+  fi
 fi
 
 # ==============================================================================
@@ -501,32 +535,74 @@ sudo rm -rf /tmp/observability 2>/dev/null || true
 # ==============================================================================
 # Summary report
 # ==============================================================================
+
+# Helper: colour-code a status string
+status_colour() {
+  local s="$1"
+  case "$s" in
+    SUCCESS*)           echo -e "${GREEN}${s}${NC}" ;;
+    SKIPPED*)           echo -e "${YELLOW}${s}${NC}" ;;
+    FAILED*|ERROR*)     echo -e "${RED}${s}${NC}" ;;
+    *)                  echo -e "${s}" ;;
+  esac
+}
+
+HOST_IP=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+
 echo ""
-echo "=========================================="
-echo " Deployment Summary"
-echo "=========================================="
-echo " K3s Installation : ${K3S_STATUS}"
-echo " Grafana          : ${GRAFANA_STATUS}"
-echo " Loki             : ${LOKI_STATUS}"
-echo " Mimir            : ${MIMIR_STATUS}"
-echo " Alloy            : ${ALLOY_STATUS}"
-echo "=========================================="
-echo " Port forwards (internal, Alloy→k3s):"
-echo "   Loki           -> localhost:3100"
-echo "   Mimir          -> localhost:9005"
-echo "   Metrics-server -> localhost:8443"
-echo " External ports opened in firewalld:"
-echo "   80, 443        HTTP/HTTPS"
-echo "   8001           SEEK"
-echo "   8002           Airflow"
-echo "   8009           Keycloak HTTPS"
-echo "   30333          Grafana NodePort"
-echo " Use 'k9s' to manage your cluster"
-echo " Review /tmp/*-port-forward.log for port-forward status"
-echo " Verify firewall: sudo firewall-cmd --zone=public --list-all"
-echo "=========================================="
+echo -e "${GREEN}============================================================${NC}"
+echo -e "${GREEN}  Deployment Summary${NC}"
+echo -e "${GREEN}============================================================${NC}"
+printf " %-22s %s\n" "K3s:"            "$(status_colour "${K3S_STATUS}")"
+printf " %-22s %s\n" "Grafana:"        "$(status_colour "${GRAFANA_STATUS}")"
+printf " %-22s %s\n" "Loki:"           "$(status_colour "${LOKI_STATUS}")"
+printf " %-22s %s\n" "Mimir:"          "$(status_colour "${MIMIR_STATUS}")"
+printf " %-22s %s\n" "Alloy:"          "$(status_colour "${ALLOY_STATUS}")"
+printf " %-22s %s\n" "Docker Compose:" "$(status_colour "${DOCKER_COMPOSE_STATUS}")"
 echo ""
-echo " ACTION REQUIRED — to use docker without sudo in new terminals:"
-echo "   newgrp docker        (activates group in current shell)"
+echo -e "${GREEN}------------------------------------------------------------${NC}"
+echo " Service Access URLs"
+echo -e "${GREEN}------------------------------------------------------------${NC}"
+printf " %-28s %s\n" "Grafana:"        "http://${HOST_IP}:30333"
+printf " %-28s %s\n" "Keycloak (HTTPS):" "https://${HOST_IP}:8009"
+printf " %-28s %s\n" "SEEK:"           "http://${HOST_IP}:8001"
+printf " %-28s %s\n" "Airflow:"        "http://${HOST_IP}:8002"
+printf " %-28s %s\n" "JupyterLab:"     "http://${HOST_IP}:8008"
+printf " %-28s %s\n" "MinIO Console:"  "http://${HOST_IP}:8012"
+printf " %-28s %s\n" "pgAdmin:"        "http://${HOST_IP}:8004"
+echo ""
+echo -e "${GREEN}------------------------------------------------------------${NC}"
+echo " Internal Port Forwards (Alloy → k3s, localhost only)"
+echo -e "${GREEN}------------------------------------------------------------${NC}"
+printf " %-28s %s\n" "Loki push:"      "localhost:3100  →  loki-gateway:80"
+printf " %-28s %s\n" "Mimir push:"     "localhost:9005  →  mimir-gateway:8080"
+printf " %-28s %s\n" "Metrics server:" "localhost:8443  →  metrics-server:443"
+echo " Logs: /tmp/loki-port-forward.log"
+echo "        /tmp/mimir-port-forward.log"
+echo "        /tmp/metrics-port-forward.log"
+echo ""
+echo -e "${GREEN}------------------------------------------------------------${NC}"
+echo " Verification Commands"
+echo -e "${GREEN}------------------------------------------------------------${NC}"
+echo "  kubectl get pods -A                    # all k3s pods"
+echo "  kubectl get pods -n mimir -o wide      # mimir pod IPs"
+echo "  kubectl get pods -n loki  -o wide      # loki pod IPs"
+echo "  sudo journalctl -u alloy -f            # alloy logs"
+echo "  sudo firewall-cmd --list-all-zones           # full firewall state"
+echo "  sudo /usr/local/bin/k3s-port-forward.sh    # restart port-forwards"
+echo "  k9s                                    # interactive cluster view"
+echo ""
+if [[ "${DOCKER_COMPOSE_STATUS}" == "FAILED" ]]; then
+  echo -e "${RED}------------------------------------------------------------${NC}"
+  echo -e "${RED} Docker Compose FAILED — troubleshooting steps:${NC}"
+  echo "  sudo systemctl restart docker"
+  echo "  docker compose -f ${COMPOSE_DIR}/docker-compose.yml up -d"
+  echo "  docker compose -f ${COMPOSE_DIR}/docker-compose.yml logs --tail=50"
+  echo -e "${RED}------------------------------------------------------------${NC}"
+  echo ""
+fi
+echo -e "${YELLOW} ACTION REQUIRED — docker without sudo in new terminals:${NC}"
+echo "   newgrp docker       (activates group in current shell)"
 echo "   — or — log out and back in"
+echo -e "${GREEN}============================================================${NC}"
 echo ""
