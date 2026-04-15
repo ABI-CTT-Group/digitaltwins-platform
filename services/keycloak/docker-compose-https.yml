@@ -25,6 +25,8 @@ services:
     volumes:
       - keycloak_data:/opt/keycloak/data
       - ./server.jks:/opt/keycloak/conf/server.jks
+      - ./digitaltwins-login-theme:/opt/keycloak/themes/digitaltwins-login-theme:ro
+
     restart: unless-stopped
     networks:
       - digitaltwins

@@ -52,9 +52,11 @@ log "Observability source directory: $OBSERVABILITY_DIR"
 # ==============================================================================
 # 2. Install python3-pip and Python kubernetes client
 # ==============================================================================
-log "Installing python3-pip and python3-yaml via apt..."
+log "Installing python3-pip, python3-yaml, and cron via apt..."
 sudo apt-get update -qq
-sudo apt-get install -y python3-pip python3-yaml
+sudo apt-get install -y python3-pip python3-yaml cron
+sudo systemctl enable cron
+sudo systemctl start cron
 
 log "Installing Python kubernetes client..."
 # --break-system-packages is required on Python 3.12+ (PEP 668) for system-wide installs
@@ -638,26 +640,6 @@ for ghost_dir in \
     sudo rm -rf "${ghost_dir}"
   fi
 done
-
-# --- Generate Keycloak TLS keystore (server.jks) if missing ------------------
-KC_JKS="${COMPOSE_DIR}/services/keycloak/server.jks"
-if [[ ! -f "${KC_JKS}" ]]; then
-  log "Generating Keycloak TLS keystore at ${KC_JKS}..."
-  sudo apt-get install -y --no-install-recommends default-jre-headless -qq
-  keytool -genkeypair \
-    -alias keycloak \
-    -keyalg RSA \
-    -keysize 2048 \
-    -keystore "${KC_JKS}" \
-    -storepass "${KC_HTTPS_KEY_STORE_PASSWORD}" \
-    -keypass  "${KC_HTTPS_KEY_STORE_PASSWORD}" \
-    -validity 3650 \
-    -dname "CN=localhost, OU=Dev, O=DigitalTWINS, L=Auckland, ST=Auckland, C=NZ" \
-    -noprompt
-  log "Keycloak keystore generated."
-else
-  log "Keycloak keystore already exists — skipping generation."
-fi
 
 # --- Ensure KC_HTTPS_KEY_STORE_PASSWORD is written to .env ------------------
 ENV_FILE="${COMPOSE_DIR}/.env"
