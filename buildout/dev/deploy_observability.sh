@@ -192,28 +192,78 @@ else
 fi
 
 # ==============================================================================
-# 7. Configure firewalld for k3s
+# 7. Configure firewalld — permanent rules (reload happens after k3s starts)
 # ==============================================================================
-log "Configuring firewalld for k3s (permanent rules — reload happens after k3s starts CNI interfaces)..."
+# Ensure firewalld is running before we configure it
+sudo systemctl enable firewalld
+sudo systemctl start  firewalld
+
+log "Configuring firewalld — external platform ports..."
+# ---- External-facing ports (opened in the public/default zone) ---------------
+# These are the ports that must be reachable from outside the VM.
+EXTERNAL_PORTS=(
+  "80/tcp"      # HTTP  — nginx reverse proxy / platform web
+  "443/tcp"     # HTTPS — nginx reverse proxy / platform web
+  "8001/tcp"    # SEEK  — data platform
+  "8002/tcp"    # Airflow API/webserver
+  "8003/tcp"    # Postgres (docker container, mapped from 5432)
+  "8004/tcp"    # Pgadmin (docker container, mapped from 80)
+  "8008/tcp"    # JupiterLab (docker container, mapped from 8888)
+  "8009/tcp"    # Keycloak HTTPS (docker container, mapped from 8443)
+  "8010/tcp"    # Restt and API (docker container, mapped from 9005)
+  "8012/tcp"    # Minio console (docker container, mapped from 9000)
+  "30333/tcp"   # Grafana NodePort (k3s NodePort range 30000-32767)
+)
+for port in "${EXTERNAL_PORTS[@]}"; do
+  sudo firewall-cmd --zone=public --add-port="$port" --permanent 2>/dev/null || true
+  log "  opened public port $port"
+done
+
+log "Configuring firewalld — k3s pod/service CIDRs (trusted zone)..."
+# ---- Trust k3s pod and service CIDRs -----------------------------------------
+# Traffic from/to 10.42.0.0/16 (pods) and 10.43.0.0/16 (services) must be
+# unrestricted so pods can talk to each other and to the host.
 for cidr in 10.42.0.0/16 10.43.0.0/16; do
   sudo firewall-cmd --zone=trusted --add-source="$cidr" --permanent 2>/dev/null || true
 done
-# Note: cni0 / flannel.1 are created by k3s AFTER it starts, so --add-interface here
-# only takes effect on the next reload (done below, after k3s is running).
+
+log "Configuring firewalld — CNI interfaces (trusted zone, applied after k3s start)..."
+# ---- Trust CNI interfaces ----------------------------------------------------
+# flannel.1 and cni0 are created by k3s AFTER it starts.
+# The --add-interface rules are saved permanently here but only become active
+# after the firewalld reload that runs once k3s is confirmed running (step 4).
 for iface in cni0 flannel.1; do
   sudo firewall-cmd --zone=trusted --add-interface="$iface" --permanent 2>/dev/null || true
 done
-sudo firewall-cmd --add-masquerade --permanent 2>/dev/null || true
-# Allow forwarding through the flannel overlay (needed for pod-to-pod traffic)
-sudo firewall-cmd --permanent --direct \
-  --add-rule ipv4 filter FORWARD 0 -i flannel.1 -j ACCEPT 2>/dev/null || true
-sudo firewall-cmd --permanent --direct \
-  --add-rule ipv4 filter FORWARD 0 -o flannel.1 -j ACCEPT 2>/dev/null || true
-# Ensure IP forwarding is enabled at the kernel level
+
+log "Configuring firewalld — Docker bridge (trusted zone)..."
+# ---- Trust Docker bridge so containers can reach the host and each other -----
+sudo firewall-cmd --zone=trusted --add-interface=docker0 --permanent 2>/dev/null || true
+
+log "Configuring firewalld — masquerade + FORWARD chain..."
+# ---- Masquerade (NAT for pods/containers leaving the host) -------------------
+sudo firewall-cmd --zone=public  --add-masquerade --permanent 2>/dev/null || true
+sudo firewall-cmd --zone=trusted --add-masquerade --permanent 2>/dev/null || true
+
+# ---- Allow forwarding through flannel overlay (pod-to-pod) -------------------
+# Without explicit FORWARD ACCEPT rules, firewalld drops packets between pods
+# (e.g., mimir-gateway → distributor, loki-gateway → loki) even when the source
+# CIDR is trusted, because FORWARD is a separate chain.
+for iface in flannel.1 cni0; do
+  sudo firewall-cmd --permanent --direct \
+    --add-rule ipv4 filter FORWARD 0 -i "$iface" -j ACCEPT 2>/dev/null || true
+  sudo firewall-cmd --permanent --direct \
+    --add-rule ipv4 filter FORWARD 0 -o "$iface" -j ACCEPT 2>/dev/null || true
+done
+
+# ---- IP forwarding at kernel level -------------------------------------------
 sudo sysctl -w net.ipv4.ip_forward=1 2>/dev/null || true
 echo "net.ipv4.ip_forward = 1" | sudo tee /etc/sysctl.d/99-ip-forward.conf > /dev/null
-# Do NOT reload firewalld yet — CNI interfaces don't exist until k3s starts.
-# The reload is done below, after k3s is confirmed running.
+
+# NOTE: firewalld is NOT reloaded here.
+# The reload runs below at step 4, AFTER k3s starts and creates the CNI
+# interfaces — otherwise --add-interface=flannel.1 binds to a non-existent
+# interface and the FORWARD rules have nothing to attach to.
 
 # ==============================================================================
 # 8. Copy observability files to /tmp/observability
@@ -461,12 +511,19 @@ echo " Loki             : ${LOKI_STATUS}"
 echo " Mimir            : ${MIMIR_STATUS}"
 echo " Alloy            : ${ALLOY_STATUS}"
 echo "=========================================="
-echo " Port forwards:"
+echo " Port forwards (internal, Alloy→k3s):"
 echo "   Loki           -> localhost:3100"
 echo "   Mimir          -> localhost:9005"
 echo "   Metrics-server -> localhost:8443"
+echo " External ports opened in firewalld:"
+echo "   80, 443        HTTP/HTTPS"
+echo "   8001           SEEK"
+echo "   8002           Airflow"
+echo "   8009           Keycloak HTTPS"
+echo "   30333          Grafana NodePort"
 echo " Use 'k9s' to manage your cluster"
 echo " Review /tmp/*-port-forward.log for port-forward status"
+echo " Verify firewall: sudo firewall-cmd --zone=public --list-all"
 echo "=========================================="
 echo ""
 echo " ACTION REQUIRED — to use docker without sudo in new terminals:"
