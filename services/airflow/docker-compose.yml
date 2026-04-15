@@ -72,6 +72,13 @@ x-airflow-common:
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
     # The following line can be used to set a custom config file, stored in the local config folder
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
+    DIGITALTWINS_API_BASE_URL: ${DIGITALTWINS_API_BASE_URL}
+    DIGITALTWINS_API_PORT: ${DIGITALTWINS_API_PORT}
+    _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME}
+    _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD}
+    AIRFLOW_ENDPOINT: ${AIRFLOW_ENDPOINT}
+    AIRFLOW_USERNAME: ${AIRFLOW_USERNAME}
+    AIRFLOW_PASSWORD: ${AIRFLOW_PASSWORD}
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
