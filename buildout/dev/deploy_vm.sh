@@ -230,14 +230,15 @@ echo "==> Deploying Keycloak production config..."
 cp "$BUILDOUT_DIR/keycloak-docker-compose.yml" \
    "$PLATFORM_DIR/services/keycloak/docker-compose.yml"
 
-KC_TLS_DIR="$PLATFORM_DIR/services/keycloak"
+KC_TLS_DIR="$PLATFORM_DIR/services/keycloak/key"
 if [[ ! -f "${KC_TLS_DIR}/tls.crt" || ! -f "${KC_TLS_DIR}/tls.key" ]]; then
     echo "==> Generating self-signed X.509 certificate for Keycloak..."
     openssl req -x509 -newkey rsa:2048 -days 3650 -nodes \
         -keyout "${KC_TLS_DIR}/tls.key" \
         -out    "${KC_TLS_DIR}/tls.crt" \
         -subj "/CN=localhost/OU=Dev/O=DigitalTWINS/L=Auckland/ST=Auckland/C=NZ"
-    chmod 600 "${KC_TLS_DIR}/tls.key"
+    chmod 644 "${KC_TLS_DIR}/tls.key"
+    chmod 644 "${KC_TLS_DIR}/tls.crt"
 else
     echo "==> Keycloak TLS certificate already exists — skipping generation."
 fi

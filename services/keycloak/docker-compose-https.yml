@@ -1,7 +1,7 @@
 # Generate a self-signed X.509 cert (run once before first deploy):
 # openssl req -x509 -newkey rsa:2048 -days 3650 -nodes \
-#   -keyout services/keycloak/tls.key \
-#   -out    services/keycloak/tls.crt \
+#   -keyout services/keycloak/key/tls.key \
+#   -out    services/keycloak/key/tls.crt \
 #   -subj "/CN=localhost/OU=Dev/O=DigitalTWINS/L=Auckland/ST=Auckland/C=NZ"
 
 services:
@@ -20,8 +20,8 @@ services:
       - "8009:8443"
     volumes:
       - keycloak_data:/opt/keycloak/data
-      - ./tls.crt:/opt/keycloak/conf/tls.crt:ro
-      - ./tls.key:/opt/keycloak/conf/tls.key:ro
+      - ./key/tls.crt:/opt/keycloak/conf/tls.crt:ro
+      - ./key/tls.key:/opt/keycloak/conf/tls.key:ro
       - ./digitaltwins-login-theme:/opt/keycloak/themes/digitaltwins-login-theme:ro
 
     restart: unless-stopped
