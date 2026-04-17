@@ -21,37 +21,6 @@ resource "openstack_compute_instance_v2" "portal" {
     delete_on_termination = true
     volume_size           = var.portal_disk_size
   }
-
-#user_data = <<-EOF
-#  #cloud-config
-#  # 1. Kill the background update engine
-#  package_update: false
-#  package_upgrade: false
-#    
-#  # 2. Prevent 'apt' locks and Prep the Podman Socket
-#  write_files:
-#    - path: /etc/apt/apt.conf.d/99manual-only
-#      content: |
-#        APT::Periodic::Update-Package-Lists "0";
-#        APT::Periodic::Unattended-Upgrade "0";
-#    - path: /etc/tmpfiles.d/podman-socket.conf
-#      content: |
-#        z /run/podman/podman.sock 0666 root root - -
-#        L+ /var/run/docker.sock - - - - /run/podman/podman.sock
-#      
-#  # 3. Secure the boot process
-#  runcmd: 
-#    # Stop the background update timers
-#    - [ systemctl, mask, apt-daily.timer, apt-daily-upgrade.timer ]
-#    
-#    # EMERGENCY KEY: Ensure UFW allows SSH before it locks the box
-#    - [ ufw, allow, 22/tcp ]
-#    - [ ufw, --force, enable ]
-#    
-#    # Start the system-wide socket and apply permissions
-#    - [ systemctl, enable, --now, podman.socket ]
-#    - [ systemd-tmpfiles, --create, /etc/tmpfiles.d/podman-socket.conf ]
-#EOF
 }
 
 # ssh_restricted security group on the port

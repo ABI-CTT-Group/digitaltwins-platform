@@ -76,7 +76,7 @@ resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_2" {
 #  description       = "port 8010 from everywhere - rest api - close later?"
 #  security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
 #}
-
+#
 #resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_80xx" {
 #  direction         = "ingress"
 #  ethertype         = "IPv4"

@@ -1,18 +1,13 @@
 - name: VM setup
   gather_facts: false
-#  hosts: portal drai_mp drai_cc
-  hosts: portal drai_mp abi_newbox
+  hosts: all
 
   vars:
-
+    install_src_dir: /mnt/install_src # path to the install source
 
   environment:
 
-#  environment:
-#    COMPOSE_PULL: "never"
-
   tasks:
-
 
   #########################
   # Make sure required env variables are set
@@ -32,58 +27,8 @@
     when: lookup('env', 'MYSQL_PASSWORD') | length == 0
   #########################
 
-  - name: Allow Standard Web and SSH traffic
-    become: true
-    community.general.ufw:
-      rule: allow
-      port: "{{ item }}"
-      proto: tcp
-    loop: ['22', '80', '443']
-#    loop: ['22', '80', '443', '8080', '8443', '8000','8001','8002','8003','8004','8005','8006','8007','8008','8009','8010','8011', '8012']
-
-  - name: Enable Firewall and Set Default Deny
-    become: true
-    community.general.ufw:
-      state: enabled
-      direction: incoming
-      policy: deny
-
-  - name: Reload UFW to ensure everything is fresh
-    become: true
-    ansible.builtin.command: ufw reload
-
-  - name: Download and install Docker
-    become: true
-    block:
-      - name: Download the Docker installation script
-        ansible.builtin.get_url:
-          url: https://get.docker.com
-          dest: /tmp/get-docker.sh
-          mode: '0755'
-
-      - name: Execute the Docker installation script
-        ansible.builtin.shell: /tmp/get-docker.sh
-        args:
-          creates: /usr/bin/docker  # This prevents the script from running if docker already exists
-
-      - name: Add current user to the docker group
-        ansible.builtin.user:
-          name: "{{ ansible_user }}"
-          groups: docker
-          append: yes
-
   - name: Reset SSH connection to pick up group changes
     meta: reset_connection
-
-  - name: Enable and start Docker service
-    become: yes
-    ansible.builtin.systemd:
-      name: docker
-      enabled: true
-      state: started
-
-## End of root stuff (apart from the weird one )
-
 
   - name: Ensure COMPOSE_FILE is in .bash_aliases
     ansible.builtin.lineinfile:
@@ -184,24 +129,32 @@
       mode: '0600'
     when: not file_check3.stat.exists
 
-#  - name: pausing
-#    ansible.builtin.pause:
-#      prompt: "Pausing ... Press ENTER to carry on, or Ctrl+C to abort."
+
+# On a system you have up and running, functioning the way you want, you can "freeze" it like so:
+# docker compose ps -aq | xargs docker inspect --format '{{.Config.Image}}' | sort -u| xargs docker save | gzip > digitaltwins-images-all.tar.gz
+# Then copy the digitaltwins-images-all.tar.gz to the {{ install_src_dir }}
+
+  - name: Load Docker images from archive
+    become: true
+    ansible.builtin.shell:
+      cmd: "gunzip -c {{ install_src_dir }}/digitaltwins-images-all.tar.gz | docker load"
+    args:
+      executable: /bin/bash
 
   - name: Initialize airflow.cfg
     ansible.builtin.command: docker compose run airflow-cli airflow config list
     args:
       chdir: ./digitaltwins-platform
 
-  # The last config list puts a wonky ownership on the .cfg file, which we need to adjust, so ...
-  - name: Force ownership on Airflow config
-    become: true
-    ansible.builtin.file:
-      #path: "/home/{{ ansible_user }}/digitaltwins-platform/services/airflow/config/airflow.cfg"
-      path: "./digitaltwins-platform/services/airflow/config/airflow.cfg"
-      owner: "{{ ansible_user }}"
-      group: "{{ ansible_user }}"
-      mode: '0644'
+#  # The last config list puts a wonky ownership on the .cfg file, which we need to adjust, so ...
+#  - name: Force ownership on Airflow config
+#    become: true
+#    ansible.builtin.file:
+#      #path: "/home/{{ ansible_user }}/digitaltwins-platform/services/airflow/config/airflow.cfg"
+#      path: "./digitaltwins-platform/services/airflow/config/airflow.cfg"
+#      owner: "{{ ansible_user }}"
+#      group: "{{ ansible_user }}"
+#      mode: '0644'
 
   - name: allow_headers
     shell: |
@@ -299,6 +252,3 @@
       docker compose up -d
     args:
       chdir: ./digitaltwins-platform
-
-# Copy the airflow dags directory from staging:
-# scp -r abi_staging:digitaltwins-platform/services/airflow/dags/ abi_portal:digitaltwins-platform/services/airflow/

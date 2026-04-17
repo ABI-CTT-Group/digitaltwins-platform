@@ -1,0 +1,90 @@
+- name: VM setup
+  gather_facts: false
+  hosts: portal drai_mp abi_newbox
+
+  vars:
+
+  environment:
+
+  tasks:
+
+  - name: Ensure mount directory exists
+    become: true
+    ansible.builtin.file:
+      path: /mnt/install_src
+      state: directory
+      mode: '0755'
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+  
+  - name: Mount /dev/vdb and update fstab
+    become: true
+    ansible.posix.mount:
+      path: /mnt/install_src
+      src: /dev/vdb
+      fstype: auto    # Tells mount to detect the existing ext4/xfs automatically
+      opts: defaults
+      state: mounted  # This both mounts it NOW and adds it to /etc/fstab
+  
+
+  - name: Install UFW
+    become: true
+    ansible.builtin.apt:
+      name: ufw
+      state: present
+      update_cache: false   # no apt update in an airgap — ufw should already be present
+
+  - name: Allow SSH before enabling firewall (avoid lockout)
+    become: true
+    community.general.ufw:
+      rule: allow
+      port: '22'
+      proto: tcp
+      direction: in
+
+  - name: Allow inbound HTTP
+    become: true
+    community.general.ufw:
+      rule: allow
+      port: '80'
+      proto: tcp
+      direction: in
+
+  - name: Allow inbound HTTPS
+    become: true
+    community.general.ufw:
+      rule: allow
+      port: '443'
+      proto: tcp
+      direction: in
+
+  - name: Allow loopback traffic (required for local services)
+    become: true
+    community.general.ufw:
+      rule: allow
+      interface: lo
+      direction: in
+
+  - name: Set default incoming policy to deny
+    become: true
+    community.general.ufw:
+      default: deny
+      direction: incoming
+
+  - name: Set default outgoing policy to deny
+    become: true
+    community.general.ufw:
+      default: deny
+      direction: outgoing
+
+  - name: Enable UFW (async to survive iptables reload)
+    become: true
+    community.general.ufw:
+      state: enabled
+    async: 10
+    poll: 0
+
+  - name: Wait for SSH to recover after UFW reload
+    ansible.builtin.wait_for_connection:
+      delay: 5
+      timeout: 30

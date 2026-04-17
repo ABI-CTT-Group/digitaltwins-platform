@@ -210,18 +210,28 @@ For macOS:
 For Windows (PowerShell Administrator):
 `Import-Certificate -FilePath ".\DigitalTwinsKeycloakInternalCA.pem" -CertStoreLocation Cert:\LocalMachine\Root`
 
-The only thing I've done so far is get this onto the keycloak app, so
-https://test.digitaltwins.auckland.ac.nz:8009
-is the website to use.
-Until we can register that domain in the DNS, you can put this entry into your /etc/hosts file (or
-equivalent under Windows):
+And if you're on Linux, Chinchien figured out how to do it for ubuntu:
+-  copy to  /usr/local/share/ca-certificates : `sudo cp DigitalTwinsKeycloakInternalCA.pem /usr/local/share/ca-certificates/DigitalTwinsKeycloakInternalCA.crt`
+-  Update the certificate store: `sudo update-ca-certificates`
+- reboot
+(I wonder if the reboot is really necessary?)
 
+
+We have registered this in the DNS:
 ```
 130.216.216.243 test.digitaltwins.auckland.ac.nz
 ```
 
+But if you want to use it on a different VM, you'll need an /etc/hosts entry appropriate
+to the other machine.
+
 
 # To copy data from VM X to VM Y
+# NOTE: THIS IS DEPRECATED! Instead, 
+- Use util/*vols.
+- services/airflow/dags/
+- copy over the SEEK docker-compose.env from the source to the target too (DB passwords)
+- copy the SEEK_API_TOKEN in `.env` from VM X to VM Y
 
 ## on VM X
 
