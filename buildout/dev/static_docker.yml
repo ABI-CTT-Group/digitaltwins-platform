@@ -1,0 +1,92 @@
+- name: Install Docker from static binary tarball
+  hosts: all
+  become: true
+  vars:
+    docker_tar: docker-29.4.0.tgz   # path to the tarball on the control node
+
+  tasks:
+
+    - name: Extract Docker binaries to /usr/local/bin
+      ansible.builtin.unarchive:
+        src: "/mnt/install_src/{{ docker_tar }}"
+        dest: /usr/local/bin
+        extra_opts: ['--strip-components=1']
+        remote_src: true
+
+    - name: Create Docker CLI plugins directory
+      ansible.builtin.file:
+        path: /usr/local/lib/docker/cli-plugins
+        state: directory
+        mode: '0755'
+
+    - name: Install Docker Compose plugin
+      ansible.builtin.copy:
+        src: /mnt/install_src/docker-compose-linux-x86_64-v5.1.2
+        dest: /usr/local/lib/docker/cli-plugins/docker-compose
+        mode: '0755'
+        remote_src: true
+
+    - name: Create docker group
+      ansible.builtin.group:
+        name: docker
+        state: present
+
+    - name: Add current user to docker group
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: true
+
+    - name: Install docker.socket unit file
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/docker.socket
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Docker Socket for the API
+
+          [Socket]
+          ListenStream=/var/run/docker.sock
+          SocketMode=0660
+          SocketUser=root
+          SocketGroup=docker
+
+          [Install]
+          WantedBy=sockets.target
+
+    - name: Install docker.service unit file
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/docker.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Docker Application Container Engine
+          Documentation=https://docs.docker.com
+          After=network-online.target docker.socket
+          Requires=docker.socket
+
+          [Service]
+          Type=notify
+          ExecStart=/usr/local/bin/dockerd
+          ExecReload=/bin/kill -s HUP $MAINPID
+          Restart=always
+          RestartSec=2
+          StartLimitBurst=3
+          StartLimitInterval=60s
+          LimitNOFILE=infinity
+          LimitNPROC=infinity
+          LimitCORE=infinity
+          TasksMax=infinity
+          Delegate=yes
+          KillMode=process
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd and enable Docker
+      ansible.builtin.systemd:
+        name: docker
+        enabled: true
+        state: started
+        daemon_reload: true
+
