@@ -1,31 +1,12 @@
-- name: VM setup
+- name: Firewall setup
   gather_facts: false
-  hosts: portal drai_mp abi_newbox
+  hosts: all
 
   vars:
 
   environment:
 
   tasks:
-
-  - name: Ensure mount directory exists
-    become: true
-    ansible.builtin.file:
-      path: /mnt/install_src
-      state: directory
-      mode: '0755'
-      owner: "{{ ansible_user }}"
-      group: "{{ ansible_user }}"
-  
-  - name: Mount /dev/vdb and update fstab
-    become: true
-    ansible.posix.mount:
-      path: /mnt/install_src
-      src: /dev/vdb
-      fstype: auto    # Tells mount to detect the existing ext4/xfs automatically
-      opts: defaults
-      state: mounted  # This both mounts it NOW and adds it to /etc/fstab
-  
 
   - name: Install UFW
     become: true
@@ -77,6 +58,7 @@
       default: deny
       direction: outgoing
 
+  # This may hang if running on "localhost" - don't worry about it.
   - name: Enable UFW (async to survive iptables reload)
     become: true
     community.general.ufw:

@@ -1,0 +1,31 @@
+# Set up the source drive
+#
+
+- name: source drive setup
+  gather_facts: false
+  hosts: all
+
+  vars:
+    install_src_dir: /mnt/install_src # path to the install source
+
+  environment:
+
+  tasks:
+
+  - name: Ensure mount directory exists
+    become: true
+    ansible.builtin.file:
+      path: "{{ install_src_dir }}"
+      state: directory
+      mode: '0755'
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+  
+  - name: Mount /dev/vdb and update fstab
+    become: true
+    ansible.posix.mount:
+      path: "{{ install_src_dir }}"
+      src: /dev/vdb
+      fstype: auto    # Tells mount to detect the existing ext4/xfs automatically
+      opts: defaults
+      state: mounted  # This both mounts it NOW and adds it to /etc/fstab

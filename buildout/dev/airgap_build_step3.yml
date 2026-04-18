@@ -60,7 +60,7 @@
 
   - name: Copy public keys
     ansible.builtin.synchronize:
-      src: "public_keys/"
+      src: "{{ install_src_dir }}/public_keys/"
       dest: "./keys/public_keys/"
       recursive: yes
       rsync_opts:
@@ -69,13 +69,13 @@
 
   - name: Copy public pem to keys
     ansible.builtin.synchronize:
-      src: "../util/DigitalTwinsKeycloakInternalCA.pem"
+      src: "{{ install_src_dir }}/DigitalTwinsKeycloakInternalCA.pem"
       dest: "./keys/DigitalTwinsKeycloakInternalCA.pem"
 
 # Because git pulling has basically stopped functioning in the last couple days...
   - name: Sync code to VM
     ansible.posix.synchronize:
-      src: /home/{{ ansible_user }}/twins/clean_src/digitaltwins-platform/
+      src: "{{ install_src_dir }}/clean_src/digitaltwins-platform/"
       dest: /home/{{ ansible_user }}/digitaltwins-platform/
       archive: yes
       delete: yes
@@ -91,13 +91,13 @@
 
   - name: Copy crt
     ansible.builtin.copy:
-      src: ../util/test.digitaltwins.auckland.ac.nz.crt
+      src: "{{ install_src_dir }}/test.digitaltwins.auckland.ac.nz.crt"
       dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs
       mode: '0600'
 
   - name: Copy key
     ansible.builtin.copy:
-      src: ../util/test.digitaltwins.auckland.ac.nz.key
+      src: "{{ install_src_dir }}/test.digitaltwins.auckland.ac.nz.key"
       dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs
       mode: '0600'
 
@@ -108,7 +108,7 @@
 
   - name: Copy .env
     ansible.builtin.copy:
-      src: ../data/.env
+      src: "{{ install_src_dir }}/.env"
       dest: ./digitaltwins-platform/.env
       mode: '0600'
 
@@ -135,7 +135,6 @@
 # Then copy the digitaltwins-images-all.tar.gz to the {{ install_src_dir }}
 
   - name: Load Docker images from archive
-    become: true
     ansible.builtin.shell:
       cmd: "gunzip -c {{ install_src_dir }}/digitaltwins-images-all.tar.gz | docker load"
     args:
@@ -188,13 +187,13 @@
 
   - name: Copy realm import to remote server
     ansible.builtin.copy:
-      src: ../data/realm-cc-digitaltwins_20260322.json
+      src: "{{ install_src_dir }}/realm-cc-digitaltwins_20260322.json"
       dest: ./digitaltwins-platform/services/keycloak/import/digitaltwins-realm.json
       mode: '0644'
 
   - name: Copy realm import to keys
     ansible.builtin.copy:
-      src: ../data/realm-cc-digitaltwins_20260322.json
+      src: "{{ install_src_dir }}/realm-cc-digitaltwins_20260322.json"
       dest: ./keys/digitaltwins-realm.json
       mode: '0600'
 
