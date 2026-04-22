@@ -51,7 +51,7 @@ export async function useDeleteWorkflow(workflowId: string) {
 }
 
 export async function useWorkflow() {
-  const workflows = http.get<Array<IWrokflowResponse>>("/workflow").then(async (items)=>{
+  const workflows = http.get<Array<IWrokflowResponse>>("/workflow/").then(async (items)=>{
       const formattedWorkflows = await Promise.all(items.map(async (workflow)=>{
         let buildStatus = 'pending'
         let lastestBuildId = undefined

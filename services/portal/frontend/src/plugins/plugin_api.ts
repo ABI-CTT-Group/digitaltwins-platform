@@ -45,7 +45,7 @@ export async function useCreateToolPluginAnnotation(id:string, annotation:IAnnot
 }
 
 export async function useWorkflowTools() {
-  const workflowTools = http.get<Array<PluginResponse>>("/tools").then(async (tools)=>{
+  const workflowTools = http.get<Array<PluginResponse>>("/tools/").then(async (tools)=>{
     const formattedWorkflowTools = await Promise.all(tools.map(async (tool)=>{
       let buildStatus = 'pending'
       let deployStatus = undefined

@@ -1,0 +1,103 @@
+# WebSocket upgrade mapping (shared by all plugin proxies)
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+# HTTP -> HTTPS redirect
+server {
+    listen 80;
+    server_name ${PORTAL_BACKEND_HOST};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name ${PORTAL_BACKEND_HOST};
+
+    # Standard buffer fix for large Keycloak headers
+    proxy_buffer_size 128k;
+    proxy_buffers 4 256k;
+    proxy_busy_buffers_size 256k;
+
+    # SSL certificates (mounted via docker-compose volumes)
+    ssl_certificate /etc/nginx/certs/${PORTAL_BACKEND_HOST}.crt;
+    ssl_certificate_key /etc/nginx/certs/${PORTAL_BACKEND_HOST}.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    root   /usr/share/nginx/html;
+    index  index.html index.htm;
+
+    # SPA Routing Fallback
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Static File Caching
+    location /assets/ {
+        expires 1y;
+    }
+
+    # Proxy API requests to portal-backend
+    location /api/ {
+        proxy_pass http://portal-backend:${BACKEND_PORT}/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # SEEK
+    location /seek/ {
+        proxy_pass http://seek:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Ssl on;
+        proxy_set_header X-Forwarded-Prefix /seek;
+    }
+
+    # JupyterLab
+    location /jupyter/ {
+        proxy_pass http://jupyterlab:8888/jupyter/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 86400;
+    }
+
+    # Keycloak
+    location /auth/ {
+        proxy_pass http://keycloak:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_cookie_path / "/auth/; Secure; SameSite=None";
+    }
+
+    # Airflow
+    location /airflow/ {
+        proxy_pass http://airflow-apiserver:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    # Dynamically loaded plugin route configs (generated at deploy time)
+    include /etc/nginx/conf.d/plugins/*.conf;
+}

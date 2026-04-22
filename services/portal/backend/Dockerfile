@@ -42,4 +42,4 @@ WORKDIR /app
 RUN uv sync --frozen --no-cache
 
 # Run FastAPI app
-CMD ["uv", "run", "fastapi", "run", "app/main.py", "--port", "8000", "--host", "0.0.0.0"]
+CMD ["uv", "run", "uvicorn", "app.main:app", "--port", "8000", "--host", "0.0.0.0", "--proxy-headers", "--forwarded-allow-ips", "*"]

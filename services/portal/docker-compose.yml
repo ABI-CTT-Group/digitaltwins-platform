@@ -61,10 +61,13 @@ services:
     container_name: digitaltwins-platform-portal-frontend
     ports:
       - "80:80"
+      - "443:443"
     environment:
       - BACKEND_PORT=${BACKEND_PORT:-8000}
+      - PORTAL_BACKEND_HOST=${PORTAL_BACKEND_HOST:-localhost}
     volumes:
       - nginx_plugin_configs:/etc/nginx/conf.d/plugins
+      - ${SSL_CERT_DIR:-./certs}:/etc/nginx/certs:ro
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:80" ]
