@@ -40,7 +40,18 @@ class PluginDeployer:
 # Plugin: {expose_name}
 
 location {route_prefix}/ {{
-    proxy_pass http://{internal_host}:{internal_port}/;
+    # Use Docker's embedded DNS server to resolve hostnames dynamically at runtime,
+    # rather than at startup. This prevents nginx from crashing on startup ('host not found in upstream')
+    # if the plugin container isn't running yet when the portal restarts.
+    resolver 127.0.0.11 valid=30s ipv6=off;
+    
+    # Store the dynamic upstream address in a variable BEFORE the rewrite break
+    set $plugin_upstream http://{internal_host}:{internal_port};
+    
+    # Strip the prefix route when forwarding the request to the plugin
+    rewrite ^{route_prefix}/(.*)$ /$1 break;
+    
+    proxy_pass $plugin_upstream;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection $connection_upgrade;
