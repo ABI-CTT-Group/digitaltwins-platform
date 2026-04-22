@@ -267,3 +267,38 @@ pip3 install --no-index --find-links ./ansible-packages/ ansible --break-system-
 ansible-playbook -i "localhost," -c local airgap_build_step1.yml -e "ansible_user=$USER"
 ansible-playbook -i "localhost," -c local airgap_build_step2.yml -e "ansible_user=$USER"
 ansible-playbook -i "localhost," -c local airgap_build_step3.yml -e "ansible_user=$USER"
+
+
+To logout out of grafana/keycloak, if you've logged in but don't have an allowed group:
+https://test.digitaltwins.auckland.ac.nz/auth/realms/digitaltwins/protocol/openid-connect/logout?client_id=grafana&post_logout_redirect_uri=https%3A%2F%2Ftest.digitaltwins.auckland.ac.nz%2Fgrafana%2Flogin
+
+
+These files are important for getting grafana airgapped and proxied and keycloaked:
+./services/keycloak/docker-compose.yml
+./services/portal/DigitalTWINS-Portal/frontend/nginx.conf
+./buildout/dev/fetch_airgap_images.sh
+./buildout/dev/trust_ca
+./buildout/dev/helm_mod
+./buildout/dev/observability/grafana-values.yaml
+./buildout/dev/install_observability_airgap.yaml
+./buildout/dev/traefik_to_grafana.yml
+./buildout/dev/fetch_airgap.sh
+
+
+SSL cert:
+Apr 22 2026 - I quit the idea of having a signing CA and am going back to zerossl for a cert.
+The portal VM is Internet facing and attached to the IP address in the DNS for
+test.digitaltwins.auckland.ac.nz
+so should just work.
+sudo snap install --classic certbot
+mkdir ~/certs
+copy in the renew_cert script (in util) to ~/certs
+key your EAB_KID and EAB_HMAC_KEY into ~/keys/eab_kid.key and eab_hmac_key.key
+This will create fullchain.pem and privkey.pem
+Run your ~/certs/renew_cert
+If you look at the portal/docker-compose.yml file, you'll see these need to be moved:
+cp fullchain.pem ~/digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs/test.digitaltwins.auckland.ac.nz.crt
+cp privkey.pem   ~/digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs/test.digitaltwins.auckland.ac.nz.key
+docker compose down
+docker compose up -d
+In 3 months, you'll need to do it again.

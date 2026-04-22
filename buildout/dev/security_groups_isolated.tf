@@ -27,6 +27,16 @@ resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_2" {
   security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_3" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = 81
+  port_range_max    = 81
+  description       = "port 81 from everywhere"
+  security_group_id = resource.openstack_networking_secgroup_v2.web_server_i.id
+}
+
 #resource "openstack_networking_secgroup_rule_v2" "web_server_i_rule_8000" {
 #  direction         = "ingress"
 #  ethertype         = "IPv4"

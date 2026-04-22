@@ -61,10 +61,10 @@
   # This may hang if running on "localhost" - don't worry about it.
   - name: Enable UFW (async to survive iptables reload)
     become: true
-    community.general.ufw:
-      state: enabled
+    ansible.builtin.command: ufw --force enable
     async: 10
     poll: 0
+
 
   - name: Wait for SSH to recover after UFW reload
     ansible.builtin.wait_for_connection:

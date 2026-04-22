@@ -187,13 +187,13 @@
 
   - name: Copy realm import to remote server
     ansible.builtin.copy:
-      src: "{{ install_src_dir }}/realm-cc-digitaltwins_20260322.json"
+      src: "{{ install_src_dir }}/realm-digitaltwins-20260418.json"
       dest: ./digitaltwins-platform/services/keycloak/import/digitaltwins-realm.json
       mode: '0644'
 
   - name: Copy realm import to keys
     ansible.builtin.copy:
-      src: "{{ install_src_dir }}/realm-cc-digitaltwins_20260322.json"
+      src: "{{ install_src_dir }}/realm-digitaltwins-20260418.json"
       dest: ./keys/digitaltwins-realm.json
       mode: '0600'
 
