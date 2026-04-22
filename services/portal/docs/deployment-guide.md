@@ -21,7 +21,7 @@ The `portal-frontend` container no longer ships a fixed `nginx.conf`. At contain
 
 The previous approach had two problems:
 
-1. **Mixed Content on `/api/tools/`.** FastAPI's 307 trailing-slash redirect combined with nginx `X-Forwarded-Proto $scheme` (which is `http` inside the container) produced redirect URLs with the wrong protocol, so the browser blocked them. See [`https-mixed-content-fix.md`](./https-mixed-content-fix.md) for the full analysis.
+1. **Mixed Content on `/api/tools/`.** FastAPI's 307 trailing-slash redirect combined with nginx `X-Forwarded-Proto $scheme` (which is `http` inside the container) produced redirect URLs with the wrong protocol, so the browser blocked them. 
 2. **One fixed `nginx.conf` per environment.** You had to maintain `nginx.conf.http` and `nginx.conf.https` variants and swap them manually. The plugin system also needs `include /etc/nginx/conf.d/plugins/*.conf` which was easy to lose when hand-editing.
 
 The new approach uses **one templated config**, picks HTTP vs HTTPS at runtime from cert presence, and always includes the plugin directory.
