@@ -74,10 +74,6 @@ async def dynamic_cors(request: Request, call_next):
 
 @app.get('/')
 async def root():
-    current_path = Path.cwd()
-    # Get the directory of the current script
-    script_path = Path(__file__).resolve().parent
-    print(script_path)
     return {"message": "DigitalTWINS Portal API", "version": "1.0.0"}
 
 

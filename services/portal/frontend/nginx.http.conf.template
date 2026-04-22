@@ -11,9 +11,9 @@ server {
     root   /usr/share/nginx/html;
     index  index.html index.htm;
 
-    # SPA Routing Fallback Plan
+    # SPA Routing Fallback
     location / {
-        try_files $uri /index.html;
+        try_files $uri $uri/ /index.html;
     }
 
     # Static File Caching
@@ -23,7 +23,7 @@ server {
 
     # Proxy API requests to portal-backend
     location /api/ {
-        proxy_pass http://portal-backend:8000/api/;
+        proxy_pass http://portal-backend:${BACKEND_PORT}/api/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
