@@ -82,9 +82,6 @@ services:
   
   minio:
     image: quay.io/minio/minio:latest
-    ports:
-      - '8004:9000' #backend
-      - '8007:9001' #frontend
     networks:
       - digitaltwins
     volumes:
@@ -94,6 +91,9 @@ services:
       - MINIO_ROOT_PASSWORD=minioadmin
       - MINIO_SERVER_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
       - MINIO_SERVER_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
+      # Tells the Console its public base URL so all static/API/redirect paths get the /minio-console prefix.
+      # Filled from .env (see .env.template). HTTP default is used only when unset.
+      - MINIO_BROWSER_REDIRECT_URL=${MINIO_BROWSER_REDIRECT_URL:-http://localhost/minio-console}
     command: server /data --console-address ":9001" --address ":9000"
   
   hapi-fhir:
