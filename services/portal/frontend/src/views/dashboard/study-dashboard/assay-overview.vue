@@ -64,8 +64,6 @@ import { useDashboardPageStore } from '@/store/states';
 import { useDashboardWorkflowDetail, useDashboardSeekAssay } from "@/plugins/dashboard_api";
 import AssayOverviewEmpty from '@/components/dt-components/AssayOverviewEmpty.vue';
 import AssayBasicCardButtons from '@/components/dt-components/AssayBasicCardButtons.vue';
-import WorkflowStatusTag from '@/components/dt-components/workflow/WorkflowStatusTag.vue';
-import { WorkflowStatus } from '@/components/dt-components/workflow/workflowStatus';
 import { ISeekAssayDetails } from '@/models/apiTypes';
 import { capitalize } from '@/utils/common';
 

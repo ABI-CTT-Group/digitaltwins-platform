@@ -66,7 +66,6 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { useToast } from 'vue-toastification';
 import { useRouter, useRoute } from 'vue-router';
-import { useUser } from "@/plugins/hooks/user";
 import { storeToRefs } from "pinia";
 import { useDashboardPageStore } from '@/store/states';
 import { useDashboardGetAssayConfigDetails, useDashboardGetAssayLaunch, useDashboardWorkflowDetail } from "@/plugins/dashboard_api";
@@ -88,7 +87,6 @@ const password = 'ctt_digitaltwins_0';
 const router = useRouter();
 const route = useRoute();
 
-const { user } = useUser();
 const { dashboardProgrammes } = storeToRefs(useDashboardProgrammesStore());
 const { getDashboardProgrammes } = useDashboardProgrammesStore();
 const { dashboardCategoryChildren } = storeToRefs(useDashboardCategoryChildrenStore());
