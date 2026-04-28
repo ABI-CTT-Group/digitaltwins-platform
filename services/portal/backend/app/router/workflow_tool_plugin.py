@@ -607,11 +607,6 @@ async def get_test_build_info():
 
 @router.get("/metadata")
 async def get_metadata_json(db: Session = Depends(get_db)):
-    use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
-    http_protocol = 'https' if use_ssl else 'http'
-    host = os.environ.get('PORTAL_BACKEND_HOST', 'localhost')
-    port = os.environ.get('MINIO_PORT', '9000')
-
     plugins = db.query(Plugin).all()
     components = []
     for plugin in plugins:
@@ -630,12 +625,12 @@ async def get_metadata_json(db: Session = Depends(get_db)):
             if is_local:
                 path = f"/{latest_build.expose_name}/my-app.umd.js?v={build_ts}"
             else:
-                path = f"{http_protocol}://{host}:{port}/tools/{latest_build.expose_name}/primary/my-app.umd.js?v={build_ts}"
+                path = f"/tools/{latest_build.expose_name}/primary/my-app.umd.js?v={build_ts}"
         else:
             if is_local:
                 path = f"/{latest_build.expose_name}"
             else:
-                path = f"{http_protocol}://{host}:{port}/tools/{latest_build.expose_name}/primary"
+                path = f"/tools/{latest_build.expose_name}/primary"
 
         components.append({
             "uuid": plugin.uuid or "",

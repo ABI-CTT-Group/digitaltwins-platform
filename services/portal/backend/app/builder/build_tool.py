@@ -6,7 +6,7 @@ import platform
 import uuid
 import json
 from pathlib import Path
-from typing import Optional, Dict, Any, Literal
+from typing import Optional, Dict, Any
 from urllib.parse import quote
 from dotenv import dotenv_values
 
@@ -38,8 +38,6 @@ class PluginBuilder:
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
         self.dataset_dir = Path(dataset_dir)
         self.dataset_dir.mkdir(parents=True, exist_ok=True)
-        self.use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
-        self._http_protocol: Literal['http', 'https'] = 'https' if self.use_ssl else 'http'
 
     @staticmethod
     def check_npm_project(project_dir: Path) -> bool:
@@ -231,38 +229,6 @@ class PluginBuilder:
         except Exception as e:
             logger.error(f"Failed to create SPARC dataset: {e}")
             raise RuntimeError(f"Failed to create SPARC dataset: {e}")
-
-    def _replace_path_in_umd_js(self, project_dir: Path, has_backend: bool, expose_name: str,
-                                frontend_folder: Optional[str] = None):
-        """Replace the path in file ends with .umd.js file for other files in the dist directory to the new path with the minio path"""
-        other_files = []
-        umd_js_file_path = None
-        if has_backend:
-            if frontend_folder is None:
-                logger.error("Must provide frontend_folder with has_backend=True")
-                raise
-            dist_dir = project_dir / frontend_folder / "dist"
-        else:
-            dist_dir = project_dir / "dist"
-        for file in dist_dir.iterdir():
-            if file.is_file() and not file.name.endswith(".umd.js"):
-                other_files.append(file)
-            elif file.is_file() and file.name.endswith(".umd.js"):
-                umd_js_file_path = file
-            else:
-                logger.warning(f"File {file} is not a file")
-
-        if umd_js_file_path is None:
-            raise RuntimeError("umd.js file not found")
-
-        with open(umd_js_file_path, "r") as f:
-            umd_js_content = f.read()
-
-        new_path_prefix = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/tools/{expose_name}/primary/"
-        umd_js_content = umd_js_content.replace(new_path_prefix, expose_name)
-
-        with open(umd_js_file_path, "w") as f:
-            f.write(umd_js_content)
 
     @staticmethod
     def _replace_vite_build_config(file_path: Path, new_name: str) -> bool:
@@ -489,14 +455,6 @@ class PluginBuilder:
                 if not build_result["success"]:
                     raise RuntimeError(f"npm build failed: {build_result.get('error', 'Unknown error')}")
                 logger.info("npm build completed successfully")
-
-                # Step 5: replace the path in the umd.js file (only for remote repos, not local)
-                if cloned_dir:
-                    logger.info("Step 5: Replacing path in umd.js file...")
-                    self._replace_path_in_umd_js(project_dir, has_backend, metadata["expose"], frontend_folder)
-                    logger.info("Path in umd.js file replaced successfully")
-                else:
-                    logger.info("Step 5: Skipping path replacement for local plugin...")
 
                 # read config file in the cloned directory
                 config_file = project_dir / "config.portal.json"
