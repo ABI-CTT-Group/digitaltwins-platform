@@ -12,7 +12,7 @@
         <v-form ref="form" class="px-5">
             <h4 class="my-2">Choose the workflow tool type *</h4>
              <v-radio-group 
-                v-model="toolInfomationFormData.label"
+                v-model="toolInformationFormData.label"
                 inline
                 class="w-100 d-flex justify-start"
                 @update:modelValue="handleLabelChange"
@@ -24,30 +24,30 @@
             <CommonInfoForm
                 :cwl-repo-err="cwlRepoErr"
                 :name-err="nameErr"
-                v-model:repository_url="toolInfomationFormData.repository_url"
-                v-model:name="toolInfomationFormData.name"
-                v-model:author="toolInfomationFormData.author"
-                v-model:version="toolInfomationFormData.version"
-                v-model:description="toolInfomationFormData.description"
+                v-model:repository_url="toolInformationFormData.repository_url"
+                v-model:name="toolInformationFormData.name"
+                v-model:author="toolInformationFormData.author"
+                v-model:version="toolInformationFormData.version"
+                v-model:description="toolInformationFormData.description"
                 v-model:policy-checkbox="policyCheckbox"
                 @onSoundUrlBlur="onRepoBlur"
                 @onNameBlur="onNameBlur"
            >
 
             <!-- GUI Plugin -->
-            <div v-if="toolInfomationFormData.label === 'GUI'" class="w-100">
+            <div v-if="toolInformationFormData.label === 'GUI'" class="w-100">
                 <div class="w-100">
                     <h4 class="my-2">has backend? *</h4>
-                    <v-radio-group inline v-model="toolInfomationFormData.has_backend" class="w-100 d-flex justify-between">
+                    <v-radio-group inline v-model="toolInformationFormData.has_backend" class="w-100 d-flex justify-between">
                         <v-radio label="Yes" :value=true></v-radio>
                         <v-radio label="No" :value=false></v-radio>
                     </v-radio-group>
                 </div>
                 <div class="w-100 d-flex flex-row">
-                    <div v-show="toolInfomationFormData.has_backend" class="w-100 mr-1">
+                    <div v-show="toolInformationFormData.has_backend" class="w-100 mr-1">
                         <h4 class="my-2">Frontend Folder Name *</h4>
                         <v-select
-                            v-model="toolInfomationFormData.frontend_folder"
+                            v-model="toolInformationFormData.frontend_folder"
                             :items="foldersInRootRepo"
                             :rules="frontendFolderRules"
                             label="Frontend Folder"
@@ -56,7 +56,7 @@
                     <div class="w-100 ml-1">
                         <h4 class="my-2">Build Command *</h4>
                         <v-text-field
-                            v-model="toolInfomationFormData.frontend_build_command"
+                            v-model="toolInformationFormData.frontend_build_command"
                             :rules="frontendCommandRules"
                             label="Frontend Build Command"
                             clearable
@@ -65,19 +65,19 @@
                     </div>
                 </div>
                 <div class="w-100 d-flex flex-row">
-                    <div v-show="toolInfomationFormData.has_backend" class="w-100 mr-1">
+                    <div v-show="toolInformationFormData.has_backend" class="w-100 mr-1">
                         <h4 class="mb-2">Backend Folder Name *</h4>
                         <v-select
-                            v-model="toolInfomationFormData.backend_folder"
+                            v-model="toolInformationFormData.backend_folder"
                             :items="foldersInRootRepo"
                             :rules="backendFolderRules"
                             label="Backend Folder"
                         ></v-select>
                     </div>
-                    <div v-show="toolInfomationFormData.has_backend" class="w-100 ml-1">
+                    <div v-show="toolInformationFormData.has_backend" class="w-100 ml-1">
                         <h4 class="mb-2">Deploy Command (fixed) *</h4>
                         <v-text-field
-                            v-model="toolInfomationFormData.backend_deploy_command"
+                            v-model="toolInformationFormData.backend_deploy_command"
                             bg-color="cyan-darken-4"  
                             variant="solo"
                             readonly
@@ -125,7 +125,7 @@ const policyCheckbox = ref(false)
 const showAlert = ref(false)
 const cwlCheck = ref(true);
 const alertText = ref("")
-const toolInfomationFormData = reactive<IToolInformationStep>({
+const toolInformationFormData = reactive<IToolInformationStep>({
     label: "GUI",
     repository_url:"",
     name:"",
@@ -149,7 +149,7 @@ const frontendCommandRegex = /^(npm|yarn)\s+\S+/
 
 
 const frontendFolderRules = ref([
-    (v:string) => toolInfomationFormData.has_backend ? !!v || "Make sure the folder name matches the frontend folder in your tool’s GitHub repo" : true
+    (v:string) => toolInformationFormData.has_backend ? !!v || "Make sure the folder name matches the frontend folder in your tool’s GitHub repo" : true
 ])
 const frontendCommandRules = ref([
     (v:string) => !!v || 'Command to build your plugin (e.g., npm run build, yarn build)',
@@ -157,7 +157,7 @@ const frontendCommandRules = ref([
 ])
 const backendFolderRules = [
     (v: string) => {
-        if (!toolInfomationFormData.has_backend) return true
+        if (!toolInformationFormData.has_backend) return true
         return !!v || "The backend folder name can’t be empty!"
     }
 ]
@@ -169,8 +169,8 @@ const addGitSuffix = (url:string) => {
 }
 
 const handleLabelChange = () =>{
-    if (toolInfomationFormData.label === "Script"){
-        toolInfomationFormData.has_backend = false;
+    if (toolInformationFormData.label === "Script"){
+        toolInformationFormData.has_backend = false;
         onRepoBlur();
 
     }else{
@@ -181,27 +181,27 @@ const handleLabelChange = () =>{
 }
 
 const onRepoBlur = () => {
-    if (!toolInfomationFormData.repository_url) return
-    if (!toolInfomationFormData.repository_url.endsWith('.git')) {
-        toolInfomationFormData.repository_url = addGitSuffix(toolInfomationFormData.repository_url);
+    if (!toolInformationFormData.repository_url) return
+    if (!toolInformationFormData.repository_url.endsWith('.git')) {
+        toolInformationFormData.repository_url = addGitSuffix(toolInformationFormData.repository_url);
     }
-    toolInfomationFormData.name = getRepoNameFromUrl(toolInfomationFormData.repository_url);
-    toolInfomationFormData.author = getRepoAuthorFromUrl(toolInfomationFormData.repository_url);
+    toolInformationFormData.name = getRepoNameFromUrl(toolInformationFormData.repository_url);
+    toolInformationFormData.author = getRepoAuthorFromUrl(toolInformationFormData.repository_url);
     onNameBlur();
 
     // Fetch repo contents to get folders in root
     foldersInRootRepo.value = [];
-    getRepoContents(toolInfomationFormData.repository_url).then((res)=>{
+    getRepoContents(toolInformationFormData.repository_url).then((res)=>{
         const folders = res!.data as GitContent[];
         const cwlFilesInRoot: string[] = [];
         folders.forEach((item: GitContent)=>{
             if (item.type == 'dir'){
                 foldersInRootRepo.value.push(item.name)
-            }else if(toolInfomationFormData.label === "Script" && item.type == 'file' && item.name.endsWith(".cwl")){
+            }else if(toolInformationFormData.label === "Script" && item.type == 'file' && item.name.endsWith(".cwl")){
                  cwlFilesInRoot.push(item.name);
             }
         })
-        if (toolInfomationFormData.label === "Script"){
+        if (toolInformationFormData.label === "Script"){
             if (cwlFilesInRoot.length > 0){
                 cwlCheck.value = true;
                 cwlRepoErr.value = {
@@ -218,14 +218,14 @@ const onRepoBlur = () => {
         }
     }).catch((err) => console.error("Error fetching repo contents:", err));
 
-    findPackageJson(toolInfomationFormData.repository_url).then((files)=>{
+    findPackageJson(toolInformationFormData.repository_url).then((files)=>{
         if(files.length > 0){
             const packageJsonPath = files[0];
-            getRepoContents(toolInfomationFormData.repository_url, packageJsonPath).then((res)=>{
+            getRepoContents(toolInformationFormData.repository_url, packageJsonPath).then((res)=>{
                 const data = res.data;
                 const decoded = atob(data.content.replace(/\n/g, ''));
                 const packageJson = JSON.parse(decoded)
-                toolInfomationFormData.version = packageJson.version;
+                toolInformationFormData.version = packageJson.version;
             }).catch(console.error)
         }
     }).catch(console.error)
@@ -234,11 +234,11 @@ const onRepoBlur = () => {
 
 const onNameBlur = async () => {
     // Don't need to check if name is empty
-    nameErr.value = await useCheckPluginName(toolInfomationFormData.name)
+    nameErr.value = await useCheckPluginName(toolInformationFormData.name)
 }
 
 const handleFrontendFolderBlur = () => {
-    if (checkFolderNameInRoot(toolInfomationFormData.frontend_folder)){
+    if (checkFolderNameInRoot(toolInformationFormData.frontend_folder)){
         frontendFolderErr.value = {
            available: true,
            message: '' 
@@ -246,13 +246,13 @@ const handleFrontendFolderBlur = () => {
     }else{
         frontendFolderErr.value = {
             available: false,
-            message: `'${toolInfomationFormData.frontend_folder}' is not in your repo folders: [${foldersInRootRepo.value}]`
+            message: `'${toolInformationFormData.frontend_folder}' is not in your repo folders: [${foldersInRootRepo.value}]`
         }
     }
 }
 
 const handleBackendFolderBlur = () => {
-    if (checkFolderNameInRoot(toolInfomationFormData.backend_folder)){
+    if (checkFolderNameInRoot(toolInformationFormData.backend_folder)){
         backendFolderErr.value = {
            available: true,
            message: '' 
@@ -260,7 +260,7 @@ const handleBackendFolderBlur = () => {
     }else{
         backendFolderErr.value = {
             available: false,
-            message: `'${toolInfomationFormData.backend_folder}' is not in your repo folders: [${foldersInRootRepo.value}]`
+            message: `'${toolInformationFormData.backend_folder}' is not in your repo folders: [${foldersInRootRepo.value}]`
         }
     }
 }
@@ -290,7 +290,7 @@ const checkFolderNameInRoot = (name: string) => {
     return foldersInRootRepo.value.includes(name)
 }
 
-watch(()=>toolInfomationFormData.has_backend,(newVal, oldVal)=>{
+watch(()=>toolInformationFormData.has_backend,(newVal, oldVal)=>{
     policyCheckbox.value = false;
 })
 
@@ -298,9 +298,9 @@ watch(()=>toolInfomationFormData.has_backend,(newVal, oldVal)=>{
 async function validate(){
     const { valid } = await form.value.validate();
     onNameBlur();
-    if(toolInfomationFormData.label === "GUI"){
+    if(toolInformationFormData.label === "GUI"){
        
-        if (toolInfomationFormData.has_backend){
+        if (toolInformationFormData.has_backend){
             handleBackendFolderBlur();
             handleFrontendFolderBlur();
             if( 
@@ -319,7 +319,7 @@ async function validate(){
                 return true;
             }
         }
-    }else if(toolInfomationFormData.label === "Script"){
+    }else if(toolInformationFormData.label === "Script"){
         if (valid && nameErr.value?.available && cwlCheck.value){
             return true;
         }
@@ -334,7 +334,7 @@ async function handleCancel () {
 async function handleSubmit() {
     const result = await validate();
     if (result){
-        emit("submit", toolInfomationFormData)
+        emit("submit", toolInformationFormData)
         showAlert.value = false
     }else{
         showAlert.value = true
