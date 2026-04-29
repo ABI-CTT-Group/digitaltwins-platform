@@ -43,25 +43,25 @@
             <v-stepper-window>
                 <v-stepper-window-item :value="1">
                     <v-card class="pa-4" variant="outlined" color="grey-lighten-2">
-                        <WorkflowInformationStep @submit="handleSubmit" @cancel="handleCancel"/>
+                        <BaseInformationStep type="workflow" @submit="handleSubmit" @cancel="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
 
                 <v-stepper-window-item :value="2">
                     <v-card class="pa-4" variant="outlined" color="grey-lighten-2">
-                        <WorkflowAnnotateStep :workflow="workflow" @annotation-submit="handleAnnotation" @close="handleCancel"/>
+                        <BaseAnnotateStep type="workflow" :data="workflow" @annotation-submit="handleAnnotation" @close="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
 
                 <v-stepper-window-item :value="3">
                     <v-card class="pa-4" variant="tonal" color="cyan-darken-4">
-                        <WorkflowBuildStep :workflow="workflow" @build="handleBuild" @close="handleCancel"/>
+                        <BaseBuildStep type="workflow" :data="workflow" @build="handleBuild" @close="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
 
                 <v-stepper-window-item :value="4">
                     <v-card class="pa-4" variant="tonal" color="cyan-darken-4">
-                        <WorkflowCompleteStep :workflow="workflow" @done="handleCancel"/>
+                        <BaseCompleteStep type="workflow" :data="workflow" @done="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
             </v-stepper-window>
@@ -71,11 +71,11 @@
 </template>
 
 <script setup lang="ts">
-import WorkflowInformationStep from './components/WorkflowInformationStep.vue';
-import WorkflowAnnotateStep from './components/WorkflowAnnotateStep.vue';
-import WorkflowCompleteStep from './components/WorkflowCompleteStep.vue';
-import WorkflowBuildStep from './components/WorkflowBuildStep.vue';
-import { IWorkflowInformationStep, IWorkflowResponse, IAnnotation} from '@/models/types';
+import BaseInformationStep from '../components/BaseInformationStep.vue';
+import BaseAnnotateStep from '../components/BaseAnnotateStep.vue';
+import BaseCompleteStep from '../components/BaseCompleteStep.vue';
+import BaseBuildStep from '../components/BaseBuildStep.vue';
+import { IBaseInformationStep, IWorkflowResponse, IAnnotation} from '@/models/types';
 import { useCreateWorkflow, useCreateWorkflowAnnotation, useWorkflowBuild } from '@/bootstrap/workflow_api'
 import { ref, watch } from "vue";
 
@@ -83,7 +83,7 @@ const emit = defineEmits(['finished'])
 const step = ref(0);
 const  workflow = ref<IWorkflowResponse>()
 
-const handleSubmit = async (data:IWorkflowInformationStep)=>{
+const handleSubmit = async (data:IBaseInformationStep)=>{
     workflow.value  = await useCreateWorkflow(data)
 
     step.value += 1;

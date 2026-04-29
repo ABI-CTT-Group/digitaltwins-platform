@@ -69,7 +69,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { storeToRefs } from "pinia";
 import { useDashboardPageStore } from '@/store/dashboard_page_store';
 import { useDashboardGetAssayConfigDetails, useDashboardGetAssayLaunch, useDashboardWorkflowDetail } from "@/bootstrap/dashboard_api";
-import { useDashboardProgrammesStore, useDashboardCategoryChildrenStore, useDashboardSaveAssayDetailsStore } from '@/store/dashboard_store';
+import { useDashboardProgrammes, useDashboardCategoryChildren, useSaveAssayDetails } from '@/bootstrap/dashboard_api';
 import {IDashboardCategory, IAssayDetails} from "@/models/types";
 import AssayBasicCard from '@/components/domain/AssayBasicCard.vue';
 import DownloadSheet from '@/components/domain/DownloadSheet.vue';
@@ -81,11 +81,17 @@ import { getApiErrorMessage } from '@/utils/common';
 const router = useRouter();
 const route = useRoute();
 
-const { dashboardProgrammes } = storeToRefs(useDashboardProgrammesStore());
-const { getDashboardProgrammes } = useDashboardProgrammesStore();
-const { dashboardCategoryChildren } = storeToRefs(useDashboardCategoryChildrenStore());
-const { getDashboardCategoryChildren } = useDashboardCategoryChildrenStore();
-const { saveAssayDetails } = useDashboardSaveAssayDetailsStore();
+const dashboardProgrammes = ref<IDashboardCategory[]>();
+const getDashboardProgrammes = async () => {
+    dashboardProgrammes.value = await useDashboardProgrammes();
+};
+const dashboardCategoryChildren = ref<IDashboardCategory[]>();
+const getDashboardCategoryChildren = async (seek_id: string, category: string) => {
+    dashboardCategoryChildren.value = await useDashboardCategoryChildren(seek_id, category);
+};
+const saveAssayDetails = async (body: IAssayDetails): Promise<boolean> => {
+    return await useSaveAssayDetails(body);
+};
 
 const {
     currentCategory, 

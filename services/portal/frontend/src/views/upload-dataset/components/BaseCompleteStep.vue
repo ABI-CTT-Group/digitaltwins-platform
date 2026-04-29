@@ -3,10 +3,12 @@
     <div class="d-flex flex-column align-center justify-center flex-grow-1 text-center">
       <v-icon size="64" color="cyan-darken-1">mdi-cog-sync</v-icon>
 
-      <h2 class="mt-4 text-cyan">Workflow Build in Progress</h2>
+      <h2 class="mt-4 text-cyan">
+        {{ type === 'workflow' ? 'Workflow Build in Progress' : 'Workflow Tool Build in Progress' }}
+      </h2>
 
       <p class="text-grey">
-        Your workflow "{{ workflow?.name }}" is currently being built. Once the build is completed, 
+        Your {{ type === 'workflow' ? 'workflow' : 'workflow tool' }} "{{ data?.name }}" is currently being built. Once the build is completed, 
         you will be able to upload its dataset to the <strong>DigitalTWINS</strong> platform.
       </p>
     </div>
@@ -26,15 +28,17 @@
 </template>
 
 <script lang="ts" setup>
-import { IWorkflowResponse } from '@/models/types';
+import { IWorkflowResponse, ToolResponse } from '@/models/types';
 
 const props = defineProps<{
-  workflow: IWorkflowResponse | undefined
+  type: 'workflow' | 'tool'
+  data: IWorkflowResponse | ToolResponse | undefined
 }>();
+
 const emit = defineEmits(["done"])
 
 const handleDone = () => {
-  emit("done", props.workflow?.id)
+  emit("done", props.data?.id)
 }
 </script>
 

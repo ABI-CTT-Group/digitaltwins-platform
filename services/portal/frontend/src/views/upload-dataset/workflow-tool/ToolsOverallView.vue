@@ -52,7 +52,7 @@
 import { ref, onBeforeMount, watch, onUnmounted } from "vue"
 // @ts-ignore - vue-toastification is installed but missing type declarations
 import { useToast } from "vue-toastification"
-import ToolCard from "./components/ToolCard.vue"
+import ToolCard from "../components/ToolCard.vue"
 import { useWorkflowTools, useToolMetadata, useWorkflowToolBuild, useDeleteTool, useToolApproval, useDeployTool, useDockerCompose } from '@/bootstrap/tool_api';
 import { ToolResponse, ToolMinIOToolMetadata } from '@/models/types';
 import { useRemoteAppStore } from '@/store/remote_store'

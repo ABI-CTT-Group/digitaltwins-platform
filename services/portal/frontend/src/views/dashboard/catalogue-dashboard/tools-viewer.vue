@@ -110,15 +110,17 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { storeToRefs } from 'pinia';
-import { useDashboardWorkflowsStore } from "@/store/dashboard_store";
+import { useDashboardWorkflows } from "@/bootstrap/dashboard_api";
+import { IDashboardWorkflow } from "@/models/types";
 import Dialog from '@/components/common/Dialog.vue';
 import CWLViewer from '@/components/common/CWLViewer.vue';
 import CWLWorkflowViewer from '@/components/domain/workflow/CWLWorkflowViewer.vue';
 
 
-const { dashboardWorkflows } = storeToRefs(useDashboardWorkflowsStore());
-const { getDashboardWorkflows } = useDashboardWorkflowsStore();
+const dashboardWorkflows = ref<IDashboardWorkflow[]>();
+const getDashboardWorkflows = async () => {
+    dashboardWorkflows.value = await useDashboardWorkflows();
+};
 const isNewWorkflowClicked = ref(false)
 const workflowData = ref({});
 

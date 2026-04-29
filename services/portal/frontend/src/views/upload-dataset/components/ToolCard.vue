@@ -105,8 +105,8 @@
 import { computed, ref, watch, toRef } from 'vue'
 import { ToolResponse } from '@/models/types';
 import { useGetDockerComposeStatus, useDeleteTool } from '@/bootstrap/tool_api'
-import CardUI from '../../components/CardUI.vue';
-import { formatDate } from '../../components/utils';
+import CardUI from './CardUI.vue';
+import { formatDate } from './utils';
 
 const props = defineProps<{
   tool: ToolResponse

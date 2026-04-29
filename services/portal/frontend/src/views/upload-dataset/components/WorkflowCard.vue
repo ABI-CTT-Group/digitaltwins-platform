@@ -40,8 +40,8 @@
 <script setup lang="ts">
 import { computed, ref, watch, toRef } from 'vue'
 import { IWorkflowResponse } from '@/models/types';
-import CardUI from '../../components/CardUI.vue';
-import { formatDate } from '../../components/utils';
+import CardUI from './CardUI.vue';
+import { formatDate } from './utils';
 
 const props = defineProps<{
   workflow: IWorkflowResponse

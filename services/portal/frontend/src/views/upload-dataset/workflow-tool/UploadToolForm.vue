@@ -45,25 +45,25 @@
             <v-stepper-window>
                 <v-stepper-window-item :value="1">
                     <v-card class="pa-4" variant="outlined" color="grey-lighten-2">
-                        <ToolInformationStep @submit="handleSubmit" @cancel="handleCancel"/>
+                        <BaseInformationStep type="tool" @submit="handleSubmit" @cancel="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
 
                 <v-stepper-window-item :value="2">
                     <v-card class="pa-4" variant="outlined" color="grey-lighten-2">
-                        <ToolAnnotateStep :tool="tool" @annotation-submit="handleAnnotation" @close="handleCancel"/>
+                        <BaseAnnotateStep type="tool" :data="tool" @annotation-submit="handleAnnotation" @close="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
 
                 <v-stepper-window-item :value="3">
                     <v-card class="pa-4" variant="tonal" color="cyan-darken-4">
-                        <ToolBuildStep :tool="tool" @build="handleBuild" @close="handleCancel"/>
+                        <BaseBuildStep type="tool" :data="tool" @build="handleBuild" @close="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
 
                 <v-stepper-window-item :value="4">
                     <v-card class="pa-4" variant="tonal" color="cyan-darken-4">
-                        <ToolCompleteStep :tool="tool" @done="handleCancel"/>
+                        <BaseCompleteStep type="tool" :data="tool" @done="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
             </v-stepper-window>
@@ -73,11 +73,11 @@
 </template>
 
 <script setup lang="ts">
-import ToolInformationStep from './components/ToolInformationStep.vue';
-import ToolBuildStep from './components/ToolBuildStep.vue';
-import ToolCompleteStep from './components/ToolCompleteStep.vue';
-import ToolAnnotateStep from './components/ToolAnnotateStep.vue';
-import { ToolResponse, IToolInformationStep, IAnnotateTool} from '@/models/types';
+import BaseInformationStep from '../components/BaseInformationStep.vue';
+import BaseBuildStep from '../components/BaseBuildStep.vue';
+import BaseCompleteStep from '../components/BaseCompleteStep.vue';
+import BaseAnnotateStep from '../components/BaseAnnotateStep.vue';
+import { ToolResponse, IBaseInformationStep, IAnnotateTool} from '@/models/types';
 import { useCreateTool, useWorkflowToolBuild, useCreateToolAnnotation } from '@/bootstrap/tool_api'
 import { ref, watch } from "vue";
 
@@ -85,7 +85,7 @@ const emit = defineEmits(['finished'])
 const step = ref(0);
 const tool = ref<ToolResponse>()
 
-const handleSubmit = async (data:IToolInformationStep)=>{
+const handleSubmit = async (data:IBaseInformationStep)=>{
     tool.value = await useCreateTool(data)
     step.value += 1;
 }
