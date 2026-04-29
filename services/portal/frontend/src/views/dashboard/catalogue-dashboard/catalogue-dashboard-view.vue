@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import SimpleInfoCard from '@/components/dt-components/SimpleInfoCard.vue';
+import SimpleInfoCard from '@/components/domain/SimpleInfoCard.vue';
 import { ref, computed } from 'vue';
 
 const cards =[

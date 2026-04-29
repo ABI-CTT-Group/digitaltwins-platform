@@ -26,10 +26,10 @@
 </template>
 
 <script lang="ts" setup>
-import { PluginResponse } from '@/models/uiTypes';
+import { ToolResponse } from '@/models/types';
 
 const props = defineProps<{
-  tool: PluginResponse | undefined
+  tool: ToolResponse | undefined
 }>();
 const emit = defineEmits(["done"])
 

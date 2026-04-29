@@ -44,8 +44,8 @@
 <script setup lang="ts">
 import { ref, onBeforeMount, watch, onUnmounted } from "vue"
 import WorkflowCard from "./components/WorkflowCard.vue"
-import { useWorkflow, useDeleteWorkflow, useWorkflowApproval } from '@/plugins/workflow_api';
-import { IWorkflowResponse } from '@/models/uiTypes';
+import { useWorkflow, useDeleteWorkflow, useWorkflowApproval } from '@/bootstrap/workflow_api';
+import { IWorkflowResponse } from '@/models/types';
 import { useRouter } from 'vue-router'
 import Fuse from "fuse.js";
 import NoData from '@/views/upload-dataset/components/NoData.vue';

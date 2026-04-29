@@ -10,7 +10,7 @@
 <script lang="ts" setup>
 import DefaultView from "./View.vue";
 import AuthNavBar from "@/components/AuthNavBar.vue";
-import NavHome from "@/components/dt-components/NavHome.vue";
+import NavHome from "@/components/domain/NavHome.vue";
 import { useRoute } from "vue-router";
 import { watch, ref, computed } from "vue";
 

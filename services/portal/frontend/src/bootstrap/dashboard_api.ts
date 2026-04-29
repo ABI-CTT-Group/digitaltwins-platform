@@ -1,5 +1,5 @@
 import http from "./http";
-import { IDashboardCategory, IDashboardWorkflow, IAssayDetails, IAssayLaunch, IAssayDataset, ISeekAssayDetails } from "@/models/apiTypes";
+import { IDashboardCategory, IDashboardWorkflow, IAssayDetails, IAssayLaunch, IAssayDataset, ISeekAssayDetails } from "@/models/types";
 
 export async function useDashboardProgrammes() {
     const programmes = http.get<IDashboardCategory[]>("/dashboard/programmes");

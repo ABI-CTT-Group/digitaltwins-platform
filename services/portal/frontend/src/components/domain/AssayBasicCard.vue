@@ -80,9 +80,9 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import { IDashboardCategory } from '@/models/apiTypes';
+import { IDashboardCategory } from '@/models/types';
 import Dialog from '@/components/common/Dialog.vue';
-import AssayContent from '@/components/dt-components/AssayContent.vue';
+import AssayContent from '@/components/domain/AssayContent.vue';
 import AssayBasicCardButtons from './AssayBasicCardButtons.vue';
 import { storeToRefs } from "pinia";
 import { useDashboardPageStore } from '@/store/dashboard_page_store';

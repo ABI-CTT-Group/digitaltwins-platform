@@ -132,12 +132,12 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, computed, watch} from "vue";
-import { IWorkflowResponse, PluginResponse, IWorkflowStepAnnotation } from '@/models/uiTypes';
+import { IWorkflowResponse, ToolResponse, IWorkflowStepAnnotation } from '@/models/types';
 import { getRepoContents} from '@/views/upload-dataset/components/utils';
-import { GitContent } from '@/models/uiTypes';
+import { GitContent } from '@/models/types';
 import yaml from "js-yaml";
 import NoData from '@/views/upload-dataset/components/NoData.vue';
-import { useWorkflowTools, useGetWorkflowToolAnnotation} from '@/plugins/plugin_api'; 
+import { useWorkflowTools, useGetWorkflowToolAnnotation} from '@/bootstrap/tool_api'; 
 
 const props = defineProps<{
   workflow: IWorkflowResponse | undefined
@@ -147,7 +147,7 @@ const showAlert = ref(false)
 const annotateSteps = ref<Array<IWorkflowStepAnnotation>>([])
 const cwlObj = ref<any>(null);
 const form = ref();
-const workflowTools = ref<Array<PluginResponse>>([])
+const workflowTools = ref<Array<ToolResponse>>([])
 const toolItems = computed(()=>{
   return workflowTools.value.map(tool => ({
     id: tool.id,

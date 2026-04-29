@@ -74,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import SimpleInfoCard from '@/components/dt-components/SimpleInfoCard.vue';
+import SimpleInfoCard from '@/components/domain/SimpleInfoCard.vue';
 // import NavHome from '@/views/dashboard/components/NavHome.vue';
 import {h, ref} from 'vue'
 

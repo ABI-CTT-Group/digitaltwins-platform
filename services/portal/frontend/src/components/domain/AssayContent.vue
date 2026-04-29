@@ -86,8 +86,8 @@
 <script setup lang="ts">
 
 import { ref, watch, onMounted, onBeforeMount } from 'vue';
-import {IAssayDetails} from '@/models/apiTypes';
-import { useDashboardGetDatasets, useDashboardSelectedDatasetSampleTypes, useDashboardWorkflowDetail } from '@/plugins/dashboard_api';
+import {IAssayDetails} from '@/models/types';
+import { useDashboardGetDatasets, useDashboardSelectedDatasetSampleTypes, useDashboardWorkflowDetail } from '@/bootstrap/dashboard_api';
 
 import { capitalize } from '@/utils/common';
 

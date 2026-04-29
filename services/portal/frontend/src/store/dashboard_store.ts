@@ -5,8 +5,8 @@ import {
     useDashboardCategoryChildren,
     useDashboardWorkflows,
     useSaveAssayDetails,
- } from "@/plugins/dashboard_api";
-import { IDashboardCategory, IDashboardWorkflow, IAssayDetails } from "@/models/apiTypes";
+ } from "@/bootstrap/dashboard_api";
+import { IDashboardCategory, IDashboardWorkflow, IAssayDetails } from "@/models/types";
 
 export const useDashboardProgrammesStore = defineStore("DashboardProgrammes", () => {
     const dashboardProgrammes = ref<IDashboardCategory[]>();

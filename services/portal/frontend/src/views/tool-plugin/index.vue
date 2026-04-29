@@ -45,7 +45,7 @@
 import { ref, onMounted, shallowRef } from 'vue'
 import { useRemoteAppStore } from '@/store/remote_store'
 import { useRouter } from 'vue-router'
-import { useToolMetadata } from '@/plugins/plugin_api'
+import { useToolMetadata } from '@/bootstrap/tool_api'
 
 const router = useRouter()
 

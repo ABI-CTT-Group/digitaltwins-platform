@@ -4,17 +4,17 @@ import {
   IToolInformationStep, 
   IAnnotation,
   CheckNameResponse, 
-  PluginResponse, 
+  ToolResponse, 
   BuildResponse, 
-  PluginDeployResponse,
-  PluginMinIOMetadata,
+  ToolDeployResponse,
+  ToolMinIOMetadata,
   ExcuteBuildResponse,
-  IAnnotationResponse} from "@/models/uiTypes";
+  IAnnotationResponse} from "@/models/types";
 
 
    
 
-export async function useCheckPluginName(name: string): Promise<CheckNameResponse> {
+export async function useCheckToolName(name: string): Promise<CheckNameResponse> {
   try {
     const status = await http.get<CheckNameResponse>("/tools/check-name", { name });
     return status;
@@ -34,18 +34,18 @@ export async function useCheckPluginName(name: string): Promise<CheckNameRespons
   }
 }
 
-export async function useCreateToolPlugin(plugin:IToolInformationStep) {
-    const createPluginResponse = http.post<PluginResponse>("/tools/create", plugin)
-    return createPluginResponse
+export async function useCreateTool(plugin:IToolInformationStep) {
+    const createToolResponse = http.post<ToolResponse>("/tools/create", plugin)
+    return createToolResponse
 }
 
-export async function useCreateToolPluginAnnotation(id:string, annotation:IAnnotation) {
-    const createPluginResponse = http.post<IAnnotationResponse>(`/tools/plugin/${id}/annotation`, annotation)
-    return createPluginResponse
+export async function useCreateToolAnnotation(id:string, annotation:IAnnotation) {
+    const createToolResponse = http.post<IAnnotationResponse>(`/tools/plugin/${id}/annotation`, annotation)
+    return createToolResponse
 }
 
 export async function useWorkflowTools() {
-  const workflowTools = http.get<Array<PluginResponse>>("/tools/").then(async (tools)=>{
+  const workflowTools = http.get<Array<ToolResponse>>("/tools/").then(async (tools)=>{
     const formattedWorkflowTools = await Promise.all(tools.map(async (tool)=>{
       let buildStatus = 'pending'
       let deployStatus = undefined
@@ -61,9 +61,9 @@ export async function useWorkflowTools() {
           lastestBuildId = lastestBuild.build_id
           if(tool.has_backend && buildStatus === 'completed'){
     
-            const deployResponses = await http.get<Array<PluginDeployResponse>>(`/tools/plugin/build/${lastestBuild.build_id}/deploys`)
+            const deployResponses = await http.get<Array<ToolDeployResponse>>(`/tools/plugin/build/${lastestBuild.build_id}/deploys`)
             if(deployResponses.length > 0){
-              const latestDeploy = deployResponses.sort((a:PluginDeployResponse, b:PluginDeployResponse)=>
+              const latestDeploy = deployResponses.sort((a:ToolDeployResponse, b:ToolDeployResponse)=>
                 new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
               deployStatus = latestDeploy.status
               latestDeployId = latestDeploy.deploy_id
@@ -89,7 +89,7 @@ export async function useWorkflowTools() {
 }
 
 export async function useToolMetadata() {
-  const metadata = http.get<PluginMinIOMetadata>("/tools/metadata")
+  const metadata = http.get<ToolMinIOMetadata>("/tools/metadata")
   return metadata
 }
 

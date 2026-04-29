@@ -8,9 +8,9 @@ import {
     IAnnotationResponse,
     BuildResponse,
     ExcuteBuildResponse
-} from "@/models/uiTypes";
+} from "@/models/types";
 
-export async function useCheckPluginName(name: string): Promise<CheckNameResponse> {
+export async function useCheckToolName(name: string): Promise<CheckNameResponse> {
   try {
     const status = await http.get<CheckNameResponse>("/workflow/check-name", { name });
     return status;

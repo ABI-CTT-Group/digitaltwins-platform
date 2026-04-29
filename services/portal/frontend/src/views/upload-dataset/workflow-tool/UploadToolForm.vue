@@ -77,22 +77,22 @@ import ToolInformationStep from './components/ToolInformationStep.vue';
 import ToolBuildStep from './components/ToolBuildStep.vue';
 import ToolCompleteStep from './components/ToolCompleteStep.vue';
 import ToolAnnotateStep from './components/ToolAnnotateStep.vue';
-import { PluginResponse, IToolInformationStep, IAnnotateTool} from '@/models/uiTypes';
-import { useCreateToolPlugin, useWorkflowToolBuild, useCreateToolPluginAnnotation } from '@/plugins/plugin_api'
+import { ToolResponse, IToolInformationStep, IAnnotateTool} from '@/models/types';
+import { useCreateTool, useWorkflowToolBuild, useCreateToolAnnotation } from '@/bootstrap/tool_api'
 import { ref, watch } from "vue";
 
 const emit = defineEmits(['finished'])
 const step = ref(0);
-const tool = ref<PluginResponse>()
+const tool = ref<ToolResponse>()
 
 const handleSubmit = async (data:IToolInformationStep)=>{
-    tool.value = await useCreateToolPlugin(data)
+    tool.value = await useCreateTool(data)
     step.value += 1;
 }
 
 const handleAnnotation = async (id:string, data:IAnnotateTool) =>{
 
-    const res = await useCreateToolPluginAnnotation(id, {
+    const res = await useCreateToolAnnotation(id, {
         fhir_note: JSON.stringify(data),
         sparc_note: ""
     })

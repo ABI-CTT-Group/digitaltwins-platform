@@ -53,8 +53,8 @@ import { ref, onBeforeMount, watch, onUnmounted } from "vue"
 // @ts-ignore - vue-toastification is installed but missing type declarations
 import { useToast } from "vue-toastification"
 import ToolCard from "./components/ToolCard.vue"
-import { useWorkflowTools, useToolMetadata, useWorkflowToolBuild, useDeleteTool, useToolApproval, useDeployTool, useDockerCompose } from '@/plugins/plugin_api';
-import { PluginResponse, PluginMinIOToolMetadata } from '@/models/uiTypes';
+import { useWorkflowTools, useToolMetadata, useWorkflowToolBuild, useDeleteTool, useToolApproval, useDeployTool, useDockerCompose } from '@/bootstrap/tool_api';
+import { ToolResponse, ToolMinIOToolMetadata } from '@/models/types';
 import { useRemoteAppStore } from '@/store/remote_store'
 import { useRouter } from 'vue-router'
 import Fuse from "fuse.js";
@@ -71,8 +71,8 @@ let refreshInterval: number | undefined;
 
 const emit = defineEmits(["register"]);
 const search = ref("");
-const workflowTools = ref<Array<PluginResponse>>([]);
-const displayTools = ref<Array<PluginResponse>>([]);
+const workflowTools = ref<Array<ToolResponse>>([]);
+const displayTools = ref<Array<ToolResponse>>([]);
 
 onBeforeMount(async ()=>{
     await handleRefresh()
@@ -127,7 +127,7 @@ const handleRegister = ()=>{
 const handleLaunch = async (id:string) => {
     const metadata = await useToolMetadata();
     if (!!metadata && metadata.components.length >0){
-        const toolMetadata = metadata.components.find((tool:PluginMinIOToolMetadata)=>tool.id == id)
+        const toolMetadata = metadata.components.find((tool:ToolMinIOToolMetadata)=>tool.id == id)
         if(toolMetadata){
             remoteAppStore.setRemoteApp({
                 path: toolMetadata.path,

@@ -114,7 +114,7 @@ import { storeToRefs } from 'pinia';
 import { useDashboardWorkflowsStore } from "@/store/dashboard_store";
 import Dialog from '@/components/common/Dialog.vue';
 import CWLViewer from '@/components/common/CWLViewer.vue';
-import CWLWorkflowViewer from '@/components/dt-components/workflow/CWLWorkflowViewer.vue';
+import CWLWorkflowViewer from '@/components/domain/workflow/CWLWorkflowViewer.vue';
 
 
 const { dashboardWorkflows } = storeToRefs(useDashboardWorkflowsStore());

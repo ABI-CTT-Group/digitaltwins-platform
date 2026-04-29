@@ -103,13 +103,13 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, toRef } from 'vue'
-import { PluginResponse } from '@/models/uiTypes';
-import { useGetDockerComposeStatus, useDeleteTool } from '@/plugins/plugin_api'
+import { ToolResponse } from '@/models/types';
+import { useGetDockerComposeStatus, useDeleteTool } from '@/bootstrap/tool_api'
 import CardUI from '../../components/CardUI.vue';
 import { formatDate } from '../../components/utils';
 
 const props = defineProps<{
-  tool: PluginResponse
+  tool: ToolResponse
   disabled?: boolean
 }>()
 

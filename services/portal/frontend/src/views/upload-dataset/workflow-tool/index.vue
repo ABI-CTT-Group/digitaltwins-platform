@@ -13,7 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import Hero from '@/components/dt-components/Hero.vue';
+import Hero from '@/components/domain/Hero.vue';
 import UploadToolForm from './UploadToolForm.vue';
 import ToolsOverallView from './ToolsOverallView.vue';
 import { ref, computed } from 'vue';

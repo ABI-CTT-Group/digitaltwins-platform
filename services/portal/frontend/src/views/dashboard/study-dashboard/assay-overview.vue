@@ -61,10 +61,10 @@ import { useRoute } from 'vue-router';
 import { asyncComputed } from '@vueuse/core'
 import { ref, computed, onMounted, onBeforeMount, watchEffect} from 'vue';
 import { useDashboardPageStore } from '@/store/dashboard_page_store';
-import { useDashboardWorkflowDetail, useDashboardSeekAssay } from "@/plugins/dashboard_api";
-import AssayOverviewEmpty from '@/components/dt-components/AssayOverviewEmpty.vue';
-import AssayBasicCardButtons from '@/components/dt-components/AssayBasicCardButtons.vue';
-import { ISeekAssayDetails } from '@/models/apiTypes';
+import { useDashboardWorkflowDetail, useDashboardSeekAssay } from "@/bootstrap/dashboard_api";
+import AssayOverviewEmpty from '@/components/domain/AssayOverviewEmpty.vue';
+import AssayBasicCardButtons from '@/components/domain/AssayBasicCardButtons.vue';
+import { ISeekAssayDetails } from '@/models/types';
 import { capitalize } from '@/utils/common';
 
 import { storeToRefs } from "pinia";

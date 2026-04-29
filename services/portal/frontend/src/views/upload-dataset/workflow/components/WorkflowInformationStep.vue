@@ -52,10 +52,10 @@
 <script setup lang="ts">
 import { ref, watch, reactive, watchEffect} from 'vue'
 import CommonInfoForm from '@/views/upload-dataset/components/CommonInfoForm.vue'
-import { IToolInformationStep, CheckNameResponse, IWorkflowInformationStep } from '@/models/uiTypes'
-import { useCheckPluginName } from '@/plugins/workflow_api'
+import { IToolInformationStep, CheckNameResponse, IWorkflowInformationStep } from '@/models/types'
+import { useCheckToolName } from '@/bootstrap/workflow_api'
 import { getRepoNameFromUrl, getRepoAuthorFromUrl, getRepoContents} from '@/views/upload-dataset/components/utils'
-import { GitContent } from '@/models/uiTypes'
+import { GitContent } from '@/models/types'
 
 
 
@@ -120,7 +120,7 @@ const onRepoBlur = () => {
 
 const onNameBlur = async () => {
     // Don't need to check if name is empty
-    nameErr.value = await useCheckPluginName(workflowFormData.name)
+    nameErr.value = await useCheckToolName(workflowFormData.name)
 }
 
 

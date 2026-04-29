@@ -75,8 +75,8 @@ import WorkflowInformationStep from './components/WorkflowInformationStep.vue';
 import WorkflowAnnotateStep from './components/WorkflowAnnotateStep.vue';
 import WorkflowCompleteStep from './components/WorkflowCompleteStep.vue';
 import WorkflowBuildStep from './components/WorkflowBuildStep.vue';
-import { IWorkflowInformationStep, IWorkflowResponse, IAnnotation} from '@/models/uiTypes';
-import { useCreateWorkflow, useCreateWorkflowAnnotation, useWorkflowBuild } from '@/plugins/workflow_api'
+import { IWorkflowInformationStep, IWorkflowResponse, IAnnotation} from '@/models/types';
+import { useCreateWorkflow, useCreateWorkflowAnnotation, useWorkflowBuild } from '@/bootstrap/workflow_api'
 import { ref, watch } from "vue";
 
 const emit = defineEmits(['finished'])

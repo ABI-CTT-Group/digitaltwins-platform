@@ -1,3 +1,60 @@
+﻿export interface IDashboardCategory {
+  seekId: string;
+  name: string;
+  category: string;
+  description?: string;
+  workflow_seek_id?: string;
+  tag?: string;
+}
+
+export interface IDashboardWorkflow {
+  uuid: string;
+  seekId: string;
+  name: string;
+  type?: string;
+  inputs?: IWorkflowInput[];
+  outputs?: IWorkflowOutput[];
+}
+
+interface IWorkflowInput {
+  input: { category: string; name: string; }; 
+  datasetSelectedUUID: string;
+  sampleSelectedType: string;
+}
+interface IWorkflowOutput { 
+  output: { category: string; name: string; }, 
+  datasetName: string, 
+  sampleName: string
+}
+
+export interface ISeekAssayDetails {
+  seekId: string;
+  name: string;
+  relationships: {
+    studySeekId: string;
+    investigationSeekId: string;
+  }
+}
+
+export interface IAssayDetails {
+  seekId: string;
+  uuid: string;
+  workflow: IDashboardWorkflow;
+  numberOfParticipants: Array<number>;
+  isAssayReadyToLaunch: boolean;
+}
+
+export interface IAssayLaunch {
+  type?: string;
+  data?: any;
+  message?: string;
+}
+
+export interface IAssayDataset {
+  uuid: string;
+  name: string;
+}
+
 export interface IToolInformationStep {
     name: string;
     version: string;
@@ -17,7 +74,7 @@ export interface CheckNameResponse {
     available: boolean;
     message: string;
 }
-export interface PluginResponse {
+export interface ToolResponse {
     id: string
     plugin_metadata: any
     name: string
@@ -52,7 +109,7 @@ export interface BuildResponse {
     updated_at: string
 }
 
-export interface PluginDeployResponse {
+export interface ToolDeployResponse {
     id: string
     plugin_id: string
     build_id: string
@@ -62,7 +119,7 @@ export interface PluginDeployResponse {
     updated_at: string
 }
 
-export interface PluginMinIOToolMetadata {
+export interface ToolMinIOToolMetadata {
       uuid: string,
       id: string,
       name: string,
@@ -81,8 +138,8 @@ export interface PluginMinIOToolMetadata {
       config: any
     }
 
-export interface PluginMinIOMetadata {
-    components: Array<PluginMinIOToolMetadata>
+export interface ToolMinIOMetadata {
+    components: Array<ToolMinIOToolMetadata>
 }
 
 export interface ExcuteBuildResponse {

@@ -7,7 +7,7 @@ import {
   hasRole,
   logout as keycloakLogout,
   getAccessToken,
-} from '@/plugins/keycloak';
+} from '@/bootstrap/keycloak';
 
 interface UserInfo {
   username?: string;

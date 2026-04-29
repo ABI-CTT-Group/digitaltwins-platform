@@ -59,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import { IDashboardCategory } from '@/models/apiTypes';
+import { IDashboardCategory } from '@/models/types';
 import { storeToRefs } from "pinia";
 import { useDashboardPageStore } from '@/store/dashboard_page_store';
 

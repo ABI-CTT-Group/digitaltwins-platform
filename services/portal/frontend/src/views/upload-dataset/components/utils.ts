@@ -1,4 +1,4 @@
-import { GitContent } from '@/models/uiTypes';
+import { GitContent } from '@/models/types';
 import yaml from "js-yaml";
 
 export const formatDate = (dateString: string) => {

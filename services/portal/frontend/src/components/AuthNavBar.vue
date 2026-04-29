@@ -82,7 +82,7 @@
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/store/auth_store';
-import { getKeycloak } from '@/plugins/keycloak';
+import { getKeycloak } from '@/bootstrap/keycloak';
 
 const router = useRouter();
 const authStore = useAuthStore();

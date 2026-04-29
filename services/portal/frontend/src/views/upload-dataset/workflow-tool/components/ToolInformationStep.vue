@@ -113,11 +113,11 @@
 
 <script setup lang="ts">
 import { ref, watch, reactive, watchEffect} from 'vue'
-import { IToolInformationStep, CheckNameResponse } from '@/models/uiTypes'
-import { useCheckPluginName } from '@/plugins/plugin_api'
+import { IToolInformationStep, CheckNameResponse } from '@/models/types'
+import { useCheckToolName } from '@/bootstrap/tool_api'
 import CommonInfoForm from '@/views/upload-dataset/components/CommonInfoForm.vue'
 import { getRepoNameFromUrl, getRepoAuthorFromUrl, getRepoContents, convertToApiUrl} from '@/views/upload-dataset/components/utils'
-import { GitContent } from '@/models/uiTypes'
+import { GitContent } from '@/models/types'
 
 const emit = defineEmits(["cancel", "submit"])
 const form = ref()
@@ -234,7 +234,7 @@ const onRepoBlur = () => {
 
 const onNameBlur = async () => {
     // Don't need to check if name is empty
-    nameErr.value = await useCheckPluginName(toolInformationFormData.name)
+    nameErr.value = await useCheckToolName(toolInformationFormData.name)
 }
 
 const handleFrontendFolderBlur = () => {

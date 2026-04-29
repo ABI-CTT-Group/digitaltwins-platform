@@ -39,7 +39,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, toRef } from 'vue'
-import { IWorkflowResponse } from '@/models/uiTypes';
+import { IWorkflowResponse } from '@/models/types';
 import CardUI from '../../components/CardUI.vue';
 import { formatDate } from '../../components/utils';
 

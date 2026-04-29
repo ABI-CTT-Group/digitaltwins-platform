@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { IDashboardCategory, IAssayDetails } from "@/models/apiTypes";
+import { IDashboardCategory, IAssayDetails } from "@/models/types";
 
 interface IAllAssayDetailsOfStudy {
   [key: string]: IAssayDetails;

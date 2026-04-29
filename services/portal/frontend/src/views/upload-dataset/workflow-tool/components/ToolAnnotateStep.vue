@@ -113,14 +113,14 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, computed, watch} from "vue";
-import { PluginResponse } from '@/models/uiTypes';
+import { ToolResponse } from '@/models/types';
 import { getRepoRootCWLContent } from '@/views/upload-dataset/components/utils';
 import NoData from '@/views/upload-dataset/components/NoData.vue';
-import { useWorkflowTools } from '@/plugins/plugin_api'; 
-import { IAnnotateTool } from "@/models/uiTypes";
+import { useWorkflowTools } from '@/bootstrap/tool_api'; 
+import { IAnnotateTool } from "@/models/types";
 
 const props = defineProps<{
-  tool: PluginResponse | undefined
+  tool: ToolResponse | undefined
 }>();
 
 const showAlert = ref(false)

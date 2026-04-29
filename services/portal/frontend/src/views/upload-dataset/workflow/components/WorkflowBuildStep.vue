@@ -36,7 +36,7 @@
 
 <script lang="ts" setup>
 import { ref } from "vue";
-import { IWorkflowResponse } from '@/models/uiTypes';
+import { IWorkflowResponse } from '@/models/types';
 
 const props = defineProps<{
   workflow: IWorkflowResponse | undefined

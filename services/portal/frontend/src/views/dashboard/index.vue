@@ -117,8 +117,8 @@
 
 <script setup lang="ts">
 import { onMounted, computed } from 'vue';
-import DashboardCard from '@/components/dt-components/DashboardCard.vue';
-import Hero from '@/components/dt-components/Hero.vue';
+import DashboardCard from '@/components/domain/DashboardCard.vue';
+import Hero from '@/components/domain/Hero.vue';
 import clinicalImage from '@/assets/dashboard/clinical-01.jpg';
 import studyImage from '@/assets/dashboard/study.png';
 import catelogueImage from '@/assets/dashboard/catalogue.png';

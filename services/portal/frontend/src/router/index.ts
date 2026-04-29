@@ -6,7 +6,7 @@ import {
   RouteRecordRaw,
 } from "vue-router";
 import { useAuthStore } from "@/store/auth_store";
-import { isAuthenticated } from "@/plugins/keycloak";
+import { isAuthenticated } from "@/bootstrap/keycloak";
 import Home from "@/views/dashboard/index.vue";
 import Dashboard from "@/views/dashboard/study-dashboard/index.vue";
 import TutorialDashboard from "@/views/dashboard/tutorial-dashboard/index.vue";
