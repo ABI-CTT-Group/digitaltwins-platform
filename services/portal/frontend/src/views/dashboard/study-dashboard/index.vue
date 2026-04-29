@@ -72,17 +72,11 @@ import { useDashboardGetAssayConfigDetails, useDashboardGetAssayLaunch, useDashb
 import { useDashboardProgrammesStore, useDashboardCategoryChildrenStore, useDashboardSaveAssayDetailsStore } from '@/store/dashboard_store';
 import {IDashboardCategory, IAssayDetails} from "@/models/apiTypes";
 import AssayBasicCard from '@/components/dt-components/AssayBasicCard.vue';
-import axios from 'axios';
 import DownloadSheet from '@/components/dt-components/DownloadSheet.vue';
 import SubmitSheet from '@/components/dt-components/SubmitSheet.vue';
 import { reWriteCategoryDetails } from './utils';
 import HelpIcon from '@/components/commonBar/HelpIcon.vue';
 import { getApiErrorMessage } from '@/utils/common';
-
-// for testing only, will be removed later
-const username = 'admin';
-const password = 'ctt_digitaltwins_0';
-
 
 const router = useRouter();
 const route = useRoute();
@@ -179,58 +173,17 @@ const handleAssaySave = async () => {
     }
 }
 
-const handleAssayUploadClicked = async (assay_seek_id:string) => {
-    submitDialog.value = true
-    submitState.value = "waiting"
-     axios.get('http://130.216.208.137:8089/upload_workflow_outputs/22', {
-        auth: {
-            username: username,
-            password: password
-        }
-        })
-        .then(response => {
-            submitState.value = String(response.data) 
-        })
-        .catch(error => {
-            console.error('Error:', error);
-        });
+const handleAssayUploadClicked = async (_assay_seek_id: string) => {
+    submitDialog.value = true;
+    submitState.value = "waiting";
+    toast.info("Submit feature is being migrated to the portal backend; not available right now.");
+    submitState.value = "unavailable";
 }
 
-const handleAssayDownloadClicked = async (assay_seek_id:string) => {
+const handleAssayDownloadClicked = async (_assay_seek_id: string) => {
     downloadDialog.value = true;
-    if(downloadZipProgressValue.value==0||downloadZipProgressValue.value==100){
-        downloadZipProgressValue.value = 0;
-        axios.get('http://130.216.208.137:8089/download_workflow_outputs/22', {
-            responseType: 'blob',
-            auth: {
-                username: username,
-                password: password
-            },
-            onDownloadProgress: (progressEvent) => {
-                const { loaded, total } = progressEvent;
-                if (typeof total === 'number') {
-                    const percentCompleted = Math.round((loaded * 100) / total);
-                    console.log(`Download progress: ${percentCompleted}%`);
-                    downloadZipProgressValue.value = percentCompleted
-                } else {
-                    console.log(`Downloaded ${loaded} bytes (total size unknown)`);
-                }
-            }
-        })
-        .then(response => {
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', 'dataset.zip');
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-        });
-    }
-    
+    downloadZipProgressValue.value = 0;
+    toast.info("Download feature is being migrated to the portal backend; not available right now.");
 }
 
 const handleAssayVerifyClicked = async (assay_seek_id:string) => {
@@ -355,9 +308,6 @@ const hanleHelpClick = () => {
 
 
 onMounted(async () => {
-
-    // if (!user.value) router.push({name: 'Login'});
-
     const flag = isClinicianView.value;
 
     if (route.params.dashboardType === "study"){

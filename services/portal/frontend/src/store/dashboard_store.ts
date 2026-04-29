@@ -1,10 +1,9 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { 
-    useDashboardProgrammes, 
-    useDashboardCategoryChildren, 
-    useDashboardWorkflows, 
-    useDashboardWorkflowDetail, 
+import {
+    useDashboardProgrammes,
+    useDashboardCategoryChildren,
+    useDashboardWorkflows,
     useSaveAssayDetails,
  } from "@/plugins/dashboard_api";
 import { IDashboardCategory, IDashboardWorkflow, IAssayDetails } from "@/models/apiTypes";
@@ -39,17 +38,6 @@ export const useDashboardWorkflowsStore = defineStore("DashboardWorkflows", () =
     return {
         dashboardWorkflows,
         getDashboardWorkflows,
-    };
-});
-
-export const useDashboardWorkflowDetailStore = defineStore("DashboardWorkflowDetail", () => {
-    const dashboardWorkflowDetail = ref<IDashboardWorkflow>();
-    const getDashboardWorkflowDetail = async (seek_id: string) => {
-        dashboardWorkflowDetail.value = await useDashboardWorkflowDetail(seek_id);
-    };
-    return {
-        dashboardWorkflowDetail,
-        getDashboardWorkflowDetail,
     };
 });
 

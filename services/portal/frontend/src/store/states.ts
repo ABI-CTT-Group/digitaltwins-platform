@@ -2,31 +2,12 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { IDashboardCategory, IAssayDetails } from "@/models/apiTypes";
 
-interface IUser {
-  name: string;
-  role: string;
-}
 interface IAllAssayDetailsOfStudy {
   [key: string]: IAssayDetails;
 }
 interface IAssayBtnText {
   [key: string]: {text:string, url:string, isLaunching?: boolean};
 }
-
-export const currentUserStore = defineStore("currentUser", () => {
-    const user = ref<IUser>();
-    const setUser = (username:string, role:string) => {
-
-      user.value = {
-        name: username,
-        role: role
-      }
-    };
-    return {
-      user,
-      setUser,
-    };
-  });
 
 export const useDashboardPageStore = defineStore("dashboardPage", () => {
   const currentCategory = ref("");

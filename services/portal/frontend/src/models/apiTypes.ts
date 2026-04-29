@@ -1,11 +1,3 @@
-import * as Copper from "copper3d";
-import * as THREE from "three";
-
-export interface IRequests {
-  url: string;
-  params: any;
-}
-
 export interface IDashboardCategory {
   seekId: string;
   name: string;
@@ -61,15 +53,5 @@ export interface IAssayLaunch {
 export interface IAssayDataset {
   uuid: string;
   name: string;
-}
-
-export interface IClinicalReportViewerDetail{
-  uuid: string;
-  date: string;
-}
-
-export interface IProjectDetail{
-  seekId: string;
-  title: string
 }
 

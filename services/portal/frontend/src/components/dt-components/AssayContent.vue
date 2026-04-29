@@ -86,7 +86,6 @@
 <script setup lang="ts">
 
 import { ref, watch, onMounted, onBeforeMount } from 'vue';
-import { IWorkflowData } from '@/models/uiTypes';
 import {IAssayDetails} from '@/models/apiTypes';
 import { useDashboardGetDatasets, useDashboardSelectedDatasetSampleTypes, useDashboardWorkflowDetail } from '@/plugins/dashboard_api';
 

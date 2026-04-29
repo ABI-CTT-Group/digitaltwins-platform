@@ -1,15 +1,10 @@
 import axios, { AxiosRequestConfig } from "axios";
-import { IRequests } from "@/models/apiTypes";
 import { getAccessToken, getKeycloak } from "./keycloak";
-
-const maxRetries = 3;
-const retryDelay = 1000;
 
 export interface IHttp {
   get<T>(url: string, params?: unknown): Promise<T>;
   post<T>(url: string, body?: unknown): Promise<T>;
   getBlob<T>(url: string, params?: unknown): Promise<T>;
-  all<T>(requests: Array<IRequests>): Promise<T>;
   delete<T>(url: string, params?: unknown): Promise<T>;
 }
 
@@ -127,29 +122,6 @@ const http: IHttp = {
   },
   post(url, body) {
     return axios.post(url, body).then((res) => res.data);
-  },
-  all(requests) {
-    const requestWithRetry = async (request: IRequests) => {
-      let retries = 0;
-      while (retries < maxRetries) {
-        try {
-          const response = await axios.get(request.url, {
-            params: request.params,
-            responseType: "blob",
-          });
-          const x_header_str = response.headers["x-file-name"];
-          if (x_header_str)
-            return { data: response.data, filename: x_header_str };
-          return response.data;
-        } catch (error) {
-          retries++;
-          await new Promise((r) => setTimeout(r, retryDelay));
-        }
-      }
-      throw new Error(`All retry attempts for ${request.url} failed`);
-    };
-
-    return Promise.all(requests.map(requestWithRetry)) as any;
   },
   delete(url, params) {
     return axios.delete(url, { params }).then((res) => res.data);

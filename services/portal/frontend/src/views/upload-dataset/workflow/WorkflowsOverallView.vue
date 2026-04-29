@@ -132,6 +132,10 @@ const handleWorkflowApproval = async (id: string) => {
     }
 }
 
+onUnmounted(() => {
+  if (refreshInterval) clearInterval(refreshInterval);
+});
+
 </script>
 
 <style scoped>
