@@ -39,12 +39,12 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, toRef } from 'vue'
-import { IWrokflowResponse } from '@/models/uiTypes';
+import { IWorkflowResponse } from '@/models/uiTypes';
 import CardUI from '../../components/CardUI.vue';
 import { formatDate } from '../../components/utils';
 
 const props = defineProps<{
-  workflow: IWrokflowResponse
+  workflow: IWorkflowResponse
 }>()
 
 const menu = ref(false);

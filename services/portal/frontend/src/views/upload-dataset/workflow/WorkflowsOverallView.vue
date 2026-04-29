@@ -45,7 +45,7 @@
 import { ref, onBeforeMount, watch, onUnmounted } from "vue"
 import WorkflowCard from "./components/WorkflowCard.vue"
 import { useWorkflow, useDeleteWorkflow, useWorkflowApproval } from '@/plugins/workflow_api';
-import { IWrokflowResponse } from '@/models/uiTypes';
+import { IWorkflowResponse } from '@/models/uiTypes';
 import { useRouter } from 'vue-router'
 import Fuse from "fuse.js";
 import NoData from '@/views/upload-dataset/components/NoData.vue';
@@ -56,8 +56,8 @@ const router = useRouter();
 
 const emit = defineEmits(["register"]);
 const search = ref("");
-const workflows = ref<Array<IWrokflowResponse>>([]);
-const displayWorkflows = ref<Array<IWrokflowResponse>>([]);
+const workflows = ref<Array<IWorkflowResponse>>([]);
+const displayWorkflows = ref<Array<IWorkflowResponse>>([]);
 const isAnyStatusPending = ref(false);
 let refreshInterval: number | undefined;
 

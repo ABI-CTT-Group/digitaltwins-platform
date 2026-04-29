@@ -36,10 +36,10 @@
 
 <script lang="ts" setup>
 import { ref } from "vue";
-import { IWrokflowResponse } from '@/models/uiTypes';
+import { IWorkflowResponse } from '@/models/uiTypes';
 
 const props = defineProps<{
-  workflow: IWrokflowResponse | undefined
+  workflow: IWorkflowResponse | undefined
 }>();
 const emit = defineEmits(["close", "build"])
 

@@ -4,7 +4,7 @@ import {
     IAnnotation,
     CheckNameResponse, 
     IWorkflowInformationStep,
-    IWrokflowResponse,
+    IWorkflowResponse,
     IAnnotationResponse,
     BuildResponse,
     ExcuteBuildResponse
@@ -31,7 +31,7 @@ export async function useCheckPluginName(name: string): Promise<CheckNameRespons
 }
 
 export async function useCreateWorkflow(workflow:IWorkflowInformationStep) {
-    const createWorkflowResponse = http.post<IWrokflowResponse>("/workflow/create", workflow)
+    const createWorkflowResponse = http.post<IWorkflowResponse>("/workflow/create", workflow)
     return createWorkflowResponse
 }
 
@@ -51,7 +51,7 @@ export async function useDeleteWorkflow(workflowId: string) {
 }
 
 export async function useWorkflow() {
-  const workflows = http.get<Array<IWrokflowResponse>>("/workflow/").then(async (items)=>{
+  const workflows = http.get<Array<IWorkflowResponse>>("/workflow/").then(async (items)=>{
       const formattedWorkflows = await Promise.all(items.map(async (workflow)=>{
         let buildStatus = 'pending'
         let lastestBuildId = undefined

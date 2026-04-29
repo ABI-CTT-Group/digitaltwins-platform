@@ -132,7 +132,7 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, computed, watch} from "vue";
-import { IWrokflowResponse, PluginResponse, IWorkflowStepAnnotation } from '@/models/uiTypes';
+import { IWorkflowResponse, PluginResponse, IWorkflowStepAnnotation } from '@/models/uiTypes';
 import { getRepoContents} from '@/views/upload-dataset/components/utils';
 import { GitContent } from '@/models/uiTypes';
 import yaml from "js-yaml";
@@ -140,7 +140,7 @@ import NoData from '@/views/upload-dataset/components/NoData.vue';
 import { useWorkflowTools, useGetWorkflowToolAnnotation} from '@/plugins/plugin_api'; 
 
 const props = defineProps<{
-  workflow: IWrokflowResponse | undefined
+  workflow: IWorkflowResponse | undefined
 }>();
 
 const showAlert = ref(false)

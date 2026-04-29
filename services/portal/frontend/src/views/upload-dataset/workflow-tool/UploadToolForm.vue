@@ -45,7 +45,7 @@
             <v-stepper-window>
                 <v-stepper-window-item :value="1">
                     <v-card class="pa-4" variant="outlined" color="grey-lighten-2">
-                        <ToolInfomationStep @submit="handleSubmit" @cancel="handleCancel"/>
+                        <ToolInformationStep @submit="handleSubmit" @cancel="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
 
@@ -73,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import ToolInfomationStep from './components/ToolInfomationStep.vue';
+import ToolInformationStep from './components/ToolInformationStep.vue';
 import ToolBuildStep from './components/ToolBuildStep.vue';
 import ToolCompleteStep from './components/ToolCompleteStep.vue';
 import ToolAnnotateStep from './components/ToolAnnotateStep.vue';

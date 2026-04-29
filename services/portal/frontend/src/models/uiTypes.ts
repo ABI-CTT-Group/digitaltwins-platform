@@ -117,7 +117,7 @@ export interface IWorkflowInformationStep {
     author?: string;
 }
 
-export interface IWrokflowResponse {
+export interface IWorkflowResponse {
     id: string;
     name: string;
     version: string;

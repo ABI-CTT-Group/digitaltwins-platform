@@ -43,7 +43,7 @@
             <v-stepper-window>
                 <v-stepper-window-item :value="1">
                     <v-card class="pa-4" variant="outlined" color="grey-lighten-2">
-                        <WorkflowInfomationStep @submit="handleSubmit" @cancel="handleCancel"/>
+                        <WorkflowInformationStep @submit="handleSubmit" @cancel="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
 
@@ -71,17 +71,17 @@
 </template>
 
 <script setup lang="ts">
-import WorkflowInfomationStep from './components/WorkflowInfomationStep.vue';
+import WorkflowInformationStep from './components/WorkflowInformationStep.vue';
 import WorkflowAnnotateStep from './components/WorkflowAnnotateStep.vue';
 import WorkflowCompleteStep from './components/WorkflowCompleteStep.vue';
 import WorkflowBuildStep from './components/WorkflowBuildStep.vue';
-import { IWorkflowInformationStep, IWrokflowResponse, IAnnotation} from '@/models/uiTypes';
+import { IWorkflowInformationStep, IWorkflowResponse, IAnnotation} from '@/models/uiTypes';
 import { useCreateWorkflow, useCreateWorkflowAnnotation, useWorkflowBuild } from '@/plugins/workflow_api'
 import { ref, watch } from "vue";
 
 const emit = defineEmits(['finished'])
 const step = ref(0);
-const  workflow = ref<IWrokflowResponse>()
+const  workflow = ref<IWorkflowResponse>()
 
 const handleSubmit = async (data:IWorkflowInformationStep)=>{
     workflow.value  = await useCreateWorkflow(data)
