@@ -67,7 +67,7 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useToast } from 'vue-toastification';
 import { useRouter, useRoute } from 'vue-router';
 import { storeToRefs } from "pinia";
-import { useDashboardPageStore } from '@/store/states';
+import { useDashboardPageStore } from '@/store/dashboard_page_store';
 import { useDashboardGetAssayConfigDetails, useDashboardGetAssayLaunch, useDashboardWorkflowDetail } from "@/plugins/dashboard_api";
 import { useDashboardProgrammesStore, useDashboardCategoryChildrenStore, useDashboardSaveAssayDetailsStore } from '@/store/dashboard_store';
 import {IDashboardCategory, IAssayDetails} from "@/models/apiTypes";
@@ -75,7 +75,7 @@ import AssayBasicCard from '@/components/dt-components/AssayBasicCard.vue';
 import DownloadSheet from '@/components/dt-components/DownloadSheet.vue';
 import SubmitSheet from '@/components/dt-components/SubmitSheet.vue';
 import { reWriteCategoryDetails } from './utils';
-import HelpIcon from '@/components/commonBar/HelpIcon.vue';
+import HelpIcon from '@/components/common/HelpIcon.vue';
 import { getApiErrorMessage } from '@/utils/common';
 
 const router = useRouter();

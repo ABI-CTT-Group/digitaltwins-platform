@@ -8,7 +8,7 @@
 </template>
 
 <script setup lang="ts">
-import BackIcon from '@/components/commonBar/BackIcon.vue';
+import BackIcon from '@/components/common/BackIcon.vue';
 </script>
 
 <style scoped>

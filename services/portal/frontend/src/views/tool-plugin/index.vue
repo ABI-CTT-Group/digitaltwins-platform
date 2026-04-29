@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, shallowRef } from 'vue'
-import { useRemoteAppStore } from '@/store/remoteStore'
+import { useRemoteAppStore } from '@/store/remote_store'
 import { useRouter } from 'vue-router'
 import { useToolMetadata } from '@/plugins/plugin_api'
 

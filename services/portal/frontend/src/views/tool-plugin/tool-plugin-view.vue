@@ -25,7 +25,7 @@
 
 <script setup lang="ts">
 import RemoteComponentApp from '@/components/RemoteComponentApp.vue';
-import { useRemoteAppStore } from '@/store/remoteStore';
+import { useRemoteAppStore } from '@/store/remote_store';
 
 const {remoteApp} = useRemoteAppStore()
 

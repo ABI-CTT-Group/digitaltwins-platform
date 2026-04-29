@@ -55,7 +55,7 @@ import { useToast } from "vue-toastification"
 import ToolCard from "./components/ToolCard.vue"
 import { useWorkflowTools, useToolMetadata, useWorkflowToolBuild, useDeleteTool, useToolApproval, useDeployTool, useDockerCompose } from '@/plugins/plugin_api';
 import { PluginResponse, PluginMinIOToolMetadata } from '@/models/uiTypes';
-import { useRemoteAppStore } from '@/store/remoteStore'
+import { useRemoteAppStore } from '@/store/remote_store'
 import { useRouter } from 'vue-router'
 import Fuse from "fuse.js";
 import NoData from '../components/NoData.vue';

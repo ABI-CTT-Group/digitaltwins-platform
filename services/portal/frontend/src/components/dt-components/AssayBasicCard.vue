@@ -81,11 +81,11 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { IDashboardCategory } from '@/models/apiTypes';
-import Dialog from '@/components/commonBar/Dialog.vue';
+import Dialog from '@/components/common/Dialog.vue';
 import AssayContent from '@/components/dt-components/AssayContent.vue';
 import AssayBasicCardButtons from './AssayBasicCardButtons.vue';
 import { storeToRefs } from "pinia";
-import { useDashboardPageStore } from '@/store/states';
+import { useDashboardPageStore } from '@/store/dashboard_page_store';
 import { capitalize } from '@/utils/common';
 import { useToast } from 'vue-toastification';
 

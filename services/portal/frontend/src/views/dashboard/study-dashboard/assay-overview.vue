@@ -56,11 +56,11 @@
 </template>
 
 <script setup lang="ts">
-import BackIcon from '@/components/commonBar/BackIcon.vue';
+import BackIcon from '@/components/common/BackIcon.vue';
 import { useRoute } from 'vue-router';
 import { asyncComputed } from '@vueuse/core'
 import { ref, computed, onMounted, onBeforeMount, watchEffect} from 'vue';
-import { useDashboardPageStore } from '@/store/states';
+import { useDashboardPageStore } from '@/store/dashboard_page_store';
 import { useDashboardWorkflowDetail, useDashboardSeekAssay } from "@/plugins/dashboard_api";
 import AssayOverviewEmpty from '@/components/dt-components/AssayOverviewEmpty.vue';
 import AssayBasicCardButtons from '@/components/dt-components/AssayBasicCardButtons.vue';

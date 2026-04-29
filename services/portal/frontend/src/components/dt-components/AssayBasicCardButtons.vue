@@ -61,7 +61,7 @@
 <script setup lang="ts">
 import { IDashboardCategory } from '@/models/apiTypes';
 import { storeToRefs } from "pinia";
-import { useDashboardPageStore } from '@/store/states';
+import { useDashboardPageStore } from '@/store/dashboard_page_store';
 
 const {
     isClinicianView,

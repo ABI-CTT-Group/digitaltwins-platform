@@ -18,8 +18,8 @@ import LaunchedAssayOverview from "@/views/dashboard/study-dashboard/assay-overv
 import UploadDataset from "@/views/upload-dataset/index.vue";
 import UploadToolDataset from "@/views/upload-dataset/workflow-tool/index.vue";
 import UploadWorkflowDataset from "@/views/upload-dataset/workflow/index.vue";
-import PluginHome from "@/views/toolPlugin/index.vue";
-import ToolPluginView from "@/views/toolPlugin/tool-plugin-view.vue";
+import PluginHome from "@/views/tool-plugin/index.vue";
+import ToolPluginView from "@/views/tool-plugin/tool-plugin-view.vue";
 
 
 const routes = [

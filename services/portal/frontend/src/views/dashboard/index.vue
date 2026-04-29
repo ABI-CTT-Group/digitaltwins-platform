@@ -129,7 +129,7 @@ import fcMapImage from '@/assets/dashboard/fc-map.jpg'
 import annotatorImage from '@/assets/dashboard/annotator.jpg'
 import digitalRepositoryImage from '@/assets/dashboard/digital-repository.jpg'
 import { useRouter, useRoute } from 'vue-router';
-import { useDashboardPageStore } from '@/store/states';
+import { useDashboardPageStore } from '@/store/dashboard_page_store';
 import { useAuthStore } from '@/store/auth_store';
 
 const router = useRouter();
