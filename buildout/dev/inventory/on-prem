@@ -30,6 +30,12 @@ all:
       vars:
         ansible_user: ubuntu
 
+    abi_newbox:
+      hosts:
+        abi_newbox:
+      vars:
+        ansible_user: mpes457
+
 # Get "abi_portal" set up in your ~/.ssh/config
 # file - something like:
 # Host abi_portal
