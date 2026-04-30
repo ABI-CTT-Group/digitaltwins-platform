@@ -1,111 +1,51 @@
 <template>
     <v-container class="d-flex justify-center align-center h-100 w-100">
         <v-row>
-            <v-col
-                cols="12"
-                md="6"
-                class="d-flex justify-center align-center"
-            >
-                <div class="col-style  pa-3">
-                    <h2 class="w-100 text-center">
-                        Workflows
-                    </h2>
-                
-                    <Dialog
-                        :min="1200"
-                        btnText="New Workflow +"
-                        btnColor = "#5865f2"
-                        btnVariant="flat"
-                        save-btn-name="Close"
-                        @on-open = "handleDialogOpen()"
-                        @on-save= "handleDialogSave()"
-                    >
-                        <template #title>
-                            <h2 class="text-h5 mb-6">Workflow Assembler</h2>
-                        </template>
-                        <template #description>
-                            <div class="d-flex justify-center w-100 pa-3">
-                                <div class="w-75">
-                                    <v-img
-                                        :aspect-ratio="1"
-                                        max-height="600"
-                                        src="/eps/workflows/new_workflow.png"
-                                    ></v-img>
-                                    <!-- <CWLWorkflowViewer :workflow="workflowData"/> -->
-                                </div>
-                            </div>
-                        </template>
-                    </Dialog>
-                    <v-divider></v-divider>
-                    <div class="mt-2 overflow-y-auto w-content">
+            <v-col cols="12" md="6" class="d-flex justify-center align-center">
+                <CatalogueColumn
+                    title="Workflows"
+                    :items="workflows"
+                    :cwlPathFn="(item) => `/eps/workflows/${item}.cwl`"
+                    @workflow-loaded="handleWorkflowLoaded"
+                >
+                    <template #header>
                         <Dialog
-                            v-for="(workflow, i) in workflows"
-                            :key="i"
                             :min="1200"
-                            :btnText="workflow"
-                            :btn-height="'70px'"
-                            btnColor = "#fff"
-                            btnVariant="tonal"
+                            btnText="New Workflow +"
+                            btnColor="#5865f2"
+                            btnVariant="flat"
                             save-btn-name="Close"
-                            @on-open = "handleDialogOpen()"
-                            @on-save= "handleDialogSave()"
                         >
                             <template #title>
-                                <h2 class="text-h5 mb-6">Workflow: {{ workflow }}</h2>
+                                <h2 class="text-h5 mb-6">Workflow Assembler</h2>
                             </template>
                             <template #description>
                                 <div class="d-flex justify-center w-100 pa-3">
-                                    <div class="w-100">
-                                        <!-- <v-img
-                                            :aspect-ratio="1"
-                                            max-height="600"
-                                            :src="`/eps/workflows/${workflow}.svg`"
-                                        ></v-img> -->
-                                        <CWLWorkflowViewer :workflow="workflowData"/>
+                                    <div class="w-75">
+                                        <v-img :aspect-ratio="1" max-height="600" src="/eps/workflows/new_workflow.png"></v-img>
                                     </div>
                                 </div>
                             </template>
-                            <CWLViewer :cwl-path="`/eps/workflows/${workflow}.cwl`" @on-workflow-loaded="handleWorkflowLoaded" />
                         </Dialog>
-                    </div>
-                </div>
+                    </template>
+                    <template #dialog-description="{ item }">
+                        <div class="d-flex justify-center w-100 pa-3">
+                            <div class="w-100">
+                                <CWLWorkflowViewer :workflow="workflowData"/>
+                            </div>
+                        </div>
+                    </template>
+                </CatalogueColumn>
             </v-col>
-            <v-col
-                cols="12"
-                md="6"
-                class="d-flex justify-center align-center"
-            >
-                <div class="col-style pa-3">
-                    <h2 class="w-100 text-center">
-                        Tools
-                    </h2>
-
-                    <v-divider></v-divider>
-                    <div class="mt-2 overflow-y-auto t-content">
-                        <Dialog
-                            v-for="(tool, i) in tools"
-                            :key="i"
-                            :min="1200"
-                            :btnText="tool"
-                            :btn-height="'70px'"
-                            btnColor = "#fff"
-                            btnVariant="tonal"
-                            save-btn-name="Close"
-                            @on-open = "handleDialogOpen()"
-                            @on-save= "handleDialogSave()"
-                        >
-                            <template #title>
-                                <h2 class="text-h5 mb-6">Tool: {{ tool }}</h2>
-                            </template>
-                            <CWLViewer :cwl-path="`/eps/tools/all/${tool}.cwl`" />
-                        </Dialog>
-                    </div>
-                </div>
+            <v-col cols="12" md="6" class="d-flex justify-center align-center">
+                <CatalogueColumn
+                    title="Tools"
+                    :items="tools"
+                    :cwlPathFn="(item) => `/eps/tools/all/${item}.cwl`"
+                />
             </v-col>
         </v-row>
     </v-container>
-    
-
 </template>
 
 <script setup lang="ts">
@@ -113,17 +53,16 @@ import { onMounted, ref } from 'vue';
 import { useDashboardWorkflows } from "@/bootstrap/dashboard_api";
 import { IDashboardWorkflow } from "@/models/types";
 import Dialog from '@/components/common/Dialog.vue';
-import CWLViewer from '@/components/common/CWLViewer.vue';
 import CWLWorkflowViewer from '@/components/domain/workflow/CWLWorkflowViewer.vue';
-
+import CatalogueColumn from './components/CatalogueColumn.vue';
 
 const dashboardWorkflows = ref<IDashboardWorkflow[]>();
 const getDashboardWorkflows = async () => {
     dashboardWorkflows.value = await useDashboardWorkflows();
 };
-const isNewWorkflowClicked = ref(false)
 const workflowData = ref({});
 
+// TODO: switch to API once /dashboard/workflows returns full set
 const workflows = ref([
     "Automated torso model generation – script", 
     "Tumour position selection - GUI",
@@ -139,6 +78,7 @@ const workflows = ref([
     "Predict post surgery PAP - script"
 ]);
 
+// TODO: https://github.com/ABI-CTT-Group/DigitalTWINS-Portal/issues/xxx switch to API
 const tools = ref([
     "baseline_perfusion_simulation_1d_cfd",
     "centreline_annotation",
@@ -164,7 +104,7 @@ const tools = ref([
     "create_nifti",
     "create_point_cloud",
     "segment"
-])
+]);
 
 onMounted(async ()=>{
      
@@ -174,35 +114,4 @@ const handleWorkflowLoaded = (data: any) => {
     console.log("CWL Data Loaded: ", data);
     workflowData.value = data;
 }
-
-const handleDialogOpen = () => {
-
-}
-
-const handleDialogSave = () => {
-
-}
-
-</script>
-
-<style scoped>
-.col-style{
-      flex:1;
-      /* height: 75vh; */
-      height: 100%;
-      background: rgba(173, 216, 230, 0.4);
-      border-radius: 15px;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      color: #fff;
-      font-size: 1.2rem;
-}
-.w-content{
-    height: 52vh;
-}
-.t-content{
-    height: 62vh;
-}
-
-</style>
+</script>
