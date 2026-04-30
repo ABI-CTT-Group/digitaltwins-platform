@@ -1,0 +1,8 @@
+# Equivalent to airgap_build_step0.yml
+
+mkdir -p /mnt/install_src
+chmod 0755 /mnt/install_src
+chown ubuntu:ubuntu /mnt/install_src
+
+mount -o defaults /dev/vdb /mnt/install_src
+echo "/dev/vdb /mnt/install_src auto defaults 0 0" >> /etc/fstab
