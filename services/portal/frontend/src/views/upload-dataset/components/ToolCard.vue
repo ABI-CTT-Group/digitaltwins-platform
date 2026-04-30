@@ -1,4 +1,4 @@
-
+﻿
 <template>
   <!-- rgba(15, 25, 35, 0.15) -->
     <CardUI
@@ -64,13 +64,13 @@
             <v-list-item density="compact" @click.stop="onSubmit">
                 <v-list-item-title class="hover-animate px-2">Submit to Approval</v-list-item-title>
             </v-list-item>
-            <v-list-item v-if="tool.has_backend && tool.label=='GUI'" density="compact" @click.stop="onDeploy">
+            <v-list-item v-if="tool.hasBackend && tool.label=='GUI'" density="compact" @click.stop="onDeploy">
                 <v-list-item-title class="hover-animate px-2">Deploy Backend</v-list-item-title>
             </v-list-item>
-            <v-list-item v-if="tool.deploy_status == 'completed' && tool.label=='GUI'" density="compact" @click.stop="onDockerComposeUp">
+            <v-list-item v-if="tool.deployStatus == 'completed' && tool.label=='GUI'" density="compact" @click.stop="onDockerComposeUp">
                 <v-list-item-title class="hover-animate px-2">Compose Up</v-list-item-title>
             </v-list-item>
-            <v-list-item v-if="tool.deploy_status == 'completed' && tool.label=='GUI'" density="compact" @click.stop="onDockerComposeDown">
+            <v-list-item v-if="tool.deployStatus == 'completed' && tool.label=='GUI'" density="compact" @click.stop="onDockerComposeDown">
                 <v-list-item-title class="hover-animate px-2">Compose Down</v-list-item-title>
             </v-list-item>
             <v-list-item density="compact" @click.stop="onDelete" color="red">
@@ -93,10 +93,10 @@
         <v-chip v-if="!!tool.author" size="small" color="blue-lighten-5" text-color="blue-darken-3" class="mx-1 my-1">{{ tool.author }}</v-chip>
         <v-chip v-if="!!tool.author" size="small" color="orange-lighten-2" text-color="green-darken-3" class="mx-1 my-1">{{ tool.label }}</v-chip>
         <v-chip v-if="!!tool.status" size="small" :color="statusColor" :text-color="statusTextColor" class="mx-1 mr-1 my-1">pre build: {{ tool.status }}</v-chip>
-        <v-chip v-if="!!tool.deploy_status" size="small" :color="deployStatusColor" :text-color="deployStatusTextColor" class="mx-1 mr-1 my-1">deploy: {{ tool.deploy_status }}</v-chip>
+        <v-chip v-if="!!tool.deployStatus" size="small" :color="deployStatusColor" :text-color="deployStatusTextColor" class="mx-1 mr-1 my-1">deploy: {{ tool.deployStatus }}</v-chip>
       </template>
       <template #time>
-        <!-- <v-chip v-if="!!tool.created_at" size="small" color="green-lighten-4" text-color="green-darken-2" class="ms-auto">{{ formatDate(tool.created_at) }}</v-chip> -->
+        <!-- <v-chip v-if="!!tool.createdAt" size="small" color="green-lighten-4" text-color="green-darken-2" class="ms-auto">{{ formatDate(tool.createdAt) }}</v-chip> -->
       </template>
     </CardUI>
 </template>
@@ -125,9 +125,9 @@ const isBuilding = computed(()=>{
     return tool.value.status == "building" ? true : false;
 })
 const isDeploying = computed(()=>{
-    if(!tool.value.has_backend ) return false;
-    if(!tool.value.deploy_status) return false;
-    return tool.value.deploy_status == "deploying" ? true : false;
+    if(!tool.value.hasBackend ) return false;
+    if(!tool.value.deployStatus) return false;
+    return tool.value.deployStatus == "deploying" ? true : false;
 })
 
 const statusColor = computed(() => {
@@ -161,7 +161,7 @@ const statusTextColor = computed(() => {
 })
 
 const deployStatusColor = computed(() => {
-  switch (props.tool.deploy_status) {
+  switch (props.tool.deployStatus) {
     case "pending":
       return "amber-lighten-2"
     case "deploying":
@@ -176,7 +176,7 @@ const deployStatusColor = computed(() => {
 })
 
 const deployStatusTextColor = computed(() => {
-  switch (props.tool.deploy_status) {
+  switch (props.tool.deployStatus) {
     case "pending":
       return "amber-darken-3"
     case "deploying":
@@ -198,10 +198,10 @@ const onLaunch = async () => {
         toast.warning("CWL Script tool cannot be launched. Please download the script and run it locally.");
         return;
     }
-    if (tool.value.has_backend && !tool.value.latest_deploy_id && tool.value.deploy_status !== 'completed') {
+    if (tool.value.hasBackend && !tool.value.latestDeployId && tool.value.deployStatus !== 'completed') {
         toast.warning("Tool backend is not deployed yet. Please deploy the backend first.");
         return;
-    }else if(!!tool.value.latest_deploy_id && !await useGetDockerComposeStatus(tool.value.latest_deploy_id).catch(() => false)){
+    }else if(!!tool.value.latestDeployId && !await useGetDockerComposeStatus(tool.value.latestDeployId).catch(() => false)){
         toast.warning("Tool backend is not running. Please start the backend by 'Compose Up' first.");
         return;
     }
@@ -222,11 +222,11 @@ const onDeploy = () => {
 }
 const onDockerComposeUp = () => {
     menu.value = false;
-    emit("compose-up", tool.value.latest_deploy_id)
+    emit("compose-up", tool.value.latestDeployId)
 }
 const onDockerComposeDown = () => {
     menu.value = false;
-    emit("compose-down", tool.value.latest_deploy_id)
+    emit("compose-down", tool.value.latestDeployId)
 }
 const onDelete = async () => {
     menu.value = false;

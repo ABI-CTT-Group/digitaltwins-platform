@@ -20,6 +20,26 @@ function redirectToLogin(msg?: string) {
 // All API requests go through nginx reverse proxy at /api (same-origin, no CORS)
 axios.defaults.baseURL = "/api";
 
+// ============== camelCase converter (snake_case → camelCase) ==============
+// Applied on response data so that frontend code can use camelCase consistently.
+// The backend field names are preserved as-is; this layer bridges the gap.
+function toCamel(str: string): string {
+  return str.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+}
+
+function deepCamelize(obj: unknown): unknown {
+  if (Array.isArray(obj)) return obj.map(deepCamelize);
+  if (obj !== null && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj as Record<string, unknown>).map(([k, v]) => [
+        toCamel(k),
+        deepCamelize(v),
+      ])
+    );
+  }
+  return obj;
+}
+
 // ============== request interceptors: automatically add access_token ==============
 axios.interceptors.request.use((config: AxiosRequestConfig | any) => {
   // Get token from Keycloak (sole source of truth)
@@ -47,7 +67,7 @@ function addRefreshSubscriber(cb: (token: string) => void) {
 }
 
 axios.interceptors.response.use(
-  (res) => res,
+  (res) => { res.data = deepCamelize(res.data); return res; },
   async (err) => {
     // not 401 -> reject
     if (err.response?.status !== 401) return Promise.reject(err);

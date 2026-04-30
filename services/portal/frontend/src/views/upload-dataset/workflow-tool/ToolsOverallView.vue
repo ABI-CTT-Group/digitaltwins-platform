@@ -1,10 +1,10 @@
-<template>
+﻿<template>
   <RegistryView
     register-label="Register a new workflow tool"
     search-label="Search workflow tools"
     :fetch-list="useWorkflowTools"
     :disabled="dockerComposeBusy"
-    :is-pending="(items) => items.some(t => t.status === 'building' || t.deploy_status === 'deploying')"
+    :is-pending="(items) => items.some(t => t.status === 'building' || t.deployStatus === 'deploying')"
     @register="handleRegister"
   >
     <template #default="{ items }">

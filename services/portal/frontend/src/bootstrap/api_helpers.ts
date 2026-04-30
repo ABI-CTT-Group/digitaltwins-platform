@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Shared API helpers for tool and workflow operations.
  *
  * These functions exist to avoid duplicating near-identical logic between
@@ -56,7 +56,7 @@ export async function fetchWithLatestBuild<
   listUrl: string,
   buildsUrlFn: (id: string) => string,
   enrichFn?: (item: T, latestBuild: BuildResponse) => Promise<Partial<T>>,
-): Promise<(T & { status: string; latest_build_id?: string })[]> {
+): Promise<(T & { status: string; latestBuildId?: string })[]> {
   const items = await http.get<T[]>(listUrl);
 
   const enriched = await Promise.all(
@@ -70,10 +70,10 @@ export async function fetchWithLatestBuild<
         if (builds.length > 0) {
           const latestBuild = builds.sort(
             (a, b) =>
-              new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
           )[0];
           buildStatus = latestBuild.status;
-          latestBuildId = latestBuild.build_id;
+          latestBuildId = latestBuild.buildId;
 
           if (enrichFn) {
             extra = await enrichFn(item, latestBuild);
@@ -87,7 +87,7 @@ export async function fetchWithLatestBuild<
         ...item,
         description: item.description === '' ? 'No description available' : item.description,
         status: buildStatus,
-        latest_build_id: latestBuildId,
+        latestBuildId: latestBuildId,
         ...extra,
       };
     }),

@@ -31,7 +31,7 @@
           <v-chip v-if="!!workflow.status" size="small" :color="statusColor" :text-color="statusTextColor" class="mx-1 mr-1 my-1">{{ workflow.status }}</v-chip>
       </template>
       <template #time>
-          <v-chip v-if="!!workflow.created_at" size="small" color="green-lighten-4" text-color="green-darken-2" class="ms-auto">{{ formatDate(workflow.created_at) }}</v-chip>
+          <v-chip v-if="!!workflow.createdAt" size="small" color="green-lighten-4" text-color="green-darken-2" class="ms-auto">{{ formatDate(workflow.createdAt) }}</v-chip>
       </template>
       
     </CardUI>

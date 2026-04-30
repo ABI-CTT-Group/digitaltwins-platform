@@ -77,7 +77,7 @@ import BaseInformationStep from '../components/BaseInformationStep.vue';
 import BaseBuildStep from '../components/BaseBuildStep.vue';
 import BaseCompleteStep from '../components/BaseCompleteStep.vue';
 import BaseAnnotateStep from '../components/BaseAnnotateStep.vue';
-import { ToolResponse, BaseInformationStep, AnnotateTool} from '@/models/types';
+import type { ToolResponse, BaseInformationStep as BaseInfoStepType, AnnotateTool} from '@/models/types';
 import { useCreateTool, useWorkflowToolBuild, useCreateToolAnnotation } from '@/bootstrap/tool_api'
 import { ref, watch } from "vue";
 
@@ -85,7 +85,7 @@ const emit = defineEmits(['finished'])
 const step = ref(0);
 const tool = ref<ToolResponse>()
 
-const handleSubmit = async (data:BaseInformationStep)=>{
+const handleSubmit = async (data: BaseInfoStepType)=>{
     tool.value = await useCreateTool(data)
     step.value += 1;
 }
@@ -93,8 +93,8 @@ const handleSubmit = async (data:BaseInformationStep)=>{
 const handleAnnotation = async (id:string, data:AnnotateTool) =>{
 
     const res = await useCreateToolAnnotation(id, {
-        fhir_note: JSON.stringify(data),
-        sparc_note: ""
+        fhirNote: JSON.stringify(data),
+        sparcNote: ""
     })
     
     step.value += 1;

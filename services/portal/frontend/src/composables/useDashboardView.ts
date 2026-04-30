@@ -203,7 +203,7 @@ export function useDashboardView(isClinicianView: boolean) {
                 if (details) {
                     setAllAssayDetailsOfStudy(item.seekId, details);
                 } else {
-                    const workflowDetail = await useDashboardWorkflowDetail(item.workflow_seek_id!);
+                    const workflowDetail = await useDashboardWorkflowDetail(item.workflowSeekId!);
                     workflowDetail.type = item.tag ?? 'unknown workflow type';
                     setAllAssayDetailsOfStudy(item.seekId, {
                         uuid: '',

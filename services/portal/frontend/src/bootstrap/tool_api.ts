@@ -32,18 +32,18 @@ export async function useWorkflowTools(): Promise<ToolResponse[]> {
     (id) => `/tools/plugin/${id}/builds`,
     // Enrich with deploy status for GUI tools whose latest build completed
     async (tool, latestBuild) => {
-      if (!tool.has_backend || latestBuild.status !== 'completed') return {};
+      if (!tool.hasBackend || latestBuild.status !== 'completed') return {};
       try {
         const deploys = await http.get<ToolDeployResponse[]>(
-          `/tools/plugin/build/${latestBuild.build_id}/deploys`,
+          `/tools/plugin/build/${latestBuild.buildId}/deploys`,
         );
         if (deploys.length > 0) {
           const latestDeploy = deploys.sort(
-            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
           )[0];
           return {
-            deploy_status: latestDeploy.status,
-            latest_deploy_id: latestDeploy.deploy_id,
+            deployStatus: latestDeploy.status,
+            latestDeployId: latestDeploy.deployId,
           } as Partial<ToolResponse>;
         }
       } catch (err) {
@@ -79,13 +79,13 @@ export async function useDeployTool(id:string) {
   return res;
 }
 
-export async function useDockerCompose(deploy_id:string, command:"up"|"down") {
-  const res = http.get(`/tools/plugin/deploy/${deploy_id}/execute`, {command})
+export async function useDockerCompose(deployId:string, command:"up"|"down") {
+  const res = http.get(`/tools/plugin/deploy/${deployId}/execute`, {command})
   return res;
 }
 
-export async function useGetDockerComposeStatus(deploy_id:string) {
-  const res = http.get<boolean>(`/tools/check/deploy/${deploy_id}/`)
+export async function useGetDockerComposeStatus(deployId:string) {
+  const res = http.get<boolean>(`/tools/check/deploy/${deployId}/`)
   return res;
 }
 

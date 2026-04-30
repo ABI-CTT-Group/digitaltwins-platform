@@ -1,4 +1,4 @@
-﻿<template>
+<template>
     <v-container class="d-flex align-center justify-center">
         <v-card
             class="pa-6 responsive-box d-flex flex-column align-center justify-center"
@@ -75,7 +75,7 @@ import BaseInformationStep from '../components/BaseInformationStep.vue';
 import BaseAnnotateStep from '../components/BaseAnnotateStep.vue';
 import BaseCompleteStep from '../components/BaseCompleteStep.vue';
 import BaseBuildStep from '../components/BaseBuildStep.vue';
-import { BaseInformationStep, WorkflowResponse, IAnnotation} from '@/models/types';
+import type { BaseInformationStep as BaseInfoStepType, WorkflowResponse, IAnnotation} from '@/models/types';
 import { useCreateWorkflow, useCreateWorkflowAnnotation, useWorkflowBuild } from '@/bootstrap/workflow_api'
 import { ref, watch } from "vue";
 
@@ -83,7 +83,7 @@ const emit = defineEmits(['finished'])
 const step = ref(0);
 const  workflow = ref<WorkflowResponse>()
 
-const handleSubmit = async (data:BaseInformationStep)=>{
+const handleSubmit = async (data: BaseInfoStepType)=>{
     workflow.value  = await useCreateWorkflow(data)
 
     step.value += 1;

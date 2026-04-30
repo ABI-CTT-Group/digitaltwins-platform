@@ -1,7 +1,7 @@
-<template>
+﻿<template>
      <h4 class="my-2">Source Url *</h4>
         <v-text-field
-            v-model="repository_url"
+            v-model="repositoryUrl"
             :rules="sourceUrlRules"
             label="Git repository URL"
             placeholder="https://github.com/user/repo.git"
@@ -85,7 +85,7 @@ defineProps<
     cwlRepoErr: { available: boolean; message: string } | undefined | null;
 }>()
 
-const repository_url = defineModel<string>('repository_url')
+const repositoryUrl = defineModel<string>('repositoryUrl')
 const name = defineModel<string>('name')
 const author = defineModel<string>('author')
 const version = defineModel<string>('version')

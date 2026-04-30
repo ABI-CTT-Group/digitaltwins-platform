@@ -36,10 +36,10 @@
               </template>
             </v-autocomplete>
 
-            <div v-if="s.tool_fhir_note">
+            <div v-if="s.toolFhirNote">
               <h4 class="my-2 text-amber-darken-2">Tool Inputs</h4>
               <div class="w-100 d-flex flex-row flex-wrap">
-                <div v-for="input in s.tool_fhir_note.inputs" class="d-flex flex-column justify-start w-33">
+                <div v-for="input in s.toolFhirNote.inputs" class="d-flex flex-column justify-start w-33">
                   <span class="mx-2">{{ input.name }} *</span>
                   <v-text-field
                     class="mt-4 mx-2"
@@ -55,10 +55,10 @@
               </div>
             </div>
 
-            <div v-if="s.tool_fhir_note">
+            <div v-if="s.toolFhirNote">
               <h4 class="my-2 text-amber-darken-2">Tool Outputs</h4>
               <div class="w-100 d-flex flex-row flex-wrap">
-                <div v-for="output in s.tool_fhir_note.outputs" class="d-flex flex-column justify-start w-33">
+                <div v-for="output in s.toolFhirNote.outputs" class="d-flex flex-column justify-start w-33">
                   <span class="mx-2">{{ output.name }} *</span>
                   <v-text-field
                     class="mt-4 mx-2"
@@ -184,20 +184,20 @@ onMounted(async () => {
 
     workflowTools.value = await useWorkflowTools();
 
-    const res = await getRepoContents(workflow.repository_url);
+    const res = await getRepoContents(workflow.repositoryUrl);
     const files = res!.data as GitContent[];
     let cwlFile = '';
     files.forEach((item: GitContent) => {
       if (item.type === 'file' && item.name.endsWith('.cwl')) { cwlFile = item.name; }
     });
-    const contentRes = await getRepoContents(workflow.repository_url, cwlFile);
+    const contentRes = await getRepoContents(workflow.repositoryUrl, cwlFile);
     const raw = atob((contentRes.data.content as string).replace(/\n/g, ''));
     try { cwlObj.value = yaml.load(raw); }
     catch { cwlObj.value = JSON.parse(raw); }
   } else {
     const tool = props.data as ToolResponse | undefined;
     if (!tool) { console.warn('No workflow tool info in annotation stepper.'); return; }
-    const { cwlFile, content } = await getRepoRootCWLContent(tool.repository_url);
+    const { cwlFile, content } = await getRepoRootCWLContent(tool.repositoryUrl);
     annotateTool.value.name = cwlFile.replace(/\.cwl$/, '');
     cwlObj.value = content;
   }
@@ -225,9 +225,9 @@ const handleToolSelect = async (val: string, step: any) => {
     step.uuid = selected.uuid ?? '';
     step.id = selected.id;
     const annotation = await useGetWorkflowToolAnnotation(selected.id);
-    step.tool_fhir_note = annotation.fhir_note ? JSON.parse(annotation.fhir_note) : null;
+    step.toolFhirNote = annotation.fhirNote ? JSON.parse(annotation.fhirNote) : null;
   } else {
-    step.uuid = ''; step.id = ''; step.fhir_note = '';
+    step.uuid = ''; step.id = ''; step.fhirNote = '';
   }
 };
 
@@ -247,8 +247,8 @@ const handleAnnotationSubmit = async () => {
     showAlert.value = false;
     if (props.type === 'workflow') {
       emit('annotation-submit', (props.data as WorkflowResponse)!.id, {
-        sparc_note: '',
-        fhir_note: JSON.stringify(annotateSteps.value),
+        sparcNote: '',
+        fhirNote: JSON.stringify(annotateSteps.value),
       });
     } else {
       emit('annotation-submit', (props.data as ToolResponse)!.id, annotateTool.value);

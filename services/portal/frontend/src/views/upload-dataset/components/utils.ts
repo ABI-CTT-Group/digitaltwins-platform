@@ -1,4 +1,4 @@
-import { GitContent } from '@/models/types';
+﻿import { GitContent } from '@/models/types';
 import yaml from "js-yaml";
 
 export const formatDate = (dateString: string) => {
@@ -48,9 +48,9 @@ export const getRepoContents = async (url: string, path: string = "") => {
   return { data };
 }
 
-export const getRepoRootCWLContent = (repository_url: string) => {
+export const getRepoRootCWLContent = (repositoryUrl: string) => {
   return new Promise<{ cwlFile: string, content: any }>((resolve, reject) => {
-    getRepoContents(repository_url).then((res) => {
+    getRepoContents(repositoryUrl).then((res) => {
       const folders = res!.data as GitContent[];
       let cwlFile = "";
       folders.forEach((item: GitContent) => {
@@ -59,7 +59,7 @@ export const getRepoRootCWLContent = (repository_url: string) => {
           return;
         }
       })
-      getRepoContents(repository_url, cwlFile).then((res) => {
+      getRepoContents(repositoryUrl, cwlFile).then((res) => {
         const contentBase64 = res.data.content;
         const content = atob(contentBase64); // base64 → plain text
         try {

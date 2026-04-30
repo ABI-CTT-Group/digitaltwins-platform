@@ -29,7 +29,7 @@
       <CommonInfoForm
         :cwl-repo-err="cwlRepoErr"
         :name-err="nameErr"
-        v-model:repository_url="formData.repository_url"
+        v-model:repositoryUrl="formData.repositoryUrl"
         v-model:name="formData.name"
         v-model:author="formData.author"
         v-model:version="formData.version"
@@ -42,16 +42,16 @@
         <div v-if="type === 'tool' && formData.label === 'GUI'" class="w-100">
           <div class="w-100">
             <h4 class="my-2">has backend? *</h4>
-            <v-radio-group inline v-model="formData.has_backend" class="w-100 d-flex justify-between">
+            <v-radio-group inline v-model="formData.hasBackend" class="w-100 d-flex justify-between">
               <v-radio label="Yes" :value="true" />
               <v-radio label="No" :value="false" />
             </v-radio-group>
           </div>
           <div class="w-100 d-flex flex-row">
-            <div v-show="formData.has_backend" class="w-100 mr-1">
+            <div v-show="formData.hasBackend" class="w-100 mr-1">
               <h4 class="my-2">Frontend Folder Name *</h4>
               <v-select
-                v-model="formData.frontend_folder"
+                v-model="formData.frontendFolder"
                 :items="foldersInRoot"
                 :rules="frontendFolderRules"
                 label="Frontend Folder"
@@ -60,7 +60,7 @@
             <div class="w-100 ml-1">
               <h4 class="my-2">Build Command *</h4>
               <v-text-field
-                v-model="formData.frontend_build_command"
+                v-model="formData.frontendBuildCommand"
                 :rules="frontendCommandRules"
                 label="Frontend Build Command"
                 clearable
@@ -69,19 +69,19 @@
             </div>
           </div>
           <div class="w-100 d-flex flex-row">
-            <div v-show="formData.has_backend" class="w-100 mr-1">
+            <div v-show="formData.hasBackend" class="w-100 mr-1">
               <h4 class="mb-2">Backend Folder Name *</h4>
               <v-select
-                v-model="formData.backend_folder"
+                v-model="formData.backendFolder"
                 :items="foldersInRoot"
                 :rules="backendFolderRules"
                 label="Backend Folder"
               />
             </div>
-            <div v-show="formData.has_backend" class="w-100 ml-1">
+            <div v-show="formData.hasBackend" class="w-100 ml-1">
               <h4 class="mb-2">Deploy Command (fixed) *</h4>
               <v-text-field
-                v-model="formData.backend_deploy_command"
+                v-model="formData.backendDeployCommand"
                 bg-color="cyan-darken-4"
                 variant="solo"
                 readonly
@@ -140,17 +140,17 @@ const cwlRepoErr = ref<CheckNameResponse>();
 // Tool form data (superset of workflow fields)
 const formData = reactive<ToolInformationStep>({
   label: 'GUI',
-  repository_url: '',
+  repositoryUrl: '',
   name: '',
   author: '',
   version: '0.0.0',
   description: '',
-  frontend_folder: '',
-  frontend_build_command: 'npm run build:plugin',
-  has_backend: true,
-  backend_folder: '',
-  backend_deploy_command: 'docker compose up --build -d',
-  plugin_metadata: {},
+  frontendFolder: '',
+  frontendBuildCommand: 'npm run build:plugin',
+  hasBackend: true,
+  backendFolder: '',
+  backendDeployCommand: 'docker compose up --build -d',
+  toolMetadata: {},
 });
 
 // ---- GitHub repo info composable ------------------------------------------
@@ -163,21 +163,21 @@ watch(() => repoInfo.value.foldersInRoot, (v) => { foldersInRoot.value = v; });
 // ---- validation rules (tool-only) -----------------------------------------
 const frontendCommandRegex = /^(npm|yarn)\s+\S+/;
 const frontendFolderRules = [
-  (v: string) => (formData.has_backend ? !!v || "Make sure the folder name matches the frontend folder in your tool's GitHub repo" : true),
+  (v: string) => (formData.hasBackend ? !!v || "Make sure the folder name matches the frontend folder in your tool's GitHub repo" : true),
 ];
 const frontendCommandRules = [
   (v: string) => !!v || 'Command to build your plugin (e.g., npm run build, yarn build)',
   (v: string) => frontendCommandRegex.test(v) || 'At the moment, the server supports only npm or yarn commands',
 ];
 const backendFolderRules = [
-  (v: string) => (!formData.has_backend || !!v) || "The backend folder name can't be empty!",
+  (v: string) => (!formData.hasBackend || !!v) || "The backend folder name can't be empty!",
 ];
 
 // ---- handlers -------------------------------------------------------------
 const handleLabelChange = () => {
   if (props.type !== 'tool') return;
   if (formData.label === 'Script') {
-    formData.has_backend = false;
+    formData.hasBackend = false;
     onRepoBlur();
   } else {
     cwlCheck.value = false;
@@ -187,10 +187,10 @@ const handleLabelChange = () => {
 };
 
 const onRepoBlur = async () => {
-  if (!formData.repository_url) return;
+  if (!formData.repositoryUrl) return;
   const isCwlCheck = props.type === 'workflow' || formData.label === 'Script';
-  const normalizedUrl = await refreshRepoInfo(formData.repository_url, isCwlCheck);
-  formData.repository_url = normalizedUrl;
+  const normalizedUrl = await refreshRepoInfo(formData.repositoryUrl, isCwlCheck);
+  formData.repositoryUrl = normalizedUrl;
   formData.name = repoInfo.value.name;
   formData.author = repoInfo.value.author;
   if (repoInfo.value.version) formData.version = repoInfo.value.version;
@@ -210,7 +210,7 @@ const onNameBlur = async () => {
 
 const checkFolderInRoot = (name: string) => foldersInRoot.value.includes(name);
 
-watch(() => formData.has_backend, () => { policyCheckbox.value = false; });
+watch(() => formData.hasBackend, () => { policyCheckbox.value = false; });
 
 // ---- validation -----------------------------------------------------------
 async function validate(): Promise<boolean> {
@@ -223,9 +223,9 @@ async function validate(): Promise<boolean> {
 
   // tool
   if (formData.label === 'GUI') {
-    if (formData.has_backend) {
-      const fOk = checkFolderInRoot(formData.frontend_folder ?? '');
-      const bOk = checkFolderInRoot(formData.backend_folder ?? '');
+    if (formData.hasBackend) {
+      const fOk = checkFolderInRoot(formData.frontendFolder ?? '');
+      const bOk = checkFolderInRoot(formData.backendFolder ?? '');
       return valid && !!nameErr.value?.available && fOk && bOk;
     }
     return valid && !!nameErr.value?.available;
@@ -246,7 +246,7 @@ async function handleSubmit() {
     if (props.type === 'workflow') {
       // emit only the workflow subset of fields
       const workflowData: WorkflowInformationStep = {
-        repository_url: formData.repository_url,
+        repositoryUrl: formData.repositoryUrl,
         name: formData.name,
         author: formData.author,
         version: formData.version,

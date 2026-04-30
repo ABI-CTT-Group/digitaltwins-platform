@@ -3,7 +3,7 @@
   name: string;
   category: string;
   description?: string;
-  workflow_seek_id?: string;
+  workflowSeekId?: string;
   tag?: string;
 }
 
@@ -58,16 +58,16 @@ export interface AssayDataset {
 export interface ToolInformationStep {
     name: string;
     version: string;
-    repository_url: string;
+    repositoryUrl: string;
     label: "GUI" | "Script";
-    has_backend: boolean;
-    frontend_folder: string;
-    frontend_build_command: string;
-    backend_folder: string;
-    backend_deploy_command: string;
+    hasBackend: boolean;
+    frontendFolder: string;
+    frontendBuildCommand: string;
+    backendFolder: string;
+    backendDeployCommand: string;
     description?: string ;
     author?: string;
-    plugin_metadata: any;
+    toolMetadata: any;
 }
 
 export interface CheckNameResponse {
@@ -76,46 +76,46 @@ export interface CheckNameResponse {
 }
 export interface ToolResponse {
     id: string
-    plugin_metadata: any
+    toolMetadata: any
     name: string
     version: string
     label: string
-    repository_url: string
-    frontend_folder: string
-    frontend_build_command: string
-    has_backend: boolean
-    backend_folder?: string
-    backend_deploy_command: string
+    repositoryUrl: string
+    frontendFolder: string
+    frontendBuildCommand: string
+    hasBackend: boolean
+    backendFolder?: string
+    backendDeployCommand: string
     description?: string
     author?: string
     status: string
-    deploy_status?: string
-    latest_build_id?: string
-    latest_deploy_id?: string
-    created_at: string
-    updated_at: string
+    deployStatus?: string
+    latestBuildId?: string
+    latestDeployId?: string
+    createdAt: string
+    updatedAt: string
 }
 
 export interface BuildResponse {
     id: string
-    plugin_id: string
-    build_id: string
+    pluginId: string
+    buildId: string
     status: string
-    build_logs?: string
-    error_messages?: string
-    s3_path?: string
-    created_at: string
-    updated_at: string
+    buildLogs?: string
+    errorMessages?: string
+    s3Path?: string
+    createdAt: string
+    updatedAt: string
 }
 
 export interface ToolDeployResponse {
     id: string
-    plugin_id: string
-    build_id: string
-    deploy_id: string
+    pluginId: string
+    buildId: string
+    deployId: string
     status: string
-    created_at: string
-    updated_at: string
+    createdAt: string
+    updatedAt: string
 }
 
 export interface ToolMinIOToolMetadata {
@@ -126,14 +126,14 @@ export interface ToolMinIOToolMetadata {
       expose: string,
       description: string,
       version: string,
-      created_at: string,
+      createdAt: string,
       author: string,
-      repository_url: string,
-      is_local: boolean,
-      frontend_folder: string,
-      has_backend: boolean,
-      backend_folder: string,
-      backend_deploy_command: string,
+      repositoryUrl: string,
+      isLocal: boolean,
+      frontendFolder: string,
+      hasBackend: boolean,
+      backendFolder: string,
+      backendDeployCommand: string,
       config: any
     }
 
@@ -142,10 +142,10 @@ export interface ToolMinIOMetadata {
 }
 
 export interface ExcuteBuildResponse {
-    build_id: string,
+    buildId: string,
     status: string,
     message: string,
-    repo_url: string
+    repoUrl: string
 }
 
 export interface GitContent {
@@ -168,7 +168,7 @@ export interface GitContent {
 export interface WorkflowInformationStep {
     name: string;
     version: string;
-    repository_url: string;
+    repositoryUrl: string;
     description?: string ;
     author?: string;
 }
@@ -177,13 +177,13 @@ export interface WorkflowResponse {
     id: string;
     name: string;
     version: string;
-    repository_url: string;
+    repositoryUrl: string;
     description?: string;
     author?: string;
     status: string;
-    latest_build_id?: string
-    created_at: string;
-    updated_at: string;
+    latestBuildId?: string
+    createdAt: string;
+    updatedAt: string;
 }
 
 interface AnnotateToolInput{
@@ -203,24 +203,24 @@ export interface AnnotateTool {
 }
 
 export interface IAnnotation {
-    fhir_note: string;
-    sparc_note: string;
+    fhirNote: string;
+    sparcNote: string;
 }
 
 export interface AnnotationResponse {
   id:string;
-  annotation_id:string;
-  fhir_note:string;
-  sparc_note:string;
-  created_at:string;
-  updated_at:string;
+  annotationId:string;
+  fhirNote:string;
+  sparcNote:string;
+  createdAt:string;
+  updatedAt:string;
 }
 
 export interface WorkflowStepAnnotation {
     id:string;
     uuid:string;
     name:string;
-    tool_fhir_note?:{
+    toolFhirNote?:{
        [key:string]:any;
     };
 }
