@@ -54,15 +54,15 @@ export async function useWorkflow() {
   const workflows = http.get<Array<IWorkflowResponse>>("/workflow/").then(async (items)=>{
       const formattedWorkflows = await Promise.all(items.map(async (workflow)=>{
         let buildStatus = 'pending'
-        let lastestBuildId = undefined
+        let latestBuildId = undefined
         try {
           const buildsResponse = await http.get<Array<BuildResponse>>(`/workflow/${workflow.id}/builds`)
           if(buildsResponse.length > 0){
             // get the most recent build
-            const lastestBuild = buildsResponse.sort((a:BuildResponse, b:BuildResponse)=> 
+            const latestBuild = buildsResponse.sort((a:BuildResponse, b:BuildResponse)=> 
               new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
-            buildStatus = lastestBuild.status
-            lastestBuildId = lastestBuild.build_id
+            buildStatus = latestBuild.status
+            latestBuildId = latestBuild.build_id
           }
           
         }catch(buildError){
@@ -72,7 +72,7 @@ export async function useWorkflow() {
           ...workflow,
           description: workflow.description == "" ? "No description available" : workflow.description,
           status: buildStatus,
-          latest_build_id: lastestBuildId,
+          latest_build_id: latestBuildId,
         }
       }))
       return formattedWorkflows

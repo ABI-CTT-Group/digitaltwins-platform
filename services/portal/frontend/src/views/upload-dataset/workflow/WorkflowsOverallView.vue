@@ -18,7 +18,7 @@
             ></v-btn>
         </div>
         
-        <div class="d-flex flex-column w-100 my-2 pa-5 border-sm rounded tool-conatiner">
+        <div class="d-flex flex-column w-100 my-2 pa-5 border-sm rounded tool-container">
             <Search 
                 :label="'Search workflows'"
                 v-model:search="search"
@@ -165,7 +165,7 @@ onUnmounted(() => {
   padding-bottom: 0 !important;
 }
 
-.tool-conatiner{
+.tool-container{
     min-height: 50vh;
 }
 

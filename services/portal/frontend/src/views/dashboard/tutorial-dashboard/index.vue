@@ -94,12 +94,12 @@ const helps = [
 const apiDocs = [
     {
         title:"DigitalTWINS-API",
-        herf:"http://130.216.217.184:8010/docs",
+        herf: import.meta.env.VITE_API_DOC_DT_URL,
         width:350,
     },
     {
         title:"DigitalTWINS-Portal-API",
-        herf:"http://130.216.217.176:8000/docs",
+        herf: import.meta.env.VITE_API_DOC_PORTAL_URL,
         width:350,
     }
 ]

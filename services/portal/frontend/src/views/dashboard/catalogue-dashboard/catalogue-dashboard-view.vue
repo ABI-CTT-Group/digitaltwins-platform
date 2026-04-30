@@ -44,7 +44,7 @@ const cards: CatalogueCard[] = [
     {
         title: 'SEEK Catalogue',
         description: 'View or create descriptions for programmes, projects, investigations, studies, assays, and view existing workflows and tools.',
-        herf: 'http://130.216.216.26:8001/'
+        herf: import.meta.env.VITE_SEEK_URL
     },
     {
         title: 'Upload workflow tool',

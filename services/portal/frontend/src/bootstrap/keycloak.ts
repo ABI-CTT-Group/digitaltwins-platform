@@ -1,12 +1,12 @@
 import Keycloak from 'keycloak-js';
 
 // Keycloak instance
-let keycloakInstance: Keycloak.Keycloak | null = null;
+let keycloakInstance: Keycloak | null = null;
 
 /**
  * Initialize Keycloak
  */
-export async function initKeycloak(): Promise<Keycloak.Keycloak> {
+export async function initKeycloak(): Promise<Keycloak> {
   if (keycloakInstance) {
     return keycloakInstance;
   }
@@ -60,7 +60,7 @@ export async function initKeycloak(): Promise<Keycloak.Keycloak> {
 /**
  * Get current Keycloak instance
  */
-export function getKeycloak(): Keycloak.Keycloak | null {
+export function getKeycloak(): Keycloak | null {
   return keycloakInstance;
 }
 

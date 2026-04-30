@@ -57,7 +57,7 @@
                 />
                 <v-select
                   class="mx-2 my-1"
-                  :items="fhirObservationSytems" 
+                  :items="fhirObservationSystems" 
                   item-title="name"
                   item-value="value"
                   label="Code System"
@@ -133,7 +133,7 @@ const cwlObj = ref<any>(null);
 const form = ref();
 
 const fhirResources = ref(["Observation", "ImagingStudy", "DocumentReference"])
-const fhirObservationSytems = ref([
+const fhirObservationSystems = ref([
   {
     name: "LOINC Codes",
     value: "https://loinc.org/"

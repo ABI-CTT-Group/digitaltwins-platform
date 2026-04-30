@@ -103,7 +103,7 @@ const handleAssayDownloadClicked = async (assay_seek_id:string) => {
 }
 
 const handleAssayVerifyClicked = async (assay_seek_id:string) => {
-    window.open("http://bn363773:8888/lab/tree/20250722_105946/verify.ipynb","_blank");
+    window.open(`${import.meta.env.VITE_JUPYTER_BASE_URL}/lab/tree/verify.ipynb`,"_blank");
 }
 
 const handleAssayMonitorClicked = async (assay_seek_id:string) => {

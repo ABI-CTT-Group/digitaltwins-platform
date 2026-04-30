@@ -12,7 +12,7 @@
             {{ isClinicianView ? "Clinician Dashboard" : "Study Dashboard" }}
         </div> -->
         <div>
-            <HelpIcon class="position-fixed dashboard-title" :size="50" @click="hanleHelpClick"/>
+            <HelpIcon class="position-fixed dashboard-title" :size="50" @click="handleHelpClick"/>
         </div>
         <v-card v-if="currentCategory !== 'Programmes' && currentCategory !== ''" class="position-fixed intro d-flex flex-column overflow-y-auto justify-space-around pa-5" color="transparent">
             <v-card-text>
@@ -201,7 +201,7 @@ const handleAssayVerifyClicked = async (assay_seek_id:string) => {
     
     console.log(workflowUUID);
     
-    window.open(`http://130.216.216.26:8008/lab/tree/workflow_outputs/${workflowUUID}/verify.ipynb`,"_blank");
+    window.open(`${import.meta.env.VITE_JUPYTER_BASE_URL}/lab/tree/workflow_outputs/${workflowUUID}/verify.ipynb`,"_blank");
     // window.open("http://bn363773:8888/lab/tree/20250722_105946/verify.ipynb","_blank");
 }
 
@@ -308,7 +308,7 @@ watch(()=>currentCategoryData.value, (newVal)=>{
     }
 })
 
-const hanleHelpClick = () => {
+const handleHelpClick = () => {
     window.open("https://github.com/ABI-CTT-Group/DigitalTWINS-Portal?tab=readme-ov-file#how-to-use-the-study-dashboard", "_blank");
 }
 

@@ -49,19 +49,19 @@ export async function useWorkflowTools() {
     const formattedWorkflowTools = await Promise.all(tools.map(async (tool)=>{
       let buildStatus = 'pending'
       let deployStatus = undefined
-      let lastestBuildId = undefined
+      let latestBuildId = undefined
       let latestDeployId = undefined
       try {
         const buildsResponse = await http.get<Array<BuildResponse>>(`/tools/plugin/${tool.id}/builds`)
         if(buildsResponse.length > 0){
           // get the most recent build
-          const lastestBuild = buildsResponse.sort((a:BuildResponse, b:BuildResponse)=> 
+          const latestBuild = buildsResponse.sort((a:BuildResponse, b:BuildResponse)=> 
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
-          buildStatus = lastestBuild.status
-          lastestBuildId = lastestBuild.build_id
+          buildStatus = latestBuild.status
+          latestBuildId = latestBuild.build_id
           if(tool.has_backend && buildStatus === 'completed'){
     
-            const deployResponses = await http.get<Array<ToolDeployResponse>>(`/tools/plugin/build/${lastestBuild.build_id}/deploys`)
+            const deployResponses = await http.get<Array<ToolDeployResponse>>(`/tools/plugin/build/${latestBuild.build_id}/deploys`)
             if(deployResponses.length > 0){
               const latestDeploy = deployResponses.sort((a:ToolDeployResponse, b:ToolDeployResponse)=>
                 new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
@@ -79,7 +79,7 @@ export async function useWorkflowTools() {
         description: tool.description == "" ? "No description available" : tool.description,
         status: buildStatus,
         deploy_status: deployStatus,
-        latest_build_id: lastestBuildId,
+        latest_build_id: latestBuildId,
         latest_deploy_id: latestDeployId
       }
     }))

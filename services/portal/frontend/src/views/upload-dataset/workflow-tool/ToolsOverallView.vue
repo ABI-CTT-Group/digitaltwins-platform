@@ -19,7 +19,7 @@
             ></v-btn>
         </div>
         
-        <div class="d-flex flex-column w-100 my-2 pa-5 border-sm rounded tool-conatiner">
+        <div class="d-flex flex-column w-100 my-2 pa-5 border-sm rounded tool-container">
             <Search 
                 :label="'Search workflow tools'"
                 v-model:search="search"
@@ -144,7 +144,7 @@ const handleLaunch = async (id:string) => {
 }
 const handleRebuild = async (id:string) =>{
     const buildRes = await useWorkflowToolBuild(id);
-    if(buildRes.status="building") await handleRefresh();
+    if(buildRes.status === "building") await handleRefresh();
 }
 
 const handleDeploy = async (id:string) =>{
@@ -153,7 +153,7 @@ const handleDeploy = async (id:string) =>{
     // For example, you might call an API endpoint to deploy the tool
     const deployRes = await useDeployTool(id) as any;
     console.log(deployRes);
-    if(deployRes.status="deploying") await handleRefresh();
+    if(deployRes.status === "deploying") await handleRefresh();
 }
 
 const handleDeleteTool = async (res: any) =>{
@@ -225,7 +225,7 @@ onUnmounted(() => {
   padding-top: 0 !important;
   padding-bottom: 0 !important;
 }
-.tool-conatiner{
+.tool-container{
     min-height: 50vh;
 }
 

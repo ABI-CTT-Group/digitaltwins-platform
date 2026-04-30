@@ -156,7 +156,7 @@ const toolItems = computed(()=>{
   }));
 })
 const fhirResources = ref(["Observation", "ImagingStudy", "DocumentReference"])
-const fhirObservationSytems = ref([
+const fhirObservationSystems = ref([
   {
     name: "LOINC Codes",
     value: "https://loinc.org/"

@@ -70,7 +70,7 @@
                 max-width="444"
             >
                 <v-text-field
-                    v-model:model-value="cohortsPaticipants"
+                    v-model:model-value="cohortsParticipants"
                     @update:model-value="handleCohortUpdate"
                     class="py-3"
                     label="Enter Participants Ranges"
@@ -105,7 +105,7 @@ interface IRenderWorkflowInputDatasetSamples {
 }
 
 const formRef = ref();
-const cohortsPaticipants = ref<string>("");
+const cohortsParticipants = ref<string>("");
 const datasetRenderItems = ref<string[]>();
 const workflowDisplayName = ref<string>("");
 
@@ -161,7 +161,7 @@ onBeforeMount(()=>{
 onMounted(async () => {
 
     if (assayDetails.value?.numberOfParticipants?.length) {
-        cohortsPaticipants.value = compressRangeList(assayDetails.value.numberOfParticipants);
+        cohortsParticipants.value = compressRangeList(assayDetails.value.numberOfParticipants);
     }
 
     if (assayDetails.value?.workflow?.seekId) {

@@ -223,6 +223,8 @@ export interface IWorkflowStepAnnotation {
     uuid:string;
     name:string;
     tool_fhir_note?:{
-       [key:string]:any; 
+       [key:string]:any;
     };
 }
+
+export type IBaseInformationStep = IToolInformationStep | IWorkflowInformationStep;
