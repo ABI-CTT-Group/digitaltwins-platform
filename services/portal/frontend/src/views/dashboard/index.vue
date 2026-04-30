@@ -45,9 +45,8 @@
                         description="Provides “yellow pages” that enable users to see what AI/digital twin assets are being developed in research programmes. This includes viewing or adding new programmes, projects, investigations, studies, assays, workflows, measurements, and models."
                         @on-explore="handleExploreClicked"
                     />
-                    <DashboardCard 
-                        v-if="showStudyDashboard"
-                        :src="studyImage" 
+                    <DashboardCard
+                        :src="studyImage"
                         :title="'Study dashboard'"
                         location="Te Whatu Ora AI Lab"
                         description="Enables clinicians to collaborate with researchers to assess efficacy of AI/digital twin driven workflows."
@@ -59,8 +58,7 @@
                     md="12"
                     class="d-flex justify-space-around align-center"
                 >  
-                    <DashboardCard 
-                        v-if="showClinicianDashboard"
+                    <DashboardCard
                         :src="clinicalImage"
                         :title="'Clinician dashboard'"
                         location="Te Whatu Ora AI Lab"
@@ -116,7 +114,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, computed } from 'vue';
+import { onMounted } from 'vue';
 import DashboardCard from '@/components/domain/DashboardCard.vue';
 import Hero from '@/components/domain/Hero.vue';
 import clinicalImage from '@/assets/dashboard/clinical-01.jpg';
@@ -128,42 +126,41 @@ import mydigitaltwinNavImage from '@/assets/dashboard/my-digital-twin-nav.jpg'
 import fcMapImage from '@/assets/dashboard/fc-map.jpg'
 import annotatorImage from '@/assets/dashboard/annotator.jpg'
 import digitalRepositoryImage from '@/assets/dashboard/digital-repository.jpg'
-import { useRouter, useRoute } from 'vue-router';
-import { useDashboardPageStore } from '@/store/dashboard_page_store';
-import { useAuthStore } from '@/store/auth_store';
+import { useRouter } from 'vue-router';
+import { useAuthGuard } from '@/composables/useAuthGuard';
 
 const router = useRouter();
-const authStore = useAuthStore();
-const showStudyDashboard = computed(() => authStore.hasAdminRole || authStore.hasResearcherRole);
-const showClinicianDashboard = computed(() => authStore.hasAdminRole || authStore.hasClinicianRole);
+const { check } = useAuthGuard();
 
 onMounted(() => {
     localStorage.removeItem("dashboardPage");
-    // const dashboardStore = useDashboardPageStore();
-    // dashboardStore.$reset();
 });
 
+const roleMap: Record<string, string[]> = {
+    'Catalogue':           [],
+    'Study dashboard':     ['admin', 'researcher'],
+    'Clinician dashboard': ['admin', 'researcher', 'clinician'],
+};
+
 const handleExploreClicked = (title: string) => {
-   
-    if(title === 'Study dashboard') {
-        router.push({name:'Dashboard', params: { dashboardType: 'study' }});
-    } else if(title === 'Clinician dashboard') {
-        router.push({name:'Dashboard', params: { dashboardType: 'clinician' }});
-    }else if(title === 'Catalogue') {
-        router.push({name:"CatalogueDashboardView"})
-    }else if(title === "How to use this platform"){
-        router.push({name:'TutorialDashboard'});
-    }else if(title === "My digital twin"){
-        window.open("https://abi-web-apps.github.io/", '_blank');
-    }else if(title === "Physiology exploration (FC Map)"){
-        window.open("https://mapcore-demo.org/2024/sparc-app-isan/apps/maps?id=f2a99cd3", '_blank');
-    }else if(title === "My digital health navigator"){
-        window.open("https://dina.kekayan.com/", '_blank')
-    }else if(title === "Medical image annotation"){
-        window.open("https://build-seven-iota.vercel.app/#/", '_blank')
-    }
-    else {
-        console.log(`Unknown title: ${title}`);
+    if (title in roleMap && !check(roleMap[title].length ? roleMap[title] : undefined)) return;
+
+    if (title === 'Study dashboard') {
+        router.push({ name: 'Dashboard', params: { dashboardType: 'study' } });
+    } else if (title === 'Clinician dashboard') {
+        router.push({ name: 'Dashboard', params: { dashboardType: 'clinician' } });
+    } else if (title === 'Catalogue') {
+        router.push({ name: 'CatalogueDashboardView' });
+    } else if (title === 'How to use this platform') {
+        router.push({ name: 'TutorialDashboard' });
+    } else if (title === 'My digital twin') {
+        window.open('https://abi-web-apps.github.io/', '_blank');
+    } else if (title === 'Physiology exploration (FC Map)') {
+        window.open('https://mapcore-demo.org/2024/sparc-app-isan/apps/maps?id=f2a99cd3', '_blank');
+    } else if (title === 'My digital health navigator') {
+        window.open('https://dina.kekayan.com/', '_blank');
+    } else if (title === 'Medical image annotation') {
+        window.open('https://build-seven-iota.vercel.app/#/', '_blank');
     }
 }
 

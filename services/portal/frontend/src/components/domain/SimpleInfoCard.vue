@@ -43,36 +43,40 @@
 
 </template>
 <script setup lang="ts">
-import { useRouter, useRoute } from 'vue-router';
-import { onMounted, ref } from 'vue';
-const router = useRouter();
+import { useRouter } from 'vue-router';
+import { ref } from 'vue';
+import { useAuthGuard } from '@/composables/useAuthGuard';
 
+const router = useRouter();
 const isLoading = ref(false);
 
 const props = defineProps<{
-    herf:string,
-    title:string,
-    description?:string,
-    width?:number,
-    height?:number
+    herf: string,
+    title: string,
+    description?: string,
+    width?: number,
+    height?: number,
+    requireRoles?: string[],
 }>()
 
-const handleBtnClick = async ()=>{
+const handleBtnClick = async () => {
+  if (props.requireRoles !== undefined) {
+    const { check } = useAuthGuard();
+    if (!check(props.requireRoles.length ? props.requireRoles : undefined)) return;
+  }
   isLoading.value = true;
-  if(props.herf.startsWith("http")){
+  if (props.herf.startsWith('http')) {
     window.open(props.herf, '_blank');
-    setTimeout(() => {
-      isLoading.value = false;
-    }, 800);
-  }else{
+    setTimeout(() => { isLoading.value = false; }, 800);
+  } else {
     try {
-      await router.push({name:props.herf});
+      await router.push({ name: props.herf });
     } catch (e) {
       console.error(e);
     } finally {
       isLoading.value = false;
     }
-  } 
+  }
 }
 
 </script>

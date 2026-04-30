@@ -22,6 +22,7 @@
         :herf="card.herf"
         :title="card.title"
         :description="card.description"
+        :require-roles="card.requireRoles"
       />
     </div>
   </div>
@@ -31,9 +32,15 @@
 
 <script setup lang="ts">
 import SimpleInfoCard from '@/components/domain/SimpleInfoCard.vue';
-import { ref, computed } from 'vue';
 
-const cards =[
+type CatalogueCard = {
+    title: string;
+    description: string;
+    herf: string;
+    requireRoles?: string[];
+};
+
+const cards: CatalogueCard[] = [
     {
         title: 'SEEK Catalogue',
         description: 'View or create descriptions for programmes, projects, investigations, studies, assays, and view existing workflows and tools.',
@@ -42,14 +49,16 @@ const cards =[
     {
         title: 'Upload workflow tool',
         description: 'Upload a new workflow tool to the platform.',
-        herf: 'UploadToolDataset'
+        herf: 'UploadToolDataset',
+        requireRoles: ['admin'],
     },
     {
         title: 'Upload workflow',
         description: 'Upload a new workflow to the platform.',
-        herf: 'UploadWorkflowDataset'
+        herf: 'UploadWorkflowDataset',
+        requireRoles: ['admin'],
     },
-     {
+    {
         title: 'Workflow assembler',
         description: 'Assemble & and uploading a new workflow to the platform.',
         herf: 'WorkflowToolsViewer'

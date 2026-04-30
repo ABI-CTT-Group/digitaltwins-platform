@@ -41,8 +41,7 @@ const routes = [
           {
             path: "/how-it-works",
             name: "TutorialDashboard",
-            component:TutorialDashboard,
-            meta: { requiresAuth: true },
+            component: TutorialDashboard,
           },
           {
             path: "/catalogue-dashboard",
@@ -77,11 +76,13 @@ const routes = [
                 path: "/upload-tool-dataset",
                 name: "UploadToolDataset",
                 component: UploadToolDataset,
+                meta: { requiresAuth: true, requiresRoles: ['admin'] },
               },
               {
                 path: "/upload-workflow-dataset",
                 name: "UploadWorkflowDataset",
                 component: UploadWorkflowDataset,
+                meta: { requiresAuth: true, requiresRoles: ['admin'] },
               },
             ]
           },
@@ -112,44 +113,53 @@ const router = createRouter({
 // Navigation guard for authentication
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
-  const requiresAuth = to.meta?.requiresAuth;
+  const requiresAuth = to.matched.some(r => r.meta?.requiresAuth);
+  const requiresRoles = (to.meta?.requiresRoles ?? []) as string[];
   const hasToken = !!sessionStorage.getItem('access_token');
-  // Update auth state in case token was updated
   authStore.updateAuthState();
 
   if (requiresAuth) {
     if (!isAuthenticated() && !hasToken) {
-      // Redirect to login if not authenticated
       console.warn('⚠️ Router Guard: NOT authenticated & no sessionStorage token → redirecting to Home');
       next({ name: 'Home' });
-    } else {
-      if (to.name === 'Dashboard') {
-        const dashboardType = String(to.params?.dashboardType || '');
+      return;
+    }
 
-        if (dashboardType === 'study') {
-          if (!authStore.hasAdminRole && !authStore.hasResearcherRole) {
-            if (authStore.hasClinicianRole) {
-              next({ name: 'Dashboard', params: { dashboardType: 'clinician' } });
-              return;
-            }
-            next({ name: 'Home' });
+    // Role guard — hard block for routes that require a specific role
+    if (requiresRoles.length > 0) {
+      const hasRequiredRole = requiresRoles.some(r => authStore.userRoles.includes(r));
+      if (!hasRequiredRole) {
+        next({ name: 'Home' });
+        return;
+      }
+    }
+
+    if (to.name === 'Dashboard') {
+      const dashboardType = String(to.params?.dashboardType || '');
+
+      if (dashboardType === 'study') {
+        if (!authStore.hasAdminRole && !authStore.hasResearcherRole) {
+          if (authStore.hasClinicianRole) {
+            next({ name: 'Dashboard', params: { dashboardType: 'clinician' } });
             return;
           }
-        }
-
-        if (dashboardType === 'clinician') {
-          if (!authStore.hasAdminRole && !authStore.hasClinicianRole) {
-            if (authStore.hasResearcherRole) {
-              next({ name: 'Dashboard', params: { dashboardType: 'study' } });
-              return;
-            }
-            next({ name: 'Home' });
-            return;
-          }
+          next({ name: 'Home' });
+          return;
         }
       }
-      next();
+
+      if (dashboardType === 'clinician') {
+        if (!authStore.hasAdminRole && !authStore.hasClinicianRole) {
+          if (authStore.hasResearcherRole) {
+            next({ name: 'Dashboard', params: { dashboardType: 'study' } });
+            return;
+          }
+          next({ name: 'Home' });
+          return;
+        }
+      }
     }
+    next();
   } else {
     next();
   }
