@@ -7,14 +7,13 @@ import {
 } from "vue-router";
 import { useAuthStore } from "@/store/auth_store";
 import { isAuthenticated } from "@/bootstrap/keycloak";
-import Home from "@/views/dashboard/index.vue";
-import Dashboard from "@/views/dashboard/study-dashboard/index.vue";
-import TutorialDashboard from "@/views/dashboard/tutorial-dashboard/index.vue";
-import CatalogueDashboard from "@/views/dashboard/catalogue-dashboard/index.vue";
-import CatalogueDashboardView from "@/views/dashboard/catalogue-dashboard/catalogue-dashboard-view.vue";
-import ToolsViewer from "@/views/dashboard/catalogue-dashboard/tools-viewer.vue";
+import Home from "@/views/home/index.vue";
+import Dashboard from "@/views/study/index.vue";
+import TutorialDashboard from "@/views/tutorial/index.vue";
+import CatalogueDashboardView from "@/views/catalogue/catalogue-dashboard-view.vue";
+import ToolsViewer from "@/views/catalogue/tools-viewer.vue";
 import Layout from "@/layouts/Default.vue";
-import LaunchedAssayOverview from "@/views/dashboard/study-dashboard/assay-overview.vue";
+import LaunchedAssayOverview from "@/views/study/assay-overview.vue";
 import UploadDataset from "@/views/upload-dataset/index.vue";
 import UploadToolDataset from "@/views/upload-dataset/workflow-tool/index.vue";
 import UploadWorkflowDataset from "@/views/upload-dataset/workflow/index.vue";
@@ -36,53 +35,49 @@ const routes = [
             path: "/dashboard:dashboardType",
             name: "Dashboard",
             component: Dashboard,
-            meta: { requiresAuth: true },
+            meta: { requiresAuth: true, showBack: true },
           },
           {
             path: "/how-it-works",
             name: "TutorialDashboard",
             component: TutorialDashboard,
+            meta: { showBack: true },
           },
           {
             path: "/catalogue-dashboard",
-            component:CatalogueDashboard,
-            meta: { requiresAuth: true },
-            children:[
-              {
-                path: "/catalogue-dashboard",
-                name: "CatalogueDashboardView",
-                component: CatalogueDashboardView,
-              },
-              {
-                path: "/catalogue-dashboard-tools",
-                name: "ToolsViewer",
-                component: ToolsViewer,
-              }
-            ]
+            name: "CatalogueDashboardView",
+            component: CatalogueDashboardView,
+            meta: { requiresAuth: true, showBack: true },
+          },
+          {
+            path: "/catalogue-dashboard-tools",
+            name: "ToolsViewer",
+            component: ToolsViewer,
+            meta: { requiresAuth: true, showBack: true },
           },
           {
             path: "/launched-assay",
             name: "LaunchedAssayOverview",
             component: LaunchedAssayOverview,
-            meta: { requiresAuth: true },
+            meta: { requiresAuth: true, showBack: true },
           },
           {
             path: "/upload-dataset",
             name: "UploadDataset",
             component: UploadDataset,
-            meta: { requiresAuth: true },
+            meta: { requiresAuth: true, showBack: true },
             children:[
               {
                 path: "/upload-tool-dataset",
                 name: "UploadToolDataset",
                 component: UploadToolDataset,
-                meta: { requiresAuth: true, requiresRoles: ['admin'] },
+                meta: { requiresAuth: true, requiresRoles: ['admin'], showBack: true },
               },
               {
                 path: "/upload-workflow-dataset",
                 name: "UploadWorkflowDataset",
                 component: UploadWorkflowDataset,
-                meta: { requiresAuth: true, requiresRoles: ['admin'] },
+                meta: { requiresAuth: true, requiresRoles: ['admin'], showBack: true },
               },
             ]
           },
