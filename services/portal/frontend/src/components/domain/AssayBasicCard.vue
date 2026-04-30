@@ -67,6 +67,7 @@
                     <AssayBasicCardButtons
                         :assay-seek-id="data.seekId"
                         :category="data.category"
+                        :is-clinician-view="props.isClinicianView"
                         @assay-launch-clicked="handleAssayLaunchClicked"
                         @assay-monitor-clicked="handleAssayMonitorClicked"
                         @assay-verify-clicked="handleAssayVerifyClicked"
@@ -92,7 +93,6 @@ import { useToast } from 'vue-toastification';
 const {
     allAssayDetailsOfStudy,
     currentAssayDetails,
-    isClinicianView,
     currentCategoryData
  } = storeToRefs(useDashboardPageStore());
 
@@ -117,9 +117,11 @@ const validateAssay = async (): Promise<boolean> => {
  }, { deep: true });
 
 const props = withDefaults(defineProps<{
-    data: IDashboardCategory,
+    data: IDashboardCategory;
+    isClinicianView?: boolean;
 }>(),{
-    data: () => ({ } as IDashboardCategory)
+    data: () => ({ } as IDashboardCategory),
+    isClinicianView: false,
 });
 
 const emit = defineEmits(["ExpandClicked", "ExploreClicked", "AssayEditClicked", "AssaySave", "AssayLaunchClicked", "AssayMonitorClicked", "AssayVerifyClicked", "AssayDownloadClicked", "AssayUploadClicked"]);

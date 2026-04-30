@@ -27,7 +27,6 @@ export const useDashboardPageStore = defineStore("dashboardPage", () => {
   const currentAssayDetails = ref<IAssayDetails>();
   const allAssayDetailsOfStudy = ref<IAllAssayDetailsOfStudy>({});
   const assayExecute = ref<IAssayBtnText>();
-  const isClinicianView = ref<boolean>(false);
 
   const setCurrentCategory = (category:string) => {
     currentCategory.value = category;
@@ -65,9 +64,6 @@ export const useDashboardPageStore = defineStore("dashboardPage", () => {
       assayExecute.value![uuid].isLaunching = isLaunching;
     }
   }
-  const setClinicianView = (state:boolean) => {
-    isClinicianView.value = state;
-  }
   return {
     currentCategory,
     breadCrumbsCategory,
@@ -78,7 +74,6 @@ export const useDashboardPageStore = defineStore("dashboardPage", () => {
     allAssayDetailsOfStudy,
     currentAssayDetails,
     assayExecute,
-    isClinicianView,
     setCurrentCategory,
     setBreadCrumbsCategory,
     setExploredCard,
@@ -89,7 +84,6 @@ export const useDashboardPageStore = defineStore("dashboardPage", () => {
     setCurrentAssayDetails,
     setAssayExecute,
     setAssayLaunching,
-    setClinicianView
   }
 }, {
   persist: true,

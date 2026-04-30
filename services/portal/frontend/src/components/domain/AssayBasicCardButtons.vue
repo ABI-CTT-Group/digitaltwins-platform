@@ -59,24 +59,22 @@
 </template>
 
 <script setup lang="ts">
-import { IDashboardCategory } from '@/models/types';
 import { storeToRefs } from "pinia";
 import { useDashboardPageStore } from '@/store/dashboard_page_store';
 
-const {
-    isClinicianView,
-    assayExecute, 
-    allAssayDetailsOfStudy
- } = storeToRefs(useDashboardPageStore());
+const { assayExecute, allAssayDetailsOfStudy } = storeToRefs(useDashboardPageStore());
+
 const props = withDefaults(defineProps<{
     assaySeekId: string;
     category: string;
+    isClinicianView?: boolean;
     launchText?: string;
     monitorText?: string;
     verifyText?: string;
     downloadText?: string;
     uploadText?: string;
 }>(),{
+    isClinicianView: false,
     launchText: "Launch",
     monitorText: "Monitor",
     verifyText: "Verify",

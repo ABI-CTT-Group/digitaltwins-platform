@@ -146,9 +146,9 @@ const handleExploreClicked = (title: string) => {
     if (title in roleMap && !check(roleMap[title].length ? roleMap[title] : undefined)) return;
 
     if (title === 'Study dashboard') {
-        router.push({ name: 'Dashboard', params: { dashboardType: 'study' } });
+        router.push({ name: 'StudyDashboard' });
     } else if (title === 'Clinician dashboard') {
-        router.push({ name: 'Dashboard', params: { dashboardType: 'clinician' } });
+        router.push({ name: 'ClinicianDashboard' });
     } else if (title === 'Catalogue') {
         router.push({ name: 'CatalogueDashboardView' });
     } else if (title === 'How to use this platform') {
@@ -165,7 +165,7 @@ const handleExploreClicked = (title: string) => {
 }
 
 const handleHeroStarted = () => {
-     router.push({name:'Dashboard', params: { dashboardType: 'clinician' }});
+     router.push({ name: 'ClinicianDashboard' });
 }
 
 const handleHeroDocumentation = () => {

@@ -91,9 +91,9 @@ const {
     handleExploreClicked,
     handleHelpClick,
     initDashboard,
-} = useDashboardView(false);
+} = useDashboardView(true);
 
-onMounted(() => initDashboard((item: IDashboardCategory) => item.name !== 'Auckland hospital'));
+onMounted(() => initDashboard((item: IDashboardCategory) => item.name === 'Auckland hospital'));
 </script>
 
 <style scoped>

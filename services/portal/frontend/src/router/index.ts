@@ -8,7 +8,8 @@ import {
 import { useAuthStore } from "@/store/auth_store";
 import { isAuthenticated } from "@/bootstrap/keycloak";
 import Home from "@/views/home/index.vue";
-import Dashboard from "@/views/study/index.vue";
+import StudyDashboard from "@/views/study/index.vue";
+import ClinicianDashboard from "@/views/clinician/index.vue";
 import TutorialDashboard from "@/views/tutorial/index.vue";
 import CatalogueDashboardView from "@/views/catalogue/catalogue-dashboard-view.vue";
 import ToolsViewer from "@/views/catalogue/tools-viewer.vue";
@@ -32,10 +33,16 @@ const routes = [
             component: Home,
           },
           {
-            path: "/dashboard:dashboardType",
-            name: "Dashboard",
-            component: Dashboard,
-            meta: { requiresAuth: true, showBack: true },
+            path: "/study-dashboard",
+            name: "StudyDashboard",
+            component: StudyDashboard,
+            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'], showBack: true },
+          },
+          {
+            path: "/clinician-dashboard",
+            name: "ClinicianDashboard",
+            component: ClinicianDashboard,
+            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher', 'clinician'], showBack: true },
           },
           {
             path: "/how-it-works",
@@ -129,31 +136,6 @@ router.beforeEach(async (to, from, next) => {
       }
     }
 
-    if (to.name === 'Dashboard') {
-      const dashboardType = String(to.params?.dashboardType || '');
-
-      if (dashboardType === 'study') {
-        if (!authStore.hasAdminRole && !authStore.hasResearcherRole) {
-          if (authStore.hasClinicianRole) {
-            next({ name: 'Dashboard', params: { dashboardType: 'clinician' } });
-            return;
-          }
-          next({ name: 'Home' });
-          return;
-        }
-      }
-
-      if (dashboardType === 'clinician') {
-        if (!authStore.hasAdminRole && !authStore.hasClinicianRole) {
-          if (authStore.hasResearcherRole) {
-            next({ name: 'Dashboard', params: { dashboardType: 'study' } });
-            return;
-          }
-          next({ name: 'Home' });
-          return;
-        }
-      }
-    }
     next();
   } else {
     next();
