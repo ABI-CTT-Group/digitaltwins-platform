@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     
     
     <div v-if="assayReadyToLaunch" class="container d-flex justify-center">
@@ -18,11 +18,13 @@
                           <AssayBasicCardButtons
                             :assay-seek-id="assayId"
                             category="assay"
-                            @assay-launch-clicked="handleAssayLaunchClicked"
-                            @assay-monitor-clicked="handleAssayMonitorClicked"
-                            @assay-verify-clicked="handleAssayVerifyClicked"
-                            @assay-download-clicked="handleAssayDownloadClicked"
-                            @assay-upload-clicked="handleAssayUploadClicked"/>
+                          :assay-execute="assayExecute"
+                          :all-assay-details-of-study="allAssayDetailsOfStudy"
+                          @assay-launch-clicked="handleAssayLaunchClicked"
+                          @assay-monitor-clicked="handleAssayMonitorClicked"
+                          @assay-verify-clicked="handleAssayVerifyClicked"
+                          @assay-download-clicked="handleAssayDownloadClicked"
+                          @assay-upload-clicked="handleAssayUploadClicked"/>
                         </div>
 
                         <v-card class="pa-6 mb-10 " elevation="4">
@@ -58,27 +60,25 @@
 <script setup lang="ts">
 import BackIcon from '@/components/common/BackIcon.vue';
 import { useRoute } from 'vue-router';
-import { asyncComputed } from '@vueuse/core'
-import { ref, computed, onMounted, onBeforeMount, watchEffect} from 'vue';
+import { ref, onBeforeMount } from 'vue';
+import { storeToRefs } from 'pinia';
 import { useDashboardPageStore } from '@/store/dashboard_page_store';
-import { useDashboardWorkflowDetail, useDashboardSeekAssay } from "@/bootstrap/dashboard_api";
+import { useDashboardSeekAssay } from '@/bootstrap/dashboard_api';
 import AssayOverviewEmpty from '@/components/domain/AssayOverviewEmpty.vue';
 import AssayBasicCardButtons from '@/components/domain/AssayBasicCardButtons.vue';
-import { ISeekAssayDetails } from '@/models/types';
+import type { SeekAssayDetails } from '@/models/types';
 import { capitalize } from '@/utils/common';
-
-import { storeToRefs } from "pinia";
-
 
 const route = useRoute();
 
-const { allAssayDetailsOfStudy } = storeToRefs(useDashboardPageStore());
+const { allAssayDetailsOfStudy, assayExecute } = storeToRefs(useDashboardPageStore());
 const assayId = route.query.assayId as string;
 const assayDetails = allAssayDetailsOfStudy.value[assayId];
 const assayReadyToLaunch = ref(false);
-const seekAssay = ref<ISeekAssayDetails>();
+const seekAssay = ref<SeekAssayDetails>();
 const assayPromise = useDashboardSeekAssay(assayId);
 const cohorts = ref<Array<any>>([
+  // TODO: replace with real cohort API — see issue #XXX
   {name: "Cohort 1", uuid: "uuid-1"},
   {name: "Cohort 2", uuid: "uuid-2"},
   {name: "Cohort 3", uuid: "uuid-3"},
@@ -87,30 +87,22 @@ const cohorts = ref<Array<any>>([
 onBeforeMount(async ()=>{
     assayReadyToLaunch.value = assayDetails?.isAssayReadyToLaunch || false;
     seekAssay.value = await assayPromise;
-}) 
-onMounted(() => {
-  
 });
 
-
-const handleAssayUploadClicked = async (assay_seek_id:string) => {
-  
+const handleAssayUploadClicked = async (_assay_seek_id: string) => {
 }
 
-const handleAssayDownloadClicked = async (assay_seek_id:string) => {
-   
-    
+const handleAssayDownloadClicked = async (_assay_seek_id: string) => {
 }
 
-const handleAssayVerifyClicked = async (assay_seek_id:string) => {
-    window.open(`${import.meta.env.VITE_JUPYTER_BASE_URL}/lab/tree/verify.ipynb`,"_blank");
+const handleAssayVerifyClicked = async (_assay_seek_id: string) => {
+    window.open(`${import.meta.env.VITE_JUPYTER_BASE_URL}/lab/tree/verify.ipynb`, "_blank");
 }
 
-const handleAssayMonitorClicked = async (assay_seek_id:string) => {
+const handleAssayMonitorClicked = async (_assay_seek_id: string) => {
 }
 
-const handleAssayLaunchClicked = async (assay_seek_id:string) => {
-   
+const handleAssayLaunchClicked = async (_assay_seek_id: string) => {
 }
 
 </script>

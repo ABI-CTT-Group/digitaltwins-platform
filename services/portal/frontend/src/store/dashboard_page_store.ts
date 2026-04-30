@@ -1,9 +1,9 @@
-import { defineStore } from "pinia";
+﻿import { defineStore } from "pinia";
 import { ref } from "vue";
-import { IDashboardCategory, IAssayDetails } from "@/models/types";
+import { DashboardCategory, AssayDetails } from "@/models/types";
 
 interface IAllAssayDetailsOfStudy {
-  [key: string]: IAssayDetails;
+  [key: string]: AssayDetails;
 }
 interface IAssayBtnText {
   [key: string]: {text:string, url:string, isLaunching?: boolean};
@@ -12,8 +12,8 @@ interface IAssayBtnText {
 export const useDashboardPageStore = defineStore("dashboardPage", () => {
   const currentCategory = ref("");
   const breadCrumbsCategory = ref("");
-  const exploredCard = ref<{category:string, data:IDashboardCategory[]}[]>([]);
-  const currentCategoryData = ref<IDashboardCategory[]>([]);
+  const exploredCard = ref<{category:string, data:DashboardCategory[]}[]>([]);
+  const currentCategoryData = ref<DashboardCategory[]>([]);
   const breadCrumbsItems = ref([
       { title: 'Programmes', disabled: false },
   ]);
@@ -24,7 +24,7 @@ export const useDashboardPageStore = defineStore("dashboardPage", () => {
     categories:[],
     description: "",
   });
-  const currentAssayDetails = ref<IAssayDetails>();
+  const currentAssayDetails = ref<AssayDetails>();
   const allAssayDetailsOfStudy = ref<IAllAssayDetailsOfStudy>({});
   const assayExecute = ref<IAssayBtnText>();
 
@@ -34,10 +34,10 @@ export const useDashboardPageStore = defineStore("dashboardPage", () => {
   const setBreadCrumbsCategory = (category:string) => {
     breadCrumbsCategory.value = category;
   }
-  const setExploredCard = (category:string, data:IDashboardCategory[]) => {
+  const setExploredCard = (category:string, data:DashboardCategory[]) => {
     exploredCard.value.push({category:category, data:data});
   }
-  const setCurrentCategoryData = (data:IDashboardCategory[]) => {
+  const setCurrentCategoryData = (data:DashboardCategory[]) => {
     currentCategoryData.value = data;
   }
   const setBreadCrumbsItems = (item:{title:string, disabled:boolean}) => {
@@ -47,10 +47,10 @@ export const useDashboardPageStore = defineStore("dashboardPage", () => {
     detailsRenderItems.value.categories = categories;
     detailsRenderItems.value.description = description;
   }
-  const setCurrentAssayDetails = (assayDetails:IAssayDetails) => {
+  const setCurrentAssayDetails = (assayDetails:AssayDetails) => {
     currentAssayDetails.value = assayDetails;
   }
-  const setAllAssayDetailsOfStudy = (uuid:string, assayDetails:IAssayDetails) => {
+  const setAllAssayDetailsOfStudy = (uuid:string, assayDetails:AssayDetails) => {
     allAssayDetailsOfStudy.value![uuid] = assayDetails;
   }
   const setAssayExecute = (uuid:string, btnText:string, url:string) => {
@@ -86,9 +86,8 @@ export const useDashboardPageStore = defineStore("dashboardPage", () => {
     setAssayLaunching,
   }
 }, {
-  persist: true,
-  // persist: {
-  //   pick: ['allAssayDetailsOfStudy'],
-  //   storage: localStorage,
-  // }
+  persist: {
+    pick: ['breadCrumbsItems', 'currentCategory', 'exploredCard'],
+    storage: sessionStorage,
+  }
 });

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <!-- <v-hover
         v-slot="{ isHovering, props }"
         open-delay="200"
@@ -68,6 +68,8 @@
                         :assay-seek-id="data.seekId"
                         :category="data.category"
                         :is-clinician-view="props.isClinicianView"
+                        :assay-execute="assayExecute"
+                        :all-assay-details-of-study="allAssayDetailsOfStudy"
                         @assay-launch-clicked="handleAssayLaunchClicked"
                         @assay-monitor-clicked="handleAssayMonitorClicked"
                         @assay-verify-clicked="handleAssayVerifyClicked"
@@ -81,7 +83,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import { IDashboardCategory } from '@/models/types';
+import type { DashboardCategory, AssayDetails } from '@/models/types';
 import Dialog from '@/components/common/Dialog.vue';
 import AssayContent from '@/components/domain/AssayContent.vue';
 import AssayBasicCardButtons from './AssayBasicCardButtons.vue';
@@ -91,6 +93,7 @@ import { capitalize } from '@/utils/common';
 import { useToast } from 'vue-toastification';
 
 const {
+    assayExecute,
     allAssayDetailsOfStudy,
     currentAssayDetails,
     currentCategoryData
@@ -117,10 +120,10 @@ const validateAssay = async (): Promise<boolean> => {
  }, { deep: true });
 
 const props = withDefaults(defineProps<{
-    data: IDashboardCategory;
+    data: DashboardCategory;
     isClinicianView?: boolean;
 }>(),{
-    data: () => ({ } as IDashboardCategory),
+    data: () => ({ } as DashboardCategory),
     isClinicianView: false,
 });
 

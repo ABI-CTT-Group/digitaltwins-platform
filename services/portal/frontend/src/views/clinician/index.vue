@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div class="container d-flex flex-column align-center">
         <div class="position-fixed breadcrumbs d-flex justify-start align-center w-66">
             <v-breadcrumbs
@@ -62,7 +62,7 @@
 
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { IDashboardCategory } from '@/models/types';
+import { DashboardCategory } from '@/models/types';
 import { useDashboardView } from '@/composables/useDashboardView';
 import AssayBasicCard from '@/components/domain/AssayBasicCard.vue';
 import DownloadSheet from '@/components/domain/DownloadSheet.vue';
@@ -93,7 +93,7 @@ const {
     initDashboard,
 } = useDashboardView(true);
 
-onMounted(() => initDashboard((item: IDashboardCategory) => item.name === 'Auckland hospital'));
+onMounted(() => initDashboard((item: DashboardCategory) => item.name === 'Auckland hospital'));
 </script>
 
 <style scoped>

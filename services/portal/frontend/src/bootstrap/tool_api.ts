@@ -1,6 +1,6 @@
-import http from "./http";
+﻿import http from "./http";
 import {
-  IToolInformationStep,
+  ToolInformationStep,
   IAnnotation,
   CheckNameResponse,
   ToolResponse,
@@ -8,7 +8,7 @@ import {
   ToolDeployResponse,
   ToolMinIOMetadata,
   ExcuteBuildResponse,
-  IAnnotationResponse,
+  AnnotationResponse,
 } from "@/models/types";
 import { useCheckName, fetchWithLatestBuild } from "./api_helpers";
 
@@ -16,13 +16,13 @@ import { useCheckName, fetchWithLatestBuild } from "./api_helpers";
 export const useCheckToolName = (name: string): Promise<CheckNameResponse> =>
   useCheckName('tool', name);
 
-export async function useCreateTool(plugin:IToolInformationStep) {
+export async function useCreateTool(plugin:ToolInformationStep) {
     const createToolResponse = http.post<ToolResponse>("/tools/create", plugin)
     return createToolResponse
 }
 
 export async function useCreateToolAnnotation(id:string, annotation:IAnnotation) {
-    const createToolResponse = http.post<IAnnotationResponse>(`/tools/plugin/${id}/annotation`, annotation)
+    const createToolResponse = http.post<AnnotationResponse>(`/tools/plugin/${id}/annotation`, annotation)
     return createToolResponse
 }
 
@@ -90,6 +90,6 @@ export async function useGetDockerComposeStatus(deploy_id:string) {
 }
 
 export async function useGetWorkflowToolAnnotation(id:string){
-  const res = http.get<IAnnotationResponse>(`/tools/plugin/${id}/annotation`)
+  const res = http.get<AnnotationResponse>(`/tools/plugin/${id}/annotation`)
   return res;
 }

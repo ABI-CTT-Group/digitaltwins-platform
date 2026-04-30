@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <!-- rgba(15, 25, 35, 0.15) -->
     <CardUI 
       cardStyle="background: rgba(0, 200, 180, 0.05);"
@@ -39,12 +39,12 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, toRef } from 'vue'
-import { IWorkflowResponse } from '@/models/types';
+import { WorkflowResponse } from '@/models/types';
 import CardUI from './CardUI.vue';
 import { formatDate } from './utils';
 
 const props = defineProps<{
-  workflow: IWorkflowResponse
+  workflow: WorkflowResponse
 }>()
 
 const menu = ref(false);

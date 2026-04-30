@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <div class="d-flex ga-2 justify-center flex-wrap">
         <v-btn
             color="green"
@@ -7,8 +7,8 @@
             :width="100"
             rounded="md"
             class="hover-animate mx-1"
-            :disabled="!allAssayDetailsOfStudy[assaySeekId]?.isAssayReadyToLaunch"
-            :loading="assayExecute?.[assaySeekId]?.isLaunching ?? false"
+            :disabled="!props.allAssayDetailsOfStudy?.[assaySeekId]?.isAssayReadyToLaunch"
+            :loading="props.assayExecute?.[assaySeekId]?.isLaunching ?? false"
             @click="handleAssayLaunchClicked(assaySeekId)"
         >
         </v-btn>
@@ -20,7 +20,7 @@
                 :width="100"
                 rounded="md"
                 class="hover-animate mx-1"
-                :disabled="!(category === 'Assays'&& !!assayExecute![assaySeekId] && assayExecute![assaySeekId].text === 'Monitor')"
+                :disabled="!(category === 'Assays' && !!props.assayExecute?.[assaySeekId] && props.assayExecute![assaySeekId].text === 'Monitor')"
                 @click = "handleAssayMonitorClicked(assaySeekId)"
             >
             </v-btn>
@@ -31,7 +31,7 @@
                 :width="100"
                 rounded="md"
                 class="hover-animate mx-1"
-                :disabled="!allAssayDetailsOfStudy[assaySeekId]?.isAssayReadyToLaunch"
+                :disabled="!props.allAssayDetailsOfStudy?.[assaySeekId]?.isAssayReadyToLaunch"
                 @click = "handleAssayVerifyClicked(assaySeekId)"
             ></v-btn>
             <v-btn
@@ -41,7 +41,7 @@
                 :width="100"
                 rounded="md"
                 class="hover-animate mx-1"
-                :disabled="!allAssayDetailsOfStudy[assaySeekId]?.isAssayReadyToLaunch"
+                :disabled="!props.allAssayDetailsOfStudy?.[assaySeekId]?.isAssayReadyToLaunch"
                 @click = "handleAssayDownloadClicked(assaySeekId)"
             ></v-btn>
             <v-btn
@@ -51,7 +51,7 @@
                 :width="100"
                 rounded="md"
                 class="hover-animate mx-1"
-                :disabled="!allAssayDetailsOfStudy[assaySeekId]?.isAssayReadyToLaunch"
+                :disabled="!props.allAssayDetailsOfStudy?.[assaySeekId]?.isAssayReadyToLaunch"
                 @click = "handleAssayUploadClicked(assaySeekId)"
             ></v-btn>
         </div>
@@ -59,15 +59,14 @@
 </template>
 
 <script setup lang="ts">
-import { storeToRefs } from "pinia";
-import { useDashboardPageStore } from '@/store/dashboard_page_store';
-
-const { assayExecute, allAssayDetailsOfStudy } = storeToRefs(useDashboardPageStore());
+import type { AssayDetails } from '@/models/types';
 
 const props = withDefaults(defineProps<{
     assaySeekId: string;
     category: string;
     isClinicianView?: boolean;
+    assayExecute?: Record<string, { text: string; url: string; isLaunching?: boolean }>;
+    allAssayDetailsOfStudy?: Record<string, AssayDetails>;
     launchText?: string;
     monitorText?: string;
     verifyText?: string;
@@ -75,6 +74,8 @@ const props = withDefaults(defineProps<{
     uploadText?: string;
 }>(),{
     isClinicianView: false,
+    assayExecute: () => ({}),
+    allAssayDetailsOfStudy: () => ({}),
     launchText: "Launch",
     monitorText: "Monitor",
     verifyText: "Verify",

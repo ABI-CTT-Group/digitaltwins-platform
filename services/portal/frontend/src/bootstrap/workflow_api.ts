@@ -1,10 +1,10 @@
-import http from "./http";
+﻿import http from "./http";
 import {
     IAnnotation,
     CheckNameResponse,
-    IWorkflowInformationStep,
-    IWorkflowResponse,
-    IAnnotationResponse,
+    WorkflowInformationStep,
+    WorkflowResponse,
+    AnnotationResponse,
     BuildResponse,
     ExcuteBuildResponse
 } from "@/models/types";
@@ -14,13 +14,13 @@ import { useCheckName, fetchWithLatestBuild } from "./api_helpers";
 export const useCheckToolName = (name: string): Promise<CheckNameResponse> =>
   useCheckName('workflow', name);
 
-export async function useCreateWorkflow(workflow:IWorkflowInformationStep) {
-    const createWorkflowResponse = http.post<IWorkflowResponse>("/workflow/create", workflow)
+export async function useCreateWorkflow(workflow:WorkflowInformationStep) {
+    const createWorkflowResponse = http.post<WorkflowResponse>("/workflow/create", workflow)
     return createWorkflowResponse
 }
 
 export async function useCreateWorkflowAnnotation(id:string, annotation:IAnnotation) {
-    const createAnnotationResponse = http.post<IAnnotationResponse>(`/workflow/${id}/annotation`, annotation)
+    const createAnnotationResponse = http.post<AnnotationResponse>(`/workflow/${id}/annotation`, annotation)
     return createAnnotationResponse
 }
 
@@ -34,11 +34,11 @@ export async function useDeleteWorkflow(workflowId: string) {
     return deleteRes
 }
 
-export async function useWorkflow(): Promise<IWorkflowResponse[]> {
-  return fetchWithLatestBuild<IWorkflowResponse>(
+export async function useWorkflow(): Promise<WorkflowResponse[]> {
+  return fetchWithLatestBuild<WorkflowResponse>(
     '/workflow/',
     (id) => `/workflow/${id}/builds`,
-  ) as Promise<IWorkflowResponse[]>;
+  ) as Promise<WorkflowResponse[]>;
 }
 
 export async function useWorkflowApproval(workflowId:string) {

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <v-form ref="formRef" class="py-2 my-5 mx-5 d-flex flex-column align-start" @submit.prevent>
         <div class="d-flex flex-row ma-2 workflow">
             <span class="assay-form-subtitle w-25 mt-4 text-deep-orange">Workflow: </span>
@@ -86,7 +86,7 @@
 <script setup lang="ts">
 
 import { ref, watch, onMounted, onBeforeMount } from 'vue';
-import {IAssayDetails} from '@/models/types';
+import {AssayDetails} from '@/models/types';
 import { useDashboardGetDatasets, useDashboardSelectedDatasetSampleTypes, useDashboardWorkflowDetail } from '@/bootstrap/dashboard_api';
 
 import { capitalize } from '@/utils/common';
@@ -109,7 +109,7 @@ const cohortsParticipants = ref<string>("");
 const datasetRenderItems = ref<string[]>();
 const workflowDisplayName = ref<string>("");
 
-const assayDetails = defineModel<IAssayDetails>();
+const assayDetails = defineModel<AssayDetails>();
 const workflowInputDatasetSamples = ref<IRenderWorkflowInputDatasetSamples>({});
 
 

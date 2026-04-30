@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue';
+﻿import { ref, watch } from 'vue';
 import { useToast } from 'vue-toastification';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
@@ -11,7 +11,7 @@ import {
     useDashboardCategoryChildren,
     useSaveAssayDetails,
 } from '@/bootstrap/dashboard_api';
-import { IDashboardCategory, IAssayDetails } from '@/models/types';
+import { DashboardCategory, AssayDetails } from '@/models/types';
 import { reWriteCategoryDetails } from '@/views/study/utils';
 import { getApiErrorMessage } from '@/utils/common';
 
@@ -21,8 +21,8 @@ export function useDashboardView(isClinicianView: boolean) {
     const router = useRouter();
     const toast = useToast();
 
-    const dashboardProgrammes = ref<IDashboardCategory[]>();
-    const dashboardCategoryChildren = ref<IDashboardCategory[]>();
+    const dashboardProgrammes = ref<DashboardCategory[]>();
+    const dashboardCategoryChildren = ref<DashboardCategory[]>();
 
     const getDashboardProgrammes = async () => {
         dashboardProgrammes.value = await useDashboardProgrammes();
@@ -30,7 +30,7 @@ export function useDashboardView(isClinicianView: boolean) {
     const getDashboardCategoryChildren = async (seek_id: string, category: string) => {
         dashboardCategoryChildren.value = await useDashboardCategoryChildren(seek_id, category);
     };
-    const saveAssayDetails = async (body: IAssayDetails): Promise<boolean> => {
+    const saveAssayDetails = async (body: AssayDetails): Promise<boolean> => {
         return await useSaveAssayDetails(body);
     };
 
@@ -222,7 +222,7 @@ export function useDashboardView(isClinicianView: boolean) {
         window.open('https://github.com/ABI-CTT-Group/DigitalTWINS-Portal?tab=readme-ov-file#how-to-use-the-study-dashboard', '_blank');
     };
 
-    const initDashboard = async (filterFn: (item: IDashboardCategory) => boolean) => {
+    const initDashboard = async (filterFn: (item: DashboardCategory) => boolean) => {
         currentCategoryData.value.length = 0;
         breadCrumbsItems.value = [{ title: 'Programmes', disabled: false }];
         setCurrentCategory('Programmes');

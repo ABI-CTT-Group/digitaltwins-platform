@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <v-container class="fill-height d-flex flex-column build-step-container">
     <div class="d-flex flex-column align-center justify-center flex-grow-1 text-center">
       <v-icon size="64" color="cyan-darken-1">mdi-cog-sync</v-icon>
@@ -28,11 +28,11 @@
 </template>
 
 <script lang="ts" setup>
-import { IWorkflowResponse, ToolResponse } from '@/models/types';
+import { WorkflowResponse, ToolResponse } from '@/models/types';
 
 const props = defineProps<{
   type: 'workflow' | 'tool'
-  data: IWorkflowResponse | ToolResponse | undefined
+  data: WorkflowResponse | ToolResponse | undefined
 }>();
 
 const emit = defineEmits(["done"])

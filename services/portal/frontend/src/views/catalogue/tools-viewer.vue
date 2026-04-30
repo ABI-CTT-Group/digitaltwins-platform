@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <v-container class="d-flex justify-center align-center h-100 w-100">
         <v-row>
             <v-col cols="12" md="6" class="d-flex justify-center align-center">
@@ -51,12 +51,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useDashboardWorkflows } from "@/bootstrap/dashboard_api";
-import { IDashboardWorkflow } from "@/models/types";
+import { DashboardWorkflow } from "@/models/types";
 import Dialog from '@/components/common/Dialog.vue';
 import CWLWorkflowViewer from '@/components/domain/workflow/CWLWorkflowViewer.vue';
 import CatalogueColumn from './components/CatalogueColumn.vue';
 
-const dashboardWorkflows = ref<IDashboardWorkflow[]>();
+const dashboardWorkflows = ref<DashboardWorkflow[]>();
 const getDashboardWorkflows = async () => {
     dashboardWorkflows.value = await useDashboardWorkflows();
 };

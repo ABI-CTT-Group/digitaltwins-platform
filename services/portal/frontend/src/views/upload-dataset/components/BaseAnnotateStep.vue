@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <v-alert
     v-show="showAlert"
     text="You're missing some required information. Please fill in all the required fields."
@@ -138,7 +138,7 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, computed, watch } from 'vue';
-import type { IWorkflowResponse, ToolResponse, IWorkflowStepAnnotation, IAnnotateTool } from '@/models/types';
+import type { WorkflowResponse, ToolResponse, WorkflowStepAnnotation, AnnotateTool } from '@/models/types';
 import { getRepoContents, getRepoRootCWLContent } from '@/views/upload-dataset/components/utils';
 import type { GitContent } from '@/models/types';
 import yaml from 'js-yaml';
@@ -148,7 +148,7 @@ import { useWorkflowTools, useGetWorkflowToolAnnotation } from '@/bootstrap/tool
 // ---- props / emits --------------------------------------------------------
 const props = defineProps<{
   type: 'workflow' | 'tool';
-  data: IWorkflowResponse | ToolResponse | undefined;
+  data: WorkflowResponse | ToolResponse | undefined;
 }>();
 const emit = defineEmits(['close', 'annotation-submit']);
 
@@ -167,19 +167,19 @@ const fhirObservationSystems = [
 const notEmptyRules = [(v: string) => !!v || "This field can't be empty!"];
 
 // ---- workflow-specific state ----------------------------------------------
-const annotateSteps = ref<Array<IWorkflowStepAnnotation>>([]);
+const annotateSteps = ref<Array<WorkflowStepAnnotation>>([]);
 const workflowTools = ref<ToolResponse[]>([]);
 const toolItems = computed(() =>
   workflowTools.value.map((t) => ({ id: t.id, name: t.name, label: t.label })),
 );
 
 // ---- tool-specific state --------------------------------------------------
-const annotateTool = ref<IAnnotateTool>({ name: '', inputs: [], outputs: [] });
+const annotateTool = ref<AnnotateTool>({ name: '', inputs: [], outputs: [] });
 
 // ---- lifecycle ------------------------------------------------------------
 onMounted(async () => {
   if (props.type === 'workflow') {
-    const workflow = props.data as IWorkflowResponse | undefined;
+    const workflow = props.data as WorkflowResponse | undefined;
     if (!workflow) { console.warn('No workflow info in annotation stepper.'); return; }
 
     workflowTools.value = await useWorkflowTools();
@@ -246,7 +246,7 @@ const handleAnnotationSubmit = async () => {
   if (ok) {
     showAlert.value = false;
     if (props.type === 'workflow') {
-      emit('annotation-submit', (props.data as IWorkflowResponse)!.id, {
+      emit('annotation-submit', (props.data as WorkflowResponse)!.id, {
         sparc_note: '',
         fhir_note: JSON.stringify(annotateSteps.value),
       });

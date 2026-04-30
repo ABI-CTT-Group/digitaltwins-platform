@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <v-alert
     v-show="showAlert"
     :text="alertText"
@@ -119,7 +119,7 @@
 <script setup lang="ts">
 import { ref, reactive, watch } from 'vue';
 import CommonInfoForm from './CommonInfoForm.vue';
-import type { IToolInformationStep, IWorkflowInformationStep, CheckNameResponse } from '@/models/types';
+import type { ToolInformationStep, WorkflowInformationStep, CheckNameResponse } from '@/models/types';
 import { useCheckName } from '@/bootstrap/api_helpers';
 import { useGithubRepoInfo } from '@/composables/useGithubRepoInfo';
 
@@ -138,7 +138,7 @@ const nameErr = ref<CheckNameResponse>();
 const cwlRepoErr = ref<CheckNameResponse>();
 
 // Tool form data (superset of workflow fields)
-const formData = reactive<IToolInformationStep>({
+const formData = reactive<ToolInformationStep>({
   label: 'GUI',
   repository_url: '',
   name: '',
@@ -245,7 +245,7 @@ async function handleSubmit() {
     showAlert.value = false;
     if (props.type === 'workflow') {
       // emit only the workflow subset of fields
-      const workflowData: IWorkflowInformationStep = {
+      const workflowData: WorkflowInformationStep = {
         repository_url: formData.repository_url,
         name: formData.name,
         author: formData.author,

@@ -1,4 +1,4 @@
-﻿export interface IDashboardCategory {
+﻿export interface DashboardCategory {
   seekId: string;
   name: string;
   category: string;
@@ -7,7 +7,7 @@
   tag?: string;
 }
 
-export interface IDashboardWorkflow {
+export interface DashboardWorkflow {
   uuid: string;
   seekId: string;
   name: string;
@@ -27,7 +27,7 @@ interface IWorkflowOutput {
   sampleName: string
 }
 
-export interface ISeekAssayDetails {
+export interface SeekAssayDetails {
   seekId: string;
   name: string;
   relationships: {
@@ -36,26 +36,26 @@ export interface ISeekAssayDetails {
   }
 }
 
-export interface IAssayDetails {
+export interface AssayDetails {
   seekId: string;
   uuid: string;
-  workflow: IDashboardWorkflow;
+  workflow: DashboardWorkflow;
   numberOfParticipants: Array<number>;
   isAssayReadyToLaunch: boolean;
 }
 
-export interface IAssayLaunch {
+export interface AssayLaunch {
   type?: string;
   data?: any;
   message?: string;
 }
 
-export interface IAssayDataset {
+export interface AssayDataset {
   uuid: string;
   name: string;
 }
 
-export interface IToolInformationStep {
+export interface ToolInformationStep {
     name: string;
     version: string;
     repository_url: string;
@@ -94,7 +94,6 @@ export interface ToolResponse {
     latest_deploy_id?: string
     created_at: string
     updated_at: string
-    [key:string]:any
 }
 
 export interface BuildResponse {
@@ -166,7 +165,7 @@ export interface GitContent {
     }
 }
 
-export interface IWorkflowInformationStep {
+export interface WorkflowInformationStep {
     name: string;
     version: string;
     repository_url: string;
@@ -174,7 +173,7 @@ export interface IWorkflowInformationStep {
     author?: string;
 }
 
-export interface IWorkflowResponse {
+export interface WorkflowResponse {
     id: string;
     name: string;
     version: string;
@@ -185,23 +184,22 @@ export interface IWorkflowResponse {
     latest_build_id?: string
     created_at: string;
     updated_at: string;
-    [key:string]:any;
 }
 
-interface IAnnotateToolInput{
+interface AnnotateToolInput{
   name:string;
   resource: "Observation" | "ImagingStudy" | "DocumentReference" | ""
 }
-interface IAnnotateToolOutput extends IAnnotateToolInput{
+interface AnnotateToolOutput extends AnnotateToolInput{
   code: string; 
   system: string; 
   unit: string;
 }
 
-export interface IAnnotateTool {
+export interface AnnotateTool {
   name: string;
-  inputs: Array<IAnnotateToolInput>;
-  outputs: Array<IAnnotateToolOutput>;
+  inputs: Array<AnnotateToolInput>;
+  outputs: Array<AnnotateToolOutput>;
 }
 
 export interface IAnnotation {
@@ -209,7 +207,7 @@ export interface IAnnotation {
     sparc_note: string;
 }
 
-export interface IAnnotationResponse {
+export interface AnnotationResponse {
   id:string;
   annotation_id:string;
   fhir_note:string;
@@ -218,7 +216,7 @@ export interface IAnnotationResponse {
   updated_at:string;
 }
 
-export interface IWorkflowStepAnnotation {
+export interface WorkflowStepAnnotation {
     id:string;
     uuid:string;
     name:string;
@@ -227,4 +225,4 @@ export interface IWorkflowStepAnnotation {
     };
 }
 
-export type IBaseInformationStep = IToolInformationStep | IWorkflowInformationStep;
+export type BaseInformationStep = ToolInformationStep | WorkflowInformationStep;

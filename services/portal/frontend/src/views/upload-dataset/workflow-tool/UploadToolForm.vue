@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <v-container class="d-flex align-center justify-center">
         <v-card
             class="pa-6 responsive-box d-flex flex-column align-center justify-center"
@@ -77,7 +77,7 @@ import BaseInformationStep from '../components/BaseInformationStep.vue';
 import BaseBuildStep from '../components/BaseBuildStep.vue';
 import BaseCompleteStep from '../components/BaseCompleteStep.vue';
 import BaseAnnotateStep from '../components/BaseAnnotateStep.vue';
-import { ToolResponse, IBaseInformationStep, IAnnotateTool} from '@/models/types';
+import { ToolResponse, BaseInformationStep, AnnotateTool} from '@/models/types';
 import { useCreateTool, useWorkflowToolBuild, useCreateToolAnnotation } from '@/bootstrap/tool_api'
 import { ref, watch } from "vue";
 
@@ -85,12 +85,12 @@ const emit = defineEmits(['finished'])
 const step = ref(0);
 const tool = ref<ToolResponse>()
 
-const handleSubmit = async (data:IBaseInformationStep)=>{
+const handleSubmit = async (data:BaseInformationStep)=>{
     tool.value = await useCreateTool(data)
     step.value += 1;
 }
 
-const handleAnnotation = async (id:string, data:IAnnotateTool) =>{
+const handleAnnotation = async (id:string, data:AnnotateTool) =>{
 
     const res = await useCreateToolAnnotation(id, {
         fhir_note: JSON.stringify(data),
