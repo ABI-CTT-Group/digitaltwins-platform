@@ -1,232 +1,116 @@
 <template>
-    <v-container class="d-flex align-center justify-center">
-        <v-card
-            class="pa-6 responsive-box d-flex flex-column align-center justify-center"
-            elevation="12"
-            style="background: rgba(15, 25, 35, 0.45); border-radius: 20px;"
-        >
-        <div class="w-100 d-flex justify-start">
-            <v-btn
-                color="pink"
-                :text="'Register a new workflow tool'"
-                variant="tonal"
-                :width="350"
-                rounded="md"
-                prepend-icon="mdi-plus-circle-outline"
-                class="hover-animate my-2"
-                :disabled="dockerComposeBusy"
-                @click="handleRegister"
-            ></v-btn>
-        </div>
-        
-        <div class="d-flex flex-column w-100 my-2 pa-5 border-sm rounded tool-container">
-            <Search 
-                :label="'Search workflow tools'"
-                v-model:search="search"
-                @on:search="handleSearch" />
-            <Refresh @on:refresh="handleRefresh"/>
-            <div class="d-flex flex-grow-1">
-                <div v-if="displayTools.length > 0" class="d-flex flex-wrap ga-10 pa-5 justify-start">
-                    <ToolCard
-                        v-for="tool in displayTools"
-                        :key="tool.id"
-                        :tool="tool"
-                        :disabled="dockerComposeBusy"
-                        @launch="(id:string) => handleLaunch(id)"
-                        @rebuild="(id:string) => handleRebuild(id)"
-                        @deploy="(id:string) => handleDeploy(id)"
-                        @compose-up="(id:string) => handleExecuteDockerCompose(id, 'up')"
-                        @compose-down="(id:string) => handleExecuteDockerCompose(id, 'down')"
-                        @delete="(id:string) => handleDeleteTool(id)"
-                        @submit-approve="(id:string) => handleToolApproval(id)"
-                    />
-                </div>
-                <NoData v-else />
-            </div>
-        </div>
-        </v-card>
-    </v-container>
+  <RegistryView
+    register-label="Register a new workflow tool"
+    search-label="Search workflow tools"
+    :fetch-list="useWorkflowTools"
+    :disabled="dockerComposeBusy"
+    :is-pending="(items) => items.some(t => t.status === 'building' || t.deploy_status === 'deploying')"
+    @register="handleRegister"
+  >
+    <template #default="{ items }">
+      <ToolCard
+        v-for="tool in items"
+        :key="tool.id"
+        :tool="tool"
+        :disabled="dockerComposeBusy"
+        @launch="(id) => handleLaunch(id)"
+        @rebuild="(id) => handleRebuild(id)"
+        @deploy="(id) => handleDeploy(id)"
+        @compose-up="(id) => handleExecuteDockerCompose(id, 'up')"
+        @compose-down="(id) => handleExecuteDockerCompose(id, 'down')"
+        @delete="(id) => handleDeleteTool(id)"
+        @submit-approve="(id) => handleToolApproval(id)"
+      />
+    </template>
+  </RegistryView>
 </template>
 
 <script setup lang="ts">
-import { ref, onBeforeMount, watch, onUnmounted } from "vue"
 // @ts-ignore - vue-toastification is installed but missing type declarations
-import { useToast } from "vue-toastification"
-import ToolCard from "../components/ToolCard.vue"
-import { useWorkflowTools, useToolMetadata, useWorkflowToolBuild, useDeleteTool, useToolApproval, useDeployTool, useDockerCompose } from '@/bootstrap/tool_api';
-import { ToolResponse, ToolMinIOToolMetadata } from '@/models/types';
-import { useRemoteAppStore } from '@/store/remote_store'
-import { useRouter } from 'vue-router'
-import Fuse from "fuse.js";
-import NoData from '../components/NoData.vue';
-import Search from '../components/Search.vue';
-import Refresh from "../components/Refresh.vue";
+import { useToast } from 'vue-toastification';
+import RegistryView from '../components/RegistryView.vue';
+import ToolCard from '../components/ToolCard.vue';
+import {
+  useWorkflowTools,
+  useToolMetadata,
+  useWorkflowToolBuild,
+  useDeleteTool,
+  useToolApproval,
+  useDeployTool,
+  useDockerCompose,
+} from '@/bootstrap/tool_api';
+import type { ToolMinIOToolMetadata } from '@/models/types';
+import { useRemoteAppStore } from '@/store/remote_store';
+import { useRouter } from 'vue-router';
+import { ref } from 'vue';
 
 const router = useRouter();
 const remoteAppStore = useRemoteAppStore();
 const toast = useToast();
-const isAnyToolStatusPending = ref(false);
 const dockerComposeBusy = ref(false);
-let refreshInterval: number | undefined;
 
-const emit = defineEmits(["register"]);
-const search = ref("");
-const workflowTools = ref<Array<ToolResponse>>([]);
-const displayTools = ref<Array<ToolResponse>>([]);
+const emit = defineEmits(['register']);
 
-onBeforeMount(async ()=>{
-    await handleRefresh()
-})
+const handleRegister = () => emit('register');
 
-watch(search,(newVal, oldVal)=>{
-    if(!newVal){
-        displayTools.value = workflowTools.value;
-    }
-})
-
-watch(isAnyToolStatusPending, (newVal) => {
-  if (newVal) {
-    if (!refreshInterval) {
-      console.log("start refresh");
-      refreshInterval = window.setInterval(() => {
-        handleRefresh().catch(err => console.error('refresh failed!', err));
-      }, 5000);
-    }
-  } else {
-    if (refreshInterval) {
-      clearInterval(refreshInterval);
-      refreshInterval = undefined;
-      console.log("stop refresh");
+const handleLaunch = async (id: string) => {
+  const metadata = await useToolMetadata();
+  if (metadata?.components?.length > 0) {
+    const toolMetadata = metadata.components.find((t: ToolMinIOToolMetadata) => t.id === id);
+    if (toolMetadata) {
+      remoteAppStore.setRemoteApp({
+        path: toolMetadata.path,
+        expose: toolMetadata.expose,
+        name: toolMetadata.name,
+        description: toolMetadata.description,
+      });
+      router.push({ name: 'ToolPluginView' });
+      return;
     }
   }
-}, { immediate: true });
+  console.warn(`Launch tool ${id} failed, cannot find the metadata in MinIO.`);
+};
 
-const handleRefresh = async () => {
-  workflowTools.value = displayTools.value = await useWorkflowTools();
+const handleRebuild = async (id: string) => {
+  await useWorkflowToolBuild(id);
+};
 
-  const anyBuilding = workflowTools.value.some(tool => tool.status === "building");
+const handleDeploy = async (id: string) => {
+  await useDeployTool(id);
+};
 
-  const anyDeploying = workflowTools.value.some(tool => tool.deploy_status === "deploying");
+const handleDeleteTool = async (res: any) => {
+  // RegistryView auto-refreshes; nothing extra needed
+};
 
-  isAnyToolStatusPending.value = anyBuilding || anyDeploying;
-}
-
-const handleSearch = ()=>{
-    if(!search.value){
-        return
+const handleExecuteDockerCompose = async (id: string, command: 'up' | 'down') => {
+  dockerComposeBusy.value = true;
+  try {
+    const res = await useDockerCompose(id, command) as any;
+    if (res?.success) {
+      toast.success(`Docker compose ${command} succeeded.`);
+    } else {
+      toast.error(res?.message || `Docker compose ${command} failed.`);
     }
-    const fuse = new Fuse(workflowTools.value, {
-        keys: ["name"],   
-        threshold: 0.4    
-    });
-    displayTools.value = fuse.search(search.value).map(r => r.item)
-}
-const handleRegister = ()=>{
-    emit("register")
-}
-const handleLaunch = async (id:string) => {
-    const metadata = await useToolMetadata();
-    if (!!metadata && metadata.components.length >0){
-        const toolMetadata = metadata.components.find((tool:ToolMinIOToolMetadata)=>tool.id == id)
-        if(toolMetadata){
-            remoteAppStore.setRemoteApp({
-                path: toolMetadata.path,
-                expose: toolMetadata.expose,
-                name: toolMetadata.name,
-                description: toolMetadata.description
-            })
-            router.push({
-                name: 'ToolPluginView'
-            })
-        }
-    }
-    console.warn(`Launch tool ${id} failed, cannot find the metadata in MinIO. `)
-}
-const handleRebuild = async (id:string) =>{
-    const buildRes = await useWorkflowToolBuild(id);
-    if(buildRes.status === "building") await handleRefresh();
-}
-
-const handleDeploy = async (id:string) =>{
-    // Implement deploy logic here
-    console.log(`Deploy tool with id: ${id}`);
-    // For example, you might call an API endpoint to deploy the tool
-    const deployRes = await useDeployTool(id) as any;
-    console.log(deployRes);
-    if(deployRes.status === "deploying") await handleRefresh();
-}
-
-const handleDeleteTool = async (res: any) =>{
-    if(res){
-        await handleRefresh()
-    }
-}
-
-const handleExecuteDockerCompose = async (id: string, command: "up" | "down") => {
-    dockerComposeBusy.value = true;
-    try {
-        const res = await useDockerCompose(id, command) as any;
-        if (res?.success) {
-            toast.success(`Docker compose ${command} succeeded.`);
-        } else {
-            toast.error(res?.message || `Docker compose ${command} failed.`);
-        }
-    } catch (error) {
-        console.error(`Error executing Docker Compose ${command}:`, error);
-        toast.error(`An error occurred while executing Docker Compose ${command}.`);
-    } finally {
-        dockerComposeBusy.value = false;
-    }
-}
+  } catch (error) {
+    console.error(`Error executing Docker Compose ${command}:`, error);
+    toast.error(`An error occurred while executing Docker Compose ${command}.`);
+  } finally {
+    dockerComposeBusy.value = false;
+  }
+};
 
 const handleToolApproval = async (id: string) => {
-    // Call the API to submit the tool for approval
-    try {
-        const res = await useToolApproval(id);
-        if (res) {
-            alert('Tool submitted for approval successfully.');
-        } else {
-            alert('Failed to submit tool for approval.');
-        }
-    } catch (error) {
-        console.error('Error submitting tool for approval:', error);
-        alert('An error occurred while submitting the tool for approval.');
+  try {
+    const res = await useToolApproval(id);
+    if (res) {
+      toast.success('Tool submitted for approval successfully.');
+    } else {
+      toast.error('Failed to submit tool for approval.');
     }
-}
-
-onUnmounted(() => {
-  if (refreshInterval) clearInterval(refreshInterval);
-});
-</script>
-
-<style scoped>
-.responsive-box {
-  width: 90% !important;
-}
-
-@media (min-width: 2100px) {
-  .responsive-box {
-    width: 75% !important;
+  } catch (error) {
+    console.error('Error submitting tool for approval:', error);
+    toast.error('An error occurred while submitting the tool for approval.');
   }
-}
-.header {
-    background: rgba(3, 252, 252, 0.05); 
-    border-radius: 10px !important;
-}
-.subtitle {
-  font-size: 14px;
-  color: #666;
-  white-space: nowrap;    
-  overflow: hidden;        
-  text-overflow: ellipsis;   
-}
-.v-list-item {
-  min-height: 32px !important;  
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-}
-.tool-container{
-    min-height: 50vh;
-}
-
-</style>
+};
+</script>

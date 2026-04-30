@@ -1,16 +1,266 @@
 <template>
-  <WorkflowAnnotate v-if="type === 'workflow'" :workflow="data" @close="$emit('close')" @annotation-submit="(id, annotation) => $emit('annotation-submit', id, annotation)" />
-  <ToolAnnotate v-else :tool="data" @close="$emit('close')" @annotation-submit="(id, annotation) => $emit('annotation-submit', id, annotation)" />
+  <v-alert
+    v-show="showAlert"
+    text="You're missing some required information. Please fill in all the required fields."
+    title="Required Fields Missing"
+    type="error"
+  />
+
+  <!-- ──────────────────────────────────────────────────
+       WORKFLOW annotation: multi-step + tool selection
+       ────────────────────────────────────────────────── -->
+  <template v-if="type === 'workflow'">
+    <div>
+      <h3 class="text-cyan">Workflow Annotation</h3>
+      <v-divider class="my-2 mb-5" :thickness="3" />
+
+      <div v-if="cwlObj">
+        <v-form ref="form" class="px-5">
+          <div v-for="([key, s], index) in Object.entries(annotateSteps)" :key="key" class="mb-5">
+            <h3 class="text-cyan">Step {{ index + 1 }}: {{ s.name }}</h3>
+            <v-divider class="my-2 mb-3" :thickness="2" />
+
+            <h4 class="my-2">Workflow Tool *</h4>
+            <v-autocomplete
+              :custom-filter="toolFilter"
+              :items="toolItems"
+              item-title="name"
+              item-value="id"
+              :label="'Select Workflow Tool for Step ' + (index + 1)"
+              @update:model-value="(val) => handleToolSelect(val, s)"
+              :rules="notEmptyRules"
+              clearable
+            >
+              <template v-slot:item="{ props: itemProps, item }">
+                <v-list-item v-bind="itemProps" :subtitle="item.raw.label" />
+              </template>
+            </v-autocomplete>
+
+            <div v-if="s.tool_fhir_note">
+              <h4 class="my-2 text-amber-darken-2">Tool Inputs</h4>
+              <div class="w-100 d-flex flex-row flex-wrap">
+                <div v-for="input in s.tool_fhir_note.inputs" class="d-flex flex-column justify-start w-33">
+                  <span class="mx-2">{{ input.name }} *</span>
+                  <v-text-field
+                    class="mt-4 mx-2"
+                    v-model="input.resource"
+                    bg-color="cyan-darken-4"
+                    :rules="notEmptyRules"
+                    label="FHIR Resource"
+                    variant="solo"
+                    required
+                    readonly
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div v-if="s.tool_fhir_note">
+              <h4 class="my-2 text-amber-darken-2">Tool Outputs</h4>
+              <div class="w-100 d-flex flex-row flex-wrap">
+                <div v-for="output in s.tool_fhir_note.outputs" class="d-flex flex-column justify-start w-33">
+                  <span class="mx-2">{{ output.name }} *</span>
+                  <v-text-field
+                    class="mt-4 mx-2"
+                    v-model="output.resource"
+                    bg-color="cyan-darken-4"
+                    :rules="notEmptyRules"
+                    label="FHIR Resource"
+                    variant="solo"
+                    required
+                    readonly
+                  />
+                  <div v-if="output.resource === 'Observation'">
+                    <v-text-field class="mx-2 my-1" label="Code" v-model="output.code" bg-color="cyan-darken-4" :rules="notEmptyRules" variant="solo" required readonly />
+                    <v-text-field class="mx-2 my-1" label="Code System" v-model="output.system" bg-color="cyan-darken-4" :rules="notEmptyRules" variant="solo" required readonly />
+                    <v-text-field class="mx-2 my-1" label="Unit" v-model="output.unit" bg-color="cyan-darken-4" variant="solo" readonly />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </v-form>
+      </div>
+      <NoData v-else />
+    </div>
+  </template>
+
+  <!-- ──────────────────────────────────────────────────
+       TOOL annotation: single CWL file inputs/outputs
+       ────────────────────────────────────────────────── -->
+  <template v-else>
+    <div>
+      <h3 class="text-cyan">Workflow Tool FHIR Annotation</h3>
+      <v-divider class="my-2 mb-5" :thickness="3" />
+
+      <div v-if="cwlObj">
+        <v-form ref="form" class="px-5">
+          <h3 class="text-cyan">Tool: {{ annotateTool.name }}</h3>
+          <v-divider class="my-2 mb-3" :thickness="2" />
+
+          <h4 class="my-2">Tool Inputs</h4>
+          <div class="w-100 d-flex flex-row flex-wrap">
+            <div v-for="input in annotateTool.inputs" class="d-flex flex-column justify-start w-33">
+              <span class="mx-2">{{ input.name }}</span>
+              <v-select class="mt-4 mx-2" v-model="input.resource" :items="fhirResources" label="FHIR Resource" required clearable />
+            </div>
+          </div>
+
+          <h4 class="my-2">Tool Outputs</h4>
+          <div class="w-100 d-flex flex-row flex-wrap">
+            <div v-for="output in annotateTool.outputs" class="d-flex flex-column justify-start w-33">
+              <span class="mx-2">{{ output.name }}</span>
+              <v-select class="mt-4 mx-2" v-model="output.resource" :items="fhirResources" :rules="notEmptyRules" label="FHIR Resource" required clearable />
+              <div v-if="output.resource === 'Observation'">
+                <v-text-field class="mx-2 my-1" label="Code" v-model="output.code" :rules="notEmptyRules" required clearable />
+                <v-select class="mx-2 my-1" :items="fhirObservationSystems" item-title="name" item-value="value" label="Code System" v-model="output.system" :rules="notEmptyRules" clearable />
+                <v-text-field class="mx-2 my-1" label="Unit" v-model="output.unit" required clearable />
+              </div>
+            </div>
+          </div>
+        </v-form>
+      </div>
+
+      <div v-else class="w-100 no_data flex-grow-1 d-flex flex-column justify-center align-center">
+        <v-icon size="64" color="pink-darken-1">mdi-note-off-outline</v-icon>
+        <h2 class="mt-4">No tool CWL file detected</h2>
+        <p class="text-grey">It seems there are no tool CWL files available. Please upload one or try refreshing to check again.</p>
+      </div>
+    </div>
+  </template>
+
+  <!-- Shared action buttons -->
+  <div class="d-flex flex-row justify-center">
+    <v-btn color="red" text="close" variant="tonal" :width="200" rounded="md" class="hover-animate ma-5" @click="handleClose" />
+    <v-btn color="success" text="Submit Annotation" variant="tonal" :width="200" rounded="md" class="hover-animate ma-5" @click="handleAnnotationSubmit" />
+  </div>
 </template>
 
-<script setup lang="ts">
-import WorkflowAnnotate from './WorkflowAnnotate.vue';
-import ToolAnnotate from './ToolAnnotate.vue';
+<script lang="ts" setup>
+import { ref, onMounted, computed, watch } from 'vue';
+import type { IWorkflowResponse, ToolResponse, IWorkflowStepAnnotation, IAnnotateTool } from '@/models/types';
+import { getRepoContents, getRepoRootCWLContent } from '@/views/upload-dataset/components/utils';
+import type { GitContent } from '@/models/types';
+import yaml from 'js-yaml';
+import NoData from '@/views/upload-dataset/components/NoData.vue';
+import { useWorkflowTools, useGetWorkflowToolAnnotation } from '@/bootstrap/tool_api';
 
+// ---- props / emits --------------------------------------------------------
 const props = defineProps<{
-  type: 'workflow' | 'tool'
-  data: any
+  type: 'workflow' | 'tool';
+  data: IWorkflowResponse | ToolResponse | undefined;
 }>();
+const emit = defineEmits(['close', 'annotation-submit']);
 
-const emit = defineEmits(["close", "annotation-submit"]);
+// ---- shared state ---------------------------------------------------------
+const showAlert = ref(false);
+const form = ref();
+const cwlObj = ref<any>(null);
+
+const fhirResources = ['Observation', 'ImagingStudy', 'DocumentReference'];
+const fhirObservationSystems = [
+  { name: 'LOINC Codes',    value: 'https://loinc.org/' },
+  { name: 'SNOMED CT',      value: 'http://snomed.info/sct' },
+  { name: 'DCM',            value: 'https://fhir-ru.github.io/codesystem-dicom-dcim.html#4.3.14.431' },
+  { name: '12 Labours Codes', value: 'https://www.auckland.ac.nz/en/abi/our-research/research-groups-themes/12-Labours.html' },
+];
+const notEmptyRules = [(v: string) => !!v || "This field can't be empty!"];
+
+// ---- workflow-specific state ----------------------------------------------
+const annotateSteps = ref<Array<IWorkflowStepAnnotation>>([]);
+const workflowTools = ref<ToolResponse[]>([]);
+const toolItems = computed(() =>
+  workflowTools.value.map((t) => ({ id: t.id, name: t.name, label: t.label })),
+);
+
+// ---- tool-specific state --------------------------------------------------
+const annotateTool = ref<IAnnotateTool>({ name: '', inputs: [], outputs: [] });
+
+// ---- lifecycle ------------------------------------------------------------
+onMounted(async () => {
+  if (props.type === 'workflow') {
+    const workflow = props.data as IWorkflowResponse | undefined;
+    if (!workflow) { console.warn('No workflow info in annotation stepper.'); return; }
+
+    workflowTools.value = await useWorkflowTools();
+
+    const res = await getRepoContents(workflow.repository_url);
+    const files = res!.data as GitContent[];
+    let cwlFile = '';
+    files.forEach((item: GitContent) => {
+      if (item.type === 'file' && item.name.endsWith('.cwl')) { cwlFile = item.name; }
+    });
+    const contentRes = await getRepoContents(workflow.repository_url, cwlFile);
+    const raw = atob((contentRes.data.content as string).replace(/\n/g, ''));
+    try { cwlObj.value = yaml.load(raw); }
+    catch { cwlObj.value = JSON.parse(raw); }
+  } else {
+    const tool = props.data as ToolResponse | undefined;
+    if (!tool) { console.warn('No workflow tool info in annotation stepper.'); return; }
+    const { cwlFile, content } = await getRepoRootCWLContent(tool.repository_url);
+    annotateTool.value.name = cwlFile.replace(/\.cwl$/, '');
+    cwlObj.value = content;
+  }
+});
+
+// ---- watchers -------------------------------------------------------------
+watch(cwlObj, (newVal) => {
+  if (!newVal) return;
+  if (props.type === 'workflow') {
+    annotateSteps.value = Object.entries(newVal.steps ?? {}).map(([name]) => ({
+      name, id: '', uuid: '',
+    }));
+  } else {
+    const inputs = newVal['inputs'] ?? {};
+    const outputs = newVal['outputs'] ?? {};
+    annotateTool.value.inputs = Object.keys(inputs).map((k) => ({ name: k, resource: '' }));
+    annotateTool.value.outputs = Object.keys(outputs).map((k) => ({ name: k, resource: '', code: '', system: '', unit: '' }));
+  }
+}, { immediate: true });
+
+// ---- handlers -------------------------------------------------------------
+const handleToolSelect = async (val: string, step: any) => {
+  const selected = workflowTools.value.find((t) => t.id === val);
+  if (selected) {
+    step.uuid = selected.uuid ?? '';
+    step.id = selected.id;
+    const annotation = await useGetWorkflowToolAnnotation(selected.id);
+    step.tool_fhir_note = annotation.fhir_note ? JSON.parse(annotation.fhir_note) : null;
+  } else {
+    step.uuid = ''; step.id = ''; step.fhir_note = '';
+  }
+};
+
+function toolFilter(itemTitle: string, queryText: string, item: any) {
+  const q = queryText.toLowerCase();
+  return itemTitle.toLowerCase().includes(q) || item.raw.label.toLowerCase().includes(q);
+}
+
+async function validate() {
+  const { valid } = await form.value.validate();
+  return valid;
+}
+
+const handleAnnotationSubmit = async () => {
+  const ok = await validate();
+  if (ok) {
+    showAlert.value = false;
+    if (props.type === 'workflow') {
+      emit('annotation-submit', (props.data as IWorkflowResponse)!.id, {
+        sparc_note: '',
+        fhir_note: JSON.stringify(annotateSteps.value),
+      });
+    } else {
+      emit('annotation-submit', (props.data as ToolResponse)!.id, annotateTool.value);
+    }
+  } else {
+    showAlert.value = true;
+  }
+};
+
+const handleClose = () => emit('close');
 </script>
+
+<style scoped>
+.no_data { height: 20dvh; }
+</style>

@@ -107,6 +107,10 @@ import { ToolResponse } from '@/models/types';
 import { useGetDockerComposeStatus, useDeleteTool } from '@/bootstrap/tool_api'
 import CardUI from './CardUI.vue';
 import { formatDate } from './utils';
+// @ts-ignore - vue-toastification is installed but missing type declarations
+import { useToast } from 'vue-toastification';
+
+const toast = useToast();
 
 const props = defineProps<{
   tool: ToolResponse
@@ -191,14 +195,14 @@ const emit = defineEmits(["launch", "rebuild", "submit-approve", "deploy", "comp
 
 const onLaunch = async () => {
     if(tool.value.label === "Script"){
-        alert("CWL Script tool cannot be launched. Please download the script and run it locally.");
+        toast.warning("CWL Script tool cannot be launched. Please download the script and run it locally.");
         return;
     }
     if (tool.value.has_backend && !tool.value.latest_deploy_id && tool.value.deploy_status !== 'completed') {
-        alert("Tool backend is not deployed yet. Please deploy the backend first.");
+        toast.warning("Tool backend is not deployed yet. Please deploy the backend first.");
         return;
     }else if(!!tool.value.latest_deploy_id && !await useGetDockerComposeStatus(tool.value.latest_deploy_id).catch(() => false)){
-        alert("Tool backend is not running. Please start the backend by 'Compose Up' first.");
+        toast.warning("Tool backend is not running. Please start the backend by 'Compose Up' first.");
         return;
     }
     emit("launch", tool.value.id)
@@ -231,7 +235,7 @@ const onDelete = async () => {
     
     if(!res["status"]){
       isDeleting.value = false;
-      alert("Error: " + res["message"])
+      toast.error("Error: " + res["message"])
     }
     emit("delete", res)
 }

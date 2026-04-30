@@ -18,7 +18,7 @@ import LaunchedAssayOverview from "@/views/study/assay-overview.vue";
 import UploadDataset from "@/views/upload-dataset/index.vue";
 import UploadToolDataset from "@/views/upload-dataset/workflow-tool/index.vue";
 import UploadWorkflowDataset from "@/views/upload-dataset/workflow/index.vue";
-import PluginHome from "@/views/tool-plugin/index.vue";
+
 import ToolPluginView from "@/views/tool-plugin/tool-plugin-view.vue";
 
 
@@ -54,7 +54,7 @@ const routes = [
             path: "/catalogue-dashboard",
             name: "CatalogueDashboardView",
             component: CatalogueDashboardView,
-            meta: { requiresAuth: true, showBack: true },
+            meta: { showBack: true },
           },
           {
             path: "/catalogue-dashboard-tools",
@@ -88,12 +88,7 @@ const routes = [
               },
             ]
           },
-          {
-            path: "/plugin-home",
-            name: "PluginHome",
-            component: PluginHome,
-            meta: { requiresAuth: true },
-          },
+
     ]
   },
   {

@@ -1,34 +1,18 @@
 import http from "./http";
-import { AxiosError } from "axios";
-import { 
+import {
     IAnnotation,
-    CheckNameResponse, 
+    CheckNameResponse,
     IWorkflowInformationStep,
     IWorkflowResponse,
     IAnnotationResponse,
     BuildResponse,
     ExcuteBuildResponse
 } from "@/models/types";
+import { useCheckName, fetchWithLatestBuild } from "./api_helpers";
 
-export async function useCheckToolName(name: string): Promise<CheckNameResponse> {
-  try {
-    const status = await http.get<CheckNameResponse>("/workflow/check-name", { name });
-    return status;
-  } catch (err) {
-    const axiosErr = err as AxiosError<{ detail: string }>;
-    if (axiosErr.response?.status === 400) {
-      return {
-        available: false,
-        message: axiosErr.response.data.detail
-      };
-    } else {
-      return {
-        available: false,
-        message: "Name cannot be used."
-      };
-    }
-  }
-}
+/** @deprecated Use useCheckName('workflow', name) from api_helpers instead */
+export const useCheckToolName = (name: string): Promise<CheckNameResponse> =>
+  useCheckName('workflow', name);
 
 export async function useCreateWorkflow(workflow:IWorkflowInformationStep) {
     const createWorkflowResponse = http.post<IWorkflowResponse>("/workflow/create", workflow)
@@ -50,34 +34,11 @@ export async function useDeleteWorkflow(workflowId: string) {
     return deleteRes
 }
 
-export async function useWorkflow() {
-  const workflows = http.get<Array<IWorkflowResponse>>("/workflow/").then(async (items)=>{
-      const formattedWorkflows = await Promise.all(items.map(async (workflow)=>{
-        let buildStatus = 'pending'
-        let latestBuildId = undefined
-        try {
-          const buildsResponse = await http.get<Array<BuildResponse>>(`/workflow/${workflow.id}/builds`)
-          if(buildsResponse.length > 0){
-            // get the most recent build
-            const latestBuild = buildsResponse.sort((a:BuildResponse, b:BuildResponse)=> 
-              new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
-            buildStatus = latestBuild.status
-            latestBuildId = latestBuild.build_id
-          }
-          
-        }catch(buildError){
-          console.warn(`Failed to fetch builds for workflow tool ${workflow.id}:`, buildError)
-        }
-        return {
-          ...workflow,
-          description: workflow.description == "" ? "No description available" : workflow.description,
-          status: buildStatus,
-          latest_build_id: latestBuildId,
-        }
-      }))
-      return formattedWorkflows
-    })
-    return workflows
+export async function useWorkflow(): Promise<IWorkflowResponse[]> {
+  return fetchWithLatestBuild<IWorkflowResponse>(
+    '/workflow/',
+    (id) => `/workflow/${id}/builds`,
+  ) as Promise<IWorkflowResponse[]>;
 }
 
 export async function useWorkflowApproval(workflowId:string) {

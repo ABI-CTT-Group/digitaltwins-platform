@@ -1,38 +1,20 @@
 import http from "./http";
-import { AxiosError } from "axios";
-import { 
-  IToolInformationStep, 
+import {
+  IToolInformationStep,
   IAnnotation,
-  CheckNameResponse, 
-  ToolResponse, 
-  BuildResponse, 
+  CheckNameResponse,
+  ToolResponse,
+  BuildResponse,
   ToolDeployResponse,
   ToolMinIOMetadata,
   ExcuteBuildResponse,
-  IAnnotationResponse} from "@/models/types";
+  IAnnotationResponse,
+} from "@/models/types";
+import { useCheckName, fetchWithLatestBuild } from "./api_helpers";
 
-
-   
-
-export async function useCheckToolName(name: string): Promise<CheckNameResponse> {
-  try {
-    const status = await http.get<CheckNameResponse>("/tools/check-name", { name });
-    return status;
-  } catch (err) {
-    const axiosErr = err as AxiosError<{ detail: string }>;
-    if (axiosErr.response?.status === 400) {
-      return {
-        available: false,
-        message: axiosErr.response.data.detail
-      };
-    } else {
-      return {
-        available: false,
-        message: "Name cannot be used."
-      };
-    }
-  }
-}
+/** @deprecated Use useCheckName('tool', name) from api_helpers instead */
+export const useCheckToolName = (name: string): Promise<CheckNameResponse> =>
+  useCheckName('tool', name);
 
 export async function useCreateTool(plugin:IToolInformationStep) {
     const createToolResponse = http.post<ToolResponse>("/tools/create", plugin)
@@ -44,48 +26,32 @@ export async function useCreateToolAnnotation(id:string, annotation:IAnnotation)
     return createToolResponse
 }
 
-export async function useWorkflowTools() {
-  const workflowTools = http.get<Array<ToolResponse>>("/tools/").then(async (tools)=>{
-    const formattedWorkflowTools = await Promise.all(tools.map(async (tool)=>{
-      let buildStatus = 'pending'
-      let deployStatus = undefined
-      let latestBuildId = undefined
-      let latestDeployId = undefined
+export async function useWorkflowTools(): Promise<ToolResponse[]> {
+  return fetchWithLatestBuild<ToolResponse>(
+    '/tools/',
+    (id) => `/tools/plugin/${id}/builds`,
+    // Enrich with deploy status for GUI tools whose latest build completed
+    async (tool, latestBuild) => {
+      if (!tool.has_backend || latestBuild.status !== 'completed') return {};
       try {
-        const buildsResponse = await http.get<Array<BuildResponse>>(`/tools/plugin/${tool.id}/builds`)
-        if(buildsResponse.length > 0){
-          // get the most recent build
-          const latestBuild = buildsResponse.sort((a:BuildResponse, b:BuildResponse)=> 
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
-          buildStatus = latestBuild.status
-          latestBuildId = latestBuild.build_id
-          if(tool.has_backend && buildStatus === 'completed'){
-    
-            const deployResponses = await http.get<Array<ToolDeployResponse>>(`/tools/plugin/build/${latestBuild.build_id}/deploys`)
-            if(deployResponses.length > 0){
-              const latestDeploy = deployResponses.sort((a:ToolDeployResponse, b:ToolDeployResponse)=>
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
-              deployStatus = latestDeploy.status
-              latestDeployId = latestDeploy.deploy_id
-            }
-          }
+        const deploys = await http.get<ToolDeployResponse[]>(
+          `/tools/plugin/build/${latestBuild.build_id}/deploys`,
+        );
+        if (deploys.length > 0) {
+          const latestDeploy = deploys.sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+          )[0];
+          return {
+            deploy_status: latestDeploy.status,
+            latest_deploy_id: latestDeploy.deploy_id,
+          } as Partial<ToolResponse>;
         }
-        
-      }catch(buildError){
-        console.warn(`Failed to fetch builds for workflow tool ${tool.id}:`, buildError)
+      } catch (err) {
+        console.warn(`Failed to fetch deploys for tool ${tool.id}:`, err);
       }
-      return {
-        ...tool,
-        description: tool.description == "" ? "No description available" : tool.description,
-        status: buildStatus,
-        deploy_status: deployStatus,
-        latest_build_id: latestBuildId,
-        latest_deploy_id: latestDeployId
-      }
-    }))
-    return formattedWorkflowTools
-  })
-  return workflowTools
+      return {};
+    },
+  ) as Promise<ToolResponse[]>;
 }
 
 export async function useToolMetadata() {

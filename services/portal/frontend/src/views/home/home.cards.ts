@@ -30,7 +30,6 @@ export const cards: CardConfig[] = [
         image: catelogueImage,
         location: 'Auckland Bioengineering Institute',
         description: 'Provides “yellow pages” that enable users to see what AI/digital twin assets are being developed in research programmes. This includes viewing or adding new programmes, projects, investigations, studies, assays, workflows, measurements, and models.',
-        requireRoles: [],
         action: { type: 'route', name: 'CatalogueDashboardView' }
     },
     {
