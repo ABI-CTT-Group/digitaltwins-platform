@@ -1,0 +1,7 @@
+M_NAME=twins
+
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+  -keyout ./nginx.key \
+  -out ./nginx.crt \
+  -subj "/C=NZ/ST=Auckland/L=Auckland/O=Development/CN=$M_NAME" \
+  -addext "subjectAltName = DNS:$M_NAME, DNS:localhost, IP:127.0.0.1"

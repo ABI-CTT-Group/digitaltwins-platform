@@ -1,0 +1,23 @@
+# stop keycloak
+# export the digitaltwins realm
+# timestamp the export and copy into EXPORT_DIR (default ./export, create if not there)
+
+now=$(date +"%Y%m%d_%H%M%S")
+
+EXPORT_DIR=./export
+CONTAINER_NAME=keycloak
+
+[[ -d $EXPORT_DIR ]] || {
+    mkdir $EXPORT_DIR || exit
+}
+
+docker compose stop $CONTAINER_NAME
+
+docker compose run --no-deps --name kc-export $CONTAINER_NAME \
+  export --dir /tmp/export --realm ${REALM} --users realm_file
+
+docker cp kc-export:/tmp/export/${REALM}-realm.json ./export/${REALM}-realm_$now.json
+
+docker rm kc-export
+
+docker compose start $CONTAINER_NAME

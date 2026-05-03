@@ -1,0 +1,519 @@
+- name: Install observability stack from airgap bundle
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: true
+  vars:
+    # Pass via -e "install_src=/path/to/airgap" or accept default
+    install_src: "{{ install_src_dir | default(playbook_dir + '/airgap') }}"
+    observability_dir: "{{ install_src }}/observability"
+    kubeconfig: "/home/{{ ansible_user }}/.kube/config"
+
+  tasks:
+
+    #########################
+    # Verify required env vars
+    - name: Verify GRAFANA_ADMIN_PASSWORD is set
+      ansible.builtin.fail:
+        msg: "FATAL: GRAFANA_ADMIN_PASSWORD must be set."
+      when: lookup('env', 'GRAFANA_ADMIN_PASSWORD') | length == 0
+
+    - name: Set grafana_admin_password
+      ansible.builtin.set_fact:
+        grafana_admin_password: "{{ lookup('env', 'GRAFANA_ADMIN_PASSWORD') }}"
+    #########################
+
+    - name: Confirm install_src exists
+      ansible.builtin.stat:
+        path: "{{ install_src }}"
+      register: src_stat
+    - name: Abort if install_src missing
+      ansible.builtin.fail:
+        msg: "install_src directory not found: {{ install_src }}"
+      when: not src_stat.stat.exists
+
+    # ── APT packages via local repository ────────────────────────────────────
+    - name: Disable default Ubuntu apt sources (airgap — no internet)
+      ansible.builtin.shell: |
+        for f in /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.list \
+                 /etc/apt/sources.list.d/ubuntu.sources; do
+          [ -f "$f" ] && mv "$f" "${f}.bak" || true
+        done
+      args:
+        executable: /bin/bash
+
+    - name: Add local apt repository
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/local-airgap.list
+        content: "deb [trusted=yes] file://{{ install_src }}/apt-debs ./\n"
+        mode: '0644'
+
+    - name: Update apt cache (local repo only)
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Install required packages from local repo
+      ansible.builtin.apt:
+        name:
+          - python3-pip
+          - python3-pip-whl
+          - python3-setuptools
+          - python3-setuptools-whl
+          - python3-wheel
+          - python3-venv
+          - python3.12-venv
+          - python3.12
+          - unzip
+        state: present
+      ignore_errors: true
+
+    - name: Install unzip directly via dpkg (fallback if apt repo install failed)
+      ansible.builtin.shell: dpkg -i {{ install_src }}/apt-debs/unzip*.deb
+      args:
+        executable: /bin/bash
+      ignore_errors: true
+
+    # ── Python packages ───────────────────────────────────────────────────────
+    - name: Install Python kubernetes + pyyaml from local wheels
+      ansible.builtin.pip:
+        name:
+          - kubernetes
+          - pyyaml
+        extra_args: "--no-index --find-links {{ install_src }}/pip-wheels --break-system-packages"
+        executable: pip3
+
+    # ── k3s ───────────────────────────────────────────────────────────────────
+    - name: Check if k3s already installed
+      ansible.builtin.stat:
+        path: /usr/local/bin/k3s
+      register: k3s_binary
+
+    - name: Create k3s agent images directory
+      ansible.builtin.file:
+        path: /var/lib/rancher/k3s/agent/images
+        state: directory
+        mode: '0755'
+
+    - name: Copy k3s airgap system images
+      ansible.builtin.copy:
+        src: "{{ install_src }}/binaries/k3s-airgap-images-amd64.tar.gz"
+        dest: /var/lib/rancher/k3s/agent/images/k3s-airgap-images-amd64.tar.gz
+        mode: '0644'
+
+    - name: Copy k3s binary
+      ansible.builtin.copy:
+        src: "{{ install_src }}/binaries/k3s"
+        dest: /usr/local/bin/k3s
+        mode: '0755'
+      when: not k3s_binary.stat.exists
+
+    - name: Run k3s install script (skip download — binary already in place)
+      ansible.builtin.shell: sh {{ install_src }}/binaries/k3s-install.sh
+      environment:
+        INSTALL_K3S_SKIP_DOWNLOAD: "true"
+      when: not k3s_binary.stat.exists
+      register: k3s_install
+
+    - name: Wait for k3s API to be ready
+      ansible.builtin.wait_for:
+        port: 6443
+        delay: 5
+        timeout: 300
+      when: not k3s_binary.stat.exists
+
+    - name: Ensure k3s service is running
+      ansible.builtin.systemd:
+        name: k3s
+        state: started
+        enabled: true
+
+    # ── Load container images into k3s ────────────────────────────────────────
+    - name: Check if image bundle exists
+      ansible.builtin.stat:
+        path: "{{ install_src }}/images/k3s-images.tar.gz"
+      register: image_bundle
+
+    - name: Load container images into k3s containerd
+      ansible.builtin.shell: >
+        k3s ctr images import {{ install_src }}/images/k3s-images.tar.gz
+      when: image_bundle.stat.exists
+      register: image_import
+
+    - name: Show image import result
+      ansible.builtin.debug:
+        msg: "{{ image_import.stdout_lines | default(['Image bundle not found — skipping']) }}"
+
+    # ── k9s ───────────────────────────────────────────────────────────────────
+    - name: Check if k9s already installed
+      ansible.builtin.stat:
+        path: /usr/local/bin/k9s
+      register: k9s_binary
+
+    - name: Extract k9s from local tarball
+      ansible.builtin.unarchive:
+        src: "{{ install_src }}/binaries/k9s_Linux_amd64.tar.gz"
+        dest: /usr/local/bin
+        extra_opts: ['--strip-components=0']
+      when: not k9s_binary.stat.exists
+
+    - name: Ensure k9s is executable
+      ansible.builtin.file:
+        path: /usr/local/bin/k9s
+        mode: '0755'
+
+    # ── Helm ──────────────────────────────────────────────────────────────────
+    - name: Check if helm already installed
+      ansible.builtin.stat:
+        path: /usr/local/bin/helm
+      register: helm_binary
+
+    - name: Create helm extract directory
+      ansible.builtin.file:
+        path: /tmp/helm-extract
+        state: directory
+        mode: '0755'
+      when: not helm_binary.stat.exists
+
+    - name: Extract helm from local tarball
+      ansible.builtin.unarchive:
+        src: "{{ install_src }}/binaries/helm-linux-amd64.tar.gz"
+        dest: /tmp/helm-extract
+      when: not helm_binary.stat.exists
+
+    - name: Install helm binary
+      ansible.builtin.copy:
+        src: /tmp/helm-extract/linux-amd64/helm
+        dest: /usr/local/bin/helm
+        mode: '0755'
+        remote_src: true
+      when: not helm_binary.stat.exists
+
+    # ── Kubeconfig ────────────────────────────────────────────────────────────
+    - name: Ensure .kube directory exists
+      ansible.builtin.file:
+        path: "/home/{{ ansible_user }}/.kube"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0750'
+
+    - name: Copy k3s kubeconfig for user
+      ansible.builtin.copy:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: "/home/{{ ansible_user }}/.kube/config"
+        remote_src: true
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0600'
+
+    - name: Ensure KUBECONFIG in .bash_aliases
+      ansible.builtin.lineinfile:
+        path: "/home/{{ ansible_user }}/.bash_aliases"
+        regexp: '^export KUBECONFIG='
+        line: "export KUBECONFIG=~/.kube/config"
+        create: true
+        mode: '0644'
+
+    # ── Observability files ───────────────────────────────────────────────────
+    - name: Create observability staging directory
+      ansible.builtin.file:
+        path: /tmp/observability/dashboards
+        state: directory
+        mode: '0755'
+
+    - name: Stage observability config files
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+      loop:
+        - { src: "{{ observability_dir }}/grafana-values.yaml",  dest: /tmp/observability/ }
+        - { src: "{{ observability_dir }}/loki-values.yaml",     dest: /tmp/observability/ }
+        - { src: "{{ observability_dir }}/mimir-values.yaml",    dest: /tmp/observability/ }
+        - { src: "{{ install_src }}/charts/grafana-10.5.4.tgz",                      dest: /tmp/observability/ }
+        - { src: "{{ install_src }}/charts/loki-6.49.0.tgz",                         dest: /tmp/observability/ }
+        - { src: "{{ install_src }}/charts/mimir-distributed-6.1.0-weekly.378.tgz",  dest: /tmp/observability/ }
+
+    - name: Stage dashboard ConfigMaps
+      ansible.builtin.copy:
+        src: "{{ observability_dir }}/dashboards/{{ item }}"
+        dest: /tmp/observability/dashboards/
+      loop:
+        - cm-log-dashboards.yaml
+        - cm-metric-dashboards.yaml
+
+    # ── Deploy Grafana ────────────────────────────────────────────────────────
+    - name: Create grafana namespace
+      kubernetes.core.k8s:
+        name: grafana
+        api_version: v1
+        kind: Namespace
+        state: present
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    - name: Apply Grafana dashboard ConfigMaps
+      kubernetes.core.k8s:
+        state: present
+        apply: true
+        kubeconfig: "{{ kubeconfig }}"
+        namespace: grafana
+        src: "{{ item }}"
+      loop:
+        - /tmp/observability/dashboards/cm-log-dashboards.yaml
+        - /tmp/observability/dashboards/cm-metric-dashboards.yaml
+      ignore_errors: true
+
+    - name: Set grafana_oauth_secret from environment variable
+      ansible.builtin.set_fact:
+        grafana_oauth_secret: "{{ lookup('env', 'GRAFANA_OAUTH_SECRET') }}"
+
+    - name: Fail if GRAFANA_OAUTH_SECRET is not set
+      ansible.builtin.fail:
+        msg: "FATAL: GRAFANA_OAUTH_SECRET must be set."
+      when: grafana_oauth_secret | length == 0
+
+    - name: Substitute OAuth client secret into grafana values file
+      ansible.builtin.replace:
+        path: /tmp/observability/grafana-values.yaml
+        regexp: '\$\{GRAFANA_OAUTH_SECRET\}'
+        replace: "{{ grafana_oauth_secret }}"
+
+    - name: Deploy Grafana
+      kubernetes.core.helm:
+        name: grafana
+        chart_ref: /tmp/observability/grafana-10.5.4.tgz
+        release_namespace: grafana
+        create_namespace: false
+        wait: false
+        values_files:
+          - /tmp/observability/grafana-values.yaml
+        values:
+          adminUser: admin
+          adminPassword: "{{ grafana_admin_password }}"
+          assertNoLeakedSecrets: false
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      ignore_errors: true
+      register: grafana_deploy
+
+    - name: Create Grafana ingress
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig }}"
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: grafana
+            namespace: grafana
+          spec:
+            rules:
+              - http:
+                  paths:
+                    - path: /
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: grafana
+                          port:
+                            number: 80
+
+    # ── Deploy Loki ───────────────────────────────────────────────────────────
+    - name: Create loki namespace
+      kubernetes.core.k8s:
+        name: loki
+        api_version: v1
+        kind: Namespace
+        state: present
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    - name: Deploy Loki
+      kubernetes.core.helm:
+        name: loki
+        chart_ref: /tmp/observability/loki-6.49.0.tgz
+        release_namespace: loki
+        create_namespace: false
+        wait: false
+        values_files:
+          - /tmp/observability/loki-values.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: loki_deploy
+
+    # ── Deploy Mimir ──────────────────────────────────────────────────────────
+    - name: Create mimir namespace
+      kubernetes.core.k8s:
+        name: mimir
+        api_version: v1
+        kind: Namespace
+        state: present
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+
+    - name: Deploy Mimir
+      kubernetes.core.helm:
+        name: mimir
+        chart_ref: /tmp/observability/mimir-distributed-6.1.0-weekly.378.tgz
+        release_namespace: mimir
+        create_namespace: false
+        wait: false
+        values_files:
+          - /tmp/observability/mimir-values.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: mimir_deploy
+
+    # ── Alloy ─────────────────────────────────────────────────────────────────
+    - name: Check if alloy already installed
+      ansible.builtin.stat:
+        path: /usr/local/bin/alloy
+      register: alloy_binary
+
+    - name: Extract alloy from local zip
+      ansible.builtin.shell: >
+        unzip -o {{ install_src }}/binaries/alloy-linux-amd64.zip alloy-linux-amd64 -d /tmp/
+        && mv /tmp/alloy-linux-amd64 /usr/local/bin/alloy
+        && chmod +x /usr/local/bin/alloy
+      when: not alloy_binary.stat.exists
+
+    - name: Create alloy user
+      ansible.builtin.user:
+        name: alloy
+        system: true
+        create_home: false
+        shell: /usr/sbin/nologin
+        state: present
+
+    - name: Create alloy directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: alloy
+        group: alloy
+        mode: '0755'
+      loop:
+        - /etc/alloy
+        - /var/lib/alloy
+
+    - name: Copy alloy config
+      ansible.builtin.copy:
+        src: "{{ observability_dir }}/config.alloy"
+        dest: /etc/alloy/config.alloy
+        owner: alloy
+        group: alloy
+        mode: '0644'
+
+    - name: Copy alloy systemd service
+      ansible.builtin.copy:
+        src: "{{ observability_dir }}/alloy.service"
+        dest: /etc/systemd/system/alloy.service
+        mode: '0644'
+
+    - name: Add alloy user to docker group
+      ansible.builtin.user:
+        name: alloy
+        groups: docker
+        append: true
+      ignore_errors: true
+
+    - name: Enable and start alloy
+      ansible.builtin.systemd:
+        name: alloy
+        daemon_reload: true
+        state: started
+        enabled: true
+      register: alloy_service
+
+    # ── Traefik port patches ──────────────────────────────────────────────────
+    - name: Patch Traefik HTTP port to 81
+      ansible.builtin.command: >
+        kubectl patch svc traefik -n kube-system --type="json"
+        -p='[{"op": "replace", "path": "/spec/ports/0/port", "value":81}]'
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: patch_http
+      changed_when: "'patched' in patch_http.stdout"
+      ignore_errors: true
+
+    - name: Patch Traefik HTTPS port to 7443
+      ansible.builtin.command: >
+        kubectl patch svc traefik -n kube-system --type="json"
+        -p='[{"op": "replace", "path": "/spec/ports/1/port", "value":7443}]'
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: patch_https
+      changed_when: "'patched' in patch_https.stdout"
+      ignore_errors: true
+
+    - name: Restart Traefik
+      ansible.builtin.command: kubectl rollout restart deployment traefik -n kube-system
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      changed_when: true
+      ignore_errors: true
+
+    # ── Port-forward service ──────────────────────────────────────────────────
+    - name: Create port-forward script
+      ansible.builtin.copy:
+        dest: /usr/local/bin/k3s-port-forward.sh
+        mode: '0755'
+        content: |
+          #!/bin/bash
+          export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+          pkill -f "kubectl.*port-forward" || true
+          nohup kubectl -n loki   port-forward svc/loki-gateway  3100:80   > /var/log/loki-port-forward.log   2>&1 &
+          nohup kubectl -n mimir  port-forward svc/mimir-gateway 9005:8080 > /var/log/mimir-port-forward.log  2>&1 &
+          nohup kubectl -n kube-system port-forward svc/metrics-server 8443:443 > /var/log/metrics-port-forward.log 2>&1 &
+
+    - name: Create port-forward systemd service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/k3s-port-forward.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=K3s Port Forward Service
+          After=k3s.service
+          Requires=k3s.service
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/k3s-port-forward.sh
+          RemainAfterExit=yes
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Enable port-forward service
+      ansible.builtin.systemd:
+        name: k3s-port-forward
+        daemon_reload: true
+        enabled: true
+
+    - name: Run port-forward script now
+      ansible.builtin.shell: /usr/local/bin/k3s-port-forward.sh
+      async: 10
+      poll: 0
+
+    # ── Cleanup ───────────────────────────────────────────────────────────────
+    - name: Clean up staging directory
+      ansible.builtin.file:
+        path: /tmp/observability
+        state: absent
+
+    - name: Clean up helm extract
+      ansible.builtin.file:
+        path: /tmp/helm-extract
+        state: absent
+      ignore_errors: true
+
+    # ── Summary ───────────────────────────────────────────────────────────────
+    - name: Deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "Grafana:  {{ 'OK' if grafana_deploy is succeeded else 'FAILED' }}"
+          - "Loki:     {{ 'OK' if loki_deploy    is succeeded else 'FAILED' }}"
+          - "Mimir:    {{ 'OK' if mimir_deploy   is succeeded else 'FAILED' }}"
+          - "Alloy:    {{ 'OK' if alloy_service  is succeeded else 'FAILED' }}"
+          - "=========================================="
+          - "Traefik HTTP → 81, HTTPS → 7443"
+          - "Port-forwards: Loki 3100, Mimir 9005, Metrics 8443"

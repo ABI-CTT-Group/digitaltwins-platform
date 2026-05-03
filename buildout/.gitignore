@@ -1,0 +1,25 @@
+
+# Added by MP to stop possibly sensitive buildout stuff going into the repo
+# clouds.yaml may contain project info with a password
+clouds.yaml
+
+# don't want the terraform state file(s) in the repo
+terraform.tfstate*
+.terraform*
+
+public_keys
+
+env
+
+old
+data
+
+# We'll create these once
+#   server.jks is the self signed cert for keycloak
+server.jks
+
+#   nginx.key and .crt is the cert for the frontend portal
+nginx.key
+nginx.crt
+
+backups

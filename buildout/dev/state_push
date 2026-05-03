@@ -1,0 +1,1 @@
+openstack object create terraform-states terraform.tfstate --name  digitaltwins/dev/terraform.tfstate

@@ -1,0 +1,67 @@
+#
+#
+#For macOS:
+#sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain DigitalTwinsKeycloakInternalCA.pem
+#
+#For Windows (PowerShell Administrator):
+#Import-Certificate -FilePath ".\DigitalTwinsKeycloakInternalCA.pem" -CertStoreLocation Cert:\LocalMachine\Root
+
+nm=DigitalTwinsKeycloakInternalCA
+mydomain=test.digitaltwins.auckland.ac.nz
+
+## 1. Generate the App's Private Key
+openssl genrsa -out $mydomain.key 2048
+
+# 2. Create the CSR (Certificate Signing Request)
+# We use a temporary config file to guarantee NO PROMPTS
+cat > app_csr.cnf <<EOF
+[ req ]
+default_bits       = 2048
+distinguished_name = req_distinguished_name
+prompt             = no
+
+[ req_distinguished_name ]
+C  = NZ
+O  = ABI
+CN = $mydomain
+EOF
+
+openssl req -new -key $mydomain.key -out $mydomain.csr -config app_csr.cnf
+
+# 3. Create the Extension File (Vital for Chrome/Edge)
+# This defines the "Subject Alternative Names" (SANs)
+cat > app.ext <<EOF
+authorityKeyIdentifier=keyid,issuer
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = $mydomain
+EOF
+
+# 4. Sign the CSR with your Root CA
+openssl x509 -req -in $mydomain.csr \
+    -CA $nm.pem -CAkey $nm.key \
+    -CAcreateserial -out $mydomain.crt \
+    -days 825 -sha256 -extfile app.ext
+
+# Cleanup
+rm app_csr.cnf app.ext $mydomain.csr
+
+password=$(gsecret get digital_twins_keycloak_root_ca_passphrase)
+
+openssl pkcs12 -export \
+  -in $mydomain.crt \
+  -inkey $mydomain.key \
+  -certfile $nm.pem \
+  -out server.p12 \
+  -name keycloak \
+  -password pass:$password
+
+keytool -importkeystore \
+  -srckeystore server.p12 -srcstoretype PKCS12 -srcstorepass $password \
+  -destkeystore server.jks -deststoretype JKS -deststorepass $password \
+  -alias keycloak
+
+

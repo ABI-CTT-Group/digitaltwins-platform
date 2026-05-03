@@ -1,0 +1,30 @@
+#!/bin/bash
+DATE=$(date +%Y%m%d)
+EXPORT_FILE="airgap_bundle_${DATE}.tar"
+
+#docker compose config --images
+
+#dpage/pgadmin4
+#minio/mc:latest
+#quay.io/minio/minio:latest
+#jupyter/base-notebook
+
+
+DATE=$(date +%Y%m%d)
+# This list matches your specific "Hit List" above
+TARGETS=(
+  "dpage/pgadmin4"
+  "jupyter/base-notebook"
+  "minio/mc"
+  "quay.io/minio/minio"
+)
+
+for IMG in "${TARGETS[@]}"; do
+    # Strip :latest if it exists to get the base name
+    BASE_NAME=$(echo $IMG | sed 's/:latest//')
+    echo "Freezing $BASE_NAME -> $BASE_NAME:frozen-$DATE"
+    docker tag "$IMG" "$BASE_NAME:frozen-$DATE"
+done
+
+# Export all images
+docker save -o "$EXPORT_FILE" $(docker compose config --images)

@@ -1,0 +1,69 @@
+#!/bin/bash
+# Back up the data volumes of importance to us
+
+set -euo pipefail
+
+DOCKER_VOLS_DIR=/var/lib/docker/volumes
+BASE_DIR=~/digitaltwins-platform
+ENV_FILE=$BASE_DIR/.env
+
+now=$(date +%Y%m%d%H%M)
+mkdir $now
+cd $now
+
+cd $BASE_DIR
+docker compose down
+cd -
+
+grep "^[[:blank:]]*SEEK_API_TOKEN=" $ENV_FILE > api.token
+
+cp $BASE_DIR/services/seek/ldh-deployment/docker-compose.env .
+
+tar cvf dags.tar -C $BASE_DIR/services/airflow dags
+
+for v in \
+digitaltwins-platform_seek_cache \
+digitaltwins-platform_seek_db \
+digitaltwins-platform_seek_filestore \
+digitaltwins-platform_seek_solr \
+digitaltwins-platform_minio_data \
+digitaltwins-platform_postgres_data \
+
+do
+	echo $v
+	docker run --rm \
+        -v $DOCKER_VOLS_DIR/$v:/volume \
+        -v $(pwd):/backup \
+        alpine tar -cvf /backup/${v}.tar -C /volume .
+done
+
+cat > README.txt <<EOF
+Data backup of digitaltwins platform taken $now.
+
+To restore this data backup, copy this directory to the target system, then:
+
+0. make sure alpine:latest is loaded in the target docker (docker load -i /mnt/install_src/alpine.tar)
+
+1. docker compose down
+
+2. Edit ~/digitaltwins-platform/.env and adjust SEEK_API_TOKEN according to api.token
+
+	sed -i -e "/^SEEK_API_TOKEN=/r api.token" -e "/^SEEK_API_TOKEN=/d" ~/digitaltwins-platform/.env
+
+3. cp docker-compose.env ~/digitaltwins-platform/seek/ldh-depoyment/
+   (note that's going to clobber your existing one)
+
+4. rm -rf ~/digitaltwins-platform/services/airflow/dags
+
+5. tar xvf dags.tar -C ~/digitaltwins-platform/services/airflow
+
+6. ~/digitaltwins-platform/buildout/util/delete_vols
+
+7. ~/digitaltwins-platform/buildout/util/new_vols
+
+8. ~/digitaltwins-platform/buildout/util/restore_vols (while sitting in this directory)
+
+9.docker compose up -d
+EOF
+
+docker compose up -d

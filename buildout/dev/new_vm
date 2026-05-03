@@ -1,0 +1,43 @@
+os keypair create mp_keypair
+# Put the resulting key into the file ~/openstack/abi-ctt-ctp/mp_keypair.key
+# chmod 600  ~/openstack/abi-ctt-ctp/mp_keypair.key
+
+# Decide what image and flavor you want:
+# os image list
+# os flavor list
+
+# create the new VM
+os server create \
+    --flavor r3.xsmall \
+    --image "NeCTAR Ubuntu 22.04 LTS (Jammy) amd64 (with Docker)" \
+    --network auckland-public \
+    --key-name mp_keypair \
+    mp_vm_test
+
+# And the SSH security group so you can reach it on port 22
+os server add security group mp_vm_test SSH
+
+
+# Get the IP address of the server
+os server show mp_vm_test
+
+
+# Put this into your ~/.ssh/config file
+Host abi
+    HostName 130.216.217.231
+    User ubuntu
+    IdentityFile ~/openstack/abi-ctt-ctp/mp_keypair.key
+
+# Then,
+ssh abi
+
+# Once on the box, allow ubuntu to use docker:
+sudo usermod -aG docker $USER
+
+git clone https://github.com/ABI-CTT-Group/digitaltwins-platform.git
+
+export COMPOSE_FILE=~/digitaltwins-platform/docker-compose.yml 
+
+docker compose up -d
+docker compose down
+docker compose logs -f

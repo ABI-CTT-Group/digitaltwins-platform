@@ -1,0 +1,13 @@
+- name: Un-airgap UFW
+  hosts: localhost
+  connection: local
+  become: true
+  tasks:
+
+    - name: Set default outgoing policy to allow
+      community.general.ufw:
+        default: deny
+        direction: outgoing
+
+    - name: Reload UFW
+      ansible.builtin.command: ufw reload

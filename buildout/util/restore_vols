@@ -1,0 +1,15 @@
+for v in \
+digitaltwins-platform_seek_cache \
+digitaltwins-platform_seek_db \
+digitaltwins-platform_seek_filestore \
+digitaltwins-platform_seek_solr \
+digitaltwins-platform_minio_data \
+digitaltwins-platform_postgres_data \
+
+do
+	sudo docker run --rm \
+		-v /var/lib/docker/volumes/$v:/volume \
+		-v $(pwd):/backup \
+		alpine \
+		tar -xvf /backup/${v}.tar -C /volume
+done

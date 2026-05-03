@@ -1,0 +1,68 @@
+- name: VM setup
+  gather_facts: false
+#  hosts: portal drai_mp drai_cc
+  hosts: portal drai_mp
+  environment:
+    DOCKER_HOST: "{{ lookup('env', 'DOCKER_HOST') | default('unix:///var/run/docker.sock', true) }}"
+
+#  environment:
+#    COMPOSE_PULL: "never"
+
+  tasks:
+
+# Because git pulling has basically stopped functioning in the last couple days...
+  - name: Sync code to VM
+    ansible.posix.synchronize:
+      src: /home/{{ ansible_user }}/twins/clean_src/digitaltwins-platform/
+      dest: /home/{{ ansible_user }}/digitaltwins-platform/
+      archive: yes
+      delete: yes
+      rsync_opts:
+        - '--filter=":- .gitignore"'
+        - '--exclude=.git/'
+
+  - name: Create certs directory
+    ansible.builtin.file:
+      path: "./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs"
+      state: directory
+      mode: '0755'
+
+  - name: Copy crt
+    ansible.builtin.copy:
+      src: ../util/test.digitaltwins.auckland.ac.nz.crt
+      dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs
+      mode: '0600'
+
+  - name: Copy key
+    ansible.builtin.copy:
+      src: ../util/test.digitaltwins.auckland.ac.nz.key
+      dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs
+      mode: '0600'
+
+  - name: check for .env
+    stat:
+      path: "./digitaltwins-platform/.env"
+    register: file_check1
+
+  - name: Copy .env
+    ansible.builtin.copy:
+      src: ../data/.env
+      dest: ./digitaltwins-platform/.env
+      mode: '0600'
+
+  - name: check for seek env file
+    stat:
+      path: "./digitaltwins-platform/services/seek/ldh-deployment/docker-compose.env"
+    register: file_check3
+
+  - name: Create seek env file
+    ansible.builtin.copy:
+      dest: "./digitaltwins-platform/services/seek/ldh-deployment/docker-compose.env"
+      content: |
+        MYSQL_HOST=db
+        MYSQL_ROOT_PASSWORD={{ lookup('env', 'MYSQL_ROOT_PASSWORD ') }}
+        MYSQL_DATABASE=seek
+        MYSQL_USER=seek
+        MYSQL_PASSWORD={{ lookup('env', 'MYSQL_PASSWORD ') }}
+      mode: '0600'
+    when: not file_check3.stat.exists

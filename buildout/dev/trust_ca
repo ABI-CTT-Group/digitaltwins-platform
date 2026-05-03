@@ -1,0 +1,3 @@
+kubectl create secret generic grafana-ca-cert \
+  --from-file=custom-ca.pem=/mnt/install_src/DigitalTwinsKeycloakInternalCA.pem \
+  -n grafana

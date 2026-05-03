@@ -1,0 +1,92 @@
+
+service:
+  type: NodePort
+  port: 80
+  targetPort: 3000
+  nodePort: 30333
+
+adminUser: admin
+adminPassword: strongpassword
+
+plugins: ""
+
+grafana.ini:
+  server:
+    root_url: "https://test.digitaltwins.auckland.ac.nz/grafana/"
+    serve_from_sub_path: true
+  auth.generic_oauth:
+    enabled: true
+    name: Keycloak
+    allow_sign_up: true
+    client_id: grafana
+    client_secret: "${GRAFANA_OAUTH_SECRET}"
+    tls_skip_verify_insecure: true
+    scopes: openid email profile
+    groups_attribute_path: groups
+    allowed_groups: /grafana-admin,/grafana-editor,/grafana-viewer
+    role_attribute_path: contains(groups[*], '/grafana-admin') && 'Admin' || contains(groups[*], '/grafana-editor') && 'Editor' || contains(groups[*], '/grafana-viewer') && 'Viewer'
+    auth_url: https://test.digitaltwins.auckland.ac.nz/auth/realms/digitaltwins/protocol/openid-connect/auth
+    token_url: https://test.digitaltwins.auckland.ac.nz/auth/realms/digitaltwins/protocol/openid-connect/token
+    api_url: https://test.digitaltwins.auckland.ac.nz/auth/realms/digitaltwins/protocol/openid-connect/userinfo
+
+persistence:
+  enabled: true
+
+initChownData:
+  enabled: false
+
+    
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: dititaltwins-log
+        type: loki
+        url: http://loki.loki.svc.cluster.local:3100
+        access: proxy
+        isDefault: true
+      - name: dititaltwins-metric
+        type: prometheus
+        url: http://mimir-gateway.mimir.svc.cluster.local/prometheus
+        access: proxy
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+    - name: 'metric'
+      orgId: 1
+      folder: 'Metric'
+      type: file
+      disableDeletion: false
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/metric
+    - name: 'log'
+      orgId: 1
+      folder: 'Log'
+      type: file
+      disableDeletion: false
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards/log
+
+dashboardsConfigMaps:
+  #metric: "docker-metric-dashboard1,docker-metric-dashboard2,docker-metric-dashboard2,vm-metric-dashboard"
+  metric: "metric-dashboards"
+  log: "log-dashboards"
+
+
+#dashboardProviders:
+#  dashboardproviders.yaml:
+#    apiVersion: 1
+#    providers:
+#      - name: 'default'
+#        orgId: 1
+#        folder: ''
+#        type: file
+#        disableDeletion: false
+#        editable: true
+#        options:
+#          path: /var/lib/grafana/dashboards/default
+#dashboardsConfigMaps:
+#  default: grafana-dashboards

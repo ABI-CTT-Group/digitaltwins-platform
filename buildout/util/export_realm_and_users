@@ -1,0 +1,19 @@
+#!/bin/bash
+
+REALM=digitaltwins
+
+h=$(hostname)
+now=$(date +%Y%m%d%H%M)
+
+docker compose down keycloak
+
+docker compose run --name kc-export keycloak export \
+    --realm $REALM \
+    --file /tmp/my-realm-export.json \
+    --users same_file
+
+docker cp kc-export:/tmp/my-realm-export.json ./${h}_${REALM}_realm_${now}.json
+
+docker rm kc-export
+
+docker compose up -d keycloak

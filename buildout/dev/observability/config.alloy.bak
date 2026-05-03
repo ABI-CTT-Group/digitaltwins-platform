@@ -1,0 +1,218 @@
+logging {
+  level = "info"
+}
+
+// ========== Docker Logs Collection ==========
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "docker" {
+  targets = discovery.docker.containers.targets
+
+  // Keep container name
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+  }
+
+  // Keep container ID
+  rule {
+    source_labels = ["__meta_docker_container_id"]
+    target_label  = "container_id"
+  }
+
+  // Add docker compose service name
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  // Add custom app label
+  rule {
+    source_labels = ["__meta_docker_container_label_app"]
+    target_label  = "app"
+  }
+
+  // Add custom environment label
+  rule {
+    source_labels = ["__meta_docker_container_label_environment"]
+    target_label  = "environment"
+  }
+
+  // Add custom team label
+  rule {
+    source_labels = ["__meta_docker_container_label_team"]
+    target_label  = "team"
+  }
+  rule {
+    target_label = "job"
+    replacement  = "docker"
+  }
+}
+
+loki.source.docker "docker" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.docker.output
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://localhost:3100/loki/api/v1/push"
+  }
+}
+
+// ========== VM Metrics Collection ==========
+// ========== Remote Write Endpoint (defined first) ==========
+prometheus.remote_write "mimir" {
+  endpoint {
+    url = "http://localhost:9005/api/v1/push"
+
+    queue_config {
+      capacity             = 10000
+      max_shards           = 10
+      min_shards           = 1
+      max_samples_per_send = 5000
+      batch_send_deadline  = "5s"
+    }
+  }
+}
+
+// ========== VM Metrics Collection ==========
+
+// Relabel components for VM metrics
+prometheus.relabel "node" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+
+  rule {
+    target_label = "job"
+    replacement  = "node-exporter"
+  }
+
+  rule {
+    target_label = "instance"
+    replacement  = env("HOSTNAME")
+  }
+}
+
+prometheus.relabel "process" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+
+  rule {
+    target_label = "job"
+    replacement  = "process-exporter"
+  }
+
+  rule {
+    target_label = "instance"
+    replacement  = env("HOSTNAME")
+  }
+}
+
+// VM Exporters
+prometheus.exporter.unix "node" {
+  enable_collectors = ["cpu", "meminfo", "diskstats", "filesystem", "netdev", "loadavg", "time"]
+}
+
+prometheus.exporter.process "alloy" {
+}
+
+// Scrape VM metrics
+prometheus.scrape "node_metrics" {
+  targets         = prometheus.exporter.unix.node.targets
+  forward_to      = [prometheus.relabel.node.receiver]
+  scrape_interval = "15s"
+}
+
+prometheus.scrape "process_metrics" {
+  targets         = prometheus.exporter.process.alloy.targets
+  forward_to      = [prometheus.relabel.process.receiver]
+  scrape_interval = "15s"
+}
+
+// ========== Docker Metrics Collection ==========
+
+// Relabel component for cAdvisor metrics
+prometheus.relabel "cadvisor" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+
+  // Add hostname as instance label
+  rule {
+    target_label = "instance"
+    replacement  = env("HOSTNAME")
+  }
+
+  // Add job label
+  rule {
+    target_label = "job"
+    replacement  = "cadvisor"
+  }
+
+  // Rename docker compose service label to service_name
+  rule {
+    source_labels = ["container_label_com_docker_compose_service"]
+    target_label  = "service_name"
+  }
+
+  // Rename docker compose project label to project_name
+  rule {
+    source_labels = ["container_label_com_docker_compose_project"]
+    target_label  = "project_name"
+  }
+
+  // Keep container name
+  rule {
+    source_labels = ["name"]
+    target_label  = "container_name"
+  }
+
+  // Keep image name
+  rule {
+    source_labels = ["image"]
+    target_label  = "container_image"
+  }
+
+  // Extract short container ID from full id
+  rule {
+    source_labels = ["id"]
+    regex         = "/docker/([a-z0-9]{12}).*"
+    target_label  = "container_id_short"
+    replacement   = "$1"
+  }
+}
+
+// Scrape cAdvisor metrics
+prometheus.scrape "cadvisor" {
+  targets = [{
+    __address__ = "localhost:8080",
+  }]
+
+  forward_to      = [prometheus.relabel.cadvisor.receiver]
+  scrape_interval = "15s"
+  scrape_timeout  = "10s"
+}
+
+// Relabel for kubelet
+prometheus.relabel "kubelet" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+
+  rule {
+    target_label = "job"
+    replacement  = "kubelet"
+  }
+
+  rule {
+    target_label = "instance"
+    replacement  = env("HOSTNAME")
+  }
+}
+
+// Scrape kubelet metrics
+prometheus.scrape "kubelet_metrics" {
+  targets = [{
+    __address__ = "http://localhost:8100/api/v1/nodes/drai-portal/proxy/metrics",
+  }]
+  forward_to      = [prometheus.relabel.kubelet.receiver]
+  scrape_interval = "15s"
+}

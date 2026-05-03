@@ -1,0 +1,38 @@
+#!/bin/bash
+
+nm=DigitalTwinsKeycloakInternalCA
+
+openssl genrsa -out $nm.key 2048
+
+# 1. Create a config file that forces non-interactive mode
+cat > root_ca.cnf <<EOF
+[ req ]
+distinguished_name = req_distinguished_name
+x509_extensions    = v3_ca
+prompt             = no
+
+[ req_distinguished_name ]
+C  = NZ
+ST = Auckland
+L  = Auckland
+O  = ABI
+OU = IT
+CN = $nm
+
+[ v3_ca ]
+basicConstraints = critical,CA:TRUE
+keyUsage         = critical, digitalSignature, cRLSign, keyCertSign
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+EOF
+
+# 2. Run OpenSSL using this specific config
+openssl req -x509 -new -nodes -key $nm.key -sha256 -days 3650 \
+  -out $nm.pem \
+  -config root_ca.cnf
+
+# 3. Verify it worked (should print the details)
+openssl x509 -in $nm.pem -noout -text | grep "Issuer"
+
+# 4. Remove the temp file
+rm root_ca.cnf

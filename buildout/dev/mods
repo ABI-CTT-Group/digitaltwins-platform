@@ -1,0 +1,11 @@
+# These are to enable https on the keycloak app
+# and to get Chinchien's exported realm into position so it will import next restart
+
+scp keycloak-docker-compose.yml abi_mp:digitaltwins-platform/services/keycloak/docker-compose.yml
+scp digitaltwins-realm.json abi_mp:digitaltwins-platform/services/keycloak/import/digitaltwins-realm.json
+
+# See util/create_server_jks and do that first to get your self-signed cert for the keycloak app on :8009
+scp server.jks abi_mp:digitaltwins-platform/services/keycloak/server.jks
+
+#scp seek-docker-compose.yml abi_mp:digitaltwins-platform/services/seek/ldh-deployment/docker-compose.yml
+#scp main.env abi_mp:digitaltwins-platform/.env

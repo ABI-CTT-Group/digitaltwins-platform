@@ -1,0 +1,11 @@
+- name: test
+  hosts: all
+  gather_facts: false
+
+  tasks:
+
+  - name: reset ssh connection
+    meta: reset_connection
+
+  - name: Ping my hosts
+    ansible.builtin.ping:

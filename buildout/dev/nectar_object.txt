@@ -1,0 +1,29 @@
+[rgendev]/home/rocky/twins/drai-inn/buildout/dev>os container create terraform-states
++---------------------------------------+------------------+------------------------------------+
+| account                               | container        | x-trans-id                         |
++---------------------------------------+------------------+------------------------------------+
+| AUTH_76f84625ee51456b9f98ace08226f900 | terraform-states | txa2deadecb17c49499fe91-006923726f |
++---------------------------------------+------------------+------------------------------------+
+
+
+[rgendev]/home/rocky/twins/drai-inn/buildout/dev>openstack ec2 credentials create 
++------------+---------------------------------------------------------------------------------------------------------+
+| Field      | Value                                                                                                   |
++------------+---------------------------------------------------------------------------------------------------------+
+| access     | 14f67395858e47d29945bd5f9af202bc                                                                        |
+| links      | {'self': 'https://identity.rc.nectar.org.au/v3/users/eda89889ead24ff7bafd910bcb0a1602/credentials/OS-   |
+|            | EC2/14f67395858e47d29945bd5f9af202bc'}                                                                  |
+| project_id | 76f84625ee51456b9f98ace08226f900                                                                        |
+| secret     | d33efb7a6e2147ec865d6d98fd720c51                                                                        |
+| trust_id   | None                                                                                                    |
+| user_id    | eda89889ead24ff7bafd910bcb0a1602                                                                        |
++------------+---------------------------------------------------------------------------------------------------------+
+
+
+| access     | 14f67395858e47d29945bd5f9af202bc                                                                        |
+| links      | {'self': 'https://identity.rc.nectar.org.au/v3/users/eda89889ead24ff7bafd910bcb0a1602/credentials/OS-   |
+|            | EC2/14f67395858e47d29945bd5f9af202bc'}                                                                  |
+| project_id | 76f84625ee51456b9f98ace08226f900                                                                        |
+| secret     | d33efb7a6e2147ec865d6d98fd720c51 
+
+

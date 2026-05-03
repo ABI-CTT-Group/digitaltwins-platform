@@ -1,0 +1,11 @@
+export KUBECONFIG=~/.kube/config
+
+export GRAFANA_OAUTH_SECRET=P5Ph1qzD4E9iHSDZSegi4PxvVxz14ibn
+
+helm upgrade grafana ./observability/charts/grafana-10.5.4.tgz \
+  -n grafana \
+  -f observability/grafana-values.yaml \
+  --set adminUser=admin \
+  --set adminPassword=$GRAFANA_ADMIN_PASSWORD \
+  --set assertNoLeakedSecrets=false \
+  --set "grafana\\.ini.auth\\.generic_oauth.client_secret=$GRAFANA_OAUTH_SECRET"

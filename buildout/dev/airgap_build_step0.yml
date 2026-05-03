@@ -1,0 +1,41 @@
+# Set up the source drive
+# These are the root steps that would be taken in the shell:
+#
+# mkdir -p /mnt/install_src
+# chmod 0755 /mnt/install_src
+# chown ubuntu:ubuntu /mnt/install_src
+# mount -o defaults /dev/vdb /mnt/install_src
+# echo "/dev/vdb /mnt/install_src auto defaults 0 0" >> /etc/fstab
+#
+# Alternatively, you'd plug in your USB drive, figure out what it mounts
+# as, and then use -e install_src_drive=/mnt/other_directory
+# when you run airgap_build_step[123].yml
+
+- name: source drive setup
+  gather_facts: false
+  hosts: all
+
+  vars:
+    install_src_dir: /mnt/install_src # path to the install source
+
+  environment:
+
+  tasks:
+
+  - name: Ensure mount directory exists
+    become: true
+    ansible.builtin.file:
+      path: "{{ install_src_dir }}"
+      state: directory
+      mode: '0755'
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+  
+  - name: Mount /dev/vdb and update fstab
+    become: true
+    ansible.posix.mount:
+      path: "{{ install_src_dir }}"
+      src: /dev/vdb
+      fstype: auto    # Tells mount to detect the existing ext4/xfs automatically
+      opts: defaults
+      state: mounted  # This both mounts it NOW and adds it to /etc/fstab

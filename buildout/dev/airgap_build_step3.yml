@@ -1,0 +1,253 @@
+- name: VM setup
+  gather_facts: false
+  hosts: all
+
+  vars:
+    install_src_dir: /mnt/install_src # path to the install source
+
+  environment:
+
+  tasks:
+
+  #########################
+  # Make sure required env variables are set
+  - name: Verify SEEK_ADMIN_PASSWORD environment variable is set
+    ansible.builtin.fail:
+      msg: "FATAL: The required environment variable SEEK_ADMIN_PASSWORD must be set to run this playbook."
+    when: lookup('env', 'SEEK_ADMIN_PASSWORD') | length == 0
+
+  - name: Verify MYSQL_ROOT_PASSWORD environment variable is set
+    ansible.builtin.fail:
+      msg: "FATAL: The required environment variable MYSQL_ROOT_PASSWORD must be set to run this playbook."
+    when: lookup('env', 'MYSQL_ROOT_PASSWORD') | length == 0
+
+  - name: Verify MYSQL_PASSWORD environment variable is set
+    ansible.builtin.fail:
+      msg: "FATAL: The required environment variable MYSQL_PASSWORD must be set to run this playbook."
+    when: lookup('env', 'MYSQL_PASSWORD') | length == 0
+  #########################
+
+  - name: Reset SSH connection to pick up group changes
+    meta: reset_connection
+
+  - name: Ensure COMPOSE_FILE is in .bash_aliases
+    ansible.builtin.lineinfile:
+      path: "~/.bashrc"
+      regexp: '^export COMPOSE_FILE='
+      line: "export COMPOSE_FILE=~/digitaltwins-platform/docker-compose.yml"
+      create: true
+      mode: '0600'  # Restrict permissions since it contains a secret
+
+  - name: user access
+    authorized_key:
+      user: "{{ ansible_user }}"
+      state: present
+      key: "{{ lookup('file', item) }}"
+    with_fileglob:
+      - "public_keys/*.pub"
+
+  - name: Ensure the keys directory is present
+    ansible.builtin.file:
+      path: keys
+      state: directory
+      mode: '0700'
+
+  - name: Ensure the keys/public_keys directory is present
+    ansible.builtin.file:
+      path: keys/public_keys
+      state: directory
+      mode: '0700'
+
+  - name: Copy public keys
+    ansible.builtin.synchronize:
+      src: "{{ install_src_dir }}/public_keys/"
+      dest: "./keys/public_keys/"
+      recursive: yes
+      rsync_opts:
+        - "--include=*.pub"
+        - "--exclude=*"
+
+  - name: Copy public pem to keys
+    ansible.builtin.synchronize:
+      src: "{{ install_src_dir }}/DigitalTwinsKeycloakInternalCA.pem"
+      dest: "./keys/DigitalTwinsKeycloakInternalCA.pem"
+
+# Because git pulling has basically stopped functioning in the last couple days...
+  - name: Sync code to VM
+    ansible.posix.synchronize:
+      src: "{{ install_src_dir }}/clean_src/digitaltwins-platform/"
+      dest: /home/{{ ansible_user }}/digitaltwins-platform/
+      archive: yes
+      delete: yes
+      rsync_opts:
+        - '--filter=":- .gitignore"'
+        - '--exclude=.git/'
+
+  - name: Create certs directory
+    ansible.builtin.file:
+      path: "./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs"
+      state: directory
+      mode: '0755'
+
+  - name: Copy crt
+    ansible.builtin.copy:
+      src: "{{ install_src_dir }}/test.digitaltwins.auckland.ac.nz.crt"
+      dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs
+      mode: '0600'
+
+  - name: Copy key
+    ansible.builtin.copy:
+      src: "{{ install_src_dir }}/test.digitaltwins.auckland.ac.nz.key"
+      dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs
+      mode: '0600'
+
+  - name: check for .env
+    stat:
+      path: "./digitaltwins-platform/.env"
+    register: file_check1
+
+  - name: Copy .env
+    ansible.builtin.copy:
+      src: "{{ install_src_dir }}/.env"
+      dest: ./digitaltwins-platform/.env
+      mode: '0600'
+
+  - name: check for seek env file
+    stat:
+      path: "./digitaltwins-platform/services/seek/ldh-deployment/docker-compose.env"
+    register: file_check3
+
+  - name: Create seek env file
+    ansible.builtin.copy:
+      dest: "./digitaltwins-platform/services/seek/ldh-deployment/docker-compose.env"
+      content: |
+        MYSQL_HOST=db
+        MYSQL_ROOT_PASSWORD={{ lookup('env', 'MYSQL_ROOT_PASSWORD ') }}
+        MYSQL_DATABASE=seek
+        MYSQL_USER=seek
+        MYSQL_PASSWORD={{ lookup('env', 'MYSQL_PASSWORD ') }}
+      mode: '0600'
+    when: not file_check3.stat.exists
+
+
+# On a system you have up and running, functioning the way you want, you can "freeze" it like so:
+# docker compose ps -aq | xargs docker inspect --format '{{.Config.Image}}' | sort -u| xargs docker save | gzip > digitaltwins-images-all.tar.gz
+# Then copy the digitaltwins-images-all.tar.gz to the {{ install_src_dir }}
+
+  - name: Load Docker images from archive
+    ansible.builtin.shell:
+      cmd: "gunzip -c {{ install_src_dir }}/digitaltwins-images-all.tar.gz | docker load"
+    args:
+      executable: /bin/bash
+
+  - name: Initialize airflow.cfg
+    ansible.builtin.command: docker compose run airflow-cli airflow config list
+    args:
+      chdir: ./digitaltwins-platform
+
+#  # The last config list puts a wonky ownership on the .cfg file, which we need to adjust, so ...
+#  - name: Force ownership on Airflow config
+#    become: true
+#    ansible.builtin.file:
+#      #path: "/home/{{ ansible_user }}/digitaltwins-platform/services/airflow/config/airflow.cfg"
+#      path: "./digitaltwins-platform/services/airflow/config/airflow.cfg"
+#      owner: "{{ ansible_user }}"
+#      group: "{{ ansible_user }}"
+#      mode: '0644'
+
+  - name: allow_headers
+    shell: |
+      sed -i "s/^access_control_allow_headers.*$/access_control_allow_headers = origin, content-type, accept/" ./services/airflow/config/airflow.cfg
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: allow_methods
+    shell: |
+      sed -i "s/^access_control_allow_methods.*/access_control_allow_methods = POST, GET, OPTIONS, DELETE/" ./services/airflow/config/airflow.cfg
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: allow_origins
+    shell: |
+      sed -i "s/^access_control_allow_origins.*/access_control_allow_origins = /" ./services/airflow/config/airflow.cfg
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: airflow-init
+    ansible.builtin.command: docker compose up airflow-init
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: docker down
+    ansible.builtin.command: docker compose down
+    args:
+      chdir: ./digitaltwins-platform
+
+###
+
+  - name: Copy realm import to remote server
+    ansible.builtin.copy:
+      src: "{{ install_src_dir }}/realm-digitaltwins-20260418.json"
+      dest: ./digitaltwins-platform/services/keycloak/import/digitaltwins-realm.json
+      mode: '0644'
+
+  - name: Copy realm import to keys
+    ansible.builtin.copy:
+      src: "{{ install_src_dir }}/realm-digitaltwins-20260418.json"
+      dest: ./keys/digitaltwins-realm.json
+      mode: '0600'
+
+  - name: Startup seek
+    ansible.builtin.command: docker compose up -d seek
+    args:
+      chdir: ./digitaltwins-platform
+
+  # Better solution to the "wait" problem...
+  - name: Wait for background migrations to create the users table
+    ansible.builtin.command: >
+      docker exec seek bash -c 
+      'cd /seek && RAILS_ENV=production bundle exec rails runner "exit(ActiveRecord::Base.connection.table_exists?(:users) ? 0 : 1)"'
+    register: table_check
+    # Try up to 15 times, waiting 10 seconds between attempts (max 150 seconds)
+    retries: 15
+    delay: 10
+    # Keep looping until the command returns an exit code of 0 (Success)
+    until: table_check.rc == 0
+    # This prevents Ansible from reporting 'changed' since we are only reading state, not modifying it
+    changed_when: false
+
+  - name: Set SEEK_ADMIN_PASSWORD from environment variable
+    ansible.builtin.set_fact:
+      seek_admin_password: "{{ lookup('env', 'SEEK_ADMIN_PASSWORD') }}"
+
+  - name: admin user
+    ansible.builtin.command: "./create-admin-user.sh admin {{ seek_admin_password }} matt.pestle@auckland.ac.nz"
+    args:
+      chdir: ./digitaltwins-platform/buildout/util
+
+  - name: features 
+    ansible.builtin.command: "./enable-features.sh"
+    args:
+      chdir: ./digitaltwins-platform/buildout/util
+
+  - name: token 
+    ansible.builtin.command: "./generate-token.sh"
+    args:
+      chdir: ./digitaltwins-platform/buildout/util
+
+  - name: all down
+    ansible.builtin.command: docker compose down
+    args:
+      chdir: ./digitaltwins-platform
+
+  - name: Ensure notebook_workspace directory exists for jupyter
+    ansible.builtin.file:
+      path: ./digitaltwins-platform/notebook_workspace
+      state: directory
+      mode: '0775'
+  
+  - name: Start docker compose services
+    shell: |
+      docker compose up -d
+    args:
+      chdir: ./digitaltwins-platform
