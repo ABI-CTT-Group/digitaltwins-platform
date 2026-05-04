@@ -50,7 +50,7 @@ To restore this data backup, copy this directory to the target system, then:
 
 	sed -i -e "/^SEEK_API_TOKEN=/r api.token" -e "/^SEEK_API_TOKEN=/d" ~/digitaltwins-platform/.env
 
-3. cp docker-compose.env ~/digitaltwins-platform/seek/ldh-depoyment/
+3. cp docker-compose.env ~/digitaltwins-platform/services/seek/ldh-deployment/
    (note that's going to clobber your existing one)
 
 4. rm -rf ~/digitaltwins-platform/services/airflow/dags
@@ -63,7 +63,7 @@ To restore this data backup, copy this directory to the target system, then:
 
 8. ~/digitaltwins-platform/buildout/util/restore_vols (while sitting in this directory)
 
-9.docker compose up -d
+9. docker compose up -d
 EOF
 
 docker compose up -d

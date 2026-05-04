@@ -1,0 +1,38 @@
+#!/bin/bash
+#
+# To create the clean_src directory of the 4 repositories involved
+# with digitaltwins-platform (it and its 3 submodules)
+# I'm not sure what's necessary here, but these steps are sufficient
+# to get onto the branches that I want to be on:
+# BRANCH0 at the digitaltwins-platform level
+# and BRANCH1 at the submodule level
+
+#BRANCH0=buildout
+#BRANCH1=mp
+
+BRANCH0=main_buildout
+BRANCH1=main_buildout
+
+rm -rf digitaltwins-platform
+git clone git@github.com:ABI-CTT-Group/digitaltwins-platform.git
+
+cd digitaltwins-platform
+
+git checkout $BRANCH0
+git pull
+git submodule update --remote --init --checkout
+echo
+
+for m in \
+services/api/digitaltwins-api \
+services/portal/DigitalTWINS-Portal \
+services/seek/ldh-deployment \
+
+do
+    echo $m
+    cd $m
+    git checkout $BRANCH1
+    git pull
+    cd -
+    echo
+done
