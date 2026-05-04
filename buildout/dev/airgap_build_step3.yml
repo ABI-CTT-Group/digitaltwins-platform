@@ -44,7 +44,7 @@
       state: present
       key: "{{ lookup('file', item) }}"
     with_fileglob:
-      - "{{ install_src }}/data/public_keys/*.pub"
+      - "{{ install_src_dir }}/data/public_keys/*.pub"
 
   - name: Ensure the keys directory is present
     ansible.builtin.file:
