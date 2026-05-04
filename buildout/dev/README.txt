@@ -46,6 +46,8 @@ The steps will be
 		-e "install_src_dir=/mnt/install_src"
   To install docker and docker compose and set them up as a server to survive reboots
 
+- Log out and back in again so you get a new session and can control docker
+
 - Set three environment variables with your chosen "secrets"
       export SEEK_ADMIN_PASSWORD=<seek_admin_password>
       export MYSQL_ROOT_PASSWORD=<mysql_root_password>
@@ -102,7 +104,7 @@ This needs to be done any time you:
 
 # Files in the install_src directory:
 
-.env - This is the main configuration env file. It needs to be placed into
+data/.env - This is the main configuration env file. It needs to be placed into
 	~/digitaltwins-platform/
   and possibly adjusted. It contains secrets, so don't put it into a repo.
   You can compare it to .env.template in the repo to see what changed.
@@ -148,6 +150,7 @@ digitaltwins-images-all.tar.gz - Bundle of all docker images required.
 
 DigitalTwinsKeycloakInternalCA.pem - The public key of the certificate authority, which needs to be imported
 	and thus "trusted" in order to browse the site. Created using util/create_root_ca.
+	DEPRECATED! Not using this CA business anymore. Got a cert from zerossol.
 
 
 docker-29.4.0.tgz - the docker bundle required for installation of docker in an airgapped environment.
@@ -174,7 +177,7 @@ public_keys - The public ssh keys of users you want to be able to connect to the
 		sudo dpkg -i python3*.deb
 	to install them. Then you will have pip, etc. and be able to install/run ansible.
 
-realm-digitaltwins-20260418.json - The keycloak realm which we will import into keycloak when it comes up.
+data/digitaltwins-realm.json - The keycloak realm which we will import into keycloak when it comes up.
 	See airgap_build_step3.yml, which places this file into the appropriate position on disk
 	so that when keycloak starts, if it doesn't already have a digitaltwins realm, it will import this.
 	Note particularly the "users: "section, which contains users with plaintext passwords, such as:
@@ -200,8 +203,25 @@ realm-digitaltwins-20260418.json - The keycloak realm which we will import into 
 		} 
 	I have defined mp1, mp2, and admin users here.
 
-test.digitaltwins.auckland.ac.nz.crt and test.digitaltwins.auckland.ac.nz.key -
-	SSL cert/key used by the portal webserver. Created using util/create_app_cert
-	airgap_build_step3.yml copies thse into
+data/test.digitaltwins.auckland.ac.nz.crt and data/test.digitaltwins.auckland.ac.nz.key -
+	SSL cert/key used by the portal webserver. Created using getcert on the portal VM
+	(which is the machine under the registered IP for test.digitaltwins.auckland.ac.nz)
+	airgap_build_step3.yml copies these into
 		./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs
 	where they make their way into the nginx system (see the docker-compose.yml mounts).
+
+Logout URL if you need it:
+https://test.digitaltwins.auckland.ac.nz/auth/realms/digitaltwins/protocol/openid-connect/logout?client_id=grafana&post_logout_redirect_uri=https%3A%2F%2Ftest.digitaltwins.auckland.ac.nz%2Fgrafana%2Flogin
+
+For observability:
+
+Make sure these two variables are set: (see data/pwords.txt), then
+
+export GRAFANA_ADMIN_PASSWORD=yourpassword
+export GRAFANA_OAUTH_SECRET=yoursecret
+
+ansible-playbook -i 'localhost,' -c local \
+  -e "ansible_user=$(whoami)" \
+  -e "install_src_dir=/mnt/install_src/airgap" \
+  /mnt/install_src/install_observability_airgap.yaml
+
