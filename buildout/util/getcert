@@ -1,0 +1,38 @@
+# matt.pestle@auckland.ac.nz
+# April 2026
+
+# letsencrypt script to get a cert for our domain
+# After you get it, copy off /etc/letsencrypt and restore if you rebuild the VM
+
+DOMAIN=test.digitaltwins.auckland.ac.nz
+EMAIL=matt.pestle@auckland.ac.nz
+
+# After the initial cert has been issued with this script you just need to run
+#	docker compose down
+#	sudo certbot renew
+#	docker compose up -d
+# every 3 months.
+
+
+sudo certbot \
+	certonly \
+	--standalone \
+	-d $DOMAIN \
+	-m $EMAIL \
+	--agree-tos \
+	--non-interactive \
+	--no-eff-email || exit $?
+
+# files
+FULLCHAIN=/etc/letsencrypt/live/$DOMAIN/fullchain.pem
+PRIVKEY=/etc/letsencrypt/live/$DOMAIN/privkey.pem
+
+# target files
+TFULLCHAIN=~/digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs/${DOMAIN}.crt
+TPRIVKEY=~/digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs/${DOMAIN}.key
+
+sudo cp $FULLCHAIN $TFULLCHAIN
+sudo cp $PRIVKEY   $TPRIVKEY
+
+sudo chown $USER: $TFULLCHAIN
+sudo chown $USER: $TPRIVKEY
