@@ -4,8 +4,8 @@ services:
     container_name: digitaltwins-orthanc
     init: true
     ports:
-      - "${ORTHANC_HTTP_PORT:-8042}:8042" # Web UI and REST API
-      - "${ORTHANC_DICOM_PORT:-4242}:4242" # DICOM protocol
+      - "${ORTHANC_BIND_ADDRESS:-0.0.0.0}:${ORTHANC_HTTP_PORT:-8042}:8042"  # Web UI and REST API
+      - "${ORTHANC_BIND_ADDRESS:-0.0.0.0}:${ORTHANC_DICOM_PORT:-4242}:4242"  # DICOM protocol
     volumes:
       - ./orthanc.json:/etc/orthanc/orthanc.json:ro
       - orthanc_data:/var/lib/orthanc/db
@@ -27,6 +27,6 @@ volumes:
   orthanc_data:
     driver: local
 
-networks:
-  digitaltwins:
-    driver: bridge
+#networks:
+#  digitaltwins:
+#    driver: bridge

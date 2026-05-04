@@ -1,6 +1,7 @@
 services:
   jupyterlab:
     image: jupyter/base-notebook:lab-4.0.7
+    container_name: jupyterlab
     user: root
     environment:
       - NB_UID=1000
@@ -8,17 +9,25 @@ services:
       - CHOWN_HOME=yes
       - CHOWN_HOME_OPTS=-R
       - JUPYTER_TOKEN=${JUPYTERLAB_TOKEN:-admin}
+      - JUPYTER_BASE_URL=${JUPYTER_BASE_URL:-/jupyter}
+      - JUPYTER_ALLOW_ORIGIN=${JUPYTER_ALLOW_ORIGIN:-https://test.digitaltwins.auckland.ac.nz}
+    networks:
+      - digitaltwins
     ports:
-      - "8008:8888"
+      - "${JUPYTERLAB_BIND_ADDRESS:-0.0.0.0}:${JUPYTERLAB_BIND_PORT:-8008}:8888"
     volumes:
       - notebook_workspace:/home/jovyan/work
-    command: start-notebook.sh
+    command: >
+      start-notebook.sh
+      --NotebookApp.base_url="${JUPYTER_BASE_URL:-/jupyter}"
+      --NotebookApp.allow_origin="${JUPYTER_ALLOW_ORIGIN:-https://test.digitaltwins.auckland.ac.nz}"
+      --NotebookApp.trust_xheaders=True
     restart: unless-stopped
 
 volumes:
   notebook_workspace:
     driver: local
 
-networks:
-  digitaltwins:
-    driver: bridge
+#networks:
+#  digitaltwins:
+#    driver: bridge

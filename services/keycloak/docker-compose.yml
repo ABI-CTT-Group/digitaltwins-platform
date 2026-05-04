@@ -6,14 +6,24 @@
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.3.2
+    container_name: keycloak
     command:
-      - start-dev
+      - start
+      - --http-enabled=true
       - --import-realm # will only import once on the first startup
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}
-    ports:
-      - "8009:8080"
+      KC_HOSTNAME_PATH: /auth
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HOSTNAME_STRICT: true
+      KC_HOSTNAME_STRICT_HTTPS: true
+      KC_PROXY: edge
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME: test.digitaltwins.auckland.ac.nz
+#    ports:
+#      - "${KEYCLOAK_BIND_ADDRESS:-0.0.0.0}:8009:8443"
+#      - "8009:8080"
     volumes:
       - ./import:/opt/keycloak/data/import
       - keycloak_data:/opt/keycloak/data
@@ -25,9 +35,9 @@ volumes:
   keycloak_data:
     driver: local
 
-networks:
-  digitaltwins:
-    driver: bridge
+#networks:
+#  digitaltwins:
+#    driver: bridge
 
 # Keycloak Admin Console
 # http://localhost:8080/admin
