@@ -84,6 +84,63 @@ def _reconcile_plugin_state():
         logger.error(f"Reconcile failed: {e}")
 
 
+def _cleanup_orphan_staging(max_age_hours: float = 24):
+    """Remove tmp/upload_* directories older than max_age_hours that aren't
+    referenced by any Plugin/Workflow record. Called at startup to bound disk usage
+    when users upload but never complete the wizard."""
+    import time
+    from pathlib import Path
+    from app.models.db_model import SessionLocal, Plugin, Workflow
+    from app.utils.utils import force_rmtree
+
+    tmp_dir = Path("./tmp")
+    if not tmp_dir.exists():
+        return
+
+    cutoff = time.time() - max_age_hours * 3600
+
+    def _staging_basename(local_path: str | None) -> str | None:
+        if not local_path:
+            return None
+        p = Path(local_path)
+        # local_archive_path may be the staging dir itself or an inner project root
+        for ancestor in (p, *p.parents):
+            if ancestor.name.startswith("upload_"):
+                return ancestor.name
+        return None
+
+    referenced: set[str] = set()
+    try:
+        with SessionLocal() as session:
+            for row in session.query(Plugin).filter(Plugin.local_archive_path.isnot(None)).all():
+                name = _staging_basename(row.local_archive_path)
+                if name:
+                    referenced.add(name)
+            for row in session.query(Workflow).filter(Workflow.local_archive_path.isnot(None)).all():
+                name = _staging_basename(row.local_archive_path)
+                if name:
+                    referenced.add(name)
+    except Exception as e:
+        logger.warning(f"Orphan-staging cleanup: failed to read DB references: {e}")
+        return
+
+    removed = 0
+    for entry in tmp_dir.iterdir():
+        if not entry.is_dir() or not entry.name.startswith("upload_"):
+            continue
+        if entry.name in referenced:
+            continue
+        try:
+            if entry.stat().st_mtime < cutoff:
+                force_rmtree(entry)
+                removed += 1
+        except Exception as e:
+            logger.warning(f"Failed to clean orphan staging {entry}: {e}")
+
+    if removed:
+        logger.info(f"Orphan-staging cleanup: removed {removed} stale upload dir(s)")
+
+
 def _shutdown_all_plugin_backends():
     """Force-stop all up=True plugin backends in one batch before portal-backend exits.
     Uses batch `docker rm -f` so multiple containers are killed in parallel by Docker."""
@@ -126,6 +183,7 @@ async def lifespan(app: FastAPI):
     load_dotenv()
     init_db()
     _reconcile_plugin_state()
+    _cleanup_orphan_staging()
     print("starting lifespan")
     yield
     # Shutdown: cascade-stop all plugin backends so they don't outlive portal-backend

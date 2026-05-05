@@ -367,6 +367,8 @@ class PluginBuilder:
         frontend_build_command = plugin.get("frontend_build_command", "npm run build")
         backend_folder = plugin.get("backend_folder", "unknown")
         backend_deploy_command = plugin.get("backend_deploy_command")
+        source_type = plugin.get("source_type", "github")
+        local_archive_path = plugin.get("local_archive_path")
         cloned_dir = None
         config = {}
 
@@ -377,36 +379,36 @@ class PluginBuilder:
             # Step 0: Check for existing metadata
             logger.info("Step 0: Checking for existing plugin metadata...")
 
-            # Step 1: Clone the repository or use local path
-            if is_git_url(repo_url):
+            # Step 1: Acquire project_dir from one of three sources.
+            # We treat both `github` and `local` as "owned temp dir" — assigning to
+            # cloned_dir so steps 5/6/7 (SPARC + MinIO upload + cleanup) trigger uniformly.
+            if source_type == "local":
+                logger.info("Step 1: Using uploaded local archive...")
+                if not local_archive_path:
+                    raise RuntimeError("source_type='local' but local_archive_path is missing")
+                project_dir = Path(local_archive_path)
+                if not project_dir.exists() or not project_dir.is_dir():
+                    raise RuntimeError(f"Local staging dir not found: {project_dir}")
+                cloned_dir = project_dir
+                logger.info(f"Using uploaded source from: {project_dir}")
+            elif is_git_url(repo_url):
                 logger.info("Step 1: Cloning repository...")
                 project_dir = clone_repository(self.tmp_dir, repo_url, logger, branch)
                 cloned_dir = project_dir  # Mark for cleanup
                 logger.info(f"Repository cloned to: {cloned_dir}")
             else:
-                logger.info("Step 1: Cloning repository...")
-                logger.info(f"DEBUG: repo_url = '{repo_url}' (type: {type(repo_url)}, length: {len(repo_url)})")
-                logger.info(f"DEBUG: repo_url.startswith('./plugins/') = {repo_url.startswith('./plugins/')}")
-                logger.info(f"DEBUG: repo_url.startswith('/plugins/') = {repo_url.startswith('/plugins/')}")
-
-                # For local paths, map them to the mounted volume
-                # If the path starts with ./plugins or /plugins, use it as-is
-                # Otherwise, assume it's a relative path under /plugins
+                # DEPRECATED: dev mount path (`./plugins/<name>` or `/plugins/<name>`).
+                # No volume is bound in production docker-compose, so this branch is dead
+                # code in normal deploys. Kept for legacy local debugging via direct API
+                # calls; superseded by the /upload-source flow.
+                logger.info("Step 1: Using dev mount path (DEPRECATED)...")
                 if repo_url.startswith("./plugins/"):
-                    logger.info("DEBUG: Taking ./plugins/ branch")
-                    # Convert relative path to absolute within container
                     plugin_name = repo_url.replace("./plugins/", "")
                     project_dir = Path(f'/plugins/{plugin_name}')
                 elif repo_url.startswith('/plugins/'):
-                    logger.info("DEBUG: Taking /plugins/ branch")
-                    # Already an absolute path in the container
                     project_dir = Path(repo_url)
                 else:
-                    logger.info("DEBUG: Taking else branch")
-                    # Assume it's a plugin name/path under /plugins
-                    # Remove leading ./ if present
                     clean_path = repo_url.lstrip('./')
-                    logger.info(f"DEBUG: clean_path = '{clean_path}'")
                     project_dir = Path(f'/plugins/{clean_path}')
 
                 if not project_dir.exists():

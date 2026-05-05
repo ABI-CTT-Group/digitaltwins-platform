@@ -2,7 +2,8 @@ import os
 import json
 import yaml
 import uvicorn
-from fastapi import APIRouter, FastAPI, Depends, HTTPException, BackgroundTasks, Request, Query
+import zipfile
+from fastapi import APIRouter, FastAPI, Depends, HTTPException, BackgroundTasks, Request, Query, UploadFile, File
 from fastapi.responses import StreamingResponse, JSONResponse
 from app.database.database import get_db
 from sqlalchemy.orm import Session
@@ -35,7 +36,13 @@ from app.utils.workflow_tool_utils import (
     get_public_url_for_build,
     get_latest_build_record,
     shuttle_down_deployed_backend)
-from app.utils.builder_utils import execute_build_in_background
+from app.utils.builder_utils import (
+    execute_build_in_background,
+    extract_uploaded_archive,
+    inspect_uploaded_source,
+    read_root_cwl,
+    resolve_project_root,
+)
 from uuid import UUID
 from app.utils.utils import force_rmtree, is_empty
 from fhir_cda import Annotator
@@ -162,10 +169,77 @@ async def check_name(name: str, db: Session = Depends(get_db)):
     return {"available": True, "message": "Name is available"}
 
 
+@router.post("/upload-source")
+async def upload_tool_source(file: UploadFile = File(...)):
+    """Receive a zip archive of a plugin source folder, extract to staging, and return metadata.
+
+    The returned `upload_id` is later passed to /create as `upload_id` to register a
+    local-source plugin. The staging dir lives under the builder's tmp_dir.
+    """
+    tmp_zip = builder.tmp_dir / f"upload_archive_{uuid.uuid4().hex[:8]}.zip"
+    try:
+        with open(tmp_zip, "wb") as out:
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                out.write(chunk)
+
+        try:
+            staging = extract_uploaded_archive(builder.tmp_dir, tmp_zip)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except zipfile.BadZipFile:
+            raise HTTPException(status_code=400, detail="Uploaded file is not a valid zip archive")
+
+        meta = inspect_uploaded_source(staging, want_npm=True, want_cwl=False)
+        logger.info(f"Tool source uploaded: upload_id={staging.name}, meta={meta}")
+
+        return {
+            "upload_id": staging.name,
+            "folders_in_root": meta["folders_in_root"],
+            "package_version": meta["package_version"],
+            "package_author": meta["package_author"],
+            "has_cwl": meta["has_cwl"],
+        }
+    finally:
+        if tmp_zip.exists():
+            try:
+                tmp_zip.unlink()
+            except Exception as e:
+                logger.warning(f"Failed to remove temp zip {tmp_zip}: {e}")
+
+
 @router.post("/create", response_model=PluginResponse)
 async def create_tool_plugin(plugin: PluginCreate, db: Session = Depends(get_db)):
+    data = plugin.model_dump()
+    upload_id = data.pop("upload_id", None)
+    local_archive_path = None
 
-    db_plugin = Plugin(**plugin.model_dump())
+    if plugin.source_type == "local":
+        if not upload_id:
+            raise HTTPException(
+                status_code=400,
+                detail="upload_id is required when source_type='local'",
+            )
+        staging = (builder.tmp_dir / upload_id).resolve()
+        if not staging.exists() or not staging.is_dir():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Staging directory not found for upload_id={upload_id}. The upload may have expired or already been built.",
+            )
+        # Strip a single wrapper directory if the zip was packaged that way
+        local_archive_path = str(resolve_project_root(staging))
+        # Placeholder so the NOT NULL repository_url column is satisfied and logs stay readable
+        data["repository_url"] = f"local://{upload_id}"
+    else:
+        if not data.get("repository_url"):
+            raise HTTPException(
+                status_code=400,
+                detail="repository_url is required when source_type='github'",
+            )
+
+    db_plugin = Plugin(**data, local_archive_path=local_archive_path)
     db.add(db_plugin)
     db.commit()
     db.refresh(db_plugin)
@@ -285,6 +359,8 @@ async def execute_build(
         "label": plugin.label,
         "has_backend": plugin.has_backend,
         "repo_url": plugin.repository_url,
+        "source_type": plugin.source_type,
+        "local_archive_path": plugin.local_archive_path,
         "frontend_folder": plugin.frontend_folder,
         "frontend_build_command": plugin.frontend_build_command,
         "backend_folder": plugin.backend_folder,
@@ -337,6 +413,32 @@ async def get_plugin_builds(plugin_id: str, skip: int = 0, limit: int = 100, db:
 
     builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).offset(skip).limit(limit).all()
     return builds
+
+@router.get("/plugin/{plugin_id}/cwl")
+async def get_plugin_cwl(plugin_id: str, db: Session = Depends(get_db)):
+    """Read the root .cwl file for a local-source plugin from its staging dir.
+    Used by the annotation step in local mode (github mode still hits GitHub directly)."""
+    plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
+    if plugin is None:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    if plugin.source_type != "local" or not plugin.local_archive_path:
+        raise HTTPException(
+            status_code=400,
+            detail="Plugin is not a local-source plugin; use GitHub API for github plugins",
+        )
+
+    staging = Path(plugin.local_archive_path)
+    if not staging.exists() or not staging.is_dir():
+        raise HTTPException(
+            status_code=410,
+            detail="Staging directory has been removed (build already completed?)",
+        )
+
+    result = read_root_cwl(staging)
+    if result is None:
+        raise HTTPException(status_code=404, detail="No .cwl file found at the root of the uploaded folder")
+    return result
+
 
 @router.get("/plugin/{plugin_id}/annotation", response_model=PluginAnnotationResponse)
 async def get_plugin_annotations(plugin_id: str, db: Session = Depends(get_db)):

@@ -46,6 +46,8 @@ class Plugin(Base):
     description = Column(Text, nullable=True)
     author = Column(String, nullable=True)
     repository_url = Column(String, nullable=False)
+    source_type = Column(String, nullable=False, default="github")
+    local_archive_path = Column(String, nullable=True)
     plugin_metadata = Column(JSON, nullable=True)
     label = Column(Enum("GUI", "Script", name="plugin_label"), nullable=False)
     has_backend = Column(Boolean, nullable=False, default=True)
@@ -128,6 +130,8 @@ class Workflow(Base):
     description = Column(Text, nullable=True)
     author = Column(String, nullable=True)
     repository_url = Column(String, nullable=False)
+    source_type = Column(String, nullable=False, default="github")
+    local_archive_path = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -175,7 +179,8 @@ class WorkflowAnnotation(Base):
 class PluginBase(BaseModel):
     name: str
     version: str
-    repository_url: str
+    repository_url: Optional[str] = None
+    source_type: Literal["github", "local"] = "github"
     frontend_folder: str
     frontend_build_command: str
     label: Literal["GUI", "Script"]
@@ -188,7 +193,7 @@ class PluginBase(BaseModel):
 
 
 class PluginCreate(PluginBase):
-    pass
+    upload_id: Optional[str] = None  # client-supplied at create-time only; resolved to local_archive_path server-side
 
 
 class PluginUpdate(PluginBase):
@@ -202,6 +207,7 @@ class PluginResponse(PluginBase):
     uuid: Optional[str] = None
     plugin_metadata: Optional[dict] = None
     workflow_ids: Optional[List[str]] = None
+    local_archive_path: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -285,18 +291,20 @@ class PluginAnnotationResponse(AnnotationBase):
 class WorkflowBase(BaseModel):
     name: str
     version: str
-    repository_url: str
+    repository_url: Optional[str] = None
+    source_type: Literal["github", "local"] = "github"
     description: Optional[str] = None
     author: Optional[str] = None
 
 
 class WorkflowCreate(WorkflowBase):
-    pass
+    upload_id: Optional[str] = None  # client-supplied at create-time only; resolved to local_archive_path server-side
 
 
 class WorkflowResponse(WorkflowBase):
     id: str
     uuid: Optional[str] = None
+    local_archive_path: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
