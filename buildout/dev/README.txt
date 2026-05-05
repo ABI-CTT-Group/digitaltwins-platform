@@ -63,11 +63,6 @@ The steps will be
 
 - docker compose down
 
-- Set these parameters in ~/digitaltwins-platform/services/airflow/config/airflow.cfg :
-    base_url = https://test.digitaltwins.auckland.ac.nz/airflow
-    enable_proxy_fix = True
-  These are required to get the /airflow proxy functioning correctly.
-
 - docker compose up -d
 
 - Now you should be able to open your browser to
@@ -225,3 +220,5 @@ ansible-playbook -i 'localhost,' -c local \
   -e "install_src_dir=/mnt/install_src/airgap" \
   /mnt/install_src/install_observability_airgap.yaml
 
+After that, this should work:
+	https://test.digitaltwins.auckland.ac.nz/grafana (observability, integrated with keycloak)
