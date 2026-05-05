@@ -13,7 +13,14 @@
 BRANCH0=main_buildout
 BRANCH1=main_buildout
 
-rm -rf digitaltwins-platform
+[[ -d clean_src ]] && {
+    echo "clean_src directory already exists. remove it first"
+    exit 1
+}
+
+mkdir clean_src || exit
+cd clean_src || exit
+
 git clone git@github.com:ABI-CTT-Group/digitaltwins-platform.git
 
 cd digitaltwins-platform
@@ -36,3 +43,7 @@ do
     cd -
     echo
 done
+
+cd ../..
+tar cvf clean_src.tar --exclude=.git clean_src
+

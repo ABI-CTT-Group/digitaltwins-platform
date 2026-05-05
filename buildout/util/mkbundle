@@ -1,0 +1,9 @@
+#!/bin/bash
+# Create the install_src archive of the install_src directory.
+# To be run from the /mnt/install_src directory
+# when you have it all set up with all the cache objects required
+# and data/* entries that are needed
+
+BUNDLE_NAME=$HOME/install_src.tar.gz
+
+tar -czvf $BUNDLE_NAME --exclude=$BUNDLE_NAME --exclude=.git .
