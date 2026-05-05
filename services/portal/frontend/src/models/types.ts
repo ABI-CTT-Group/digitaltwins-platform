@@ -55,10 +55,12 @@ export interface AssayDataset {
   name: string;
 }
 
+export type SourceType = "github" | "local";
+
 export interface ToolInformationStep {
     name: string;
     version: string;
-    repositoryUrl: string;
+    repositoryUrl?: string;
     label: "GUI" | "Script";
     hasBackend: boolean;
     frontendFolder: string;
@@ -68,6 +70,8 @@ export interface ToolInformationStep {
     description?: string ;
     author?: string;
     toolMetadata: any;
+    sourceType: SourceType;
+    uploadId?: string;
 }
 
 export interface CheckNameResponse {
@@ -94,6 +98,8 @@ export interface ToolResponse {
     latestDeployId?: string
     createdAt: string
     updatedAt: string
+    sourceType?: SourceType
+    localArchivePath?: string
 }
 
 export interface BuildResponse {
@@ -168,9 +174,11 @@ export interface GitContent {
 export interface WorkflowInformationStep {
     name: string;
     version: string;
-    repositoryUrl: string;
+    repositoryUrl?: string;
     description?: string ;
     author?: string;
+    sourceType: SourceType;
+    uploadId?: string;
 }
 
 export interface WorkflowResponse {
@@ -184,6 +192,8 @@ export interface WorkflowResponse {
     latestBuildId?: string
     createdAt: string;
     updatedAt: string;
+    sourceType?: SourceType;
+    localArchivePath?: string;
 }
 
 interface AnnotateToolInput{

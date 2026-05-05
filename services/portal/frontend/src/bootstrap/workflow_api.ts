@@ -45,3 +45,7 @@ export async function useWorkflowApproval(workflowId:string) {
   const res = http.get(`/workflow/${workflowId}/approval`)
   return res;
 }
+
+export async function useGetWorkflowLocalCwl(id: string): Promise<{ cwlFile: string; content: string }> {
+  return http.get<{ cwlFile: string; content: string }>(`/workflow/${id}/cwl`);
+}

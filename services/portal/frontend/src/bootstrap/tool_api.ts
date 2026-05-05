@@ -93,3 +93,7 @@ export async function useGetWorkflowToolAnnotation(id:string){
   const res = http.get<AnnotationResponse>(`/tools/plugin/${id}/annotation`)
   return res;
 }
+
+export async function useGetToolLocalCwl(id: string): Promise<{ cwlFile: string; content: string }> {
+  return http.get<{ cwlFile: string; content: string }>(`/tools/plugin/${id}/cwl`);
+}

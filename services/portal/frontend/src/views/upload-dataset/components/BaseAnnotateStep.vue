@@ -143,7 +143,8 @@ import { getRepoContents, getRepoRootCWLContent } from '@/views/upload-dataset/c
 import type { GitContent } from '@/models/types';
 import yaml from 'js-yaml';
 import NoData from '@/views/upload-dataset/components/NoData.vue';
-import { useWorkflowTools, useGetWorkflowToolAnnotation } from '@/bootstrap/tool_api';
+import { useWorkflowTools, useGetWorkflowToolAnnotation, useGetToolLocalCwl } from '@/bootstrap/tool_api';
+import { useGetWorkflowLocalCwl } from '@/bootstrap/workflow_api';
 
 // ---- props / emits --------------------------------------------------------
 const props = defineProps<{
@@ -176,6 +177,37 @@ const toolItems = computed(() =>
 // ---- tool-specific state --------------------------------------------------
 const annotateTool = ref<AnnotateTool>({ name: '', inputs: [], outputs: [] });
 
+// ---- helpers --------------------------------------------------------------
+function parseCwlText(raw: string): any {
+  try { return yaml.load(raw); }
+  catch { return JSON.parse(raw); }
+}
+
+async function loadWorkflowCwl(workflow: WorkflowResponse): Promise<{ cwlFile: string; content: any }> {
+  if (workflow.sourceType === 'local') {
+    const { cwlFile, content } = await useGetWorkflowLocalCwl(workflow.id);
+    return { cwlFile, content: parseCwlText(content) };
+  }
+  // GitHub fallback (default).
+  const res = await getRepoContents(workflow.repositoryUrl);
+  const files = res!.data as GitContent[];
+  let cwlFile = '';
+  files.forEach((item: GitContent) => {
+    if (item.type === 'file' && item.name.endsWith('.cwl')) { cwlFile = item.name; }
+  });
+  const contentRes = await getRepoContents(workflow.repositoryUrl, cwlFile);
+  const raw = atob((contentRes.data.content as string).replace(/\n/g, ''));
+  return { cwlFile, content: parseCwlText(raw) };
+}
+
+async function loadToolCwl(tool: ToolResponse): Promise<{ cwlFile: string; content: any }> {
+  if (tool.sourceType === 'local') {
+    const { cwlFile, content } = await useGetToolLocalCwl(tool.id);
+    return { cwlFile, content: parseCwlText(content) };
+  }
+  return getRepoRootCWLContent(tool.repositoryUrl);
+}
+
 // ---- lifecycle ------------------------------------------------------------
 onMounted(async () => {
   if (props.type === 'workflow') {
@@ -183,21 +215,12 @@ onMounted(async () => {
     if (!workflow) { console.warn('No workflow info in annotation stepper.'); return; }
 
     workflowTools.value = await useWorkflowTools();
-
-    const res = await getRepoContents(workflow.repositoryUrl);
-    const files = res!.data as GitContent[];
-    let cwlFile = '';
-    files.forEach((item: GitContent) => {
-      if (item.type === 'file' && item.name.endsWith('.cwl')) { cwlFile = item.name; }
-    });
-    const contentRes = await getRepoContents(workflow.repositoryUrl, cwlFile);
-    const raw = atob((contentRes.data.content as string).replace(/\n/g, ''));
-    try { cwlObj.value = yaml.load(raw); }
-    catch { cwlObj.value = JSON.parse(raw); }
+    const { content } = await loadWorkflowCwl(workflow);
+    cwlObj.value = content;
   } else {
     const tool = props.data as ToolResponse | undefined;
     if (!tool) { console.warn('No workflow tool info in annotation stepper.'); return; }
-    const { cwlFile, content } = await getRepoRootCWLContent(tool.repositoryUrl);
+    const { cwlFile, content } = await loadToolCwl(tool);
     annotateTool.value.name = cwlFile.replace(/\.cwl$/, '');
     cwlObj.value = content;
   }
