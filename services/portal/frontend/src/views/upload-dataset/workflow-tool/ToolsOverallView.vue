@@ -1,5 +1,6 @@
 ﻿<template>
   <RegistryView
+    ref="registryRef"
     register-label="Register a new workflow tool"
     search-label="Search workflow tools"
     :fetch-list="useWorkflowTools"
@@ -18,7 +19,7 @@
         @deploy="(id) => handleDeploy(id)"
         @compose-up="(id) => handleExecuteDockerCompose(id, 'up')"
         @compose-down="(id) => handleExecuteDockerCompose(id, 'down')"
-        @delete="(id) => handleDeleteTool(id)"
+        @delete="handleDeleteTool"
         @submit-approve="(id) => handleToolApproval(id)"
       />
     </template>
@@ -34,7 +35,6 @@ import {
   useWorkflowTools,
   useToolMetadata,
   useWorkflowToolBuild,
-  useDeleteTool,
   useToolApproval,
   useDeployTool,
   useDockerCompose,
@@ -48,6 +48,7 @@ const router = useRouter();
 const remoteAppStore = useRemoteAppStore();
 const toast = useToast();
 const dockerComposeBusy = ref(false);
+const registryRef = ref<{ handleRefresh: () => Promise<void> }>();
 
 const emit = defineEmits(['register']);
 
@@ -73,14 +74,16 @@ const handleLaunch = async (id: string) => {
 
 const handleRebuild = async (id: string) => {
   await useWorkflowToolBuild(id);
+  await registryRef.value?.handleRefresh();
 };
 
 const handleDeploy = async (id: string) => {
   await useDeployTool(id);
+  await registryRef.value?.handleRefresh();
 };
 
-const handleDeleteTool = async (res: any) => {
-  // RegistryView auto-refreshes; nothing extra needed
+const handleDeleteTool = async () => {
+  await registryRef.value?.handleRefresh();
 };
 
 const handleExecuteDockerCompose = async (id: string, command: 'up' | 'down') => {

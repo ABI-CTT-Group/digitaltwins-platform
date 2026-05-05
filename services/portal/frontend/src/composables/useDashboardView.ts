@@ -27,8 +27,8 @@ export function useDashboardView(isClinicianView: boolean) {
     const getDashboardProgrammes = async () => {
         dashboardProgrammes.value = await useDashboardProgrammes();
     };
-    const getDashboardCategoryChildren = async (seek_id: string, category: string) => {
-        dashboardCategoryChildren.value = await useDashboardCategoryChildren(seek_id, category);
+    const getDashboardCategoryChildren = async (seekId: string, category: string) => {
+        dashboardCategoryChildren.value = await useDashboardCategoryChildren(seekId, category);
     };
     const saveAssayDetails = async (body: AssayDetails): Promise<boolean> => {
         return await useSaveAssayDetails(body);
@@ -90,8 +90,8 @@ export function useDashboardView(isClinicianView: boolean) {
         breadCrumbsItems.value.splice(index + 1);
     };
 
-    const handleAssayEditClicked = (_seek_id: string, _name: string) => {
-        setCurrentAssayDetails(allAssayDetailsOfStudy.value[_seek_id]);
+    const handleAssayEditClicked = (_seekId: string, _name: string) => {
+        setCurrentAssayDetails(allAssayDetailsOfStudy.value[_seekId]);
     };
 
     const handleAssaySave = async () => {
@@ -109,33 +109,33 @@ export function useDashboardView(isClinicianView: boolean) {
         }
     };
 
-    const handleAssayUploadClicked = async (_assay_seek_id: string) => {
+    const handleAssayUploadClicked = async (_assaySeekId: string) => {
         submitDialog.value = true;
         submitState.value = 'waiting';
         toast.info('Submit feature is being migrated to the portal backend; not available right now.');
         submitState.value = 'unavailable';
     };
 
-    const handleAssayDownloadClicked = async (_assay_seek_id: string) => {
+    const handleAssayDownloadClicked = async (_assaySeekId: string) => {
         downloadDialog.value = true;
         downloadZipProgressValue.value = 0;
         toast.info('Download feature is being migrated to the portal backend; not available right now.');
     };
 
-    const handleAssayVerifyClicked = async (assay_seek_id: string) => {
-        const workflowUUID = allAssayDetailsOfStudy.value[assay_seek_id].workflow.uuid;
+    const handleAssayVerifyClicked = async (assaySeekId: string) => {
+        const workflowUUID = allAssayDetailsOfStudy.value[assaySeekId].workflow.uuid;
         window.open(`${import.meta.env.VITE_JUPYTER_BASE_URL}/lab/tree/workflow_outputs/${workflowUUID}/verify.ipynb`, '_blank');
     };
 
-    const handleAssayMonitorClicked = async (assay_seek_id: string) => {
-        window.open(assayExecute.value![assay_seek_id].url, '_blank');
+    const handleAssayMonitorClicked = async (assaySeekId: string) => {
+        window.open(assayExecute.value![assaySeekId].url, '_blank');
     };
 
-    const handleAssayLaunchClicked = async (assay_seek_id: string) => {
-        setCurrentAssayDetails(allAssayDetailsOfStudy.value[assay_seek_id]);
-        setAssayLaunching(assay_seek_id, true);
+    const handleAssayLaunchClicked = async (assaySeekId: string) => {
+        setCurrentAssayDetails(allAssayDetailsOfStudy.value[assaySeekId]);
+        setAssayLaunching(assaySeekId, true);
         try {
-            const res = await useDashboardGetAssayLaunch(assay_seek_id);
+            const res = await useDashboardGetAssayLaunch(assaySeekId);
             if (!res) {
                 toast.warning('Launch is not available for this assay. Please check the configuration.');
                 return;
@@ -143,7 +143,7 @@ export function useDashboardView(isClinicianView: boolean) {
             if (res.message) {
                 toast.info(res.message, { timeout: 6000 });
             } else if (res.type === 'airflow') {
-                setAssayExecute(assay_seek_id, 'Monitor', res.data);
+                setAssayExecute(assaySeekId, 'Monitor', res.data);
                 toast.success('Workflow launched successfully. Click Monitor to track progress.');
             } else if (res.type === 'EP3 workflow launch') {
                 window.open(res.data, '_blank');
@@ -151,15 +151,15 @@ export function useDashboardView(isClinicianView: boolean) {
         } catch (e: any) {
             toast.error(getApiErrorMessage(e, 'Launch'));
         } finally {
-            setAssayLaunching(assay_seek_id, false);
+            setAssayLaunching(assaySeekId, false);
         }
     };
 
-    const handleAssayExpandClicked = (assay_seek_id: string, _name: string) => {
-        router.push({ name: 'LaunchedAssayOverview', query: { assayId: assay_seek_id } });
+    const handleAssayExpandClicked = (assaySeekId: string, _name: string) => {
+        router.push({ name: 'LaunchedAssayOverview', query: { assayId: assaySeekId } });
     };
 
-    const handleExploreClicked = async (seek_id: string, name: string, category: string, des: string) => {
+    const handleExploreClicked = async (seekId: string, name: string, category: string, des: string) => {
         try {
             const explored = exploredCard.value.find(item => item.category === category);
             if (!explored) {
@@ -168,7 +168,7 @@ export function useDashboardView(isClinicianView: boolean) {
                 explored.data = currentCategoryData.value;
             }
 
-            await getDashboardCategoryChildren(seek_id, category);
+            await getDashboardCategoryChildren(seekId, category);
 
             detailsRenderItems.value.categories.push({ category, name, description: reWriteCategoryDetails(category) });
             detailsRenderItems.value.description = des;

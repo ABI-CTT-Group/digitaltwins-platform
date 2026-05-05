@@ -1,5 +1,6 @@
 <template>
   <RegistryView
+    ref="registryRef"
     register-label="Register a new workflow"
     search-label="Search workflows"
     :fetch-list="useWorkflow"
@@ -11,7 +12,7 @@
         v-for="w in items"
         :key="w.id"
         :workflow="w"
-        @delete="(id) => handleDeleteWorkflow(id)"
+        @delete="handleDeleteWorkflow"
         @submit-approve="(id) => handleWorkflowApproval(id)"
       />
     </template>
@@ -21,18 +22,20 @@
 <script setup lang="ts">
 // @ts-ignore - vue-toastification is installed but missing type declarations
 import { useToast } from 'vue-toastification';
+import { ref } from 'vue';
 import RegistryView from '../components/RegistryView.vue';
 import WorkflowCard from '../components/WorkflowCard.vue';
 import { useWorkflow, useDeleteWorkflow, useWorkflowApproval } from '@/bootstrap/workflow_api';
 
 const toast = useToast();
+const registryRef = ref<{ handleRefresh: () => Promise<void> }>();
 const emit = defineEmits(['register']);
 
 const handleRegister = () => emit('register');
 
 const handleDeleteWorkflow = async (id: string) => {
   await useDeleteWorkflow(id);
-  // RegistryView auto-refreshes via its own poll; no manual refresh needed
+  await registryRef.value?.handleRefresh();
 };
 
 const handleWorkflowApproval = async (id: string) => {

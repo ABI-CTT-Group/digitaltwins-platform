@@ -218,6 +218,7 @@ const onSubmit = () => {
 }
 const onDeploy = () => {
     menu.value = false;
+    tool.value.deployStatus = "deploying"
     emit("deploy", tool.value.id)
 }
 const onDockerComposeUp = () => {

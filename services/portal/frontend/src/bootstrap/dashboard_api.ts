@@ -1,4 +1,4 @@
-﻿import http from "./http";
+import http from "./http";
 import { DashboardCategory, DashboardWorkflow, AssayDetails, AssayLaunch, AssayDataset, SeekAssayDetails } from "@/models/types";
 
 export async function useDashboardProgrammes() {
@@ -6,8 +6,8 @@ export async function useDashboardProgrammes() {
     return programmes;
 }
 
-export async function useDashboardCategoryChildren(seek_id: string, category: string) {
-    const details = http.get<DashboardCategory[]>("/dashboard/category-children", { seek_id, category });
+export async function useDashboardCategoryChildren(seekId: string, category: string) {
+    const details = http.get<DashboardCategory[]>("/dashboard/category-children", { seekId, category });
     return details;
 }
 
@@ -16,13 +16,13 @@ export async function useDashboardWorkflows() {
     return workflows;
 }
 
-export async function useDashboardWorkflowDetail(seek_id: string) {
-    const details = http.get<DashboardWorkflow>("/dashboard/workflow-detail", { seek_id });
+export async function useDashboardWorkflowDetail(seekId: string) {
+    const details = http.get<DashboardWorkflow>("/dashboard/workflow-detail", { seekId });
     return details;
 }
 
-export async function useDashboardSeekAssay(seek_id: string) {
-    const details = http.get<SeekAssayDetails>(`/dashboard/assays/${seek_id}`);
+export async function useDashboardSeekAssay(seekId: string) {
+    const details = http.get<SeekAssayDetails>(`/dashboard/assays/${seekId}`);
     return details;
 }
 
@@ -31,12 +31,12 @@ export async function useSaveAssayDetails(body: AssayDetails) {
     return success;
   }
 
-export async function useDashboardGetAssayConfigDetails(seek_id: string) {
-    const details = http.get<AssayDetails>("/dashboard/assay-details", { seek_id });
+export async function useDashboardGetAssayConfigDetails(seekId: string) {
+    const details = http.get<AssayDetails>("/dashboard/assay-details", { seekId });
     return details;
 }
-export async function useDashboardGetAssayLaunch(seek_id: string) {
-    const details = http.get<AssayLaunch>("/dashboard/assay-launch", { seek_id });
+export async function useDashboardGetAssayLaunch(seekId: string) {
+    const details = http.get<AssayLaunch>("/dashboard/assay-launch", { seekId });
     return details;
 }
 export async function useDashboardGetDatasets(category: string) {
@@ -47,4 +47,3 @@ export async function useDashboardSelectedDatasetSampleTypes(uuid: string) {
     const sampleTypes = http.get<string[]>("/dashboard/dataset-detail", { uuid });
     return sampleTypes;
 }
-

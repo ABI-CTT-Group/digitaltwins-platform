@@ -28,10 +28,10 @@ const search = defineModel('search', {
     type: String,
     required: true
 })
-const emit = defineEmits(["on:search"])
+const emit = defineEmits(["search"])
 
 function handleSearch() {
-    emit('on:search')
+    emit('search')
 }
 
 </script>

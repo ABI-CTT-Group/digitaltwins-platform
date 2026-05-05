@@ -13,7 +13,7 @@
                     <span class="w-25">{{ capitalize(data.input.name.replaceAll("_", " ")) }}:</span>
                     <div class="w-50 mx-1">
                         <v-select
-                            v-model="data.datasetSelectedUUID"
+                            v-model="data.datasetSelectedUuid"
                             :label="`Select ${ capitalize(data.input.category) } Dataset`"
                             :items="!!workflowInputDatasetSamples[data.input.name]?workflowInputDatasetSamples[data.input.name].datasetRenderItems:[]"
                             item-title="name"
@@ -160,6 +160,8 @@ onBeforeMount(()=>{
 
 onMounted(async () => {
 
+    console.log("assay content: ",assayDetails.value);
+    
     if (assayDetails.value?.numberOfParticipants?.length) {
         cohortsParticipants.value = compressRangeList(assayDetails.value.numberOfParticipants);
     }
@@ -181,8 +183,8 @@ onMounted(async () => {
     for (const inputData of inputs) {
         const { name, category } = inputData.input;
         const datasets = await getDatasets(category);
-        const sampleTypes = category === "measurement" && inputData.datasetSelectedUUID
-            ? await useDashboardSelectedDatasetSampleTypes(inputData.datasetSelectedUUID)
+        const sampleTypes = category === "measurement" && inputData.datasetSelectedUuid
+            ? await useDashboardSelectedDatasetSampleTypes(inputData.datasetSelectedUuid)
             : [];
         workflowInputDatasetSamples.value[name] = {
             category,
@@ -201,7 +203,7 @@ const handleDatasetSelected = async (value: string, inputName:string, inputCateg
     }
     
     assayDetails.value!.workflow.inputs.find(data => {
-        if (data.datasetSelectedUUID === value && data.input.name === inputName) {
+        if (data.datasetSelectedUuid === value && data.input.name === inputName) {
             data.sampleSelectedType = "";
         }
     })

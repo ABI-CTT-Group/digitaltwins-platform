@@ -110,12 +110,10 @@ location {route_prefix}/ {{
             raise Exception("Docker compose file is not exist")
 
     @staticmethod
-    def _compose_execute(backend_dir: Path, command: str, extra_env: dict = None):
+    def _compose_execute(backend_dir: Path, command: str, extra_env: dict = None) -> int:
+        """Run a docker compose command. Returns the process exit code (0 = success)."""
         try:
             logger.info(f"Running command {command} for deployment of {backend_dir}")
-            # Merge current process env with any extra vars (e.g. PLUGIN_ROUTE_PREFIX).
-            # docker compose picks up env vars from the process environment to substitute
-            # ${VAR} references in docker-compose.yml.
             env = os.environ.copy()
             if extra_env:
                 env.update(extra_env)
@@ -136,11 +134,14 @@ location {route_prefix}/ {{
                     logger.info("Docker compose command executed successfully.")
                 else:
                     logger.error(f"Docker compose command failed with return code: {return_code}")
+                return return_code
 
         except FileNotFoundError as e:
             logger.error(f"Docker or Docker Compose has not been installed or configured correctly. Error: {e}")
+            return -1
         except Exception as e:
             logger.error(f"An unexpected error occurred when running docker compose up: {e}")
+            return -1
 
     @staticmethod
     def _build_compose_command(
@@ -196,19 +197,19 @@ location {route_prefix}/ {{
         command = self._build_compose_command(expose_name, "up -d") if expose_name else "docker compose up -d"
 
         if backend_dir.exists():
-            try:
-                extra_env = {"PLUGIN_ROUTE_PREFIX": f"/plugin/{expose_name}"} if expose_name else None
-                self._compose_execute(backend_dir, command, extra_env=extra_env)
+            extra_env = {"PLUGIN_ROUTE_PREFIX": f"/plugin/{expose_name}"} if expose_name else None
+            rc = self._compose_execute(backend_dir, command, extra_env=extra_env)
+            if rc == 0:
                 logger.info(f"successfully run compose up for project '{expose_name}' at {backend_dir}")
                 return {
                     "success": True,
                     "message": f"successfully run compose up for project '{expose_name}' at {backend_dir}",
                 }
-            except Exception as e:
-                logger.error(f"Failed compose up for project '{expose_name}' at {backend_dir}, error: {e}")
+            else:
+                logger.error(f"Failed compose up for project '{expose_name}' at {backend_dir}, exit code {rc}")
                 return {
                     "success": False,
-                    "message": f"Failed compose up for project '{expose_name}' at {backend_dir}, error: {e}",
+                    "message": f"Failed compose up for project '{expose_name}' at {backend_dir}, exit code {rc}",
                 }
         else:
             logger.error(f"Docker compose up failed, backend_dir {backend_dir} does not exist")
@@ -224,28 +225,56 @@ location {route_prefix}/ {{
             return {"success": False, "backend_dir": None}
 
         backend_dir = Path(dir_path)
-        command = self._build_compose_command(expose_name, "down") if expose_name else "docker compose down"
+        # --timeout 0: skip SIGTERM grace period and force-kill immediately,
+        # avoiding the "tried to kill container, but did not receive an exit event" Docker bug
+        # when a container process is stuck in D-state (uninterruptible sleep).
+        action = "down --timeout 0"
+        command = self._build_compose_command(expose_name, action) if expose_name else f"docker compose {action}"
 
         if backend_dir.exists():
-            try:
-                self._compose_execute(backend_dir, command)
+            rc = self._compose_execute(backend_dir, command)
+            if rc == 0:
                 logger.info(f"successfully run compose down for project '{expose_name}' at {backend_dir}")
                 return {
                     "success": True,
                     "message": f"successfully run compose down for project '{expose_name}' at {backend_dir}",
                 }
-            except Exception as e:
-                logger.error(f"Failed compose down for project '{expose_name}' at {backend_dir}, error: {e}")
+            else:
+                logger.error(f"compose down exited with code {rc} for project '{expose_name}'; falling back to force-remove")
+                if expose_name:
+                    self._force_remove_project_containers(expose_name)
                 return {
-                    "success": False,
-                    "message": f"Failed compose down for project '{expose_name}' at {backend_dir}, error: {e}",
+                    "success": True,
+                    "message": f"compose down failed (exit {rc}); force-removed containers for project '{expose_name}'",
                 }
         else:
             logger.error(f"Docker compose down failed, backend_dir {backend_dir} does not exist")
+            if expose_name:
+                self._force_remove_project_containers(expose_name)
+                return {
+                    "success": True,
+                    "message": f"backend_dir {backend_dir} does not exist; force-removed containers for project '{expose_name}'",
+                }
             return {
                 "success": False,
                 "message": f"Docker compose down for {backend_dir} does not exist",
             }
+
+    def _force_remove_project_containers(self, expose_name: str) -> None:
+        """Force-remove all containers belonging to a compose project by label."""
+        try:
+            result = subprocess.run(
+                ["docker", "ps", "-a", "--filter", f"label=com.docker.compose.project={expose_name}", "--quiet"],
+                capture_output=True, text=True,
+            )
+            container_ids = [c.strip() for c in result.stdout.splitlines() if c.strip()]
+            if not container_ids:
+                logger.info(f"No containers found for project '{expose_name}'")
+                return
+            subprocess.run(["docker", "rm", "-f"] + container_ids, capture_output=True, text=True)
+            logger.info(f"Force-removed containers for project '{expose_name}': {container_ids}")
+        except Exception as e:
+            logger.warning(f"Failed to force-remove containers for project '{expose_name}': {e}")
 
     def delete(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -286,6 +315,66 @@ location {route_prefix}/ {{
                 "success": False,
                 "message": f"Removed all images and volumes failed, because {backend_dir} does not exist",
             }
+
+    def is_project_running(self, expose_name: str) -> str:
+        """Returns 'running' if any container is up, 'stopped' if exists but stopped, 'gone' if absent."""
+        if not expose_name:
+            return "gone"
+        try:
+            running = subprocess.run(
+                ["docker", "ps", "--filter",
+                 f"label=com.docker.compose.project={expose_name}", "--quiet"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if running.stdout.strip():
+                return "running"
+            all_ = subprocess.run(
+                ["docker", "ps", "-a", "--filter",
+                 f"label=com.docker.compose.project={expose_name}", "--quiet"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if all_.stdout.strip():
+                return "stopped"
+            return "gone"
+        except Exception as e:
+            logger.warning(f"Failed to check project status for '{expose_name}': {e}")
+            return "gone"
+
+    def shutdown_all_plugins(self, expose_names) -> dict:
+        """Force-remove all containers belonging to the given compose projects in one batch syscall.
+        This is the fast path used by the FastAPI shutdown hook — Docker handles the kills in parallel."""
+        if not expose_names:
+            return {"removed": []}
+
+        all_ids = []
+        for name in expose_names:
+            if not name:
+                continue
+            try:
+                result = subprocess.run(
+                    ["docker", "ps", "-a", "--filter",
+                     f"label=com.docker.compose.project={name}", "--quiet"],
+                    capture_output=True, text=True, timeout=10,
+                )
+                ids = [c.strip() for c in result.stdout.splitlines() if c.strip()]
+                all_ids.extend(ids)
+            except Exception as e:
+                logger.warning(f"Failed to list containers for project '{name}': {e}")
+
+        if not all_ids:
+            logger.info("No plugin containers to remove on shutdown")
+            return {"removed": []}
+
+        try:
+            subprocess.run(
+                ["docker", "rm", "-f"] + all_ids,
+                capture_output=True, text=True, timeout=30,
+            )
+            logger.info(f"Batch force-removed {len(all_ids)} plugin containers: {all_ids}")
+            return {"removed": all_ids}
+        except Exception as e:
+            logger.error(f"Batch container removal failed: {e}")
+            return {"removed": [], "error": str(e)}
 
     def _remove_volumes_by_prefix(self, expose_name: str) -> None:
         """Find and remove all Docker volumes whose names start with expose_name."""

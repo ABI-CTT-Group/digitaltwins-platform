@@ -22,8 +22,8 @@
 
       <!-- List panel -->
       <div class="d-flex flex-column w-100 my-2 pa-5 border-sm rounded registry-container">
-        <Search :label="searchLabel" v-model:search="search" @on:search="handleSearch" />
-        <Refresh @on:refresh="handleRefresh" />
+        <Search :label="searchLabel" v-model:search="search" @search="handleSearch" />
+        <Refresh @refresh="handleRefresh" />
         <div class="d-flex flex-grow-1">
           <div v-if="displayItems.length > 0" class="d-flex flex-wrap ga-10 pa-5 justify-start">
             <slot :items="displayItems" />

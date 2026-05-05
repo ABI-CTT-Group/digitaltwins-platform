@@ -17,13 +17,13 @@ export interface DashboardWorkflow {
 }
 
 interface IWorkflowInput {
-  input: { category: string; name: string; }; 
-  datasetSelectedUUID: string;
+  input: { category: string; name: string; };
+  datasetSelectedUuid: string;
   sampleSelectedType: string;
 }
-interface IWorkflowOutput { 
-  output: { category: string; name: string; }, 
-  datasetName: string, 
+interface IWorkflowOutput {
+  output: { category: string; name: string; },
+  datasetName: string,
   sampleName: string
 }
 

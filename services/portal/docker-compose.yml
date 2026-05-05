@@ -39,6 +39,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - nginx_plugin_configs:/nginx-plugins-conf
     restart: unless-stopped
+    # Give the lifespan shutdown hook time to batch-kill all plugin backends
+    # before Docker SIGKILLs portal-backend itself.
+    stop_grace_period: 60s
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000" ]
       interval: 30s
