@@ -302,6 +302,159 @@ class PluginBuilder:
             return False
 
 
+    # Required externalized deps for the portal's per-app Pinia isolation contract.
+    # If a plugin bundles its own copy of `pinia`, the per-app `createPinia()` instance
+    # in RemoteComponentApp.vue will NOT be the same library instance the plugin uses,
+    # so `defineStore` lookups fall back to a stray module-scope instance and isolation
+    # silently breaks. Same reasoning for `vue` (provide/inject + reactivity identity)
+    # and `vuetify` / `vue-toastification` (singleton plugins shared with the host).
+    _REQUIRED_EXTERNALIZED_DEPS = ("vue", "pinia", "vuetify", "vue-toastification")
+
+    @staticmethod
+    def _build_store_namespace_plugin_snippet(expose_name: str) -> str:
+        """
+        Build the inline Vite plugin source that rewrites `defineStore('foo', ...)`
+        into `defineStore('<expose>__foo', ...)` at transform time.
+
+        We deliberately keep this plugin string-injected (not a separate npm package)
+        so plugin authors don't need to add a dev-dependency.
+
+        Limitations:
+        - Only literal-string IDs are rewritten (single or double quotes).
+          `defineStore(useFooId, ...)` and template-literal IDs are left untouched —
+          per-app Pinia in the portal is the primary isolation; this rewrite is just
+          a secondary safety net.
+        - Skips files inside `node_modules`.
+        - Idempotent: store IDs that already start with the expose prefix are kept as-is.
+        """
+        # Sanitize: expose_name is already produced by `unique_name(plugin_name)` and
+        # safe for JS identifiers, but defend against quote injection regardless.
+        safe_expose = re.sub(r"[^A-Za-z0-9_\-]", "", expose_name)
+        return (
+            "    {\n"
+            "      name: 'portal-plugin-store-namespace',\n"
+            "      enforce: 'pre',\n"
+            "      transform(code, id) {\n"
+            "        if (!/\\.(ts|tsx|js|jsx|mjs|cjs|vue)(\\?.*)?$/.test(id)) return null;\n"
+            "        if (id.indexOf('node_modules') !== -1) return null;\n"
+            "        if (code.indexOf('defineStore(') === -1) return null;\n"
+            f"        var __ns = '{safe_expose}__';\n"
+            "        var changed = false;\n"
+            "        var out = code.replace(\n"
+            "          /defineStore\\(\\s*(['\"])([^'\"]+?)\\1/g,\n"
+            "          function (m, q, sid) {\n"
+            "            if (sid.indexOf(__ns) === 0) return m;\n"
+            "            changed = true;\n"
+            "            return 'defineStore(' + q + __ns + sid + q;\n"
+            "          }\n"
+            "        );\n"
+            "        if (!changed) return null;\n"
+            "        return { code: out, map: null };\n"
+            "      }\n"
+            "    },\n"
+        )
+
+    @classmethod
+    def _inject_store_namespace_plugin(cls, vite_config_file: Path, expose_name: str) -> bool:
+        """
+        Inject the per-expose store-namespacing Vite plugin at the head of the
+        first `plugins: [` array in the plugin's vite.config.
+
+        Returns True if injected (or already present), False if no `plugins: [`
+        array could be located. Failure is non-fatal — the portal's per-app
+        Pinia isolation still applies, just without the secondary expose-prefix
+        safety net.
+        """
+        try:
+            content = vite_config_file.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.error(f"Failed to read {vite_config_file} for store namespace injection: {e}")
+            return False
+
+        if "portal-plugin-store-namespace" in content:
+            logger.info(f"Store namespace plugin already present in {vite_config_file}; skipping")
+            return True
+
+        snippet = cls._build_store_namespace_plugin_snippet(expose_name)
+        plugins_pattern = re.compile(r"plugins\s*:\s*\[")
+        match = plugins_pattern.search(content)
+        if not match:
+            logger.warning(
+                f"Could not locate `plugins: [...]` array in {vite_config_file}; "
+                f"skipping store-id namespace injection. Per-app Pinia isolation in "
+                f"the portal still applies — this only loses the secondary expose-prefix safety net."
+            )
+            return False
+
+        insertion_pos = match.end()
+        new_content = content[:insertion_pos] + "\n" + snippet + content[insertion_pos:]
+
+        try:
+            vite_config_file.write_text(new_content, encoding="utf-8")
+        except Exception as e:
+            logger.error(f"Failed to write {vite_config_file} after store namespace injection: {e}")
+            return False
+
+        logger.info(
+            f"Injected store-id namespace Vite plugin into {vite_config_file} "
+            f"with prefix `{expose_name}__`"
+        )
+        return True
+
+    @classmethod
+    def _validate_externalize(cls, vite_config_file: Path) -> None:
+        """
+        Verify the plugin externalizes vue / pinia / vuetify / vue-toastification.
+
+        Without this, the plugin would bundle its own copy of pinia and the
+        per-app Pinia instance the portal creates in RemoteComponentApp.vue
+        wouldn't be the instance the plugin's `defineStore` calls bind to —
+        cross-plugin state isolation would silently break.
+
+        Heuristic: pool every `external: [...]` array in the file (the plugin
+        config commonly has conditional branches — plugin build vs app build),
+        then check each required dep appears as a quoted string somewhere in the
+        pooled content. Raises RuntimeError on missing deps.
+        """
+        try:
+            content = vite_config_file.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.error(f"Failed to read {vite_config_file} for externalize validation: {e}")
+            raise RuntimeError(f"Cannot validate vite config: {e}")
+
+        external_pattern = re.compile(r"external\s*:\s*\[([^\]]*)\]", re.DOTALL)
+        external_blocks = external_pattern.findall(content)
+
+        if not external_blocks:
+            raise RuntimeError(
+                "Plugin vite.config has no `external: [...]` array under rollupOptions. "
+                "For the portal's per-app Pinia isolation to work, the plugin must "
+                "externalize vue, pinia, vuetify, and vue-toastification so that the "
+                "plugin and portal share the same library code while each plugin instance "
+                "gets its own Pinia store registry. "
+                "Add `rollupOptions: { external: ['vue', 'vuetify', 'pinia', 'vue-toastification'], "
+                "output: { globals: { vue: 'Vue', vuetify: 'Vuetify', pinia: 'Pinia', "
+                "'vue-toastification': 'VueToastification' } } }` to the lib build config."
+            )
+
+        pooled = " ".join(external_blocks)
+        missing = [
+            dep for dep in cls._REQUIRED_EXTERNALIZED_DEPS
+            if not re.search(rf"['\"]{re.escape(dep)}['\"]", pooled)
+        ]
+        if missing:
+            raise RuntimeError(
+                f"Plugin vite.config does not externalize required dependencies: {missing}. "
+                f"Without this, the portal's per-app Pinia isolation will fail — the plugin "
+                f"would bundle its own copy of pinia and the per-app `createPinia()` instance "
+                f"in RemoteComponentApp.vue would not be the instance the plugin's "
+                f"`defineStore` calls bind to. "
+                f"Add these names as quoted strings to `rollupOptions.external`: "
+                f"{list(cls._REQUIRED_EXTERNALIZED_DEPS)}."
+            )
+
+        logger.info(f"Externalize validation passed for {vite_config_file}")
+
     def _update_vite_config(self, project_dir: Path, plugin_expose_name: str):
         """Update the vite.config.js file to use the unique name"""
         vite_config_js = project_dir / "vite.config.js"
@@ -315,6 +468,8 @@ class PluginBuilder:
             raise RuntimeError("vite.config.js or vite.config.ts not found")
 
         self._replace_vite_build_config(vite_config_file, plugin_expose_name)
+        self._inject_store_namespace_plugin(vite_config_file, plugin_expose_name)
+        self._validate_externalize(vite_config_file)
 
     @staticmethod
     def _update_plugin_version(project_dir: Path, plugin_id: str):
