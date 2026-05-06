@@ -99,7 +99,7 @@ def _cleanup_orphan_staging(max_age_hours: float = 24):
 
     cutoff = time.time() - max_age_hours * 3600
 
-    def _staging_basename(local_path: str | None) -> str | None:
+    def _staging_basename(local_path: Optional[str]) -> Optional[str]:
         if not local_path:
             return None
         p = Path(local_path)

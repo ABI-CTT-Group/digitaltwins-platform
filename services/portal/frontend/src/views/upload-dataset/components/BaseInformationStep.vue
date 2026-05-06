@@ -45,7 +45,7 @@
             ref="dropzone"
             :detected-folders="repoInfo.foldersInRoot"
             :detected-version="repoInfo.version"
-            @folder-selected="onFolderSelected"
+            @source-selected="onSourceSelected"
             @cancel-requested="onUploadCancel"
           />
         </template>
@@ -143,6 +143,7 @@ import {
   useUploadToolSource,
   useUploadWorkflowSource,
   type UploadProgress,
+  type LocalSource,
 } from '@/bootstrap/upload_source';
 
 // ---- props / emits --------------------------------------------------------
@@ -160,10 +161,11 @@ const cwlCheck = ref(props.type === 'workflow' ? false : true); // workflow need
 const nameErr = ref<CheckNameResponse>();
 const cwlRepoErr = ref<CheckNameResponse>();
 
-// Tool form data (superset of workflow fields). Holds an in-memory `files`
-// list that is *not* sent to the backend directly — it is zipped + uploaded
-// during handleSubmit, after which `uploadId` is filled in.
-const formData = reactive<ToolInformationStep & { files?: File[] }>({
+// Tool form data (superset of workflow fields). Holds an in-memory `source`
+// reference (folder File[] OR zip Blob) that is *not* sent to the backend
+// directly — it is zipped (folder kind) + uploaded during handleSubmit, after
+// which `uploadId` is filled in.
+const formData = reactive<ToolInformationStep & { source?: LocalSource }>({
   label: 'GUI',
   repositoryUrl: '',
   name: '',
@@ -178,7 +180,7 @@ const formData = reactive<ToolInformationStep & { files?: File[] }>({
   toolMetadata: {},
   sourceType: 'github',
   uploadId: undefined,
-  files: undefined,
+  source: undefined,
 });
 
 // ---- repo info composables (one for each source) -------------------------
@@ -187,13 +189,9 @@ const localFolder = useLocalFolderInfo();
 const repoInfo = computed(() =>
   formData.sourceType === 'local' ? localFolder.info.value : githubRepo.info.value,
 );
-const foldersInRoot = ref<string[]>([]);
-
-watch(
-  () => repoInfo.value.foldersInRoot,
-  (v) => { foldersInRoot.value = v; },
-  { immediate: true },
-);
+// Computed (not a mirror ref) so reactivity is bulletproof — Vue tracks the
+// nested property read on the underlying reactive `info` object directly.
+const foldersInRoot = computed(() => repoInfo.value.foldersInRoot);
 
 // ---- upload state ---------------------------------------------------------
 const submitting = ref(false);
@@ -239,8 +237,8 @@ async function refreshSourceInfo() {
     formData.author = githubRepo.info.value.author;
     if (githubRepo.info.value.version) formData.version = githubRepo.info.value.version;
   } else {
-    if (!formData.files || formData.files.length === 0) return;
-    await localFolder.refresh(formData.files, isCwlCheck);
+    if (!formData.source) return;
+    await localFolder.refresh(formData.source, isCwlCheck);
     if (localFolder.info.value.name) formData.name = localFolder.info.value.name;
     if (localFolder.info.value.author) formData.author = localFolder.info.value.author;
     if (localFolder.info.value.version) formData.version = localFolder.info.value.version;
@@ -257,9 +255,9 @@ const onRepoBlur = async () => {
   await onNameBlur();
 };
 
-const onFolderSelected = async (files: File[]) => {
-  formData.files = files;
-  // A new folder selection invalidates any prior upload.
+const onSourceSelected = async (source: LocalSource) => {
+  formData.source = source;
+  // A new source selection invalidates any prior upload.
   formData.uploadId = undefined;
   await refreshSourceInfo();
   await onNameBlur();
@@ -286,7 +284,7 @@ watch(() => formData.hasBackend, () => { policyCheckbox.value = false; });
 watch(() => formData.sourceType, (next, prev) => {
   if (next === prev) return;
   if (next === 'github') {
-    formData.files = undefined;
+    formData.source = undefined;
     formData.uploadId = undefined;
     dropzone.value?.setProgress({ phase: 'reset' });
   } else {
@@ -301,8 +299,8 @@ async function validate(): Promise<boolean> {
   const { valid } = await form.value.validate();
   await onNameBlur();
 
-  // Source-specific gate: local mode must have files selected.
-  if (formData.sourceType === 'local' && (!formData.files || formData.files.length === 0)) {
+  // Source-specific gate: local mode must have a source selected.
+  if (formData.sourceType === 'local' && !formData.source) {
     return false;
   }
 
@@ -329,12 +327,12 @@ async function handleCancel() {
 }
 
 async function uploadLocalSource(): Promise<string | null> {
-  if (!formData.files || formData.files.length === 0) return null;
+  if (!formData.source) return null;
   abortController.value = new AbortController();
   const onProgress = (p: UploadProgress) => dropzone.value?.setProgress(p);
   try {
     const uploader = props.type === 'tool' ? useUploadToolSource : useUploadWorkflowSource;
-    const res = await uploader(formData.files, {
+    const res = await uploader(formData.source, {
       onProgress,
       signal: abortController.value.signal,
     });
@@ -394,10 +392,10 @@ async function handleSubmit() {
       };
       emit('submit', workflowData);
     } else {
-      // Strip the in-memory `files` blob from the emitted payload — useCreateTool
-      // sends JSON, so a File[] in the body would otherwise serialize as an empty
-      // array and confuse the backend.
-      const { files: _files, ...payload } = formData;
+      // Strip the in-memory `source` blob from the emitted payload — useCreateTool
+      // sends JSON, so a File[] / Blob in the body would otherwise be coerced to
+      // an empty object and confuse the backend.
+      const { source: _src, ...payload } = formData;
       emit('submit', payload);
     }
   } finally {

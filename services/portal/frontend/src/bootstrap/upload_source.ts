@@ -17,6 +17,30 @@ export interface UploadSourceResponse {
   hasCwl: boolean;
 }
 
+/**
+ * What the dropzone produces and what the upload helpers consume.
+ *
+ * - `folder`: enumerated `File[]` from `<input webkitdirectory>` or a recursive
+ *   `webkitGetAsEntry` walk. Needs client-side zipping before upload.
+ * - `zip`: a single .zip blob the user dropped/picked directly. Skips the
+ *   client-side zip phase and uploads as-is.
+ */
+export type LocalSource =
+  | {
+      kind: 'folder';
+      files: File[];
+      rootName: string;
+      fileCount: number;
+      totalSize: number;
+    }
+  | {
+      kind: 'zip';
+      blob: Blob;
+      rootName: string;
+      fileCount: number;
+      totalSize: number;
+    };
+
 export interface UploadSourceOptions {
   onProgress?: (p: UploadProgress) => void;
   signal?: AbortSignal;
@@ -28,7 +52,7 @@ function isBlacklisted(relPath: string): boolean {
   return relPath.split('/').some((seg) => FOLDER_BLACKLIST.has(seg));
 }
 
-async function buildZip(
+async function buildZipFromFiles(
   files: File[],
   onProgress?: (p: UploadProgress) => void,
 ): Promise<Blob> {
@@ -44,9 +68,20 @@ async function buildZip(
       onProgress?.({
         phase: 'zip',
         percent: meta.percent,
-        currentFile: meta.currentFile,
+        currentFile: meta.currentFile ?? undefined,
       }),
   );
+}
+
+async function buildBlobForSource(
+  source: LocalSource,
+  onProgress?: (p: UploadProgress) => void,
+): Promise<Blob> {
+  // For zip kind we deliberately skip the zip-phase progress; the dropzone UI
+  // will jump straight from `scanned` to `uploading` when the first
+  // onUploadProgress event fires.
+  if (source.kind === 'zip') return source.blob;
+  return buildZipFromFiles(source.files, onProgress);
 }
 
 async function postZip(
@@ -55,7 +90,9 @@ async function postZip(
   opts: UploadSourceOptions,
 ): Promise<UploadSourceResponse> {
   const formData = new FormData();
-  formData.append('archive', blob, 'source.zip');
+  // Field name must match the backend signature: `file: UploadFile = File(...)`
+  // in both workflow_tool_plugin.py and workflow_router.py upload-source endpoints.
+  formData.append('file', blob, 'source.zip');
 
   const token = getAccessToken();
   const headers: Record<string, string> = {};
@@ -84,17 +121,17 @@ async function postZip(
 }
 
 export async function useUploadToolSource(
-  files: File[],
+  source: LocalSource,
   opts: UploadSourceOptions = {},
 ): Promise<UploadSourceResponse> {
-  const blob = await buildZip(files, opts.onProgress);
+  const blob = await buildBlobForSource(source, opts.onProgress);
   return postZip('/tools/upload-source', blob, opts);
 }
 
 export async function useUploadWorkflowSource(
-  files: File[],
+  source: LocalSource,
   opts: UploadSourceOptions = {},
 ): Promise<UploadSourceResponse> {
-  const blob = await buildZip(files, opts.onProgress);
+  const blob = await buildBlobForSource(source, opts.onProgress);
   return postZip('/workflow/upload-source', blob, opts);
 }

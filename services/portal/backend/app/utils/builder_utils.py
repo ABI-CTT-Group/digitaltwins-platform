@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import os
 import subprocess
 import uuid
 import zipfile
@@ -125,18 +126,49 @@ def extract_uploaded_archive(
     return target
 
 
-def resolve_project_root(staging_dir: Path) -> Path:
-    """If the staging dir has exactly one top-level directory and no top-level files,
-    return that inner directory; otherwise return staging_dir unchanged.
-    Handles the common case where browsers package a folder with the folder itself
-    as the single top-level entry in the zip.
+def _find_shallowest_package_json(root: Path) -> Optional[Path]:
+    """Walk the tree under ``root`` and return the shallowest non-blacklisted
+    ``package.json`` (or ``None`` if no manifest exists).
+
+    Blacklisted dirs are pruned from the walk so we never descend into
+    ``node_modules`` etc. — both for performance and to avoid picking up a
+    transitive dep's manifest.
     """
-    children = [c for c in staging_dir.iterdir() if c.name != "__MACOSX"]
-    dirs = [c for c in children if c.is_dir()]
-    files = [c for c in children if c.is_file()]
-    if len(dirs) == 1 and not files:
-        return dirs[0]
-    return staging_dir
+    best: Optional[Path] = None
+    best_depth = -1
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in _ARCHIVE_BLACKLIST_NAMES]
+        if "package.json" not in filenames:
+            continue
+        candidate = Path(dirpath) / "package.json"
+        depth = len(candidate.relative_to(root).parts)
+        if best is None or depth < best_depth:
+            best = candidate
+            best_depth = depth
+    return best
+
+
+def resolve_project_root(staging_dir: Path) -> Path:
+    """Walk down through single-wrapper directories until we hit the real project root.
+
+    A "wrapper" is a directory whose only contents are exactly one subdirectory
+    and no files. Stripping wrappers iteratively handles both GitHub-style
+    ``repo-main/...`` zips and accidental nested cases like
+    ``outer/inner/project/...``, so the returned path always points at the
+    directory containing ``package.json`` / ``.cwl`` / etc.
+
+    Bounded to 20 iterations to defend against pathological structures.
+    """
+    current = staging_dir
+    for _ in range(20):
+        children = [c for c in current.iterdir() if c.name != "__MACOSX"]
+        dirs = [c for c in children if c.is_dir()]
+        files = [c for c in children if c.is_file()]
+        if len(dirs) == 1 and not files:
+            current = dirs[0]
+        else:
+            break
+    return current
 
 
 def inspect_uploaded_source(
@@ -167,8 +199,12 @@ def inspect_uploaded_source(
             has_cwl = True
 
     if want_npm:
-        pkg_path = root / "package.json"
-        if pkg_path.exists():
+        # Search recursively for package.json (excluding blacklisted dirs) and
+        # pick the shallowest. Mirrors the GitHub-mode behaviour of scanning
+        # the whole tree rather than only the project root, so plugins that
+        # keep their npm manifest under e.g. `frontend/` still resolve.
+        pkg_path = _find_shallowest_package_json(root)
+        if pkg_path is not None:
             try:
                 with open(pkg_path, "r", encoding="utf-8") as f:
                     pkg = json.load(f)
