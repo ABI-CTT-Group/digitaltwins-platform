@@ -1,7 +1,9 @@
 import os
 import json
+import mimetypes
 import uvicorn
 import zipfile
+from botocore.exceptions import ClientError
 from fastapi import APIRouter, FastAPI, Depends, HTTPException, BackgroundTasks, Request, Query, UploadFile, File
 from fastapi.responses import StreamingResponse, JSONResponse
 from app.database.database import get_db
@@ -208,7 +210,6 @@ async def get_metadata_json(db: Session = Depends(get_db)):
     use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
     http_protocol = 'https' if use_ssl else 'http'
     host = os.environ.get('PORTAL_BACKEND_HOST', 'localhost')
-    port = os.environ.get('MINIO_PORT', '9000')
 
     workflows = db.query(Workflow).all()
     components = []
@@ -227,7 +228,7 @@ async def get_metadata_json(db: Session = Depends(get_db)):
         if is_local:
             path = ""
         else:
-            path = f"{http_protocol}://{host}:{port}/workflows/{latest_build.expose_name}/primary"
+            path = f"{http_protocol}://{host}/api/workflow/{latest_build.expose_name}/primary"
 
         components.append({
             "uuid": workflow.uuid or "",
@@ -247,6 +248,35 @@ async def get_metadata_json(db: Session = Depends(get_db)):
     return JSONResponse(
         content={"components": components},
         headers={"Cache-Control": "no-cache, no-store"}
+    )
+
+
+@router.get("/{expose_name}/primary/{path:path}")
+async def stream_workflow_object(expose_name: str, path: str):
+    # Streams workflow build artifacts (e.g. CWL files) from the private MinIO
+    # `workflows` bucket via the backend, replacing the legacy direct-MinIO URL
+    # that depended on MINIO_PORT being published to the host.
+    object_key = f"{expose_name}/primary/{path}"
+    try:
+        obj = minio.client.get_object(Bucket=minio.bucket_name, Key=object_key)
+    except ClientError as e:
+        code = e.response.get('Error', {}).get('Code')
+        if code in ('404', 'NoSuchKey'):
+            raise HTTPException(status_code=404, detail=f"Workflow object not found: {object_key}")
+        logger.error(f"MinIO get_object failed for {object_key}: {e}")
+        raise HTTPException(status_code=503, detail="Workflow storage temporarily unavailable")
+
+    content_type = obj.get('ContentType') or mimetypes.guess_type(path)[0] or 'application/octet-stream'
+
+    headers = {"Cache-Control": "public, max-age=300"}
+    content_length = obj.get('ContentLength')
+    if content_length is not None:
+        headers['Content-Length'] = str(content_length)
+
+    return StreamingResponse(
+        obj['Body'].iter_chunks(chunk_size=64 * 1024),
+        media_type=content_type,
+        headers=headers,
     )
 
 

@@ -105,3 +105,9 @@ In the registration form, switch the **Source** radio at the top of the *Base In
 - The following directories are auto-skipped in both modes (folder / pre-made zip): `node_modules`, `.git`, `dist`, `build`. If you zip a project with a third-party tool, you do **not** need to manually clean these — they are filtered server-side on extract too.
 - `package.json` is searched recursively; the shallowest match (outside the blacklist) provides the `version` / `author` autofill. Project root detection unwraps single-folder GitHub-style zips automatically.
 - A `.zip` that you downloaded straight from GitHub ("Source code (zip)") works as-is — no need to unzip first.
+
+---
+
+## Release Notes
+
+See [`docs/release-notes.md`](docs/release-notes.md).
