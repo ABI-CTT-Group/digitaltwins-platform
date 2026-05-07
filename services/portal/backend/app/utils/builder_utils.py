@@ -23,20 +23,30 @@ if TYPE_CHECKING:
     from app.builder.build_tool import PluginBuilder
     from app.builder.build_workflow import WorkflowBuilder
 
-def clone_repository(tmp_dir: Path, repo_url: str, logger: logging.Logger, branch: str = "main") -> Path:
-    """Clone a git repository to a temporary directory"""
+def clone_repository(
+    tmp_dir: Path,
+    repo_url: str,
+    logger: logging.Logger,
+    branch: str = "main",
+    *,
+    shallow: bool = False,
+) -> Path:
+    """Clone a git repository to a temporary directory.
+
+    `shallow=True` adds `--depth 1` — used by metadata probe paths where we
+    only need the working tree, not history.
+    """
     try:
         clone_dir = tmp_dir / f"build_{uuid.uuid4().hex[:8]}"
         clone_dir.mkdir(exist_ok=True)
         if not repo_url.endswith(".git"):
             repo_url += ".git"
-        logger.info(f"Cloning repository {repo_url} to {clone_dir}")
-        subprocess.run(
-            ["git", "clone", "--branch", branch, repo_url, str(clone_dir)],
-            capture_output=True,
-            text=True,
-            check=True
-        )
+        cmd = ["git", "clone"]
+        if shallow:
+            cmd += ["--depth", "1"]
+        cmd += ["--branch", branch, repo_url, str(clone_dir)]
+        logger.info(f"Cloning repository {repo_url} to {clone_dir} (shallow={shallow})")
+        subprocess.run(cmd, capture_output=True, text=True, check=True)
         logger.info(f"Successfully cloned repository to {clone_dir}")
         return clone_dir
     except subprocess.CalledProcessError as e:
