@@ -61,11 +61,6 @@ def copy_item(src: Path, dst: Path, exclude: set = None):
             logger.error(f"Failed to copy item {src} to {dst}: {e}")
 
 
-def is_git_url(repo_url: str) -> bool:
-    """Check if the repository URL is a valid git url"""
-    return repo_url.startswith("git@") or repo_url.startswith("https://") or repo_url.startswith("http://")
-
-
 # Directories that should never appear inside a plugin source archive.
 # We filter at extraction time as a belt-and-suspenders measure (client also filters).
 _ARCHIVE_BLACKLIST_PREFIXES = ("node_modules/", ".git/", "dist/", "build/")
