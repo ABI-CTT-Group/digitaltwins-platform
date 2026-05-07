@@ -30,11 +30,17 @@ def clone_repository(
     branch: str = "main",
     *,
     shallow: bool = False,
+    env_overrides: Optional[Dict[str, str]] = None,
 ) -> Path:
     """Clone a git repository to a temporary directory.
 
     `shallow=True` adds `--depth 1` — used by metadata probe paths where we
     only need the working tree, not history.
+
+    `env_overrides` merges with ``os.environ`` for the subprocess (used by
+    callers that need to set ``GIT_SSL_NO_VERIFY`` for self-signed certs,
+    or any other one-off git env tweak). Pass ``None`` to inherit the parent
+    environment unchanged.
     """
     try:
         clone_dir = tmp_dir / f"build_{uuid.uuid4().hex[:8]}"
@@ -46,7 +52,8 @@ def clone_repository(
             cmd += ["--depth", "1"]
         cmd += ["--branch", branch, repo_url, str(clone_dir)]
         logger.info(f"Cloning repository {repo_url} to {clone_dir} (shallow={shallow})")
-        subprocess.run(cmd, capture_output=True, text=True, check=True)
+        env = {**os.environ, **env_overrides} if env_overrides else None
+        subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
         logger.info(f"Successfully cloned repository to {clone_dir}")
         return clone_dir
     except subprocess.CalledProcessError as e:

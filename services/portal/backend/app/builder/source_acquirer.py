@@ -59,6 +59,15 @@ class SourceSpec:
     local_archive_path: Optional[str] = None
     # `repr=False` so accidental `repr(spec)` in logs cannot leak the value.
     token: Optional[str] = field(default=None, repr=False)
+    # Generic-git only: HTTPS basic-auth username (no canonical convention
+    # for self-hosted git, unlike GitLab's ``oauth2`` or Bitbucket's
+    # ``x-token-auth``). Ignored by github/gitlab/bitbucket acquirers.
+    auth_username: Optional[str] = None
+    # If False, run git with ``GIT_SSL_NO_VERIFY=true`` — required for
+    # self-signed cert hosts on internal networks. Logged at WARNING for
+    # audit trail. Honored by all token-git acquirers (self-hosted GitLab
+    # / Bitbucket instances may also have self-signed certs) and generic.
+    verify_ssl: bool = True
 
 
 class SourceAcquirer(ABC):
@@ -157,6 +166,29 @@ def _classify_clone_error(stderr: str, returncode: int) -> str:
     return f"Git clone failed (exit {returncode})"
 
 
+def _ssl_extra_env(spec: SourceSpec) -> Dict[str, str]:
+    """Build env overrides for `verify_ssl=False`, with audit-grade WARN log.
+
+    Used by every git-based acquirer (token-git providers may also have
+    self-hosted instances with self-signed certs, not just generic). When
+    SSL verification is skipped, an attacker on the network path can MITM
+    the clone — including any token in the request — so the warning is
+    deliberately stark and the audit-log surface is at WARNING level.
+
+    Returns ``{}`` when verify_ssl is True (no env override needed).
+    """
+    if spec.verify_ssl:
+        return {}
+    host = urlparse(spec.url).netloc if spec.url else "(unknown host)"
+    logger.warning(
+        f"SECURITY: GIT_SSL_NO_VERIFY enabled for host={host!r} "
+        f"source_type={spec.source_type!r}; MITM risk acknowledged by user. "
+        f"Token (if any) is exposed on the network path. "
+        f"Only enable on trusted internal networks."
+    )
+    return {"GIT_SSL_NO_VERIFY": "true"}
+
+
 def _clone_with_token(
     tmp_dir: Path,
     repo_url: str,
@@ -165,6 +197,7 @@ def _clone_with_token(
     branch: str,
     *,
     shallow: bool = False,
+    extra_env: Optional[Dict[str, str]] = None,
 ) -> Path:
     """Clone a git repo using GIT_ASKPASS for token-based auth.
 
@@ -173,9 +206,11 @@ def _clone_with_token(
       - the URL we log (only the non-secret username is injected)
       - persistent filesystem (askpass script unlinked in finally)
 
-    The PAT mask filter on root log handlers is a last-line-of-defense for
-    any token that slips through git's own stderr/stdout (none observed in
-    practice, but defense-in-depth).
+    ``extra_env`` is merged into the subprocess env after the askpass vars —
+    used by callers that need ``GIT_SSL_NO_VERIFY`` etc. The PAT mask
+    filter on root log handlers is a last-line-of-defense for any token
+    that slips through git's own stderr/stdout (none observed in practice,
+    but defense-in-depth).
     """
     _validate_token(token)
     if not repo_url.endswith(".git"):
@@ -192,6 +227,7 @@ def _clone_with_token(
         # Block git's interactive fallback if the askpass script ever fails
         # to produce output — better to error than to hang waiting for stdin.
         "GIT_TERMINAL_PROMPT": "0",
+        **(extra_env or {}),
     }
 
     cmd = ["git", "clone"]
@@ -282,6 +318,8 @@ class _TokenGitAcquirer(SourceAcquirer):
                 f"source_type={spec.source_type!r} requires url; got empty/None"
             )
 
+        extra_env = _ssl_extra_env(spec)
+
         if spec.token:
             logger.info(
                 f"Step 1: Cloning private {self._PROVIDER_LABEL} repository (token auth)..."
@@ -292,10 +330,14 @@ class _TokenGitAcquirer(SourceAcquirer):
                 token=spec.token,
                 username=self._AUTH_USERNAME,
                 branch=spec.branch,
+                extra_env=extra_env,
             )
         else:
             logger.info(f"Step 1: Cloning public {self._PROVIDER_LABEL} repository...")
-            project_dir = clone_repository(self.tmp_dir, spec.url, logger, spec.branch)
+            project_dir = clone_repository(
+                self.tmp_dir, spec.url, logger, spec.branch,
+                env_overrides=extra_env or None,
+            )
 
         logger.info(f"Repository cloned to: {project_dir}")
         return project_dir
@@ -306,6 +348,8 @@ class _TokenGitAcquirer(SourceAcquirer):
                 f"source_type={spec.source_type!r} requires url for probe"
             )
 
+        extra_env = _ssl_extra_env(spec)
+
         if spec.token:
             project_dir = _clone_with_token(
                 tmp_dir=self.tmp_dir,
@@ -314,10 +358,13 @@ class _TokenGitAcquirer(SourceAcquirer):
                 username=self._AUTH_USERNAME,
                 branch=spec.branch,
                 shallow=True,
+                extra_env=extra_env,
             )
         else:
             project_dir = clone_repository(
-                self.tmp_dir, spec.url, logger, spec.branch, shallow=True
+                self.tmp_dir, spec.url, logger, spec.branch,
+                shallow=True,
+                env_overrides=extra_env or None,
             )
 
         try:
@@ -348,3 +395,74 @@ class BitbucketAcquirer(_TokenGitAcquirer):
     """
     _AUTH_USERNAME = "x-token-auth"
     _PROVIDER_LABEL = "Bitbucket"
+
+
+@SourceAcquirer.register("git_generic")
+class GenericGitAcquirer(SourceAcquirer):
+    """Self-hosted / generic git server.
+
+    Differs from GitLab/Bitbucket in two ways:
+
+    1. ``auth_username`` is supplied per-request via ``SourceSpec`` — there
+       is no canonical convention for self-hosted git, so the user must
+       provide whatever username their server expects (often the same as
+       their login name; sometimes ``git`` for some configurations).
+
+    2. ``verify_ssl=False`` (also honored by token-git providers, but most
+       relevant here) sets ``GIT_SSL_NO_VERIFY=true`` for clones against
+       self-signed cert hosts. Per phase-0.5 security review this carries
+       an MITM risk; the user must explicitly opt in via the UI checkbox,
+       and ``_ssl_extra_env`` audit-logs at WARNING level.
+
+    Token (when provided) flows through ``_clone_with_token`` — never on
+    argv, never in URL, never persisted.
+    """
+
+    def acquire(self, spec: SourceSpec) -> Path:
+        project_dir = self._clone(spec, shallow=False)
+        logger.info(f"Repository cloned to: {project_dir}")
+        return project_dir
+
+    def probe_metadata(self, spec: SourceSpec) -> Dict[str, Any]:
+        project_dir = self._clone(spec, shallow=True)
+        try:
+            return inspect_uploaded_source(project_dir, want_npm=True, want_cwl=True)
+        finally:
+            force_rmtree(project_dir)
+
+    def _clone(self, spec: SourceSpec, *, shallow: bool) -> Path:
+        if not spec.url:
+            raise RuntimeError(
+                "source_type='git_generic' requires url; got empty/None"
+            )
+
+        extra_env = _ssl_extra_env(spec)
+
+        if spec.token:
+            if not spec.auth_username:
+                raise RuntimeError(
+                    "source_type='git_generic' with token requires auth_username "
+                    "(no canonical username convention for self-hosted git)"
+                )
+            logger.info(
+                f"Step 1: Cloning private generic git "
+                f"(user={spec.auth_username!r}, shallow={shallow})..."
+            )
+            return _clone_with_token(
+                tmp_dir=self.tmp_dir,
+                repo_url=spec.url,
+                token=spec.token,
+                username=spec.auth_username,
+                branch=spec.branch,
+                shallow=shallow,
+                extra_env=extra_env,
+            )
+
+        logger.info(
+            f"Step 1: Cloning public generic git repository (shallow={shallow})..."
+        )
+        return clone_repository(
+            self.tmp_dir, spec.url, logger, spec.branch,
+            shallow=shallow,
+            env_overrides=extra_env or None,
+        )
