@@ -256,26 +256,36 @@ class LocalAcquirer(SourceAcquirer):
         return project_dir
 
 
-@SourceAcquirer.register("gitlab")
-class GitlabAcquirer(SourceAcquirer):
-    """GitLab via git clone — public anonymous, private via PAT.
+class _TokenGitAcquirer(SourceAcquirer):
+    """Shared base for HTTPS git providers with PAT auth.
 
-    Auth contract: ``oauth2`` username + token-as-password supplied through
-    GIT_ASKPASS. Token NEVER touches argv, URL, or DB. See module-level
-    "Token handling contract".
+    Each subclass defines:
+    - ``_AUTH_USERNAME`` — the non-secret username to inject into the URL
+      when token auth is used (``oauth2`` for GitLab, ``x-token-auth`` for
+      Bitbucket Cloud, etc.). The token comes via askpass, never in URL.
+    - ``_PROVIDER_LABEL`` — display string for log lines.
+
+    ``acquire``: full clone (build pipeline needs full tree). Public path
+    goes anonymous via ``clone_repository``; private path goes through
+    ``_clone_with_token``.
+
+    ``probe_metadata``: shallow clone + inspect + cleanup, returning the
+    same shape as ``inspect_uploaded_source`` for the local-upload path.
     """
 
-    # GitLab's documented PAT-over-HTTPS convention: any non-empty username
-    # paired with the token as the password. `oauth2` is the canonical choice
-    # used by GitLab's own docs and CI.
-    _AUTH_USERNAME = "oauth2"
+    _AUTH_USERNAME: ClassVar[str] = ""
+    _PROVIDER_LABEL: ClassVar[str] = ""
 
     def acquire(self, spec: SourceSpec) -> Path:
         if not spec.url:
-            raise RuntimeError("source_type='gitlab' requires url; got empty/None")
+            raise RuntimeError(
+                f"source_type={spec.source_type!r} requires url; got empty/None"
+            )
 
         if spec.token:
-            logger.info("Step 1: Cloning private GitLab repository (token auth)...")
+            logger.info(
+                f"Step 1: Cloning private {self._PROVIDER_LABEL} repository (token auth)..."
+            )
             project_dir = _clone_with_token(
                 tmp_dir=self.tmp_dir,
                 repo_url=spec.url,
@@ -284,23 +294,17 @@ class GitlabAcquirer(SourceAcquirer):
                 branch=spec.branch,
             )
         else:
-            logger.info("Step 1: Cloning public GitLab repository...")
+            logger.info(f"Step 1: Cloning public {self._PROVIDER_LABEL} repository...")
             project_dir = clone_repository(self.tmp_dir, spec.url, logger, spec.branch)
 
         logger.info(f"Repository cloned to: {project_dir}")
         return project_dir
 
     def probe_metadata(self, spec: SourceSpec) -> Dict[str, Any]:
-        """Shallow-clone the repo and return inspect metadata for the form.
-
-        Response shape matches ``inspect_uploaded_source`` so the frontend
-        treats local-upload and git-URL probe responses identically. The
-        shallow clone is removed before returning — phase 5/probe-source
-        endpoint is the only intended caller and it has no need for the
-        materialized tree afterward.
-        """
         if not spec.url:
-            raise RuntimeError("source_type='gitlab' requires url for probe")
+            raise RuntimeError(
+                f"source_type={spec.source_type!r} requires url for probe"
+            )
 
         if spec.token:
             project_dir = _clone_with_token(
@@ -320,3 +324,27 @@ class GitlabAcquirer(SourceAcquirer):
             return inspect_uploaded_source(project_dir, want_npm=True, want_cwl=True)
         finally:
             force_rmtree(project_dir)
+
+
+@SourceAcquirer.register("gitlab")
+class GitlabAcquirer(_TokenGitAcquirer):
+    """GitLab via git clone — public anonymous, private via PAT.
+
+    GitLab's documented PAT-over-HTTPS convention: any non-empty username
+    paired with the token as the password. ``oauth2`` is the canonical
+    choice used by GitLab's own docs and CI.
+    """
+    _AUTH_USERNAME = "oauth2"
+    _PROVIDER_LABEL = "GitLab"
+
+
+@SourceAcquirer.register("bitbucket")
+class BitbucketAcquirer(_TokenGitAcquirer):
+    """Bitbucket Cloud via git clone — public anonymous, private via app password.
+
+    Bitbucket's documented convention for token-over-HTTPS uses ``x-token-auth``
+    as the username and the *App password* (created at Personal settings →
+    App passwords with ``Repositories: Read``) as the password.
+    """
+    _AUTH_USERNAME = "x-token-auth"
+    _PROVIDER_LABEL = "Bitbucket"
