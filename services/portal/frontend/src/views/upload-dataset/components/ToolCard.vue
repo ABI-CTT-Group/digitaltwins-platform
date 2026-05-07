@@ -209,7 +209,11 @@ const onLaunch = async () => {
 }
 const onRebuild = () => {
     menu.value = false;
-    tool.value.status = "building"
+    // No optimistic prop mutation here. The parent flow may open a dialog
+    // (and the user might Cancel) or the build POST itself may fail, in
+    // which case `tool.status` should NOT have flipped to "building".
+    // Parent calls registryRef.handleRefresh() once the build is actually
+    // started — that pulls the real PENDING/BUILDING status from backend.
     emit("rebuild", tool.value.id)
 }
 const onSubmit = () => {

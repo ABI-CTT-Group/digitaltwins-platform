@@ -29,6 +29,7 @@
       <CommonInfoForm
         :cwl-repo-err="cwlRepoErr"
         :name-err="nameErr"
+        :probe-failure="probeFailure"
         v-model:repositoryUrl="formData.repositoryUrl"
         v-model:name="formData.name"
         v-model:author="formData.author"
@@ -36,6 +37,9 @@
         v-model:description="formData.description"
         v-model:policy-checkbox="policyCheckbox"
         v-model:source-type="formData.sourceType"
+        v-model:token="transientAuth.token"
+        v-model:auth-username="transientAuth.authUsername"
+        v-model:trust-self-signed="trustSelfSigned"
         @onSoundUrlBlur="onRepoBlur"
         @onNameBlur="onNameBlur"
       >
@@ -135,9 +139,9 @@
 import { ref, reactive, watch, computed } from 'vue';
 import CommonInfoForm from './CommonInfoForm.vue';
 import LocalFolderDropzone from './LocalFolderDropzone.vue';
-import type { ToolInformationStep, WorkflowInformationStep, CheckNameResponse } from '@/models/types';
+import type { ToolInformationStep, WorkflowInformationStep, CheckNameResponse, TransientAuth } from '@/models/types';
 import { useCheckName } from '@/bootstrap/api_helpers';
-import { useGithubRepoInfo } from '@/composables/useGithubRepoInfo';
+import { useGitRepoInfo } from '@/composables/useGithubRepoInfo';
 import { useLocalFolderInfo } from '@/composables/useLocalFolderInfo';
 import {
   useUploadToolSource,
@@ -184,11 +188,44 @@ const formData = reactive<ToolInformationStep & { source?: LocalSource }>({
 });
 
 // ---- repo info composables (one for each source) -------------------------
-const githubRepo = useGithubRepoInfo();
+// `gitRepo` covers github / gitlab / bitbucket / git_generic.
+// Public GitHub still uses anonymous Contents API; everything else dispatches
+// to backend `/probe-source` (token-aware). See useGitRepoInfo for routing.
+const gitRepo = useGitRepoInfo();
 const localFolder = useLocalFolderInfo();
 const repoInfo = computed(() =>
-  formData.sourceType === 'local' ? localFolder.info.value : githubRepo.info.value,
+  formData.sourceType === 'local' ? localFolder.info.value : gitRepo.info.value,
 );
+// Computed wrapper for the probe failure — passing `gitRepo.info.value.probeFailure`
+// directly into the prop binding doesn't reliably track nested mutations
+// across re-renders (the ref's `.value` access in templates is fragile for
+// nested object properties). A computed always tracks reactivity correctly.
+const probeFailure = computed(() => gitRepo.info.value.probeFailure);
+
+// Transient auth — collected from CommonInfoForm v-models, used for the
+// probe-source request and for the FIRST build POST body. NEVER persisted
+// to backend storage and NEVER passed into PluginCreate / WorkflowCreate.
+const transientAuth = reactive<TransientAuth>({
+  token: '',
+  authUsername: '',
+});
+const trustSelfSigned = ref(false);
+const buildAuth = computed<TransientAuth | undefined>(() => {
+  // Local source has no auth concept; anonymous public probes don't need it
+  // either (token blank). Only return an auth object when there's something
+  // to send so build POST stays empty for the public-source path.
+  if (formData.sourceType === 'local') return undefined;
+  if (!transientAuth.token && !transientAuth.authUsername && !trustSelfSigned.value) {
+    return undefined;
+  }
+  return {
+    token: transientAuth.token || undefined,
+    authUsername: transientAuth.authUsername || undefined,
+    verifySsl: trustSelfSigned.value ? false : undefined,
+  };
+});
+
+defineExpose({ buildAuth });
 // Computed (not a mirror ref) so reactivity is bulletproof — Vue tracks the
 // nested property read on the underlying reactive `info` object directly.
 const foldersInRoot = computed(() => repoInfo.value.foldersInRoot);
@@ -229,13 +266,29 @@ const isCwlCheckMode = () =>
 async function refreshSourceInfo() {
   const isCwlCheck = isCwlCheckMode();
 
-  if (formData.sourceType === 'github') {
+  if (formData.sourceType !== 'local') {
     if (!formData.repositoryUrl) return;
-    const normalizedUrl = await githubRepo.refresh(formData.repositoryUrl, isCwlCheck);
+    // gitRepo dispatches: anonymous GitHub Contents API for public github
+    // (no token), backend /probe-source for everything else. Auth (if user
+    // typed it) flows in here — token never leaves the request.
+    const auth: TransientAuth | undefined =
+      transientAuth.token || transientAuth.authUsername || trustSelfSigned.value
+        ? {
+            token: transientAuth.token || undefined,
+            authUsername: transientAuth.authUsername || undefined,
+            verifySsl: trustSelfSigned.value ? false : undefined,
+          }
+        : undefined;
+    const normalizedUrl = await gitRepo.refresh(formData.repositoryUrl, isCwlCheck, {
+      kind: props.type === 'tool' ? 'tool' : 'workflow',
+      auth,
+    });
     formData.repositoryUrl = normalizedUrl;
-    formData.name = githubRepo.info.value.name;
-    formData.author = githubRepo.info.value.author;
-    if (githubRepo.info.value.version) formData.version = githubRepo.info.value.version;
+    // Sync inferred provider back into formData so PluginCreate carries it.
+    formData.sourceType = gitRepo.info.value.provider;
+    formData.name = gitRepo.info.value.name;
+    formData.author = gitRepo.info.value.author;
+    if (gitRepo.info.value.version) formData.version = gitRepo.info.value.version;
   } else {
     if (!formData.source) return;
     await localFolder.refresh(formData.source, isCwlCheck);
@@ -279,15 +332,23 @@ const checkFolderInRoot = (name: string) => foldersInRoot.value.includes(name);
 
 watch(() => formData.hasBackend, () => { policyCheckbox.value = false; });
 
-// When the user toggles source, clear cross-mode artifacts so stale state
-// from the other branch doesn't poison validation.
+// When the user toggles between git mode and local, clear cross-mode
+// artifacts so stale state from the other branch doesn't poison validation.
+// Note: transitions WITHIN git providers (github → gitlab via URL inference)
+// don't clear anything — they're part of the same flow. Only the
+// git ↔ local transition matters here.
 watch(() => formData.sourceType, (next, prev) => {
   if (next === prev) return;
-  if (next === 'github') {
+  const wasLocal = prev === 'local';
+  const isLocal = next === 'local';
+  if (wasLocal === isLocal) return;
+  if (!isLocal) {
+    // Switched into git mode — clear the local-upload artifacts.
     formData.source = undefined;
     formData.uploadId = undefined;
     dropzone.value?.setProgress({ phase: 'reset' });
   } else {
+    // Switched into local mode — clear the URL field.
     formData.repositoryUrl = '';
   }
   cwlRepoErr.value = undefined;
@@ -390,13 +451,17 @@ async function handleSubmit() {
         sourceType: formData.sourceType,
         uploadId: formData.uploadId,
       };
-      emit('submit', workflowData);
+      // Auth is emitted separately so the wizard's BaseBuildStep can pass
+      // it into the build POST body. NEVER part of the create payload —
+      // PluginCreate / WorkflowCreate go to a different endpoint that
+      // would (a) reject unknown fields and (b) not need them anyway.
+      emit('submit', workflowData, buildAuth.value);
     } else {
       // Strip the in-memory `source` blob from the emitted payload — useCreateTool
       // sends JSON, so a File[] / Blob in the body would otherwise be coerced to
       // an empty object and confuse the backend.
       const { source: _src, ...payload } = formData;
-      emit('submit', payload);
+      emit('submit', payload, buildAuth.value);
     }
   } finally {
     submitting.value = false;

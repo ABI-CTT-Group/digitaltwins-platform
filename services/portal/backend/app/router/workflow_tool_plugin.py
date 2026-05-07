@@ -332,6 +332,18 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
                     dataset_path = builder.dataset_dir / prefix
                     force_rmtree(dataset_path)
                 # db.delete(build)
+            # For `local` source, the build pipeline preserves the staging dir
+            # across rebuilds (see build_tool.py step 7). Plugin deletion is
+            # the canonical place to reap it — otherwise staging dirs leak
+            # forever under tmp/.
+            if plugin.source_type == "local" and plugin.local_archive_path:
+                staging = Path(plugin.local_archive_path)
+                if staging.exists():
+                    logger.info(f"Deleting local staging dir {staging}")
+                    try:
+                        force_rmtree(staging)
+                    except Exception as e:
+                        logger.error(f"Failed to remove local staging dir {staging}: {e}")
             db.delete(plugin)
             db.commit()
 

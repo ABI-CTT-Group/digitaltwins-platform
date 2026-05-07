@@ -155,12 +155,20 @@ class WorkflowBuilder:
                 logger.error(f"Failed to upload dataset to S3: {e}")
                 s3_path = None
 
-            # Step 4: Clean up temporary source directory
+            # Step 4: Clean up temporary source directory.
+            # See build_tool.py — local staging dir is canonical source for
+            # the workflow record and must survive the build for rebuilds.
             logger.info("Step 4: Cleaning up temporary files")
-            try:
-                remove_tmp_folder(tmp_source_dir, logger)
-            except Exception as e:
-                logger.error(f"Failed to remove temporary source directory: {e}")
+            if source_type == "local":
+                logger.info(
+                    f"Step 4: Skipping cleanup for local source — staging dir "
+                    f"{tmp_source_dir} preserved for rebuild"
+                )
+            else:
+                try:
+                    remove_tmp_folder(tmp_source_dir, logger)
+                except Exception as e:
+                    logger.error(f"Failed to remove temporary source directory: {e}")
 
             logger.info("Build process completed successfully")
 
@@ -176,7 +184,8 @@ class WorkflowBuilder:
             error_message = str(e)
             logger.info(f"Build failed: {error_message}")
             logger.error(f"Build process failed: {e}")
-            remove_tmp_folder(tmp_source_dir, logger)
+            if source_type != "local":
+                remove_tmp_folder(tmp_source_dir, logger)
             return {
                 "success": False,
                 "dataset_path": None,

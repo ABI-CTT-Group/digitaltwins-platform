@@ -49,7 +49,7 @@
 
                 <v-stepper-window-item :value="2">
                     <v-card class="pa-4" variant="outlined" color="grey-lighten-2">
-                        <BaseAnnotateStep type="workflow" :data="workflow" @annotation-submit="handleAnnotation" @close="handleCancel"/>
+                        <BaseAnnotateStep type="workflow" :data="workflow" :pending-auth="pendingAuth" @annotation-submit="handleAnnotation" @close="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
 
@@ -75,29 +75,32 @@ import BaseInformationStep from '../components/BaseInformationStep.vue';
 import BaseAnnotateStep from '../components/BaseAnnotateStep.vue';
 import BaseCompleteStep from '../components/BaseCompleteStep.vue';
 import BaseBuildStep from '../components/BaseBuildStep.vue';
-import type { BaseInformationStep as BaseInfoStepType, WorkflowResponse, IAnnotation} from '@/models/types';
+import type { BaseInformationStep as BaseInfoStepType, WorkflowResponse, IAnnotation, TransientAuth} from '@/models/types';
 import { useCreateWorkflow, useCreateWorkflowAnnotation, useWorkflowBuild } from '@/bootstrap/workflow_api'
 import { ref, watch } from "vue";
 
 const emit = defineEmits(['finished'])
 const step = ref(0);
 const  workflow = ref<WorkflowResponse>()
+// Captured at registration, used once for first build (see UploadToolForm).
+const pendingAuth = ref<TransientAuth | undefined>(undefined)
 
-const handleSubmit = async (data: BaseInfoStepType)=>{
+const handleSubmit = async (data: BaseInfoStepType, auth?: TransientAuth)=>{
     workflow.value  = await useCreateWorkflow(data)
-
+    pendingAuth.value = auth
     step.value += 1;
 }
 
 const handleAnnotation = async (id:string, annotation:IAnnotation)=>{
     console.log(annotation);
-    
+
     const a = await useCreateWorkflowAnnotation(id, annotation)
     step.value += 1;
 }
 
 const handleBuild = async (id:string)=>{
-    await useWorkflowBuild(id)
+    await useWorkflowBuild(id, pendingAuth.value)
+    pendingAuth.value = undefined  // single-use; rebuild will re-prompt
     step.value += 1;
 }
 

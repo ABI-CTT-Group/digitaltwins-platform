@@ -587,6 +587,18 @@ async def delete_plugin(workflow_id: str, db: Session = Depends(get_db)):
                     dataset_path = builder.dataset_dir / prefix
                     print("delete: ", dataset_path)
                     force_rmtree(dataset_path)
+            # `local` source: build pipeline preserves staging dir across
+            # rebuilds (see build_workflow.py step 4). Reap it here so it
+            # doesn't leak under tmp/.
+            if workflow.source_type == "local" and workflow.local_archive_path:
+                from pathlib import Path
+                staging = Path(workflow.local_archive_path)
+                if staging.exists():
+                    logger.info(f"Deleting local staging dir {staging}")
+                    try:
+                        force_rmtree(staging)
+                    except Exception as e:
+                        logger.error(f"Failed to remove local staging dir {staging}: {e}")
             db.delete(workflow)
             db.commit()
 

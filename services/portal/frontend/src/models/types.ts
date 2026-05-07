@@ -55,7 +55,69 @@ export interface AssayDataset {
   name: string;
 }
 
-export type SourceType = "github" | "local";
+export type SourceType = "github" | "gitlab" | "bitbucket" | "git_generic" | "local";
+
+/** UI toggle state — Git URL (any provider) vs Local Folder. The actual
+ *  `SourceType` for git is inferred from the URL host on blur. */
+export type SourceMode = "git" | "local";
+
+/** Reason codes returned by the backend probe-source endpoint. Drives the
+ *  v-if expansion of token / auth-username / SSL-trust fields. */
+export type ProbeFailureReason =
+  | "auth_required"
+  | "not_found"
+  | "tls_error"
+  | "network"
+  | "rate_limit"
+  | "validation"
+  | "unknown";
+
+/** Optional transient auth supplied at probe and at build/rebuild time.
+ *  Never persisted server-side per phase-0.2 decision. */
+export interface TransientAuth {
+  token?: string;
+  authUsername?: string;
+  verifySsl?: boolean;
+}
+
+// Note: API request/response use camelCase here even though the backend
+// schema is snake_case — the axios interceptor in http.ts deep-converts
+// keys both directions (deepSnakeize on outgoing body/params, deepCamelize
+// on incoming responses). Frontend code never sees snake_case.
+export interface ProbeSourceRequest {
+  sourceType: Exclude<SourceType, "local">;
+  url: string;
+  branch?: string;
+  token?: string;
+  authUsername?: string;
+  verifySsl?: boolean;
+}
+
+export interface ProbeSourceSuccess {
+  ok: true;
+  data: {
+    root: string;
+    foldersInRoot: string[];
+    packageVersion: string;
+    packageAuthor: string;
+    hasCwl: boolean;
+    cwlRequired: boolean;
+    /** Inlined when `hasCwl` is true so the annotation step can read the
+     *  CWL without a second clone — backend reuses the shallow clone it
+     *  already did for inspect. */
+    cwlFile?: string;
+    cwlContent?: string;
+  };
+}
+
+export interface ProbeSourceFailure {
+  ok: false;
+  reason: ProbeFailureReason;
+  message: string;
+  providerHint?: string;
+}
+
+export type ProbeSourceResponse = ProbeSourceSuccess | ProbeSourceFailure;
 
 export interface ToolInformationStep {
     name: string;

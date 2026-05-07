@@ -1,5 +1,26 @@
 # Release Notes
 
+## 2026-05-08 — Local-source rebuild no longer wipes its own staging dir
+
+Fixed a latent bug in the build pipeline where every successful or failed local-source build deleted the staging directory the plugin was registered against. Step 7 of [`build_tool.py`](../backend/app/builder/build_tool.py) and step 4 of [`build_workflow.py`](../backend/app/builder/build_workflow.py) — plus their outer `except Exception:` cleanup — unconditionally called `remove_tmp_folder(tmp_source_dir, ...)`. For `source_type='github'` the cloned dir is one-shot and safe to reap; for `source_type='local'` the dir referenced by `Plugin.local_archive_path` / `Workflow.local_archive_path` IS the canonical source code, created at upload time and meant to live for the record's lifetime. After the first build the dir was gone, every rebuild failed with `"Local staging dir not found: /app/tmp/upload_xxxx/..."`.
+
+The cleanup is now skipped for `source_type='local'` in both the success and failure paths. The staging dir's reap moved to plugin/workflow deletion in [`workflow_tool_plugin.py`](../backend/app/router/workflow_tool_plugin.py) and [`workflow_router.py`](../backend/app/router/workflow_router.py) — `delete_plugin` / `delete_workflow` now `force_rmtree` the `local_archive_path` alongside the dataset cleanup, so staging dirs are bound to the record's lifecycle rather than each build's.
+
+**No action required for portal operators.** Restart `portal-backend` to pick up the fix.
+
+**No DB migration required.** Existing `local`-source plugins whose staging dirs were already removed by previous failed rebuilds will continue to fail until re-registered (the source code can't be recovered without re-uploading the original folder). Re-registering with the same upload restores them.
+
+**Known limitation — local-rebuild vite.config staleness** (will land in a follow-up):
+
+The first build modifies the staging dir's `vite.config.{js,ts}` in place: `_replace_vite_build_config` updates `lib.name` / `formats` / `fileName`, and `_inject_store_namespace_plugin` injects an inline Vite plugin with the build's `expose_name` baked into its `__ns` constant. Every subsequent rebuild generates a new `expose_name` (random suffix in `unique_name(...)`), but:
+
+- `_replace_vite_build_config` is idempotent — `lib.name` correctly updates to the new expose on each rebuild.
+- `_inject_store_namespace_plugin` short-circuits if the marker `portal-plugin-store-namespace` is already in the file, leaving the **first build's** `__ns` constant in place. Stores get namespaced with the original expose prefix, not the current rebuild's prefix.
+
+For most plugins this is invisible — the portal's per-app Pinia isolation (in [`RemoteComponentApp.vue`](../frontend/src/components/RemoteComponentApp.vue)) is the primary isolation mechanism, and the namespace prefix is a secondary safety net. Plugins with intricate store interactions across mount/unmount cycles may see store IDs that no longer match their current `expose_name`. Workaround: delete and re-register the plugin if you need the namespace prefix realigned.
+
+The proper fix (back up the original `vite.config` on upload as `vite.config.portal-original.{js,ts}` and restore from backup before each build's modification) is tracked but not yet implemented.
+
 ## 2026-05-07 — Builder dev-mount fallback removed; `source_type` strictly enforced
 
 Removed the long-deprecated dev-mount source path from the plugin and workflow build pipelines. Step 1 of `build_tool.py` and `build_workflow.py` now accepts exactly two `source_type` values — `github` and `local` — with an explicit `ValueError` for anything else. The dev-mount fallback (matching `./plugins/<name>` / `/plugins/<name>` / `./workflow/<name>` / `/workflow/<name>` and resolving against unmounted host paths) was already unreachable in production (no volume bound in `docker-compose.yml`, frontend regex blocked non-git URLs) and is now physically gone, along with its dead-code companions: the `is_git_url` helper, all permanently-true `if cloned_dir:` gates, the unreachable `else:` branches, the misleading "only for cloned repos / only for remote repos" comments, and the `is_local` field in the builder return dict.

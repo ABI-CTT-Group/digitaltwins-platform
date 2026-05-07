@@ -32,7 +32,7 @@ from typing import Any, ClassVar, Dict, Optional, Tuple, Type
 from urllib.parse import urlparse, urlunparse
 
 from app.builder.logger import get_logger
-from app.utils.builder_utils import clone_repository, inspect_uploaded_source
+from app.utils.builder_utils import clone_repository, inspect_uploaded_source, read_root_cwl
 from app.utils.utils import force_rmtree
 
 logger = get_logger(__name__)
@@ -250,6 +250,24 @@ def _clone_anonymous_classified(
         raise
 
 
+def _inspect_with_cwl_content(project_dir: Path) -> Dict[str, Any]:
+    """Run inspect_uploaded_source and additionally inline the root CWL
+    content when present.
+
+    Used by all probe_metadata paths so the annotation step (which needs
+    to read the CWL file content) can avoid a second round-trip / second
+    clone for private and self-hosted git sources where the frontend can't
+    fetch CWL anonymously.
+    """
+    result = inspect_uploaded_source(project_dir, want_npm=True, want_cwl=True)
+    if result.get("has_cwl"):
+        cwl = read_root_cwl(project_dir)
+        if cwl:
+            result["cwl_file"] = cwl["cwl_file"]
+            result["cwl_content"] = cwl["content"]
+    return result
+
+
 def _ssl_extra_env(spec: SourceSpec) -> Dict[str, str]:
     """Build env overrides for `verify_ssl=False`, with audit-grade WARN log.
 
@@ -433,7 +451,7 @@ class _TokenGitAcquirer(SourceAcquirer):
             )
 
         try:
-            return inspect_uploaded_source(project_dir, want_npm=True, want_cwl=True)
+            return _inspect_with_cwl_content(project_dir)
         finally:
             force_rmtree(project_dir)
 
@@ -511,7 +529,7 @@ class GenericGitAcquirer(SourceAcquirer):
     def probe_metadata(self, spec: SourceSpec) -> Dict[str, Any]:
         project_dir = self._clone(spec, shallow=True)
         try:
-            return inspect_uploaded_source(project_dir, want_npm=True, want_cwl=True)
+            return _inspect_with_cwl_content(project_dir)
         finally:
             force_rmtree(project_dir)
 

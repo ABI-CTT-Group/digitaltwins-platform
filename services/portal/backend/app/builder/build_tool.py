@@ -647,12 +647,23 @@ class PluginBuilder:
                 logger.error(f"Failed to upload dataset to S3: {e}")
                 s3_path = None
 
-            # Step 7: Clean up temporary source directory
+            # Step 7: Clean up temporary source directory.
+            # For `local` source the staging dir is the canonical source code
+            # (created at upload time, referenced by `Plugin.local_archive_path`
+            # in the DB) and lives for the plugin's full lifetime — removing
+            # it here would break every subsequent rebuild. For git sources
+            # the clone is one-shot per build and safe to reap.
             logger.info("Step 7: Cleaning up temporary files")
-            try:
-                remove_tmp_folder(tmp_source_dir, logger)
-            except Exception as e:
-                logger.error(f"Failed to remove temporary source directory: {e}")
+            if source_type == "local":
+                logger.info(
+                    f"Step 7: Skipping cleanup for local source — staging dir "
+                    f"{tmp_source_dir} preserved for rebuild"
+                )
+            else:
+                try:
+                    remove_tmp_folder(tmp_source_dir, logger)
+                except Exception as e:
+                    logger.error(f"Failed to remove temporary source directory: {e}")
 
             logger.info("Build process completed successfully")
 
@@ -668,7 +679,10 @@ class PluginBuilder:
             error_message = str(e)
             logger.info(f"Build failed: {error_message}")
             logger.error(f"Build process failed: {e}")
-            remove_tmp_folder(tmp_source_dir, logger)
+            # Same conditional as success path — never reap the local staging
+            # dir or rebuild becomes impossible.
+            if source_type != "local":
+                remove_tmp_folder(tmp_source_dir, logger)
             return {
                 "success": False,
                 "dataset_path": None,

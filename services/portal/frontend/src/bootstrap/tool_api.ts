@@ -9,8 +9,24 @@ import {
   ToolMinIOMetadata,
   ExcuteBuildResponse,
   AnnotationResponse,
+  TransientAuth,
+  ProbeSourceRequest,
+  ProbeSourceResponse,
 } from "@/models/types";
 import { useCheckName, fetchWithLatestBuild } from "./api_helpers";
+
+/** Build the optional POST body for a build trigger. Sent in camelCase —
+ *  http.ts axios interceptor deep-snake_cases outgoing JSON. Empty / missing
+ *  values are dropped so a public build's POST body is just `{}` (matches
+ *  the backend's BuildTriggerRequest dataclass defaults). */
+const _toBuildBody = (auth?: TransientAuth): Record<string, unknown> => {
+  if (!auth) return {};
+  const body: Record<string, unknown> = {};
+  if (auth.token) body.token = auth.token;
+  if (auth.authUsername) body.authUsername = auth.authUsername;
+  if (auth.verifySsl === false) body.verifySsl = false;
+  return body;
+};
 
 /** @deprecated Use useCheckName('tool', name) from api_helpers instead */
 export const useCheckToolName = (name: string): Promise<CheckNameResponse> =>
@@ -59,9 +75,22 @@ export async function useToolMetadata() {
   return metadata
 }
 
-export async function useWorkflowToolBuild(id:string) {
-  const res = http.get<ExcuteBuildResponse>(`/tools/plugin/${id}/build`)
-  return res
+export async function useWorkflowToolBuild(id: string, auth?: TransientAuth) {
+  const res = http.post<ExcuteBuildResponse>(
+    `/tools/plugin/${id}/build`,
+    _toBuildBody(auth),
+  );
+  return res;
+}
+
+/** POST /api/tools/probe-source — used by `useGitRepoInfo` for non-public-GitHub
+ *  paths. Token (if supplied) stays server-side; the response carries either
+ *  `{ok:true, data}` (autofill the form) or `{ok:false, reason, message}`
+ *  (frontend uses `reason` to decide which UI fields to expand). */
+export async function useProbeToolSource(
+  req: ProbeSourceRequest,
+): Promise<ProbeSourceResponse> {
+  return http.post<ProbeSourceResponse>(`/tools/probe-source`, req);
 }
 
 export async function useDeleteTool(id:string) {

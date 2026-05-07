@@ -138,18 +138,22 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, computed, watch } from 'vue';
-import type { WorkflowResponse, ToolResponse, WorkflowStepAnnotation, AnnotateTool } from '@/models/types';
+import type { WorkflowResponse, ToolResponse, WorkflowStepAnnotation, AnnotateTool, TransientAuth, SourceType } from '@/models/types';
 import { getRepoContents, getRepoRootCWLContent } from '@/views/upload-dataset/components/utils';
 import type { GitContent } from '@/models/types';
 import yaml from 'js-yaml';
 import NoData from '@/views/upload-dataset/components/NoData.vue';
-import { useWorkflowTools, useGetWorkflowToolAnnotation, useGetToolLocalCwl } from '@/bootstrap/tool_api';
-import { useGetWorkflowLocalCwl } from '@/bootstrap/workflow_api';
+import { useWorkflowTools, useGetWorkflowToolAnnotation, useGetToolLocalCwl, useProbeToolSource } from '@/bootstrap/tool_api';
+import { useGetWorkflowLocalCwl, useProbeWorkflowSource } from '@/bootstrap/workflow_api';
 
 // ---- props / emits --------------------------------------------------------
 const props = defineProps<{
   type: 'workflow' | 'tool';
   data: WorkflowResponse | ToolResponse | undefined;
+  /** Token captured at registration step. Required for reading CWL from
+   *  private GitHub or any non-GitHub provider — backend re-clones with
+   *  the token via /probe-source and inlines the CWL content. */
+  pendingAuth?: TransientAuth | null;
 }>();
 const emit = defineEmits(['close', 'annotation-submit']);
 
@@ -183,21 +187,62 @@ function parseCwlText(raw: string): any {
   catch { return JSON.parse(raw); }
 }
 
+/** Decide whether we should use the public-GitHub anonymous browser-fetch
+ *  path (works without backend roundtrip) or fall back to /probe-source
+ *  with the token captured at registration. */
+function _canUsePublicGithubPath(sourceType: SourceType | undefined): boolean {
+  return sourceType === 'github' && !props.pendingAuth?.token;
+}
+
+/** Fetch CWL via backend /probe-source (token-aware). Used for private
+ *  GitHub and all non-GitHub providers — the backend re-clones with the
+ *  token via askpass and inlines the root CWL content in the response. */
+async function _loadCwlViaBackendProbe(
+  sourceType: Exclude<SourceType, 'local'>,
+  repositoryUrl: string,
+  kind: 'tool' | 'workflow',
+): Promise<{ cwlFile: string; content: any }> {
+  const probe = kind === 'tool' ? useProbeToolSource : useProbeWorkflowSource;
+  const res = await probe({
+    sourceType,
+    url: repositoryUrl,
+    token: props.pendingAuth?.token,
+    authUsername: props.pendingAuth?.authUsername,
+    verifySsl: props.pendingAuth?.verifySsl ?? true,
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch CWL: ${res.message}`);
+  }
+  if (!res.data.cwlFile || !res.data.cwlContent) {
+    throw new Error('No CWL file found at the root of the repository.');
+  }
+  return { cwlFile: res.data.cwlFile, content: parseCwlText(res.data.cwlContent) };
+}
+
 async function loadWorkflowCwl(workflow: WorkflowResponse): Promise<{ cwlFile: string; content: any }> {
   if (workflow.sourceType === 'local') {
     const { cwlFile, content } = await useGetWorkflowLocalCwl(workflow.id);
     return { cwlFile, content: parseCwlText(content) };
   }
-  // GitHub fallback (default).
-  const res = await getRepoContents(workflow.repositoryUrl);
-  const files = res!.data as GitContent[];
-  let cwlFile = '';
-  files.forEach((item: GitContent) => {
-    if (item.type === 'file' && item.name.endsWith('.cwl')) { cwlFile = item.name; }
-  });
-  const contentRes = await getRepoContents(workflow.repositoryUrl, cwlFile);
-  const raw = atob((contentRes.data.content as string).replace(/\n/g, ''));
-  return { cwlFile, content: parseCwlText(raw) };
+  if (_canUsePublicGithubPath(workflow.sourceType)) {
+    // Public GitHub: keep the anonymous browser-direct path (no backend
+    // roundtrip needed, lower latency).
+    const res = await getRepoContents(workflow.repositoryUrl);
+    const files = res!.data as GitContent[];
+    let cwlFile = '';
+    files.forEach((item: GitContent) => {
+      if (item.type === 'file' && item.name.endsWith('.cwl')) { cwlFile = item.name; }
+    });
+    if (!cwlFile) throw new Error('No CWL file found at repo root.');
+    const contentRes = await getRepoContents(workflow.repositoryUrl, cwlFile);
+    const raw = atob((contentRes.data.content as string).replace(/\n/g, ''));
+    return { cwlFile, content: parseCwlText(raw) };
+  }
+  return _loadCwlViaBackendProbe(
+    workflow.sourceType as Exclude<SourceType, 'local'>,
+    workflow.repositoryUrl,
+    'workflow',
+  );
 }
 
 async function loadToolCwl(tool: ToolResponse): Promise<{ cwlFile: string; content: any }> {
@@ -205,7 +250,14 @@ async function loadToolCwl(tool: ToolResponse): Promise<{ cwlFile: string; conte
     const { cwlFile, content } = await useGetToolLocalCwl(tool.id);
     return { cwlFile, content: parseCwlText(content) };
   }
-  return getRepoRootCWLContent(tool.repositoryUrl);
+  if (_canUsePublicGithubPath(tool.sourceType)) {
+    return getRepoRootCWLContent(tool.repositoryUrl);
+  }
+  return _loadCwlViaBackendProbe(
+    tool.sourceType as Exclude<SourceType, 'local'>,
+    tool.repositoryUrl,
+    'tool',
+  );
 }
 
 // ---- lifecycle ------------------------------------------------------------
