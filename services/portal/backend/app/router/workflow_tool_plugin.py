@@ -23,7 +23,7 @@ from app.models.db_model import (
     PluginAnnotationResponse, PluginAnnotationCreate,
     PluginAnnotation
 )
-from app.builder.logger import get_logger, configure_logging
+from app.builder.logger import get_logger, configure_logging, safe_dump
 from app.builder.build_tool import PluginBuilder
 from app.builder.deploy_tool import PluginDeployer
 from app.client.minio import get_minio_client
@@ -369,7 +369,7 @@ async def execute_build(
         "created_at": plugin.created_at.isoformat() if plugin.created_at else None,
         "updated_at": plugin.updated_at.isoformat() if plugin.updated_at else None,
     }
-    logger.info(f"Building GUI plugin: {json.dumps(plugin_dict, indent=4)}")
+    logger.info(f"Building GUI plugin: {safe_dump(plugin_dict, indent=4)}")
 
     build_id = str(uuid.uuid4())
 
@@ -460,7 +460,7 @@ async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = 
         "backend_folder": plugin.backend_folder,
         "backend_deploy_command": plugin.backend_deploy_command,
     }
-    logger.info(f"Building plugin: {json.dumps(plugin_dict, indent=4)}")
+    logger.info(f"Building plugin: {safe_dump(plugin_dict, indent=4)}")
     deploy_id = str(uuid.uuid4())
     db_deploy = PluginDeployment(
         plugin_id=plugin.id,

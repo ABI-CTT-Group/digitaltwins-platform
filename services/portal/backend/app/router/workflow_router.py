@@ -22,7 +22,7 @@ from app.models.db_model import (
     WorkflowAnnotationResponse, WorkflowBuildResponse, BuildStatus,
     SessionLocal
 )
-from app.builder.logger import get_logger, configure_logging
+from app.builder.logger import get_logger, configure_logging, safe_dump
 from app.client.minio import get_minio_client
 from app.client.fhir import get_fhir_adapter, get_fhir_async_client
 from app.builder.build_workflow import WorkflowBuilder
@@ -357,7 +357,7 @@ async def execute_build(
         "created_at": workflow.created_at.isoformat() if workflow.created_at else None,
         "updated_at": workflow.updated_at.isoformat() if workflow.updated_at else None,
     }
-    logger.info(f"Building Workflow: {json.dumps(workflow_dict, indent=4)}")
+    logger.info(f"Building Workflow: {safe_dump(workflow_dict, indent=4)}")
 
     build_id = str(uuid.uuid4())
 

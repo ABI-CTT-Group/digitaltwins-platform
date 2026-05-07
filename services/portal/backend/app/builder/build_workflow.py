@@ -7,8 +7,8 @@ from sparc_me import Dataset
 from .logger import get_logger
 from app.client.minio import get_minio_client
 from sqlalchemy.orm import Session
+from app.builder.source_acquirer import SourceAcquirer, SourceSpec
 from app.utils.builder_utils import (
-    clone_repository,
     copy_item,
     remove_tmp_folder,
     unique_name,
@@ -114,24 +114,19 @@ class WorkflowBuilder:
             # Step 0: Check for existing metadata
             logger.info("Step 0: Checking for existing plugin metadata...")
 
-            # Step 1: Acquire project_dir. Both branches own a temp dir and assign
-            # tmp_source_dir so steps 2/3/4 (SPARC + MinIO + cleanup) trigger uniformly.
-            if source_type == "local":
-                logger.info("Step 1: Using uploaded local archive...")
-                if not local_archive_path:
-                    raise RuntimeError("source_type='local' but local_archive_path is missing")
-                project_dir = Path(local_archive_path)
-                if not project_dir.exists() or not project_dir.is_dir():
-                    raise RuntimeError(f"Local staging dir not found: {project_dir}")
-                tmp_source_dir = project_dir
-                logger.info(f"Using uploaded source from: {project_dir}")
-            elif source_type == "github":
-                logger.info("Step 1: Cloning repository...")
-                project_dir = clone_repository(self.tmp_dir, repo_url, logger, branch)
-                tmp_source_dir = project_dir  # Mark for cleanup
-                logger.info(f"Repository cloned to: {tmp_source_dir}")
-            else:
-                raise ValueError(f"Unknown source_type: {source_type!r} (expected 'github' or 'local')")
+            # Step 1: Acquire project_dir via the registered SourceAcquirer.
+            # Each acquirer owns its source-materialization details; from
+            # step 2 onward the pipeline operates on project_dir uniformly.
+            # tmp_source_dir is set so steps 2/3/4 trigger the same way.
+            spec = SourceSpec(
+                source_type=source_type,
+                url=repo_url,
+                branch=branch,
+                local_archive_path=local_archive_path,
+            )
+            acquirer = SourceAcquirer.for_type(source_type, self.tmp_dir)
+            project_dir = acquirer.acquire(spec)
+            tmp_source_dir = project_dir  # Mark for cleanup
 
             # Step 2: Create SPARC dataset for cwl plugin script
             logger.info("Step 2: Creating SPARC dataset by sparc-me")
