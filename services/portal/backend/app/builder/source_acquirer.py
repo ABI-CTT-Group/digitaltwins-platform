@@ -28,7 +28,7 @@ import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar, Dict, Optional, Type
+from typing import Any, ClassVar, Dict, Optional, Tuple, Type
 from urllib.parse import urlparse, urlunparse
 
 from app.builder.logger import get_logger
@@ -150,20 +150,104 @@ def _inject_username_in_url(url: str, username: str) -> str:
     return urlunparse(parsed._replace(netloc=f"{username}@{parsed.netloc}"))
 
 
-def _classify_clone_error(stderr: str, returncode: int) -> str:
-    """Map git clone stderr to a coarse user-meaningful message.
+class CloneError(RuntimeError):
+    """Structured clone failure carrying a machine-readable reason code.
 
-    Phase 7 will refine and normalize across providers; this is the rough
-    first pass good enough for backend RuntimeError messages.
+    The ``reason`` lets the probe-source endpoint tell the frontend which
+    UI fields to expand (per phase 0.4 P-scheme):
+      - ``auth_required``  → expand token field (+ auth_username if generic)
+      - ``not_found``      → same UX as auth_required (provider hides
+                              private repos behind 404 when no auth)
+      - ``tls_error``      → expand "Trust self-signed cert" checkbox
+      - ``network``        → show generic error, no fields to expand
+      - ``unknown``        → fallback
+    """
+
+    REASON_AUTH = "auth_required"
+    REASON_NOT_FOUND = "not_found"
+    REASON_TLS = "tls_error"
+    REASON_NETWORK = "network"
+    REASON_UNKNOWN = "unknown"
+
+    def __init__(self, reason: str, message: str):
+        super().__init__(message)
+        self.reason = reason
+        self.message = message
+
+
+def _classify_clone_error(stderr: str, returncode: int) -> Tuple[str, str]:
+    """Map git clone stderr to ``(reason_code, user_facing_message)``.
+
+    Phase 7 will refine the messages and normalize across providers; this is
+    the rough first pass good enough for the probe endpoint to dispatch
+    structured failures.
     """
     s = (stderr or "").lower()
-    if "authentication failed" in s or "invalid credentials" in s or "could not read username" in s:
-        return "Authentication failed — token may be invalid, expired, or lack repo access"
-    if "not found" in s or "404" in s:
-        return "Repository not found — check URL and that the token has access to it"
-    if "could not resolve host" in s:
-        return "Network error — could not reach the git server"
-    return f"Git clone failed (exit {returncode})"
+    if (
+        "authentication failed" in s
+        or "invalid credentials" in s
+        or "could not read username" in s
+    ):
+        return (
+            CloneError.REASON_AUTH,
+            "Authentication failed — token may be invalid, expired, or lack repo access",
+        )
+    # Order matters: TLS first since "ssl certificate" can co-occur with
+    # other phrases, then 404 detection.
+    if (
+        "ssl certificate problem" in s
+        or "self-signed certificate" in s
+        or "self signed certificate" in s
+        or "unable to get local issuer certificate" in s
+        or "certificate verify failed" in s
+    ):
+        return (
+            CloneError.REASON_TLS,
+            "TLS certificate verification failed — host may use a self-signed cert; "
+            "enable 'Trust self-signed cert' if you trust this network path",
+        )
+    if "not found" in s or "404" in s or "repository not found" in s:
+        return (
+            CloneError.REASON_NOT_FOUND,
+            "Repository not found — check URL, branch, and (for private repos) that the token has access",
+        )
+    if "could not resolve host" in s or "failed to connect" in s:
+        return (
+            CloneError.REASON_NETWORK,
+            "Network error — could not reach the git server",
+        )
+    return (
+        CloneError.REASON_UNKNOWN,
+        f"Git clone failed (exit {returncode})",
+    )
+
+
+def _clone_anonymous_classified(
+    tmp_dir: Path,
+    repo_url: str,
+    branch: str,
+    *,
+    shallow: bool = False,
+    env_overrides: Optional[Dict[str, str]] = None,
+) -> Path:
+    """Wrap ``clone_repository`` to raise ``CloneError`` (with reason code)
+    instead of the generic ``RuntimeError`` it produces.
+
+    Relies on ``clone_repository`` chaining the original
+    ``CalledProcessError`` via ``raise ... from e`` so we can read stderr
+    here for classification.
+    """
+    try:
+        return clone_repository(
+            tmp_dir, repo_url, logger, branch,
+            shallow=shallow, env_overrides=env_overrides,
+        )
+    except RuntimeError as exc:
+        cause = exc.__cause__
+        if isinstance(cause, subprocess.CalledProcessError):
+            reason, msg = _classify_clone_error(cause.stderr, cause.returncode)
+            raise CloneError(reason, msg) from cause
+        raise
 
 
 def _ssl_extra_env(spec: SourceSpec) -> Dict[str, str]:
@@ -244,7 +328,8 @@ def _clone_with_token(
         logger.error(
             f"Authenticated git clone failed (exit {e.returncode}): {e.stderr}"
         )
-        raise RuntimeError(_classify_clone_error(e.stderr, e.returncode))
+        reason, msg = _classify_clone_error(e.stderr, e.returncode)
+        raise CloneError(reason, msg) from e
     finally:
         try:
             askpass.unlink()
@@ -256,26 +341,6 @@ def _clone_with_token(
 
 
 # --- Concrete acquirers ---
-
-@SourceAcquirer.register("github")
-class GithubAcquirer(SourceAcquirer):
-    """Public GitHub via anonymous git clone.
-
-    Phase 1: zero behavior change vs the prior inline branch in
-    build_tool.py / build_workflow.py — same ``git clone --branch <b>`` call
-    via ``clone_repository``. Private GitHub will be handled in a later
-    phase (either here once token plumbing exists, or via a dedicated
-    ``github_private`` acquirer).
-    """
-
-    def acquire(self, spec: SourceSpec) -> Path:
-        if not spec.url:
-            raise RuntimeError("source_type='github' requires url; got empty/None")
-        logger.info("Step 1: Cloning repository...")
-        project_dir = clone_repository(self.tmp_dir, spec.url, logger, spec.branch)
-        logger.info(f"Repository cloned to: {project_dir}")
-        return project_dir
-
 
 @SourceAcquirer.register("local")
 class LocalAcquirer(SourceAcquirer):
@@ -334,8 +399,8 @@ class _TokenGitAcquirer(SourceAcquirer):
             )
         else:
             logger.info(f"Step 1: Cloning public {self._PROVIDER_LABEL} repository...")
-            project_dir = clone_repository(
-                self.tmp_dir, spec.url, logger, spec.branch,
+            project_dir = _clone_anonymous_classified(
+                self.tmp_dir, spec.url, spec.branch,
                 env_overrides=extra_env or None,
             )
 
@@ -361,8 +426,8 @@ class _TokenGitAcquirer(SourceAcquirer):
                 extra_env=extra_env,
             )
         else:
-            project_dir = clone_repository(
-                self.tmp_dir, spec.url, logger, spec.branch,
+            project_dir = _clone_anonymous_classified(
+                self.tmp_dir, spec.url, spec.branch,
                 shallow=True,
                 env_overrides=extra_env or None,
             )
@@ -371,6 +436,26 @@ class _TokenGitAcquirer(SourceAcquirer):
             return inspect_uploaded_source(project_dir, want_npm=True, want_cwl=True)
         finally:
             force_rmtree(project_dir)
+
+
+@SourceAcquirer.register("github")
+class GithubAcquirer(_TokenGitAcquirer):
+    """GitHub via git clone — public anonymous, private via PAT.
+
+    Auth convention (when ``spec.token`` is present): ``x-access-token``
+    username + token-as-password. GitHub PAT auth historically also accepts
+    "the token IS the username" but ``x-access-token`` is what GitHub Apps
+    and the official docs recommend, and works for both fine-grained PATs
+    and classic ones.
+
+    Phase 1 had GithubAcquirer as a separate single-path implementation
+    (no token support); phase 5 unified it under ``_TokenGitAcquirer`` to
+    enable private GitHub. Public-path behavior is identical (same
+    ``clone_repository`` call, just routed through the shared base);
+    log message format gained the ``GitHub`` provider label.
+    """
+    _AUTH_USERNAME = "x-access-token"
+    _PROVIDER_LABEL = "GitHub"
 
 
 @SourceAcquirer.register("gitlab")
@@ -461,8 +546,8 @@ class GenericGitAcquirer(SourceAcquirer):
         logger.info(
             f"Step 1: Cloning public generic git repository (shallow={shallow})..."
         )
-        return clone_repository(
-            self.tmp_dir, spec.url, logger, spec.branch,
+        return _clone_anonymous_classified(
+            self.tmp_dir, spec.url, spec.branch,
             shallow=shallow,
             env_overrides=extra_env or None,
         )

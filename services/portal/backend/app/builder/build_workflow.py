@@ -104,6 +104,10 @@ class WorkflowBuilder:
         metadata = workflow.get("metadata", {})
         source_type = workflow.get("source_type", "github")
         local_archive_path = workflow.get("local_archive_path")
+        # Transient secrets — see build_tool.py for the full contract.
+        token = workflow.get("token")
+        auth_username = workflow.get("auth_username")
+        verify_ssl = workflow.get("verify_ssl", True)
         tmp_source_dir = None
         config = {}
 
@@ -123,6 +127,9 @@ class WorkflowBuilder:
                 url=repo_url,
                 branch=branch,
                 local_archive_path=local_archive_path,
+                token=token,
+                auth_username=auth_username,
+                verify_ssl=verify_ssl,
             )
             acquirer = SourceAcquirer.for_type(source_type, self.tmp_dir)
             project_dir = acquirer.acquire(spec)

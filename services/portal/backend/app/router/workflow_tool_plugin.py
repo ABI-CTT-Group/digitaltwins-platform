@@ -21,11 +21,14 @@ from app.models.db_model import (
     PluginBuildResponse, BuildStatus, SessionLocal,
     DeployStatus, PluginDeployment, PluginDeployResponse,
     PluginAnnotationResponse, PluginAnnotationCreate,
-    PluginAnnotation
+    PluginAnnotation,
+    ProbeSourceRequest, BuildTriggerRequest,
 )
+from fastapi import Body
 from app.builder.logger import get_logger, configure_logging, safe_dump
 from app.builder.build_tool import PluginBuilder
 from app.builder.deploy_tool import PluginDeployer
+from app.builder.source_acquirer import SourceAcquirer, SourceSpec, CloneError
 from app.client.minio import get_minio_client
 from app.client.fhir import get_fhir_adapter, get_fhir_async_client
 
@@ -339,17 +342,25 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
         return {"status": False, "message": str(e)}
 
 
-@router.get("/plugin/{plugin_id}/build")
-async def execute_build(
-        plugin_id: str,
-        background_tasks: BackgroundTasks = None,
-        db: Session = Depends(get_db)):
-    """Execute a plugin build using git CLI and npm or yarn"""
+def _trigger_plugin_build(
+    plugin_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session,
+    *,
+    transient: Optional[BuildTriggerRequest] = None,
+) -> dict:
+    """Shared build-trigger logic used by both GET (legacy public-only)
+    and POST (token-aware) build endpoints.
+
+    ``transient`` carries optional per-build secrets (token, auth_username,
+    verify_ssl). They flow into ``plugin_dict`` and onward to the acquirer
+    via ``SourceSpec`` — never touch the DB. ``safe_dump`` masks any token
+    field when the dict is logged.
+    """
     plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
     if plugin is None:
         raise HTTPException(status_code=404, detail="Plugin not found")
 
-    # Covert Plugin object to dict for JSON serialization
     plugin_dict = {
         "id": plugin.id,
         "name": plugin.name,
@@ -369,16 +380,21 @@ async def execute_build(
         "created_at": plugin.created_at.isoformat() if plugin.created_at else None,
         "updated_at": plugin.updated_at.isoformat() if plugin.updated_at else None,
     }
+    if transient is not None:
+        if transient.token:
+            plugin_dict["token"] = transient.token
+        if transient.auth_username:
+            plugin_dict["auth_username"] = transient.auth_username
+        plugin_dict["verify_ssl"] = transient.verify_ssl
+
     logger.info(f"Building GUI plugin: {safe_dump(plugin_dict, indent=4)}")
 
     build_id = str(uuid.uuid4())
-
     db_build = PluginBuild(
         plugin_id=plugin.id,
         build_id=build_id,
         status=BuildStatus.PENDING.value,
     )
-
     db.add(db_build)
     db.commit()
     db.refresh(db_build)
@@ -387,7 +403,6 @@ async def execute_build(
     if plugin.has_backend:
         shuttle_down_deployed_backend(plugin.id, deployer)
 
-    # executing build in backend
     execute_build_in_background(
         build_id=build_id,
         data=plugin_dict,
@@ -400,8 +415,89 @@ async def execute_build(
         "build_id": build_id,
         "status": BuildStatus.PENDING.value,
         "message": "Build started in background",
-        "repo_url": plugin.repository_url
+        "repo_url": plugin.repository_url,
     }
+
+
+@router.get("/plugin/{plugin_id}/build", deprecated=True)
+async def execute_build(
+        plugin_id: str,
+        background_tasks: BackgroundTasks = None,
+        db: Session = Depends(get_db)):
+    """Legacy public-source build trigger.
+
+    Deprecated: use ``POST /plugin/{plugin_id}/build`` which accepts a body
+    for transient token / auth_username / verify_ssl. This GET only works
+    for public-source plugins (no token plumbing). Will be removed once
+    frontend phase 6 finishes migrating.
+    """
+    return _trigger_plugin_build(plugin_id, background_tasks, db, transient=None)
+
+
+@router.post("/plugin/{plugin_id}/build")
+async def execute_build_post(
+        plugin_id: str,
+        req: BuildTriggerRequest = Body(default_factory=BuildTriggerRequest),
+        background_tasks: BackgroundTasks = None,
+        db: Session = Depends(get_db)):
+    """Trigger a plugin build, optionally with transient secrets in the body.
+
+    Public-source plugins: POST ``{}`` (or any subset). Private git
+    plugins: include ``token`` (and ``auth_username`` for generic git,
+    ``verify_ssl: false`` for self-signed certs). Token / auth_username /
+    verify_ssl are NEVER persisted — every rebuild requires re-supply.
+    """
+    return _trigger_plugin_build(plugin_id, background_tasks, db, transient=req)
+
+
+@router.post("/probe-source")
+async def probe_source(req: ProbeSourceRequest):
+    """Probe a git URL and return inspect metadata (folders, package.json
+    version/author, .cwl presence) for autofilling the registration form.
+
+    Token (if provided) is used once and discarded — never written to disk
+    persistently, never logged (logger has PAT mask filter), never stored
+    in the DB. The ``ok=false`` failure shape carries a structured
+    ``reason`` so the frontend can decide which UI fields to expand
+    (per phase 0.4 P-scheme):
+        - ``auth_required`` / ``not_found`` → expand token field
+        - ``tls_error`` → expand "Trust self-signed cert" toggle
+        - ``network`` / ``unknown`` → show error, no field expansion
+    """
+    spec = SourceSpec(
+        source_type=req.source_type,
+        url=req.url,
+        branch=req.branch,
+        token=req.token,
+        auth_username=req.auth_username,
+        verify_ssl=req.verify_ssl,
+    )
+    try:
+        acquirer = SourceAcquirer.for_type(req.source_type, builder.tmp_dir)
+    except ValueError as e:
+        # Unknown source_type — Pydantic Literal should already reject this
+        # at the boundary, but keep defense-in-depth.
+        return JSONResponse(status_code=400, content={
+            "ok": False, "reason": "validation",
+            "message": str(e), "provider_hint": req.source_type,
+        })
+    try:
+        data = acquirer.probe_metadata(spec)
+        return {"ok": True, "data": data}
+    except CloneError as e:
+        return {
+            "ok": False,
+            "reason": e.reason,
+            "message": e.message,
+            "provider_hint": req.source_type,
+        }
+    except RuntimeError as e:
+        # Validation-class failures (missing url, missing auth_username for
+        # generic+token, invalid token chars, etc.).
+        return JSONResponse(status_code=400, content={
+            "ok": False, "reason": "validation",
+            "message": str(e), "provider_hint": req.source_type,
+        })
 
 
 @router.get("/plugin/{plugin_id}/builds", response_model=List[PluginBuildResponse])

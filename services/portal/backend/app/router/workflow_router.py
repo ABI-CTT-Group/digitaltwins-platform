@@ -10,7 +10,7 @@ from app.database.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from typing import List, Dict, Any, Literal
+from typing import List, Dict, Any, Literal, Optional
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import uuid
@@ -20,12 +20,15 @@ from app.models.db_model import (
     Workflow, WorkflowBuild, WorkflowAnnotation, WorkflowBase,
     WorkflowResponse, WorkflowCreate, WorkflowAnnotationCreate,
     WorkflowAnnotationResponse, WorkflowBuildResponse, BuildStatus,
-    SessionLocal
+    SessionLocal,
+    ProbeSourceRequest, BuildTriggerRequest,
 )
+from fastapi import Body
 from app.builder.logger import get_logger, configure_logging, safe_dump
 from app.client.minio import get_minio_client
 from app.client.fhir import get_fhir_adapter, get_fhir_async_client
 from app.builder.build_workflow import WorkflowBuilder
+from app.builder.source_acquirer import SourceAcquirer, SourceSpec, CloneError
 from app.utils.workflow_tool_utils import get_build_record_or_404, get_public_url_for_build, get_latest_build_record
 from app.utils.builder_utils import (
     execute_build_in_background,
@@ -333,17 +336,18 @@ async def get_build_direct_url(build_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Failed to generate direct url for build {build_id}: {e}")
 
 
-@router.get("/{workflow_id}/build")
-async def execute_build(
-        workflow_id: str,
-        background_tasks: BackgroundTasks = None,
-        db: Session = Depends(get_db)):
-    """Build a workflow using git CLI"""
+def _trigger_workflow_build(
+    workflow_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session,
+    *,
+    transient: Optional[BuildTriggerRequest] = None,
+) -> dict:
+    """Shared build-trigger logic for both GET (legacy) and POST (token-aware)."""
     workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()  # type: ignore
     if workflow is None:
-        raise HTTPException(status_code=404, detail="Plugin not found")
+        raise HTTPException(status_code=404, detail="Workflow not found")
 
-    # Covert Workflow object to dict for JSON serialization
     workflow_dict = {
         "id": workflow.id,
         "name": workflow.name,
@@ -357,16 +361,21 @@ async def execute_build(
         "created_at": workflow.created_at.isoformat() if workflow.created_at else None,
         "updated_at": workflow.updated_at.isoformat() if workflow.updated_at else None,
     }
+    if transient is not None:
+        if transient.token:
+            workflow_dict["token"] = transient.token
+        if transient.auth_username:
+            workflow_dict["auth_username"] = transient.auth_username
+        workflow_dict["verify_ssl"] = transient.verify_ssl
+
     logger.info(f"Building Workflow: {safe_dump(workflow_dict, indent=4)}")
 
     build_id = str(uuid.uuid4())
-
     db_build = WorkflowBuild(
         workflow_id=workflow.id,
         build_id=build_id,
         status=BuildStatus.PENDING.value,
     )
-
     db.add(db_build)
     db.commit()
     db.refresh(db_build)
@@ -383,8 +392,74 @@ async def execute_build(
         "build_id": build_id,
         "status": BuildStatus.PENDING.value,
         "message": "Build started in background",
-        "repo_url": workflow.repository_url
+        "repo_url": workflow.repository_url,
     }
+
+
+@router.get("/{workflow_id}/build", deprecated=True)
+async def execute_build(
+        workflow_id: str,
+        background_tasks: BackgroundTasks = None,
+        db: Session = Depends(get_db)):
+    """Legacy public-source workflow build trigger.
+
+    Deprecated: use ``POST /{workflow_id}/build`` for transient token /
+    auth_username / verify_ssl. This GET stays only for back-compat with
+    pre-phase-6 frontend.
+    """
+    return _trigger_workflow_build(workflow_id, background_tasks, db, transient=None)
+
+
+@router.post("/{workflow_id}/build")
+async def execute_build_post(
+        workflow_id: str,
+        req: BuildTriggerRequest = Body(default_factory=BuildTriggerRequest),
+        background_tasks: BackgroundTasks = None,
+        db: Session = Depends(get_db)):
+    """Trigger a workflow build, optionally with transient secrets in body.
+
+    See ``/api/tools/plugin/{id}/build`` for the token handling contract.
+    """
+    return _trigger_workflow_build(workflow_id, background_tasks, db, transient=req)
+
+
+@router.post("/probe-source")
+async def probe_source(req: ProbeSourceRequest):
+    """Probe a git URL for workflow source metadata.
+
+    Token / cleanup / failure-shape contract identical to the plugin-side
+    probe (see ``/api/tools/probe-source``).
+    """
+    spec = SourceSpec(
+        source_type=req.source_type,
+        url=req.url,
+        branch=req.branch,
+        token=req.token,
+        auth_username=req.auth_username,
+        verify_ssl=req.verify_ssl,
+    )
+    try:
+        acquirer = SourceAcquirer.for_type(req.source_type, builder.tmp_dir)
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={
+            "ok": False, "reason": "validation",
+            "message": str(e), "provider_hint": req.source_type,
+        })
+    try:
+        data = acquirer.probe_metadata(spec)
+        return {"ok": True, "data": data}
+    except CloneError as e:
+        return {
+            "ok": False,
+            "reason": e.reason,
+            "message": e.message,
+            "provider_hint": req.source_type,
+        }
+    except RuntimeError as e:
+        return JSONResponse(status_code=400, content={
+            "ok": False, "reason": "validation",
+            "message": str(e), "provider_hint": req.source_type,
+        })
 
 
 @router.get("/{workflow_id}/builds", response_model=List[WorkflowBuildResponse])

@@ -523,6 +523,14 @@ class PluginBuilder:
         backend_deploy_command = plugin.get("backend_deploy_command")
         source_type = plugin.get("source_type", "github")
         local_archive_path = plugin.get("local_archive_path")
+        # Transient secrets supplied per-build (NEVER persisted to DB per
+        # phase-0.2 decision). The build endpoint reads these from the
+        # request body and passes them through plugin_dict here. Acquirers
+        # that don't need them (LocalAcquirer, public GithubAcquirer) just
+        # ignore them via SourceSpec dataclass defaults.
+        token = plugin.get("token")
+        auth_username = plugin.get("auth_username")
+        verify_ssl = plugin.get("verify_ssl", True)
         tmp_source_dir = None
         config = {}
 
@@ -543,6 +551,9 @@ class PluginBuilder:
                 url=repo_url,
                 branch=branch,
                 local_archive_path=local_archive_path,
+                token=token,
+                auth_username=auth_username,
+                verify_ssl=verify_ssl,
             )
             acquirer = SourceAcquirer.for_type(source_type, self.tmp_dir)
             project_dir = acquirer.acquire(spec)

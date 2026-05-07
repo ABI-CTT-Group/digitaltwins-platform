@@ -60,7 +60,10 @@ def clone_repository(
         logger.error(f"Failed to clone repository: {e}")
         logger.error(f"stdout: {e.stdout}")
         logger.error(f"stderr: {e.stderr}")
-        raise RuntimeError(f"Git clone failed: {e}")
+        # `from e` preserves the exception chain so callers (e.g.
+        # `_clone_anonymous_classified`) can inspect ``__cause__.stderr``
+        # to map the failure to a structured reason code.
+        raise RuntimeError(f"Git clone failed: {e}") from e
 
 
 def copy_item(src: Path, dst: Path, exclude: set = None):
