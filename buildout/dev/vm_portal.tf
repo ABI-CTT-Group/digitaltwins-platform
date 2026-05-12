@@ -1,26 +1,31 @@
+# Port on auckland-wg network/subnet for portal
+resource "openstack_networking_port_v2" "port_auckland_wg_portal" {
+  name       = "drai_portal_wg"
+  network_id = openstack_networking_network_v2.n_wg.id
+}
+
 # Port on auckland-public network/subnet for portal
 resource "openstack_networking_port_v2" "port_auckland_public_portal" {
   name       = "drai_portal_public"
-  network_id = data.openstack_networking_network_v2.auckland_public.id
+  network_id = openstack_networking_network_v2.n_p.id
 }
 
-#resource "openstack_compute_instance_v2" "portal" {
-#  name     = "drai_portal"
-#  flavor_id = data.openstack_compute_flavor_v2.m3_xxlarge.id
-#  key_pair  = data.openstack_compute_keypair_v2.drai_inn_keypair.id
-#  image_id  = data.openstack_images_image_v2.portal_image2.id
-#  network {
-#    port =  openstack_networking_port_v2.port_auckland_public_portal.id 
-#  }
-#}
+resource "openstack_networking_floatingip_associate_v2" "fip_portal" {
+  floating_ip = data.openstack_networking_floatingip_v2.floatip_test.address
+  port_id     = openstack_networking_port_v2.port_auckland_public_portal.id
+}
 
 # portal VM
 resource "openstack_compute_instance_v2" "portal" {
   name            = "drai_portal"
   flavor_id       = data.openstack_compute_flavor_v2.m3_xxlarge.id
+#  flavor_id       = data.openstack_compute_flavor_v2.m3_small.id
   key_pair        = data.openstack_compute_keypair_v2.drai_inn_keypair.id
   network {
     port =  openstack_networking_port_v2.port_auckland_public_portal.id 
+  }
+  network {
+    port =  openstack_networking_port_v2.port_auckland_wg_portal.id 
   }
 
   block_device {
@@ -40,6 +45,14 @@ resource "openstack_networking_port_secgroup_associate_v2" "port_sec_group_porta
   security_group_ids = [
      resource.openstack_networking_secgroup_v2.ssh_restricted_i.id
     ,resource.openstack_networking_secgroup_v2.web_server_i.id
+  ]
+}
+
+# ssh_restricted security group on the port
+resource "openstack_networking_port_secgroup_associate_v2" "port_sec_group_portal_wg" {
+  port_id = openstack_networking_port_v2.port_auckland_wg_portal.id
+  security_group_ids = [
+    resource.openstack_networking_secgroup_v2.internal_compute.id
   ]
 }
 

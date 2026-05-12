@@ -1,6 +1,9 @@
 # Existing entities in openstack that are used
 #
 
+data "openstack_networking_floatingip_v2" "floatip_test"       { address = "130.216.254.174" }
+
+data "openstack_networking_network_v2"  "auckland"       { name = "auckland" }
 data "openstack_networking_network_v2"  "auckland_public"       { name = "auckland-public" }
 data "openstack_networking_network_v2"  "auckland_public_data"  { name = "auckland-public-data" }
 

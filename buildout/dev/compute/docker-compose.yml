@@ -1,0 +1,78 @@
+# Remote Airflow worker — runs on a separate VM.
+# The main VM must expose Redis (:8016), Postgres (:8003),
+# and the Airflow API server (:8002) to this VM's IP.
+
+
+#AIRFLOW__DATABASE__SQL_ALCHEMY_CONN:     postgresql+psycopg2://airflow:airflow@MAIN_VM_IP:8003/airflow
+#AIRFLOW__CELERY__RESULT_BACKEND:         db+postgresql://airflow:airflow@MAIN_VM_IP:8003/airflow
+#AIRFLOW__CELERY__BROKER_URL:             redis://:@MAIN_VM_IP:REDIS_PORT/0
+#AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://MAIN_VM_IP:8002/airflow/execution/
+#AIRFLOW_ENDPOINT:                        http://MAIN_VM_IP:8002/airflow
+#MINIO_ENDPOINT:                          http://MAIN_VM_IP:8011
+
+
+x-worker-common:
+  &worker-common
+  image: your-registry/digitaltwins-airflow:latest   # same image as main
+  environment:
+    AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+
+    # Point at the MAIN VM — replace with its IP or hostname
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@130.216.217.182:8003/airflow
+    AIRFLOW__CELERY__RESULT_BACKEND:     db+postgresql://airflow:airflow@130.216.217.182:8003/airflow
+    AIRFLOW__CELERY__BROKER_URL:         redis://:@130.216.217.182:8016/0
+
+    # Execution API — worker calls back to the main API server
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://130.216.217.182:8002/airflow/execution/
+
+    # Must match the main deployment exactly
+    AIRFLOW__CORE__FERNET_KEY:        ${AIRFLOW__CORE__FERNET_KEY}
+    AIRFLOW__API_AUTH__JWT_SECRET:    ${AIRFLOW__API_AUTH__JWT_SECRET}
+    AIRFLOW__API__SECRET_KEY:         ${AIRFLOW__API__SECRET_KEY}
+
+    # So the worker can trigger per-subject DAG runs
+    AIRFLOW_ENDPOINT: http://130.216.217.182:8002/airflow
+    AIRFLOW_USERNAME: ${AIRFLOW_USERNAME}
+    AIRFLOW_PASSWORD: ${AIRFLOW_PASSWORD}
+
+    MINIO_ENDPOINT: http://130.216.217.182:8011
+
+    DIGITALTWINS_API_BASE_URL: ${DIGITALTWINS_API_BASE_URL}
+    DIGITALTWINS_API_PORT:     ${DIGITALTWINS_API_PORT}
+
+    DUMB_INIT_SETSID: "0"
+
+  volumes:
+    - ./dags:/opt/airflow/dags        # see note below
+    - ./logs:/opt/airflow/logs
+    - ./plugins:/opt/airflow/plugins
+    - ./config:/opt/airflow/config
+    - ./data:/opt/airflow/data
+
+  user: "${AIRFLOW_UID:-50000}:0"
+
+services:
+  airflow-worker:
+    <<: *worker-common
+    command: celery worker
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"'
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+
+  airflow-triggerer:
+    <<: *worker-common
+    command: triggerer
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
