@@ -1,0 +1,33 @@
+# Your credentials
+KC_USER="mp1"
+KC_PASS="mp1"
+
+: ${AIRFLOW_KEYCLOAK_CLIENT_ID:?}
+: ${AIRFLOW_KEYCLOAK_CLIENT_SECRET:?}
+
+# Step 1: get a Keycloak token (your identity)
+KC_TOKEN=$(curl -s -X POST \
+  "https://test.digitaltwins.auckland.ac.nz/auth/realms/digitaltwins/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password&client_id=${AIRFLOW_KEYCLOAK_CLIENT_ID}&client_secret=${AIRFLOW_KEYCLOAK_CLIENT_SECRET}&username=${KC_USER}&password=${KC_PASS}" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+echo KC_TOKEN=$KC_TOKEN
+
+# Step 2: exchange it for an Airflow token scoped to your user
+#curl -s -X POST \
+#  "https://test.digitaltwins.auckland.ac.nz/airflow/keycloak/exchange" \
+#  -H "Authorization: Bearer ${KC_TOKEN}" \
+#
+#exit
+#
+AF_TOKEN=$(curl -s -X POST \
+  "https://test.digitaltwins.auckland.ac.nz/airflow/keycloak/exchange" \
+  -H "Authorization: Bearer ${KC_TOKEN}" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+echo AF_TOKEN=$AF_TOKEN
+
+## Step 3: test it
+#curl -s "https://test.digitaltwins.auckland.ac.nz/airflow/api/v2/dags" \
+#  -H "Authorization: Bearer ${AF_TOKEN}" | python3 -m json.tool

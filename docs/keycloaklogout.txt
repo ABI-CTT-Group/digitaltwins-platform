@@ -1,0 +1,1 @@
+https://test.digitaltwins.auckland.ac.nz/auth/realms/digitaltwins/protocol/openid-connect/logout

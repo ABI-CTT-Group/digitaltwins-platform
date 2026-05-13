@@ -1,0 +1,4 @@
+curl -s -X POST https://test.digitaltwins.auckland.ac.nz/airflow/auth/token \
+  -H "Content-Type: application/json" \
+  -d "{\"username\":\"admin\",\"password\":\"admin\"}" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])"

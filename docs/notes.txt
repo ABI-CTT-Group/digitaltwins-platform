@@ -1,0 +1,143 @@
+So this airflow integration with keycloak now, I dont really understand why we did that. From the digitaltwins-platform, I think we initiate airflow processes, and then we want to come over to the /airflow side and monitor them? So how do I know that they're running in different user "spaces" on airflow. Is there a dummy workflow that I can run?
+
+Good question — let me explain the "why" first, then we'll test it.
+
+Why Keycloak for Airflow?
+
+Two separate concerns:
+
+Triggering — the portal backend calls Airflow's API to start workflows. That uses a service account (the AIRFLOW_USERNAME/AIRFLOW_PASSWORD env vars). Those runs will show up in Airflow attributed to that service account, regardless of which portal user initiated them.
+Monitoring — when a human wants to come to /airflow and look at what's running, Keycloak means they use their platform identity rather than needing a separate Airflow account. Their Keycloak realm roles determine what they can see/do (Admin, Viewer, etc.).
+So the two spaces are: portal service account (for programmatic triggering) and individual human users (for UI monitoring). They're intentionally separate.
+
+Quick test DAG — drop this into the dags folder on the VM:
+
+# services/airflow/dags/test_hello.py
+from datetime import datetime
+from airflow.sdk import DAG, task
+
+with DAG(
+    dag_id="test_hello",
+    start_date=datetime(2024, 1, 1),
+    schedule=None,   # manual trigger only
+    tags=["test"],
+) as dag:
+
+    @task
+    def hello():
+        print("Hello from Airflow!")
+        return "done"
+
+    hello()
+Copy it to the VM:
+
+scp services/airflow/dags/test_hello.py twins:~/twins/digitaltwins-platform/services/airflow/dags/
+Then in the Airflow UI at /airflow, find test_hello, trigger it manually, and look at the run details. Under Triggered by you'll see your Keycloak username — confirming your identity is flowing through correctly.
+
+So what if we wanted to start things on the api and not use that service account? Can we use the user's own account if both the platform and the airflow are integrated with the same keycloak?
+
+Yes, absolutely — and it's actually the better design for user-initiated actions. Since both systems share the same Keycloak realm, the user's access token is already trusted by both.
+
+How it would work:
+
+User logs into the portal → browser holds a Keycloak JWT access token
+Portal frontend sends that token to the portal backend with the request
+Portal backend forwards it to Airflow's REST API as a Bearer token
+Airflow validates it against Keycloak (same realm, same signing keys)
+Airflow identifies the user from the token's claims — same preferred_username, same roles
+DAG run is attributed to that actual user
+What needs to change:
+
+Airflow's REST API currently accepts session cookies and basic auth. To accept Keycloak Bearer tokens, you'd need to add a JWT validation auth backend — essentially a small Python module that:
+
+Extracts the Authorization: Bearer <token> header
+Validates the JWT signature against Keycloak's public keys (the jwks_uri)
+Maps the claims to a FAB user (which our KeycloakSecurityManager already knows how to do)
+When to use which:
+
+Scenario	Use
+User clicks "Run workflow" in portal	Forward user's token → attributed to them
+Scheduled/automated triggers	Service account → clean separation
+Background sync jobs	Service account
+The nice thing is you already have all the pieces — KeycloakSecurityManager decodes the JWT and maps roles. The same logic could back the API auth. It's not a huge lift, but it's a deliberate decision about whether you want that attribution granularity.
+
+Is that something the platform needs now, or is the service account sufficient for the current use case?
+
+If we could have it now, it would be a big win.
+
+Right, let me think through the pieces properly.
+
+Since both systems share the same Keycloak realm, the user's access token is already trusted by Airflow's signing keys. The plan:
+
+Airflow: Custom auth manager that also accepts Keycloak Bearer tokens on API calls — so when the portal forwards a user's token, Airflow identifies them correctly and attributes the DAG run to them
+Portal backend: Forward the user's Authorization: Bearer header to Airflow instead of using the service account credentials
+Let's start with the Airflow side:
+
+
+Ran a command, created a file
+Now wire it up in docker-compose:
+
+Edited
+docker-compose.yml
++1
+-1
+Now let's look at the portal backend to understand where to make the forwarding change:
+
+
+Ran a command, read a file
+Let me find the client that actually calls Airflow:
+
+
+Ran 2 commands, read a file
+Now I have the full picture. The workflow.py in the digitaltwins-api already handles this — it calls /auth/token with the service account credentials to get an Airflow JWT, then uses that to trigger DAGs.
+
+The plumbing to support user tokens needs two things:
+
+Airflow: A token exchange endpoint — accepts the user's Keycloak token, issues an Airflow JWT for that user (same flow as /auth/token but authenticated via Keycloak instead of username/password)
+digitaltwins-api workflow.py: When a user token is available, use the exchange endpoint instead of the service account
+Let me write both:
+
+Created
+keycloak_token_exchange.py
++97
+-0
+Now update workflow.py to use the exchange endpoint when a user token is available:
+
+
+Read a file, created a file
+Now let's find where run() is called from the API router so we know where to pass in the user token:
+
+
+Read 2 files, ran a command
+Now I can see the full chain. The validate_credentials dependency validates the user's Keycloak token but just returns True — the token itself is discarded. We need to thread it through to the Airflow call. Here's the update to the API router:
+
+Edited
+workflow.py
++60
+-9
+Now update the call inside run_assay to pass the token through:
+
+Edited
+workflow.py
++2
+-1
+Good. Here's the complete flow now and what needs to happen to deploy and test it:
+
+To deploy:
+
+# Copy the Airflow plugin
+scp services/airflow/plugins/keycloak_token_exchange.py \
+    twins:~/twins/digitaltwins-platform/services/airflow/plugins/
+
+# Restart Airflow (plugin is picked up on restart, no rebuild needed)
+ssh twins "cd ~/twins/digitaltwins-platform/services/airflow && docker compose restart airflow-apiserver"
+
+# Redeploy the digitaltwins-api (needs rebuild since Python code changed)
+# — depends on how that service is deployed
+To test the exchange endpoint directly:
+
+# Grab a Keycloak token (e.g. from your browser's devtools)
+# Then:
+curl -X POST https://test.digitaltwins.auckland.ac.nz/airflow/keycloak/token/exchange \
+  -H "Authorization: Bearer <your_keycloak_token>"
+One caveat: The exchange endpoint is a Flask blueprint. In Airflow 3, where exactly Flask blueprints get mounted depends on the internal wiring — the URL /keycloak/token/exchange might end up at a slightly different path. The test curl will tell us immediately. If it 404s, we check with docker compose exec airflow-apiserver airflow plugins to confirm it loaded, then look at the registered routes.

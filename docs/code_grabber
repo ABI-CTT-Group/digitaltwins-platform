@@ -1,0 +1,13 @@
+# To get this code the way I want it, which is
+# everything using the head of the main_buildout branch
+# in the toplevel and all submodules, here's the commands:
+
+git clone -b main_buildout --recurse-submodules \
+  git@github.com:ABI-CTT-Group/digitaltwins-platform.git
+
+cd digitaltwins-platform
+
+git submodule foreach '
+  git checkout main_buildout &&
+  git pull --ff-only origin main_buildout
+'
