@@ -26,5 +26,6 @@ USER root
 RUN python3 -m venv /opt/airflow/venvs/cwl_venv \
     && /opt/airflow/venvs/cwl_venv/bin/pip install --no-cache-dir \
         boto3 \
+        pendulum \
     && chown -R airflow: /opt/airflow/venvs
 USER airflow
