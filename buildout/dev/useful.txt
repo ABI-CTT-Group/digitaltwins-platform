@@ -1,0 +1,25 @@
+# Setup a keycloak token and an airflow token
+# Note that you first need these from the .env file:
+# export AIRFLOW_KEYCLOAK_CLIENT_ID=airflow
+# export AIRFLOW_KEYCLOAK_CLIENT_SECRET=<airflow_client_secret>
+# in your calling environment
+
+.  ../util/get_token3
+
+TOKEN=$KC_TOKEN
+
+
+# Clear the cache - use if you change anything in SEEK to reflect immediately
+curl -X POST https://test.digitaltwins.auckland.ac.nz/dtapi/cache/clear \
+  -H "Authorization: Bearer $TOKEN"
+
+# List assays
+curl -s "https://test.digitaltwins.auckland.ac.nz/dtapi/assays" \
+  -H "Authorization: Bearer ${TOKEN}"
+
+# initiate an assay:
+curl -s -X POST \
+  "https://test.digitaltwins.auckland.ac.nz/dtapi/assays/24/run" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  | python3 -m json.tool
