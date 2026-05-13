@@ -1,68 +1,47 @@
-# Remote Airflow worker — runs on a separate VM.
-# The main VM must expose Redis (:8016), Postgres (:8003),
-# and the Airflow API server (:8002) to this VM's IP.
-
-
-#AIRFLOW__DATABASE__SQL_ALCHEMY_CONN:     postgresql+psycopg2://airflow:airflow@MAIN_VM_IP:8003/airflow
-#AIRFLOW__CELERY__RESULT_BACKEND:         db+postgresql://airflow:airflow@MAIN_VM_IP:8003/airflow
-#AIRFLOW__CELERY__BROKER_URL:             redis://:@MAIN_VM_IP:REDIS_PORT/0
-#AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://MAIN_VM_IP:8002/airflow/execution/
-#AIRFLOW_ENDPOINT:                        http://MAIN_VM_IP:8002/airflow
-#MINIO_ENDPOINT:                          http://MAIN_VM_IP:8011
-
-
-x-worker-common:
-  &worker-common
-  image: your-registry/digitaltwins-airflow:latest   # same image as main
-  environment:
-    AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
-
-    # Point at the MAIN VM — set MAIN_VM_IP in .env
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT:-8013}/airflow
-    AIRFLOW__CELERY__RESULT_BACKEND:     db+postgresql://airflow:airflow@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT:-8013}/airflow
-    AIRFLOW__CELERY__BROKER_URL:         redis://:@${MAIN_VM_IP}:${REDIS_PORT:-8016}/0
-
-    # Execution API — worker calls back to the main API server
-    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://${MAIN_VM_IP}:${AIRFLOW_PORT:-8002}/airflow/execution/
-
-    # Must match the main deployment exactly
-    AIRFLOW__CORE__FERNET_KEY:        ${AIRFLOW__CORE__FERNET_KEY}
-    AIRFLOW__API_AUTH__JWT_SECRET:    ${AIRFLOW__API_AUTH__JWT_SECRET}
-    AIRFLOW__API__SECRET_KEY:         ${AIRFLOW__API__SECRET_KEY}
-
-    # So the worker can trigger per-subject DAG runs
-    AIRFLOW_ENDPOINT: http://${MAIN_VM_IP}:${AIRFLOW_PORT:-8002}/airflow
-    AIRFLOW_USERNAME: ${AIRFLOW_USERNAME}
-    AIRFLOW_PASSWORD: ${AIRFLOW_PASSWORD}
-
-    MINIO_ENDPOINT: http://${MAIN_VM_IP}:${MINIO_PORT:-8011}
-
-    DIGITALTWINS_API_BASE_URL: ${DIGITALTWINS_API_BASE_URL}
-    DIGITALTWINS_API_PORT:     ${DIGITALTWINS_API_PORT}
-
-    ## Remote logging to MinIO (S3-compatible)
-    AIRFLOW__LOGGING__REMOTE_LOGGING: 'True'
-    AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: minio_logs
-    AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: s3://airflow-logs
-    AIRFLOW__LOGGING__ENCRYPT_S3_LOGS: 'False'
-    AIRFLOW_CONN_MINIO_LOGS: "aws://minioadmin:minioadmin@?endpoint_url=http%3A%2F%2F${MAIN_VM_IP}%3A${MINIO_PORT:-8011}"
-
-    DUMB_INIT_SETSID: "0"
-
-  volumes:
-    - ./dags:/opt/airflow/dags        # see note below
-    - ./logs:/opt/airflow/logs
-    - ./plugins:/opt/airflow/plugins
-    - ./config:/opt/airflow/config
-    - ./data:/opt/airflow/data
-
-  user: "${AIRFLOW_UID:-50000}:0"
-
+---
 services:
   airflow-worker:
-    <<: *worker-common
+    image: digitaltwins-platform-airflow-worker:latest
     command: celery worker
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT}/ai
+rflow
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT}/airflow
+      AIRFLOW__CELERY__BROKER_URL: redis://:@${MAIN_VM_IP}:${REDIS_PORT}/0
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://${MAIN_VM_IP}:${AIRFLOW_PORT}/airflow/execution/
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
+      AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW__API_AUTH__JWT_SECRET}
+      AIRFLOW__API__SECRET_KEY: ${AIRFLOW__API__SECRET_KEY}
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
+      AIRFLOW_KEYCLOAK_CLIENT_ID: ${AIRFLOW_KEYCLOAK_CLIENT_ID}
+      AIRFLOW_KEYCLOAK_CLIENT_SECRET: ${AIRFLOW_KEYCLOAK_CLIENT_SECRET}
+      DIGITALTWINS_API_BASE_URL: ${DIGITALTWINS_API_BASE_URL}
+      DIGITALTWINS_API_PORT: ${DIGITALTWINS_API_PORT}
+      AIRFLOW_ENDPOINT: http://${MAIN_VM_IP}:${AIRFLOW_PORT}/airflow
+      MINIO_ENDPOINT: http://${MAIN_VM_IP}:${MINIO_PORT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      DUMB_INIT_SETSID: "0"
+
+      ## Remote logging to MinIO (S3-compatible)
+      AIRFLOW__LOGGING__REMOTE_LOGGING: 'True'
+      AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: minio_logs
+      AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: s3://airflow-logs
+      AIRFLOW__LOGGING__ENCRYPT_S3_LOGS: 'False'
+      AIRFLOW_CONN_MINIO_LOGS: "aws://minioadmin:minioadmin@?endpoint_url=http%3A%2F%2F${MAIN_VM_IP}%3A${MINIO_PORT}"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./config:/opt/airflow/config
+      - ./config/webserver_config.py:/opt/airflow/webserver_config.py:ro
+      - ./plugins:/opt/airflow/plugins
+      - ./data:/opt/airflow/data
+    user: "${AIRFLOW_UID:-50000}:0"
+    restart: always
     healthcheck:
       test:
         - "CMD-SHELL"
@@ -71,15 +50,3 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
-    restart: always
-
-  airflow-triggerer:
-    <<: *worker-common
-    command: triggerer
-    healthcheck:
-      test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    restart: always
