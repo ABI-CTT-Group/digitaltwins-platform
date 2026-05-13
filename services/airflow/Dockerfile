@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install user dependencies
 USER airflow
-RUN pip install --no-cache-dir digitaltwins==2.0a3
+RUN pip install --no-cache-dir digitaltwins==2.0a3 apache-airflow-providers-amazon
 RUN pip uninstall -y asyncio
 
 # ---------------------------------------------------------------------------
