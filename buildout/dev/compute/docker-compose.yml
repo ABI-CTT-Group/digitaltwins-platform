@@ -6,8 +6,7 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: CeleryExecutor
       AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT}/ai
-rflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT}/airflow
       AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT}/airflow
       AIRFLOW__CELERY__BROKER_URL: redis://:@${MAIN_VM_IP}:${REDIS_PORT}/0
       AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://${MAIN_VM_IP}:${AIRFLOW_PORT}/airflow/execution/
