@@ -4,6 +4,15 @@ resource "openstack_networking_port_v2" "port_auckland_wg_compute2" {
   network_id = openstack_networking_network_v2.n_wg.id
 }
 
+
+# security group on the port
+resource "openstack_networking_port_secgroup_associate_v2" "port_sec_group_wg_compute2" {
+  port_id = openstack_networking_port_v2.port_auckland_wg_compute2.id
+  security_group_ids = [
+    resource.openstack_networking_secgroup_v2.internal_compute.id
+  ]
+}
+
 # compute2 VM
 
 resource "openstack_compute_instance_v2" "compute2" {
