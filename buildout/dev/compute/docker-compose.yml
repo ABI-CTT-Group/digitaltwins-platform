@@ -18,13 +18,13 @@ x-worker-common:
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
 
-    # Point at the MAIN VM — replace with its IP or hostname
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@130.216.217.182:8003/airflow
-    AIRFLOW__CELERY__RESULT_BACKEND:     db+postgresql://airflow:airflow@130.216.217.182:8003/airflow
-    AIRFLOW__CELERY__BROKER_URL:         redis://:@130.216.217.182:8016/0
+    # Point at the MAIN VM — set MAIN_VM_IP in .env
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT:-8013}/airflow
+    AIRFLOW__CELERY__RESULT_BACKEND:     db+postgresql://airflow:airflow@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT:-8013}/airflow
+    AIRFLOW__CELERY__BROKER_URL:         redis://:@${MAIN_VM_IP}:${REDIS_PORT:-8016}/0
 
     # Execution API — worker calls back to the main API server
-    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://130.216.217.182:8002/airflow/execution/
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://${MAIN_VM_IP}:${AIRFLOW_PORT:-8002}/airflow/execution/
 
     # Must match the main deployment exactly
     AIRFLOW__CORE__FERNET_KEY:        ${AIRFLOW__CORE__FERNET_KEY}
@@ -32,14 +32,21 @@ x-worker-common:
     AIRFLOW__API__SECRET_KEY:         ${AIRFLOW__API__SECRET_KEY}
 
     # So the worker can trigger per-subject DAG runs
-    AIRFLOW_ENDPOINT: http://130.216.217.182:8002/airflow
+    AIRFLOW_ENDPOINT: http://${MAIN_VM_IP}:${AIRFLOW_PORT:-8002}/airflow
     AIRFLOW_USERNAME: ${AIRFLOW_USERNAME}
     AIRFLOW_PASSWORD: ${AIRFLOW_PASSWORD}
 
-    MINIO_ENDPOINT: http://130.216.217.182:8011
+    MINIO_ENDPOINT: http://${MAIN_VM_IP}:${MINIO_PORT:-8011}
 
     DIGITALTWINS_API_BASE_URL: ${DIGITALTWINS_API_BASE_URL}
     DIGITALTWINS_API_PORT:     ${DIGITALTWINS_API_PORT}
+
+    ## Remote logging to MinIO (S3-compatible)
+    AIRFLOW__LOGGING__REMOTE_LOGGING: 'True'
+    AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: minio_logs
+    AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: s3://airflow-logs
+    AIRFLOW__LOGGING__ENCRYPT_S3_LOGS: 'False'
+    AIRFLOW_CONN_MINIO_LOGS: "aws://minioadmin:minioadmin@?endpoint_url=http%3A%2F%2F${MAIN_VM_IP}%3A${MINIO_PORT:-8011}"
 
     DUMB_INIT_SETSID: "0"
 
