@@ -1,0 +1,24 @@
+perf: parallelise dashboard fetches, fix DB race condition, add SEEK caching
+
+Dashboard study navigation was taking several seconds per click due to multiple
+compounding issues across the stack. Fixed in five passes:
+
+- Replace sequential for-loop child fetches with asyncio.gather() in
+  category-children endpoint (portal backend)
+- Replace sequential assay detail loading with Promise.all() on the frontend
+- Share a single httpx.AsyncClient across requests in portal backend
+  (was creating a new TCP connection per request)
+- Replace bare requests.get() calls with a persistent requests.Session() in
+  the SEEK Querier, and add a 60s TTL in-memory cache. Add POST /cache/clear
+  endpoint to invalidate on demand after SEEK data changes.
+- Fix race condition in postgres Querier: self._conn and self._cur were shared
+  instance state on a singleton, causing concurrent requests to overwrite each
+  other's cursors (psycopg2.InterfaceError: cursor already closed). Connection
+  and cursor are now local to each _query() call.
+
+Also fix Airflow monitor URL to use the proxied /airflow path rather than the
+direct :8002 port. Controlled via new AIRFLOW_PUBLIC_URL env var.
+
+Add docs/dashboard-performance-optimisations.md covering all fixes, remaining
+architectural concerns, and cache invalidation instructions.
+Update docs/deployment.md with SSO integration decisions for MinIO and SEEK.

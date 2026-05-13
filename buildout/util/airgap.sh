@@ -29,6 +29,10 @@ ufw allow in  from 10.43.0.0/16
 ufw allow out to   10.42.0.0/16
 ufw allow out to   10.43.0.0/16
 
+# Allow forwarding (so portal can act as jump host)
+ufw route allow in on eth0 out on eth1
+ufw allow out to 10.2.0.0/24
+
 # Loopback outgoing
 ufw allow out on lo
 

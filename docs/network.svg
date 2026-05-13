@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="620" font-family="Arial, sans-serif">
+
+  <!-- Background -->
+  <rect width="800" height="620" fill="#f8f9fa" rx="10"/>
+
+  <!-- Title -->
+  <text x="400" y="35" text-anchor="middle" font-size="18" font-weight="bold" fill="#333">DRAI Network Architecture</text>
+
+  <!-- Internet -->
+  <rect x="300" y="55" width="200" height="50" rx="8" fill="#d0e8ff" stroke="#4a90d9" stroke-width="2"/>
+  <text x="400" y="76" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">Internet</text>
+  <text x="400" y="95" text-anchor="middle" font-size="11" fill="#555">FIP: 130.216.254.174</text>
+
+  <!-- Arrow: Internet to Auckland External -->
+  <line x1="400" y1="105" x2="400" y2="130" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Auckland External Network -->
+  <rect x="175" y="130" width="450" height="50" rx="8" fill="#ffe0b2" stroke="#e67e22" stroke-width="2"/>
+  <text x="400" y="151" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">Auckland External Network</text>
+  <text x="400" y="170" text-anchor="middle" font-size="11" fill="#555">f0bae700-c52c-42d7-a112-2a897050f6e6</text>
+
+  <!-- Arrow: Auckland to Router -->
+  <line x1="400" y1="180" x2="400" y2="210" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Public Router -->
+  <rect x="300" y="210" width="200" height="50" rx="8" fill="#e8d5f5" stroke="#8e44ad" stroke-width="2"/>
+  <text x="400" y="231" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">public_router</text>
+  <text x="400" y="250" text-anchor="middle" font-size="11" fill="#555">gateway → auckland external</text>
+
+  <!-- Arrow: Router to public_facing subnet -->
+  <line x1="400" y1="260" x2="400" y2="290" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- public_facing Network -->
+  <rect x="175" y="290" width="450" height="50" rx="8" fill="#d5f5e3" stroke="#27ae60" stroke-width="2"/>
+  <text x="400" y="311" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">public_facing network (n_p / sn_p)</text>
+  <text x="400" y="330" text-anchor="middle" font-size="11" fill="#555">CIDR: var.p_cidr</text>
+
+  <!-- Arrow: public_facing to Portal (public port) -->
+  <line x1="400" y1="340" x2="400" y2="375" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Portal VM -->
+  <rect x="150" y="375" width="500" height="80" rx="8" fill="#fef9e7" stroke="#f39c12" stroke-width="2"/>
+  <text x="400" y="398" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">Portal VM (drai_portal)</text>
+  <text x="280" y="420" text-anchor="middle" font-size="11" fill="#555">port: drai_portal_public</text>
+  <text x="280" y="438" text-anchor="middle" font-size="11" fill="#555">(public_facing network)</text>
+  <text x="520" y="420" text-anchor="middle" font-size="11" fill="#555">port: drai_portal_wg</text>
+  <text x="520" y="438" text-anchor="middle" font-size="11" fill="#555">(walled_garden network)</text>
+  <!-- Divider in portal box -->
+  <line x1="400" y1="380" x2="400" y2="450" stroke="#ccc" stroke-width="1" stroke-dasharray="4"/>
+
+  <!-- Arrow: Portal wg port to walled_garden -->
+  <line x1="520" y1="455" x2="520" y2="490" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="520" y1="490" x2="400" y2="490" stroke="#666" stroke-width="2"/>
+  <line x1="400" y1="490" x2="400" y2="510" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- walled_garden Network -->
+  <rect x="175" y="510" width="450" height="50" rx="8" fill="#d6eaf8" stroke="#2980b9" stroke-width="2"/>
+  <text x="400" y="531" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">walled_garden network (n_wg / sn_wg)</text>
+  <text x="400" y="550" text-anchor="middle" font-size="11" fill="#555">CIDR: var.wg_cidr  —  private, no router</text>
+
+  <!-- Arrow: walled_garden to Compute -->
+  <line x1="600" y1="535" x2="670" y2="535" stroke="#666" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Compute VM -->
+  <rect x="670" y="505" width="110" height="60" rx="8" fill="#fef9e7" stroke="#f39c12" stroke-width="2"/>
+  <text x="725" y="528" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">Compute</text>
+  <text x="725" y="545" text-anchor="middle" font-size="11" fill="#555">drai_compute</text>
+  <text x="725" y="560" text-anchor="middle" font-size="10" fill="#888">wg port only</text>
+
+  <!-- Arrow marker -->
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+    </marker>
+  </defs>
+
+  <!-- Legend -->
+  <rect x="20" y="530" width="130" height="75" rx="6" fill="white" stroke="#ccc" stroke-width="1"/>
+  <text x="85" y="548" text-anchor="middle" font-size="11" font-weight="bold" fill="#333">Legend</text>
+  <rect x="30" y="555" width="15" height="10" fill="#ffe0b2" stroke="#e67e22"/>
+  <text x="52" y="565" font-size="10" fill="#333">External network</text>
+  <rect x="30" y="572" width="15" height="10" fill="#d5f5e3" stroke="#27ae60"/>
+  <text x="52" y="582" font-size="10" fill="#333">Routed network</text>
+  <rect x="30" y="589" width="15" height="10" fill="#d6eaf8" stroke="#2980b9"/>
+  <text x="52" y="599" font-size="10" fill="#333">Private network</text>
+
+</svg>

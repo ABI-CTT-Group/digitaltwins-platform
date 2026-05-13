@@ -198,3 +198,27 @@ Once successfully deployed, the following services and default credentials are a
 | **Keycloak** | `8009` | `admin` | `admin` | IAM Service |
 | **REST API** | `8010` | — | — | Docs available at `http://{IP}:8010/docs` |
 | **Minio** | `8012` | `minioadmin` | `minioadmin` | Storage Web GUI (API on `8011`) |
+
+## 8. Keycloak SSO Integration — Scope and Limitations
+
+Keycloak is the platform's identity provider and is fully integrated with **Airflow** (OIDC/OAuth2 via Flask-AppBuilder). The following services were evaluated for SSO integration and deliberately left on their own authentication:
+
+### MinIO Console
+
+MinIO Console (`/minio-console/`) has its own username/password login backed by MinIO's internal user store. Integrating it with Keycloak via OIDC is technically possible but carries significant complexity:
+
+- MinIO requires `MINIO_IDENTITY_OPENID_*` environment variables and a dedicated Keycloak client configured with specific claim mappings for MinIO policies.
+- MinIO's permission model (bucket policies, IAM policies) is separate from Keycloak roles and must be maintained in parallel — SSO login does not automatically grant bucket access.
+- The operational benefit is low: MinIO Console is an admin tool used infrequently. Access is adequately controlled by not exposing the console publicly and using the `mc` CLI over SSH for bucket management when needed.
+
+**Decision:** Do not expose the MinIO Console via nginx. Use `mc` CLI via SSH tunnel to port `8012` for administrative tasks.
+
+### SEEK
+
+SEEK (`/seek/`) manages its own user accounts, project membership, and data-sharing permissions. Keycloak SSO integration is not straightforward because:
+
+- SEEK's only built-in external auth is **LS Login** (a federated SSO service for European life sciences research) — there is no native support for arbitrary OIDC providers such as Keycloak.
+- The workaround — placing an `oauth2-proxy` container in front of SEEK — enforces Keycloak login at the network level but does not help with SEEK's internal user model. Users still need a SEEK account with project membership and roles assigned; the two user stores must be kept in sync manually.
+- SEEK's permission model (who can see which datasets, project membership, role-based access) is richer than anything expressible in Keycloak roles, so SSO would only solve the login step, not authorisation.
+
+**Decision:** Leave SEEK on its own authentication. Consider restricting `/seek/` to the university network CIDR in nginx (`allow`/`deny`) if broader access control is needed.
