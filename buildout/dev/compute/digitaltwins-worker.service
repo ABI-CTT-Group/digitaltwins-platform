@@ -1,0 +1,14 @@
+# Copy into /etc/systemd/system/digitaltwins-worker.service
+[Unit]
+Description=DigitalTWINS Airflow Worker
+Requires=docker.service
+After=docker.service
+
+[Service]
+WorkingDirectory=/home/ubuntu/digitaltwins-compute
+ExecStart=/usr/local/bin/docker compose up -d
+ExecStop=/usr/local/bin/docker compose down
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -141,3 +141,4 @@ To test the exchange endpoint directly:
 curl -X POST https://test.digitaltwins.auckland.ac.nz/airflow/keycloak/token/exchange \
   -H "Authorization: Bearer <your_keycloak_token>"
 One caveat: The exchange endpoint is a Flask blueprint. In Airflow 3, where exactly Flask blueprints get mounted depends on the internal wiring — the URL /keycloak/token/exchange might end up at a slightly different path. The test curl will tell us immediately. If it 404s, we check with docker compose exec airflow-apiserver airflow plugins to confirm it loaded, then look at the registered routes.
+https://test.digitaltwins.auckland.ac.nz/auth/realms/digitaltwins/protocol/openid-connect/logout

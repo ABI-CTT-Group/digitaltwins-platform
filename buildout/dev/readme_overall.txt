@@ -142,6 +142,9 @@ digitaltwins-images-all.tar.gz - Bundle of all docker images required.
 		xargs docker save | \
 		gzip > digitaltwins-images-all.tar.gz 
 
+airflow-worker.tar.gz - save as above, but just for the airflow-worker image, for compute nodes:
+	docker save digitaltwins-platform-airflow-worker:latest | gzip > airflow-worker.tar.gz
+
 
 DigitalTwinsKeycloakInternalCA.pem - The public key of the certificate authority, which needs to be imported
 	and thus "trusted" in order to browse the site. Created using util/create_root_ca.
