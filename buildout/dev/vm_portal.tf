@@ -45,6 +45,7 @@ resource "openstack_networking_port_secgroup_associate_v2" "port_sec_group_porta
   security_group_ids = [
      resource.openstack_networking_secgroup_v2.ssh_restricted_i.id
     ,resource.openstack_networking_secgroup_v2.web_server_i.id
+    ,resource.openstack_networking_secgroup_v2.web_server_compute.id
   ]
 }
 
