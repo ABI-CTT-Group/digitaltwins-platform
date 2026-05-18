@@ -10,14 +10,16 @@ digitaltwins-worker.service
 # and the following the from main platform's install_src need to be copied into ~/compute:
 PLATFORM=abi_mp
 TGT=abi_compute2
-scp $PLATFORM:/mnt/install_src/airgap_build_step2.yml $TGT:compute/
-scp $PLATFORM:/mnt/install_src/airflow-worker.tar.gz $TGT:compute/
-scp $PLATFORM:/mnt/install_src/ansible-packages.tar.gz $TGT:compute/
-scp $PLATFORM:/mnt/install_src/docker-29.4.0.tgz $TGT:compute/
-scp $PLATFORM:/mnt/install_src/docker-compose-linux-x86_64-v5.1.2 $TGT:compute/
-scp $PLATFORM:/mnt/install_src/airgap/apt-debs/python3.12-venv_3.12.3-1ubuntu0.12_amd64.deb $TGT:compute/
-scp $PLATFORM:/mnt/install_src/airgap/apt-debs/python3-pip_24.0+dfsg-1ubuntu1.3_all.deb $TGT:compute/
-scp $PLATFORM:/mnt/install_src/airgap/apt-debs/python3-venv_3.12.3-0ubuntu2.1_amd64.deb $TGT:compute/
+INSTALL_SRC_DIR=/mnt/install_src
+
+scp $PLATFORM:$INSTALL_SRC_DIR/airgap_build_step2.yml $TGT:compute/
+scp $PLATFORM:$INSTALL_SRC_DIR/airflow-worker.tar.gz $TGT:compute/
+scp $PLATFORM:$INSTALL_SRC_DIR/ansible-packages.tar.gz $TGT:compute/
+scp $PLATFORM:$INSTALL_SRC_DIR/docker-29.4.0.tgz $TGT:compute/
+scp $PLATFORM:$INSTALL_SRC_DIR/docker-compose-linux-x86_64-v5.1.2 $TGT:compute/
+scp $PLATFORM:$INSTALL_SRC_DIR/airgap/apt-debs/python3.12-venv_3.12.3-1ubuntu0.12_amd64.deb $TGT:compute/
+scp $PLATFORM:$INSTALL_SRC_DIR/airgap/apt-debs/python3-pip_24.0+dfsg-1ubuntu1.3_all.deb $TGT:compute/
+scp $PLATFORM:$INSTALL_SRC_DIR/airgap/apt-debs/python3-venv_3.12.3-0ubuntu2.1_amd64.deb $TGT:compute/
 
 
 
