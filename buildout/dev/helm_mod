@@ -1,6 +1,9 @@
 export KUBECONFIG=~/.kube/config
 
-export GRAFANA_OAUTH_SECRET=P5Ph1qzD4E9iHSDZSegi4PxvVxz14ibn
+# These must be set in the environment before running this script.
+# They are NOT stored here — the old value was rotated after accidental exposure.
+: ${GRAFANA_OAUTH_SECRET:?}
+: ${GRAFANA_ADMIN_PASSWORD:?}
 
 helm upgrade grafana ./observability/charts/grafana-10.5.4.tgz \
   -n grafana \

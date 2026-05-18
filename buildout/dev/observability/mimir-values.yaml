@@ -10,7 +10,7 @@ mimir:
         endpoint: mimir-minio.mimir.svc.cluster.local:9000
         bucket_name: mimir-blocks
         access_key_id: mimir-k3s
-        secret_access_key: supersecret-k3s
+        # secret_access_key is injected at deploy time via the Ansible task values override — do not hardcode here (see install_observability_airgap.yaml)
         insecure: true
 
       tsdb:
@@ -122,7 +122,7 @@ minio:
   replicas: 1
   mode: standalone
   rootUser: mimir-k3s
-  rootPassword: supersecret-k3s
+  # rootPassword is injected at deploy time via the Ansible task values override — do not hardcode here (see install_observability_airgap.yaml)
   persistence:
     size: 10Gi
   resources:

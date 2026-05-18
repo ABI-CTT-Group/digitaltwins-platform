@@ -6,7 +6,7 @@ service:
   nodePort: 30333
 
 adminUser: admin
-adminPassword: strongpassword
+# adminPassword is set via --set adminPassword=$GRAFANA_ADMIN_PASSWORD in helm_mod — do not hardcode here.
 
 plugins: ""
 

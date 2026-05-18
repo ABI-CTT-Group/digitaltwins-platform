@@ -360,6 +360,18 @@
         wait: false
         values_files:
           - /tmp/observability/mimir-values.yaml
+        # Secrets are injected here from environment rather than hardcoded in mimir-values.yaml.
+        # Export MIMIR_MINIO_ROOT_USER and MIMIR_MINIO_SECRET_KEY before running this playbook (see env.template).
+        values:
+          mimir:
+            structuredConfig:
+              blocks_storage:
+                s3:
+                  access_key_id: "{{ lookup('env', 'MIMIR_MINIO_ROOT_USER') }}"
+                  secret_access_key: "{{ lookup('env', 'MIMIR_MINIO_SECRET_KEY') }}"
+          minio:
+            rootUser: "{{ lookup('env', 'MIMIR_MINIO_ROOT_USER') }}"
+            rootPassword: "{{ lookup('env', 'MIMIR_MINIO_SECRET_KEY') }}"
       environment:
         KUBECONFIG: "{{ kubeconfig }}"
       register: mimir_deploy

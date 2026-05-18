@@ -20,10 +20,10 @@
       msg: "FATAL: The required environment variable KC_HTTPS_KEY_STORE_PASSWORD must be set to run this playbook."
     when: lookup('env', 'KC_HTTPS_KEY_STORE_PASSWORD') | length == 0
 
-  - name: Verify KC_CLIENT_SECRET environment variable is set
+  - name: Verify KEYCLOAK_CLIENT_SECRET environment variable is set
     ansible.builtin.fail:
-      msg: "FATAL: The required environment variable KC_CLIENT_SECRET must be set to run this playbook."
-    when: lookup('env', 'KC_CLIENT_SECRET') | length == 0
+      msg: "FATAL: The required environment variable KEYCLOAK_CLIENT_SECRET must be set to run this playbook."
+    when: lookup('env', 'KEYCLOAK_CLIENT_SECRET') | length == 0
 
   - name: Verify KC_BOOTSTRAP_ADMIN_PASSWORD environment variable is set
     ansible.builtin.fail:
@@ -214,15 +214,11 @@
       chdir: ./digitaltwins-platform
     when: not file_check3.stat.exists
 
-  - name: Set kc_client_secret from environment variable
-    ansible.builtin.set_fact:
-      kc_client_secret: "{{ lookup('env', 'KC_CLIENT_SECRET') }}"
-
   - name: Ensure KEYCLOAK_CLIENT_SECRET is set in .env
     ansible.builtin.lineinfile:
       path: ./digitaltwins-platform/.env
       regexp: '^KEYCLOAK_CLIENT_SECRET='
-      line: KEYCLOAK_CLIENT_SECRET={{ kc_client_secret }}
+      line: KEYCLOAK_CLIENT_SECRET={{ lookup('env', 'KEYCLOAK_CLIENT_SECRET') }}
       create: true
       mode: '0600'  # Restrict permissions since it contains a secret
 
@@ -299,7 +295,7 @@
   - name: keystore password
     become: true
     shell: |
-      sed -i "s/CLIENT_SECRET=.*/CLIENT_SECRET=\"{{ kc_client_secret }}\"/g" .env
+      sed -i "s/CLIENT_SECRET=.*/CLIENT_SECRET=\"{{ lookup('env', 'KEYCLOAK_CLIENT_SECRET') }}\"/g" .env
     args:
       chdir: ./digitaltwins-platform
 
