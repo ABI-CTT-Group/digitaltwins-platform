@@ -1,0 +1,7 @@
+BRANCH=main_buildout
+
+git submodule foreach \
+    "git checkout $BRANCH && git reset --hard origin/$BRANCH && git pull origin $BRANCH"
+
+git add services/api/digitaltwins-api services/portal/DigitalTWINS-Portal
+git commit -m "Update submodules to latest main_buildout"
