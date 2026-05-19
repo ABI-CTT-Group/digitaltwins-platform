@@ -10,7 +10,7 @@ services:
       - CHOWN_HOME_OPTS=-R
       - JUPYTER_TOKEN=${JUPYTERLAB_TOKEN:-admin}
       - JUPYTER_BASE_URL=${JUPYTER_BASE_URL:-/jupyter}
-      - JUPYTER_ALLOW_ORIGIN=${JUPYTER_ALLOW_ORIGIN:-https://test.digitaltwins.auckland.ac.nz}
+      - JUPYTER_ALLOW_ORIGIN=${JUPYTER_ALLOW_ORIGIN:-https://${PLATFORM_DOMAIN}}
     networks:
       - digitaltwins
     ports:
@@ -20,7 +20,7 @@ services:
     command: >
       start-notebook.sh
       --NotebookApp.base_url="${JUPYTER_BASE_URL:-/jupyter}"
-      --NotebookApp.allow_origin="${JUPYTER_ALLOW_ORIGIN:-https://test.digitaltwins.auckland.ac.nz}"
+      --NotebookApp.allow_origin="${JUPYTER_ALLOW_ORIGIN:-https://${PLATFORM_DOMAIN}}"
       --NotebookApp.trust_xheaders=True
     restart: unless-stopped
 

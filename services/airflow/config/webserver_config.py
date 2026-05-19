@@ -33,7 +33,7 @@ OAUTH_PROVIDERS = [
             "client_secret": os.environ["AIRFLOW_KEYCLOAK_CLIENT_SECRET"],
             # Browser-facing: user's browser hits the external URL for the Keycloak login page
             "authorize_url": (
-                "https://test.digitaltwins.auckland.ac.nz/auth/realms/digitaltwins"
+                f"https://{os.environ.get('PLATFORM_DOMAIN', 'localhost')}/auth/realms/digitaltwins"
                 "/protocol/openid-connect/auth"
             ),
             # Back-channel: server-to-server token exchange uses internal Docker hostname

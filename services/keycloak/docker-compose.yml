@@ -20,7 +20,7 @@ services:
       KC_HOSTNAME_STRICT_HTTPS: true
       KC_PROXY: edge
       KC_PROXY_HEADERS: xforwarded
-      KC_HOSTNAME: test.digitaltwins.auckland.ac.nz
+      KC_HOSTNAME: ${PLATFORM_DOMAIN}
 #    ports:
 #      - "${KEYCLOAK_BIND_ADDRESS:-0.0.0.0}:8009:8443"
 #      - "8009:8080"

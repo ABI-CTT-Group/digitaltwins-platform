@@ -18,6 +18,11 @@
         msg: "FATAL: GRAFANA_ADMIN_PASSWORD must be set."
       when: lookup('env', 'GRAFANA_ADMIN_PASSWORD') | length == 0
 
+    - name: Verify PLATFORM_DOMAIN is set
+      ansible.builtin.fail:
+        msg: "FATAL: PLATFORM_DOMAIN must be set (e.g. test.digitaltwins.auckland.ac.nz)."
+      when: lookup('env', 'PLATFORM_DOMAIN') | length == 0
+
     - name: Set grafana_admin_password
       ansible.builtin.set_fact:
         grafana_admin_password: "{{ lookup('env', 'GRAFANA_ADMIN_PASSWORD') }}"
@@ -287,10 +292,19 @@
         wait: false
         values_files:
           - /tmp/observability/grafana-values.yaml
+        # Domain-specific and secret values injected here — not hardcoded in grafana-values.yaml.
+        # Set PLATFORM_DOMAIN in your environment before running (see buildout/data/ansible_secrets).
         values:
           adminUser: admin
           adminPassword: "{{ grafana_admin_password }}"
           assertNoLeakedSecrets: false
+          grafana.ini:
+            server:
+              root_url: "https://{{ lookup('env', 'PLATFORM_DOMAIN') }}/grafana/"
+            auth.generic_oauth:
+              auth_url: "https://{{ lookup('env', 'PLATFORM_DOMAIN') }}/auth/realms/digitaltwins/protocol/openid-connect/auth"
+              token_url: "https://{{ lookup('env', 'PLATFORM_DOMAIN') }}/auth/realms/digitaltwins/protocol/openid-connect/token"
+              api_url: "https://{{ lookup('env', 'PLATFORM_DOMAIN') }}/auth/realms/digitaltwins/protocol/openid-connect/userinfo"
       environment:
         KUBECONFIG: "{{ kubeconfig }}"
       ignore_errors: true
