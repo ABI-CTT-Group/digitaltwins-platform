@@ -98,13 +98,19 @@
   - name: Copy crt
     ansible.builtin.copy:
       src: "{{ install_src_dir }}/data/{{ lookup('env', 'PLATFORM_DOMAIN') }}.crt"
-      dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs
+      dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs/webserver.crt
       mode: '0600'
 
   - name: Copy key
     ansible.builtin.copy:
       src: "{{ install_src_dir }}/data/{{ lookup('env', 'PLATFORM_DOMAIN') }}.key"
-      dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs
+      dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs/webserver.key
+      mode: '0600'
+
+  - name: Copy nginx.conf
+    ansible.builtin.copy:
+      src: "{{ install_src_dir }}/data/nginx.conf"
+      dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/frontend/nginx.conf
       mode: '0600'
 
   - name: check for .env
@@ -240,8 +246,12 @@
     ansible.builtin.set_fact:
       seek_admin_password: "{{ lookup('env', 'SEEK_ADMIN_PASSWORD') }}"
 
+  - name: Set SEEK_ADMIN_EMAIL from environment variable
+    ansible.builtin.set_fact:
+      seek_admin_email: "{{ lookup('env', 'SEEK_ADMIN_EMAIL') }}"
+
   - name: admin user
-    ansible.builtin.command: "./create-admin-user.sh admin {{ seek_admin_password }} matt.pestle@auckland.ac.nz"
+    ansible.builtin.command: "./create-admin-user.sh admin {{ seek_admin_password }} {{ seek_admin_email }}"
     args:
       chdir: ./digitaltwins-platform/buildout/util
 
