@@ -78,7 +78,7 @@ cp ./services/seek/ldh-deployment/docker-compose.env.tpl ./services/seek/ldh-dep
    > [!NOTE]
    > A realm file will be created on your host, e.g., `$(pwd)/export/digitaltwins-realm.json`.
 
-**Step B. Import Realm**
+**Step B. Import Realm to the new deployment**
 
 1. Place the exported realm file in the correct directory: `./services/keycloak/import/digitaltwins-realm.json`.
 2. Start Keycloak with the import option:
