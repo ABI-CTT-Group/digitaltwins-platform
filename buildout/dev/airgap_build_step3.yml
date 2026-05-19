@@ -25,6 +25,11 @@
     ansible.builtin.fail:
       msg: "FATAL: The required environment variable MYSQL_PASSWORD must be set to run this playbook."
     when: lookup('env', 'MYSQL_PASSWORD') | length == 0
+
+  - name: Verify PLATFORM_DOMAIN environment variable is set
+    ansible.builtin.fail:
+      msg: "FATAL: The required environment variable PLATFORM_DOMAIN must be set to run this playbook."
+    when: lookup('env', 'PLATFORM_DOMAIN') | length == 0
   #########################
 
   - name: Reset SSH connection to pick up group changes
@@ -92,13 +97,13 @@
 
   - name: Copy crt
     ansible.builtin.copy:
-      src: "{{ install_src_dir }}/data/test.digitaltwins.auckland.ac.nz.crt"
+      src: "{{ install_src_dir }}/data/{{ lookup('env', 'PLATFORM_DOMAIN') }}.crt"
       dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs
       mode: '0600'
 
   - name: Copy key
     ansible.builtin.copy:
-      src: "{{ install_src_dir }}/data/test.digitaltwins.auckland.ac.nz.key"
+      src: "{{ install_src_dir }}/data/{{ lookup('env', 'PLATFORM_DOMAIN') }}.key"
       dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs
       mode: '0600'
 
@@ -178,7 +183,7 @@
     ansible.builtin.lineinfile:
       path: "./digitaltwins-platform/services/airflow/config/airflow.cfg"
       regexp: '^(#\s*)?base_url\s*=\s*.*'
-      line: 'base_url = https://test.digitaltwins.auckland.ac.nz/airflow'
+      line: "base_url = https://{{ lookup('env', 'PLATFORM_DOMAIN') }}/airflow"
       state: present
 
   - name: Enable Airflow proxy fix

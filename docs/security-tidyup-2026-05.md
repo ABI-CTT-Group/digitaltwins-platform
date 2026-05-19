@@ -88,6 +88,28 @@ running Ansible/Helm (see `buildout/data/ansible_secrets`):
 
 ---
 
+## nginx.conf — Manual Step on Domain Change
+
+`services/portal/DigitalTWINS-Portal/frontend/nginx.conf` is mounted directly
+into the nginx container via docker-compose (by design — so it can be changed
+without rebuilding the image). It contains five hardcoded references to the
+domain name:
+
+- `server_name` (×3)
+- `ssl_certificate` path (×1)
+- `ssl_certificate_key` path (×1)
+
+When deploying to a new domain, update these five lines manually, then
+restart the frontend container:
+
+```bash
+docker compose restart portal-frontend
+```
+
+No rebuild required.
+
+---
+
 ## Outstanding / Future Work
 
 - **Redis auth on compute nodes** — `REDIS_PASSWORD` must be set in the

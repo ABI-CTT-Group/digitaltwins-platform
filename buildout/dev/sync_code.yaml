@@ -29,13 +29,13 @@
 
   - name: Copy crt
     ansible.builtin.copy:
-      src: ../util/test.digitaltwins.auckland.ac.nz.crt
+      src: "../util/{{ lookup('env', 'PLATFORM_DOMAIN') }}.crt"
       dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs
       mode: '0600'
 
   - name: Copy key
     ansible.builtin.copy:
-      src: ../util/test.digitaltwins.auckland.ac.nz.key
+      src: "../util/{{ lookup('env', 'PLATFORM_DOMAIN') }}.key"
       dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs
       mode: '0600'
 
