@@ -68,7 +68,11 @@ docker run --rm --network digitaltwins \
     "$MC_IMAGE" \
     -c "
         mc alias set src http://minio:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' &&
-        for bucket in measurements models workflows processes tools; do
+        for bucket in \$(mc ls src | awk '{print \$NF}' | tr -d '/'); do
+            if [ \"\$bucket\" = \"airflow-logs\" ]; then
+                echo \"  Skipping bucket: \$bucket\"
+                continue
+            fi
             echo \"  Mirroring bucket: \$bucket\" &&
             mc mirror src/\$bucket /minio_backup/\$bucket || true
         done
@@ -169,7 +173,7 @@ docker run --rm --network digitaltwins \\
     "\$MC_IMAGE" \\
     -c "
         mc alias set dst http://minio:9000 '\$MINIO_ROOT_USER' '\$MINIO_ROOT_PASSWORD' &&
-        for bucket in measurements models workflows processes tools; do
+        for bucket in \$(ls /minio_backup); do
             echo \"  Mirroring bucket: \\\$bucket\" &&
             mc mirror /minio_backup/\\\$bucket dst/\\\$bucket || true
         done
