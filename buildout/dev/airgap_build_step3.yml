@@ -97,14 +97,14 @@
 
   - name: Copy crt
     ansible.builtin.copy:
-      src: "{{ install_src_dir }}/data/{{ lookup('env', 'PLATFORM_DOMAIN') }}.crt"
-      dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs/webserver.crt
+      src: "{{ install_src_dir }}/data/fullchain.pem"
+      dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs/
       mode: '0600'
 
   - name: Copy key
     ansible.builtin.copy:
-      src: "{{ install_src_dir }}/data/{{ lookup('env', 'PLATFORM_DOMAIN') }}.key"
-      dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs/webserver.key
+      src: "{{ install_src_dir }}/data/privkey.pem"
+      dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs/
       mode: '0600'
 
   - name: Copy nginx.conf
