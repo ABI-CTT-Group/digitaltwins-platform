@@ -114,4 +114,4 @@ const handleWorkflowLoaded = (data: any) => {
     console.log("CWL Data Loaded: ", data);
     workflowData.value = data;
 }
-</script>
+</script>
