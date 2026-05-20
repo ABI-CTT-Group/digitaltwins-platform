@@ -3,7 +3,9 @@
   hosts: all
 
   vars:
-    install_src_dir: /mnt/install_src # path to the install source
+    install_src_dir: /mnt/install_src  # path to the install source
+    platform_dir: ~/digitaltwins-platform  # installation target directory
+    keys_dir: ~/keys                       # where keys/realm export are kept
 
   environment:
 
@@ -39,7 +41,7 @@
     ansible.builtin.lineinfile:
       path: "~/.bashrc"
       regexp: '^export COMPOSE_FILE='
-      line: "export COMPOSE_FILE=~/digitaltwins-platform/docker-compose.yml"
+      line: "export COMPOSE_FILE={{ platform_dir }}/docker-compose.yml"
       create: true
       mode: '0600'  # Restrict permissions since it contains a secret
 
@@ -53,20 +55,20 @@
 
   - name: Ensure the keys directory is present
     ansible.builtin.file:
-      path: keys
+      path: "{{ keys_dir }}"
       state: directory
       mode: '0700'
 
   - name: Ensure the keys/public_keys directory is present
     ansible.builtin.file:
-      path: keys/public_keys
+      path: "{{ keys_dir }}/public_keys"
       state: directory
       mode: '0700'
 
   - name: Copy public keys
     ansible.builtin.synchronize:
       src: "{{ install_src_dir }}/data/public_keys/"
-      dest: "./keys/public_keys/"
+      dest: "{{ keys_dir }}/public_keys/"
       recursive: yes
       rsync_opts:
         - "--include=*.pub"
@@ -82,7 +84,7 @@
   - name: Sync code to VM
     ansible.posix.synchronize:
       src: "{{ install_src_dir }}/clean_src/digitaltwins-platform/"
-      dest: /home/{{ ansible_user }}/digitaltwins-platform/
+      dest: "{{ platform_dir }}/"
       archive: yes
       delete: yes
       rsync_opts:
@@ -91,53 +93,53 @@
 
   - name: Create certs directory
     ansible.builtin.file:
-      path: "./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs"
+      path: "{{ platform_dir }}/services/portal/DigitalTWINS-Portal/certs"
       state: directory
       mode: '0755'
 
   - name: Copy crt
     ansible.builtin.copy:
       src: "{{ install_src_dir }}/data/fullchain.pem"
-      dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs/
+      dest: "{{ platform_dir }}/services/portal/DigitalTWINS-Portal/certs/"
       mode: '0600'
 
   - name: Copy key
     ansible.builtin.copy:
       src: "{{ install_src_dir }}/data/privkey.pem"
-      dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/certs/
+      dest: "{{ platform_dir }}/services/portal/DigitalTWINS-Portal/certs/"
       mode: '0600'
 
   - name: Copy nginx.conf
     ansible.builtin.copy:
       src: "{{ install_src_dir }}/data/nginx.conf"
-      dest: ./digitaltwins-platform/services/portal/DigitalTWINS-Portal/frontend/nginx.conf
+      dest: "{{ platform_dir }}/services/portal/DigitalTWINS-Portal/frontend/nginx.conf"
       mode: '0600'
 
   - name: check for .env
     stat:
-      path: "./digitaltwins-platform/.env"
+      path: "{{ platform_dir }}/.env"
     register: file_check1
 
   - name: Copy .env
     ansible.builtin.copy:
       src: "{{ install_src_dir }}/data/.env"
-      dest: ./digitaltwins-platform/.env
+      dest: "{{ platform_dir }}/.env"
       mode: '0600'
 
   - name: check for seek env file
     stat:
-      path: "./digitaltwins-platform/services/seek/ldh-deployment/docker-compose.env"
+      path: "{{ platform_dir }}/services/seek/ldh-deployment/docker-compose.env"
     register: file_check3
 
   - name: Create seek env file
     ansible.builtin.copy:
-      dest: "./digitaltwins-platform/services/seek/ldh-deployment/docker-compose.env"
+      dest: "{{ platform_dir }}/services/seek/ldh-deployment/docker-compose.env"
       content: |
         MYSQL_HOST=db
-        MYSQL_ROOT_PASSWORD={{ lookup('env', 'MYSQL_ROOT_PASSWORD ') }}
+        MYSQL_ROOT_PASSWORD={{ lookup('env', 'MYSQL_ROOT_PASSWORD') }}
         MYSQL_DATABASE=seek
         MYSQL_USER=seek
-        MYSQL_PASSWORD={{ lookup('env', 'MYSQL_PASSWORD ') }}
+        MYSQL_PASSWORD={{ lookup('env', 'MYSQL_PASSWORD') }}
       mode: '0600'
     when: not file_check3.stat.exists
 
@@ -155,7 +157,7 @@
   - name: Initialize airflow.cfg
     ansible.builtin.command: docker compose run airflow-cli airflow config list
     args:
-      chdir: ./digitaltwins-platform
+      chdir: "{{ platform_dir }}"
 
 #  # The last config list puts a wonky ownership on the .cfg file, which we need to adjust, so ...
 #  - name: Force ownership on Airflow config
@@ -171,30 +173,30 @@
     shell: |
       sed -i "s/^access_control_allow_headers.*$/access_control_allow_headers = origin, content-type, accept/" ./services/airflow/config/airflow.cfg
     args:
-      chdir: ./digitaltwins-platform
+      chdir: "{{ platform_dir }}"
 
   - name: allow_methods
     shell: |
       sed -i "s/^access_control_allow_methods.*/access_control_allow_methods = POST, GET, OPTIONS, DELETE/" ./services/airflow/config/airflow.cfg
     args:
-      chdir: ./digitaltwins-platform
+      chdir: "{{ platform_dir }}"
 
   - name: allow_origins
     shell: |
       sed -i "s/^access_control_allow_origins.*/access_control_allow_origins = /" ./services/airflow/config/airflow.cfg
     args:
-      chdir: ./digitaltwins-platform
+      chdir: "{{ platform_dir }}"
 
   - name: Set Airflow base_url
     ansible.builtin.lineinfile:
-      path: "./digitaltwins-platform/services/airflow/config/airflow.cfg"
+      path: "{{ platform_dir }}/services/airflow/config/airflow.cfg"
       regexp: '^(#\s*)?base_url\s*=\s*.*'
       line: "base_url = https://{{ lookup('env', 'PLATFORM_DOMAIN') }}/airflow"
       state: present
 
   - name: Enable Airflow proxy fix
     ansible.builtin.lineinfile:
-      path: "./digitaltwins-platform/services/airflow/config/airflow.cfg"
+      path: "{{ platform_dir }}/services/airflow/config/airflow.cfg"
       regexp: '^(#\s*)?enable_proxy_fix\s*=\s*.*'
       line: 'enable_proxy_fix = True'
       state: present
@@ -202,31 +204,31 @@
   - name: airflow-init
     ansible.builtin.command: docker compose up airflow-init
     args:
-      chdir: ./digitaltwins-platform
+      chdir: "{{ platform_dir }}"
 
   - name: docker down
     ansible.builtin.command: docker compose down
     args:
-      chdir: ./digitaltwins-platform
+      chdir: "{{ platform_dir }}"
 
 ###
 
   - name: Copy realm import to remote server
     ansible.builtin.copy:
       src: "{{ install_src_dir }}/data/digitaltwins-realm.json"
-      dest: ./digitaltwins-platform/services/keycloak/import/digitaltwins-realm.json
+      dest: "{{ platform_dir }}/services/keycloak/import/digitaltwins-realm.json"
       mode: '0644'
 
   - name: Copy realm import to keys
     ansible.builtin.copy:
       src: "{{ install_src_dir }}/data/digitaltwins-realm.json"
-      dest: ./keys/digitaltwins-realm.json
+      dest: "{{ keys_dir }}/digitaltwins-realm.json"
       mode: '0600'
 
   - name: Startup seek
     ansible.builtin.command: docker compose up -d seek
     args:
-      chdir: ./digitaltwins-platform
+      chdir: "{{ platform_dir }}"
 
   # Better solution to the "wait" problem...
   - name: Wait for background migrations to create the users table
@@ -253,31 +255,31 @@
   - name: admin user
     ansible.builtin.command: "./create-admin-user.sh admin {{ seek_admin_password }} {{ seek_admin_email }}"
     args:
-      chdir: ./digitaltwins-platform/buildout/util
+      chdir: "{{ platform_dir }}/buildout/util"
 
-  - name: features 
+  - name: features
     ansible.builtin.command: "./enable-features.sh"
     args:
-      chdir: ./digitaltwins-platform/buildout/util
+      chdir: "{{ platform_dir }}/buildout/util"
 
-  - name: token 
+  - name: token
     ansible.builtin.command: "./generate-token.sh"
     args:
-      chdir: ./digitaltwins-platform/buildout/util
+      chdir: "{{ platform_dir }}/buildout/util"
 
   - name: all down
     ansible.builtin.command: docker compose down
     args:
-      chdir: ./digitaltwins-platform
+      chdir: "{{ platform_dir }}"
 
   - name: Ensure notebook_workspace directory exists for jupyter
     ansible.builtin.file:
-      path: ./digitaltwins-platform/notebook_workspace
+      path: "{{ platform_dir }}/notebook_workspace"
       state: directory
       mode: '0775'
-  
+
   - name: Start docker compose services
     shell: |
       docker compose up -d
     args:
-      chdir: ./digitaltwins-platform
+      chdir: "{{ platform_dir }}"
