@@ -108,7 +108,8 @@ cat > restore.sh << EOF
 #   cd /path/to/this/directory
 #   bash restore.sh
 #
-# The target system must be up and running before restoring.
+# The target system must be fully up before running this script.
+# (docker compose up -d && wait for all services healthy)
 # This script uses the target system's own credentials — no need to match the source.
 
 set -euo pipefail
@@ -129,23 +130,18 @@ echo "--- Loading MinIO mc image..."
 docker load < "\$RESTORE_DIR/minio_mc_image.tar.gz"
 echo "    Done."
 
-# ── Step 2: Make sure platform is up ─────────────────────────────────────────
-echo "--- Ensuring platform is up..."
-cd "\$BASE_DIR"
-docker compose up -d
-echo "    Waiting 15s for services to be ready..."
-sleep 15
-
-# ── Step 3: PostgreSQL ────────────────────────────────────────────────────────
+# ── Step 2: PostgreSQL ────────────────────────────────────────────────────────
 echo "--- Restoring PostgreSQL..."
 docker exec digitaltwins-platform-database-1 \\
     psql -U "\$POSTGRES_USER" postgres \\
-    -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '\$POSTGRES_DB'; DROP DATABASE IF EXISTS \"\$POSTGRES_DB\"; CREATE DATABASE \"\$POSTGRES_DB\";"
+    -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '\$POSTGRES_DB';" \\
+    -c "DROP DATABASE IF EXISTS \"\$POSTGRES_DB\";" \\
+    -c "CREATE DATABASE \"\$POSTGRES_DB\";"
 docker exec -i digitaltwins-platform-database-1 \\
     psql -U "\$POSTGRES_USER" "\$POSTGRES_DB" < "\$RESTORE_DIR/postgres.sql"
 echo "    Done."
 
-# ── Step 4: SEEK MySQL ────────────────────────────────────────────────────────
+# ── Step 3: SEEK MySQL ────────────────────────────────────────────────────────
 echo "--- Restoring SEEK MySQL..."
 docker exec digitaltwins-platform-db-1 \\
     mysql -u root -p"\$MYSQL_ROOT_PASSWORD" \\
@@ -154,12 +150,12 @@ docker exec -i digitaltwins-platform-db-1 \\
     mysql -u root -p"\$MYSQL_ROOT_PASSWORD" seek < "\$RESTORE_DIR/seek_mysql.sql"
 echo "    Done."
 
-# ── Step 5: SEEK filestore ────────────────────────────────────────────────────
+# ── Step 4: SEEK filestore ────────────────────────────────────────────────────
 echo "--- Restoring SEEK filestore..."
 docker cp "\$RESTORE_DIR/seek_filestore/." seek:/seek/filestore/
 echo "    Done."
 
-# ── Step 6: MinIO buckets ─────────────────────────────────────────────────────
+# ── Step 5: MinIO buckets ─────────────────────────────────────────────────────
 echo "--- Restoring MinIO buckets..."
 MC_IMAGE=\$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '/mc:' | head -1)
 if [ -z "\$MC_IMAGE" ]; then
@@ -180,12 +176,12 @@ docker run --rm --network digitaltwins \\
     "
 echo "    Done."
 
-# ── Step 7: Airflow DAGs ─────────────────────────────────────────────────────
+# ── Step 6: Airflow DAGs ─────────────────────────────────────────────────────
 echo "--- Restoring Airflow DAGs..."
 tar xf "\$RESTORE_DIR/dags.tar" -C "\$BASE_DIR/services/airflow"
 echo "    Done."
 
-# ── Step 8: Restart SEEK to rebuild Solr index ────────────────────────────────
+# ── Step 7: Restart SEEK to rebuild Solr index ───────────────────────────────
 echo "--- Restarting SEEK to rebuild Solr search index..."
 docker compose restart seek workers
 echo "    Done."
