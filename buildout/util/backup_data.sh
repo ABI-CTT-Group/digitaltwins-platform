@@ -37,7 +37,7 @@ echo "=== Destination: $BACKUP_DIR ==="
 # ── PostgreSQL ────────────────────────────────────────────────────────────────
 echo "--- Backing up PostgreSQL..."
 docker exec digitaltwins-platform-database-1 \
-    pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" \
+    pg_dump -U "$POSTGRES_USER" --clean --if-exists "$POSTGRES_DB" \
     > postgres.sql
 echo "    Done: postgres.sql"
 
@@ -117,12 +117,18 @@ sleep 15
 
 # ── Step 2: PostgreSQL ────────────────────────────────────────────────────────
 echo "--- Restoring PostgreSQL..."
+docker exec digitaltwins-platform-database-1 \\
+    psql -U "\$POSTGRES_USER" postgres \\
+    -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '\$POSTGRES_DB'; DROP DATABASE IF EXISTS \"\$POSTGRES_DB\"; CREATE DATABASE \"\$POSTGRES_DB\";"
 docker exec -i digitaltwins-platform-database-1 \\
     psql -U "\$POSTGRES_USER" "\$POSTGRES_DB" < "\$RESTORE_DIR/postgres.sql"
 echo "    Done."
 
 # ── Step 3: SEEK MySQL ────────────────────────────────────────────────────────
 echo "--- Restoring SEEK MySQL..."
+docker exec digitaltwins-platform-db-1 \\
+    mysql -u root -p"\$MYSQL_ROOT_PASSWORD" \\
+    -e "DROP DATABASE IF EXISTS seek; CREATE DATABASE seek CHARACTER SET utf8mb4;"
 docker exec -i digitaltwins-platform-db-1 \\
     mysql -u root -p"\$MYSQL_ROOT_PASSWORD" seek < "\$RESTORE_DIR/seek_mysql.sql"
 echo "    Done."
