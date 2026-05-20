@@ -159,10 +159,16 @@ echo "    Done."
 
 # ── Step 6: MinIO buckets ─────────────────────────────────────────────────────
 echo "--- Restoring MinIO buckets..."
+MC_IMAGE=\$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '/mc:' | head -1)
+if [ -z "\$MC_IMAGE" ]; then
+    echo "ERROR: no mc image found. Ensure minio_mc_image.tar.gz was loaded."
+    exit 1
+fi
+echo "    Using mc image: \$MC_IMAGE"
 docker run --rm --network digitaltwins \\
     -v "\$RESTORE_DIR/minio":/minio_backup \\
     --entrypoint /bin/sh \\
-    quay.io/minio/mc:latest \\
+    "\$MC_IMAGE" \\
     -c "
         mc alias set dst http://minio:9000 '\$MINIO_ROOT_USER' '\$MINIO_ROOT_PASSWORD' &&
         for bucket in measurements models workflows processes tools; do
