@@ -70,7 +70,14 @@ echo "    Done: minio/"
 
 # ── MinIO mc image (needed for airgapped restore) ────────────────────────────
 echo "--- Saving MinIO mc image..."
-docker save quay.io/minio/mc:latest | gzip > minio_mc_image.tar.gz
+MC_IMAGE=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '/mc:' | head -1)
+if [ -z "$MC_IMAGE" ]; then
+    echo "    WARNING: no mc image found locally, pulling quay.io/minio/mc:latest..."
+    docker pull quay.io/minio/mc:latest
+    MC_IMAGE="quay.io/minio/mc:latest"
+fi
+echo "    Using: $MC_IMAGE"
+docker save "$MC_IMAGE" | gzip > minio_mc_image.tar.gz
 echo "    Done: minio_mc_image.tar.gz"
 
 # ── Airflow DAGs ──────────────────────────────────────────────────────────────
@@ -116,6 +123,8 @@ echo "=== Source: \$RESTORE_DIR ==="
 # ── Step 1: Load mc image (required for MinIO restore on airgapped systems) ──
 echo "--- Loading MinIO mc image..."
 docker load < "\$RESTORE_DIR/minio_mc_image.tar.gz"
+# Ensure it's available under the name used in the restore command
+docker tag \$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '/mc:' | head -1) quay.io/minio/mc:latest 2>/dev/null || true
 echo "    Done."
 
 # ── Step 2: Make sure platform is up ─────────────────────────────────────────
