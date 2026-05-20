@@ -68,6 +68,11 @@ docker run --rm --network digitaltwins \
     "
 echo "    Done: minio/"
 
+# ── Airflow DAGs ──────────────────────────────────────────────────────────────
+echo "--- Backing up Airflow DAGs..."
+tar cf dags.tar -C "$BASE_DIR/services/airflow" dags
+echo "    Done: dags.tar"
+
 # ── Write restore script ──────────────────────────────────────────────────────
 cat > restore.sh << EOF
 #!/bin/bash
@@ -80,6 +85,7 @@ cat > restore.sh << EOF
 #   seek_mysql.sql    — SEEK MySQL database dump
 #   seek_filestore/   — SEEK uploaded files
 #   minio/            — MinIO bucket contents (measurements, models, workflows, processes, tools)
+#   dags.tar          — Airflow DAG files
 #
 # Usage:
 #   Copy this directory to the target machine, then:
@@ -141,7 +147,12 @@ docker run --rm --network digitaltwins \\
     "
 echo "    Done."
 
-# ── Step 6: Restart SEEK to rebuild Solr index ────────────────────────────────
+# ── Step 6: Airflow DAGs ─────────────────────────────────────────────────────
+echo "--- Restoring Airflow DAGs..."
+tar xf "\$RESTORE_DIR/dags.tar" -C "\$BASE_DIR/services/airflow"
+echo "    Done."
+
+# ── Step 8: Restart SEEK to rebuild Solr index ───────────────────────────────
 echo "--- Restarting SEEK to rebuild Solr search index..."
 docker compose restart seek workers
 echo "    Done."
