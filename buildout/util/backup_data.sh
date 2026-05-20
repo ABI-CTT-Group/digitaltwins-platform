@@ -68,6 +68,11 @@ docker run --rm --network digitaltwins \
     "
 echo "    Done: minio/"
 
+# ── MinIO mc image (needed for airgapped restore) ────────────────────────────
+echo "--- Saving MinIO mc image..."
+docker save quay.io/minio/mc:latest | gzip > minio_mc_image.tar.gz
+echo "    Done: minio_mc_image.tar.gz"
+
 # ── Airflow DAGs ──────────────────────────────────────────────────────────────
 echo "--- Backing up Airflow DAGs..."
 tar cf dags.tar -C "$BASE_DIR/services/airflow" dags
@@ -108,14 +113,19 @@ RESTORE_DIR=\$(cd \$(dirname "\$0") && pwd)
 echo "=== Restore started ==="
 echo "=== Source: \$RESTORE_DIR ==="
 
-# ── Step 1: Make sure platform is up ─────────────────────────────────────────
+# ── Step 1: Load mc image (required for MinIO restore on airgapped systems) ──
+echo "--- Loading MinIO mc image..."
+docker load < "\$RESTORE_DIR/minio_mc_image.tar.gz"
+echo "    Done."
+
+# ── Step 2: Make sure platform is up ─────────────────────────────────────────
 echo "--- Ensuring platform is up..."
 cd "\$BASE_DIR"
 docker compose up -d
 echo "    Waiting 15s for services to be ready..."
 sleep 15
 
-# ── Step 2: PostgreSQL ────────────────────────────────────────────────────────
+# ── Step 3: PostgreSQL ────────────────────────────────────────────────────────
 echo "--- Restoring PostgreSQL..."
 docker exec digitaltwins-platform-database-1 \\
     psql -U "\$POSTGRES_USER" postgres \\
@@ -124,7 +134,7 @@ docker exec -i digitaltwins-platform-database-1 \\
     psql -U "\$POSTGRES_USER" "\$POSTGRES_DB" < "\$RESTORE_DIR/postgres.sql"
 echo "    Done."
 
-# ── Step 3: SEEK MySQL ────────────────────────────────────────────────────────
+# ── Step 4: SEEK MySQL ────────────────────────────────────────────────────────
 echo "--- Restoring SEEK MySQL..."
 docker exec digitaltwins-platform-db-1 \\
     mysql -u root -p"\$MYSQL_ROOT_PASSWORD" \\
@@ -133,12 +143,12 @@ docker exec -i digitaltwins-platform-db-1 \\
     mysql -u root -p"\$MYSQL_ROOT_PASSWORD" seek < "\$RESTORE_DIR/seek_mysql.sql"
 echo "    Done."
 
-# ── Step 4: SEEK filestore ────────────────────────────────────────────────────
+# ── Step 5: SEEK filestore ────────────────────────────────────────────────────
 echo "--- Restoring SEEK filestore..."
 docker cp "\$RESTORE_DIR/seek_filestore/." seek:/seek/filestore/
 echo "    Done."
 
-# ── Step 5: MinIO buckets ─────────────────────────────────────────────────────
+# ── Step 6: MinIO buckets ─────────────────────────────────────────────────────
 echo "--- Restoring MinIO buckets..."
 docker run --rm --network digitaltwins \\
     -v "\$RESTORE_DIR/minio":/minio_backup \\
@@ -153,12 +163,12 @@ docker run --rm --network digitaltwins \\
     "
 echo "    Done."
 
-# ── Step 6: Airflow DAGs ─────────────────────────────────────────────────────
+# ── Step 7: Airflow DAGs ─────────────────────────────────────────────────────
 echo "--- Restoring Airflow DAGs..."
 tar xf "\$RESTORE_DIR/dags.tar" -C "\$BASE_DIR/services/airflow"
 echo "    Done."
 
-# ── Step 8: Restart SEEK to rebuild Solr index ───────────────────────────────
+# ── Step 8: Restart SEEK to rebuild Solr index ────────────────────────────────
 echo "--- Restarting SEEK to rebuild Solr search index..."
 docker compose restart seek workers
 echo "    Done."
