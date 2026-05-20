@@ -1,4 +1,4 @@
-<template>
+﻿<template>
     <v-container class="d-flex align-center justify-center">
         <v-card
             class="pa-6 responsive-box d-flex flex-column align-center justify-center"
@@ -45,25 +45,25 @@
             <v-stepper-window>
                 <v-stepper-window-item :value="1">
                     <v-card class="pa-4" variant="outlined" color="grey-lighten-2">
-                        <ToolInfomationStep @submit="handleSubmit" @cancel="handleCancel"/>
+                        <BaseInformationStep type="tool" @submit="handleSubmit" @cancel="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
 
                 <v-stepper-window-item :value="2">
                     <v-card class="pa-4" variant="outlined" color="grey-lighten-2">
-                        <ToolAnnotateStep :tool="tool" @annotation-submit="handleAnnotation" @close="handleCancel"/>
+                        <BaseAnnotateStep type="tool" :data="tool" :pending-auth="pendingAuth" @annotation-submit="handleAnnotation" @close="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
 
                 <v-stepper-window-item :value="3">
                     <v-card class="pa-4" variant="tonal" color="cyan-darken-4">
-                        <ToolBuildStep :tool="tool" @build="handleBuild" @close="handleCancel"/>
+                        <BaseBuildStep type="tool" :data="tool" @build="handleBuild" @close="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
 
                 <v-stepper-window-item :value="4">
                     <v-card class="pa-4" variant="tonal" color="cyan-darken-4">
-                        <ToolCompleteStep :tool="tool" @done="handleCancel"/>
+                        <BaseCompleteStep type="tool" :data="tool" @done="handleCancel"/>
                     </v-card>
                 </v-stepper-window-item>
             </v-stepper-window>
@@ -73,35 +73,41 @@
 </template>
 
 <script setup lang="ts">
-import ToolInfomationStep from './components/ToolInfomationStep.vue';
-import ToolBuildStep from './components/ToolBuildStep.vue';
-import ToolCompleteStep from './components/ToolCompleteStep.vue';
-import ToolAnnotateStep from './components/ToolAnnotateStep.vue';
-import { PluginResponse, IToolInformationStep, IAnnotateTool} from '@/models/uiTypes';
-import { useCreateToolPlugin, useWorkflowToolBuild, useCreateToolPluginAnnotation } from '@/plugins/plugin_api'
+import BaseInformationStep from '../components/BaseInformationStep.vue';
+import BaseBuildStep from '../components/BaseBuildStep.vue';
+import BaseCompleteStep from '../components/BaseCompleteStep.vue';
+import BaseAnnotateStep from '../components/BaseAnnotateStep.vue';
+import type { ToolResponse, BaseInformationStep as BaseInfoStepType, AnnotateTool, TransientAuth} from '@/models/types';
+import { useCreateTool, useWorkflowToolBuild, useCreateToolAnnotation } from '@/bootstrap/tool_api'
 import { ref, watch } from "vue";
 
 const emit = defineEmits(['finished'])
 const step = ref(0);
-const tool = ref<PluginResponse>()
+const tool = ref<ToolResponse>()
+// Transient auth captured at registration step — used once for the FIRST
+// build POST body, then discarded. Per phase-0.2 decision, we don't store
+// it anywhere; rebuilds (later) prompt the user to re-enter it.
+const pendingAuth = ref<TransientAuth | undefined>(undefined)
 
-const handleSubmit = async (data:IToolInformationStep)=>{
-    tool.value = await useCreateToolPlugin(data)
+const handleSubmit = async (data: BaseInfoStepType, auth?: TransientAuth)=>{
+    tool.value = await useCreateTool(data)
+    pendingAuth.value = auth
     step.value += 1;
 }
 
-const handleAnnotation = async (id:string, data:IAnnotateTool) =>{
+const handleAnnotation = async (id:string, data:AnnotateTool) =>{
 
-    const res = await useCreateToolPluginAnnotation(id, {
-        fhir_note: JSON.stringify(data),
-        sparc_note: ""
+    const res = await useCreateToolAnnotation(id, {
+        fhirNote: JSON.stringify(data),
+        sparcNote: ""
     })
-    
+
     step.value += 1;
 }
 
 const handleBuild = async (id:string)=>{
-    await useWorkflowToolBuild(id)
+    await useWorkflowToolBuild(id, pendingAuth.value)
+    pendingAuth.value = undefined  // single-use; rebuild will re-prompt
     step.value += 1;
 }
 

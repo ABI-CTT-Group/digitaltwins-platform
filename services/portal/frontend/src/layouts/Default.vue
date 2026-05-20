@@ -2,7 +2,7 @@
   <v-app class="container">
     <AuthNavBar />
     <NavHome>{{ dashboardTitle }}</NavHome>
-
+    <BackIcon v-if="route.matched.some(r => r.meta?.showBack)" />
     <default-view />
   </v-app>
 </template>
@@ -10,26 +10,24 @@
 <script lang="ts" setup>
 import DefaultView from "./View.vue";
 import AuthNavBar from "@/components/AuthNavBar.vue";
-import NavHome from "@/components/dt-components/NavHome.vue";
+import NavHome from "@/components/domain/NavHome.vue";
+import BackIcon from "@/components/common/BackIcon.vue";
 import { useRoute } from "vue-router";
-import { watch, ref, computed } from "vue";
+import { computed } from "vue";
 
 const route = useRoute();
 
 const dashboardTitle = computed(() => {
   if (route.name === 'CatalogueDashboardView'){
     return "Catalogue Dashboard";
-  }else if(route.name === 'TutorialDashboard'){
+  } else if (route.name === 'TutorialDashboard'){
     return "How It Works";
-  }else if (route.params.dashboardType === 'clinician') {
-    return "Clinician Dashboard";
-  } else if (route.params.dashboardType === 'study') {
-    return "Study Dashboard";
-  }else {
+  } else if (route.name === 'Dashboard') {
+    return route.params.dashboardType === 'clinician' ? "Clinician Dashboard" : "Study Dashboard";
+  } else {
     return "";
   }
 })
-
 </script>
 
 <style scoped>

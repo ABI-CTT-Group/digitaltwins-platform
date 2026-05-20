@@ -13,9 +13,9 @@
 </template>
 
 <script setup lang="ts">
-const emit = defineEmits(["on:refresh"])
+const emit = defineEmits(["refresh"])
 function handleRefresh() {
-    emit('on:refresh')
+    emit('refresh')
 }
 </script>
 

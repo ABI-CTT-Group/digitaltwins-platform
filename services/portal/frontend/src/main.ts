@@ -12,8 +12,8 @@ import "@/styles/style.css";
 import { createApp } from "vue";
 
 // Plugins
-import { registerPlugins } from "@/plugins";
-import { initKeycloak, setupIdleTimeout } from "@/plugins/keycloak";
+import { registerPlugins } from "@/bootstrap";
+import { initKeycloak, setupIdleTimeout } from "@/bootstrap/keycloak";
 
 
 const app = createApp(App);

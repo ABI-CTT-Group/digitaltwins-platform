@@ -7,10 +7,9 @@ from sparc_me import Dataset
 from .logger import get_logger
 from app.client.minio import get_minio_client
 from sqlalchemy.orm import Session
+from app.builder.source_acquirer import SourceAcquirer, SourceSpec
 from app.utils.builder_utils import (
-    clone_repository,
     copy_item,
-    is_git_url,
     remove_tmp_folder,
     unique_name,
 )
@@ -103,7 +102,13 @@ class WorkflowBuilder:
         author = workflow.get("author", "unknown")
         description = workflow.get("description", "No description provided")
         metadata = workflow.get("metadata", {})
-        cloned_dir = None
+        source_type = workflow.get("source_type", "github")
+        local_archive_path = workflow.get("local_archive_path")
+        # Transient secrets — see build_tool.py for the full contract.
+        token = workflow.get("token")
+        auth_username = workflow.get("auth_username")
+        verify_ssl = workflow.get("verify_ssl", True)
+        tmp_source_dir = None
         config = {}
 
         try:
@@ -113,99 +118,74 @@ class WorkflowBuilder:
             # Step 0: Check for existing metadata
             logger.info("Step 0: Checking for existing plugin metadata...")
 
-            # Step 1: Clone the repository or use local path
-            if is_git_url(repo_url):
-                logger.info("Step 1: Cloning repository...")
-                project_dir = clone_repository(self.tmp_dir, repo_url, logger, branch)
-                cloned_dir = project_dir  # Mark for cleanup
-                logger.info(f"Repository cloned to: {cloned_dir}")
-            else:
-                logger.info("Step 1: Cloning repository...")
-                logger.info(f"DEBUG: repo_url = '{repo_url}' (type: {type(repo_url)}, length: {len(repo_url)})")
-                logger.info(f"DEBUG: repo_url.startswith('./workflow/') = {repo_url.startswith('./workflow/')}")
-                logger.info(f"DEBUG: repo_url.startswith('/workflow/') = {repo_url.startswith('/workflow/')}")
+            # Step 1: Acquire project_dir via the registered SourceAcquirer.
+            # Each acquirer owns its source-materialization details; from
+            # step 2 onward the pipeline operates on project_dir uniformly.
+            # tmp_source_dir is set so steps 2/3/4 trigger the same way.
+            spec = SourceSpec(
+                source_type=source_type,
+                url=repo_url,
+                branch=branch,
+                local_archive_path=local_archive_path,
+                token=token,
+                auth_username=auth_username,
+                verify_ssl=verify_ssl,
+            )
+            acquirer = SourceAcquirer.for_type(source_type, self.tmp_dir)
+            project_dir = acquirer.acquire(spec)
+            tmp_source_dir = project_dir  # Mark for cleanup
 
-                # For local paths, map them to the mounted volume
-                # If the path starts with ./plugins or /plugins, use it as-is
-                # Otherwise, assume it's a relative path under /plugins
-                if repo_url.startswith("./workflow/"):
-                    logger.info("DEBUG: Taking ./workflow/ branch")
-                    # Convert relative path to absolute within container
-                    workflow_name = repo_url.replace("./workflow/", "")
-                    project_dir = Path(f'/workflow/{workflow_name}')
-                elif repo_url.startswith('/workflow/'):
-                    logger.info("DEBUG: Taking /workflow/ branch")
-                    # Already an absolute path in the container
-                    project_dir = Path(repo_url)
-                else:
-                    logger.info("DEBUG: Taking else branch")
-                    # Assume it's a plugin name/path under /plugins
-                    # Remove leading ./ if present
-                    clean_path = repo_url.lstrip('./')
-                    logger.info(f"DEBUG: clean_path = '{clean_path}'")
-                    project_dir = Path(f'/plugins/{clean_path}')
+            # Step 2: Create SPARC dataset for cwl plugin script
+            logger.info("Step 2: Creating SPARC dataset by sparc-me")
+            dataset_dir = self.create_sparc_dataset(project_dir, None,
+                                                    f"{workflow_unique_expose_name}")
+            logger.info(f"SPARC dataset created in {dataset_dir}")
 
-                if not project_dir.exists():
-                    raise RuntimeError(f"Local path does not exist: {project_dir}")
-                if not project_dir.is_dir():
-                    raise RuntimeError(f"Local path does not a directory: {project_dir}")
-                logger.info(f"Using local project dictory: {project_dir}")
-
-            # Step 2: Create SPARC dataset (only for remote repos) for cwl plugin script
-            dataset_dir = None
-            if cloned_dir:
-                logger.info("Step 2 Creating SPARC dataset by sparc-me")
-                dataset_dir = self.create_sparc_dataset(project_dir, None,
-                                                        f"{workflow_unique_expose_name}")
-                logger.info(f"SPARC dataset created in {dataset_dir}")
-            else:
-                logger.info("Step 2 Skipping SPARC dataset creation for local plugin...")
-
-            # Step 3: Upload dataset to MinIO or copy to public folder
+            # Step 3: Upload dataset to MinIO
             s3_path = None
             minio_client = get_minio_client("workflows")
-            if cloned_dir:
-                logger.info("Step 3: Uploading dataset to MinIO...")
-                try:
-                    logger.info(f"Uploading dataset to MinIO: {metadata}")
-                    dataset_name = metadata.get("expose", '')
-                    logger.info(f"Uploading dataset to S3: {dataset_name}")
-                    s3_path = minio_client.upload_directory(str(dataset_dir), dataset_name)
-                    logger.info(f"Dataset uploaded to MinIO: {s3_path}")
-                except Exception as e:
-                    logger.error(f"Failed to upload dataset to S3: {e}")
-                    s3_path = None
-            else:
-                logger.info("Step 3: Copying local tool plugin to public directory")
-                # For local tool plugins, copy dist files to public directory using the path from metadata
-                pass
+            logger.info("Step 3: Uploading dataset to MinIO...")
+            try:
+                logger.info(f"Uploading dataset to MinIO: {metadata}")
+                dataset_name = metadata.get("expose", '')
+                logger.info(f"Uploading dataset to S3: {dataset_name}")
+                s3_path = minio_client.upload_directory(str(dataset_dir), dataset_name)
+                logger.info(f"Dataset uploaded to MinIO: {s3_path}")
+            except Exception as e:
+                logger.error(f"Failed to upload dataset to S3: {e}")
+                s3_path = None
 
-            # Step 4: Clean up temporary files (only for cloned repos, not local paths)
+            # Step 4: Clean up temporary source directory.
+            # See build_tool.py — local staging dir is canonical source for
+            # the workflow record and must survive the build for rebuilds.
             logger.info("Step 4: Cleaning up temporary files")
-            if cloned_dir:
-                try:
-                    remove_tmp_folder(cloned_dir, logger)
-                except Exception as e:
-                    logger.error(f"Failed to remove cloned repository: {e}")
+            if source_type == "local":
+                logger.info(
+                    f"Step 4: Skipping cleanup for local source — staging dir "
+                    f"{tmp_source_dir} preserved for rebuild"
+                )
             else:
-                logger.info("Skiping cleanup for local path")
+                try:
+                    remove_tmp_folder(tmp_source_dir, logger)
+                except Exception as e:
+                    logger.error(f"Failed to remove temporary source directory: {e}")
 
             logger.info("Build process completed successfully")
 
             return {
                 "success": True,
-                "dataset_path": str(dataset_dir) if dataset_dir else None,
+                "dataset_path": str(dataset_dir),
                 "expose_name": workflow_unique_expose_name,
                 "s3_path": s3_path,
                 "build_logs": "\n".join(build_logs),
                 "error_message": None,
-                "is_local": not bool(cloned_dir)
             }
         except Exception as e:
             error_message = str(e)
             logger.info(f"Build failed: {error_message}")
             logger.error(f"Build process failed: {e}")
-            remove_tmp_folder(cloned_dir, logger)
+            if source_type != "local":
+                remove_tmp_folder(tmp_source_dir, logger)
             return {
                 "success": False,
                 "dataset_path": None,

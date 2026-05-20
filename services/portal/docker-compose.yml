@@ -31,14 +31,26 @@ services:
       - NGINX_CONTAINER_NAME=digitaltwins-platform-portal-frontend
     volumes:
       - portal_datasets:/app/data
-      - ./backend/datasets_tool:/datasets_tool
+      # /datasets_tool and /datasets_workflow were Windows host bind mounts,
+      # but Docker Desktop's gRPC-FUSE hangs under SPARC dataset creation for
+      # large plugins (thousands of small files — VolView/itk pipelines).
+      # Switched to named volumes so SPARC writes stay inside the Linux VM's
+      # ext4. The source of truth for datasets is MinIO; the local copy here
+      # is just build staging + cleanup target on plugin/workflow delete.
+      - portal_datasets_tool:/datasets_tool
+      - portal_datasets_workflow:/datasets_workflow
+      # /datasets_measurement stays bind-mounted: this is read-only from the
+      # container (see /copy_dataset endpoint in dashboard.py) and the user
+      # drops SPARC test datasets in from the Windows side (e.g. duke).
       - ./backend/datasets_measurement:/datasets_measurement
-      - ./backend/datasets_workflow:/datasets_workflow
       - ./backend/configs.ini:/app/configs.ini
       - plugin_database:/data
       - /var/run/docker.sock:/var/run/docker.sock
       - nginx_plugin_configs:/nginx-plugins-conf
     restart: unless-stopped
+    # Give the lifespan shutdown hook time to batch-kill all plugin backends
+    # before Docker SIGKILLs portal-backend itself.
+    stop_grace_period: 60s
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000" ]
       interval: 30s
@@ -155,6 +167,12 @@ networks:
 volumes:
   portal_datasets:
     name: digitaltwins_portal_datasets
+    driver: local
+  portal_datasets_tool:
+    name: digitaltwins_portal_datasets_tool
+    driver: local
+  portal_datasets_workflow:
+    name: digitaltwins_portal_datasets_workflow
     driver: local
   hapi_fhir_postgres:
     name: digitaltwins_hapi_fhir_postgres

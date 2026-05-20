@@ -1,13 +1,16 @@
 import os
 import json
+import mimetypes
 import uvicorn
-from fastapi import APIRouter, FastAPI, Depends, HTTPException, BackgroundTasks, Request, Query
+import zipfile
+from botocore.exceptions import ClientError
+from fastapi import APIRouter, FastAPI, Depends, HTTPException, BackgroundTasks, Request, Query, UploadFile, File
 from fastapi.responses import StreamingResponse, JSONResponse
 from app.database.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from typing import List, Dict, Any, Literal
+from typing import List, Dict, Any, Literal, Optional
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import uuid
@@ -17,14 +20,23 @@ from app.models.db_model import (
     Workflow, WorkflowBuild, WorkflowAnnotation, WorkflowBase,
     WorkflowResponse, WorkflowCreate, WorkflowAnnotationCreate,
     WorkflowAnnotationResponse, WorkflowBuildResponse, BuildStatus,
-    SessionLocal
+    SessionLocal,
+    ProbeSourceRequest, BuildTriggerRequest,
 )
-from app.builder.logger import get_logger, configure_logging
+from fastapi import Body
+from app.builder.logger import get_logger, configure_logging, safe_dump
 from app.client.minio import get_minio_client
 from app.client.fhir import get_fhir_adapter, get_fhir_async_client
 from app.builder.build_workflow import WorkflowBuilder
+from app.builder.source_acquirer import SourceAcquirer, SourceSpec, CloneError
 from app.utils.workflow_tool_utils import get_build_record_or_404, get_public_url_for_build, get_latest_build_record
-from app.utils.builder_utils import execute_build_in_background
+from app.utils.builder_utils import (
+    execute_build_in_background,
+    extract_uploaded_archive,
+    inspect_uploaded_source,
+    read_root_cwl,
+    resolve_project_root,
+)
 
 import json
 
@@ -52,9 +64,107 @@ async def check_name(name: str, db: Session = Depends(get_db)):
     return {"available": True, "message": "Name is available"}
 
 
+@router.post("/upload-source")
+async def upload_workflow_source(file: UploadFile = File(...)):
+    """Receive a zip archive of a CWL workflow source folder, extract to staging.
+    Workflows must contain at least one .cwl file at the root.
+    """
+    tmp_zip = builder.tmp_dir / f"upload_archive_{uuid.uuid4().hex[:8]}.zip"
+    try:
+        with open(tmp_zip, "wb") as out:
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                out.write(chunk)
+
+        try:
+            staging = extract_uploaded_archive(builder.tmp_dir, tmp_zip)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except zipfile.BadZipFile:
+            raise HTTPException(status_code=400, detail="Uploaded file is not a valid zip archive")
+
+        meta = inspect_uploaded_source(staging, want_npm=False, want_cwl=True)
+        logger.info(f"Workflow source uploaded: upload_id={staging.name}, meta={meta}")
+
+        if not meta["has_cwl"]:
+            # cleanup before reporting back so we don't leak staging dirs on bad uploads
+            force_rmtree(staging)
+            raise HTTPException(
+                status_code=400,
+                detail="No .cwl file found at the root of the uploaded folder",
+            )
+
+        return {
+            "upload_id": staging.name,
+            "folders_in_root": meta["folders_in_root"],
+            "package_version": meta["package_version"],
+            "package_author": meta["package_author"],
+            "has_cwl": meta["has_cwl"],
+        }
+    finally:
+        if tmp_zip.exists():
+            try:
+                tmp_zip.unlink()
+            except Exception as e:
+                logger.warning(f"Failed to remove temp zip {tmp_zip}: {e}")
+
+
+@router.get("/{workflow_id}/cwl")
+async def get_workflow_cwl(workflow_id: str, db: Session = Depends(get_db)):
+    """Read the root .cwl file for a local-source workflow from its staging dir.
+    Used by the annotation step in local mode (github mode still hits GitHub directly)."""
+    workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()  # type: ignore
+    if workflow is None:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    if workflow.source_type != "local" or not workflow.local_archive_path:
+        raise HTTPException(
+            status_code=400,
+            detail="Workflow is not a local-source workflow; use GitHub API for github workflows",
+        )
+
+    staging = Path(workflow.local_archive_path)
+    if not staging.exists() or not staging.is_dir():
+        raise HTTPException(
+            status_code=410,
+            detail="Staging directory has been removed (build already completed?)",
+        )
+
+    result = read_root_cwl(staging)
+    if result is None:
+        raise HTTPException(status_code=404, detail="No .cwl file found at the root of the uploaded folder")
+    return result
+
+
 @router.post("/create", response_model=WorkflowResponse)
 async def create_tool_plugin(workflow: WorkflowCreate, db: Session = Depends(get_db)):
-    db_workflow = Workflow(**workflow.model_dump())
+    data = workflow.model_dump()
+    upload_id = data.pop("upload_id", None)
+    local_archive_path = None
+
+    if workflow.source_type == "local":
+        if not upload_id:
+            raise HTTPException(
+                status_code=400,
+                detail="upload_id is required when source_type='local'",
+            )
+        staging = (builder.tmp_dir / upload_id).resolve()
+        if not staging.exists() or not staging.is_dir():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Staging directory not found for upload_id={upload_id}. The upload may have expired or already been built.",
+            )
+        local_archive_path = str(resolve_project_root(staging))
+        data["repository_url"] = f"local://{upload_id}"
+    else:
+        if not data.get("repository_url"):
+            raise HTTPException(
+                status_code=400,
+                detail="repository_url is required when source_type='github'",
+            )
+
+    db_workflow = Workflow(**data, local_archive_path=local_archive_path)
     db.add(db_workflow)
     db.commit()
     db.refresh(db_workflow)
@@ -103,7 +213,6 @@ async def get_metadata_json(db: Session = Depends(get_db)):
     use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
     http_protocol = 'https' if use_ssl else 'http'
     host = os.environ.get('PORTAL_BACKEND_HOST', 'localhost')
-    port = os.environ.get('MINIO_PORT', '9000')
 
     workflows = db.query(Workflow).all()
     components = []
@@ -122,7 +231,7 @@ async def get_metadata_json(db: Session = Depends(get_db)):
         if is_local:
             path = ""
         else:
-            path = f"{http_protocol}://{host}:{port}/workflows/{latest_build.expose_name}/primary"
+            path = f"{http_protocol}://{host}/api/workflow/{latest_build.expose_name}/primary"
 
         components.append({
             "uuid": workflow.uuid or "",
@@ -142,6 +251,35 @@ async def get_metadata_json(db: Session = Depends(get_db)):
     return JSONResponse(
         content={"components": components},
         headers={"Cache-Control": "no-cache, no-store"}
+    )
+
+
+@router.get("/{expose_name}/primary/{path:path}")
+async def stream_workflow_object(expose_name: str, path: str):
+    # Streams workflow build artifacts (e.g. CWL files) from the private MinIO
+    # `workflows` bucket via the backend, replacing the legacy direct-MinIO URL
+    # that depended on MINIO_PORT being published to the host.
+    object_key = f"{expose_name}/primary/{path}"
+    try:
+        obj = minio.client.get_object(Bucket=minio.bucket_name, Key=object_key)
+    except ClientError as e:
+        code = e.response.get('Error', {}).get('Code')
+        if code in ('404', 'NoSuchKey'):
+            raise HTTPException(status_code=404, detail=f"Workflow object not found: {object_key}")
+        logger.error(f"MinIO get_object failed for {object_key}: {e}")
+        raise HTTPException(status_code=503, detail="Workflow storage temporarily unavailable")
+
+    content_type = obj.get('ContentType') or mimetypes.guess_type(path)[0] or 'application/octet-stream'
+
+    headers = {"Cache-Control": "public, max-age=300"}
+    content_length = obj.get('ContentLength')
+    if content_length is not None:
+        headers['Content-Length'] = str(content_length)
+
+    return StreamingResponse(
+        obj['Body'].iter_chunks(chunk_size=64 * 1024),
+        media_type=content_type,
+        headers=headers,
     )
 
 
@@ -198,17 +336,18 @@ async def get_build_direct_url(build_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Failed to generate direct url for build {build_id}: {e}")
 
 
-@router.get("/{workflow_id}/build")
-async def execute_build(
-        workflow_id: str,
-        background_tasks: BackgroundTasks = None,
-        db: Session = Depends(get_db)):
-    """Build a workflow using git CLI"""
+def _trigger_workflow_build(
+    workflow_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session,
+    *,
+    transient: Optional[BuildTriggerRequest] = None,
+) -> dict:
+    """Shared build-trigger logic for both GET (legacy) and POST (token-aware)."""
     workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()  # type: ignore
     if workflow is None:
-        raise HTTPException(status_code=404, detail="Plugin not found")
+        raise HTTPException(status_code=404, detail="Workflow not found")
 
-    # Covert Workflow object to dict for JSON serialization
     workflow_dict = {
         "id": workflow.id,
         "name": workflow.name,
@@ -216,20 +355,27 @@ async def execute_build(
         "version": workflow.version,
         "author": workflow.author,
         "repo_url": workflow.repository_url,
+        "source_type": workflow.source_type,
+        "local_archive_path": workflow.local_archive_path,
         "metadata": {},
         "created_at": workflow.created_at.isoformat() if workflow.created_at else None,
         "updated_at": workflow.updated_at.isoformat() if workflow.updated_at else None,
     }
-    logger.info(f"Building Workflow: {json.dumps(workflow_dict, indent=4)}")
+    if transient is not None:
+        if transient.token:
+            workflow_dict["token"] = transient.token
+        if transient.auth_username:
+            workflow_dict["auth_username"] = transient.auth_username
+        workflow_dict["verify_ssl"] = transient.verify_ssl
+
+    logger.info(f"Building Workflow: {safe_dump(workflow_dict, indent=4)}")
 
     build_id = str(uuid.uuid4())
-
     db_build = WorkflowBuild(
         workflow_id=workflow.id,
         build_id=build_id,
         status=BuildStatus.PENDING.value,
     )
-
     db.add(db_build)
     db.commit()
     db.refresh(db_build)
@@ -246,8 +392,74 @@ async def execute_build(
         "build_id": build_id,
         "status": BuildStatus.PENDING.value,
         "message": "Build started in background",
-        "repo_url": workflow.repository_url
+        "repo_url": workflow.repository_url,
     }
+
+
+@router.get("/{workflow_id}/build", deprecated=True)
+async def execute_build(
+        workflow_id: str,
+        background_tasks: BackgroundTasks = None,
+        db: Session = Depends(get_db)):
+    """Legacy public-source workflow build trigger.
+
+    Deprecated: use ``POST /{workflow_id}/build`` for transient token /
+    auth_username / verify_ssl. This GET stays only for back-compat with
+    pre-phase-6 frontend.
+    """
+    return _trigger_workflow_build(workflow_id, background_tasks, db, transient=None)
+
+
+@router.post("/{workflow_id}/build")
+async def execute_build_post(
+        workflow_id: str,
+        req: BuildTriggerRequest = Body(default_factory=BuildTriggerRequest),
+        background_tasks: BackgroundTasks = None,
+        db: Session = Depends(get_db)):
+    """Trigger a workflow build, optionally with transient secrets in body.
+
+    See ``/api/tools/plugin/{id}/build`` for the token handling contract.
+    """
+    return _trigger_workflow_build(workflow_id, background_tasks, db, transient=req)
+
+
+@router.post("/probe-source")
+async def probe_source(req: ProbeSourceRequest):
+    """Probe a git URL for workflow source metadata.
+
+    Token / cleanup / failure-shape contract identical to the plugin-side
+    probe (see ``/api/tools/probe-source``).
+    """
+    spec = SourceSpec(
+        source_type=req.source_type,
+        url=req.url,
+        branch=req.branch,
+        token=req.token,
+        auth_username=req.auth_username,
+        verify_ssl=req.verify_ssl,
+    )
+    try:
+        acquirer = SourceAcquirer.for_type(req.source_type, builder.tmp_dir)
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={
+            "ok": False, "reason": "validation",
+            "message": str(e), "provider_hint": req.source_type,
+        })
+    try:
+        data = acquirer.probe_metadata(spec)
+        return {"ok": True, "data": data}
+    except CloneError as e:
+        return {
+            "ok": False,
+            "reason": e.reason,
+            "message": e.message,
+            "provider_hint": req.source_type,
+        }
+    except RuntimeError as e:
+        return JSONResponse(status_code=400, content={
+            "ok": False, "reason": "validation",
+            "message": str(e), "provider_hint": req.source_type,
+        })
 
 
 @router.get("/{workflow_id}/builds", response_model=List[WorkflowBuildResponse])
@@ -375,6 +587,18 @@ async def delete_plugin(workflow_id: str, db: Session = Depends(get_db)):
                     dataset_path = builder.dataset_dir / prefix
                     print("delete: ", dataset_path)
                     force_rmtree(dataset_path)
+            # `local` source: build pipeline preserves staging dir across
+            # rebuilds (see build_workflow.py step 4). Reap it here so it
+            # doesn't leak under tmp/.
+            if workflow.source_type == "local" and workflow.local_archive_path:
+                from pathlib import Path
+                staging = Path(workflow.local_archive_path)
+                if staging.exists():
+                    logger.info(f"Deleting local staging dir {staging}")
+                    try:
+                        force_rmtree(staging)
+                    except Exception as e:
+                        logger.error(f"Failed to remove local staging dir {staging}: {e}")
             db.delete(workflow)
             db.commit()
 

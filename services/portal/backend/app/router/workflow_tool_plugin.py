@@ -2,7 +2,8 @@ import os
 import json
 import yaml
 import uvicorn
-from fastapi import APIRouter, FastAPI, Depends, HTTPException, BackgroundTasks, Request, Query
+import zipfile
+from fastapi import APIRouter, FastAPI, Depends, HTTPException, BackgroundTasks, Request, Query, UploadFile, File
 from fastapi.responses import StreamingResponse, JSONResponse
 from app.database.database import get_db
 from sqlalchemy.orm import Session
@@ -20,11 +21,14 @@ from app.models.db_model import (
     PluginBuildResponse, BuildStatus, SessionLocal,
     DeployStatus, PluginDeployment, PluginDeployResponse,
     PluginAnnotationResponse, PluginAnnotationCreate,
-    PluginAnnotation
+    PluginAnnotation,
+    ProbeSourceRequest, BuildTriggerRequest,
 )
-from app.builder.logger import get_logger, configure_logging
+from fastapi import Body
+from app.builder.logger import get_logger, configure_logging, safe_dump
 from app.builder.build_tool import PluginBuilder
 from app.builder.deploy_tool import PluginDeployer
+from app.builder.source_acquirer import SourceAcquirer, SourceSpec, CloneError
 from app.client.minio import get_minio_client
 from app.client.fhir import get_fhir_adapter, get_fhir_async_client
 
@@ -35,7 +39,13 @@ from app.utils.workflow_tool_utils import (
     get_public_url_for_build,
     get_latest_build_record,
     shuttle_down_deployed_backend)
-from app.utils.builder_utils import execute_build_in_background
+from app.utils.builder_utils import (
+    execute_build_in_background,
+    extract_uploaded_archive,
+    inspect_uploaded_source,
+    read_root_cwl,
+    resolve_project_root,
+)
 from uuid import UUID
 from app.utils.utils import force_rmtree, is_empty
 from fhir_cda import Annotator
@@ -162,10 +172,77 @@ async def check_name(name: str, db: Session = Depends(get_db)):
     return {"available": True, "message": "Name is available"}
 
 
+@router.post("/upload-source")
+async def upload_tool_source(file: UploadFile = File(...)):
+    """Receive a zip archive of a plugin source folder, extract to staging, and return metadata.
+
+    The returned `upload_id` is later passed to /create as `upload_id` to register a
+    local-source plugin. The staging dir lives under the builder's tmp_dir.
+    """
+    tmp_zip = builder.tmp_dir / f"upload_archive_{uuid.uuid4().hex[:8]}.zip"
+    try:
+        with open(tmp_zip, "wb") as out:
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                out.write(chunk)
+
+        try:
+            staging = extract_uploaded_archive(builder.tmp_dir, tmp_zip)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except zipfile.BadZipFile:
+            raise HTTPException(status_code=400, detail="Uploaded file is not a valid zip archive")
+
+        meta = inspect_uploaded_source(staging, want_npm=True, want_cwl=False)
+        logger.info(f"Tool source uploaded: upload_id={staging.name}, meta={meta}")
+
+        return {
+            "upload_id": staging.name,
+            "folders_in_root": meta["folders_in_root"],
+            "package_version": meta["package_version"],
+            "package_author": meta["package_author"],
+            "has_cwl": meta["has_cwl"],
+        }
+    finally:
+        if tmp_zip.exists():
+            try:
+                tmp_zip.unlink()
+            except Exception as e:
+                logger.warning(f"Failed to remove temp zip {tmp_zip}: {e}")
+
+
 @router.post("/create", response_model=PluginResponse)
 async def create_tool_plugin(plugin: PluginCreate, db: Session = Depends(get_db)):
+    data = plugin.model_dump()
+    upload_id = data.pop("upload_id", None)
+    local_archive_path = None
 
-    db_plugin = Plugin(**plugin.model_dump())
+    if plugin.source_type == "local":
+        if not upload_id:
+            raise HTTPException(
+                status_code=400,
+                detail="upload_id is required when source_type='local'",
+            )
+        staging = (builder.tmp_dir / upload_id).resolve()
+        if not staging.exists() or not staging.is_dir():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Staging directory not found for upload_id={upload_id}. The upload may have expired or already been built.",
+            )
+        # Strip a single wrapper directory if the zip was packaged that way
+        local_archive_path = str(resolve_project_root(staging))
+        # Placeholder so the NOT NULL repository_url column is satisfied and logs stay readable
+        data["repository_url"] = f"local://{upload_id}"
+    else:
+        if not data.get("repository_url"):
+            raise HTTPException(
+                status_code=400,
+                detail="repository_url is required when source_type='github'",
+            )
+
+    db_plugin = Plugin(**data, local_archive_path=local_archive_path)
     db.add(db_plugin)
     db.commit()
     db.refresh(db_plugin)
@@ -255,6 +332,18 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
                     dataset_path = builder.dataset_dir / prefix
                     force_rmtree(dataset_path)
                 # db.delete(build)
+            # For `local` source, the build pipeline preserves the staging dir
+            # across rebuilds (see build_tool.py step 7). Plugin deletion is
+            # the canonical place to reap it — otherwise staging dirs leak
+            # forever under tmp/.
+            if plugin.source_type == "local" and plugin.local_archive_path:
+                staging = Path(plugin.local_archive_path)
+                if staging.exists():
+                    logger.info(f"Deleting local staging dir {staging}")
+                    try:
+                        force_rmtree(staging)
+                    except Exception as e:
+                        logger.error(f"Failed to remove local staging dir {staging}: {e}")
             db.delete(plugin)
             db.commit()
 
@@ -265,17 +354,25 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
         return {"status": False, "message": str(e)}
 
 
-@router.get("/plugin/{plugin_id}/build")
-async def execute_build(
-        plugin_id: str,
-        background_tasks: BackgroundTasks = None,
-        db: Session = Depends(get_db)):
-    """Execute a plugin build using git CLI and npm or yarn"""
+def _trigger_plugin_build(
+    plugin_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session,
+    *,
+    transient: Optional[BuildTriggerRequest] = None,
+) -> dict:
+    """Shared build-trigger logic used by both GET (legacy public-only)
+    and POST (token-aware) build endpoints.
+
+    ``transient`` carries optional per-build secrets (token, auth_username,
+    verify_ssl). They flow into ``plugin_dict`` and onward to the acquirer
+    via ``SourceSpec`` — never touch the DB. ``safe_dump`` masks any token
+    field when the dict is logged.
+    """
     plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
     if plugin is None:
         raise HTTPException(status_code=404, detail="Plugin not found")
 
-    # Covert Plugin object to dict for JSON serialization
     plugin_dict = {
         "id": plugin.id,
         "name": plugin.name,
@@ -285,6 +382,8 @@ async def execute_build(
         "label": plugin.label,
         "has_backend": plugin.has_backend,
         "repo_url": plugin.repository_url,
+        "source_type": plugin.source_type,
+        "local_archive_path": plugin.local_archive_path,
         "frontend_folder": plugin.frontend_folder,
         "frontend_build_command": plugin.frontend_build_command,
         "backend_folder": plugin.backend_folder,
@@ -293,16 +392,21 @@ async def execute_build(
         "created_at": plugin.created_at.isoformat() if plugin.created_at else None,
         "updated_at": plugin.updated_at.isoformat() if plugin.updated_at else None,
     }
-    logger.info(f"Building GUI plugin: {json.dumps(plugin_dict, indent=4)}")
+    if transient is not None:
+        if transient.token:
+            plugin_dict["token"] = transient.token
+        if transient.auth_username:
+            plugin_dict["auth_username"] = transient.auth_username
+        plugin_dict["verify_ssl"] = transient.verify_ssl
+
+    logger.info(f"Building GUI plugin: {safe_dump(plugin_dict, indent=4)}")
 
     build_id = str(uuid.uuid4())
-
     db_build = PluginBuild(
         plugin_id=plugin.id,
         build_id=build_id,
         status=BuildStatus.PENDING.value,
     )
-
     db.add(db_build)
     db.commit()
     db.refresh(db_build)
@@ -311,7 +415,6 @@ async def execute_build(
     if plugin.has_backend:
         shuttle_down_deployed_backend(plugin.id, deployer)
 
-    # executing build in backend
     execute_build_in_background(
         build_id=build_id,
         data=plugin_dict,
@@ -324,8 +427,89 @@ async def execute_build(
         "build_id": build_id,
         "status": BuildStatus.PENDING.value,
         "message": "Build started in background",
-        "repo_url": plugin.repository_url
+        "repo_url": plugin.repository_url,
     }
+
+
+@router.get("/plugin/{plugin_id}/build", deprecated=True)
+async def execute_build(
+        plugin_id: str,
+        background_tasks: BackgroundTasks = None,
+        db: Session = Depends(get_db)):
+    """Legacy public-source build trigger.
+
+    Deprecated: use ``POST /plugin/{plugin_id}/build`` which accepts a body
+    for transient token / auth_username / verify_ssl. This GET only works
+    for public-source plugins (no token plumbing). Will be removed once
+    frontend phase 6 finishes migrating.
+    """
+    return _trigger_plugin_build(plugin_id, background_tasks, db, transient=None)
+
+
+@router.post("/plugin/{plugin_id}/build")
+async def execute_build_post(
+        plugin_id: str,
+        req: BuildTriggerRequest = Body(default_factory=BuildTriggerRequest),
+        background_tasks: BackgroundTasks = None,
+        db: Session = Depends(get_db)):
+    """Trigger a plugin build, optionally with transient secrets in the body.
+
+    Public-source plugins: POST ``{}`` (or any subset). Private git
+    plugins: include ``token`` (and ``auth_username`` for generic git,
+    ``verify_ssl: false`` for self-signed certs). Token / auth_username /
+    verify_ssl are NEVER persisted — every rebuild requires re-supply.
+    """
+    return _trigger_plugin_build(plugin_id, background_tasks, db, transient=req)
+
+
+@router.post("/probe-source")
+async def probe_source(req: ProbeSourceRequest):
+    """Probe a git URL and return inspect metadata (folders, package.json
+    version/author, .cwl presence) for autofilling the registration form.
+
+    Token (if provided) is used once and discarded — never written to disk
+    persistently, never logged (logger has PAT mask filter), never stored
+    in the DB. The ``ok=false`` failure shape carries a structured
+    ``reason`` so the frontend can decide which UI fields to expand
+    (per phase 0.4 P-scheme):
+        - ``auth_required`` / ``not_found`` → expand token field
+        - ``tls_error`` → expand "Trust self-signed cert" toggle
+        - ``network`` / ``unknown`` → show error, no field expansion
+    """
+    spec = SourceSpec(
+        source_type=req.source_type,
+        url=req.url,
+        branch=req.branch,
+        token=req.token,
+        auth_username=req.auth_username,
+        verify_ssl=req.verify_ssl,
+    )
+    try:
+        acquirer = SourceAcquirer.for_type(req.source_type, builder.tmp_dir)
+    except ValueError as e:
+        # Unknown source_type — Pydantic Literal should already reject this
+        # at the boundary, but keep defense-in-depth.
+        return JSONResponse(status_code=400, content={
+            "ok": False, "reason": "validation",
+            "message": str(e), "provider_hint": req.source_type,
+        })
+    try:
+        data = acquirer.probe_metadata(spec)
+        return {"ok": True, "data": data}
+    except CloneError as e:
+        return {
+            "ok": False,
+            "reason": e.reason,
+            "message": e.message,
+            "provider_hint": req.source_type,
+        }
+    except RuntimeError as e:
+        # Validation-class failures (missing url, missing auth_username for
+        # generic+token, invalid token chars, etc.).
+        return JSONResponse(status_code=400, content={
+            "ok": False, "reason": "validation",
+            "message": str(e), "provider_hint": req.source_type,
+        })
 
 
 @router.get("/plugin/{plugin_id}/builds", response_model=List[PluginBuildResponse])
@@ -337,6 +521,32 @@ async def get_plugin_builds(plugin_id: str, skip: int = 0, limit: int = 100, db:
 
     builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).offset(skip).limit(limit).all()
     return builds
+
+@router.get("/plugin/{plugin_id}/cwl")
+async def get_plugin_cwl(plugin_id: str, db: Session = Depends(get_db)):
+    """Read the root .cwl file for a local-source plugin from its staging dir.
+    Used by the annotation step in local mode (github mode still hits GitHub directly)."""
+    plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
+    if plugin is None:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    if plugin.source_type != "local" or not plugin.local_archive_path:
+        raise HTTPException(
+            status_code=400,
+            detail="Plugin is not a local-source plugin; use GitHub API for github plugins",
+        )
+
+    staging = Path(plugin.local_archive_path)
+    if not staging.exists() or not staging.is_dir():
+        raise HTTPException(
+            status_code=410,
+            detail="Staging directory has been removed (build already completed?)",
+        )
+
+    result = read_root_cwl(staging)
+    if result is None:
+        raise HTTPException(status_code=404, detail="No .cwl file found at the root of the uploaded folder")
+    return result
+
 
 @router.get("/plugin/{plugin_id}/annotation", response_model=PluginAnnotationResponse)
 async def get_plugin_annotations(plugin_id: str, db: Session = Depends(get_db)):
@@ -358,7 +568,7 @@ async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = 
         "backend_folder": plugin.backend_folder,
         "backend_deploy_command": plugin.backend_deploy_command,
     }
-    logger.info(f"Building plugin: {json.dumps(plugin_dict, indent=4)}")
+    logger.info(f"Building plugin: {safe_dump(plugin_dict, indent=4)}")
     deploy_id = str(uuid.uuid4())
     db_deploy = PluginDeployment(
         plugin_id=plugin.id,

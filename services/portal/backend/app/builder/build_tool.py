@@ -17,10 +17,9 @@ from .logger import get_logger
 from app.client.minio import get_minio_client
 from sqlalchemy.orm import Session
 from app.models.db_model import Plugin, SessionLocal
+from app.builder.source_acquirer import SourceAcquirer, SourceSpec
 from app.utils.builder_utils import (
-    clone_repository,
     copy_item,
-    is_git_url,
     remove_tmp_folder,
     unique_name)
 
@@ -302,6 +301,159 @@ class PluginBuilder:
             return False
 
 
+    # Required externalized deps for the portal's per-app Pinia isolation contract.
+    # If a plugin bundles its own copy of `pinia`, the per-app `createPinia()` instance
+    # in RemoteComponentApp.vue will NOT be the same library instance the plugin uses,
+    # so `defineStore` lookups fall back to a stray module-scope instance and isolation
+    # silently breaks. Same reasoning for `vue` (provide/inject + reactivity identity)
+    # and `vuetify` / `vue-toastification` (singleton plugins shared with the host).
+    _REQUIRED_EXTERNALIZED_DEPS = ("vue", "pinia", "vuetify", "vue-toastification")
+
+    @staticmethod
+    def _build_store_namespace_plugin_snippet(expose_name: str) -> str:
+        """
+        Build the inline Vite plugin source that rewrites `defineStore('foo', ...)`
+        into `defineStore('<expose>__foo', ...)` at transform time.
+
+        We deliberately keep this plugin string-injected (not a separate npm package)
+        so plugin authors don't need to add a dev-dependency.
+
+        Limitations:
+        - Only literal-string IDs are rewritten (single or double quotes).
+          `defineStore(useFooId, ...)` and template-literal IDs are left untouched —
+          per-app Pinia in the portal is the primary isolation; this rewrite is just
+          a secondary safety net.
+        - Skips files inside `node_modules`.
+        - Idempotent: store IDs that already start with the expose prefix are kept as-is.
+        """
+        # Sanitize: expose_name is already produced by `unique_name(plugin_name)` and
+        # safe for JS identifiers, but defend against quote injection regardless.
+        safe_expose = re.sub(r"[^A-Za-z0-9_\-]", "", expose_name)
+        return (
+            "    {\n"
+            "      name: 'portal-plugin-store-namespace',\n"
+            "      enforce: 'pre',\n"
+            "      transform(code, id) {\n"
+            "        if (!/\\.(ts|tsx|js|jsx|mjs|cjs|vue)(\\?.*)?$/.test(id)) return null;\n"
+            "        if (id.indexOf('node_modules') !== -1) return null;\n"
+            "        if (code.indexOf('defineStore(') === -1) return null;\n"
+            f"        var __ns = '{safe_expose}__';\n"
+            "        var changed = false;\n"
+            "        var out = code.replace(\n"
+            "          /defineStore\\(\\s*(['\"])([^'\"]+?)\\1/g,\n"
+            "          function (m, q, sid) {\n"
+            "            if (sid.indexOf(__ns) === 0) return m;\n"
+            "            changed = true;\n"
+            "            return 'defineStore(' + q + __ns + sid + q;\n"
+            "          }\n"
+            "        );\n"
+            "        if (!changed) return null;\n"
+            "        return { code: out, map: null };\n"
+            "      }\n"
+            "    },\n"
+        )
+
+    @classmethod
+    def _inject_store_namespace_plugin(cls, vite_config_file: Path, expose_name: str) -> bool:
+        """
+        Inject the per-expose store-namespacing Vite plugin at the head of the
+        first `plugins: [` array in the plugin's vite.config.
+
+        Returns True if injected (or already present), False if no `plugins: [`
+        array could be located. Failure is non-fatal — the portal's per-app
+        Pinia isolation still applies, just without the secondary expose-prefix
+        safety net.
+        """
+        try:
+            content = vite_config_file.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.error(f"Failed to read {vite_config_file} for store namespace injection: {e}")
+            return False
+
+        if "portal-plugin-store-namespace" in content:
+            logger.info(f"Store namespace plugin already present in {vite_config_file}; skipping")
+            return True
+
+        snippet = cls._build_store_namespace_plugin_snippet(expose_name)
+        plugins_pattern = re.compile(r"plugins\s*:\s*\[")
+        match = plugins_pattern.search(content)
+        if not match:
+            logger.warning(
+                f"Could not locate `plugins: [...]` array in {vite_config_file}; "
+                f"skipping store-id namespace injection. Per-app Pinia isolation in "
+                f"the portal still applies — this only loses the secondary expose-prefix safety net."
+            )
+            return False
+
+        insertion_pos = match.end()
+        new_content = content[:insertion_pos] + "\n" + snippet + content[insertion_pos:]
+
+        try:
+            vite_config_file.write_text(new_content, encoding="utf-8")
+        except Exception as e:
+            logger.error(f"Failed to write {vite_config_file} after store namespace injection: {e}")
+            return False
+
+        logger.info(
+            f"Injected store-id namespace Vite plugin into {vite_config_file} "
+            f"with prefix `{expose_name}__`"
+        )
+        return True
+
+    @classmethod
+    def _validate_externalize(cls, vite_config_file: Path) -> None:
+        """
+        Verify the plugin externalizes vue / pinia / vuetify / vue-toastification.
+
+        Without this, the plugin would bundle its own copy of pinia and the
+        per-app Pinia instance the portal creates in RemoteComponentApp.vue
+        wouldn't be the instance the plugin's `defineStore` calls bind to —
+        cross-plugin state isolation would silently break.
+
+        Heuristic: pool every `external: [...]` array in the file (the plugin
+        config commonly has conditional branches — plugin build vs app build),
+        then check each required dep appears as a quoted string somewhere in the
+        pooled content. Raises RuntimeError on missing deps.
+        """
+        try:
+            content = vite_config_file.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.error(f"Failed to read {vite_config_file} for externalize validation: {e}")
+            raise RuntimeError(f"Cannot validate vite config: {e}")
+
+        external_pattern = re.compile(r"external\s*:\s*\[([^\]]*)\]", re.DOTALL)
+        external_blocks = external_pattern.findall(content)
+
+        if not external_blocks:
+            raise RuntimeError(
+                "Plugin vite.config has no `external: [...]` array under rollupOptions. "
+                "For the portal's per-app Pinia isolation to work, the plugin must "
+                "externalize vue, pinia, vuetify, and vue-toastification so that the "
+                "plugin and portal share the same library code while each plugin instance "
+                "gets its own Pinia store registry. "
+                "Add `rollupOptions: { external: ['vue', 'vuetify', 'pinia', 'vue-toastification'], "
+                "output: { globals: { vue: 'Vue', vuetify: 'Vuetify', pinia: 'Pinia', "
+                "'vue-toastification': 'VueToastification' } } }` to the lib build config."
+            )
+
+        pooled = " ".join(external_blocks)
+        missing = [
+            dep for dep in cls._REQUIRED_EXTERNALIZED_DEPS
+            if not re.search(rf"['\"]{re.escape(dep)}['\"]", pooled)
+        ]
+        if missing:
+            raise RuntimeError(
+                f"Plugin vite.config does not externalize required dependencies: {missing}. "
+                f"Without this, the portal's per-app Pinia isolation will fail — the plugin "
+                f"would bundle its own copy of pinia and the per-app `createPinia()` instance "
+                f"in RemoteComponentApp.vue would not be the instance the plugin's "
+                f"`defineStore` calls bind to. "
+                f"Add these names as quoted strings to `rollupOptions.external`: "
+                f"{list(cls._REQUIRED_EXTERNALIZED_DEPS)}."
+            )
+
+        logger.info(f"Externalize validation passed for {vite_config_file}")
+
     def _update_vite_config(self, project_dir: Path, plugin_expose_name: str):
         """Update the vite.config.js file to use the unique name"""
         vite_config_js = project_dir / "vite.config.js"
@@ -315,6 +467,8 @@ class PluginBuilder:
             raise RuntimeError("vite.config.js or vite.config.ts not found")
 
         self._replace_vite_build_config(vite_config_file, plugin_expose_name)
+        self._inject_store_namespace_plugin(vite_config_file, plugin_expose_name)
+        self._validate_externalize(vite_config_file)
 
     @staticmethod
     def _update_plugin_version(project_dir: Path, plugin_id: str):
@@ -367,7 +521,17 @@ class PluginBuilder:
         frontend_build_command = plugin.get("frontend_build_command", "npm run build")
         backend_folder = plugin.get("backend_folder", "unknown")
         backend_deploy_command = plugin.get("backend_deploy_command")
-        cloned_dir = None
+        source_type = plugin.get("source_type", "github")
+        local_archive_path = plugin.get("local_archive_path")
+        # Transient secrets supplied per-build (NEVER persisted to DB per
+        # phase-0.2 decision). The build endpoint reads these from the
+        # request body and passes them through plugin_dict here. Acquirers
+        # that don't need them (LocalAcquirer, public GithubAcquirer) just
+        # ignore them via SourceSpec dataclass defaults.
+        token = plugin.get("token")
+        auth_username = plugin.get("auth_username")
+        verify_ssl = plugin.get("verify_ssl", True)
+        tmp_source_dir = None
         config = {}
 
         try:
@@ -377,43 +541,23 @@ class PluginBuilder:
             # Step 0: Check for existing metadata
             logger.info("Step 0: Checking for existing plugin metadata...")
 
-            # Step 1: Clone the repository or use local path
-            if is_git_url(repo_url):
-                logger.info("Step 1: Cloning repository...")
-                project_dir = clone_repository(self.tmp_dir, repo_url, logger, branch)
-                cloned_dir = project_dir  # Mark for cleanup
-                logger.info(f"Repository cloned to: {cloned_dir}")
-            else:
-                logger.info("Step 1: Cloning repository...")
-                logger.info(f"DEBUG: repo_url = '{repo_url}' (type: {type(repo_url)}, length: {len(repo_url)})")
-                logger.info(f"DEBUG: repo_url.startswith('./plugins/') = {repo_url.startswith('./plugins/')}")
-                logger.info(f"DEBUG: repo_url.startswith('/plugins/') = {repo_url.startswith('/plugins/')}")
-
-                # For local paths, map them to the mounted volume
-                # If the path starts with ./plugins or /plugins, use it as-is
-                # Otherwise, assume it's a relative path under /plugins
-                if repo_url.startswith("./plugins/"):
-                    logger.info("DEBUG: Taking ./plugins/ branch")
-                    # Convert relative path to absolute within container
-                    plugin_name = repo_url.replace("./plugins/", "")
-                    project_dir = Path(f'/plugins/{plugin_name}')
-                elif repo_url.startswith('/plugins/'):
-                    logger.info("DEBUG: Taking /plugins/ branch")
-                    # Already an absolute path in the container
-                    project_dir = Path(repo_url)
-                else:
-                    logger.info("DEBUG: Taking else branch")
-                    # Assume it's a plugin name/path under /plugins
-                    # Remove leading ./ if present
-                    clean_path = repo_url.lstrip('./')
-                    logger.info(f"DEBUG: clean_path = '{clean_path}'")
-                    project_dir = Path(f'/plugins/{clean_path}')
-
-                if not project_dir.exists():
-                    raise RuntimeError(f"Local path does not exist: {project_dir}")
-                if not project_dir.is_dir():
-                    raise RuntimeError(f"Local path does not a directory: {project_dir}")
-                logger.info(f"Using local project dictory: {project_dir}")
+            # Step 1: Acquire project_dir via the registered SourceAcquirer.
+            # Each acquirer owns its source-materialization details (clone /
+            # staging dir / etc.); from step 2 onward the pipeline operates
+            # on project_dir uniformly. tmp_source_dir is set so steps 5/6/7
+            # (SPARC + MinIO upload + cleanup) trigger the same way.
+            spec = SourceSpec(
+                source_type=source_type,
+                url=repo_url,
+                branch=branch,
+                local_archive_path=local_archive_path,
+                token=token,
+                auth_username=auth_username,
+                verify_ssl=verify_ssl,
+            )
+            acquirer = SourceAcquirer.for_type(source_type, self.tmp_dir)
+            project_dir = acquirer.acquire(spec)
+            tmp_source_dir = project_dir  # Mark for cleanup
 
             # If the tool is a script, skip some of the steps below.
             if label == "GUI":
@@ -466,82 +610,79 @@ class PluginBuilder:
                 else:
                     logger.warning(f"No config.portal.json found in {project_dir}")
 
-                # Step 5: Create SPARC dataset (only for remote repos)
-                dataset_dir = None
-                if cloned_dir:
-                    logger.info("Step 5: Creating SPARC dataset by sparc-me")
+                # Step 5: Create SPARC dataset
+                logger.info("Step 5: Creating SPARC dataset by sparc-me")
 
-                    # Look for common build output directories
-                    build_output_dir = None
-                    possible_build_dir = ["dist", "build"]
-                    for dir_name in possible_build_dir:
-                        potential_dir = frontend_path / dir_name
-                        if potential_dir.exists():
-                            build_output_dir = potential_dir
-                            logger.info(f"Found build output directory: {build_output_dir}")
-                            break
+                # Look for common build output directories
+                build_output_dir = None
+                possible_build_dir = ["dist", "build"]
+                for dir_name in possible_build_dir:
+                    potential_dir = frontend_path / dir_name
+                    if potential_dir.exists():
+                        build_output_dir = potential_dir
+                        logger.info(f"Found build output directory: {build_output_dir}")
+                        break
 
-                    dataset_dir = self.create_sparc_dataset(project_dir, label, has_backend, build_output_dir,
-                                                            f"{plugin_unique_expose_name}")
-                    logger.info(f"SPARC dataset created in {dataset_dir}")
-                else:
-                    logger.info("Step 5: Skipping SPARC dataset creation for local plugin...")
+                dataset_dir = self.create_sparc_dataset(project_dir, label, has_backend, build_output_dir,
+                                                        f"{plugin_unique_expose_name}")
+                logger.info(f"SPARC dataset created in {dataset_dir}")
             else:
-                # Step 5: Create SPARC dataset (only for remote repos) for cwl plugin script
-                dataset_dir = None
-                if cloned_dir:
-                    logger.info("Step 5: Creating SPARC dataset by sparc-me")
-                    dataset_dir = self.create_sparc_dataset(project_dir, label, has_backend, None,
-                                                            f"{plugin_unique_expose_name}")
-                    logger.info(f"SPARC dataset created in {dataset_dir}")
-                else:
-                    logger.info("Step 5: Skipping SPARC dataset creation for local plugin...")
+                # Step 5: Create SPARC dataset for cwl plugin script
+                logger.info("Step 5: Creating SPARC dataset by sparc-me")
+                dataset_dir = self.create_sparc_dataset(project_dir, label, has_backend, None,
+                                                        f"{plugin_unique_expose_name}")
+                logger.info(f"SPARC dataset created in {dataset_dir}")
 
-            # Step 6: Upload dataset to MinIO or copy to public folder
+            # Step 6: Upload dataset to MinIO
             s3_path = None
             minio_client = get_minio_client()
-            if cloned_dir:
-                logger.info("Step 6: Uploading dataset to MinIO...")
-                try:
-                    logger.info(f"Uploading dataset to MinIO: {metadata}")
-                    dataset_name = metadata.get("expose", '')
-                    logger.info(f"Uploading dataset to S3: {dataset_name}")
-                    s3_path = minio_client.upload_directory(str(dataset_dir), dataset_name)
-                    logger.info(f"Dataset uploaded to MinIO: {s3_path}")
-                except Exception as e:
-                    logger.error(f"Failed to upload dataset to S3: {e}")
-                    s3_path = None
-            else:
-                logger.info("Step 6: Copying local tool plugin to public directory")
-                # For local tool plugins, copy dist files to public directory using the path from metadata
-                pass
+            logger.info("Step 6: Uploading dataset to MinIO...")
+            try:
+                logger.info(f"Uploading dataset to MinIO: {metadata}")
+                dataset_name = metadata.get("expose", '')
+                logger.info(f"Uploading dataset to S3: {dataset_name}")
+                s3_path = minio_client.upload_directory(str(dataset_dir), dataset_name)
+                logger.info(f"Dataset uploaded to MinIO: {s3_path}")
+            except Exception as e:
+                logger.error(f"Failed to upload dataset to S3: {e}")
+                s3_path = None
 
-            # Step 7: Clean up temporary files (only for cloned repos, not local paths)
+            # Step 7: Clean up temporary source directory.
+            # For `local` source the staging dir is the canonical source code
+            # (created at upload time, referenced by `Plugin.local_archive_path`
+            # in the DB) and lives for the plugin's full lifetime — removing
+            # it here would break every subsequent rebuild. For git sources
+            # the clone is one-shot per build and safe to reap.
             logger.info("Step 7: Cleaning up temporary files")
-            if cloned_dir:
-                try:
-                    remove_tmp_folder(cloned_dir, logger)
-                except Exception as e:
-                    logger.error(f"Failed to remove cloned repository: {e}")
+            if source_type == "local":
+                logger.info(
+                    f"Step 7: Skipping cleanup for local source — staging dir "
+                    f"{tmp_source_dir} preserved for rebuild"
+                )
             else:
-                logger.info("Skiping cleanup for local path")
+                try:
+                    remove_tmp_folder(tmp_source_dir, logger)
+                except Exception as e:
+                    logger.error(f"Failed to remove temporary source directory: {e}")
 
             logger.info("Build process completed successfully")
 
             return {
                 "success": True,
-                "dataset_path": str(dataset_dir) if dataset_dir else None,
+                "dataset_path": str(dataset_dir),
                 "expose_name": plugin_unique_expose_name,
                 "s3_path": s3_path,
                 "build_logs": "\n".join(build_logs),
                 "error_message": None,
-                "is_local": not bool(cloned_dir)
             }
         except Exception as e:
             error_message = str(e)
             logger.info(f"Build failed: {error_message}")
             logger.error(f"Build process failed: {e}")
-            remove_tmp_folder(cloned_dir, logger)
+            # Same conditional as success path — never reap the local staging
+            # dir or rebuild becomes impossible.
+            if source_type != "local":
+                remove_tmp_folder(tmp_source_dir, logger)
             return {
                 "success": False,
                 "dataset_path": None,

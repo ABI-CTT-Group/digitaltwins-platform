@@ -46,6 +46,8 @@ class Plugin(Base):
     description = Column(Text, nullable=True)
     author = Column(String, nullable=True)
     repository_url = Column(String, nullable=False)
+    source_type = Column(String, nullable=False, default="github")
+    local_archive_path = Column(String, nullable=True)
     plugin_metadata = Column(JSON, nullable=True)
     label = Column(Enum("GUI", "Script", name="plugin_label"), nullable=False)
     has_backend = Column(Boolean, nullable=False, default=True)
@@ -128,6 +130,8 @@ class Workflow(Base):
     description = Column(Text, nullable=True)
     author = Column(String, nullable=True)
     repository_url = Column(String, nullable=False)
+    source_type = Column(String, nullable=False, default="github")
+    local_archive_path = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -175,7 +179,8 @@ class WorkflowAnnotation(Base):
 class PluginBase(BaseModel):
     name: str
     version: str
-    repository_url: str
+    repository_url: Optional[str] = None
+    source_type: Literal["github", "gitlab", "bitbucket", "git_generic", "local"] = "github"
     frontend_folder: str
     frontend_build_command: str
     label: Literal["GUI", "Script"]
@@ -188,7 +193,7 @@ class PluginBase(BaseModel):
 
 
 class PluginCreate(PluginBase):
-    pass
+    upload_id: Optional[str] = None  # client-supplied at create-time only; resolved to local_archive_path server-side
 
 
 class PluginUpdate(PluginBase):
@@ -202,6 +207,7 @@ class PluginResponse(PluginBase):
     uuid: Optional[str] = None
     plugin_metadata: Optional[dict] = None
     workflow_ids: Optional[List[str]] = None
+    local_archive_path: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -285,18 +291,63 @@ class PluginAnnotationResponse(AnnotationBase):
 class WorkflowBase(BaseModel):
     name: str
     version: str
-    repository_url: str
+    repository_url: Optional[str] = None
+    source_type: Literal["github", "gitlab", "bitbucket", "git_generic", "local"] = "github"
     description: Optional[str] = None
     author: Optional[str] = None
 
 
+# --- Source-acquisition request bodies (phase 5: multi-git-provider) ---
+#
+# Token / auth_username / verify_ssl are TRANSIENT — accepted at request
+# boundary and passed through to the acquirer in-process. Never persisted.
+
+class ProbeSourceRequest(BaseModel):
+    """POST body for `/probe-source`. Local-upload sources have their own
+    `/upload-source` endpoint, so this Literal deliberately excludes ``local``.
+    """
+    source_type: Literal["github", "gitlab", "bitbucket", "git_generic"]
+    url: str
+    branch: str = "main"
+    token: Optional[str] = None
+    auth_username: Optional[str] = None
+    verify_ssl: bool = True
+
+
+class BuildTriggerRequest(BaseModel):
+    """Optional transient secrets for triggering a build.
+
+    All fields optional — public-source plugins/workflows just POST ``{}``.
+    Private-source builds supply the token (and ``auth_username`` for
+    generic git, ``verify_ssl=false`` for self-signed certs). NEVER stored;
+    user must re-supply for every rebuild.
+    """
+    token: Optional[str] = None
+    auth_username: Optional[str] = None
+    verify_ssl: bool = True
+
+
+class ProbeSourceFailure(BaseModel):
+    """Structured failure response shape — frontend dispatches off ``reason``
+    to decide which UI fields to expand (token / auth_username / SSL toggle).
+
+    HTTP status is 200 even on failure: the probe operation completed, the
+    structured payload is the answer. Frontend reads ``ok`` to branch.
+    """
+    ok: bool = False
+    reason: str
+    message: str
+    provider_hint: Optional[str] = None
+
+
 class WorkflowCreate(WorkflowBase):
-    pass
+    upload_id: Optional[str] = None  # client-supplied at create-time only; resolved to local_archive_path server-side
 
 
 class WorkflowResponse(WorkflowBase):
     id: str
     uuid: Optional[str] = None
+    local_archive_path: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

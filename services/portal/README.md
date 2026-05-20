@@ -85,3 +85,29 @@ For **CWL script–based workflows**, after the execution finishes in Airflow, y
 
 ### Step 7: Submit a Dataset
 For **CWL script–based workflows**, once you are satisfied with the result dataset, you can upload it to the **DigitalTWINS platform** by clicking the **`SUBMIT`** button.  
+
+---
+
+## Registering a Plugin / Workflow
+
+Plugins and CWL workflows can be registered into the portal in **two ways**:
+
+| Source | When to use | What you provide |
+|---|---|---|
+| **GitHub URL** | Code already lives on a **public** GitHub repo | Paste `https://github.com/<owner>/<repo>` — portal reads `package.json`, root folders, and `.cwl` from the GitHub API |
+| **Local folder / .zip** | Private repo, in-progress code, or no GitHub at all | Drag a folder (or a `.zip` file) into the dropzone — uploaded directly to the portal |
+
+In the registration form, switch the **Source** radio at the top of the *Base Information* step.
+
+### Local upload constraints
+
+- **Total size cap: 500 MB.** Both nginx and the backend reject anything bigger.
+- The following directories are auto-skipped in both modes (folder / pre-made zip): `node_modules`, `.git`, `dist`, `build`. If you zip a project with a third-party tool, you do **not** need to manually clean these — they are filtered server-side on extract too.
+- `package.json` is searched recursively; the shallowest match (outside the blacklist) provides the `version` / `author` autofill. Project root detection unwraps single-folder GitHub-style zips automatically.
+- A `.zip` that you downloaded straight from GitHub ("Source code (zip)") works as-is — no need to unzip first.
+
+---
+
+## Release Notes
+
+See [`docs/release-notes.md`](docs/release-notes.md).

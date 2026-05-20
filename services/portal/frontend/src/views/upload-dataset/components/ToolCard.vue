@@ -1,0 +1,285 @@
+﻿
+<template>
+  <!-- rgba(15, 25, 35, 0.15) -->
+    <CardUI
+      card-style="background: rgba(75, 204, 255, 0.03);"
+      :is-deleting="isDeleting"
+      :is-disabled="!!disabled"
+      v-model:menu="menu"
+    >
+      <template #launch>
+        <v-btn
+            v-if="isBuilding"
+            color="deep-purple"
+            variant="flat" 
+            size="small"
+            class="text-white mx-2" 
+            rounded="md" 
+            disabled
+        >   
+            <v-progress-circular
+                indeterminate
+                size="15"
+                width="2"
+                color="white"
+                class="mr-2"
+            />
+            Building
+        </v-btn>
+        <v-btn
+            v-else-if="isDeploying"
+            color="deep-purple"
+            variant="flat" 
+            size="small"
+            class="text-white mx-2" 
+            rounded="md" 
+            disabled
+        >   
+            <v-progress-circular
+                indeterminate
+                size="15"
+                width="2"
+                color="white"
+                class="mr-2"
+            />
+            Deploying
+        </v-btn>
+        <v-btn 
+            v-else
+            color="deep-purple" 
+            variant="flat" 
+            size="small" 
+            class="text-white mx-2" 
+            rounded="md" 
+            :disabled="disabled || tool.status != 'completed'"
+            @click.stop="onLaunch">
+            Launch
+        </v-btn>
+      </template>
+      <template #menu>
+        <v-list density="compact" class="py-0 cursor-pointer">
+            <v-list-item density="compact" @click.stop="onRebuild">
+                <v-list-item-title class="hover-animate px-2">Rebuild Tool</v-list-item-title>
+            </v-list-item>
+            <v-list-item density="compact" @click.stop="onSubmit">
+                <v-list-item-title class="hover-animate px-2">Submit to Approval</v-list-item-title>
+            </v-list-item>
+            <v-list-item v-if="tool.hasBackend && tool.label=='GUI'" density="compact" @click.stop="onDeploy">
+                <v-list-item-title class="hover-animate px-2">Deploy Backend</v-list-item-title>
+            </v-list-item>
+            <v-list-item v-if="tool.deployStatus == 'completed' && tool.label=='GUI'" density="compact" @click.stop="onDockerComposeUp">
+                <v-list-item-title class="hover-animate px-2">Compose Up</v-list-item-title>
+            </v-list-item>
+            <v-list-item v-if="tool.deployStatus == 'completed' && tool.label=='GUI'" density="compact" @click.stop="onDockerComposeDown">
+                <v-list-item-title class="hover-animate px-2">Compose Down</v-list-item-title>
+            </v-list-item>
+            <v-list-item density="compact" @click.stop="onDelete" color="red">
+                <v-list-item-title class="text-red hover-animate px-2">Delete Tool</v-list-item-title>
+            </v-list-item>
+        </v-list>
+      </template>
+      <template #name>
+        <v-tooltip :text="tool.name" location="top"  max-width="300">
+          <template #activator="{ props }">
+            <p v-bind="props" class="text-truncate" style="max-width:400px;">
+              {{ tool.name }}
+            </p>
+          </template>
+        </v-tooltip>
+      </template>
+      <template #description>{{ tool.description }}</template>
+      <template #tags>
+        <v-chip v-if="!!tool.version" size="small" color="blue-lighten-4" text-color="blue-darken-3" class="mx-1 my-1">v{{ tool.version }}</v-chip>
+        <v-chip v-if="!!tool.author" size="small" color="blue-lighten-5" text-color="blue-darken-3" class="mx-1 my-1">{{ tool.author }}</v-chip>
+        <v-chip v-if="!!tool.author" size="small" color="orange-lighten-2" text-color="green-darken-3" class="mx-1 my-1">{{ tool.label }}</v-chip>
+        <v-chip v-if="!!tool.status" size="small" :color="statusColor" :text-color="statusTextColor" class="mx-1 mr-1 my-1">pre build: {{ tool.status }}</v-chip>
+        <v-chip v-if="!!tool.deployStatus" size="small" :color="deployStatusColor" :text-color="deployStatusTextColor" class="mx-1 mr-1 my-1">deploy: {{ tool.deployStatus }}</v-chip>
+      </template>
+      <template #time>
+        <!-- <v-chip v-if="!!tool.createdAt" size="small" color="green-lighten-4" text-color="green-darken-2" class="ms-auto">{{ formatDate(tool.createdAt) }}</v-chip> -->
+      </template>
+    </CardUI>
+</template>
+
+<script setup lang="ts">
+import { computed, ref, watch, toRef } from 'vue'
+import { ToolResponse } from '@/models/types';
+import { useGetDockerComposeStatus, useDeleteTool } from '@/bootstrap/tool_api'
+import CardUI from './CardUI.vue';
+import { formatDate } from './utils';
+// @ts-ignore - vue-toastification is installed but missing type declarations
+import { useToast } from 'vue-toastification';
+
+const toast = useToast();
+
+const props = defineProps<{
+  tool: ToolResponse
+  disabled?: boolean
+}>()
+
+const menu = ref(false);
+const tool = toRef(props, "tool")
+const isDeleting = ref(false)
+
+const isBuilding = computed(()=>{
+    return tool.value.status == "building" ? true : false;
+})
+const isDeploying = computed(()=>{
+    if(!tool.value.hasBackend ) return false;
+    if(!tool.value.deployStatus) return false;
+    return tool.value.deployStatus == "deploying" ? true : false;
+})
+
+const statusColor = computed(() => {
+  switch (props.tool.status) {
+    case "pending":
+      return "amber-lighten-2"
+    case "building":
+      return "blue-lighten-2"
+    case "failed":
+      return "red-lighten-2"
+    case "completed":
+      return "green-lighten-2"
+    default:
+      return ""
+  }
+})
+
+const statusTextColor = computed(() => {
+  switch (props.tool.status) {
+    case "pending":
+      return "amber-darken-3"
+    case "building":
+      return "blue-darken-3"
+    case "failed":
+      return "red-darken-3"
+    case "completed":
+      return "green-darken-3"
+    default:
+      return ""
+  }
+})
+
+const deployStatusColor = computed(() => {
+  switch (props.tool.deployStatus) {
+    case "pending":
+      return "amber-lighten-2"
+    case "deploying":
+      return "blue-lighten-2"
+    case "failed":
+      return "red-lighten-2"
+    case "completed":
+      return "green-lighten-2"
+    default:
+      return ""
+  }
+})
+
+const deployStatusTextColor = computed(() => {
+  switch (props.tool.deployStatus) {
+    case "pending":
+      return "amber-darken-3"
+    case "deploying":
+      return "blue-darken-3"
+    case "failed":
+      return "red-darken-3"
+    case "completed":
+      return "green-darken-3"
+    default:
+      return ""
+  }
+})
+
+
+const emit = defineEmits(["launch", "rebuild", "submit-approve", "deploy", "compose-up", "compose-down", "delete"])
+
+const onLaunch = async () => {
+    if(tool.value.label === "Script"){
+        toast.warning("CWL Script tool cannot be launched. Please download the script and run it locally.");
+        return;
+    }
+    if (tool.value.hasBackend && !tool.value.latestDeployId && tool.value.deployStatus !== 'completed') {
+        toast.warning("Tool backend is not deployed yet. Please deploy the backend first.");
+        return;
+    }else if(!!tool.value.latestDeployId && !await useGetDockerComposeStatus(tool.value.latestDeployId).catch(() => false)){
+        toast.warning("Tool backend is not running. Please start the backend by 'Compose Up' first.");
+        return;
+    }
+    emit("launch", tool.value.id)
+}
+const onRebuild = () => {
+    menu.value = false;
+    // No optimistic prop mutation here. The parent flow may open a dialog
+    // (and the user might Cancel) or the build POST itself may fail, in
+    // which case `tool.status` should NOT have flipped to "building".
+    // Parent calls registryRef.handleRefresh() once the build is actually
+    // started — that pulls the real PENDING/BUILDING status from backend.
+    emit("rebuild", tool.value.id)
+}
+const onSubmit = () => {
+    menu.value = false;
+    emit("submit-approve", tool.value.id)
+}
+const onDeploy = () => {
+    menu.value = false;
+    tool.value.deployStatus = "deploying"
+    emit("deploy", tool.value.id)
+}
+const onDockerComposeUp = () => {
+    menu.value = false;
+    emit("compose-up", tool.value.latestDeployId)
+}
+const onDockerComposeDown = () => {
+    menu.value = false;
+    emit("compose-down", tool.value.latestDeployId)
+}
+const onDelete = async () => {
+    menu.value = false;
+    isDeleting.value = true;
+    const res:any = await useDeleteTool(tool.value.id)
+    
+    if(!res["status"]){
+      isDeleting.value = false;
+      toast.error("Error: " + res["message"])
+    }
+    emit("delete", res)
+}
+</script>
+
+<style scoped>
+.title {
+    font-size: large;
+}
+
+.subtitle{
+    font-size: small;
+    line-height: 1.5em;         
+    max-height: 4em;             
+    overflow: hidden;
+    display: -webkit-box;
+    box-orient: vertical;
+    -webkit-box-orient: vertical;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;        
+    text-overflow: ellipsis; 
+}
+.card-hover-animate {
+  transition: all 0.3s ease;
+  transform: scale(1);
+}
+.card-hover-animate:hover {
+  transform: scale(1.02) !important;
+  box-shadow:
+        0 0 15px rgba(75, 204, 255, 0.6),
+        0 0 25px rgba(75, 204, 255, 0.4),
+        inset 0 0 10px rgba(75, 204, 255, 0.25) !important;
+}
+
+.shadow-card {
+  background: rgba(75, 204, 255, 0.1);
+  border-radius: 10px !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  
+}
+
+</style>
