@@ -68,7 +68,7 @@ docker run --rm --network digitaltwins \
     "$MC_IMAGE" \
     -c "
         mc alias set src http://minio:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' &&
-        for bucket in \$(mc ls src | awk '{print \$NF}' | tr -d '/'); do
+        for bucket in \$(mc ls src | while read a b c d name; do echo \$name; done | tr -d '/'); do
             if [ \"\$bucket\" = \"airflow-logs\" ]; then
                 echo \"  Skipping bucket: \$bucket\"
                 continue
