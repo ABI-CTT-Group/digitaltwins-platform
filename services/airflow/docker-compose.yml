@@ -98,6 +98,7 @@ x-airflow-common:
     AIRFLOW_CONN_MINIO_LOGS: "aws://${MINIO_SERVER_ACCESS_KEY}:${MINIO_SERVER_SECRET_KEY}@?endpoint_url=http%3A%2F%2Fminio%3A9000"
 
     ## Proxy / public URL (Airflow 3: [api] section, not [webserver])
+    PLATFORM_DOMAIN: ${PLATFORM_DOMAIN}
     AIRFLOW__API__BASE_URL: https://${PLATFORM_DOMAIN}/airflow
     AIRFLOW__API__ENABLE_PROXY_FIX: 'true'
     AIRFLOW__API__PROXY_FIX_X_FOR: '1'
