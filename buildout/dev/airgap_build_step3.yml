@@ -245,6 +245,13 @@
 
 ###
 
+  - name: Generate digitaltwins-realm.json from template
+    ansible.builtin.shell:
+      cmd: "envsubst '${PLATFORM_DOMAIN}' < digitaltwins-realm.json.template > digitaltwins-realm.json"
+      chdir: "{{ install_src_dir }}/data"
+    environment:
+      PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
+
   - name: Copy realm import to remote server
     ansible.builtin.copy:
       src: "{{ install_src_dir }}/data/digitaltwins-realm.json"
