@@ -88,7 +88,6 @@
       archive: yes
       delete: yes
       rsync_opts:
-        - '--filter=":- .gitignore"'
         - '--exclude=.git/'
 
   - name: Create certs directory
@@ -115,15 +114,48 @@
       dest: "{{ platform_dir }}/services/portal/DigitalTWINS-Portal/frontend/nginx.conf"
       mode: '0600'
 
-  - name: check for .env
-    stat:
-      path: "{{ platform_dir }}/.env"
-    register: file_check1
+  - name: Generate config.js from template (sets window.RUNTIME_CONFIG for Keycloak URL)
+    ansible.builtin.shell:
+      cmd: "envsubst '${PLATFORM_DOMAIN}' < config.js.template > config.js"
+      chdir: "{{ platform_dir }}/services/portal/DigitalTWINS-Portal/frontend"
+    environment:
+      PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
 
-  - name: Copy .env
+  - name: Generate .env from template
+    ansible.builtin.shell:
+      cmd: >
+        envsubst
+        '${PLATFORM_DOMAIN}
+        ${PORTAL_BACKEND_HOST}
+        ${PORTAL_KEYCLOAK_BASE_URL}
+        ${MINIO_BROWSER_REDIRECT_URL}
+        ${AIRFLOW_PUBLIC_URL}'
+        < .env.template > .env
+      chdir: "{{ install_src_dir }}/data"
+    environment:
+      PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
+      PORTAL_BACKEND_HOST: "{{ lookup('env', 'PORTAL_BACKEND_HOST') }}"
+      PORTAL_KEYCLOAK_BASE_URL: "{{ lookup('env', 'PORTAL_KEYCLOAK_BASE_URL') }}"
+      MINIO_BROWSER_REDIRECT_URL: "{{ lookup('env', 'MINIO_BROWSER_REDIRECT_URL') }}"
+      AIRFLOW_PUBLIC_URL: "{{ lookup('env', 'AIRFLOW_PUBLIC_URL') }}"
+
+  - name: Copy .env to platform dir
     ansible.builtin.copy:
       src: "{{ install_src_dir }}/data/.env"
       dest: "{{ platform_dir }}/.env"
+      mode: '0600'
+
+  - name: Generate env from template
+    ansible.builtin.shell:
+      cmd: "envsubst '${PLATFORM_DOMAIN}' < env.template > env"
+      chdir: "{{ install_src_dir }}/data"
+    environment:
+      PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
+
+  - name: Copy env to platform dir
+    ansible.builtin.copy:
+      src: "{{ install_src_dir }}/data/env"
+      dest: "{{ platform_dir }}/env"
       mode: '0600'
 
   - name: check for seek env file
