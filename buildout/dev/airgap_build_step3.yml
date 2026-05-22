@@ -123,21 +123,10 @@
 
   - name: Generate .env from template
     ansible.builtin.shell:
-      cmd: >
-        envsubst
-        '${PLATFORM_DOMAIN}
-        ${PORTAL_BACKEND_HOST}
-        ${PORTAL_KEYCLOAK_BASE_URL}
-        ${MINIO_BROWSER_REDIRECT_URL}
-        ${AIRFLOW_PUBLIC_URL}'
-        < .env.template > .env
+      cmd: "envsubst '${PLATFORM_DOMAIN}' < .env.template > .env"
       chdir: "{{ install_src_dir }}/data"
     environment:
       PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
-      PORTAL_BACKEND_HOST: "{{ lookup('env', 'PORTAL_BACKEND_HOST') }}"
-      PORTAL_KEYCLOAK_BASE_URL: "{{ lookup('env', 'PORTAL_KEYCLOAK_BASE_URL') }}"
-      MINIO_BROWSER_REDIRECT_URL: "{{ lookup('env', 'MINIO_BROWSER_REDIRECT_URL') }}"
-      AIRFLOW_PUBLIC_URL: "{{ lookup('env', 'AIRFLOW_PUBLIC_URL') }}"
 
   - name: Copy .env to platform dir
     ansible.builtin.copy:
