@@ -13,8 +13,9 @@ AUTH_ROLES_SYNC_AT_LOGIN = True
 
 # Ensure session cookie is always sent back on the Keycloak callback redirect
 SESSION_COOKIE_PATH = '/'
-SESSION_COOKIE_SAMESITE = 'None'
-SESSION_COOKIE_SECURE = True
+_ssl = os.environ.get('PLATFORM_PROTOCOL', 'https') == 'https'
+SESSION_COOKIE_SAMESITE = 'None' if _ssl else 'Lax'
+SESSION_COOKIE_SECURE = _ssl
 
 AUTH_ROLES_MAPPING = {
     "airflow_admin":  ["Admin"],
@@ -33,7 +34,7 @@ OAUTH_PROVIDERS = [
             "client_secret": os.environ["AIRFLOW_KEYCLOAK_CLIENT_SECRET"],
             # Browser-facing: user's browser hits the external URL for the Keycloak login page
             "authorize_url": (
-                f"https://{os.environ.get('PLATFORM_DOMAIN', 'localhost')}/auth/realms/digitaltwins"
+                f"{os.environ.get('PLATFORM_PROTOCOL', 'https')}://{os.environ.get('PLATFORM_DOMAIN', 'localhost')}/auth/realms/digitaltwins"
                 "/protocol/openid-connect/auth"
             ),
             # Back-channel: server-to-server token exchange uses internal Docker hostname

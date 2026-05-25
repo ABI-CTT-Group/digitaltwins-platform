@@ -101,33 +101,46 @@
       src: "{{ install_src_dir }}/data/fullchain.pem"
       dest: "{{ platform_dir }}/services/portal/DigitalTWINS-Portal/certs/"
       mode: '0600'
+    when: lookup('env', 'PLATFORM_PROTOCOL') | default('https') == 'https'
 
   - name: Copy key
     ansible.builtin.copy:
       src: "{{ install_src_dir }}/data/privkey.pem"
       dest: "{{ platform_dir }}/services/portal/DigitalTWINS-Portal/certs/"
       mode: '0600'
+    when: lookup('env', 'PLATFORM_PROTOCOL') | default('https') == 'https'
 
-  - name: Generate nginx.conf from template
+  - name: Generate nginx.conf from SSL template
     ansible.builtin.shell:
       cmd: "envsubst '${PLATFORM_DOMAIN}' < nginx.conf.template > DigitalTWINS-Portal/frontend/nginx.conf"
       chdir: "{{ platform_dir }}/services/portal"
     environment:
       PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
+    when: lookup('env', 'PLATFORM_PROTOCOL') | default('https') == 'https'
+
+  - name: Generate nginx.conf from HTTP template
+    ansible.builtin.shell:
+      cmd: "envsubst '${PLATFORM_DOMAIN}' < nginx.conf.http.template > DigitalTWINS-Portal/frontend/nginx.conf"
+      chdir: "{{ platform_dir }}/services/portal"
+    environment:
+      PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
+    when: lookup('env', 'PLATFORM_PROTOCOL') | default('https') == 'http'
 
   - name: Generate config.js from template (sets window.RUNTIME_CONFIG for Keycloak URL)
     ansible.builtin.shell:
-      cmd: "envsubst '${PLATFORM_DOMAIN}' < config.js.template > config.js"
+      cmd: "envsubst '${PLATFORM_DOMAIN} ${PLATFORM_PROTOCOL}' < config.js.template > config.js"
       chdir: "{{ platform_dir }}/services/portal/DigitalTWINS-Portal/frontend"
     environment:
       PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
+      PLATFORM_PROTOCOL: "{{ lookup('env', 'PLATFORM_PROTOCOL') | default('https') }}"
 
   - name: Generate .env from template
     ansible.builtin.shell:
-      cmd: "envsubst '${PLATFORM_DOMAIN}' < .env.template > .env"
+      cmd: "envsubst '${PLATFORM_DOMAIN} ${PLATFORM_PROTOCOL}' < .env.template > .env"
       chdir: "{{ install_src_dir }}/data"
     environment:
       PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
+      PLATFORM_PROTOCOL: "{{ lookup('env', 'PLATFORM_PROTOCOL') | default('https') }}"
 
   - name: Copy .env to platform dir
     ansible.builtin.copy:
@@ -137,10 +150,11 @@
 
   - name: Generate env from template
     ansible.builtin.shell:
-      cmd: "envsubst '${PLATFORM_DOMAIN}' < env.template > env"
+      cmd: "envsubst '${PLATFORM_DOMAIN} ${PLATFORM_PROTOCOL}' < env.template > env"
       chdir: "{{ install_src_dir }}/data"
     environment:
       PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
+      PLATFORM_PROTOCOL: "{{ lookup('env', 'PLATFORM_PROTOCOL') | default('https') }}"
 
   - name: Copy env to platform dir
     ansible.builtin.copy:
@@ -237,10 +251,11 @@
 
   - name: Generate digitaltwins-realm.json from template
     ansible.builtin.shell:
-      cmd: "envsubst '${PLATFORM_DOMAIN}' < digitaltwins-realm.json.template > digitaltwins-realm.json"
+      cmd: "envsubst '${PLATFORM_DOMAIN} ${KC_SSL_REQUIRED}' < digitaltwins-realm.json.template > digitaltwins-realm.json"
       chdir: "{{ install_src_dir }}/data"
     environment:
       PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
+      KC_SSL_REQUIRED: "{{ 'external_requests' if lookup('env', 'PLATFORM_PROTOCOL') | default('https') == 'https' else 'none' }}"
 
   - name: Copy realm import to remote server
     ansible.builtin.copy:

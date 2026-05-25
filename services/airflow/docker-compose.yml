@@ -99,7 +99,8 @@ x-airflow-common:
 
     ## Proxy / public URL (Airflow 3: [api] section, not [webserver])
     PLATFORM_DOMAIN: ${PLATFORM_DOMAIN}
-    AIRFLOW__API__BASE_URL: https://${PLATFORM_DOMAIN}/airflow
+    PLATFORM_PROTOCOL: ${PLATFORM_PROTOCOL:-https}
+    AIRFLOW__API__BASE_URL: ${PLATFORM_PROTOCOL:-https}://${PLATFORM_DOMAIN}/airflow
     AIRFLOW__API__ENABLE_PROXY_FIX: 'true'
     AIRFLOW__API__PROXY_FIX_X_FOR: '1'
     AIRFLOW__API__PROXY_FIX_X_PROTO: '1'
