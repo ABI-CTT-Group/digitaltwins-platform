@@ -28,35 +28,40 @@ The steps will be
      tar xzf /mnt/install_src/ansible-packages.tar.gz
      pip3 install --no-index --find-links ./ansible-packages/ ansible --break-system-packages
 
-# Get $HOME/.local/bin (where ansible is) onto your $PATH
-     PATH=$PATH:~/.local/bin/
-  (probably want to put that into your .bashrc or equivalent)
+- Log out and back in again (this is to get $HOME/.local/bin (where ansible is) onto your $PATH now)
 
-- Copy the airgap_build_step*.yml files to $HOME and move to that directory
-
-- Run
-      ansible-playbook -i "localhost," -c local airgap_build_step1.yml \
-		-e "ansible_user=$USER" \
-		-e "install_src_dir=/mnt/install_src"
+- Either run builtout/util/airgap.sh or
+  ansible-playbook -i "localhost," \
+	-c local \
+	/mnt/install_src/clean_src/digitaltwins-platform/buildout/dev/airgap_build_step1.yml \
+	-e "ansible_user=$USER" \
+	-e "install_src_dir=/mnt/install_src"
   To set up the firewall to airgap the machine
 
 - Run
-      ansible-playbook -i "localhost," -c local airgap_build_step2.yml \
-		-e "ansible_user=$USER" \
-		-e "install_src_dir=/mnt/install_src"
+  ansible-playbook -i "localhost," \
+	-c local \
+	/mnt/install_src/clean_src/digitaltwins-platform/buildout/dev/airgap_build_step2.yml \
+	-e "ansible_user=$USER" \
+	-e "install_src_dir=/mnt/install_src"
   To install docker and docker compose and set them up as a server to survive reboots
 
 - Log out and back in again so you get a new session and can control docker
 
-- Set three environment variables with your chosen "secrets"
-      export SEEK_ADMIN_PASSWORD=<seek_admin_password>
-      export MYSQL_ROOT_PASSWORD=<mysql_root_password>
-      export MYSQL_PASSWORD=<mysql_password>
+- export PLATFORM_DOMAIN=<your_domain_name>
+
+- read env.template and .env.template into your environment, or otherwise set up 
+  the required environment variables.
+
+- Get fullchain.pem and privkey.pem into place in /mnt/install_src/data
+    (symlinks?)
 
 - Run
-      ansible-playbook -i "localhost," -c local airgap_build_step3.yml \
-		-e "ansible_user=$USER" \
-		-e "install_src_dir=/mnt/install_src"
+  ansible-playbook -i "localhost," \
+	-c local \
+	/mnt/install_src/clean_src/digitaltwins-platform/buildout/dev/airgap_build_step3.yml \
+	-e "ansible_user=$USER" \
+	-e "install_src_dir=/mnt/install_src"
   To install and start then digitaltwins platform
 
 - export COMPOSE_FILE=~/digitaltwins-platform/docker-compose.yml
@@ -66,12 +71,11 @@ The steps will be
 - docker compose up -d
 
 - Now you should be able to open your browser to
-	https://test.digitaltwins.auckland.ac.nz         (for portal)
-	https://test.digitaltwins.auckland.ac.nz/seek    (for seek - admin password integrated in build)
-	https://test.digitaltwins.auckland.ac.nz/jupyter (for jupyterlab - single user still, with token)
-	https://test.digitaltwins.auckland.ac.nz/auth    (for keycloak management)
-	https://test.digitaltwins.auckland.ac.nz/airflow (for airflow management - auth still baked in to installation)
-
+	https://${PLATFORM_DOMAIN}         (for portal)
+	https://${PLATFORM_DOMAIN}/seek    (for seek - admin password integrated in build)
+	https://${PLATFORM_DOMAIN}/jupyter (for jupyterlab - single user still, with token)
+	https://${PLATFORM_DOMAIN}/auth    (for keycloak management)
+	https://${PLATFORM_DOMAIN}/airflow (for airflow management - auth still baked in to installation)
 
 
 The docker images in this bundle have been built to proxy the seek system at

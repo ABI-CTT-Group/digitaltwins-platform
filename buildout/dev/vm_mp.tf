@@ -63,8 +63,8 @@ resource "openstack_blockstorage_volume_v3" "docker_cache" {
   availability_zone = "auckland"
 }
 
-resource "openstack_compute_volume_attach_v2" "vm_mp_docker_cache" {
-  instance_id = openstack_compute_instance_v2.mp.id
-  volume_id   = openstack_blockstorage_volume_v3.docker_cache.id
-  device = "/dev/vdb"
-}
+#resource "openstack_compute_volume_attach_v2" "vm_mp_docker_cache" {
+#  instance_id = openstack_compute_instance_v2.mp.id
+#  volume_id   = openstack_blockstorage_volume_v3.docker_cache.id
+#  device = "/dev/vdb"
+#}
