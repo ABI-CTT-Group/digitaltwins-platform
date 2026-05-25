@@ -9,7 +9,7 @@
 
 set -euo pipefail
 
-VM_LIST="abi_portal"
+VM_LIST="abi_portal abi_mp"
 LOCAL_SRC=~/twins/digitaltwins-platform
 
 # ── rsync clean_src on production VMs ────────────────────────────────────────
