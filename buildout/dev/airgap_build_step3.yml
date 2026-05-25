@@ -136,11 +136,13 @@
 
   - name: Generate .env from template
     ansible.builtin.shell:
-      cmd: "envsubst '${PLATFORM_DOMAIN} ${PLATFORM_PROTOCOL}' < .env.template > .env"
+      cmd: "envsubst '${PLATFORM_DOMAIN} ${PLATFORM_PROTOCOL} ${KC_HOSTNAME_STRICT} ${KC_HOSTNAME_STRICT_HTTPS}' < .env.template > .env"
       chdir: "{{ install_src_dir }}/data"
     environment:
       PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
       PLATFORM_PROTOCOL: "{{ lookup('env', 'PLATFORM_PROTOCOL') | default('https') }}"
+      KC_HOSTNAME_STRICT: "{{ 'true' if lookup('env', 'PLATFORM_PROTOCOL') | default('https') == 'https' else 'false' }}"
+      KC_HOSTNAME_STRICT_HTTPS: "{{ 'true' if lookup('env', 'PLATFORM_PROTOCOL') | default('https') == 'https' else 'false' }}"
 
   - name: Copy .env to platform dir
     ansible.builtin.copy:
