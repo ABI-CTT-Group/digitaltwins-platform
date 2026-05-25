@@ -251,10 +251,11 @@
 
   - name: Generate digitaltwins-realm.json from template
     ansible.builtin.shell:
-      cmd: "envsubst '${PLATFORM_DOMAIN} ${KC_SSL_REQUIRED}' < digitaltwins-realm.json.template > digitaltwins-realm.json"
+      cmd: "envsubst '${PLATFORM_DOMAIN} ${PLATFORM_PROTOCOL} ${KC_SSL_REQUIRED}' < digitaltwins-realm.json.template > digitaltwins-realm.json"
       chdir: "{{ install_src_dir }}/data"
     environment:
       PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
+      PLATFORM_PROTOCOL: "{{ lookup('env', 'PLATFORM_PROTOCOL') | default('https') }}"
       KC_SSL_REQUIRED: "{{ 'external_requests' if lookup('env', 'PLATFORM_PROTOCOL') | default('https') == 'https' else 'none' }}"
 
   - name: Copy realm import to remote server
