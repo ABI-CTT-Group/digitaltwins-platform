@@ -189,6 +189,8 @@ Alternatively, you can make the local worker start automatically with every `doc
 ## Remote Compute
 
 Instructions for bringing up a remote compute worker node will be added soon.
+These are changing day by day, and especially this area, where we may put a jupyterhub
+on the compute too.
 
 ---
 
