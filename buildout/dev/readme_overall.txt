@@ -1,18 +1,26 @@
 This directory contains everything required to run up the digitaltwins platform
 on an airgapped Ubuntu 24.04 machine with no connection to the Internet.
+You can either run it on http on localhost or
+behind https as though it were on a pre-existing domain
+(you just need to change your /etc/hosts to use it).
+
+
+We're assuming Ubuntu 24.04 as the underlying OS in the below steps.
+
 
 The steps will be
 - Elsewhere,
      (these steps are done for the domain test.digitaltwins.auckland.ac.nz)
      - create the CA used to sign the cert
      - create and sign the cert to be used by the website
+  This step is already done for 3 domains:
+	- test.digitaltwins.auckland.ac.nz
+	- abi1.drai.auckland.ac.nz
+	- abi2.drai.auckland.ac.nz
 
-- Figure out what IP address you are going to use for this domain
-
-- Put that IP address in your local /etc/hosts file as test.digitaltwins.auckland.ac.nz
-     (or set up your DNS entry to point that domain to your IP)
 
 - Get the install source mounted somehow (airgap_build_step0.yml, or equivalent - see below)
+  We're going to assume you are mounting it on /mnt/install_src
   If the source directory is attached to your VM as a volume on /dev/vdb, for example, as root:
       mkdir -p /mnt/install_src
       chmod 0755 /mnt/install_src
@@ -20,23 +28,17 @@ The steps will be
       mount -o defaults /dev/vdb /mnt/install_src
       echo "/dev/vdb /mnt/install_src auto defaults 0 0" >> /etc/fstab
 
-- Install the packages required to run ansible (python pip)
-     sudo dpkg -i python3*.deb
+- [optional] Airgap your VM (run /mnt/install_src/clean_src/digitaltwins-platform/buildout/util/airgap.sh)
 
-- Install ansible
+- Install the packages required to run ansible (python pip)
+     sudo dpkg -i /mnt/install_src/airgap/apt-debs/*.deb
+
+- Install ansible (just as the ubuntu user)
      cd ~
      tar xzf /mnt/install_src/ansible-packages.tar.gz
      pip3 install --no-index --find-links ./ansible-packages/ ansible --break-system-packages
 
 - Log out and back in again (this is to get $HOME/.local/bin (where ansible is) onto your $PATH now)
-
-- Either run builtout/util/airgap.sh or
-  ansible-playbook -i "localhost," \
-	-c local \
-	/mnt/install_src/clean_src/digitaltwins-platform/buildout/dev/airgap_build_step1.yml \
-	-e "ansible_user=$USER" \
-	-e "install_src_dir=/mnt/install_src"
-  To set up the firewall to airgap the machine
 
 - Run
   ansible-playbook -i "localhost," \
@@ -48,13 +50,30 @@ The steps will be
 
 - Log out and back in again so you get a new session and can control docker
 
-- export PLATFORM_DOMAIN=<your_domain_name>
+- adjust and source /mnt/install_src/data/env into your environment
+  In particular, the four entries at the bottom, depending on whether you are
+  using domain/https or localhost/http
 
-- read env.template and .env.template into your environment, or otherwise set up 
-  the required environment variables.
+- in /mnt/install_src/data/.env.template , set up all your passwords
+  In particular, the four entries at the bottom, depending on whether you are
+  using domain/https or localhost/http
 
-- Get fullchain.pem and privkey.pem into place in /mnt/install_src/data
-    (symlinks?)
+  
+- If you are using domain/https,
+  get fullchain.pem and privkey.pem into place in /mnt/install_src/data
+  There are three options here:
+	- test.digitaltwins.auckland.ac.nz
+	- abi1.drai.auckland.ac.nz
+	- abi2.drai.auckland.ac.nz
+  Choose one and symbolic link it:
+	cd /mnt/install_src/data
+	ln -s abi2.drai.auckland.ac.nz.fullchain.pem fullchain.pem
+	ln -s abi2.drai.auckland.ac.nz.privkey.pem privkey.pem
+  Or create your own self signed cert.
+
+  Add an entry to your /etc/hosts file, if you are running on something other than what is
+  in the DNS for the domain you chose:
+      0.0.0.0 abi2.drai.auckland.ac.nz
 
 - Run
   ansible-playbook -i "localhost," \
@@ -64,7 +83,10 @@ The steps will be
 	-e "install_src_dir=/mnt/install_src"
   To install and start then digitaltwins platform
 
-- export COMPOSE_FILE=~/digitaltwins-platform/docker-compose.yml
+- Log out and back in, so the value of COMPOSE_FILE will be set (step3 playbook puts it into
+  the shell init stuff). Or just do this:
+  export COMPOSE_FILE=~/digitaltwins-platform/docker-compose.yml
+
 
 - docker compose down
 
@@ -76,6 +98,15 @@ The steps will be
 	https://${PLATFORM_DOMAIN}/jupyter (for jupyterlab - single user still, with token)
 	https://${PLATFORM_DOMAIN}/auth    (for keycloak management)
 	https://${PLATFORM_DOMAIN}/airflow (for airflow management - auth still baked in to installation)
+
+- There are 3 pre-canned users in this realm import:
+	- mp1/mp1
+	- mp2/mp2
+	- admin/admin
+  You will want to adjust/remove on a production system.
+
+
+==============================================================================================
 
 
 The docker images in this bundle have been built to proxy the seek system at
