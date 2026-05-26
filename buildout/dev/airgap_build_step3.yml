@@ -89,6 +89,7 @@
       delete: yes
       rsync_opts:
         - '--exclude=.git/'
+        - '--exclude=.env'
 
   - name: Create certs directory
     ansible.builtin.file:
@@ -134,21 +135,26 @@
       PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
       PLATFORM_PROTOCOL: "{{ lookup('env', 'PLATFORM_PROTOCOL') | default('https') }}"
 
-  - name: Generate .env from template
+  - name: Check if .env already exists
+    stat:
+      path: "{{ platform_dir }}/.env"
+    register: dotenv_check
+
+  - name: Generate .env from template (first deploy only)
     ansible.builtin.shell:
-      cmd: "envsubst '${PLATFORM_DOMAIN} ${PLATFORM_PROTOCOL} ${KC_HOSTNAME_STRICT} ${KC_HOSTNAME_STRICT_HTTPS}' < .env.template > .env"
+      cmd: "envsubst '${PLATFORM_DOMAIN} ${PLATFORM_PROTOCOL}' < .env.template > .env"
       chdir: "{{ install_src_dir }}/data"
     environment:
       PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
       PLATFORM_PROTOCOL: "{{ lookup('env', 'PLATFORM_PROTOCOL') | default('https') }}"
-      KC_HOSTNAME_STRICT: "{{ 'true' if lookup('env', 'PLATFORM_PROTOCOL') | default('https') == 'https' else 'false' }}"
-      KC_HOSTNAME_STRICT_HTTPS: "{{ 'true' if lookup('env', 'PLATFORM_PROTOCOL') | default('https') == 'https' else 'false' }}"
+    when: not dotenv_check.stat.exists
 
-  - name: Copy .env to platform dir
+  - name: Copy .env to platform dir (first deploy only)
     ansible.builtin.copy:
       src: "{{ install_src_dir }}/data/.env"
       dest: "{{ platform_dir }}/.env"
       mode: '0600'
+    when: not dotenv_check.stat.exists
 
   - name: Generate env from template
     ansible.builtin.shell:
@@ -258,7 +264,7 @@
     environment:
       PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
       PLATFORM_PROTOCOL: "{{ lookup('env', 'PLATFORM_PROTOCOL') | default('https') }}"
-      KC_SSL_REQUIRED: "{{ 'external_requests' if lookup('env', 'PLATFORM_PROTOCOL') | default('https') == 'https' else 'none' }}"
+      KC_SSL_REQUIRED: "{{ 'external' if lookup('env', 'PLATFORM_PROTOCOL') | default('https') == 'https' else 'none' }}"
 
   - name: Copy realm import to remote server
     ansible.builtin.copy:

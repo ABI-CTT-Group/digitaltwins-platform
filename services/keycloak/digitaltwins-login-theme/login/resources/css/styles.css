@@ -1,0 +1,251 @@
+body {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.38), rgba(30, 41, 59, 0.42)),
+    url("../img/login_bg.jpg") center center / cover no-repeat fixed !important;
+  min-height: 100vh;
+}
+
+.login-pf-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.login-pf-page .login-pf-header {
+  margin-bottom: 8px;
+}
+
+.login-pf-page .card-pf {
+  background: rgba(255, 255, 255, 0.12) !important;
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 14px 36px rgba(2, 6, 23, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  width: 100%;
+  min-width: 36rem;
+  max-width: 36rem;
+  margin: 0 auto;
+  padding: 35px 33px !important;
+}
+
+#kc-page-title {
+  display: none;
+}
+
+.dtwins-page-title {
+  text-align: center;
+  font-size: 2.2rem;
+  font-weight: 900;
+  font-family: 'Montserrat', sans-serif;
+  line-height: 1.25;
+  color: #ffffff;
+  margin: 0 0 0.35rem;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+.dtwins-card-title {
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 600;
+  font-family: Nunito, sans-serif;
+  color: #e2e8f0;
+  margin-bottom: 1.1rem;
+}
+
+.dtwins-login-panel {
+  background: rgba(15, 23, 42, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
+  padding: 21px 21px 17px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+#kc-form-login {
+  margin-top: 0.35rem;
+}
+
+.form-group {
+  margin-bottom: 14px;
+}
+
+.control-label {
+  display: block;
+  margin-bottom: 6px;
+  color: #f8fafc;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+#username,
+#password,
+#kc-form-options,
+#kc-registration,
+#kc-form-buttons {
+  width: 100%;
+}
+
+.pf-c-form-control,
+input[type="text"],
+input[type="password"],
+input[type="email"] {
+  border-radius: 10px !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+  min-height: 44px;
+  height: 44px;
+  font-size: 0.96rem;
+  padding: 10px 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+input[type="text"]::placeholder,
+input[type="password"]::placeholder,
+input[type="email"]::placeholder {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+.pf-c-form-control:focus,
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus {
+  border-color: #7dd3fc !important;
+  box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.28) !important;
+}
+
+.pf-c-button.pf-m-primary,
+#kc-login {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 10px;
+  border: none !important;
+  background: #009688 !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.pf-c-button.pf-m-primary:hover,
+#kc-login:hover {
+  background: #00796b !important;
+  transform: translateY(-1px);
+}
+
+#kc-login:disabled,
+#kc-login[disabled] {
+  background: rgba(0, 150, 136, 0.5) !important;
+  color: rgba(255, 255, 255, 0.75) !important;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+#kc-form-options {
+  margin-top: 2px;
+  margin-bottom: 12px;
+}
+
+#kc-form-options .checkbox {
+  color: #e2e8f0;
+}
+
+#kc-registration {
+  margin-top: 1rem;
+  text-align: center;
+  color: #e2e8f0;
+}
+
+#kc-registration a,
+#kc-info a,
+a {
+  color: #93c5fd;
+  font-weight: 500;
+}
+
+#kc-registration a:hover,
+#kc-info a:hover,
+a:hover {
+  color: #dbeafe;
+}
+
+.dtwins-divider-wrap {
+  position: relative;
+  margin: 14px 0 12px;
+  text-align: center;
+}
+
+.dtwins-divider {
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
+  margin: 0;
+}
+
+.dtwins-or {
+  position: relative;
+  top: -11px;
+  display: inline-block;
+  padding: 0 8px;
+  background: rgba(31, 41, 55, 0.45);
+  color: #e2e8f0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+#kc-social-providers {
+  margin-top: 2px;
+}
+
+#kc-social-providers .kc-social-provider-name {
+  color: #f8fafc;
+}
+
+.dtwins-idp-btn {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 10px !important;
+  border: 1px solid rgba(255, 255, 255, 0.38) !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #f8fafc !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.dtwins-idp-btn:hover {
+  background: rgba(255, 255, 255, 0.22) !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
+}
+
+.alert-error,
+.pf-m-danger {
+  border-radius: 10px;
+}
+
+@media (max-width: 640px) {
+  .login-pf-page {
+    padding: 14px;
+  }
+
+  .dtwins-page-title {
+    font-size: 1.6rem;
+    margin-top: 0;
+    margin-bottom: 0.9rem;
+  }
+
+  .login-pf-page .card-pf {
+    border-radius: 12px;
+    min-width: 100%;
+    max-width: 100%;
+    padding: 21px 19px !important;
+  }
+
+  .dtwins-login-panel {
+    padding: 17px 17px 15px;
+  }
+}

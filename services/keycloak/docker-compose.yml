@@ -20,13 +20,14 @@ services:
       KC_HOSTNAME_STRICT_HTTPS: ${KC_HOSTNAME_STRICT_HTTPS:-true}
       KC_PROXY: edge
       KC_PROXY_HEADERS: xforwarded
-      KC_HOSTNAME: ${PLATFORM_PROTOCOL:-https}://${PLATFORM_DOMAIN}
+      KC_HOSTNAME: ${PLATFORM_PROTOCOL:-https}://${PLATFORM_DOMAIN}/auth
 #    ports:
 #      - "${KEYCLOAK_BIND_ADDRESS:-0.0.0.0}:8009:8443"
 #      - "8009:8080"
     volumes:
       - ./import:/opt/keycloak/data/import
       - keycloak_data:/opt/keycloak/data
+      - ./digitaltwins-login-theme:/opt/keycloak/themes/digitaltwins-login-theme:ro
     restart: unless-stopped
     networks:
       - digitaltwins
