@@ -169,6 +169,13 @@ Open your browser to:
 | JupyterLab | `https://${PLATFORM_DOMAIN}/jupyter` |
 | Keycloak   | `https://${PLATFORM_DOMAIN}/auth` |
 | Airflow    | `https://${PLATFORM_DOMAIN}/airflow` |
+| Portal API | `https://${PLATFORM_DOMAIN}/api/` |
+| DigitalTWINS API | `https://${PLATFORM_DOMAIN}/dtapi/` |
+
+The two API paths are proxied by nginx:
+
+- **`/api/`** — Portal backend API (`portal-backend` container, port 8000). Handles portal-specific requests such as authentication flows and portal data.
+- **`/dtapi/`** — DigitalTWINS API (`digitaltwins-api` container, port 8000). The platform's main programmatic interface for data catalogue queries, assay and workflow management, and integration with SEEK, MinIO, and Airflow. Proxied without the `/dtapi` prefix, so the API container sees requests at its root.
 
 ### Pre-configured test users
 
