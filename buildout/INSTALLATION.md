@@ -8,6 +8,23 @@ This guide covers installation of the DigitalTWINS platform on an airgapped Ubun
 
 ## Prerequisites
 
+### Install Source
+
+The install source (`/mnt/install_src`) contains all bundled packages, Docker images, certificates, and data files needed for an airgapped deployment. It is too large to distribute via git — retrieve it from one of the existing deployment servers via rsync:
+
+| Host | IP | Domain |
+|------|----|--------|
+| `drai_portal` | `130.216.254.174` | `abi1.drai.auckland.ac.nz` |
+| `drai_mp` | `130.216.254.212` | `abi2.drai.auckland.ac.nz` |
+
+```bash
+rsync -av --progress ubuntu@130.216.254.174:/mnt/install_src/ /mnt/install_src/
+```
+
+> **Note:** This is a large transfer (Docker image bundle alone is several GB). Allow time accordingly.
+
+---
+
 ### SSL Certificates (HTTPS deployments only)
 
 You will need `fullchain.pem` and `privkey.pem` for your domain, placed in `/mnt/install_src/data/`.
