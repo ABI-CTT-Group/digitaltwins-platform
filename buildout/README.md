@@ -1,3 +1,9 @@
+THIS DOCUMENT HAS A LOT OF OLD INFORMATION IN IT.
+
+See the INSTALLATION.md document for more up to date information.
+
+
+
 How to build out digital twins platform (terraform/ansible)
 on an openstack cloud platform (here we use nectar). Includes
 an observability stack in k3s.
