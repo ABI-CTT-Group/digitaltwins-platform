@@ -203,6 +203,35 @@ Alternatively, you can make the local worker start automatically with every `doc
 
 ---
 
+## Sample Data
+
+Once the platform is running, you can load sample datasets from the bundled backups. These are cold-volume backups of the seek and related data volumes, each in its own subdirectory under `/mnt/install_src/data/backups/`:
+
+```bash
+ls /mnt/install_src/data/backups/
+```
+
+To restore a backup, `cd` into its directory and run its restore script:
+
+```bash
+cd /mnt/install_src/data/backups/<backup-name>
+bash restore.sh
+```
+
+After restoring, bring the platform down and back up for the changes to take effect:
+
+```bash
+docker compose down
+docker compose up -d
+```
+
+> **Note:** The available backups are updated from time to time as new sample datasets are prepared. Check the `drai_portal` server (`130.216.254.174`) periodically for new backups and rsync them across as needed:
+> ```bash
+> rsync -av --progress ubuntu@130.216.254.174:/mnt/install_src/data/backups/ /mnt/install_src/data/backups/
+> ```
+
+---
+
 ## Remote Compute
 
 Instructions for bringing up a remote compute worker node will be added soon.
