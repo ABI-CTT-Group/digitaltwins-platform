@@ -165,6 +165,33 @@ The realm import includes three users for testing. **Remove or change these on a
 
 ---
 
+## Local Airflow Worker
+
+By default, no Celery worker runs on the platform VM itself — tasks are intended to be dispatched to remote compute nodes. If you want the platform VM to also execute Airflow tasks locally, bring up the worker using the `local-worker` profile:
+
+```bash
+docker compose --profile local-worker up -d
+```
+
+Alternatively, you can make the local worker start automatically with every `docker compose up -d` by commenting out (or removing) the `profiles` block in the `airflow-worker` service in `services/airflow/docker-compose.yml`:
+
+```yaml
+  airflow-worker:
+    <<: *airflow-common
+    # profiles:
+    #   - local-worker
+    command: celery worker
+    ...
+```
+
+---
+
+## Remote Compute
+
+Instructions for bringing up a remote compute worker node will be added soon.
+
+---
+
 ## Notes
 
 ### SEEK asset recompilation
