@@ -205,7 +205,7 @@ Alternatively, you can make the local worker start automatically with every `doc
 
 ## Sample Data
 
-Once the platform is running, you can load sample datasets from the bundled backups. These are cold-volume backups of the seek and related data volumes, each in its own subdirectory under `/mnt/install_src/data/backups/`:
+Once the platform is running, you can load sample datasets from the bundled backups. These are hot backups of the seek and related data volumes, each in its own subdirectory under `/mnt/install_src/data/backups/`:
 
 ```bash
 ls /mnt/install_src/data/backups/
