@@ -8,9 +8,9 @@ services:
     environment:
       - PYTHONPATH=/app
       - DATABASE_PATH=/data/plugin_registry.db
-      - DATASET_DIR_TOOL=/dataset_work_space/tool
-      - DATASET_DIR_MEASUREMENT=/dataset_work_space/measurement
-      - DATASET_DIR_WORKFLOW=/dataset_work_space/workflow
+      - DATASET_DIR_TOOL=/portal_workspace/tool
+      - DATASET_DIR_MEASUREMENT=/portal_workspace/measurement
+      - DATASET_DIR_WORKFLOW=/portal_workspace/workflow
       - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio:9000}
       - MINIO_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
@@ -31,7 +31,7 @@ services:
       - NGINX_CONTAINER_NAME=digitaltwins-platform-portal-frontend
     volumes:
       - portal_datasets:/app/data
-      # /dataset_work_space holds tool + workflow + measurement staging in
+      # /portal_workspace holds tool + workflow + measurement staging in
       # three subdirs (tool/, workflow/, measurement/), keyed off the
       # DATASET_DIR_* env vars above. It was a Windows host bind mount, but
       # Docker Desktop's gRPC-FUSE hangs under SPARC dataset creation for
@@ -41,7 +41,7 @@ services:
       # is just build staging + cleanup target on plugin/workflow delete.
       # NOTE: measurement/ is no longer host-bind-mounted, so dropping SPARC
       # test datasets from Windows now needs `docker cp` into the volume.
-      - dataset_work_space:/dataset_work_space
+      - portal_workspace:/portal_workspace
       - plugin_database:/data
       - /var/run/docker.sock:/var/run/docker.sock
       - nginx_plugin_configs:/nginx-plugins-conf
@@ -166,8 +166,8 @@ volumes:
   portal_datasets:
     name: digitaltwins_portal_datasets
     driver: local
-  dataset_work_space:
-    name: digitaltwins_dataset_work_space
+  portal_workspace:
+    name: digitaltwins_portal_workspace
     driver: local
   hapi_fhir_postgres:
     name: digitaltwins_hapi_fhir_postgres
