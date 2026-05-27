@@ -261,10 +261,23 @@ This opens ports 8000, 8002, 8010, 8011, 8013, 8016 from the walled_garden CIDR 
 
 **2. Create the `airflow-logs` MinIO bucket**
 
+Remote workers write Airflow task logs to MinIO over the walled_garden rather than storing them locally. This bucket must exist before any remote worker tasks will log successfully:
+
 ```bash
 docker compose exec minio sh -c \
   'mc alias set local http://localhost:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD \
    && mc mb --ignore-existing local/airflow-logs'
+```
+
+**3. Ensure MinIO credentials are consistent in the platform `.env`**
+
+The remote worker connects to MinIO using credentials drawn from the platform `.env`. All four of the following variables refer to the same MinIO instance and **must be set to the same values**. A mismatch will cause `SignatureDoesNotMatch` errors from the remote worker when it tries to read or write data:
+
+```bash
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=<your_secret>
+MINIO_SERVER_ACCESS_KEY=minioadmin
+MINIO_SERVER_SECRET_KEY=<your_secret>   # must equal MINIO_ROOT_PASSWORD
 ```
 
 ---
