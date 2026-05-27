@@ -1,0 +1,49 @@
+services:
+  airflow-worker:
+    image: digitaltwins-platform-airflow-worker:latest
+    command: celery worker
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_POSTGRES_PASSWORD}@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT}/airflow
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:${AIRFLOW_POSTGRES_PASSWORD}@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT}/airflow
+      AIRFLOW__CELERY__BROKER_URL: redis://:${REDIS_PASSWORD}@${MAIN_VM_IP}:${REDIS_PORT}/0
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://${MAIN_VM_IP}:${AIRFLOW_PORT}/airflow/execution/
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
+      AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW__API_AUTH__JWT_SECRET}
+      AIRFLOW__API__SECRET_KEY: ${AIRFLOW__API__SECRET_KEY}
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
+      AIRFLOW_KEYCLOAK_CLIENT_ID: ${AIRFLOW_KEYCLOAK_CLIENT_ID:-}
+      AIRFLOW_KEYCLOAK_CLIENT_SECRET: ${AIRFLOW_KEYCLOAK_CLIENT_SECRET:-}
+      DIGITALTWINS_API_BASE_URL: http://${MAIN_VM_IP}
+      DIGITALTWINS_API_PORT: ${DIGITALTWINS_API_PORT}
+      AIRFLOW_ENDPOINT: http://${MAIN_VM_IP}:${AIRFLOW_PORT}/airflow
+      MINIO_ENDPOINT: http://${MAIN_VM_IP}:${MINIO_PORT}
+      MINIO_SERVER_ACCESS_KEY: ${MINIO_SERVER_ACCESS_KEY}
+      MINIO_SERVER_SECRET_KEY: ${MINIO_SERVER_SECRET_KEY}
+      DUMB_INIT_SETSID: "0"
+
+      ## Remote logging to MinIO (S3-compatible)
+      AIRFLOW__LOGGING__REMOTE_LOGGING: 'True'
+      AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: minio_logs
+      AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: s3://airflow-logs
+      AIRFLOW__LOGGING__ENCRYPT_S3_LOGS: 'False'
+      AIRFLOW_CONN_MINIO_LOGS: "aws://${MINIO_SERVER_ACCESS_KEY}:${MINIO_SERVER_SECRET_KEY}@?endpoint_url=http%3A%2F%2F${MAIN_VM_IP}%3A${MINIO_PORT}"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./config:/opt/airflow/config
+      - ./plugins:/opt/airflow/plugins
+      - ./data:/opt/airflow/data
+    user: "${AIRFLOW_UID:-50000}:0"
+    restart: always
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"'
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
