@@ -8,9 +8,9 @@ services:
     environment:
       - PYTHONPATH=/app
       - DATABASE_PATH=/data/plugin_registry.db
-      - DATASET_DIR_TOOL=/datasets_tool
-      - DATASET_DIR_MEASUREMENT=/datasets_measurement
-      - DATASET_DIR_WORKFLOW=/datasets_workflow
+      - DATASET_DIR_TOOL=/dataset_work_space/tool
+      - DATASET_DIR_MEASUREMENT=/dataset_work_space/measurement
+      - DATASET_DIR_WORKFLOW=/dataset_work_space/workflow
       - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio:9000}
       - MINIO_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
@@ -31,19 +31,17 @@ services:
       - NGINX_CONTAINER_NAME=digitaltwins-platform-portal-frontend
     volumes:
       - portal_datasets:/app/data
-      # /datasets_tool and /datasets_workflow were Windows host bind mounts,
-      # but Docker Desktop's gRPC-FUSE hangs under SPARC dataset creation for
+      # /dataset_work_space holds tool + workflow + measurement staging in
+      # three subdirs (tool/, workflow/, measurement/), keyed off the
+      # DATASET_DIR_* env vars above. It was a Windows host bind mount, but
+      # Docker Desktop's gRPC-FUSE hangs under SPARC dataset creation for
       # large plugins (thousands of small files — VolView/itk pipelines).
-      # Switched to named volumes so SPARC writes stay inside the Linux VM's
+      # Switched to a named volume so SPARC writes stay inside the Linux VM's
       # ext4. The source of truth for datasets is MinIO; the local copy here
       # is just build staging + cleanup target on plugin/workflow delete.
-      - portal_datasets_tool:/datasets_tool
-      - portal_datasets_workflow:/datasets_workflow
-      # /datasets_measurement stays bind-mounted: this is read-only from the
-      # container (see /copy_dataset endpoint in dashboard.py) and the user
-      # drops SPARC test datasets in from the Windows side (e.g. duke).
-      - ./backend/datasets_measurement:/datasets_measurement
-      - ./backend/configs.ini:/app/configs.ini
+      # NOTE: measurement/ is no longer host-bind-mounted, so dropping SPARC
+      # test datasets from Windows now needs `docker cp` into the volume.
+      - dataset_work_space:/dataset_work_space
       - plugin_database:/data
       - /var/run/docker.sock:/var/run/docker.sock
       - nginx_plugin_configs:/nginx-plugins-conf
@@ -168,11 +166,8 @@ volumes:
   portal_datasets:
     name: digitaltwins_portal_datasets
     driver: local
-  portal_datasets_tool:
-    name: digitaltwins_portal_datasets_tool
-    driver: local
-  portal_datasets_workflow:
-    name: digitaltwins_portal_datasets_workflow
+  dataset_work_space:
+    name: digitaltwins_dataset_work_space
     driver: local
   hapi_fhir_postgres:
     name: digitaltwins_hapi_fhir_postgres

@@ -5,10 +5,9 @@ import json
 from pathlib import Path
 # from sparc_me import Dataset, Sample, Subject
 # from app.utils import digitaltwins_configs
-import shutil
 from pprint import pprint
 import os
-from app.utils.utils import force_rmtree, get_workflow_type
+from app.utils.utils import get_workflow_type
 from app.client.digitaltwins_api import DigitalTWINSAPIClient
 from fastapi import Header, HTTPException
 from httpx import HTTPStatusError, RequestError
@@ -563,73 +562,3 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None), clie
     #             "data": "http://130.216.216.26:8008/lab/tree/ep3/statistical_analysis_of_electrode_measurements.ipynb"
     #         }
     # return None
-
-
-@router.get("/copy_dataset/{name}")
-def copy_dataset(name: str):
-    measurements_path = os.environ.get("DATASET_DIR_MEASUREMENT", "./datasets_measurement")
-    src = Path(measurements_path) / name
-    dst = Path("./data")
-    dst.mkdir(parents=True, exist_ok=True)
-    if not src.exists():
-        raise HTTPException(status_code=404, detail=f"dataset directory {src} does not exist")
-
-    for item in src.iterdir():
-        target = dst / item.name
-
-        if target.exists():
-            if target.is_file():
-                target.unlink()
-            else:
-                shutil.rmtree(target)
-
-        if item.is_dir():
-            shutil.copytree(item, target)
-        else:
-            shutil.copy2(item, target)
-
-    return {
-        "status": "200",
-        "message": "dataset moved successfully"
-    }
-
-
-@router.get("/clear_data")
-def clear_data():
-    dst = Path("./data")
-    force_rmtree(dst, True)
-
-    return {
-        "status": "200",
-        "message": "dataset moved successfully"
-    }
-
-
-def generate_outputs_datasets(target_dataset_path, outputs):
-    if not target_dataset_path.exists():
-        target_dataset_path.mkdir(exist_ok=True, parents=True)
-    for output in outputs:
-        output_dataset_path = target_dataset_path / output.get("dataset_name")
-        if output_dataset_path.exists():
-            continue
-        # dataset.create_empty_dataset(version="2.0.0")
-        # # Save the template dataset.
-        # dataset.save(save_dir=output_dataset_path)
-
-
-def download_inputs_datasets(target_dataset_path):
-    shutil.copytree(root_dir / "data" / "duke_test_data", target_dataset_path)
-
-
-def clear_folder(folder_path):
-    folder = Path(folder_path)
-
-    if folder.exists() and folder.is_dir():
-        for item in folder.iterdir():
-            if item.is_file() or item.is_symlink():
-                item.unlink()
-            elif item.is_dir():
-                clear_folder(item)
-                item.rmdir()
-    else:
-        print(f"path not found: {folder}")
