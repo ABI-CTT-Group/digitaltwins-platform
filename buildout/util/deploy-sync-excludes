@@ -1,0 +1,25 @@
+# Exclude list for syncing code to ~/digitaltwins-platform/ on running VMs.
+# These are files generated at deploy time from templates — they are
+# environment-specific and must not be overwritten by a code sync.
+#
+# Paths are relative to ~/digitaltwins-platform/.
+# rsync pattern syntax: https://rsync.samba.org/ftp/rsync/rsync.html#INCLUDE_EXCLUDE_RULES
+
+# Git metadata
+.git/
+
+# Environment and secrets
+.env
+env
+
+# Generated from templates by airgap_build_step3.yml
+services/portal/DigitalTWINS-Portal/frontend/nginx.conf
+services/portal/DigitalTWINS-Portal/frontend/config.js
+services/airflow/config/airflow.cfg
+services/keycloak/import/digitaltwins-realm.json
+services/seek/ldh-deployment/docker-compose.env
+
+# Runtime directories created by step3 or docker
+notebook_workspace/
+services/airflow/logs/
+services/airflow/dags/__pycache__/
