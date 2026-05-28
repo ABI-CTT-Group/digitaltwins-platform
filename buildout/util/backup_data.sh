@@ -165,15 +165,19 @@ fi
 echo "    Using mc image: \$MC_IMAGE"
 docker run --rm --network digitaltwins \\
     -v "\$RESTORE_DIR/minio":/minio_backup \\
+    -e MINIO_ROOT_USER="\$MINIO_ROOT_USER" \\
+    -e MINIO_ROOT_PASSWORD="\$MINIO_ROOT_PASSWORD" \\
     --entrypoint /bin/sh \\
     "\$MC_IMAGE" \\
-    -c "
-        mc alias set dst http://minio:9000 '\$MINIO_ROOT_USER' '\$MINIO_ROOT_PASSWORD' &&
-        for bucket in \$(ls /minio_backup); do
-            echo \"  Mirroring bucket: \\\$bucket\" &&
-            mc mirror /minio_backup/\\\$bucket dst/\\\$bucket || true
+    -c '
+        mc alias set dst http://minio:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD &&
+        for bucket in $(ls /minio_backup); do
+            echo "  Creating bucket: $bucket"
+            mc mb --ignore-existing dst/$bucket
+            echo "  Mirroring bucket: $bucket"
+            mc mirror /minio_backup/$bucket dst/$bucket || true
         done
-    "
+    '
 echo "    Done."
 
 # ── Step 6: Airflow DAGs ─────────────────────────────────────────────────────
