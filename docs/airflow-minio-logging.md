@@ -129,13 +129,14 @@ Apply the same to `dicom_to_nifti` and `dicom_to_nrrd` operators.
 
 ## MinIO UI
 
-MinIO is not currently proxied via nginx. To manage buckets (list, create, delete), use the CLI from the portal VM:
+MinIO is proxied via nginx at `/minio/` — accessible at `https://${PLATFORM_DOMAIN}/minio/`.
+Log in with `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` from the platform `.env`.
+
+To manage buckets from the CLI:
 
 ```bash
-cd ~/digitaltwins-platform/services/airflow
-docker compose exec minio mc alias set local http://localhost:9000 minioadmin minioadmin
-docker compose exec minio mc ls local/
-docker compose exec minio mc ls local/airflow-logs/
+cd ~/digitaltwins-platform
+docker compose exec minio sh -c \
+  'mc alias set local http://localhost:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD \
+   && mc ls --recursive local'
 ```
-
-Proxying MinIO at `/minio/` via nginx is a future task.
