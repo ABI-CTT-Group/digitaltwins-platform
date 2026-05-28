@@ -64,19 +64,21 @@ fi
 echo "    Using mc image: $MC_IMAGE"
 docker run --rm --network digitaltwins \
     -v "$BACKUP_DIR/minio":/minio_backup \
+    -e MINIO_ROOT_USER="$MINIO_ROOT_USER" \
+    -e MINIO_ROOT_PASSWORD="$MINIO_ROOT_PASSWORD" \
     --entrypoint /bin/sh \
     "$MC_IMAGE" \
-    -c "
-        mc alias set src http://minio:9000 '$MINIO_ROOT_USER' '$MINIO_ROOT_PASSWORD' &&
-        for bucket in \$(mc ls src | while read a b c d name; do echo \$name; done | tr -d '/'); do
-            if [ \"\$bucket\" = \"airflow-logs\" ]; then
-                echo \"  Skipping bucket: \$bucket\"
+    -c '
+        mc alias set src http://minio:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD &&
+        for bucket in $(mc ls src | while read a b c d name; do echo $name; done | tr -d "/"); do
+            if [ "$bucket" = "airflow-logs" ]; then
+                echo "  Skipping bucket: $bucket"
                 continue
             fi
-            echo \"  Mirroring bucket: \$bucket\" &&
-            mc mirror src/\$bucket /minio_backup/\$bucket || true
+            echo "  Mirroring bucket: $bucket"
+            mc mirror src/$bucket /minio_backup/$bucket || true
         done
-    "
+    '
 echo "    Done: minio/"
 
 # ── MinIO mc image (needed for airgapped restore) ────────────────────────────
