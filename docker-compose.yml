@@ -70,6 +70,8 @@ include:
 volumes:
   portal_datasets:
     driver: local
+  portal_workspace:
+    driver: local
   plugin_database:
     driver: local
   hapi_fhir_postgres:
