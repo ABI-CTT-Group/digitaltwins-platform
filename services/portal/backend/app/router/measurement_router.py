@@ -17,9 +17,11 @@ import mimetypes
 import os
 import uuid
 import zipfile
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
@@ -43,6 +45,18 @@ from app.services.measurement_classifier import (
     ClassifyResult,
     classify_sample,
 )
+from app.services.measurement_service import (
+    apply_descriptions,
+    compute_endpoint_urls,
+    deep_camelize_keys,
+    delete_hapi_fhir_resources,
+    push_to_hapi_fhir,
+    read_fhir_json,
+    rollback_minio,
+    upload_fhir_json,
+    upload_full_dataset,
+)
+from app.services.measurements_fhir_adapter import MeasurementsFhirAnnotator
 from app.utils.builder_utils import (
     extract_uploaded_archive,
     resolve_project_root,
@@ -81,12 +95,6 @@ _DATASET_DIR.mkdir(parents=True, exist_ok=True)
 # main.py already scans tmp/ for stale uploads.
 _builder = WorkflowBuilder()
 TMP_DIR = _builder.tmp_dir
-
-
-def _not_implemented(detail: str):
-    """Phase-3 placeholder. Returning 501 (not 500) flags this as designed
-    behaviour to anyone hitting the endpoint during the build-out window."""
-    raise HTTPException(status_code=501, detail=f"{detail} — phase 3 placeholder")
 
 
 # ---------------------------------------------------------------------------
@@ -460,8 +468,33 @@ async def get_measurement_tree(measurement_id: str, db: Session = Depends(get_db
 
 
 # ---------------------------------------------------------------------------
-# Phase 3 placeholders — to be filled in by Tasks 3.1-3.6
+# Phase 3: annotation upsert + submit / retry-fhir + CRUD + stream proxy
 # ---------------------------------------------------------------------------
+
+
+def _set_stage_failure(
+    measurement: Measurement,
+    stage: str,
+    err: Exception,
+    *,
+    db: Session,
+    terminal_status: MeasurementStatus,
+) -> None:
+    """Record a stage failure on the measurement row + commit so polling sees it.
+
+    ``terminal_status`` is the bucket the failure lands in:
+      - SUBMIT_FAILED for stages 1-3 (staging / fhir_build / upload)
+      - FHIR_FAILED for stages 4-6 (finalize / fhir_push)
+    """
+    measurement.failure_stage = stage
+    measurement.failure_message = str(err) or err.__class__.__name__
+    measurement.status = terminal_status.value
+    measurement.updated_at = datetime.utcnow()
+    db.commit()
+    logger.error(
+        f"Measurement {measurement.id} stage '{stage}' failed "
+        f"({terminal_status.value}): {measurement.failure_message}"
+    )
 
 
 @router.post("/{measurement_id}/annotation", response_model=MeasurementAnnotationResponse)
@@ -470,44 +503,393 @@ async def upsert_measurement_annotation(
     annotation: MeasurementAnnotationCreate,
     db: Session = Depends(get_db),
 ):
-    _not_implemented("annotation")
+    """Insert or update the single MeasurementAnnotation row tied to this
+    measurement. Idempotent so /submit retries don't trip the unique
+    constraint.
+
+    The inbound ``descriptions`` dict comes through the frontend's
+    deepSnakeize interceptor (http.ts), so we canonicalise it via
+    :func:`deep_camelize_keys` before storage. From this point on the
+    in-DB shape matches what fhir-cda expects natively (camelCase keys).
+    """
+    measurement: Optional[Measurement] = db.query(Measurement).filter(
+        Measurement.id == measurement_id
+    ).first()  # type: ignore
+    if measurement is None:
+        raise HTTPException(status_code=404, detail="Measurement not found")
+
+    descriptions = deep_camelize_keys(annotation.descriptions or {})
+
+    existing: Optional[MeasurementAnnotation] = db.query(MeasurementAnnotation).filter(
+        MeasurementAnnotation.measurement_id == measurement_id
+    ).first()  # type: ignore
+
+    if existing is None:
+        row = MeasurementAnnotation(
+            measurement_id=measurement_id,
+            annotation_id=str(uuid.uuid4()),
+            descriptions=descriptions,
+        )
+        db.add(row)
+    else:
+        existing.descriptions = descriptions
+        existing.updated_at = datetime.utcnow()
+        row = existing
+
+    db.commit()
+    db.refresh(row)
+    return row
 
 
 @router.post("/{measurement_id}/submit", response_model=MeasurementResponse)
 async def submit_measurement(measurement_id: str, db: Session = Depends(get_db)):
-    _not_implemented("submit")
+    """Run the 6-stage submit pipeline synchronously:
+    staging → fhir_build → upload → finalize → fhir_push.
+
+    Stage failures bucket into one of two terminal states:
+      - stages 1-3 (staging / fhir_build / upload) → SUBMIT_FAILED, MinIO rolled back
+      - stages 4-6 (finalize / fhir_push) → FHIR_FAILED, MinIO retained (retry via /retry-fhir)
+    """
+    measurement: Optional[Measurement] = db.query(Measurement).filter(
+        Measurement.id == measurement_id
+    ).first()  # type: ignore
+    if measurement is None:
+        raise HTTPException(status_code=404, detail="Measurement not found")
+    if measurement.status not in (
+        MeasurementStatus.PENDING.value,
+        MeasurementStatus.SUBMIT_FAILED.value,
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Submit rejected: status={measurement.status} "
+                   "(only pending / submit_failed can submit)",
+        )
+
+    annotation: Optional[MeasurementAnnotation] = db.query(MeasurementAnnotation).filter(
+        MeasurementAnnotation.measurement_id == measurement_id
+    ).first()  # type: ignore
+    if annotation is None or not annotation.descriptions:
+        raise HTTPException(
+            status_code=400,
+            detail="No annotation found; POST /api/measurement/{id}/annotation first.",
+        )
+    descriptions = annotation.descriptions  # already camelCase by /annotation contract
+    # propagate the persisted dataset uuid onto the measurement row so retry / delete
+    # can find hapi-fhir resources by identifier.
+    dataset_uuid = descriptions.get("dataset", {}).get("uuid") or mock_dataset_uuid()
+    measurement.uuid = dataset_uuid
+
+    # Lock-in: any prior failure_* fields are obsolete the moment we re-submit.
+    measurement.status = MeasurementStatus.UPLOADING.value
+    measurement.failure_stage = None
+    measurement.failure_message = None
+    db.commit()
+
+    dataset_path = Path(measurement.dataset_path) if measurement.dataset_path else None
+    expose = measurement.expose_name
+
+    # --- Stage 1: staging ----------------------------------------------------
+    try:
+        if dataset_path is None or not dataset_path.exists():
+            raise FileNotFoundError(f"dataset_path missing on disk: {dataset_path}")
+        primary = dataset_path / "primary"
+        if not primary.exists():
+            raise FileNotFoundError(f"primary/ missing under dataset_path: {dataset_path}")
+    except Exception as e:
+        _set_stage_failure(measurement, "staging", e, db=db,
+                           terminal_status=MeasurementStatus.SUBMIT_FAILED)
+        raise HTTPException(status_code=500, detail=measurement.failure_message)
+
+    # --- Stage 2: fhir_build (write fhir.json with mock endpoint URLs) -------
+    try:
+        annotator = MeasurementsFhirAnnotator(dataset_path)
+        apply_descriptions(annotator, descriptions, dataset_path)
+        annotator.save()
+    except Exception as e:
+        _set_stage_failure(measurement, "fhir_build", e, db=db,
+                           terminal_status=MeasurementStatus.SUBMIT_FAILED)
+        raise HTTPException(status_code=500, detail=measurement.failure_message)
+
+    # --- Stage 3: upload (full dataset to MinIO) -----------------------------
+    try:
+        s3_path = upload_full_dataset(dataset_path, expose, minio)
+        measurement.s3_path = s3_path
+        db.commit()
+    except Exception as e:
+        _set_stage_failure(measurement, "upload", e, db=db,
+                           terminal_status=MeasurementStatus.SUBMIT_FAILED)
+        # Best-effort rollback so a retry doesn't see half-uploaded blobs.
+        rollback_minio(expose, minio)
+        raise HTTPException(status_code=500, detail=measurement.failure_message)
+
+    # --- Stage 4 (finalize) + Stage 5 (re-upload single fhir.json) ----------
+    try:
+        updated_descriptions = compute_endpoint_urls(measurement, descriptions)
+        # Default mode (not update): re-walk primary/ from scratch and replay
+        # the URL-updated descriptions. Avoids upstream fhir-cda 1.2.5's
+        # `DocumentReferenceMeasurement()` no-arg bug that fires when loading
+        # measurements.json with documentReference entries.
+        annotator2 = MeasurementsFhirAnnotator(dataset_path)
+        apply_descriptions(annotator2, updated_descriptions, dataset_path)
+        annotator2.save()
+        # Persist the URL-rewritten descriptions back to the annotation row
+        # so /retry-fhir and read-back see the final shape.
+        annotation.descriptions = updated_descriptions
+        annotation.updated_at = datetime.utcnow()
+        upload_fhir_json(dataset_path, expose, minio)
+        db.commit()
+    except Exception as e:
+        _set_stage_failure(measurement, "finalize", e, db=db,
+                           terminal_status=MeasurementStatus.FHIR_FAILED)
+        # Don't roll back MinIO — partial upload + mock-URL fhir.json is still
+        # a recoverable state; /retry-fhir will overwrite the fhir.json.
+        raise HTTPException(status_code=500, detail=measurement.failure_message)
+
+    # --- Stage 6: fhir_push --------------------------------------------------
+    try:
+        fhir_dict = read_fhir_json(dataset_path)
+        # Defensive cleanup before push: if a prior failed push left half-baked
+        # resources on hapi-fhir under this dataset's identifier, remove them.
+        await delete_hapi_fhir_resources(measurement.uuid, fhir_async_client)
+        await push_to_hapi_fhir(fhir_dict, adapter)
+    except Exception as e:
+        _set_stage_failure(measurement, "fhir_push", e, db=db,
+                           terminal_status=MeasurementStatus.FHIR_FAILED)
+        raise HTTPException(status_code=500, detail=measurement.failure_message)
+
+    measurement.status = MeasurementStatus.COMPLETED.value
+    measurement.failure_stage = None
+    measurement.failure_message = None
+    measurement.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(measurement)
+    logger.info(f"Measurement {measurement.id} submit complete (expose={expose})")
+    return measurement
 
 
 @router.post("/{measurement_id}/retry-fhir", response_model=MeasurementResponse)
 async def retry_measurement_fhir(measurement_id: str, db: Session = Depends(get_db)):
-    _not_implemented("retry-fhir")
+    """Re-run stages 4-6 only. Rejects when status != fhir_failed (409).
+
+    Uses ``delete_hapi_fhir_resources`` for idempotency: a prior failed push
+    may have left partial resources on hapi-fhir; we sweep them by identifier
+    before re-pushing so retries can't introduce duplicates."""
+    measurement: Optional[Measurement] = db.query(Measurement).filter(
+        Measurement.id == measurement_id
+    ).first()  # type: ignore
+    if measurement is None:
+        raise HTTPException(status_code=404, detail="Measurement not found")
+    if measurement.status != MeasurementStatus.FHIR_FAILED.value:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Retry rejected: status={measurement.status} (only fhir_failed can retry)",
+        )
+
+    annotation: Optional[MeasurementAnnotation] = db.query(MeasurementAnnotation).filter(
+        MeasurementAnnotation.measurement_id == measurement_id
+    ).first()  # type: ignore
+    if annotation is None or not annotation.descriptions:
+        raise HTTPException(status_code=400, detail="Annotation row missing; cannot retry.")
+    descriptions = annotation.descriptions
+
+    dataset_path = Path(measurement.dataset_path) if measurement.dataset_path else None
+    if dataset_path is None or not dataset_path.exists():
+        raise HTTPException(
+            status_code=410,
+            detail="dataset_path missing on disk; cannot retry — re-upload required.",
+        )
+    expose = measurement.expose_name
+
+    measurement.status = MeasurementStatus.UPLOADING.value
+    measurement.failure_stage = None
+    measurement.failure_message = None
+    db.commit()
+
+    # finalize again (in case Step 4 had failed)
+    try:
+        updated_descriptions = compute_endpoint_urls(measurement, descriptions)
+        annotator = MeasurementsFhirAnnotator(dataset_path, mode="update")
+        apply_descriptions(annotator, updated_descriptions, dataset_path)
+        annotator.save()
+        annotation.descriptions = updated_descriptions
+        annotation.updated_at = datetime.utcnow()
+        upload_fhir_json(dataset_path, expose, minio)
+        db.commit()
+    except Exception as e:
+        _set_stage_failure(measurement, "finalize", e, db=db,
+                           terminal_status=MeasurementStatus.FHIR_FAILED)
+        raise HTTPException(status_code=500, detail=measurement.failure_message)
+
+    try:
+        fhir_dict = read_fhir_json(dataset_path)
+        await delete_hapi_fhir_resources(measurement.uuid, fhir_async_client)
+        await push_to_hapi_fhir(fhir_dict, adapter)
+    except Exception as e:
+        _set_stage_failure(measurement, "fhir_push", e, db=db,
+                           terminal_status=MeasurementStatus.FHIR_FAILED)
+        raise HTTPException(status_code=500, detail=measurement.failure_message)
+
+    measurement.status = MeasurementStatus.COMPLETED.value
+    measurement.failure_stage = None
+    measurement.failure_message = None
+    measurement.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(measurement)
+    logger.info(f"Measurement {measurement.id} retry-fhir complete (expose={expose})")
+    return measurement
+
+
+# ---------------------------------------------------------------------------
+# Read / list / delete / metadata / stream
+# ---------------------------------------------------------------------------
 
 
 @router.get("/", response_model=List[MeasurementResponse])
 async def list_measurements(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    _not_implemented("list")
+    rows = (
+        db.query(Measurement)
+        .order_by(Measurement.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    return rows
 
 
 @router.get("/metadata")
 async def get_metadata_json(db: Session = Depends(get_db)):
-    _not_implemented("metadata")
+    """Components-shape payload (uuid/id/name/path/expose/...) for downstream
+    consumers, mirroring workflow_router.get_metadata_json. Only completed
+    measurements appear here — pending / in-flight / failed ones are kept
+    out of the public component listing."""
+    use_ssl = os.getenv("USE_SSL", "false").lower() == "true"
+    proto = "https" if use_ssl else "http"
+    host = os.getenv("PORTAL_BACKEND_HOST", "localhost")
+
+    components = []
+    rows = db.query(Measurement).filter(
+        Measurement.status == MeasurementStatus.COMPLETED.value
+    ).all()
+    for m in rows:
+        if not m.expose_name:
+            continue
+        components.append(
+            {
+                "uuid": m.uuid or "",
+                "id": m.id,
+                "name": m.name,
+                "path": f"{proto}://{host}/api/measurement/{m.expose_name}/primary",
+                "expose": m.expose_name,
+                "description": m.description or "",
+                "created_at": m.created_at.isoformat() if m.created_at else "",
+                "is_local": m.s3_path is None,
+                "config": {},
+            }
+        )
+
+    return JSONResponse(
+        content={"components": components},
+        headers={"Cache-Control": "no-cache, no-store"},
+    )
 
 
 @router.get("/{measurement_id}", response_model=MeasurementResponse)
 async def get_measurement(measurement_id: str, db: Session = Depends(get_db)):
-    _not_implemented("get")
+    measurement = db.query(Measurement).filter(
+        Measurement.id == measurement_id
+    ).first()  # type: ignore
+    if measurement is None:
+        raise HTTPException(status_code=404, detail="Measurement not found")
+    return measurement
 
 
 @router.delete("/{measurement_id}")
 async def delete_measurement(measurement_id: str, db: Session = Depends(get_db)):
-    _not_implemented("delete")
+    """Cascade-delete: MinIO prefix, dataset_path on disk, DB row (with
+    annotation via FK CASCADE), and hapi-fhir resources searched by
+    identifier=measurement.uuid. Best-effort on each external system —
+    we always close out the DB row even if MinIO / FHIR cleanup partially
+    fails, so the user can rebuild from scratch."""
+    try:
+        measurement = db.query(Measurement).filter(
+            Measurement.id == measurement_id
+        ).first()  # type: ignore
+        if measurement is None:
+            return {"status": True, "message": "Already absent."}
+
+        expose = measurement.expose_name
+        dataset_path = Path(measurement.dataset_path) if measurement.dataset_path else None
+        meas_uuid = measurement.uuid
+
+        # MinIO cleanup
+        if expose:
+            try:
+                keys = minio.list_objects(prefix=f"{expose}/")
+                if keys:
+                    minio.delete_objects(delete_keys=keys)
+                    logger.info(f"Deleted {len(keys)} MinIO objects for {expose}")
+            except Exception as e:
+                logger.warning(f"MinIO cleanup failed for {expose}: {e}")
+
+        # Disk cleanup
+        if dataset_path and dataset_path.exists():
+            try:
+                force_rmtree(dataset_path)
+                logger.info(f"Deleted dataset dir {dataset_path}")
+            except Exception as e:
+                logger.warning(f"Disk cleanup failed for {dataset_path}: {e}")
+
+        # hapi-fhir cleanup
+        if meas_uuid:
+            removed = await delete_hapi_fhir_resources(meas_uuid, fhir_async_client)
+            if removed:
+                logger.info(f"Removed hapi-fhir resources: {removed}")
+
+        db.delete(measurement)
+        db.commit()
+        return {"status": True, "message": "Measurement deleted successfully."}
+    except Exception as e:
+        logger.error(f"delete_measurement {measurement_id} failed: {e}")
+        return {"status": False, "message": str(e)}
 
 
 @router.get("/{measurement_id}/annotation", response_model=MeasurementAnnotationResponse)
 async def get_measurement_annotation(measurement_id: str, db: Session = Depends(get_db)):
-    _not_implemented("get-annotation")
+    """Return the stored annotation so retries / Step 2 rehydration can read
+    back the descriptions tree (camelCase shape)."""
+    annotation = db.query(MeasurementAnnotation).filter(
+        MeasurementAnnotation.measurement_id == measurement_id
+    ).first()  # type: ignore
+    if annotation is None:
+        raise HTTPException(status_code=404, detail="Measurement Annotation not found")
+    return annotation
 
 
 @router.get("/{expose_name}/primary/{path:path}")
 async def stream_measurement_object(expose_name: str, path: str):
-    _not_implemented("stream-object")
+    """Stream a single object out of the private ``measurements`` bucket.
+    Mirrors ``workflow_router.stream_workflow_object`` — needed because the
+    public nginx ``/tools/`` pass-through doesn't serve the private bucket,
+    and direct MinIO ports are no longer published to the host."""
+    object_key = f"{expose_name}/primary/{path}"
+    try:
+        obj = minio.client.get_object(Bucket=minio.bucket_name, Key=object_key)
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code")
+        if code in ("404", "NoSuchKey"):
+            raise HTTPException(status_code=404, detail=f"Measurement object not found: {object_key}")
+        logger.error(f"MinIO get_object failed for {object_key}: {e}")
+        raise HTTPException(status_code=503, detail="Measurement storage temporarily unavailable")
+
+    content_type = obj.get("ContentType") or mimetypes.guess_type(path)[0] or "application/octet-stream"
+
+    headers = {"Cache-Control": "private, max-age=300"}
+    content_length = obj.get("ContentLength")
+    if content_length is not None:
+        headers["Content-Length"] = str(content_length)
+
+    return StreamingResponse(
+        obj["Body"].iter_chunks(chunk_size=64 * 1024),
+        media_type=content_type,
+        headers=headers,
+    )

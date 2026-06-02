@@ -32,40 +32,30 @@ from fhir_cda.ehr.elements import ImagingStudySeries
 
 
 class MeasurementsFhirAnnotator(MeasurementAnnotator):
-    """Override upstream's hardcoded ``measurements.json`` to write/read ``fhir.json``.
+    """Override upstream's hardcoded ``measurements.json`` to write ``fhir.json``.
 
     In default mode this is trivial: set ``_category = "fhir"`` after the
     base class has used the "measurements" category for its own analysis,
     so ``save()`` ends up at ``fhir.json``.
 
-    In update mode the base class reads ``measurements.json`` at the top of
-    ``__init__``. We can't subclass that read, so we temporarily rename
-    ``fhir.json -> measurements.json`` before super().__init__ and clean up
-    the temp file after. The net effect: caller never sees ``measurements.json``
-    on disk; only ``fhir.json`` exists at rest.
+    The submit pipeline (``app.services.measurement_service``) only ever
+    instantiates this in default mode. We did originally support update mode
+    too (via a rename dance), but:
+      1. upstream fhir-cda 1.2.5 has a bug in
+         ``DocumentReferenceMeasurement().set(item)`` — the no-arg
+         constructor rejects ``attachments=None``, so update-mode load
+         crashes whenever the prior measurements.json had any
+         DocumentReference entries.
+      2. Our descriptions tree always lives in the DB; we never need to
+         re-hydrate it from disk, so update mode added no value either way.
+    The ``mode`` parameter is therefore accepted but ignored — kept for
+    upstream API parity in case external callers pass it.
     """
 
     def __init__(self, dataset_path, mode: str = "default"):
-        dataset_root = Path(dataset_path)
-        fhir_path = dataset_root / "fhir.json"
-        mm_path = dataset_root / "measurements.json"
-
-        # update mode: library expects measurements.json — rename in.
-        renamed_for_update = False
-        if mode == "update" and fhir_path.exists() and not mm_path.exists():
-            fhir_path.rename(mm_path)
-            renamed_for_update = True
-
-        try:
-            super().__init__(dataset_path, mode)
-        finally:
-            # Clean up either the temp rename (update mode) or any stray
-            # measurements.json the library wrote during default-mode init.
-            if renamed_for_update and mm_path.exists():
-                # If anything blew up during super().__init__ we still want
-                # fhir.json back to its original spot.
-                mm_path.rename(fhir_path)
-
+        # We accept ``mode`` for API parity but always run the upstream
+        # default branch — see class docstring for why.
+        super().__init__(dataset_path, "default")
         # Flip the category so save() writes fhir.json from this point on.
         self._category = "fhir"
 
