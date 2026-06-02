@@ -92,6 +92,12 @@ fhir_async_client = get_fhir_async_client()
 _DATASET_DIR = Path(os.getenv("DATASET_DIR_MEASUREMENT", "./datasets_measurement"))
 _DATASET_DIR.mkdir(parents=True, exist_ok=True)
 
+# Interim ceiling for measurement uploads (typical DICOM datasets are
+# several GB). Mirrors nginx `client_max_body_size 20g` on the
+# /api/measurement/upload-source location. Replace with chunked upload
+# once Plan 05 ships; until then keep both sides in sync.
+_MEASUREMENT_UPLOAD_MAX_BYTES = 20 * 1024 * 1024 * 1024
+
 # Reuse the workflow builder's tmp dir for upload staging — extract_uploaded_archive
 # writes to tmp/upload_<id>/ regardless of source type, and orphan cleanup in
 # main.py already scans tmp/ for stale uploads.
@@ -154,7 +160,9 @@ async def upload_measurement_source(file: UploadFile = File(...)):
                 out.write(chunk)
 
         try:
-            staging = extract_uploaded_archive(TMP_DIR, tmp_zip)
+            staging = extract_uploaded_archive(
+                TMP_DIR, tmp_zip, max_total_bytes=_MEASUREMENT_UPLOAD_MAX_BYTES
+            )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except zipfile.BadZipFile:

@@ -33,6 +33,7 @@
       <LocalFolderDropzone
         ref="dropzone"
         :detected-folders="detectedFolders"
+        :max-total-bytes="MEASUREMENT_UPLOAD_MAX_BYTES"
         @source-selected="onSourceSelected"
         @cancel-requested="onUploadCancel"
       />
@@ -104,6 +105,12 @@ import {
 import { useCheckName } from '@/bootstrap/api_helpers';
 import { useCreateMeasurement } from '@/bootstrap/measurement_api';
 import type { CheckNameResponse, MeasurementInformationStep, MeasurementResponse } from '@/models/types';
+
+// Interim ceiling for measurement uploads — must stay in sync with nginx
+// (`client_max_body_size 20g` on the measurement upload-source location) and
+// the backend (`_MEASUREMENT_UPLOAD_MAX_BYTES` in measurement_router.py).
+// Replaced by chunked upload once Plan 05 ships.
+const MEASUREMENT_UPLOAD_MAX_BYTES = 20 * 1024 * 1024 * 1024;
 
 const emit = defineEmits<{
   (e: 'created', m: MeasurementResponse): void;

@@ -35,7 +35,7 @@
         <div class="text-h6 mt-2">Drag a folder or a .zip file here, or click to browse</div>
         <div class="text-caption text-grey-lighten-1 mt-1">
           We auto-skip <code>node_modules</code>, <code>.git</code>,
-          <code>dist</code>, <code>build</code>. Max total size 500 MB.
+          <code>dist</code>, <code>build</code>. Max total size {{ formatBytes(MAX_TOTAL_BYTES) }}.
         </div>
         <a
           href="#"
@@ -132,12 +132,22 @@ export type DropzonePhase =
   | 'ready'
   | 'error';
 
-const props = defineProps<{
-  /** Detected folders to show in the ready summary (from server response). */
-  detectedFolders?: string[];
-  /** Detected version to show in the ready summary. */
-  detectedVersion?: string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    /** Detected folders to show in the ready summary (from server response). */
+    detectedFolders?: string[];
+    /** Detected version to show in the ready summary. */
+    detectedVersion?: string;
+    /**
+     * Per-caller upload ceiling. Tool / workflow stays at 500 MB; measurement
+     * raises it to 20 GB to fit DICOM datasets (matches nginx + backend).
+     */
+    maxTotalBytes?: number;
+  }>(),
+  {
+    maxTotalBytes: 500 * 1024 * 1024,
+  },
+);
 
 const emit = defineEmits<{
   (e: 'source-selected', source: LocalSource): void;
@@ -145,7 +155,7 @@ const emit = defineEmits<{
   (e: 'cancel-requested'): void;
 }>();
 
-const MAX_TOTAL_BYTES = 500 * 1024 * 1024;
+const MAX_TOTAL_BYTES = props.maxTotalBytes;
 const FOLDER_BLACKLIST = new Set(['node_modules', '.git', 'dist', 'build']);
 
 const folderInput = ref<HTMLInputElement | null>(null);
@@ -462,7 +472,7 @@ function finalizeFolderScan(files: File[]) {
   }
 
   if (keptS > MAX_TOTAL_BYTES) {
-    errorMessage.value = `Folder is ${formatBytes(keptS)} after filtering — exceeds the 500 MB upload limit.`;
+    errorMessage.value = `Folder is ${formatBytes(keptS)} after filtering — exceeds the ${formatBytes(MAX_TOTAL_BYTES)} upload limit.`;
     setPhase('error');
     return;
   }
@@ -495,7 +505,7 @@ async function handleZipFile(file: File) {
   await yieldToPaint();
 
   if (file.size > MAX_TOTAL_BYTES) {
-    errorMessage.value = `Archive is ${formatBytes(file.size)} — exceeds the 500 MB upload limit.`;
+    errorMessage.value = `Archive is ${formatBytes(file.size)} — exceeds the ${formatBytes(MAX_TOTAL_BYTES)} upload limit.`;
     setPhase('error');
     return;
   }
