@@ -382,3 +382,121 @@ class WorkflowAnnotationResponse(AnnotationBase):
 
     class Config:
         from_attributes = True
+
+
+# ---------------------------------------------------------------------------
+# Measurements (plan 07): SPARC measurements dataset upload.
+#
+# Differences vs Workflow:
+#  - No build pipeline (upload is already SPARC, no SPARC packaging step)
+#  - No version/author (measurements aren't versioned source code)
+#  - Single per-measurement status machine — no separate builds table
+#  - local source only (no github)
+# ---------------------------------------------------------------------------
+
+
+class MeasurementStatus(PyEnum):
+    PENDING = "pending"          # /create done, awaiting annotation+submit
+    UPLOADING = "uploading"      # submit in progress (any of 6 stages)
+    SUBMIT_FAILED = "submit_failed"  # failure during stages 1-3 (staging/fhir_build/upload), MinIO rolled back
+    FHIR_FAILED = "fhir_failed"      # failure during stages 4-6 (finalize/fhir_push), MinIO retained
+    COMPLETED = "completed"      # all 6 stages succeeded
+
+
+class Measurement(Base):
+    __tablename__ = "measurements"
+
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    uuid = Column(String, unique=True, nullable=True)        # mock placeholder until digitaltwins-api integration
+    name = Column(String, index=True, nullable=False)
+    description = Column(Text, nullable=True)
+    # Staging copy under DATASET_DIR_MEASUREMENT/<expose_name>. After /create
+    # the source is moved here from tmp/upload_<id>/<project_root>.
+    dataset_path = Column(String, nullable=True)
+    expose_name = Column(String, unique=True, nullable=True)
+    s3_path = Column(String, nullable=True)                  # e.g. s3://measurements/<expose>
+    # Original tmp/upload_<id> mirror (kept for parity with workflow.local_archive_path
+    # so any future cleanup utility can locate it). For measurements the
+    # canonical staging is dataset_path; this column is mostly historical.
+    local_archive_path = Column(String, nullable=True)
+    status = Column(String, default=MeasurementStatus.PENDING.value, nullable=False)
+    # When a stage fails, record which one + the human message. Cleared on success.
+    # Values: "staging" / "fhir_build" / "upload" / "finalize" / "fhir_push"
+    failure_stage = Column(String, nullable=True)
+    failure_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    annotation = relationship(
+        "MeasurementAnnotation",
+        back_populates="measurement",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+
+class MeasurementAnnotation(Base):
+    __tablename__ = "measurement_annotations"
+
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    measurement_id = Column(
+        String,
+        ForeignKey("measurements.id", ondelete="CASCADE"),
+        unique=True,            # one annotation per measurement; retry updates in place
+        nullable=False,
+    )
+    annotation_id = Column(String, unique=True, index=True, nullable=False, default=lambda: str(uuid.uuid4()))
+    # The full fhir-cda descriptions JSON ({"dataset": {...}, "patients": [...]})
+    # with `_auto` markers stripped client-side before POST. This is the input
+    # to MeasurementsFhirAnnotator on submit/retry.
+    descriptions = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    measurement = relationship("Measurement", back_populates="annotation", uselist=False)
+
+
+# --- Pydantic ---------------------------------------------------------------
+
+class MeasurementBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
+class MeasurementCreate(MeasurementBase):
+    # local-only: upload_id is REQUIRED (no github source path for measurements)
+    upload_id: str
+
+
+class MeasurementResponse(MeasurementBase):
+    id: str
+    uuid: Optional[str] = None
+    dataset_path: Optional[str] = None
+    expose_name: Optional[str] = None
+    s3_path: Optional[str] = None
+    status: str
+    failure_stage: Optional[str] = None
+    failure_message: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class MeasurementAnnotationCreate(BaseModel):
+    # Whole fhir-cda descriptions tree; server validates shape against fhir-cda
+    # at submit time, so we don't re-enforce it here (avoids drift).
+    descriptions: dict
+
+
+class MeasurementAnnotationResponse(BaseModel):
+    id: str
+    measurement_id: str
+    annotation_id: str
+    descriptions: Optional[dict] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

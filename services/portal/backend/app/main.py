@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from pathlib import Path
 import io
-from app.router import dashboard, clinical_report_viewer, workflow_tool_plugin, workflow_router
+from app.router import dashboard, clinical_report_viewer, workflow_tool_plugin, workflow_router, measurement_router
 from contextlib import asynccontextmanager
 from app.database.database import init_db
 from dotenv import load_dotenv
@@ -197,6 +197,7 @@ app.include_router(clinical_report_viewer.router)
 app.include_router(workflow_tool_plugin.router)
 
 app.include_router(workflow_router.router)
+app.include_router(measurement_router.router)
 
 # app.add_middleware(
 #     CORSMiddleware,
