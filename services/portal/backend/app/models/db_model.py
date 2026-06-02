@@ -385,7 +385,7 @@ class WorkflowAnnotationResponse(AnnotationBase):
 
 
 # ---------------------------------------------------------------------------
-# Measurements (plan 07): SPARC measurements dataset upload.
+# Measurements: SPARC measurements dataset upload.
 #
 # Differences vs Workflow:
 #  - No build pipeline (upload is already SPARC, no SPARC packaging step)

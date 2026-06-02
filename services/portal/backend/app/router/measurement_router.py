@@ -1,9 +1,11 @@
-"""Measurements upload router (plan 07).
+"""Measurements upload router.
 
-Phase 2 (upload-source / check-name / create / tree) is implemented here.
-Phase 3 (annotation / submit / retry-fhir / CRUD / stream) endpoints still
-return 501; they delegate to ``app.services.measurement_service`` once that
-module lands.
+Endpoints implemented here:
+  - POST /upload-source / GET /check-name / POST /create / GET /{id}/tree
+  - POST /{id}/annotation (upsert) / GET /{id}/annotation
+  - POST /{id}/submit (6-stage pipeline) / POST /{id}/retry-fhir
+  - GET / / GET /{id} / DELETE /{id} / GET /metadata
+  - GET /{expose}/primary/{path:path} (stream proxy)
 
 Bucket: ``measurements`` (private, streamed through this backend; never
 direct from MinIO). Staging directory: ``DATASET_DIR_MEASUREMENT`` env, default
@@ -98,7 +100,7 @@ TMP_DIR = _builder.tmp_dir
 
 
 # ---------------------------------------------------------------------------
-# Phase 2: source acquisition + create + tree
+# Source acquisition + create + tree
 # ---------------------------------------------------------------------------
 
 
@@ -468,7 +470,7 @@ async def get_measurement_tree(measurement_id: str, db: Session = Depends(get_db
 
 
 # ---------------------------------------------------------------------------
-# Phase 3: annotation upsert + submit / retry-fhir + CRUD + stream proxy
+# Annotation upsert + submit / retry-fhir + CRUD + stream proxy
 # ---------------------------------------------------------------------------
 
 

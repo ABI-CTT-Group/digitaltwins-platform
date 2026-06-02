@@ -300,7 +300,7 @@ export interface WorkflowStepAnnotation {
 export type BaseInformationStep = ToolInformationStep | WorkflowInformationStep;
 
 // ---------------------------------------------------------------------------
-// Measurements upload (plan 07)
+// Measurements upload
 // ---------------------------------------------------------------------------
 //
 // NOTE: `_auto` is a UI-only marker (set by the backend on /tree to hint which

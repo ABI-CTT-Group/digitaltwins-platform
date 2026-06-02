@@ -1,5 +1,5 @@
 /**
- * Measurement API client (plan 07).
+ * Measurement API client.
  *
  * Mirrors the workflow client shape (one function per endpoint), but:
  *  - No `latestBuild` enrichment — measurements have no builds table.

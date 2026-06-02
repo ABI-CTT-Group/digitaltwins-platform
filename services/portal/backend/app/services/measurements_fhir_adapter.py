@@ -1,26 +1,25 @@
 """Subclasses that bridge two gaps in the upstream ``fhir_cda`` library
-for the measurements upload flow (plan 07).
+for the measurements upload flow.
 
 Both subclasses are deliberately tiny — we want every difference vs upstream
 in one place so a future patch / library upgrade is a 5-minute diff. The
 intent is to file these upstream eventually; until then they live here.
 
-S1: filename
-----------------
+Filename override
+-----------------
 ``MeasurementAnnotator`` hard-codes its category to ``"measurements"``, and
 the abstract base writes ``<root>/<category>.json`` on save. The portal
 standardises on ``fhir.json`` so workflows / processes / measurements all
 emit the same filename. ``MeasurementsFhirAnnotator`` flips that one
-attribute and handles the round-trip dance in update mode (library reads
-``measurements.json``, so we rename in then rename out).
+attribute.
 
-S2: .nii (without .gz) support
-------------------
+Bare ``.nii`` support
+---------------------
 ``ImagingStudyMeasurement._read_sam`` only globs ``*.nii.gz``; a sample
-folder containing a bare ``test.nii`` is silently dropped. The classifier
-treats both as ImagingStudy, so the annotator must too. ``NiiCompatibleImagingStudy``
-extends the glob and falls through to the upstream implementation for
-DCM/NRRD/NII.GZ cases unchanged.
+folder containing a bare ``test.nii`` is silently dropped. The portal's
+classifier treats both as ImagingStudy, so the annotator must too.
+``NiiCompatibleImagingStudy`` extends the glob and falls through to the
+upstream implementation for DCM/NRRD/NII.GZ cases unchanged.
 """
 from __future__ import annotations
 
@@ -29,6 +28,10 @@ from pathlib import Path
 from fhir_cda.annotator.measurement_annotator import MeasurementAnnotator
 from fhir_cda.ehr import ImagingStudyMeasurement
 from fhir_cda.ehr.elements import ImagingStudySeries
+
+from app.builder.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class MeasurementsFhirAnnotator(MeasurementAnnotator):
@@ -64,9 +67,9 @@ class NiiCompatibleImagingStudy(ImagingStudyMeasurement):
     """Extend upstream's ``_read_sam`` to recognise bare ``*.nii`` files.
 
     Upstream globs ``*.nii.gz`` only, so a sample folder containing
-    ``something.nii`` is treated as empty and the series is dropped. Plan 07
-    classifies both extensions as ImagingStudy candidates, so this subclass
-    keeps them consistent.
+    ``something.nii`` is treated as empty and the series is dropped. The
+    portal's classifier accepts both extensions as ImagingStudy candidates,
+    so this subclass keeps them consistent.
 
     Behaviour:
       - Pure DCM / NRRD / NII.GZ sample → delegate to super() unchanged.
@@ -116,5 +119,5 @@ class NiiCompatibleImagingStudy(ImagingStudyMeasurement):
         except Exception as e:
             # Mirror upstream's swallow-and-log posture so the calling
             # _generate_imaging_study loop can move on to other samples.
-            print(f"Error reading {sam}: {e}")
+            logger.warning(f"Error reading {sam}: {e}")
             return None

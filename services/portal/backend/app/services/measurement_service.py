@@ -1,4 +1,4 @@
-"""Submit / retry pipeline helpers for the measurements upload flow (plan 07).
+"""Submit / retry pipeline helpers for the measurements upload flow.
 
 Why this module exists
 ----------------------

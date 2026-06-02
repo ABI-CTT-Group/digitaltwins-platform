@@ -1,4 +1,4 @@
-"""Auto-classifier for SPARC measurement sample folders (plan 07, Task 2.1).
+"""Auto-classifier for SPARC measurement sample folders.
 
 Given a ``sample`` directory under ``primary/<patient>/<sample>/`` the
 classifier inspects file extensions and returns a structured hint telling

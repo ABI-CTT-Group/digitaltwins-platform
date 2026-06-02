@@ -266,7 +266,7 @@ def unique_name(name: str) -> str:
 
 
 def validate_sparc_structure(staging: Path) -> tuple[bool, str]:
-    """Strict structural check for a SPARC measurements dataset (plan 07, Task 2.2).
+    """Strict structural check for a SPARC measurements dataset.
 
     A valid SPARC dataset (post-resolve_project_root) MUST contain:
       - ``dataset_description.xlsx`` OR ``dataset_description.json`` at root
