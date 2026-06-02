@@ -18,6 +18,7 @@ import LaunchedAssayOverview from "@/views/study/assay-overview.vue";
 import UploadDataset from "@/views/upload-dataset/index.vue";
 import UploadToolDataset from "@/views/upload-dataset/workflow-tool/index.vue";
 import UploadWorkflowDataset from "@/views/upload-dataset/workflow/index.vue";
+import UploadMeasurementsDataset from "@/views/upload-dataset/measurements/index.vue";
 
 import ToolPluginView from "@/views/tool-plugin/tool-plugin-view.vue";
 
@@ -85,6 +86,12 @@ const routes = [
                 name: "UploadWorkflowDataset",
                 component: UploadWorkflowDataset,
                 meta: { requiresAuth: true, requiresRoles: ['admin'], showBack: true },
+              },
+              {
+                path: "/upload-dataset/measurements",
+                name: "UploadMeasurementsDataset",
+                component: UploadMeasurementsDataset,
+                meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'], showBack: true },
               },
             ]
           },

@@ -265,6 +265,53 @@ def unique_name(name: str) -> str:
     return f"{clean}_{uuid.uuid4().hex[:8]}"
 
 
+def validate_sparc_structure(staging: Path) -> tuple[bool, str]:
+    """Strict structural check for a SPARC measurements dataset (plan 07, Task 2.2).
+
+    A valid SPARC dataset (post-resolve_project_root) MUST contain:
+      - ``dataset_description.xlsx`` OR ``dataset_description.json`` at root
+      - a ``primary/`` subdirectory
+      - at least one patient subdirectory under ``primary/``
+
+    Returns (ok, message). On failure, message is a human-readable string
+    suitable for surfacing in a 400 response. On success, message is empty.
+    """
+    if not staging.exists() or not staging.is_dir():
+        return (False, f"Staging directory not found: {staging}")
+
+    # Project root after stripping single-wrapper dirs (GitHub-style zips,
+    # accidentally-nested folders, etc.) so users can drag-and-drop a
+    # top-level folder without unzipping it themselves first.
+    root = resolve_project_root(staging)
+
+    has_xlsx = (root / "dataset_description.xlsx").exists()
+    has_json = (root / "dataset_description.json").exists()
+    if not (has_xlsx or has_json):
+        return (
+            False,
+            "Missing dataset_description.xlsx (or .json) at the dataset root. "
+            "Expected a SPARC measurements dataset structure.",
+        )
+
+    primary = root / "primary"
+    if not primary.exists() or not primary.is_dir():
+        return (
+            False,
+            "Missing primary/ subdirectory at the dataset root. "
+            "SPARC measurements datasets must have primary/<patient>/<sample>/ folders.",
+        )
+
+    patient_dirs = [p for p in primary.iterdir() if p.is_dir()]
+    if not patient_dirs:
+        return (
+            False,
+            "primary/ contains no patient subdirectories. "
+            "Expected at least one sub-XXX folder.",
+        )
+
+    return (True, "")
+
+
 def remove_tmp_folder(path: Path, logger: logging.Logger):
     if not path.exists():
         return

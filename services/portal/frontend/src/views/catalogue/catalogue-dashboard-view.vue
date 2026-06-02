@@ -59,6 +59,12 @@ const cards: CatalogueCard[] = [
         requireRoles: ['admin'],
     },
     {
+        title: 'Upload measurements',
+        description: 'Upload a SPARC measurements dataset and register patients, observations, imaging studies, and document references.',
+        herf: 'UploadMeasurementsDataset',
+        requireRoles: ['admin', 'researcher'],
+    },
+    {
         title: 'Workflow assembler',
         description: 'Assemble & and uploading a new workflow to the platform.',
         herf: 'WorkflowToolsViewer'

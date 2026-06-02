@@ -24,10 +24,15 @@ import type {
  * @param name   The name string to validate
  */
 export async function useCheckName(
-  scope: 'tool' | 'workflow',
+  scope: 'tool' | 'workflow' | 'measurement',
   name: string,
 ): Promise<CheckNameResponse> {
-  const endpoint = scope === 'tool' ? '/tools/check-name' : '/workflow/check-name';
+  const endpoint =
+    scope === 'tool'
+      ? '/tools/check-name'
+      : scope === 'workflow'
+        ? '/workflow/check-name'
+        : '/measurement/check-name';
   try {
     return await http.get<CheckNameResponse>(endpoint, { name });
   } catch (err) {
