@@ -1,0 +1,32 @@
+services:
+  jupyterhub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jupyterhub
+    ports:
+      - "${JUPYTERHUB_PORT:-8016}:8000"
+    volumes:
+      - ./jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro
+      - jupyterhub_data:/srv/jupyterhub
+    environment:
+      - JUPYTERHUB_CRYPT_KEY=${JUPYTERHUB_CRYPT_KEY:-c3b53f650bf93c3c6f8f5b8a5b2803b9b4d1b8c2810a9a8f2762a4f4e2b027d1}
+      - JUPYTERHUB_DUMMY_PASSWORD=${JUPYTERHUB_DUMMY_PASSWORD:-password}
+    restart: unless-stopped
+    networks:
+      - digitaltwins
+
+volumes:
+  jupyterhub_data:
+    driver: local
+
+networks:
+  digitaltwins:
+    driver: bridge
+
+# JupyterHub
+# http://localhost:8016
+# Default credentials: admin / password
+#
+# To run standalone:
+# docker compose -f services/jupyterhub/docker-compose.yml --env-file ./.env up -d
