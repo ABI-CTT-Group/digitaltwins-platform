@@ -33,38 +33,37 @@ include:
 
   # Keycloak
   - path:
-    - services/keycloak/docker-compose.yml
+      - services/keycloak/docker-compose.yml
     project_directory: services/keycloak
   # postgres
   - path:
-    - services/postgres/docker-compose.yml
+      - services/postgres/docker-compose.yml
     project_directory: services/postgres
   # Airflow
   - path:
-    - services/airflow/docker-compose.yml
-    - services/airflow/network-override.yml
+      - services/airflow/docker-compose.yml
+      - -services/airflow/network-override.yml
     project_directory: services/airflow
   # SEEK
   - path:
-    - services/seek/ldh-deployment/docker-compose.yml
-    - services/seek/network-override.yml
+      - services/seek/ldh-deployment/docker-compose.yml
+      - services/seek/network-override.yml
     project_directory: services/seek/ldh-deployment
   # MinIO
   - path:
-    - services/minio/docker-compose.yml
+      - services/minio/docker-compose.yml
     project_directory: services/minio
-  # PACS
+  # PACS (Orthanc)
   - path:
-    # PACS (Orthanc)
-    - services/pacs/docker-compose.yml
+      - services/pacs/docker-compose.yml
     project_directory: services/pacs
   # digitaltwins-api
   - path:
-    - services/api/digitaltwins-api/docker-compose.yml
+      - services/api/digitaltwins-api/docker-compose.yml
     project_directory: services/api/digitaltwins-api
   # JupyterLab
   - path:
-    - services/jupyterlab/docker-compose.yml
+      - services/jupyterlab/docker-compose.yml
     project_directory: services/jupyterlab
 
 volumes:
