@@ -27,6 +27,7 @@ networks:
 # JupyterHub
 # http://localhost:8016
 # Default credentials: admin / password
+# admin page: http://localhost:8016/hub/admin
 #
 # To run standalone:
 # docker compose -f services/jupyterhub/docker-compose.yml --env-file ./.env up -d
