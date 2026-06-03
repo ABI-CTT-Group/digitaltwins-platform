@@ -29,6 +29,10 @@ services:
       # Nginx plugin config (shared volume with portal-frontend)
       - NGINX_PLUGINS_CONF_DIR=/nginx-plugins-conf
       - NGINX_CONTAINER_NAME=digitaltwins-platform-portal-frontend
+      # Upload ceiling — read by /api/measurement and surfaced to nginx +
+      # the frontend dropzone via /api/measurement/config so all three
+      # layers move together when an operator edits .env and restarts.
+      - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-20480}
     volumes:
       - portal_datasets:/app/data
       # /portal_workspace holds tool + workflow + measurement staging in
@@ -75,6 +79,9 @@ services:
     environment:
       - BACKEND_PORT=${BACKEND_PORT:-8000}
       - PORTAL_BACKEND_HOST=${PORTAL_BACKEND_HOST:-localhost}
+      # Must match portal-backend's MAX_UPLOAD_MB. entry.sh renders this
+      # into client_max_body_size on the upload-source nginx location.
+      - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-20480}
     volumes:
       - nginx_plugin_configs:/etc/nginx/conf.d/plugins
       - ${SSL_CERT_DIR:-./certs}:/etc/nginx/certs:ro

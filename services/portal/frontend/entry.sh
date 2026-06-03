@@ -17,8 +17,13 @@ else
     TEMPLATE=/etc/nginx/conf.d/nginx.http.conf.template
 fi
 
+# Upload ceiling — keep in sync with portal-backend's MAX_UPLOAD_MB.
+# Default chosen to be generous for measurement DICOM datasets without
+# being so large that a malformed upload fills disk.
+export MAX_UPLOAD_MB="${MAX_UPLOAD_MB:-20480}"
+
 # Substitute environment variables into nginx config
-envsubst '${BACKEND_PORT} ${PORTAL_BACKEND_HOST}' < "$TEMPLATE" > /etc/nginx/conf.d/default.conf
+envsubst '${BACKEND_PORT} ${PORTAL_BACKEND_HOST} ${MAX_UPLOAD_MB}' < "$TEMPLATE" > /etc/nginx/conf.d/default.conf
 
 echo "Starting Nginx..."
 nginx -g "daemon off;"

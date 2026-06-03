@@ -95,17 +95,58 @@ fhir_async_client = get_fhir_async_client()
 _DATASET_DIR = Path(os.getenv("DATASET_DIR_MEASUREMENT", "./datasets_measurement"))
 _DATASET_DIR.mkdir(parents=True, exist_ok=True)
 
-# Interim ceiling for measurement uploads (typical DICOM datasets are
-# several GB). Mirrors nginx `client_max_body_size 20g` on the
-# /api/measurement/upload-source location. Replace with chunked upload
-# once Plan 05 ships; until then keep both sides in sync.
-_MEASUREMENT_UPLOAD_MAX_BYTES = 20 * 1024 * 1024 * 1024
+def _read_max_upload_mb(default_mb: int = 20480) -> int:
+    """Single source of truth for the upload ceiling.
+
+    ``MAX_UPLOAD_MB`` env var feeds all three layers — nginx
+    ``client_max_body_size``, this backend's zip-bomb guard, and the value
+    surfaced to the frontend via ``GET /api/measurement/config``. Operators
+    bump it via ``.env`` + ``docker compose restart`` without recompiling
+    anything.
+
+    A non-numeric or non-positive value silently falls back to the default
+    so a typo in ``.env`` can't render the upload path 0-byte.
+    """
+    raw = os.getenv("MAX_UPLOAD_MB", str(default_mb))
+    try:
+        mb = int(raw)
+        return mb if mb > 0 else default_mb
+    except (TypeError, ValueError):
+        logger.warning(
+            f"MAX_UPLOAD_MB={raw!r} is not a positive integer; falling back to {default_mb}"
+        )
+        return default_mb
+
+
+_MEASUREMENT_UPLOAD_MAX_MB = _read_max_upload_mb()
+_MEASUREMENT_UPLOAD_MAX_BYTES = _MEASUREMENT_UPLOAD_MAX_MB * 1024 * 1024
 
 # Reuse the workflow builder's tmp dir for upload staging — extract_uploaded_archive
 # writes to tmp/upload_<id>/ regardless of source type, and orphan cleanup in
 # main.py already scans tmp/ for stale uploads.
 _builder = WorkflowBuilder()
 TMP_DIR = _builder.tmp_dir
+
+
+# ---------------------------------------------------------------------------
+# Runtime configuration surface — frontend bootstraps from this
+# ---------------------------------------------------------------------------
+
+
+@router.get("/config")
+async def get_measurement_config():
+    """Runtime config consumed by the frontend Information step.
+
+    Surfacing the upload ceiling here lets operators dial it via
+    ``MAX_UPLOAD_MB`` in ``.env`` and pick up the change with a single
+    ``docker compose restart`` — no frontend rebuild required. The same
+    env var drives nginx ``client_max_body_size`` and the backend
+    extract guard, so all three layers stay in sync.
+    """
+    return {
+        "maxUploadBytes": _MEASUREMENT_UPLOAD_MAX_BYTES,
+        "maxUploadMb": _MEASUREMENT_UPLOAD_MAX_MB,
+    }
 
 
 # ---------------------------------------------------------------------------

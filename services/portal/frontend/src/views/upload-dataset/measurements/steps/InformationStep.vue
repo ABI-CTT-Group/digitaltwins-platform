@@ -33,7 +33,7 @@
       <LocalFolderDropzone
         ref="dropzone"
         :detected-folders="detectedFolders"
-        :max-total-bytes="MEASUREMENT_UPLOAD_MAX_BYTES"
+        :max-total-bytes="measurementUploadMaxBytes"
         @source-selected="onSourceSelected"
         @cancel-requested="onUploadCancel"
       />
@@ -94,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import LocalFolderDropzone from '../../components/LocalFolderDropzone.vue';
 import {
   useUploadMeasurementSource,
@@ -103,14 +103,15 @@ import {
   type MeasurementUploadSourceResponse,
 } from '@/bootstrap/upload_source';
 import { useCheckName } from '@/bootstrap/api_helpers';
-import { useCreateMeasurement } from '@/bootstrap/measurement_api';
+import { useCreateMeasurement, useMeasurementConfig } from '@/bootstrap/measurement_api';
 import type { CheckNameResponse, MeasurementInformationStep, MeasurementResponse } from '@/models/types';
 
-// Interim ceiling for measurement uploads — must stay in sync with nginx
-// (`client_max_body_size 20g` on the measurement upload-source location) and
-// the backend (`_MEASUREMENT_UPLOAD_MAX_BYTES` in measurement_router.py).
-// Replaced by chunked upload once Plan 05 ships.
-const MEASUREMENT_UPLOAD_MAX_BYTES = 20 * 1024 * 1024 * 1024;
+// Operator-tunable upload ceiling. `useMeasurementConfig` reads MAX_UPLOAD_MB
+// (default 20 GiB) from the backend on mount; the local fallback is a
+// pragmatic floor so the dropzone still works if the config endpoint is
+// unreachable.
+const DEFAULT_MAX_UPLOAD_BYTES = 20 * 1024 * 1024 * 1024;
+const measurementUploadMaxBytes = ref<number>(DEFAULT_MAX_UPLOAD_BYTES);
 
 const emit = defineEmits<{
   (e: 'created', m: MeasurementResponse): void;
@@ -139,6 +140,18 @@ const nameErrorMessages = computed<string[]>(() => {
 
 const showAlert = ref(false);
 const alertText = ref('');
+
+onMounted(async () => {
+  try {
+    const cfg = await useMeasurementConfig();
+    if (typeof cfg.maxUploadBytes === 'number' && cfg.maxUploadBytes > 0) {
+      measurementUploadMaxBytes.value = cfg.maxUploadBytes;
+    }
+  } catch (err) {
+    // Network blip / endpoint unreachable — stick with the local default.
+    console.warn('useMeasurementConfig failed; using default upload ceiling', err);
+  }
+});
 
 // `detectedFolders` is what LocalFolderDropzone shows in its "Found in root"
 // hint. For measurements that's the top-level patient list once we've

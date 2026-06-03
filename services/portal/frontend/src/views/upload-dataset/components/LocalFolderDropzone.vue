@@ -155,7 +155,10 @@ const emit = defineEmits<{
   (e: 'cancel-requested'): void;
 }>();
 
-const MAX_TOTAL_BYTES = props.maxTotalBytes;
+// Computed so a parent that fetches the limit at mount can flow it in
+// after the dropzone is already alive — non-reactive const would freeze
+// the initial default.
+const MAX_TOTAL_BYTES = computed(() => props.maxTotalBytes);
 const FOLDER_BLACKLIST = new Set(['node_modules', '.git', 'dist', 'build']);
 
 const folderInput = ref<HTMLInputElement | null>(null);
@@ -471,8 +474,8 @@ function finalizeFolderScan(files: File[]) {
     return;
   }
 
-  if (keptS > MAX_TOTAL_BYTES) {
-    errorMessage.value = `Folder is ${formatBytes(keptS)} after filtering — exceeds the ${formatBytes(MAX_TOTAL_BYTES)} upload limit.`;
+  if (keptS > MAX_TOTAL_BYTES.value) {
+    errorMessage.value = `Folder is ${formatBytes(keptS)} after filtering — exceeds the ${formatBytes(MAX_TOTAL_BYTES.value)} upload limit.`;
     setPhase('error');
     return;
   }
@@ -504,8 +507,8 @@ async function handleZipFile(file: File) {
   // we kick off JSZip (which itself yields, so the spinner stays animated).
   await yieldToPaint();
 
-  if (file.size > MAX_TOTAL_BYTES) {
-    errorMessage.value = `Archive is ${formatBytes(file.size)} — exceeds the ${formatBytes(MAX_TOTAL_BYTES)} upload limit.`;
+  if (file.size > MAX_TOTAL_BYTES.value) {
+    errorMessage.value = `Archive is ${formatBytes(file.size)} — exceeds the ${formatBytes(MAX_TOTAL_BYTES.value)} upload limit.`;
     setPhase('error');
     return;
   }

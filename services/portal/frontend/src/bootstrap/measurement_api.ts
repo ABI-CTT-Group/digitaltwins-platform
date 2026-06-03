@@ -20,6 +20,20 @@ import type {
   FhirCdaDescriptions,
 } from "@/models/types";
 
+/**
+ * Runtime config surfaced by the backend so the Information step's dropzone
+ * picks up the operator-configured upload ceiling without a frontend
+ * rebuild. Driven by MAX_UPLOAD_MB in .env.
+ */
+export interface MeasurementConfig {
+  maxUploadBytes: number;
+  maxUploadMb: number;
+}
+
+export async function useMeasurementConfig(): Promise<MeasurementConfig> {
+  return http.get<MeasurementConfig>(`/measurement/config`);
+}
+
 /** GET /api/measurement — list all measurements. */
 export async function useMeasurement(): Promise<MeasurementResponse[]> {
   return http.get<MeasurementResponse[]>(`/measurement/`);
