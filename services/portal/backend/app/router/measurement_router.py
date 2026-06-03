@@ -58,7 +58,10 @@ from app.services.measurement_service import (
     upload_fhir_json,
     upload_full_dataset,
 )
-from app.services.measurements_fhir_adapter import MeasurementsFhirAnnotator
+from app.services.measurements_fhir_adapter import (
+    MeasurementsFhirAnnotator,
+    NiiCompatibleImagingStudy,
+)
 from app.utils.builder_utils import (
     extract_uploaded_archive,
     resolve_project_root,
@@ -322,28 +325,68 @@ def _observation_description_from_classify(
 
 
 def _imaging_study_description_from_classify(
-    classify: ClassifyResult, patient: str, sample: str
+    classify: ClassifyResult, patient: str, sample: str, sample_dir: Path
 ) -> Dict[str, Any]:
-    """Build the prefilled ImagingStudy description. The endpointUrl on both
-    the study and its series is filled with placeholder mocks here; the
-    submit pipeline (finalize stage) overwrites them with the real
-    portal-backend stream proxy URL after MinIO upload."""
-    series = {
+    """Build the prefilled ImagingStudy description.
+
+    Constructs a ``NiiCompatibleImagingStudy`` so fhir-cda's pydicom reader
+    pulls the real ``SeriesInstanceUID`` (DICOM tag ``(0020, 000e)``) and
+    ``BodyPartExamined`` (``(0018, 0015)`` → SNOMED CT) out of the first
+    DICOM in the sample. For NRRD / NII / NII.GZ samples the upstream
+    branch leaves ``uid=None`` / ``body_site=None`` and we fall through to
+    the same default shape.
+
+    endpointUrl on both the study and the series is a placeholder mock
+    here; the submit pipeline's finalize stage rewrites them to the real
+    stream-proxy URL after MinIO upload.
+    """
+    img_uuid = mock_resource_uuid("img")
+    endpoint_uuid = mock_resource_uuid("endpoint")
+    placeholder_url = f"MOCK://placeholder/{patient}/{sample}"
+
+    # Default series payload; the fhir-cda probe below upgrades fields we
+    # can actually read off the disk (uid / bodySite / numberOfInstances).
+    series_payload: Dict[str, Any] = {
         "uid": None,
-        "endpointUrl": f"MOCK://placeholder/{patient}/{sample}",
-        "endpointUuid": mock_resource_uuid("endpoint"),
+        "endpointUrl": placeholder_url,
+        "endpointUuid": endpoint_uuid,
         "name": sample,
         "numberOfInstances": len(classify.files),
         "bodySite": None,
         "instances": [],
     }
+
+    try:
+        study = NiiCompatibleImagingStudy(
+            uuid=img_uuid,
+            sample_details=[{"uuid": endpoint_uuid, "path": sample_dir}],
+            endpoint_url=placeholder_url,
+            description=classify.modality_hint or "",
+        )
+        if study.series:
+            real = study.series[0].get()
+            series_payload["uid"] = real.get("uid") or None
+            n = real.get("numberOfInstances")
+            if isinstance(n, int) and n > 0:
+                series_payload["numberOfInstances"] = n
+            body_site = real.get("bodySite")
+            if isinstance(body_site, dict) and body_site:
+                series_payload["bodySite"] = body_site
+    except Exception as e:
+        # ``_read_sam`` already swallows pydicom errors internally; this catch
+        # is for the constructor itself raising on e.g. mixed extensions,
+        # which the classifier should have prevented but we play defensive.
+        logger.warning(
+            f"Could not extract ImagingStudy metadata from {sample_dir}: {e}"
+        )
+
     return {
         "resourceType": "ImagingStudy",
-        "uuid": mock_resource_uuid("img"),
-        "endpointUrl": f"MOCK://placeholder/{patient}/{sample}",
-        "description": "",
+        "uuid": img_uuid,
+        "endpointUrl": placeholder_url,
+        "description": classify.modality_hint or "",
         "display": "",
-        "series": [series],
+        "series": [series_payload],
         "_auto": {
             "samplePath": f"{patient}/{sample}",
             "modality": classify.modality_hint or "",
@@ -456,7 +499,9 @@ async def get_measurement_tree(measurement_id: str, db: Session = Depends(get_db
                 )
             elif classify.kind == "ImagingStudy":
                 patient_entry["imagingStudy"].append(
-                    _imaging_study_description_from_classify(classify, patient_name, sample_name)
+                    _imaging_study_description_from_classify(
+                        classify, patient_name, sample_name, sample_dir
+                    )
                 )
             else:  # DocumentReference
                 patient_entry["documentReference"].append(
