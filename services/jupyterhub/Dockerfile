@@ -1,4 +1,4 @@
-FROM jupyterhub/jupyterhub:latest
+FROM jupyterhub/jupyterhub:5.4.6
 
 # Install JupyterLab and dependencies for single-user notebook servers
 RUN pip install --no-cache-dir \
