@@ -42,7 +42,7 @@ include:
   # Airflow
   - path:
       - services/airflow/docker-compose.yml
-      - -services/airflow/network-override.yml
+      - services/airflow/network-override.yml
     project_directory: services/airflow
   # SEEK
   - path:
