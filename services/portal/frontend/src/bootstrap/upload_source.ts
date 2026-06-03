@@ -52,36 +52,79 @@ function isBlacklisted(relPath: string): boolean {
   return relPath.split('/').some((seg) => FOLDER_BLACKLIST.has(seg));
 }
 
+/** Axios-compatible cancel error so the existing `ERR_CANCELED` / `CanceledError`
+ *  catch branches in the callers treat a zip-phase cancel exactly like an
+ *  aborted network request (reset the dropzone, no error toast). */
+function makeCanceledError(): Error {
+  const e = new Error('Upload canceled') as Error & { code?: string };
+  e.name = 'CanceledError';
+  e.code = 'ERR_CANCELED';
+  return e;
+}
+
 async function buildZipFromFiles(
   files: File[],
   onProgress?: (p: UploadProgress) => void,
+  signal?: AbortSignal,
 ): Promise<Blob> {
+  const throwIfAborted = () => {
+    if (signal?.aborted) throw makeCanceledError();
+  };
+
   const zip = new JSZip();
   for (const file of files) {
+    throwIfAborted();
     const relPath = file.webkitRelativePath || file.name;
     if (isBlacklisted(relPath)) continue;
     zip.file(relPath, file);
   }
-  return zip.generateAsync(
+
+  const genPromise = zip.generateAsync(
     { type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
-    (meta) =>
+    (meta) => {
+      // Throwing here asks JSZip to stop generating; the race below guarantees
+      // the awaiter unblocks immediately even if JSZip keeps churning in the
+      // background (it can't be hard-killed, but its result is discarded).
+      throwIfAborted();
       onProgress?.({
         phase: 'zip',
         percent: meta.percent,
         currentFile: meta.currentFile ?? undefined,
-      }),
+      });
+    },
   );
+
+  if (!signal) return genPromise;
+  return new Promise<Blob>((resolve, reject) => {
+    if (signal.aborted) {
+      reject(makeCanceledError());
+      return;
+    }
+    const onAbort = () => reject(makeCanceledError());
+    signal.addEventListener('abort', onAbort, { once: true });
+    genPromise.then(
+      (blob) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(blob);
+      },
+      (err) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(err);
+      },
+    );
+  });
 }
 
 async function buildBlobForSource(
   source: LocalSource,
   onProgress?: (p: UploadProgress) => void,
+  signal?: AbortSignal,
 ): Promise<Blob> {
   // For zip kind we deliberately skip the zip-phase progress; the dropzone UI
   // will jump straight from `scanned` to `uploading` when the first
   // onUploadProgress event fires.
   if (source.kind === 'zip') return source.blob;
-  return buildZipFromFiles(source.files, onProgress);
+  return buildZipFromFiles(source.files, onProgress, signal);
 }
 
 async function postZip(
@@ -105,6 +148,14 @@ async function postZip(
     onUploadProgress: (e) => {
       const loaded = e.loaded;
       const t = e.total ?? total;
+      // Once the body is fully flushed to the socket the transfer is done and
+      // the server is extracting/validating. Flip the UI out of the cancelable
+      // "upload" state immediately so the user isn't shown "Uploading… 100%"
+      // with a Cancel button that can no longer stop the (already-sent) bytes.
+      if (t > 0 && loaded >= t) {
+        opts.onProgress?.({ phase: 'server' });
+        return;
+      }
       opts.onProgress?.({
         phase: 'upload',
         loaded,
@@ -124,7 +175,7 @@ export async function useUploadToolSource(
   source: LocalSource,
   opts: UploadSourceOptions = {},
 ): Promise<UploadSourceResponse> {
-  const blob = await buildBlobForSource(source, opts.onProgress);
+  const blob = await buildBlobForSource(source, opts.onProgress, opts.signal);
   return postZip('/tools/upload-source', blob, opts);
 }
 
@@ -132,7 +183,7 @@ export async function useUploadWorkflowSource(
   source: LocalSource,
   opts: UploadSourceOptions = {},
 ): Promise<UploadSourceResponse> {
-  const blob = await buildBlobForSource(source, opts.onProgress);
+  const blob = await buildBlobForSource(source, opts.onProgress, opts.signal);
   return postZip('/workflow/upload-source', blob, opts);
 }
 
@@ -160,7 +211,7 @@ export async function useUploadMeasurementSource(
   source: LocalSource,
   opts: UploadSourceOptions = {},
 ): Promise<MeasurementUploadSourceResponse> {
-  const blob = await buildBlobForSource(source, opts.onProgress);
+  const blob = await buildBlobForSource(source, opts.onProgress, opts.signal);
   // postZip returns deep-camelized data; the measurement endpoint's payload
   // shape is a superset of UploadSourceResponse so we widen the cast here.
   const res = (await postZip(

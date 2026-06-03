@@ -14,28 +14,48 @@
         :measurement="m"
         @delete="handleDelete"
         @retry-fhir="handleRetryFhir"
+        @approve="handleApprove"
+        @edit="handleEdit"
+        @preview="handlePreview"
+        @export="handleExport"
       />
     </template>
   </RegistryView>
+
+  <ApprovalDialog
+    v-model="approvalOpen"
+    :measurement="approvalMeasurement"
+    @finished="handleApprovalFinished"
+  />
 </template>
 
 <script setup lang="ts">
 // @ts-ignore - vue-toastification ships without type declarations
 import { useToast } from 'vue-toastification';
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import RegistryView from '../components/RegistryView.vue';
 import MeasurementCard from './components/MeasurementCard.vue';
+import ApprovalDialog from './components/ApprovalDialog.vue';
 import {
   useMeasurement,
   useDeleteMeasurement,
   useMeasurementRetryFhir,
+  useMeasurementFhirPreview,
 } from '@/bootstrap/measurement_api';
 import type { MeasurementResponse } from '@/models/types';
 
 const toast = useToast();
-const emit = defineEmits(['register']);
+const router = useRouter();
+const emit = defineEmits<{
+  (e: 'register'): void;
+  (e: 'edit', m: MeasurementResponse): void;
+}>();
 
 const registryRef = ref<{ handleRefresh: () => Promise<void> }>();
+
+const approvalOpen = ref(false);
+const approvalMeasurement = ref<MeasurementResponse | null>(null);
 
 const handleRegister = () => emit('register');
 
@@ -67,6 +87,44 @@ const handleRetryFhir = async (id: string) => {
     toast.error(`Retry FHIR failed: ${detail}`);
   } finally {
     await registryRef.value?.handleRefresh();
+  }
+};
+
+const handleApprove = (m: MeasurementResponse) => {
+  approvalMeasurement.value = m;
+  approvalOpen.value = true;
+};
+
+const handleApprovalFinished = async () => {
+  await registryRef.value?.handleRefresh();
+};
+
+const handleEdit = (m: MeasurementResponse) => {
+  // Re-enter the annotation form for this draft — index.vue owns the
+  // list/form toggle, so bubble it up.
+  emit('edit', m);
+};
+
+const handlePreview = (m: MeasurementResponse) => {
+  router.push({ name: 'MeasurementFhirPreview', params: { id: m.id } });
+};
+
+const handleExport = async (m: MeasurementResponse) => {
+  try {
+    const fhir = await useMeasurementFhirPreview(m.id);
+    const blob = new Blob([JSON.stringify(fhir, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${m.name || 'measurement'}-fhir.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e: any) {
+    console.error('Export annotation failed:', e);
+    const detail = e?.response?.data?.detail || e?.message || 'Export failed';
+    toast.error(`Export failed: ${detail}`);
   }
 };
 </script>

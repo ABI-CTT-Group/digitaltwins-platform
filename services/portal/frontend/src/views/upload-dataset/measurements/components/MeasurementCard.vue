@@ -7,13 +7,45 @@
     <template #menu>
       <v-list density="compact" class="py-0 cursor-pointer">
         <v-list-item
+          v-if="showApproval"
+          density="compact"
+          :disabled="busy"
+          @click.stop="onApprove"
+        >
+          <v-list-item-title class="hover-animate px-2">Approval (upload to MinIO)</v-list-item-title>
+        </v-list-item>
+        <v-list-item
+          v-if="showEdit"
+          density="compact"
+          :disabled="busy"
+          @click.stop="onEdit"
+        >
+          <v-list-item-title class="hover-animate px-2">Edit annotation</v-list-item-title>
+        </v-list-item>
+        <v-list-item
+          v-if="showAnnotationActions"
+          density="compact"
+          :disabled="busy"
+          @click.stop="onPreview"
+        >
+          <v-list-item-title class="hover-animate px-2">Preview fhir.json</v-list-item-title>
+        </v-list-item>
+        <v-list-item
+          v-if="showAnnotationActions"
+          density="compact"
+          :disabled="busy"
+          @click.stop="onExport"
+        >
+          <v-list-item-title class="hover-animate px-2">Export annotation</v-list-item-title>
+        </v-list-item>
+        <v-list-item
           v-if="measurement.status === 'fhir_failed'"
           density="compact"
           @click.stop="onRetryFhir"
         >
           <v-list-item-title class="hover-animate px-2">Retry FHIR registration</v-list-item-title>
         </v-list-item>
-        <v-list-item density="compact" @click.stop="onDelete" color="red">
+        <v-list-item density="compact" :disabled="busy" @click.stop="onDelete" color="red">
           <v-list-item-title class="text-red hover-animate px-2">Delete measurement</v-list-item-title>
         </v-list-item>
       </v-list>
@@ -85,12 +117,26 @@ const props = defineProps<{ measurement: MeasurementResponse }>();
 const emit = defineEmits<{
   (e: 'delete', id: string): void;
   (e: 'retryFhir', id: string): void;
+  (e: 'approve', m: MeasurementResponse): void;
+  (e: 'edit', m: MeasurementResponse): void;
+  (e: 'preview', m: MeasurementResponse): void;
+  (e: 'export', m: MeasurementResponse): void;
 }>();
 
 const menu = ref(false);
 const isDeleting = ref(false);
 const retrying = ref(false);
 const measurement = toRef(props, 'measurement');
+
+// Button visibility matrix. MinIO is uploaded once status leaves
+// pending/submit_failed; `uploading` disables every action to prevent races.
+const busy = computed(() => measurement.value.status === 'uploading');
+const notUploaded = computed(
+  () => measurement.value.status === 'pending' || measurement.value.status === 'submit_failed',
+);
+const showApproval = computed(() => !!measurement.value.hasAnnotation && notUploaded.value);
+const showEdit = computed(() => notUploaded.value);
+const showAnnotationActions = computed(() => !!measurement.value.hasAnnotation);
 
 const statusLabel = computed(() => {
   switch (measurement.value.status) {
@@ -124,6 +170,26 @@ const statusTextColor = computed(() => {
     default: return '';
   }
 });
+
+const onApprove = () => {
+  menu.value = false;
+  emit('approve', measurement.value);
+};
+
+const onEdit = () => {
+  menu.value = false;
+  emit('edit', measurement.value);
+};
+
+const onPreview = () => {
+  menu.value = false;
+  emit('preview', measurement.value);
+};
+
+const onExport = () => {
+  menu.value = false;
+  emit('export', measurement.value);
+};
 
 const onDelete = () => {
   menu.value = false;

@@ -836,6 +836,71 @@ async def retry_measurement_fhir(measurement_id: str, db: Session = Depends(get_
 
 
 # ---------------------------------------------------------------------------
+# Dry-run fhir.json preview (no upload) — backs the Preview page + Export action
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{measurement_id}/fhir-preview")
+async def preview_measurement_fhir(measurement_id: str, db: Session = Depends(get_db)):
+    """Return the real FHIR bundle (fhir.json) for this measurement **without**
+    uploading anything.
+
+    - ``completed``: read the finalized fhir.json already on disk (endpoint URLs
+      point at the live stream proxy).
+    - any other non-uploading state: build it on the fly from the stored
+      annotation (same logic as submit stage 2). endpointUrl values are
+      placeholders here — they only get rewritten to real URLs by the submit
+      pipeline's finalize stage after MinIO upload. The Preview page notes this.
+
+    ``uploading`` returns 409 so this dry-run build can't race the submit
+    pipeline writing the same fhir.json on disk.
+    """
+    measurement: Optional[Measurement] = db.query(Measurement).filter(
+        Measurement.id == measurement_id
+    ).first()  # type: ignore
+    if measurement is None:
+        raise HTTPException(status_code=404, detail="Measurement not found")
+    if measurement.status == MeasurementStatus.UPLOADING.value:
+        raise HTTPException(
+            status_code=409,
+            detail="Measurement is uploading; preview unavailable until it settles.",
+        )
+
+    dataset_path = Path(measurement.dataset_path) if measurement.dataset_path else None
+    if dataset_path is None or not dataset_path.exists():
+        raise HTTPException(
+            status_code=410,
+            detail="dataset_path missing on disk; cannot build fhir.json preview.",
+        )
+
+    # Completed datasets already have a finalized fhir.json on disk — prefer it.
+    if measurement.status == MeasurementStatus.COMPLETED.value:
+        try:
+            return JSONResponse(content=read_fhir_json(dataset_path))
+        except FileNotFoundError:
+            # Fall through to a fresh build if the on-disk copy went missing.
+            pass
+
+    annotation: Optional[MeasurementAnnotation] = db.query(MeasurementAnnotation).filter(
+        MeasurementAnnotation.measurement_id == measurement_id
+    ).first()  # type: ignore
+    if annotation is None or not annotation.descriptions:
+        raise HTTPException(
+            status_code=404,
+            detail="No annotation found; nothing to preview.",
+        )
+
+    try:
+        annotator = MeasurementsFhirAnnotator(dataset_path)
+        apply_descriptions(annotator, annotation.descriptions, dataset_path)
+        annotator.save()
+        return JSONResponse(content=read_fhir_json(dataset_path))
+    except Exception as e:
+        logger.error(f"fhir-preview build failed for {measurement_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to build fhir.json preview: {e}")
+
+
+# ---------------------------------------------------------------------------
 # Read / list / delete / metadata / stream
 # ---------------------------------------------------------------------------
 

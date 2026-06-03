@@ -96,6 +96,18 @@
       <div v-else-if="phase === 'analyzing'" class="dropzone__progress">
         <v-progress-circular indeterminate color="cyan" :size="36" :width="3" />
         <div class="text-caption mt-2">Analyzing on server…</div>
+        <div class="text-caption text-grey-lighten-1 mt-1">
+          Upload finished — the server is unpacking and validating your dataset.
+        </div>
+        <v-btn
+          size="small"
+          variant="text"
+          color="error"
+          class="mt-2"
+          @click.stop="cancel"
+        >
+          Stop waiting
+        </v-btn>
       </div>
 
       <div v-else-if="phase === 'ready'" class="dropzone__hint">
@@ -565,7 +577,11 @@ async function handleZipFile(file: File) {
 }
 
 function cancel() {
-  if (phase.value === 'zipping' || phase.value === 'uploading') {
+  // `analyzing` is included: the bytes are already sent, so this aborts the
+  // client's wait for the response rather than the transfer. The backend's
+  // orphaned staging dir is reaped by the tmp/ orphan cleanup, so nothing is
+  // left behind as a dataset (the user never reached /create).
+  if (phase.value === 'zipping' || phase.value === 'uploading' || phase.value === 'analyzing') {
     emit('cancel-requested');
     setPhase('idle');
     reset();

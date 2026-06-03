@@ -28,7 +28,6 @@ from typing import Any, Dict, List, Optional
 
 from fhir_cda.ehr import (
     DocumentReferenceMeasurement,
-    ObservationMeasurement,
 )
 from fhir_cda.ehr.elements import (
     DocumentAttachment,
@@ -42,6 +41,7 @@ from app.models.db_model import Measurement
 from app.services.measurements_fhir_adapter import (
     MeasurementsFhirAnnotator,
     NiiCompatibleImagingStudy,
+    SafeObservationMeasurement,
 )
 
 logger = get_logger(__name__)
@@ -110,8 +110,8 @@ def _build_observation_value(desc: Dict[str, Any]) -> Optional[ObservationValue]
     return ObservationValue(value_string=str(value))
 
 
-def _build_observation_measurement(desc: Dict[str, Any]) -> ObservationMeasurement:
-    return ObservationMeasurement(
+def _build_observation_measurement(desc: Dict[str, Any]) -> SafeObservationMeasurement:
+    return SafeObservationMeasurement(
         value=_build_observation_value(desc),
         code=desc.get("code") or "",
         code_system=desc.get("codeSystem") or "http://loinc.org",

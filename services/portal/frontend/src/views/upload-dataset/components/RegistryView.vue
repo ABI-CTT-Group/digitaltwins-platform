@@ -9,15 +9,15 @@
       <div class="w-100 d-flex justify-start">
         <v-btn
           color="pink"
-          :text="registerLabel"
           variant="tonal"
-          :width="350"
           rounded="md"
           prepend-icon="mdi-plus-circle-outline"
-          class="hover-animate my-2"
+          class="hover-animate my-2 register-btn"
           :disabled="disabled"
           @click="emit('register')"
-        />
+        >
+          {{ registerLabel }}
+        </v-btn>
       </div>
 
       <!-- List panel -->
@@ -121,4 +121,14 @@ defineExpose({ handleRefresh });
   .responsive-box { width: 75% !important; }
 }
 .registry-container { min-height: 50vh; }
+/* Let the button size to its label instead of clipping/squeezing the text.
+   Vuetify's `text` prop also forces uppercase + letter-spacing; we render the
+   label in the slot and reset those so long labels read cleanly. */
+.register-btn {
+  width: auto;
+  min-width: max-content;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: nowrap;
+}
 </style>

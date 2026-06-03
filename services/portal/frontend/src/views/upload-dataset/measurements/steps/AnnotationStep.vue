@@ -89,7 +89,7 @@
 
       <v-expansion-panels variant="accordion" class="mt-4">
         <v-expansion-panel>
-          <v-expansion-panel-title>Preview fhir.json (sent to backend on submit)</v-expansion-panel-title>
+          <v-expansion-panel-title>Preview descriptions (saved as draft; approve later to upload)</v-expansion-panel-title>
           <v-expansion-panel-text>
             <pre class="json-preview">{{ previewJson }}</pre>
           </v-expansion-panel-text>
@@ -111,7 +111,7 @@
       />
       <v-btn
         color="success"
-        text="Submit Annotation"
+        text="Save annotation"
         variant="tonal"
         :min-width="200"
         rounded="md"
@@ -135,7 +135,6 @@ import {
   useGetMeasurementTree,
   useGetMeasurementAnnotation,
   useUpsertMeasurementAnnotation,
-  useMeasurementSubmit,
 } from '@/bootstrap/measurement_api';
 import type {
   FhirCdaDescriptions,
@@ -144,7 +143,7 @@ import type {
 
 const props = defineProps<{ measurement: MeasurementResponse }>();
 const emit = defineEmits<{
-  (e: 'submitted', m: MeasurementResponse): void;
+  (e: 'saved'): void;
   (e: 'cancel'): void;
 }>();
 
@@ -244,11 +243,12 @@ async function handleSubmit() {
   try {
     const cleaned = stripAuto(descriptions.value);
     await useUpsertMeasurementAnnotation(props.measurement.id, cleaned);
-    const updated = await useMeasurementSubmit(props.measurement.id);
-    emit('submitted', updated);
+    // Save-only: the annotation is now a draft. Upload to MinIO + FHIR is a
+    // separate, explicit Approval action from the registry card menu.
+    emit('saved');
   } catch (err: any) {
     alertText.value =
-      err?.response?.data?.detail || err?.message || 'Submit failed; please try again.';
+      err?.response?.data?.detail || err?.message || 'Save failed; please try again.';
   } finally {
     submitting.value = false;
   }

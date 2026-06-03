@@ -434,6 +434,17 @@ class Measurement(Base):
         cascade="all, delete-orphan",
     )
 
+    @property
+    def has_annotation(self) -> bool:
+        """Whether a draft annotation has been saved for this measurement.
+
+        Drives the card menu's button visibility on the frontend (Approval /
+        Preview / Export only make sense once an annotation exists). Read off
+        the one-to-one ``annotation`` relationship; Pydantic's
+        ``from_attributes`` picks it up for ``MeasurementResponse``.
+        """
+        return self.annotation is not None
+
 
 class MeasurementAnnotation(Base):
     __tablename__ = "measurement_annotations"
@@ -477,6 +488,7 @@ class MeasurementResponse(MeasurementBase):
     status: str
     failure_stage: Optional[str] = None
     failure_message: Optional[str] = None
+    has_annotation: bool = False
     created_at: datetime
     updated_at: datetime
 

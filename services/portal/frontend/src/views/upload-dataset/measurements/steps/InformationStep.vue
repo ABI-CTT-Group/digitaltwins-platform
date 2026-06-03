@@ -86,7 +86,7 @@
         rounded="md"
         class="hover-animate ma-5"
         :loading="submitting"
-        :disabled="submitting"
+        :disabled="submitting || !canContinue"
         @click="handleSubmit"
       />
     </div>
@@ -130,6 +130,9 @@ const formData = reactive<{ name: string; description: string }>({
 
 const source = ref<LocalSource | undefined>(undefined);
 const sourceMeta = ref<MeasurementUploadSourceResponse | undefined>(undefined);
+// Tracks the last value we auto-filled into the name field, so we can tell a
+// still-auto name apart from one the user typed themselves.
+const autoFilledName = ref('');
 
 const nameErr = ref<CheckNameResponse | undefined>(undefined);
 const nameRules = [(v: string) => !!v?.trim() || 'Dataset name is required'];
@@ -140,6 +143,12 @@ const nameErrorMessages = computed<string[]>(() => {
 
 const showAlert = ref(false);
 const alertText = ref('');
+
+// Continue is enabled only once a source is selected and the name is present
+// and not known-taken. (Mid-upload `submitting` disables it separately.)
+const canContinue = computed(
+  () => !!source.value && !!formData.name.trim() && nameErr.value?.available !== false,
+);
 
 onMounted(async () => {
   try {
@@ -179,12 +188,36 @@ const onSourceSelected = (selected: LocalSource) => {
   // A new source invalidates any prior upload metadata; the dropzone
   // surfaces upload progress + final preview through `setProgress`.
   sourceMeta.value = undefined;
+
+  // Auto-fill / refresh the dataset name from the dropped source. `rootName` is
+  // already the inner project folder (or the zip filename with `.zip`
+  // stripped); we strip `.zip` again defensively. We update the field when it's
+  // empty OR still holds the previous auto-filled value — so re-dragging a
+  // different folder/zip promptly reflects the new name, but a name the user
+  // typed themselves is never clobbered.
+  const derived = (selected.rootName || '').replace(/\.zip$/i, '').trim();
+  const nameIsUntouched = !formData.name.trim() || formData.name === autoFilledName.value;
+  if (derived && nameIsUntouched) {
+    formData.name = derived;
+    autoFilledName.value = derived;
+    // Run the uniqueness check on the freshly filled name.
+    onNameBlur();
+  }
 };
 
 const onUploadCancel = () => {
   abortController.value?.abort();
   abortController.value = null;
   submitting.value = false;
+  // Cancel = clean slate: drop the selected source, wipe the auto-filled name
+  // and any name-check state, and reset the dropzone so the user starts fresh.
+  source.value = undefined;
+  sourceMeta.value = undefined;
+  formData.name = '';
+  autoFilledName.value = '';
+  nameErr.value = undefined;
+  showAlert.value = false;
+  dropzone.value?.setProgress({ phase: 'reset' });
 };
 
 const onNameBlur = async () => {

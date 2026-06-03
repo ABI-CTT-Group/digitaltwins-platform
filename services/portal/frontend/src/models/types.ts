@@ -342,6 +342,9 @@ export interface MeasurementResponse {
   status: MeasurementStatus | string;
   failureStage?: MeasurementFailureStage | string;
   failureMessage?: string;
+  /** Whether a draft annotation exists — drives card menu button visibility.
+   *  camelized from the backend's `has_annotation` by http.ts. */
+  hasAnnotation?: boolean;
   createdAt: string;
   updatedAt: string;
 }

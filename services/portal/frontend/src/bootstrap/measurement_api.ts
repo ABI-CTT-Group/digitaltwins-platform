@@ -89,6 +89,15 @@ export async function useMeasurementRetryFhir(id: string): Promise<MeasurementRe
   return http.post<MeasurementResponse>(`/measurement/${id}/retry-fhir`, {});
 }
 
+/**
+ * GET /api/measurement/{id}/fhir-preview — dry-run build of the real fhir.json
+ * (no upload). Backs the Preview page and the Export action. Endpoint URLs are
+ * placeholders until the dataset is approved/uploaded (finalize rewrites them).
+ */
+export async function useMeasurementFhirPreview(id: string): Promise<Record<string, any>> {
+  return http.get<Record<string, any>>(`/measurement/${id}/fhir-preview`);
+}
+
 /** DELETE /api/measurement/{id}. */
 export async function useDeleteMeasurement(id: string): Promise<MeasurementDeleteResponse> {
   return http.delete<MeasurementDeleteResponse>(`/measurement/${id}`);

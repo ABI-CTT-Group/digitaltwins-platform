@@ -26,12 +26,41 @@ from __future__ import annotations
 from pathlib import Path
 
 from fhir_cda.annotator.measurement_annotator import MeasurementAnnotator
-from fhir_cda.ehr import ImagingStudyMeasurement
+from fhir_cda.ehr import ImagingStudyMeasurement, ObservationMeasurement
 from fhir_cda.ehr.elements import ImagingStudySeries
 
 from app.builder.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+class SafeObservationMeasurement(ObservationMeasurement):
+    """Null-safe ``get()`` for value-less Observations.
+
+    Upstream ``ObservationMeasurement.set()`` explicitly allows ``value=None``
+    (an Observation the user left blank), but ``ObservationMeasurement.get()``
+    calls ``self.value.get()`` unconditionally → ``AttributeError: 'NoneType'
+    object has no attribute 'get'``. Since ``save()`` /
+    ``_convert_elements_to_descriptions`` invokes ``get()`` on every stored
+    measurement, a single blank Observation crashes the whole fhir.json build
+    (both the submit pipeline and the dry-run preview).
+
+    Upstream's ``get()`` already drops None values via its trailing dict
+    comprehension, so the only change needed is to not dereference a None
+    value in the first place.
+    """
+
+    def get(self):
+        measurement = {
+            "resourceType": "Observation",
+            "uuid": self.uuid,
+            "value": self.value.get() if self.value is not None else None,
+            "code": self.code,
+            "codeSystem": self.code_system,
+            "unit": self.unit,
+            "display": self.display if isinstance(self.display, str) else "",
+        }
+        return {k: v for k, v in measurement.items() if v is not None}
 
 
 class MeasurementsFhirAnnotator(MeasurementAnnotator):

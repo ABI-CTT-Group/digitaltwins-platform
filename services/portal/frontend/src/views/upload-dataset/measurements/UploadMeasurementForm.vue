@@ -5,14 +5,12 @@
       elevation="12"
       style="background: rgba(15, 25, 35, 0.45); border-radius: 20px;"
     >
-      <h2 class="w-100 text-center my-3">New Measurement Dataset</h2>
+      <h2 class="w-100 text-center my-3">{{ isEdit ? 'Edit Annotation' : 'New Measurement Dataset' }}</h2>
       <v-stepper v-model="step" alt-labels class="sheet-stepper">
         <v-stepper-header>
           <v-stepper-item title="Information" :value="1" color="cyan-lighten-1" :complete="step > 1" />
           <v-divider />
           <v-stepper-item title="Annotation" :value="2" color="cyan-lighten-1" :complete="step > 2" />
-          <v-divider />
-          <v-stepper-item title="Complete" :value="3" color="cyan-lighten-1" :editable="false" :complete="step > 3" />
         </v-stepper-header>
 
         <v-stepper-window>
@@ -27,20 +25,8 @@
               <AnnotationStep
                 v-if="measurement"
                 :measurement="measurement"
-                @submitted="handleAnnotationSubmitted"
+                @saved="handleAnnotationSaved"
                 @cancel="handleCancel"
-              />
-            </v-card>
-          </v-stepper-window-item>
-
-          <v-stepper-window-item :value="3">
-            <v-card class="pa-4" variant="tonal" color="cyan-darken-4">
-              <CompleteStep
-                v-if="measurement"
-                :measurement="measurement"
-                @back-to-annotation="handleBackToAnnotation"
-                @done="handleCancel"
-                @retried="handleRetried"
               />
             </v-card>
           </v-stepper-window-item>
@@ -54,36 +40,31 @@
 import { ref } from 'vue';
 import InformationStep from './steps/InformationStep.vue';
 import AnnotationStep from './steps/AnnotationStep.vue';
-import CompleteStep from './steps/CompleteStep.vue';
 import type { MeasurementResponse } from '@/models/types';
+
+// In edit mode the parent passes an existing measurement; we skip the
+// Information step and open Annotation directly so the user re-edits the
+// saved draft. In create mode both props are undefined and we start at step 1.
+const props = defineProps<{
+  measurement?: MeasurementResponse;
+  initialStep?: number;
+}>();
 
 const emit = defineEmits(['finished']);
 
-const step = ref(1);
-const measurement = ref<MeasurementResponse>();
+const isEdit = !!props.measurement;
+const step = ref(props.initialStep ?? 1);
+const measurement = ref<MeasurementResponse | undefined>(props.measurement);
 
 const handleCreated = (created: MeasurementResponse) => {
   measurement.value = created;
   step.value = 2;
 };
 
-const handleAnnotationSubmitted = (updated: MeasurementResponse) => {
-  // Submit returns the row already flipped to `uploading`. Step 3 polls
-  // from there until it lands on completed / submit_failed / fhir_failed.
-  measurement.value = updated;
-  step.value = 3;
-};
-
-const handleBackToAnnotation = () => {
-  // Triggered on submit_failed — let the user edit the annotation. Step 2
-  // rehydrates from /annotation so prior edits aren't lost.
-  step.value = 2;
-};
-
-const handleRetried = (updated: MeasurementResponse) => {
-  // /retry-fhir flipped status back to `uploading`; CompleteStep will resume
-  // polling. We just refresh the measurement ref in place.
-  measurement.value = updated;
+const handleAnnotationSaved = () => {
+  // Draft saved (no upload). Return to the registry list — the dataset now
+  // shows an Approval action in its card menu.
+  emit('finished');
 };
 
 const handleCancel = () => {
