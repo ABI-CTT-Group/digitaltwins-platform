@@ -8,4 +8,8 @@
 //
 </script>
 <style scoped>
+.v-main {
+  height: 100vh;
+  overflow-y: auto;
+}
 </style>

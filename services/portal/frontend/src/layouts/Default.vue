@@ -1,7 +1,7 @@
 <template>
   <v-app class="container">
-    <AuthNavBar />
-    <NavHome>{{ dashboardTitle }}</NavHome>
+    <AuthNavBar :dashboard-title="dashboardTitle"/>
+    <!-- <NavHome>{{ dashboardTitle }}</NavHome> -->
     <BackIcon v-if="route.matched.some(r => r.meta?.showBack)" />
     <default-view />
   </v-app>
@@ -10,7 +10,6 @@
 <script lang="ts" setup>
 import DefaultView from "./View.vue";
 import AuthNavBar from "@/components/AuthNavBar.vue";
-import NavHome from "@/components/domain/NavHome.vue";
 import BackIcon from "@/components/common/BackIcon.vue";
 import { useRoute } from "vue-router";
 import { computed } from "vue";
@@ -35,12 +34,8 @@ const dashboardTitle = computed(() => {
     font-weight: 400;
     font-style: normal;
     position: relative;
-    /* background-image: url("@/assets/bg.png"); 
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    backdrop-filter: blur(10px); 
-    -webkit-backdrop-filter: blur(10px);  */
+    height: 100vh;
+    max-height: 100vh;
     overflow: hidden;
 
     background-color: #071019;
@@ -53,8 +48,8 @@ const dashboardTitle = computed(() => {
       linear-gradient(
         90deg,
         #050708 0%,
-        #071019 12%,
-        #0b2433 25%,
+        #071019 3%,
+        #0b2433 8%,
         #0e3f5a 33%,
         #0f5f83 50%,
         #1493b4 90%,

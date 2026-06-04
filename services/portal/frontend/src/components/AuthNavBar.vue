@@ -3,7 +3,7 @@
         <router-link to="/" class="home-icon-link">
             <div class="d-flex align-center cursor-pointer pa-2 home-icon">
                 <v-icon icon="mdi-home-outline" size="large" class="text-blue-darken-2 mr-2"></v-icon>
-                <h3 class="text-white font-weight-bold mb-0">DigitalTWINS AI Platform</h3>
+                <h3 class="text-white font-weight-bold mb-0">{{ "DigitalTWINS AI Platform" }}</h3>
             </div>
         </router-link>
         
@@ -84,6 +84,9 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/store/auth_store';
 import { getKeycloak } from '@/bootstrap/keycloak';
 
+const props = defineProps<{
+    dashboardTitle?: string;
+}>();
 const router = useRouter();
 const authStore = useAuthStore();
 
