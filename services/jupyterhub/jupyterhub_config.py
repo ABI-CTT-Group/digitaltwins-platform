@@ -14,7 +14,7 @@ c.DummyAuthenticator.password = os.environ.get('JUPYTERHUB_DUMMY_PASSWORD', 'pas
 # Network
 # ---------------------------------------------------------------------------
 c.JupyterHub.ip = '0.0.0.0'
-c.JupyterHub.port = 8000  # internal container port; mapped to 8016 on the host
+c.JupyterHub.port = 8000  # internal container port
 
 # Hub bind address (used by single-user servers to reach the hub)
 c.JupyterHub.hub_ip = '0.0.0.0'
