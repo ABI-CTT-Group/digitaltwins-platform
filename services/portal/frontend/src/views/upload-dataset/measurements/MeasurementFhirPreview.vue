@@ -1,5 +1,8 @@
 <template>
-  <v-container class="d-flex justify-center" style="margin-top: 70px;">
+  <v-container class="d-flex flex-column align-center" style="margin-top: 70px;">
+    <div class="responsive-box mb-3">
+      <BackLink to="UploadMeasurementsDataset" label="Measurements" />
+    </div>
     <v-card
       class="pa-6 responsive-box"
       elevation="12"
@@ -54,6 +57,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import BackLink from '@/components/common/BackLink.vue';
 // @ts-ignore - vue-toastification ships without type declarations
 import { useToast } from 'vue-toastification';
 import {

@@ -2,11 +2,13 @@
     
     
     <div v-if="assayReadyToLaunch" class="container d-flex justify-center">
-        <BackIcon/>
-        <div class="overflow-y-auto sub-container d-flex flex-column align-center no-select">
+        <div class="sub-container d-flex flex-column align-center no-select">
             <v-container fluid class="py-10">
                 <v-row justify="center">
                     <v-col cols="12" md="10">
+                        <div class="mb-6">
+                            <BackLink back label="Back to dashboard" />
+                        </div>
                         <div class="plugin-title">
                           <h1>Assay Report Center</h1>
                           <h3 v-if="!!seekAssay" class="subtitle">Assay: {{ seekAssay?.name }}</h3>
@@ -58,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import BackIcon from '@/components/common/BackIcon.vue';
+import BackLink from '@/components/common/BackLink.vue';
 import { useRoute } from 'vue-router';
 import { ref, onBeforeMount } from 'vue';
 import { storeToRefs } from 'pinia';

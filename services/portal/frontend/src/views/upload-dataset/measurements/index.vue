@@ -1,6 +1,7 @@
 <template>
-  <div class="container overflow-hidden d-flex justify-center">
-    <div class="overflow-y-auto sub-container">
+  <div class="container d-flex justify-center">
+    <div class="sub-container">
+      <BackLink to="CatalogueDashboardView" label="Catalogue" class="mb-4" />
       <Hero :title="heroDetail.title" :subtitle="heroDetail.subtitle" />
 
       <MeasurementsOverallView
@@ -21,6 +22,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import Hero from '@/components/domain/Hero.vue';
+import BackLink from '@/components/common/BackLink.vue';
 import MeasurementsOverallView from './MeasurementsOverallView.vue';
 import UploadMeasurementForm from './UploadMeasurementForm.vue';
 import type { MeasurementResponse } from '@/models/types';

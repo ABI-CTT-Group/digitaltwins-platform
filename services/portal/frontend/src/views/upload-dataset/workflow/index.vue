@@ -1,7 +1,8 @@
 <template>
-    <div class="container overflow-hidden d-flex justify-center">
-        <div class="overflow-y-auto sub-container">
-            <Hero 
+    <div class="container d-flex justify-center">
+        <div class="sub-container">
+            <BackLink to="CatalogueDashboardView" label="Catalogue" class="mb-4" />
+            <Hero
                 :title="heroDetail.title"
                 :subtitle="heroDetail.subtitle"/>
 
@@ -14,6 +15,7 @@
 
 <script setup lang="ts">
 import Hero from '@/components/domain/Hero.vue';
+import BackLink from '@/components/common/BackLink.vue';
 import UploadWorkflowForm from './UploadWorkflowForm.vue';
 import WorkflowsOverallView from './WorkflowsOverallView.vue';
 import { ref, computed } from 'vue';
