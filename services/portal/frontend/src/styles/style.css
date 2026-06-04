@@ -4,26 +4,6 @@ body {
   font-optical-sizing: auto;
 }
 
-.container {
-  height: 100dvh;
-  backdrop-filter: blur(1px);
-  -webkit-backdrop-filter: blur(1px);
-}
-
-.container::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: inherit;
-  background-color: rgba(0, 0, 0, 0.4);
-  filter: blur(1px);
-  -webkit-filter: blur(1px);
-  z-index: -1;
-}
-
 .hover-animate {
   transition: all 0.3s ease;
   transform: scale(1);

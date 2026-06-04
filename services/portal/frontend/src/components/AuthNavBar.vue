@@ -1,9 +1,9 @@
 <template>
-    <v-app-bar color="#0e3f5a" dark sticky>
+    <v-app-bar class="nav-bar" color="transparent" :elevation="0" sticky>
         <router-link to="/" class="home-icon-link">
             <div class="d-flex align-center cursor-pointer pa-2 home-icon">
-                <v-icon icon="mdi-home-outline" size="large" class="text-blue-darken-2 mr-2"></v-icon>
-                <h3 class="text-white font-weight-bold mb-0">{{ "DigitalTWINS AI Platform" }}</h3>
+                <v-icon icon="mdi-home-outline" size="large" class="nav-home-icon mr-2"></v-icon>
+                <h3 class="text-white font-weight-bold mb-0 nav-wordmark">{{ "DigitalTWINS AI Platform" }}</h3>
             </div>
         </router-link>
         
@@ -118,6 +118,24 @@ const handleLogin = async () => {
 </script>
 
 <style scoped>
+/* Frosted glass. Safe for scroll performance ONLY because page content
+   scrolls inside .page-scroll (layouts/View.vue) — i.e. below this bar, never
+   under it — so the backdrop here is the static aurora and is not re-blurred
+   on scroll. If content is ever allowed to scroll under the navbar again, this
+   blur will re-evaluate every frame and reintroduce jank. */
+.nav-bar {
+    background: linear-gradient(180deg, rgba(11, 20, 44, 0.58), rgba(8, 13, 30, 0.46)) !important;
+    backdrop-filter: blur(18px) saturate(135%);
+    -webkit-backdrop-filter: blur(18px) saturate(135%);
+    border-bottom: 1px solid rgba(120, 200, 220, 0.16);
+}
+.nav-home-icon {
+    color: #5fd6e8;
+}
+.nav-wordmark {
+    letter-spacing: 0.2px;
+}
+
 .gap-3 {
     gap: 12px;
 }

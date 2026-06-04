@@ -182,25 +182,8 @@ const navigate = async (card: CatalogueCard) => {
   padding: clamp(28px, 6vh, 72px) clamp(20px, 5vw, 80px) 64px;
   font-family: 'Hanken Grotesk', system-ui, sans-serif;
   color: var(--text);
-  overflow: hidden;
-  background:
-    radial-gradient(1100px 620px at 78% -8%, rgba(31, 183, 217, 0.16), transparent 60%),
-    radial-gradient(900px 520px at 8% 4%, rgba(15, 95, 131, 0.22), transparent 55%),
-    linear-gradient(180deg, #081924 0%, #061018 58%, #050d13 100%);
-}
-
-/* Fine engineering grid + top vignette */
-.catalogue::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(120, 200, 220, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(120, 200, 220, 0.045) 1px, transparent 1px);
-  background-size: 46px 46px;
-  -webkit-mask-image: radial-gradient(1200px 700px at 50% -10%, #000 30%, transparent 80%);
-  mask-image: radial-gradient(1200px 700px at 50% -10%, #000 30%, transparent 80%);
+  /* Background (aurora glow + masked grid + breathing) is provided once by
+     .page-aurora in layouts/View.vue, so every page shares the exact look. */
 }
 
 .catalogue__inner {

@@ -1,5 +1,5 @@
 ﻿<template>
-    <div class="container d-flex flex-column align-center">
+    <div class=" d-flex flex-column align-center">
         <div class="position-fixed breadcrumbs d-flex justify-start align-center w-66">
             <v-breadcrumbs
                 class="custom-pointer font-weight-black"

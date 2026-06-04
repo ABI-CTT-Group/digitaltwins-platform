@@ -1,29 +1,29 @@
 <template>
-    <div class="container overflow-hidden d-flex justify-center">
-        <div class="overflow-y-auto sub-container">
+    <div class="d-flex justify-center">
+        <div class="sub-container">
             <Hero >
-                 <v-btn
-                    color="green-lighten-2"
-                    class="text-sky-900 px-6 py-3"
+                 <!-- <v-btn
+                    color="#5fd6e8"
+                    class="text-sky-900 font-weight-bold px-6 py-3"
                     size="large"
-                    elevation="6"
+                    elevation="0"
                     rounded="xl"
-                    variant="tonal"
+                    variant="flat"
                     @click="handleHeroStarted"
                 >
                     Get Started
                 </v-btn>
                 <v-btn
-                    color="purple-lighten-2"
+                    color="#a9cede"
                     class="text-white px-6 py-3"
                     size="large"
-                    elevation="6"
+                    elevation="0"
                     rounded="xl"
-                    variant="tonal"
+                    variant="outlined"
                     @click="handleHeroDocumentation"
                 >
                     Documentation
-                </v-btn>
+                </v-btn> -->
             </Hero>
             <v-row class="cards">
                 <v-col
