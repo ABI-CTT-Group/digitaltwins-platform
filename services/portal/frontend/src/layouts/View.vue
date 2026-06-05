@@ -1,6 +1,6 @@
 <template>
   <v-main>
-    <div ref="scroller" class="page-scroll">
+    <div ref="scroller" class="page-scroll" @scroll="onPageScroll">
       <router-view />
     </div>
   </v-main>
@@ -9,6 +9,7 @@
 <script lang="ts" setup>
 import { ref, watch, nextTick } from "vue";
 import { useRoute } from "vue-router";
+import { useScrollState } from "@/composables/useScrollState";
 
 // .page-scroll is a single persistent scroll container shared across routes,
 // so its scrollTop survives navigation. Reset it to the top on every route
@@ -16,11 +17,19 @@ import { useRoute } from "vue-router";
 const scroller = ref<HTMLElement | null>(null);
 const route = useRoute();
 
+// Surface the scroll position so the (transparent) navbar can fade in its
+// frosted backdrop once content has scrolled under-ish it.
+const { setScrolled } = useScrollState();
+const onPageScroll = (e: Event) => {
+  setScrolled((e.target as HTMLElement).scrollTop > 8);
+};
+
 watch(
   () => route.fullPath,
   () => {
     nextTick(() => {
       if (scroller.value) scroller.value.scrollTop = 0;
+      setScrolled(false);
     });
   }
 );

@@ -1,52 +1,59 @@
 <template>
-  <v-container class="text-center pt-12 px-4 no-select" fluid>
-    <v-row justify="center">
-      <v-col cols="12" md="10" lg="8">
-        <h2 class="title gradient-animated font-weight-bold mb-4">
-          {{ title }}
-        </h2>
-        <p class="text-white text-opacity-80 mb-8">
-          {{ subtitle }}
-        </p>
-        <div class="d-flex justify-center flex-wrap gap-4">
-         <slot></slot>
-        </div>
-      </v-col>
-    </v-row>
-  </v-container>
+  <header class="page-hero">
+    <h1 class="page-hero__title">{{ title }}</h1>
+    <p v-if="subtitle" class="page-hero__sub">{{ subtitle }}</p>
+    <div v-if="$slots.default" class="page-hero__actions">
+      <slot></slot>
+    </div>
+  </header>
 </template>
 
-<script lang="ts" setup>
-
+<script setup lang="ts">
+// Generic, reusable page header (title + subtitle + optional action slot).
+// Used by the upload-dataset pages and any other sub-page that wants a calm,
+// on-system heading. The animated landing hero lives separately in HomeHero.vue.
 defineProps({
   title: {
     type: String,
-    default: 'Accelerating Development of Digital Twin and AI-Driven Workflows'
+    default: 'Accelerating Development of Digital Twin and AI-Driven Workflows',
   },
   subtitle: {
     type: String,
-    default: 'Seamlessly integrate digital twin and AI technologies into clinical and research environments'
-  }
-})
-
-
+    default: 'Seamlessly integrate digital twin and AI technologies into clinical and research environments',
+  },
+});
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap');
 
-.title{
-    font-size: 3.5rem;
-    line-height: 1.2;
+.page-hero {
+  text-align: center;
+  padding: clamp(24px, 5vh, 52px) 16px clamp(18px, 3.5vh, 34px);
 }
-.text-opacity-80 {
-  opacity: 0.8;
+.page-hero__title {
+  margin: 0 auto;
+  max-width: 24ch;
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  line-height: 1.14;
+  letter-spacing: -0.01em;
+  color: #fff;
 }
-
-.gap-4 {
-  gap: 1rem;
+.page-hero__sub {
+  margin: 14px auto 0;
+  max-width: 52ch;
+  font-family: "Nunito", sans-serif;
+  font-size: clamp(0.92rem, 1.3vw, 1.04rem);
+  line-height: 1.55;
+  color: #a4bac4;
 }
-.no-select{
-    user-select: none;
-  -webkit-user-select: none; /* Safari */
+.page-hero__actions {
+  margin-top: 22px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 </style>

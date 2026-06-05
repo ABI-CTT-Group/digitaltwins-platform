@@ -1,80 +1,56 @@
 <template>
-    <v-app-bar class="nav-bar" color="transparent" :elevation="0" sticky>
-        <router-link to="/" class="home-icon-link">
-            <div class="d-flex align-center cursor-pointer pa-2 home-icon">
-                <v-icon icon="mdi-home-outline" size="large" class="nav-home-icon mr-2"></v-icon>
-                <h3 class="text-white font-weight-bold mb-0 nav-wordmark">{{ "DigitalTWINS AI Platform" }}</h3>
-            </div>
+    <v-app-bar class="nav-bar" :class="{ 'is-scrolled': scrolled }" color="transparent" :elevation="0" sticky>
+        <router-link to="/" class="brand">
+            <span class="brand__mark" aria-hidden="true">
+                <svg width="26" height="22" viewBox="0 0 34 28" fill="none">
+                    <line x1="11" y1="14" x2="23" y2="14" stroke="currentColor" stroke-width="2" opacity=".55"/>
+                    <circle cx="9" cy="14" r="6.5" fill="currentColor"/>
+                    <circle cx="25" cy="14" r="6" fill="none" stroke="currentColor" stroke-width="2"/>
+                </svg>
+            </span>
+            <span class="brand__word">DigitalTWINS<span class="brand__dim"> AI Platform</span></span>
         </router-link>
-        
+
         <v-spacer></v-spacer>
 
-        <img 
-            src="@/assets/images/abi.png" 
-            alt="ABI Logo" 
-            class="navbar-logo"
-        />
-
-        <div v-if="isLoggedIn" class="d-flex align-center gap-4">
-            <v-divider vertical class="mx-2"></v-divider>
-
+        <div v-if="isLoggedIn" class="d-flex align-center">
             <v-menu>
                 <template v-slot:activator="{ props }">
-                    <v-btn
-                        variant="text"
-                        v-bind="props"
-                        size="large"
-                        color="white"
-                        class="text-capitalize user-menu-btn"
-                    >
-                        <div class="d-flex flex-column align-center">
-                            <v-icon icon="mdi-account-circle"></v-icon>
-                            <span class="text-truncate user-name-text">{{ firstName }}</span>
-                        </div>
-                    </v-btn>
+                    <button type="button" v-bind="props" class="user-trigger">
+                        <span class="user-trigger__ava">{{ initials }}</span>
+                        <span class="user-trigger__name">{{ firstName }}</span>
+                        <v-icon icon="mdi-chevron-down" size="16"></v-icon>
+                    </button>
                 </template>
 
                 <v-list class="user-menu-list">
                     <v-list-item class="user-info-item">
-                        <div class="pa-5 w-100">
-                            <div class="d-flex align-center gap-3 mb-4">
-                                <v-icon icon="mdi-account-circle" size="40" class="text-blue-lighten-1"></v-icon>
-                                <div class="flex-grow-1">
-                                    <p class="font-weight-bold text-white mb-1" style="font-size: 16px; letter-spacing: 0.3px;">{{ displayName }}</p>
-                                    <p class="text-caption text-blue-lighten-1 mb-0" style="font-size: 12px; opacity: 0.85;">{{ userEmail }}</p>
-                                </div>
+                        <div class="menu-head">
+                            <span class="menu-ava">{{ initials }}</span>
+                            <div class="menu-id">
+                                <p class="menu-name">{{ displayName }}</p>
+                                <p class="menu-email">{{ userEmail }}</p>
                             </div>
-                            <v-divider class="my-4" style="border-color: rgba(66, 165, 245, 0.1);"></v-divider>
-                            <div>
-                                <p class="text-caption font-weight-bold text-blue-lighten-2 mb-3" style="font-size: 12px; letter-spacing: 0.5px; text-transform: uppercase; opacity: 0.8;">Assigned Roles</p>
-                                <div class="d-flex flex-wrap gap-2">
-                                    <v-chip size="small" v-for="role in userRoles" :key="role" class="menu-role-chip">
-                                        <v-icon icon="mdi-badge-account" size="x-small" class="mr-1"></v-icon>
-                                        {{ role }}
-                                    </v-chip>
-                                </div>
+                        </div>
+                        <div class="menu-roles">
+                            <p class="menu-roles__label">Assigned roles</p>
+                            <div class="menu-roles__chips">
+                                <span v-for="role in userRoles" :key="role" class="menu-role-chip">
+                                    <v-icon icon="mdi-shield-account-outline" size="12" class="mr-1"></v-icon>{{ role }}
+                                </span>
                             </div>
                         </div>
                     </v-list-item>
-                    
-                    <v-divider></v-divider>
-                    
+
                     <v-list-item @click="handleLogout" class="logout-item">
-                        <v-list-item-title class="d-flex align-center">
-                            <v-icon icon="mdi-logout" class="mr-2" style="color: #e74c3c;"></v-icon>
-                            <span style="color: #e74c3c; font-weight: 500;">Logout</span>
-                        </v-list-item-title>
+                        <v-icon icon="mdi-logout-variant" size="18" class="mr-2"></v-icon>
+                        <span>Logout</span>
                     </v-list-item>
                 </v-list>
             </v-menu>
         </div>
 
-        <div v-else class="d-flex gap-2">
-            <v-btn class="text-white" variant="text" @click="handleLogin">
-                <v-icon icon="mdi-login" class="mr-1"></v-icon>
-                Login
-            </v-btn>
-        </div>
+        <button v-else type="button" class="signin" @click="handleLogin">Sign in</button>
     </v-app-bar>
 </template>
 
@@ -83,18 +59,21 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/store/auth_store';
 import { getKeycloak } from '@/bootstrap/keycloak';
+import { useScrollState } from '@/composables/useScrollState';
 
-const props = defineProps<{
-    dashboardTitle?: string;
-}>();
 const router = useRouter();
 const authStore = useAuthStore();
+const { scrolled } = useScrollState();
 
 const isLoggedIn = computed(() => authStore.isLoggedIn);
 const displayName = computed(() => authStore.displayName);
 const firstName = computed(() => authStore.displayName?.split(' ')[0] || '');
 const userEmail = computed(() => authStore.user?.email || '');
 const userRoles = computed(() => authStore.userRoles);
+const initials = computed(() => {
+    const parts = (authStore.displayName?.trim() || '').split(/\s+/).filter(Boolean);
+    return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || 'U';
+});
 
 const handleLogout = async () => {
     try {
@@ -118,145 +97,157 @@ const handleLogin = async () => {
 </script>
 
 <style scoped>
-/* Frosted glass. Safe for scroll performance ONLY because page content
-   scrolls inside .page-scroll (layouts/View.vue) — i.e. below this bar, never
-   under it — so the backdrop here is the static aurora and is not re-blurred
-   on scroll. If content is ever allowed to scroll under the navbar again, this
-   blur will re-evaluate every frame and reintroduce jank. */
+/* Transparent by default — the static aurora (Default.vue) shows through, so
+   nav + page read as one field. A frosted tint fades in only after scroll.
+   Backdrop-filter exists only in the scrolled state, and content scrolls below
+   the bar (never under it), so it stays cheap. */
 .nav-bar {
-    background: linear-gradient(180deg, rgba(11, 20, 44, 0.58), rgba(8, 13, 30, 0.46)) !important;
-    backdrop-filter: blur(18px) saturate(135%);
-    -webkit-backdrop-filter: blur(18px) saturate(135%);
-    border-bottom: 1px solid rgba(120, 200, 220, 0.16);
+    background: transparent !important;
+    border-bottom: 1px solid transparent;
+    transition: background 0.35s ease, backdrop-filter 0.35s ease, border-color 0.35s ease;
 }
-.nav-home-icon {
-    color: #5fd6e8;
-}
-.nav-wordmark {
-    letter-spacing: 0.2px;
-}
-
-.gap-3 {
-    gap: 12px;
+.nav-bar.is-scrolled {
+    background: rgba(10, 16, 30, 0.6) !important;
+    backdrop-filter: blur(14px) saturate(130%);
+    -webkit-backdrop-filter: blur(14px) saturate(130%);
+    border-bottom-color: rgba(160, 190, 200, 0.14);
 }
 
-.gap-2 {
-    gap: 8px;
-}
-
-.home-icon-link {
-    text-decoration: none;
-    color: inherit;
+.brand {
     display: flex;
     align-items: center;
+    gap: 10px;
     padding-left: 12px;
+    text-decoration: none;
 }
+.brand__mark { color: #e6edf0; display: inline-flex; }
+.brand__word {
+    color: #e6edf0;
+    font-family: "Nunito", sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: 0.2px;
+}
+.brand__dim { color: #9aabb3; font-weight: 500; }
 
-.home-icon {
+.signin {
+    margin-right: 14px;
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: 1px solid rgba(160, 190, 200, 0.3);
+    background: transparent;
+    color: #cdd8dd;
+    font-family: "Nunito", sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s ease;
-    border-radius: 4px;
+    transition: border-color 0.25s ease, color 0.25s ease, background 0.25s ease;
 }
+.signin:hover { border-color: rgba(95, 214, 232, 0.5); color: #eafaff; background: rgba(95, 214, 232, 0.08); }
 
-.home-icon:hover {
-    background-color: #0a2f47;
+.user-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: 12px;
+    padding: 5px 10px 5px 6px;
+    border-radius: 999px;
+    border: 1px solid rgba(160, 190, 200, 0.18);
+    background: rgba(255, 255, 255, 0.03);
+    color: #cdd8dd;
+    cursor: pointer;
+    font-family: "Nunito", sans-serif;
+    transition: border-color 0.25s ease, background 0.25s ease;
 }
+.user-trigger:hover { border-color: rgba(95, 214, 232, 0.4); background: rgba(255, 255, 255, 0.05); }
+.user-trigger__ava {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #1d2735;
+    display: grid;
+    place-items: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #cdd8dd;
+}
+.user-trigger__name { font-size: 0.85rem; }
 
+/* ---- User dropdown — aurora glass, aqua accent ---- */
 .user-menu-list {
-    background-color: #1a2332 !important;
-    border-radius: 12px !important;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25), 0 0 1px rgba(0, 0, 0, 0.1) !important;
-    min-width: 360px;
+    margin-top: 8px;
+    padding: 0 !important;
+    min-width: 300px;
     overflow: hidden;
-    border: 1px solid rgba(66, 165, 245, 0.1);
+    border-radius: 14px !important;
+    background: rgba(8, 18, 26, 0.97) !important;
+    border: 1px solid rgba(95, 214, 232, 0.18);
+    box-shadow: 0 18px 48px -16px rgba(0, 0, 0, 0.75) !important;
+    font-family: "Nunito", sans-serif;
 }
 
 .user-info-item {
-    background: linear-gradient(180deg, #242f42 0%, #1a2332 100%) !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    border-bottom: 1px solid rgba(66, 165, 245, 0.15);
+    padding: 18px 18px 16px !important;
+    background: transparent !important;
 }
-
-.user-info-item:hover {
-    background: linear-gradient(180deg, #2a3947 0%, #242f42 100%) !important;
+.menu-head { display: flex; align-items: center; gap: 12px; }
+.menu-ava {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #06121a;
+    background: linear-gradient(135deg, #5fd6e8, #3aa6d9);
 }
+.menu-id { min-width: 0; }
+.menu-name { margin: 0; font-weight: 700; font-size: 0.95rem; color: #fff; letter-spacing: 0.2px; }
+.menu-email { margin: 2px 0 0; font-size: 0.78rem; color: #8ba0a9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+.menu-roles {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(120, 200, 220, 0.12);
+}
+.menu-roles__label {
+    margin: 0 0 9px;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #5fd6e8;
+    opacity: 0.85;
+}
+.menu-roles__chips { display: flex; flex-wrap: wrap; gap: 7px; }
 .menu-role-chip {
-    background-color: rgba(66, 165, 245, 0.15) !important;
-    color: #42a5f5 !important;
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.72rem;
     font-weight: 600;
-    border: 1px solid rgba(66, 165, 245, 0.3);
+    color: #cfe7ee;
+    background: rgba(95, 214, 232, 0.12);
+    border: 1px solid rgba(95, 214, 232, 0.3);
 }
 
 .logout-item {
-    background-color: transparent !important;
-    padding: 0 !important;
-    height: 48px;
-    display: flex;
+    display: flex !important;
     align-items: center;
-    padding-left: 16px !important;
-    transition: all 0.3s ease;
-    border-top: 1px solid rgba(66, 165, 245, 0.1);
-}
-
-.logout-item:hover {
-    background-color: rgba(231, 76, 60, 0.08) !important;
-    border-left: 3px solid #e74c3c;
-    padding-left: 13px !important;
-}
-
-.user-profile-card {
-    display: flex;
-    align-items: center;
-    padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    border-left: 3px solid #42a5f5;
-    backdrop-filter: blur(10px);
-}
-
-.user-info-section {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.user-name {
-    font-size: 13px;
+    min-height: 46px !important;
+    padding: 0 18px !important;
+    color: #f0a6a6;
     font-weight: 600;
-    color: #ffffff;
-    letter-spacing: 0.3px;
+    font-size: 0.88rem;
+    cursor: pointer;
+    border-top: 1px solid rgba(120, 200, 220, 0.1);
+    transition: background 0.25s ease, color 0.25s ease;
 }
-
-.user-roles-container {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-}
-
-.role-chip {
-    background-color: #42a5f5 !important;
-    color: #ffffff !important;
-    font-weight: 500;
-}
-
-.navbar-logo {
-    height: auto;
-    max-height: 85%;
-    width: auto;
-    object-fit: contain;
-    margin-right: 16px;
-}
-
-.user-menu-btn {
-    min-width: 70px;
-}
-
-.user-name-text {
-    font-size: 10px;
-    font-weight: 500;
-    max-width: 60px;
-    line-height: 1;
+.logout-item:hover {
+    background: rgba(240, 120, 120, 0.1) !important;
+    color: #ff8a8a;
 }
 </style>

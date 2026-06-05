@@ -9,8 +9,11 @@ body {
    here (not a scoped block) because tooltip content is teleported to <body>
    and scoped styles can't reach it. */
 .v-overlay.v-tooltip > .v-overlay__content {
-  max-width: 320px;
-  padding: 7px 12px !important;
+  max-width: min(340px, 86vw) !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  padding: 8px 13px !important;
   border-radius: 9px !important;
   background: rgba(8, 18, 26, 0.97) !important;
   border: 1px solid rgba(95, 214, 232, 0.32) !important;
@@ -18,7 +21,7 @@ body {
   font-family: "Nunito", sans-serif !important;
   font-size: 0.82rem !important;
   font-weight: 600 !important;
-  line-height: 1.35 !important;
+  line-height: 1.4 !important;
   letter-spacing: 0.01em;
   box-shadow: 0 10px 28px -10px rgba(0, 0, 0, 0.75) !important;
 }
@@ -46,31 +49,6 @@ body {
   user-select: none;
   -webkit-user-select: none;
   /* Safari */
-}
-
-.gradient-animated {
-  /* background: linear-gradient(90deg, #ff6b6b, #f8e71c, #50e3c2, #7c4dff); */
-  background: linear-gradient(90deg, #1fb7d9, #ffffff, #1fb7d9);
-  background-size: 300% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  display: inline-block;
-  animation: slide-gradient 20s linear infinite;
-}
-
-@keyframes slide-gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-
-  50% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: 0% 50%;
-  }
 }
 
 .focus-in-expand {

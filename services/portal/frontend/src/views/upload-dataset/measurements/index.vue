@@ -1,6 +1,6 @@
 <template>
   <div class="container d-flex justify-center">
-    <div class="sub-container">
+    <div class="w-100">
       <BackLink to="CatalogueDashboardView" label="Catalogue" class="mb-4" />
       <Hero :title="heroDetail.title" :subtitle="heroDetail.subtitle" />
 
@@ -63,8 +63,5 @@ const handleUploadFinished = () => {
 </script>
 
 <style scoped>
-.sub-container {
-  width: 100%;
-  margin-top: 70px;
-}
+
 </style>

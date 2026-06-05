@@ -1,5 +1,4 @@
 <template>
-    <!-- <div class="exit balloon heartbeat gradient-animated" onclick="window.history.back()"></div> -->
     <div class="exit d-flex justify-center flex-wrap gap-4">
             <div class="roll-in-left">
                 <v-btn 
