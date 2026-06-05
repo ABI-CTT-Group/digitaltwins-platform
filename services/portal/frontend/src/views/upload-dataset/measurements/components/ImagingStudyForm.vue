@@ -1,26 +1,28 @@
 <template>
-  <div>
+  <div class="rform" style="--type: #c792ea">
     <div
       v-for="patient in selectedPatientObjects"
       :key="patient.name"
-      class="mb-4"
+      class="rform__group"
     >
-      <h4 class="text-subtitle-1 text-cyan-lighten-2 mb-2">
-        {{ patient.name }} — Imaging Studies ({{ patient.imagingStudy.length }})
-      </h4>
+      <div class="rform__head">
+        <span class="rform__dot"></span>
+        <span class="rform__name">{{ patient.name }}</span>
+        <span class="rform__count">{{ patient.imagingStudy.length }} imaging stud{{ patient.imagingStudy.length === 1 ? 'y' : 'ies' }}</span>
+      </div>
 
       <v-card
         v-for="(study, idx) in patient.imagingStudy"
         :key="`${patient.name}-img-${idx}`"
-        class="mb-3 pa-3"
-        variant="outlined"
-        color="grey-lighten-2"
+        class="mb-3 pa-4 field-card"
+        flat
       >
         <div class="d-flex align-center justify-space-between mb-2">
           <div class="d-flex align-center ga-2">
             <v-chip
               size="x-small"
               :color="modalityColor(study)"
+              variant="tonal"
               prepend-icon="mdi-image-multiple"
             >
               {{ modalityLabel(study) }}
@@ -28,7 +30,8 @@
             <v-chip
               v-if="autoMarker(study)"
               size="x-small"
-              color="cyan-lighten-3"
+              color="#5fd6e8"
+              variant="tonal"
               prepend-icon="mdi-auto-fix"
             >
               Auto from {{ autoMarker(study).samplePath }}
@@ -38,7 +41,7 @@
             icon="mdi-close"
             variant="text"
             density="comfortable"
-            color="red"
+            color="#ff6b6b"
             @click="removeStudy(patient, idx)"
           />
         </div>
@@ -75,7 +78,7 @@
           :key="`${patient.name}-img-${idx}-series-${sIdx}`"
           class="pa-2 mb-1 series-card"
         >
-          <div class="text-caption text-cyan-darken-3 mb-1">
+          <div class="text-caption series-label mb-1">
             Series {{ sIdx + 1 }}
           </div>
           <div class="d-flex flex-row ga-2">
@@ -123,8 +126,9 @@
           <span v-bind="tip" class="d-inline-flex">
             <v-btn
               variant="tonal"
-              color="cyan"
+              color="#5fd6e8"
               size="small"
+              class="text-none"
               prepend-icon="mdi-plus"
               :disabled="true"
             >
@@ -168,10 +172,10 @@ const modalityLabel = (study: ImagingStudyDescription): string => {
 
 const modalityColor = (study: ImagingStudyDescription): string => {
   const m = (autoMarker(study)?.modality || '').toLowerCase();
-  if (m === 'dcm') return 'deep-purple-lighten-3';
-  if (m === 'nrrd') return 'indigo-lighten-3';
-  if (m === 'nii' || m === 'nii.gz') return 'teal-lighten-3';
-  return 'grey-lighten-2';
+  if (m === 'dcm') return '#c792ea';
+  if (m === 'nrrd') return '#7c9cff';
+  if (m === 'nii' || m === 'nii.gz') return '#6fd49a';
+  return '#9fb4bf';
 };
 
 const bodySiteDisplay = (bs?: string | { display?: string; code?: string } | null) => {
@@ -204,9 +208,61 @@ const removeStudy = (patient: FhirCdaPatient, idx: number) => {
 </script>
 
 <style scoped>
-.series-card {
-  background: rgba(0, 188, 212, 0.06);
-  border-radius: 6px;
-  border: 1px dashed rgba(0, 188, 212, 0.3);
+.series-label { color: var(--type); font-weight: 700; }
+.rform__group { margin-bottom: 26px; }
+.rform__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
 }
+.rform__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--type);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--type) 70%, transparent);
+}
+.rform__name {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.12rem;
+  font-weight: 500;
+  color: #fff;
+}
+.rform__count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--type);
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--type) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--type) 32%, transparent);
+}
+.field-card {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid rgba(120, 200, 220, 0.12);
+  border-left: 3px solid color-mix(in srgb, var(--type) 65%, transparent);
+  border-radius: 12px !important;
+}
+.series-card {
+  background: color-mix(in srgb, var(--type) 5%, transparent);
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--type) 22%, transparent);
+}
+
+/* Mocked / readonly fields: render as quiet inset values, not raised grey
+   solo boxes, so they sit calmly inside the glass card. */
+.rform :deep(.v-field--variant-solo) {
+  background: rgba(255, 255, 255, 0.016) !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(120, 200, 220, 0.1);
+  border-radius: 9px !important;
+}
+.rform :deep(.v-field--variant-solo .v-field__input) {
+  color: #c3d2d8;
+  font-weight: 600;
+}
+.rform :deep(.v-field--variant-solo .v-label) { color: #7f97a1; }
 </style>

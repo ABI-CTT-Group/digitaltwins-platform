@@ -1,36 +1,38 @@
 <template>
-  <div>
+  <div class="rform" style="--type: #ffb74d">
     <div
       v-for="patient in selectedPatientObjects"
       :key="patient.name"
-      class="mb-4"
+      class="rform__group"
     >
-      <h4 class="text-subtitle-1 text-cyan-lighten-2 mb-2">
-        {{ patient.name }} — Document References ({{ patient.documentReference.length }})
-      </h4>
+      <div class="rform__head">
+        <span class="rform__dot"></span>
+        <span class="rform__name">{{ patient.name }}</span>
+        <span class="rform__count">{{ patient.documentReference.length }} document{{ patient.documentReference.length === 1 ? '' : 's' }}</span>
+      </div>
 
       <v-card
         v-for="(doc, idx) in patient.documentReference"
         :key="`${patient.name}-doc-${idx}`"
-        class="mb-3 pa-3"
-        variant="outlined"
-        color="grey-lighten-2"
+        class="mb-3 pa-4 field-card"
+        flat
       >
         <div class="d-flex align-center justify-space-between mb-2">
           <v-chip
             v-if="autoMarker(doc)"
             size="x-small"
-            color="cyan-lighten-3"
+            color="#5fd6e8"
+            variant="tonal"
             prepend-icon="mdi-auto-fix"
           >
             Auto from {{ autoMarker(doc).samplePath }}
           </v-chip>
-          <div v-else class="text-caption text-grey-darken-1">Manual entry</div>
+          <div v-else class="text-caption text-muted">Manual entry</div>
           <v-btn
             icon="mdi-close"
             variant="text"
             density="comfortable"
-            color="red"
+            color="#ff6b6b"
             @click="removeDoc(patient, idx)"
           />
         </div>
@@ -43,7 +45,7 @@
           class="mb-2"
         />
 
-        <div class="text-caption text-grey-darken-1 mb-1">
+        <div class="text-caption text-muted mb-1">
           Attachments ({{ doc.attachments.length }})
         </div>
         <v-table density="compact" class="mb-2">
@@ -81,13 +83,13 @@
                   variant="text"
                   density="comfortable"
                   size="small"
-                  color="red"
+                  color="#ff6b6b"
                   @click="doc.attachments.splice(aIdx, 1)"
                 />
               </td>
             </tr>
             <tr v-if="!doc.attachments.length">
-              <td colspan="4" class="text-center text-caption text-grey">
+              <td colspan="4" class="text-center text-caption text-muted">
                 No attachments. Click "Add attachment" below.
               </td>
             </tr>
@@ -96,8 +98,9 @@
 
         <v-btn
           variant="text"
-          color="cyan"
+          color="#5fd6e8"
           size="small"
+          class="text-none"
           prepend-icon="mdi-plus"
           @click="addAttachment(doc)"
         >
@@ -107,8 +110,9 @@
 
       <v-btn
         variant="tonal"
-        color="cyan"
+        color="#5fd6e8"
         size="small"
+        class="text-none"
         prepend-icon="mdi-plus"
         @click="addDoc(patient)"
       >
@@ -174,3 +178,44 @@ const formatBytes = (n?: number) => {
   return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
 };
 </script>
+
+<style scoped>
+.text-muted { color: #7f97a1; }
+.rform__group { margin-bottom: 26px; }
+.rform__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.rform__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--type);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--type) 70%, transparent);
+}
+.rform__name {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.12rem;
+  font-weight: 500;
+  color: #fff;
+}
+.rform__count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--type);
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--type) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--type) 32%, transparent);
+}
+.field-card {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid rgba(120, 200, 220, 0.12);
+  border-left: 3px solid color-mix(in srgb, var(--type) 65%, transparent);
+  border-radius: 12px !important;
+}
+</style>

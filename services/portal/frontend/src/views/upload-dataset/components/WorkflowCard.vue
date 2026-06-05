@@ -1,135 +1,58 @@
-﻿<template>
-    <!-- rgba(15, 25, 35, 0.15) -->
-    <CardUI 
-      cardStyle="background: rgba(0, 200, 180, 0.05);"
-      :isDeleting="isDeleting"
-      v-model:menu="menu"
-    >
-      <template #menu>
-          <v-list density="compact" class="py-0 cursor-pointer">
-              <v-list-item density="compact" @click.stop="onSubmit">
-                  <v-list-item-title class="hover-animate px-2">Submit to Approval</v-list-item-title>
-              </v-list-item>
-              <v-list-item density="compact" @click.stop="onDelete" color="red">
-                  <v-list-item-title class="text-red hover-animate px-2">Delete Workflow</v-list-item-title>
-              </v-list-item>
-          </v-list>
-      </template>
-      <template #name>
-        <v-tooltip :text="workflow.name" location="top"  max-width="300">
-          <template #activator="{ props }">
-            <p v-bind="props" class="text-truncate" style="max-width:400px;">
-              {{ workflow.name }}
-            </p>
-          </template>
-        </v-tooltip>
-      </template>
-      <template #description>{{ workflow.description }}</template>
-      <template #tags>
-          <v-chip v-if="!!workflow.version" size="small" color="blue-lighten-4" text-color="blue-darken-3" class="mx-1 my-1">v{{ workflow.version }}</v-chip>
-          <v-chip v-if="!!workflow.author" size="small" color="blue-lighten-5" text-color="blue-darken-3" class="mx-1 my-1">{{ workflow.author }}</v-chip>
-          <v-chip v-if="!!workflow.status" size="small" :color="statusColor" :text-color="statusTextColor" class="mx-1 mr-1 my-1">{{ workflow.status }}</v-chip>
-      </template>
-      <template #time>
-          <v-chip v-if="!!workflow.createdAt" size="small" color="green-lighten-4" text-color="green-darken-2" class="ms-auto">{{ formatDate(workflow.createdAt) }}</v-chip>
-      </template>
-      
-    </CardUI>
+<template>
+  <CardUI
+    :title="workflow.name"
+    kind="Workflow"
+    accent="#7fb2f0"
+    :is-deleting="isDeleting"
+    :menu-items="menuItems"
+  >
+    <template #description>{{ workflow.description || 'No description provided.' }}</template>
+
+    <template #meta>
+      <span v-if="workflow.version" class="aurora-chip">v{{ workflow.version }}</span>
+      <span v-if="workflow.author" class="aurora-chip">{{ workflow.author }}</span>
+      <span v-if="workflow.status" class="aurora-chip" :style="{ '--chip': auroraStatus(workflow.status) }">
+        {{ workflow.status }}
+      </span>
+      <span v-if="workflow.createdAt" class="aurora-chip ms-auto">{{ formatDate(workflow.createdAt) }}</span>
+    </template>
+  </CardUI>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, toRef } from 'vue'
+import { computed, ref, toRef } from 'vue'
 import { WorkflowResponse } from '@/models/types';
-import CardUI from './CardUI.vue';
+import CardUI, { type UCardMenuItem } from './CardUI.vue';
 import { formatDate } from './utils';
 
 const props = defineProps<{
   workflow: WorkflowResponse
 }>()
 
-const menu = ref(false);
 const workflow = toRef(props, "workflow")
 const isDeleting = ref(false)
 
+const emit = defineEmits(["submit-approve", "delete"])
 
-const emit = defineEmits(["submit-approve",  "delete"])
-
-const statusColor = computed(() => {
-  switch (props.workflow.status) {
-    case "pending":
-      return "amber-lighten-2"
-    case "building":
-      return "blue-lighten-2"
-    case "failed":
-      return "red-lighten-2"
-    case "completed":
-      return "green-lighten-2"
-    default:
-      return ""
+// Aurora status palette — soft tonal chips keyed by lifecycle state.
+const auroraStatus = (s?: string) => {
+  switch (s) {
+    case "pending": return "#ffb74d"
+    case "building": return "#5fd6e8"
+    case "failed": return "#ff6b6b"
+    case "completed": return "#6fd49a"
+    default: return "#9fb4bf"
   }
-})
-
-const statusTextColor = computed(() => {
-  switch (props.workflow.status) {
-    case "pending":
-      return "amber-darken-3"
-    case "building":
-      return "blue-darken-3"
-    case "failed":
-      return "red-darken-3"
-    case "completed":
-      return "green-darken-3"
-    default:
-      return ""
-  }
-})
-
-const onSubmit = () => {
-    menu.value = false;
-    emit("submit-approve", workflow.value.id)
 }
 
+const menuItems = computed<UCardMenuItem[]>(() => [
+  { label: 'Submit to approval', icon: 'mdi-send-check-outline', onClick: onSubmit },
+  { label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: onDelete },
+])
+
+const onSubmit = () => emit("submit-approve", workflow.value.id)
 const onDelete = () => {
-    menu.value = false;
     isDeleting.value = true;
     emit("delete", workflow.value.id)
 }
 </script>
-
-<style scoped>
-.title {
-    font-size: large;
-}
-
-.subtitle{
-    font-size: small;
-    line-height: 1.5em;         
-    max-height: 4em;             
-    overflow: hidden;
-    display: -webkit-box;
-    box-orient: vertical;
-    -webkit-box-orient: vertical;
-    line-clamp: 2;
-    -webkit-line-clamp: 2;        
-    text-overflow: ellipsis; 
-}
-.card-hover-animate {
-  transition: all 0.3s ease;
-  transform: scale(1);
-}
-.card-hover-animate:hover {
-  transform: scale(1.02) !important;
-  box-shadow:
-        0 0 12px rgba(0, 200, 180, 0.5),
-        0 0 20px rgba(0, 200, 180, 0.3),
-        inset 0 0 8px rgba(0, 200, 180, 0.2) !important;
-}
-
-.shadow-card {
-    background: rgba(0, 200, 180, 0.12);
-    border-radius: 12px !important;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-
-</style>

@@ -4,25 +4,29 @@
             v-model="search"
             :label="label"
             variant="outlined"
+            :base-color="accent"
+            :color="accent"
             prepend-inner-icon="mdi-magnify"
             clearable
             hide-details
         />
         <v-btn
-            :text="'search'"
+            text="search"
+            :color="accent"
             variant="tonal"
             :width="150"
-            rounded="md"
-            class="hover-animate ma-2"
+            rounded="lg"
+            class="text-none ma-2"
             @click="handleSearch"
         ></v-btn>
     </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{
+withDefaults(defineProps<{
     label: string
-}>()
+    accent?: string
+}>(), { accent: '#5fd6e8' })
 
 const search = defineModel('search', {
     type: String,

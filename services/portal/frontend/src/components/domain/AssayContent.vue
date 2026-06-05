@@ -1,13 +1,13 @@
 ﻿<template>
     <v-form ref="formRef" class="py-2 my-5 mx-5 d-flex flex-column align-start" @submit.prevent>
         <div class="d-flex flex-row ma-2 workflow">
-            <span class="assay-form-subtitle w-25 mt-4 text-deep-orange">Workflow: </span>
+            <span class="assay-form-subtitle w-25 mt-4 accent-workflow">Workflow: </span>
             <div class="w-66 mt-4">
                 <span class="workflow-name">{{ workflowDisplayName }}</span>
             </div>
         </div>
         <div class="d-flex flex-row ma-2 input">
-            <span class="assay-form-subtitle w-25 text-green">Inputs: </span>
+            <span class="assay-form-subtitle w-25 accent-input">Inputs: </span>
             <div class="w-75">
                 <div class="w-75 d-flex flex-row mt-4" v-for="data in assayDetails!.workflow.inputs">
                     <span class="w-25">{{ capitalize(data.input.name.replaceAll("_", " ")) }}:</span>
@@ -40,7 +40,7 @@
             </div>
         </div>
         <div class="d-flex flex-row ma-2 output">
-            <span class="assay-form-subtitle w-25 text-orange">Outputs: </span>
+            <span class="assay-form-subtitle w-25 accent-output">Outputs: </span>
             <div class="w-75">
                 <div class="w-75 d-flex flex-row mt-4" v-for="data in assayDetails!.workflow.outputs">
                     <span class="w-25">{{ capitalize(data.output.name.replaceAll("_", " ")) }}:</span>
@@ -64,7 +64,7 @@
             </div>
         </div>
         <div class="d-flex flex-row ma-2 cohort">
-            <span class="assay-form-subtitle w-25 mt-4 text-cyan">Cohorts:</span>
+            <span class="assay-form-subtitle w-25 mt-4 accent-cohort">Cohorts:</span>
             <v-responsive
                 class="my-2"
                 max-width="444"
@@ -160,8 +160,6 @@ onBeforeMount(()=>{
 
 onMounted(async () => {
 
-    console.log("assay content: ",assayDetails.value);
-    
     if (assayDetails.value?.numberOfParticipants?.length) {
         cohortsParticipants.value = compressRangeList(assayDetails.value.numberOfParticipants);
     }
@@ -210,8 +208,8 @@ const handleDatasetSelected = async (value: string, inputName:string, inputCateg
     
 };
 
-const handleSampleSelected = (value: any) => {
-    console.log(value);
+const handleSampleSelected = (_value: any) => {
+    // Selection is bound via v-model; no side-effect needed on change.
 };
 
 function compressRangeList(numbers: number[]): string {
@@ -286,43 +284,31 @@ defineExpose({ validate });
 </script>
 
 <style scoped>
-.fancy-shadow {
-    border-radius: 6px;
-    background: linear-gradient(145deg, #242323, #1e1e1e);
-    box-shadow:  1px 1px 5px #d3d3d3,
-                -1px -1px 5px #ededed;
-}
 .workflow-name{
     font-size: 1rem;
     font-weight: 500;
+    color: #e9f2f5;
 }
 .assay-form-subtitle{
     font-size: 1rem;
     font-weight: 650;
 }
-.workflow{
+/* Each section sits on the same subtle glass; a single accented left border
+   keeps the four groups visually distinguishable without the old loud tints. */
+.workflow, .input, .output, .cohort {
     width: 95%;
-    padding: 15px 0;
-    border-radius: 10px;
-    background-color: rgba(255,87,34, 0.15);
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(120, 200, 220, 0.12);
 }
-.input{
-    width: 95%;
-    padding: 10px 0;
-    border-radius: 10px;
-    background-color: rgba(76,175,80, 0.15);
-}
-.output{
-    width: 95%;
-    padding: 10px 0;
-    border-radius: 10px;
-    background-color: rgba(255,152,0, 0.15);
-}
-.cohort{
-    width: 95%;
-    padding: 10px 0;
-    border-radius: 10px;
-    background-color: rgba(0,188,212, 0.15);
-}
+.workflow { border-left: 3px solid #5fd6e8; }
+.input    { border-left: 3px solid #6fd49a; }
+.output   { border-left: 3px solid #ffb74d; }
+.cohort   { border-left: 3px solid #c792ea; }
 
+.accent-workflow { color: #5fd6e8; }
+.accent-input    { color: #6fd49a; }
+.accent-output   { color: #ffb74d; }
+.accent-cohort   { color: #c792ea; }
 </style>

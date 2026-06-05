@@ -1,5 +1,5 @@
 <template>
-  <button type="button" class="back-link" @click="go">
+  <button type="button" class="back-link" :class="{ 'back-link--sticky': sticky }" @click="go">
     <v-icon icon="mdi-arrow-left" size="18"></v-icon>
     <span>{{ label }}</span>
   </button>
@@ -19,6 +19,9 @@ const props = defineProps<{
   to?: string;
   query?: Record<string, unknown>;
   back?: boolean;
+  /** Pin the link to the top of the scroll container so it stays reachable as
+   *  the page scrolls (opt-in; consumers that don't pass it are unaffected). */
+  sticky?: boolean;
 }>();
 
 const router = useRouter();
@@ -52,6 +55,20 @@ const go = () => {
   color: #e9f2f5;
   border-color: rgba(95, 214, 232, 0.45);
   background: rgba(255, 255, 255, 0.05);
+}
+/* Pinned variant — sticks just below the navbar while the page scrolls. Opaque
+   so scrolling content stays readable behind the pill (no backdrop-filter: the
+   bar would re-blur on every scroll frame). */
+.back-link--sticky {
+  position: sticky;
+  top: 12px;
+  z-index: 6;
+  align-self: flex-start;
+  background: rgba(8, 18, 26, 0.92);
+  box-shadow: 0 8px 20px -12px rgba(0, 0, 0, 0.7);
+}
+.back-link--sticky:hover {
+  background: rgba(12, 24, 34, 0.95);
 }
 .back-link .v-icon {
   transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);

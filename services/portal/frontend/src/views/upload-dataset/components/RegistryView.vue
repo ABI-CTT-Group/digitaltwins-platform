@@ -1,31 +1,29 @@
 <template>
   <v-container class="d-flex align-center justify-center">
     <v-card
-      class="pa-6 responsive-box d-flex flex-column align-center justify-center"
-      elevation="12"
-      style="background: rgba(15, 25, 35, 0.45); border-radius: 20px;"
+      class="pa-6 responsive-box d-flex flex-column align-center justify-center aurora-panel"
+      flat
     >
       <!-- Register button -->
       <div class="w-100 d-flex justify-start">
-        <v-btn
-          color="pink"
-          variant="tonal"
-          rounded="md"
-          prepend-icon="mdi-plus-circle-outline"
-          class="hover-animate my-2 register-btn"
+        <button
+          type="button"
+          class="aurora-btn register-btn my-2"
+          :style="{ '--accent': accent }"
           :disabled="disabled"
           @click="emit('register')"
         >
+          <v-icon icon="mdi-plus-circle-outline" size="18" />
           {{ registerLabel }}
-        </v-btn>
+        </button>
       </div>
 
       <!-- List panel -->
-      <div class="d-flex flex-column w-100 my-2 pa-5 border-sm rounded registry-container">
-        <Search :label="searchLabel" v-model:search="search" @search="handleSearch" />
+      <div class="d-flex flex-column w-100 my-2 pa-5 rounded registry-container">
+        <Search :label="searchLabel" v-model:search="search" @search="handleSearch" :accent="accent" />
         <Refresh @refresh="handleRefresh" />
         <div class="d-flex flex-grow-1">
-          <div v-if="displayItems.length > 0" class="d-flex flex-wrap ga-10 pa-5 justify-start">
+          <div v-if="displayItems.length > 0" class="ucard-grid pa-5">
             <slot :items="displayItems" />
           </div>
           <NoData v-else />
@@ -53,6 +51,8 @@ const props = withDefaults(
     searchLabel?: string;
     /** Whether the register button is disabled */
     disabled?: boolean;
+    /** Per-page identity accent (hex) for the register button + search. */
+    accent?: string;
     /** Auto-poll interval in milliseconds; 0 = disabled */
     pollInterval?: number;
     /** Predicate to determine if any item is in a "pending" state that requires polling */
@@ -62,6 +62,7 @@ const props = withDefaults(
     registerLabel: 'Register a new item',
     searchLabel: 'Search',
     disabled: false,
+    accent: '#5fd6e8',
     pollInterval: 5000,
     isPending: (items: T[]) => false,
   },
@@ -120,15 +121,43 @@ defineExpose({ handleRefresh });
 @media (min-width: 2100px) {
   .responsive-box { width: 75% !important; }
 }
-.registry-container { min-height: 50vh; }
-/* Let the button size to its label instead of clipping/squeezing the text.
-   Vuetify's `text` prop also forces uppercase + letter-spacing; we render the
-   label in the slot and reset those so long labels read cleanly. */
+.aurora-panel {
+  background: rgba(8, 18, 26, 0.55) !important;
+  border: 1px solid rgba(120, 200, 220, 0.16);
+  border-radius: 20px !important;
+}
+.registry-container {
+  min-height: 50vh;
+  border: 1px solid rgba(120, 200, 220, 0.14);
+  background: rgba(255, 255, 255, 0.015);
+}
+/* Deep, muted accent fill — a calm CTA rather than the bright solid button. */
 .register-btn {
-  width: auto;
-  min-width: max-content;
-  text-transform: none;
-  letter-spacing: normal;
+  padding: 10px 20px;
+  font-size: 0.9rem;
   white-space: nowrap;
+  background: color-mix(in srgb, var(--accent) 20%, rgba(7, 19, 27, 0.92)) !important;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent) !important;
+  color: color-mix(in srgb, var(--accent) 86%, #ffffff) !important;
+  box-shadow: none !important;
+}
+.register-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 30%, rgba(7, 19, 27, 0.92)) !important;
+  border-color: color-mix(in srgb, var(--accent) 58%, transparent) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+/* Elastic card grid — cards flex to fill the row and wrap; a lone card stays a
+   sensible width (left-aligned) rather than stretching across the panel.
+   align-self/align-content keep the grid (a flex item in a tall flex-grow
+   parent) from stretching vertically — otherwise the single row of cards
+   stretches to fill the panel height on tall/ultra-wide screens. */
+.ucard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: clamp(16px, 1.6vw, 22px);
+  width: 100%;
+  align-self: flex-start;
+  align-content: flex-start;
 }
 </style>

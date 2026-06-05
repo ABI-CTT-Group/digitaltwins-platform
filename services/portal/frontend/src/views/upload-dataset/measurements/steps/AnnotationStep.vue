@@ -1,52 +1,50 @@
 <template>
   <v-alert v-show="alertText" :text="alertText" type="error" closable @click:close="alertText = ''" />
 
-  <div class="pa-2">
-    <h3 class="text-cyan">Annotate measurements</h3>
-    <v-divider class="my-2 mb-4" :thickness="3" />
+  <div class="annotate">
+    <header class="annotate__head">
+      <p class="annotate__eyebrow">Step 2 · FHIR</p>
+      <h3 class="annotate__title">Annotate measurements</h3>
+      <p class="annotate__sub">Review the auto-classified resources, fine-tune codes and metadata, then save as a draft.</p>
+    </header>
 
     <v-progress-circular
       v-if="loading"
       indeterminate
-      color="cyan"
+      color="#5fd6e8"
       class="ma-4"
     />
 
     <template v-else-if="descriptions">
-      <v-card variant="tonal" color="cyan-darken-3" class="pa-3 mb-3">
-        <div class="d-flex flex-wrap ga-4">
-          <div>
-            <div class="text-caption text-cyan-lighten-3">Dataset</div>
-            <div class="text-h6">{{ descriptions.dataset.name }}</div>
-          </div>
-          <v-divider vertical />
-          <div>
-            <div class="text-caption text-cyan-lighten-3">Patients</div>
-            <div class="text-h6">{{ descriptions.patients.length }}</div>
-          </div>
-          <v-divider vertical />
-          <div>
-            <div class="text-caption text-cyan-lighten-3">Samples</div>
-            <div class="text-h6">{{ totalSamples }}</div>
-          </div>
-          <v-divider vertical />
-          <div>
-            <div class="text-caption text-cyan-lighten-3">Auto-classified</div>
-            <div class="text-h6">{{ autoCounts.observations + autoCounts.imagingStudy + autoCounts.documentReference }}</div>
-            <div class="text-caption">
-              Obs {{ autoCounts.observations }} ·
-              Img {{ autoCounts.imagingStudy }} ·
-              Doc {{ autoCounts.documentReference }}
-            </div>
-          </div>
+      <div class="stat-strip">
+        <div class="stat stat--dataset">
+          <span class="stat__label">Dataset</span>
+          <span class="stat__value stat__value--text">{{ descriptions.dataset.name }}</span>
         </div>
-      </v-card>
+        <div class="stat">
+          <span class="stat__label">Patients</span>
+          <span class="stat__value">{{ descriptions.patients.length }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat__label">Samples</span>
+          <span class="stat__value">{{ totalSamples }}</span>
+        </div>
+        <div class="stat">
+          <span class="stat__label">Auto-classified</span>
+          <span class="stat__value">{{ autoCounts.observations + autoCounts.imagingStudy + autoCounts.documentReference }}</span>
+          <span class="stat__break">
+            <span style="color:#5fd6e8">{{ autoCounts.observations }} obs</span> ·
+            <span style="color:#c792ea">{{ autoCounts.imagingStudy }} img</span> ·
+            <span style="color:#ffb74d">{{ autoCounts.documentReference }} doc</span>
+          </span>
+        </div>
+      </div>
 
       <v-alert
         v-if="skippedSamples.length"
         variant="tonal"
         type="warning"
-        class="mb-3"
+        class="mb-4"
         :title="`Skipped ${skippedSamples.length} empty sample(s)`"
       >
         <div class="text-caption">{{ skippedSamples.join(', ') }}</div>
@@ -58,10 +56,16 @@
         @update:selected="selectedPatients = $event"
       />
 
-      <v-tabs v-model="activeTab" align-tabs="start" color="cyan-lighten-2" class="mb-2">
-        <v-tab value="observation">Observations</v-tab>
-        <v-tab value="imaging">Imaging Studies</v-tab>
-        <v-tab value="document">Document References</v-tab>
+      <v-tabs v-model="activeTab" align-tabs="start" :color="tabAccent" class="annotate__tabs mb-4">
+        <v-tab value="observation" class="text-none">
+          <v-icon icon="mdi-pulse" size="18" class="mr-2" />Observations
+        </v-tab>
+        <v-tab value="imaging" class="text-none">
+          <v-icon icon="mdi-image-multiple-outline" size="18" class="mr-2" />Imaging Studies
+        </v-tab>
+        <v-tab value="document" class="text-none">
+          <v-icon icon="mdi-file-document-outline" size="18" class="mr-2" />Document References
+        </v-tab>
       </v-tabs>
 
       <v-tabs-window v-model="activeTab">
@@ -100,22 +104,22 @@
     <v-divider class="my-4" :thickness="3" />
     <div class="d-flex flex-row justify-center">
       <v-btn
-        color="red"
+        color="#9fb4bf"
         text="Cancel"
-        variant="tonal"
+        variant="text"
         :min-width="150"
-        rounded="md"
-        class="hover-animate ma-5"
+        rounded="lg"
+        class="text-none ma-5"
         :disabled="submitting"
         @click="emit('cancel')"
       />
       <v-btn
-        color="success"
+        color="#5fd6e8"
         text="Save annotation"
         variant="tonal"
         :min-width="200"
-        rounded="md"
-        class="hover-animate ma-5"
+        rounded="lg"
+        class="text-none ma-5"
         :loading="submitting"
         :disabled="submitting || !descriptions"
         @click="handleSubmit"
@@ -157,6 +161,16 @@ const descriptions = ref<FhirCdaDescriptions | undefined>(undefined);
 const skippedSamples = ref<string[]>([]);
 const selectedPatients = ref<string[]>([]);
 const activeTab = ref<'observation' | 'imaging' | 'document'>('observation');
+
+// The active tab's indicator + ripple takes that resource type's accent so the
+// three FHIR categories stay colour-coded across the tabs and their forms.
+const tabAccent = computed(() => {
+  switch (activeTab.value) {
+    case 'imaging': return '#c792ea';
+    case 'document': return '#ffb74d';
+    default: return '#5fd6e8';
+  }
+});
 
 const patientNames = computed(() => descriptions.value?.patients.map((p) => p.name) ?? []);
 
@@ -256,9 +270,73 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
+.annotate { padding: 6px 6px 4px; }
+.annotate__head { margin-bottom: 22px; }
+.annotate__eyebrow {
+  margin: 0 0 6px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #5fd6e8;
+}
+.annotate__title {
+  margin: 0;
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+  font-size: 1.7rem;
+  line-height: 1.15;
+  color: #fff;
+}
+.annotate__sub {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  color: #9fb4bf;
+  max-width: 64ch;
+}
+
+/* Airy stat strip — big Fraunces numbers over small uppercase labels. */
+.stat-strip {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.4fr;
+  gap: 14px;
+  margin-bottom: 22px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.022);
+  border: 1px solid rgba(120, 200, 220, 0.14);
+}
+.stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.stat__label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7f97a1;
+}
+.stat__value {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.7rem;
+  font-weight: 500;
+  line-height: 1.1;
+  color: #fff;
+}
+.stat__value--text {
+  font-size: 1.1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stat__break { font-size: 0.72rem; font-weight: 700; color: #9fb4bf; margin-top: 2px; }
+@media (max-width: 720px) {
+  .stat-strip { grid-template-columns: 1fr 1fr; }
+}
+
+.annotate__tabs { border-bottom: 1px solid rgba(120, 200, 220, 0.12); }
+
 .json-preview {
-  background: rgba(15, 25, 35, 0.6);
-  color: #b3e5fc;
+  background: rgba(8, 18, 26, 0.6);
+  color: #cfeaf0;
   font-size: 11px;
   line-height: 1.4;
   border-radius: 6px;

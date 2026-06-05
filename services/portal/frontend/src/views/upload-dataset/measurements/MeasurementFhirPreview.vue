@@ -4,17 +4,17 @@
       <BackLink to="UploadMeasurementsDataset" label="Measurements" />
     </div>
     <v-card
-      class="pa-6 responsive-box"
-      elevation="12"
-      style="background: rgba(15, 25, 35, 0.45); border-radius: 20px;"
+      class="pa-6 responsive-box aurora-panel"
+      flat
     >
       <div class="d-flex align-center flex-wrap ga-2 mb-3">
-        <h2 class="text-cyan flex-grow-1 text-truncate">
+        <h2 class="preview-title flex-grow-1 text-truncate">
           fhir.json — {{ name || measurementId }}
         </h2>
         <v-btn
           variant="tonal"
-          color="cyan"
+          color="#5fd6e8"
+          class="text-none"
           prepend-icon="mdi-content-copy"
           :disabled="!fhirJson"
           @click="copyJson"
@@ -23,7 +23,8 @@
         </v-btn>
         <v-btn
           variant="tonal"
-          color="cyan"
+          color="#5fd6e8"
+          class="text-none"
           prepend-icon="mdi-download"
           :disabled="!fhirJson"
           @click="downloadJson"
@@ -40,7 +41,7 @@
         text="Endpoint URLs are placeholders until the dataset is approved & uploaded — they are finalized to the real stream-proxy URLs during approval."
       />
 
-      <v-progress-circular v-if="loading" indeterminate color="cyan" class="ma-4" />
+      <v-progress-circular v-if="loading" indeterminate color="#5fd6e8" class="ma-4" />
 
       <v-alert
         v-else-if="errorText"
@@ -128,9 +129,19 @@ const downloadJson = () => {
     width: 75%;
   }
 }
+.aurora-panel {
+  background: rgba(8, 18, 26, 0.55) !important;
+  border: 1px solid rgba(120, 200, 220, 0.16);
+  border-radius: 20px !important;
+}
+.preview-title {
+  color: #5fd6e8;
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+}
 .json-preview {
-  background: rgba(15, 25, 35, 0.6);
-  color: #b3e5fc;
+  background: rgba(8, 18, 26, 0.6);
+  color: #cfeaf0;
   font-size: 12px;
   line-height: 1.4;
   border-radius: 6px;

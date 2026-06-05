@@ -11,13 +11,13 @@
        ────────────────────────────────────────────────── -->
   <template v-if="type === 'workflow'">
     <div>
-      <h3 class="text-cyan">Workflow Annotation</h3>
+      <h3 class="step-heading">Workflow Annotation</h3>
       <v-divider class="my-2 mb-5" :thickness="3" />
 
       <div v-if="cwlObj">
         <v-form ref="form" class="px-5">
           <div v-for="([key, s], index) in Object.entries(annotateSteps)" :key="key" class="mb-5">
-            <h3 class="text-cyan">Step {{ index + 1 }}: {{ s.name }}</h3>
+            <h3 class="step-heading">Step {{ index + 1 }}: {{ s.name }}</h3>
             <v-divider class="my-2 mb-3" :thickness="2" />
 
             <h4 class="my-2">Workflow Tool *</h4>
@@ -37,15 +37,14 @@
             </v-autocomplete>
 
             <div v-if="s.toolFhirNote">
-              <h4 class="my-2 text-amber-darken-2">Tool Inputs</h4>
+              <h4 class="my-2 label-amber">Tool Inputs</h4>
               <div class="w-100 d-flex flex-row flex-wrap">
                 <div v-for="input in s.toolFhirNote.inputs" class="d-flex flex-column justify-start w-33">
                   <span class="mx-2">{{ input.name }} *</span>
                   <v-text-field
                     class="mt-4 mx-2"
                     v-model="input.resource"
-                    bg-color="cyan-darken-4"
-                    :rules="notEmptyRules"
+                        :rules="notEmptyRules"
                     label="FHIR Resource"
                     variant="solo"
                     required
@@ -56,24 +55,23 @@
             </div>
 
             <div v-if="s.toolFhirNote">
-              <h4 class="my-2 text-amber-darken-2">Tool Outputs</h4>
+              <h4 class="my-2 label-amber">Tool Outputs</h4>
               <div class="w-100 d-flex flex-row flex-wrap">
                 <div v-for="output in s.toolFhirNote.outputs" class="d-flex flex-column justify-start w-33">
                   <span class="mx-2">{{ output.name }} *</span>
                   <v-text-field
                     class="mt-4 mx-2"
                     v-model="output.resource"
-                    bg-color="cyan-darken-4"
-                    :rules="notEmptyRules"
+                        :rules="notEmptyRules"
                     label="FHIR Resource"
                     variant="solo"
                     required
                     readonly
                   />
                   <div v-if="output.resource === 'Observation'">
-                    <v-text-field class="mx-2 my-1" label="Code" v-model="output.code" bg-color="cyan-darken-4" :rules="notEmptyRules" variant="solo" required readonly />
-                    <v-text-field class="mx-2 my-1" label="Code System" v-model="output.system" bg-color="cyan-darken-4" :rules="notEmptyRules" variant="solo" required readonly />
-                    <v-text-field class="mx-2 my-1" label="Unit" v-model="output.unit" bg-color="cyan-darken-4" variant="solo" readonly />
+                    <v-text-field class="mx-2 my-1" label="Code" v-model="output.code" :rules="notEmptyRules" variant="solo" required readonly />
+                    <v-text-field class="mx-2 my-1" label="Code System" v-model="output.system" :rules="notEmptyRules" variant="solo" required readonly />
+                    <v-text-field class="mx-2 my-1" label="Unit" v-model="output.unit" variant="solo" readonly />
                   </div>
                 </div>
               </div>
@@ -90,12 +88,12 @@
        ────────────────────────────────────────────────── -->
   <template v-else>
     <div>
-      <h3 class="text-cyan">Workflow Tool FHIR Annotation</h3>
+      <h3 class="step-heading">Workflow Tool FHIR Annotation</h3>
       <v-divider class="my-2 mb-5" :thickness="3" />
 
       <div v-if="cwlObj">
         <v-form ref="form" class="px-5">
-          <h3 class="text-cyan">Tool: {{ annotateTool.name }}</h3>
+          <h3 class="step-heading">Tool: {{ annotateTool.name }}</h3>
           <v-divider class="my-2 mb-3" :thickness="2" />
 
           <h4 class="my-2">Tool Inputs</h4>
@@ -122,17 +120,17 @@
       </div>
 
       <div v-else class="w-100 no_data flex-grow-1 d-flex flex-column justify-center align-center">
-        <v-icon size="64" color="pink-darken-1">mdi-note-off-outline</v-icon>
+        <v-icon size="64" color="#5fd6e8">mdi-note-off-outline</v-icon>
         <h2 class="mt-4">No tool CWL file detected</h2>
-        <p class="text-grey">It seems there are no tool CWL files available. Please upload one or try refreshing to check again.</p>
+        <p class="step-sub">It seems there are no tool CWL files available. Please upload one or try refreshing to check again.</p>
       </div>
     </div>
   </template>
 
   <!-- Shared action buttons -->
   <div class="d-flex flex-row justify-center">
-    <v-btn color="red" text="close" variant="tonal" :width="200" rounded="md" class="hover-animate ma-5" @click="handleClose" />
-    <v-btn color="success" text="Submit Annotation" variant="tonal" :width="200" rounded="md" class="hover-animate ma-5" @click="handleAnnotationSubmit" />
+    <v-btn color="#9fb4bf" text="close" variant="text" :width="200" rounded="lg" class="text-none ma-5" @click="handleClose" />
+    <v-btn color="#5fd6e8" text="Submit Annotation" variant="tonal" :width="200" rounded="lg" class="text-none ma-5" @click="handleAnnotationSubmit" />
   </div>
 </template>
 
@@ -338,4 +336,21 @@ const handleClose = () => emit('close');
 
 <style scoped>
 .no_data { height: 20dvh; }
+.step-heading {
+  color: #5fd6e8;
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+}
+.label-amber { color: #ffb74d; }
+.step-sub { color: #9fb4bf; }
+
+/* Mocked / readonly FHIR fields: quiet inset values, not raised solo boxes. */
+:deep(.v-field--variant-solo) {
+  background: rgba(255, 255, 255, 0.016) !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(120, 200, 220, 0.1);
+  border-radius: 9px !important;
+}
+:deep(.v-field--variant-solo .v-field__input) { color: #c3d2d8; font-weight: 600; }
+:deep(.v-field--variant-solo .v-label) { color: #7f97a1; }
 </style>

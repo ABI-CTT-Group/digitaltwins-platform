@@ -113,7 +113,7 @@ const actions: CatalogueCard[] = [
     herf: 'UploadWorkflowDataset',
     icon: 'mdi-sitemap-outline',
     cta: 'Upload',
-    accent: '#62d3b0',
+    accent: '#7fb2f0',
     requireRoles: ['admin'],
   },
   {
@@ -123,7 +123,7 @@ const actions: CatalogueCard[] = [
     herf: 'UploadMeasurementsDataset',
     icon: 'mdi-chart-box-outline',
     cta: 'Upload',
-    accent: '#7fb2f0',
+    accent: '#62d3b0',
     requireRoles: ['admin', 'researcher'],
   },
   {

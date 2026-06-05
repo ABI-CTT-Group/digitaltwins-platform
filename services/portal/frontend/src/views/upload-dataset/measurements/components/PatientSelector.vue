@@ -1,12 +1,12 @@
 <template>
-  <v-card variant="tonal" color="cyan-darken-3" class="pa-3 mb-3">
+  <v-card flat class="pa-3 mb-3 patient-card">
     <div class="d-flex align-center justify-space-between mb-2">
-      <div class="text-subtitle-2 text-cyan-lighten-3">
+      <div class="text-subtitle-2 label-aqua">
         Patients ({{ selected.length }} / {{ patients.length }} selected)
       </div>
       <v-switch
         :model-value="allSelected"
-        color="cyan-lighten-2"
+        color="#5fd6e8"
         density="compact"
         hide-details
         :label="allSelected ? 'Deselect all' : 'Select all'"
@@ -14,7 +14,7 @@
       />
     </div>
 
-    <div v-if="!patients.length" class="text-caption text-grey-lighten-1">
+    <div v-if="!patients.length" class="text-caption text-muted">
       No patients to annotate yet.
     </div>
 
@@ -22,7 +22,7 @@
       <v-chip
         v-for="p in patients"
         :key="p"
-        :color="selected.includes(p) ? 'cyan-lighten-2' : 'grey-lighten-3'"
+        :color="selected.includes(p) ? '#5fd6e8' : '#9fb4bf'"
         :variant="selected.includes(p) ? 'flat' : 'tonal'"
         :prepend-icon="selected.includes(p) ? 'mdi-checkbox-marked' : 'mdi-checkbox-blank-outline'"
         @click="toggle(p)"
@@ -60,3 +60,12 @@ const toggleAll = (next: boolean | null) => {
   emit('update:selected', next ? [...props.patients] : []);
 };
 </script>
+
+<style scoped>
+.patient-card {
+  background: rgba(95, 214, 232, 0.05) !important;
+  border: 1px solid rgba(95, 214, 232, 0.2);
+}
+.label-aqua { color: #5fd6e8; }
+.text-muted { color: #7f97a1; }
+</style>

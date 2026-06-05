@@ -3,6 +3,7 @@
     ref="registryRef"
     register-label="Register a new measurement dataset"
     search-label="Search measurements"
+    accent="#62d3b0"
     :fetch-list="useMeasurement"
     :is-pending="hasPendingItem"
     @register="handleRegister"

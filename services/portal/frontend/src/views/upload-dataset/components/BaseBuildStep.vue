@@ -1,34 +1,34 @@
 ﻿<template>
   <v-container class="fill-height d-flex flex-column build-step-container">
     <div class="d-flex flex-column align-center justify-center flex-grow-1 text-center">
-      <v-icon size="64" color="cyan-darken-1">mdi-rocket-launch</v-icon>
+      <v-icon size="64" color="#5fd6e8">mdi-rocket-launch</v-icon>
 
-      <h2 class="mt-4 text-cyan">
+      <h2 class="mt-4 step-title">
         {{ type === 'workflow' ? 'Build Workflow' : 'Build & Test Tool' }}
       </h2>
 
-      <p class="text-grey">
+      <p class="step-sub">
         Your {{ type === 'workflow' ? 'workflow' : 'tool' }} "<strong>{{ !!data && data.name }}</strong>" has been submitted and is ready to build.
       </p>
     </div>
 
     <div class="d-flex flex-row justify-center">
       <v-btn
-        color="red"
-        :text="'close'"
-        variant="tonal"
+        color="#9fb4bf"
+        text="close"
+        variant="text"
         :width="200"
-        rounded="md"
-        class="hover-animate ma-5"
+        rounded="lg"
+        class="text-none ma-5"
         @click="handleClose"
       ></v-btn>
       <v-btn
-        color="success"
+        color="#5fd6e8"
         :text="type === 'workflow' ? 'Build Workflow' : 'Build Tool'"
         variant="tonal"
         :width="200"
-        rounded="md"
-        class="hover-animate ma-5"
+        rounded="lg"
+        class="text-none ma-5"
         @click="handleBuild"
       ></v-btn>
     </div>
@@ -60,4 +60,10 @@ const handleClose = () => {
 .build-step-container{
   min-height: 40vh;
 }
+.step-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+  color: #fff;
+}
+.step-sub { color: #9fb4bf; }
 </style>

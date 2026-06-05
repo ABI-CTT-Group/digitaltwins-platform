@@ -31,7 +31,7 @@
       />
 
       <div v-if="phase === 'idle'" class="dropzone__hint">
-        <v-icon size="42" color="cyan-lighten-2">mdi-folder-upload-outline</v-icon>
+        <v-icon size="42" color="#5fd6e8">mdi-folder-upload-outline</v-icon>
         <div class="text-h6 mt-2">Drag a folder or a .zip file here, or click to browse</div>
         <div class="text-caption text-grey-lighten-1 mt-1">
           We auto-skip <code>node_modules</code>, <code>.git</code>,
@@ -39,7 +39,7 @@
         </div>
         <a
           href="#"
-          class="text-caption text-cyan-lighten-2 mt-2 d-inline-block"
+          class="text-caption dz-link mt-2 d-inline-block"
           @click.stop.prevent="triggerZipInput"
         >
           Or pick a .zip file
@@ -47,7 +47,7 @@
       </div>
 
       <div v-else-if="phase === 'scanning'" class="dropzone__progress">
-        <v-progress-circular indeterminate color="cyan" :size="36" :width="3" />
+        <v-progress-circular indeterminate color="#5fd6e8" :size="36" :width="3" />
         <div class="text-subtitle-2 mt-2">{{ scanningLabel }}</div>
         <div v-if="scannedCount > 0" class="text-caption text-grey-lighten-1 mt-1">
           {{ scannedCount }} files seen{{ scanKind === 'zip' ? ' in archive' : '' }}
@@ -55,7 +55,7 @@
       </div>
 
       <div v-else-if="phase === 'scanned'" class="dropzone__hint">
-        <v-icon size="36" :color="scanKind === 'zip' ? 'cyan-lighten-2' : 'cyan-lighten-2'">
+        <v-icon size="36" color="#5fd6e8">
           {{ scanKind === 'zip' ? 'mdi-zip-box-outline' : 'mdi-folder-check-outline' }}
         </v-icon>
         <div class="text-subtitle-1 mt-1">
@@ -76,7 +76,7 @@
           v-model="progressPercent"
           striped
           height="10"
-          color="cyan"
+          color="#5fd6e8"
         />
         <div class="text-caption mt-2">{{ progressLabel }}</div>
         <div v-if="currentFile" class="text-caption text-grey-lighten-2 text-truncate">
@@ -94,7 +94,7 @@
       </div>
 
       <div v-else-if="phase === 'analyzing'" class="dropzone__progress">
-        <v-progress-circular indeterminate color="cyan" :size="36" :width="3" />
+        <v-progress-circular indeterminate color="#5fd6e8" :size="36" :width="3" />
         <div class="text-caption mt-2">Analyzing on server…</div>
         <div class="text-caption text-grey-lighten-1 mt-1">
           Upload finished — the server is unpacking and validating your dataset.
@@ -651,9 +651,10 @@ defineExpose({ setProgress });
   justify-content: center;
 }
 .dropzone--active {
-  border-color: var(--v-theme-cyan, #4dd0e1);
-  background: rgba(77, 208, 225, 0.08);
+  border-color: #5fd6e8;
+  background: rgba(95, 214, 232, 0.08);
 }
+.dz-link { color: #5fd6e8; }
 .dropzone--error {
   border-color: rgba(244, 67, 54, 0.7);
   background: rgba(244, 67, 54, 0.05);

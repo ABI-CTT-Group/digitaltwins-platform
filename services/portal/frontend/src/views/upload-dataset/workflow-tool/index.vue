@@ -1,7 +1,7 @@
 <template>
-    <div class="container d-flex justify-center">
+    <div class="container d-flex justify-center" style="padding-top: 16px;">
         <div class="w-100">
-            <BackLink to="CatalogueDashboardView" label="Catalogue" class="mb-4" />
+            <BackLink to="CatalogueDashboardView" label="Catalogue" sticky class="mb-4" />
             <Hero
                 :title="heroDetail.title"
                 :subtitle="heroDetail.subtitle"/>

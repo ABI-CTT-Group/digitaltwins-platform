@@ -2,8 +2,8 @@
   <!-- 6-stage upload progress with current-stage highlight. Purely presentational:
        polls the measurement to a terminal state, then emits done/failed. -->
   <div class="text-center">
-    <div class="text-h6 text-cyan-lighten-2 mb-2">Submitting "{{ live.name }}"</div>
-    <v-progress-linear indeterminate color="cyan" class="my-3" />
+    <div class="text-h6 label-aqua mb-2">Submitting "{{ live.name }}"</div>
+    <v-progress-linear indeterminate color="#5fd6e8" class="my-3" />
     <div class="d-flex justify-center flex-wrap ga-2 my-3">
       <v-chip
         v-for="(stage, idx) in stages"
@@ -15,7 +15,7 @@
         {{ stage.label }}
       </v-chip>
     </div>
-    <div class="text-caption text-cyan-lighten-3">
+    <div class="text-caption text-muted">
       We are pushing your dataset to MinIO and registering it with the FHIR
       server. This usually finishes within a minute.
     </div>
@@ -56,9 +56,9 @@ const failureIdx = computed(() => {
 });
 
 const stageColor = (idx: number) => {
-  if (failureIdx.value === idx) return 'red-lighten-2';
-  if (failureIdx.value > -1 && idx < failureIdx.value) return 'green-lighten-2';
-  return 'cyan-lighten-3';
+  if (failureIdx.value === idx) return '#ff6b6b';
+  if (failureIdx.value > -1 && idx < failureIdx.value) return '#6fd49a';
+  return '#5fd6e8';
 };
 
 const stageVariant = (idx: number) => (failureIdx.value === idx ? 'flat' : 'tonal');
@@ -106,3 +106,8 @@ onMounted(() => {
 
 onBeforeUnmount(clearPolling);
 </script>
+
+<style scoped>
+.label-aqua { color: #5fd6e8; }
+.text-muted { color: #7f97a1; }
+</style>

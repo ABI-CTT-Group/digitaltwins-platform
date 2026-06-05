@@ -1,36 +1,38 @@
 <template>
-  <div>
+  <div class="rform" style="--type: #5fd6e8">
     <div
       v-for="patient in selectedPatientObjects"
       :key="patient.name"
-      class="mb-4"
+      class="rform__group"
     >
-      <h4 class="text-subtitle-1 text-cyan-lighten-2 mb-2">
-        {{ patient.name }} — Observations ({{ patient.observations.length }})
-      </h4>
+      <div class="rform__head">
+        <span class="rform__dot"></span>
+        <span class="rform__name">{{ patient.name }}</span>
+        <span class="rform__count">{{ patient.observations.length }} observation{{ patient.observations.length === 1 ? '' : 's' }}</span>
+      </div>
 
       <v-card
         v-for="(observation, idx) in patient.observations"
         :key="`${patient.name}-obs-${idx}`"
-        class="mb-3 pa-3"
-        variant="outlined"
-        color="grey-lighten-2"
+        class="mb-3 pa-4 field-card"
+        flat
       >
         <div class="d-flex align-center justify-space-between mb-2">
           <v-chip
             v-if="autoMarker(observation)"
             size="x-small"
-            color="cyan-lighten-3"
+            color="#5fd6e8"
+            variant="tonal"
             prepend-icon="mdi-auto-fix"
           >
             Auto from {{ autoMarker(observation).samplePath }}
           </v-chip>
-          <div v-else class="text-caption text-grey-darken-1">Manual entry</div>
+          <div v-else class="text-caption text-muted">Manual entry</div>
           <v-btn
             icon="mdi-close"
             variant="text"
             density="comfortable"
-            color="red"
+            color="#ff6b6b"
             @click="removeObservation(patient, idx)"
           />
         </div>
@@ -63,8 +65,8 @@
           hide-details
           class="my-1"
         >
-          <v-radio label="Quantity" value="Quantity" color="cyan" />
-          <v-radio label="String" value="String" color="cyan" class="ml-3" />
+          <v-radio label="Quantity" value="Quantity" color="#5fd6e8" />
+          <v-radio label="String" value="String" color="#5fd6e8" class="ml-3" />
         </v-radio-group>
 
         <div v-if="observation.valueType === 'Quantity'" class="d-flex flex-row ga-2">
@@ -104,8 +106,9 @@
 
       <v-btn
         variant="tonal"
-        color="cyan"
+        color="#5fd6e8"
         size="small"
+        class="text-none"
         prepend-icon="mdi-plus"
         @click="addObservation(patient)"
       >
@@ -181,3 +184,44 @@ const addObservation = (patient: FhirCdaPatient) => {
   });
 };
 </script>
+
+<style scoped>
+.text-muted { color: #7f97a1; }
+.rform__group { margin-bottom: 26px; }
+.rform__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.rform__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--type);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--type) 70%, transparent);
+}
+.rform__name {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.12rem;
+  font-weight: 500;
+  color: #fff;
+}
+.rform__count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--type);
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--type) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--type) 32%, transparent);
+}
+.field-card {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid rgba(120, 200, 220, 0.12);
+  border-left: 3px solid color-mix(in srgb, var(--type) 65%, transparent);
+  border-radius: 12px !important;
+}
+</style>

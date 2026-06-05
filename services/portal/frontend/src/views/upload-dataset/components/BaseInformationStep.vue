@@ -6,7 +6,7 @@
     type="error"
   />
   <div>
-    <h3 class="text-cyan">
+    <h3 class="step-heading">
       {{ type === 'tool' ? 'Workflow Tool Information' : 'Workflow Information' }}
     </h3>
     <v-divider class="my-2 mb-5" :thickness="3" />
@@ -21,8 +21,8 @@
           class="w-100 d-flex justify-start"
           @update:modelValue="handleLabelChange"
         >
-          <v-radio color="success" label="Web GUI" value="GUI" />
-          <v-radio color="success" label="CWL Script" value="Script" class="ml-2" />
+          <v-radio color="#5fd6e8" label="Web GUI" value="GUI" />
+          <v-radio color="#5fd6e8" label="CWL Script" value="Script" class="ml-2" />
         </v-radio-group>
       </template>
 
@@ -98,8 +98,7 @@
               <h4 class="mb-2">Deploy Command (fixed) *</h4>
               <v-text-field
                 v-model="formData.backendDeployCommand"
-                bg-color="cyan-darken-4"
-                variant="solo"
+                variant="solo-filled"
                 readonly
               />
             </div>
@@ -111,22 +110,22 @@
     <v-divider class="mb-5" :thickness="3" />
     <div class="d-flex flex-row justify-center">
       <v-btn
-        color="red"
+        color="#9fb4bf"
         text="Cancel"
-        variant="tonal"
+        variant="text"
         :min-width="150"
-        rounded="md"
-        class="hover-animate ma-5"
+        rounded="lg"
+        class="text-none ma-5"
         :disabled="submitting"
         @click="handleCancel"
       />
       <v-btn
-        color="success"
+        color="#5fd6e8"
         :text="type === 'tool' ? 'Submit Tool' : 'Submit Workflow'"
         variant="tonal"
         :min-width="150"
-        rounded="md"
-        class="hover-animate ma-5"
+        rounded="lg"
+        class="text-none ma-5"
         :loading="submitting"
         :disabled="submitting"
         @click="handleSubmit"
@@ -469,4 +468,10 @@ async function handleSubmit() {
 }
 </script>
 
-<style scoped></style>
+<style scoped>
+.step-heading {
+  color: #5fd6e8;
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+}
+</style>

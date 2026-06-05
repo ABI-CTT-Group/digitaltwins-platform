@@ -6,8 +6,8 @@
         class="w-100 d-flex justify-start mb-1"
         hide-details
     >
-        <v-radio color="success" label="Git URL" value="git" />
-        <v-radio color="success" label="Local Folder" value="local" class="ml-2" />
+        <v-radio color="#5fd6e8" label="Git URL" value="git" />
+        <v-radio color="#5fd6e8" label="Local Folder" value="local" class="ml-2" />
     </v-radio-group>
 
     <template v-if="sourceMode === 'git'">
@@ -16,8 +16,8 @@
             <v-chip
                 v-if="repositoryUrl"
                 size="x-small"
-                color="cyan-darken-3"
-                variant="flat"
+                color="#5fd6e8"
+                variant="tonal"
                 prepend-icon="mdi-source-branch"
             >
                 {{ providerLabel }}
@@ -53,8 +53,7 @@
         <v-card
             v-if="showTokenField || showSslToggle"
             variant="outlined"
-            class="mb-4 pa-4"
-            color="cyan-lighten-4"
+            class="mb-4 pa-4 auth-card"
         >
             <div class="d-flex align-center mb-3">
                 <v-icon icon="mdi-lock-outline" size="small" class="mr-2" />
@@ -150,8 +149,7 @@
                     :rules="versionRules"
                     required
                     :readonly="sourceMode === 'git'"
-                    :bg-color="sourceMode === 'git' ? 'cyan-darken-4' : undefined"
-                    :variant="sourceMode === 'git' ? 'solo' : 'filled'"
+                    :variant="sourceMode === 'git' ? 'solo-filled' : 'filled'"
                 ></v-text-field>
             </div>
         </div>
@@ -356,5 +354,8 @@ const versionRules = [
 </script>
 
 <style scoped>
-
+.auth-card {
+  border: 1px solid rgba(95, 214, 232, 0.28) !important;
+  background: rgba(95, 214, 232, 0.04) !important;
+}
 </style>

@@ -5,10 +5,10 @@
     :persistent="phase === 'progress'"
     @update:model-value="onDialogToggle"
   >
-    <v-card color="cyan-darken-4" class="pa-2">
+    <v-card flat class="pa-2 approval-card">
       <!-- Confirm: ask before kicking off the upload -->
       <template v-if="phase === 'confirm'">
-        <v-card-title class="text-cyan-lighten-2">Approve & upload?</v-card-title>
+        <v-card-title class="dialog-title">Approve & upload?</v-card-title>
         <v-card-text>
           <p class="mb-2">
             This will upload <strong>"{{ measurement?.name }}"</strong> to MinIO and
@@ -25,10 +25,11 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" :disabled="submitting" @click="close">Cancel</v-btn>
+          <v-btn variant="text" color="#9fb4bf" class="text-none" :disabled="submitting" @click="close">Cancel</v-btn>
           <v-btn
-            color="cyan"
+            color="#5fd6e8"
             variant="tonal"
+            class="text-none"
             prepend-icon="mdi-cloud-upload"
             :loading="submitting"
             :disabled="submitting"
@@ -55,11 +56,11 @@
         <v-card-text class="pa-5 text-center">
           <v-icon size="64" :color="resultIconColor" class="mb-2">{{ resultIcon }}</v-icon>
           <div class="text-h6 mb-1" :class="resultTitleClass">{{ resultTitle }}</div>
-          <div class="text-caption text-grey-lighten-1">{{ resultDetail }}</div>
+          <div class="text-caption result-detail">{{ resultDetail }}</div>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn color="cyan" variant="tonal" @click="close">Close</v-btn>
+          <v-btn color="#5fd6e8" variant="tonal" class="text-none" @click="close">Close</v-btn>
         </v-card-actions>
       </template>
     </v-card>
@@ -136,7 +137,7 @@ const resultIcon = computed(() =>
   finalStatus.value === 'completed' ? 'mdi-check-circle-outline' : 'mdi-alert-circle-outline',
 );
 const resultIconColor = computed(() =>
-  finalStatus.value === 'completed' ? 'green-lighten-1' : 'amber-lighten-1',
+  finalStatus.value === 'completed' ? '#6fd49a' : '#ffb74d',
 );
 const resultTitleClass = computed(() =>
   finalStatus.value === 'completed' ? 'text-green-lighten-3' : 'text-amber-lighten-3',
@@ -174,3 +175,17 @@ function close() {
   if (phase.value === 'result') emit('finished');
 }
 </script>
+
+<style scoped>
+.approval-card {
+  background: rgba(8, 18, 26, 0.97) !important;
+  border: 1px solid rgba(120, 200, 220, 0.18);
+  color: #e9f2f5;
+}
+.dialog-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+  color: #5fd6e8;
+}
+.result-detail { color: #9fb4bf; }
+</style>

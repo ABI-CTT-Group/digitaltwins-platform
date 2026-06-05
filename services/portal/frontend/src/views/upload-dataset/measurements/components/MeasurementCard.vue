@@ -1,115 +1,43 @@
 <template>
   <CardUI
-    cardStyle="background: rgba(0, 200, 180, 0.05);"
-    :isDeleting="isDeleting"
-    v-model:menu="menu"
+    :title="measurement.name"
+    kind="Measurement"
+    accent="#62d3b0"
+    :is-deleting="isDeleting"
+    :menu-items="menuItems"
   >
-    <template #menu>
-      <v-list density="compact" class="py-0 cursor-pointer">
-        <v-list-item
-          v-if="showApproval"
-          density="compact"
-          :disabled="busy"
-          @click.stop="onApprove"
-        >
-          <v-list-item-title class="hover-animate px-2">Approval (upload to MinIO)</v-list-item-title>
-        </v-list-item>
-        <v-list-item
-          v-if="showEdit"
-          density="compact"
-          :disabled="busy"
-          @click.stop="onEdit"
-        >
-          <v-list-item-title class="hover-animate px-2">Edit annotation</v-list-item-title>
-        </v-list-item>
-        <v-list-item
-          v-if="showAnnotationActions"
-          density="compact"
-          :disabled="busy"
-          @click.stop="onPreview"
-        >
-          <v-list-item-title class="hover-animate px-2">Preview fhir.json</v-list-item-title>
-        </v-list-item>
-        <v-list-item
-          v-if="showAnnotationActions"
-          density="compact"
-          :disabled="busy"
-          @click.stop="onExport"
-        >
-          <v-list-item-title class="hover-animate px-2">Export annotation</v-list-item-title>
-        </v-list-item>
-        <v-list-item
-          v-if="measurement.status === 'fhir_failed'"
-          density="compact"
-          @click.stop="onRetryFhir"
-        >
-          <v-list-item-title class="hover-animate px-2">Retry FHIR registration</v-list-item-title>
-        </v-list-item>
-        <v-list-item density="compact" :disabled="busy" @click.stop="onDelete" color="red">
-          <v-list-item-title class="text-red hover-animate px-2">Delete measurement</v-list-item-title>
-        </v-list-item>
-      </v-list>
-    </template>
-    <template #name>
-      <v-tooltip :text="measurement.name" location="top" max-width="300">
-        <template #activator="{ props }">
-          <p v-bind="props" class="text-truncate" style="max-width: 400px;">
-            {{ measurement.name }}
-          </p>
-        </template>
-      </v-tooltip>
-    </template>
-    <template #description>
-      {{ measurement.description || 'No description provided.' }}
-    </template>
-    <template #tags>
-      <v-chip
-        size="small"
-        :color="statusColor"
-        :text-color="statusTextColor"
-        class="mx-1 my-1"
-      >
-        {{ statusLabel }}
-      </v-chip>
-      <v-chip
+    <template #description>{{ measurement.description || 'No description provided.' }}</template>
+
+    <template #meta>
+      <span class="aurora-chip" :style="{ '--chip': statusColor }">{{ statusLabel }}</span>
+      <span
         v-if="measurement.failureStage && (measurement.status === 'submit_failed' || measurement.status === 'fhir_failed')"
-        size="x-small"
-        color="amber-lighten-3"
-        text-color="amber-darken-3"
-        class="mx-1 my-1"
+        class="aurora-chip"
+        :style="{ '--chip': '#ffb74d' }"
       >
-        stage: {{ measurement.failureStage }}
-      </v-chip>
-      <v-btn
-        v-if="measurement.status === 'fhir_failed'"
-        size="small"
-        variant="tonal"
-        color="amber"
-        prepend-icon="mdi-refresh"
-        :loading="retrying"
-        class="mx-1 my-1"
+        stage · {{ measurement.failureStage }}
+      </span>
+      <span v-if="measurement.createdAt" class="aurora-chip ms-auto">{{ formatDate(measurement.createdAt) }}</span>
+    </template>
+
+    <template v-if="measurement.status === 'fhir_failed'" #action>
+      <button
+        type="button"
+        class="aurora-btn aurora-btn--sm"
+        style="--accent: #ffb74d"
+        :disabled="retrying"
         @click.stop="onRetryFhir"
       >
-        Retry FHIR
-      </v-btn>
-    </template>
-    <template #time>
-      <v-chip
-        v-if="measurement.createdAt"
-        size="small"
-        color="green-lighten-4"
-        text-color="green-darken-2"
-        class="ms-auto"
-      >
-        {{ formatDate(measurement.createdAt) }}
-      </v-chip>
+        <v-progress-circular v-if="retrying" indeterminate size="13" width="2" color="#ffb74d" />
+        <v-icon v-else icon="mdi-refresh" size="15" /> Retry FHIR
+      </button>
     </template>
   </CardUI>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, toRef } from 'vue';
-import CardUI from '../../components/CardUI.vue';
+import CardUI, { type UCardMenuItem } from '../../components/CardUI.vue';
 import { formatDate } from '../../components/utils';
 import type { MeasurementResponse } from '@/models/types';
 
@@ -123,7 +51,6 @@ const emit = defineEmits<{
   (e: 'export', m: MeasurementResponse): void;
 }>();
 
-const menu = ref(false);
 const isDeleting = ref(false);
 const retrying = ref(false);
 const measurement = toRef(props, 'measurement');
@@ -149,56 +76,46 @@ const statusLabel = computed(() => {
   }
 });
 
+// Aurora status palette — soft tonal chips keyed by lifecycle state.
 const statusColor = computed(() => {
   switch (measurement.value.status) {
-    case 'pending': return 'grey-lighten-2';
-    case 'uploading': return 'cyan-lighten-2';
-    case 'submit_failed': return 'amber-lighten-2';
-    case 'fhir_failed': return 'amber-lighten-2';
-    case 'completed': return 'green-lighten-2';
-    default: return '';
+    case 'pending': return '#9fb4bf';
+    case 'uploading': return '#5fd6e8';
+    case 'submit_failed': return '#ff6b6b';
+    case 'fhir_failed': return '#ffb74d';
+    case 'completed': return '#6fd49a';
+    default: return '#9fb4bf';
   }
 });
 
-const statusTextColor = computed(() => {
-  switch (measurement.value.status) {
-    case 'pending': return 'grey-darken-3';
-    case 'uploading': return 'cyan-darken-3';
-    case 'submit_failed': return 'amber-darken-3';
-    case 'fhir_failed': return 'amber-darken-3';
-    case 'completed': return 'green-darken-3';
-    default: return '';
+const menuItems = computed<UCardMenuItem[]>(() => {
+  const items: UCardMenuItem[] = [];
+  if (showApproval.value) {
+    items.push({ label: 'Approval (upload to MinIO)', icon: 'mdi-cloud-upload-outline', disabled: busy.value, onClick: onApprove });
   }
+  if (showEdit.value) {
+    items.push({ label: 'Edit annotation', icon: 'mdi-pencil-outline', disabled: busy.value, onClick: onEdit });
+  }
+  if (showAnnotationActions.value) {
+    items.push({ label: 'Preview fhir.json', icon: 'mdi-code-json', disabled: busy.value, onClick: onPreview });
+    items.push({ label: 'Export annotation', icon: 'mdi-download-outline', disabled: busy.value, onClick: onExport });
+  }
+  if (measurement.value.status === 'fhir_failed') {
+    items.push({ label: 'Retry FHIR registration', icon: 'mdi-refresh', onClick: onRetryFhir });
+  }
+  items.push({ label: 'Delete measurement', icon: 'mdi-trash-can-outline', danger: true, disabled: busy.value, onClick: onDelete });
+  return items;
 });
 
-const onApprove = () => {
-  menu.value = false;
-  emit('approve', measurement.value);
-};
-
-const onEdit = () => {
-  menu.value = false;
-  emit('edit', measurement.value);
-};
-
-const onPreview = () => {
-  menu.value = false;
-  emit('preview', measurement.value);
-};
-
-const onExport = () => {
-  menu.value = false;
-  emit('export', measurement.value);
-};
-
+const onApprove = () => emit('approve', measurement.value);
+const onEdit = () => emit('edit', measurement.value);
+const onPreview = () => emit('preview', measurement.value);
+const onExport = () => emit('export', measurement.value);
 const onDelete = () => {
-  menu.value = false;
   isDeleting.value = true;
   emit('delete', measurement.value.id);
 };
-
 const onRetryFhir = () => {
-  menu.value = false;
   retrying.value = true;
   emit('retryFhir', measurement.value.id);
   // The parent triggers a list refresh after the call resolves; the loading

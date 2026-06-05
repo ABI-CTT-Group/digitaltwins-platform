@@ -2,18 +2,24 @@
     <div class="home">
         <HomeHero @enter="scrollToLaunchpad" @how-it-works="goTutorial" />
 
-        <section id="launchpad" ref="launchpad" class="home__grid">
-            <DashboardCard
-                v-for="(card, i) in cards"
-                :key="i"
-                :src="card.image"
-                :title="card.title"
-                :location="card.location"
-                :description="card.description"
-                :external="card.action?.type === 'external'"
-                :locked="isLocked(card)"
-                @on-explore="() => dispatch(card)"
-            />
+        <section id="launchpad" ref="launchpad" class="home__launchpad">
+            <div class="home__grid">
+                <!-- DigitalTWINS track: two light bands (aqua + magenta = the twin
+                     pair) chase each other around the grid's rounded outer track. -->
+                <span class="twin-track" aria-hidden="true"></span>
+
+                <DashboardCard
+                    v-for="(card, i) in cards"
+                    :key="i"
+                    :src="card.image"
+                    :title="card.title"
+                    :location="card.location"
+                    :description="card.description"
+                    :external="card.action?.type === 'external'"
+                    :locked="isLocked(card)"
+                    @on-explore="() => dispatch(card)"
+                />
+            </div>
         </section>
 
         <HomeFooter />
@@ -61,15 +67,57 @@ const goTutorial = () => router.push({ name: 'TutorialDashboard' });
 
 <style scoped>
 .home { min-height: 100%; }
-.home__grid {
+.home__launchpad {
     max-width: 1200px;
     margin: 0 auto;
     padding: clamp(8px, 2vh, 24px) clamp(20px, 5vw, 80px) 0;
+    scroll-margin-top: 80px;
+}
+.home__grid {
+    position: relative;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: clamp(16px, 1.8vw, 22px);
-    scroll-margin-top: 80px;
 }
 @media (max-width: 960px) { .home__grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 600px) { .home__grid { grid-template-columns: 1fr; } }
+
+/* ---- DigitalTWINS track ----------------------------------------------------
+   A masked conic-gradient ring around the grid's rounded outer frame, with two
+   soft colour bands ~180° apart. Spinning the gradient angle sends both bands
+   chasing each other around the track — the twin pair (real + digital) in sync. */
+@property --twin-angle {
+    syntax: "<angle>";
+    initial-value: 0deg;
+    inherits: false;
+}
+.twin-track {
+    position: absolute;
+    inset: -14px;            /* padded out from the cards */
+    border-radius: 26px;     /* rounded outer track — no sharp corners */
+    padding: 1.5px;          /* ring thickness */
+    pointer-events: none;
+    z-index: 1;
+    background: conic-gradient(
+        from var(--twin-angle),
+        transparent 0deg 26deg,
+        #5fd6e8 50deg,
+        transparent 98deg 200deg,
+        #cf6fc0 226deg,
+        transparent 276deg 360deg
+    );
+    /* Keep only the 1.5px frame (gradient-border trick). */
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    filter: drop-shadow(0 0 5px rgba(120, 200, 220, 0.4));
+    animation: twin-orbit 10s linear infinite;
+}
+@keyframes twin-orbit {
+    to { --twin-angle: 360deg; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .twin-track { animation: none; opacity: 0.6; }
+}
 </style>

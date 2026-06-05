@@ -1,7 +1,7 @@
 <template>
   <v-alert v-show="showAlert" :text="alertText" title="Required Fields Missing" type="error" />
   <div>
-    <h3 class="text-cyan">Measurements Information</h3>
+    <h3 class="step-heading">Measurements Information</h3>
     <v-divider class="my-2 mb-5" :thickness="3" />
 
     <v-form ref="form" class="px-5">
@@ -26,7 +26,7 @@
       />
 
       <h4 class="mb-1 mt-3">Dataset source *</h4>
-      <p class="text-caption text-grey-lighten-2 mb-2">
+      <p class="text-caption step-sub mb-2">
         Drag a folder or .zip of a SPARC measurements dataset. We auto-detect
         patients and samples after upload.
       </p>
@@ -40,11 +40,10 @@
 
       <v-card
         v-if="sourceMeta"
-        class="mt-3 pa-3"
-        variant="tonal"
-        color="cyan-darken-3"
+        class="mt-3 pa-3 info-card"
+        flat
       >
-        <div class="text-subtitle-2 text-cyan-lighten-3">Detected SPARC structure</div>
+        <div class="text-subtitle-2 label-aqua">Detected SPARC structure</div>
         <div class="text-caption">
           {{ sourceMeta.patients.length }} patient(s),
           {{ totalSamples }} sample(s),
@@ -69,22 +68,22 @@
     <v-divider class="mb-5 mt-5" :thickness="3" />
     <div class="d-flex flex-row justify-center">
       <v-btn
-        color="red"
+        color="#9fb4bf"
         text="Cancel"
-        variant="tonal"
+        variant="text"
         :min-width="150"
-        rounded="md"
-        class="hover-animate ma-5"
+        rounded="lg"
+        class="text-none ma-5"
         :disabled="submitting"
         @click="handleCancel"
       />
       <v-btn
-        color="success"
+        color="#5fd6e8"
         text="Continue to Annotation"
         variant="tonal"
         :min-width="200"
-        rounded="md"
-        class="hover-animate ma-5"
+        rounded="lg"
+        class="text-none ma-5"
         :loading="submitting"
         :disabled="submitting || !canContinue"
         @click="handleSubmit"
@@ -315,3 +314,17 @@ function handleCancel() {
   emit('cancel');
 }
 </script>
+
+<style scoped>
+.step-heading {
+  color: #5fd6e8;
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+}
+.step-sub { color: #9fb4bf; }
+.label-aqua { color: #5fd6e8; }
+.info-card {
+  background: rgba(95, 214, 232, 0.05) !important;
+  border: 1px solid rgba(95, 214, 232, 0.2);
+}
+</style>
