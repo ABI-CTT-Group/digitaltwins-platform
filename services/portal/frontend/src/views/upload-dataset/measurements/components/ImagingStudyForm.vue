@@ -112,16 +112,27 @@
         </div>
       </v-card>
 
-      <v-btn
-        variant="tonal"
-        color="cyan"
-        size="small"
-        prepend-icon="mdi-plus"
-        :disabled="true"
-        title="Manual ImagingStudy entry requires a sample folder on disk; rebuild dataset to add"
+      <!-- Tooltip activator sits on the wrapper span, not the button: a disabled
+           v-btn swallows hover events, so the span is what surfaces the hint. -->
+      <v-tooltip
+        text="Manual ImagingStudy entry requires a sample folder on disk; rebuild dataset to add"
+        location="top"
+        open-delay="250"
       >
-        Add manual imaging study
-      </v-btn>
+        <template #activator="{ props: tip }">
+          <span v-bind="tip" class="d-inline-flex">
+            <v-btn
+              variant="tonal"
+              color="cyan"
+              size="small"
+              prepend-icon="mdi-plus"
+              :disabled="true"
+            >
+              Add manual imaging study
+            </v-btn>
+          </span>
+        </template>
+      </v-tooltip>
     </div>
   </div>
 </template>

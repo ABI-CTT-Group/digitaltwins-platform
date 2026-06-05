@@ -8,13 +8,12 @@ import {
 import { useAuthStore } from "@/store/auth_store";
 import { isAuthenticated } from "@/bootstrap/keycloak";
 import Home from "@/views/home/index.vue";
-import StudyDashboard from "@/views/study/index.vue";
-import ClinicianDashboard from "@/views/clinician/index.vue";
+import DashboardView from "@/views/dashboard/DashboardView.vue";
 import TutorialDashboard from "@/views/tutorial/index.vue";
 import CatalogueDashboardView from "@/views/catalogue/catalogue-dashboard-view.vue";
 import ToolsViewer from "@/views/catalogue/tools-viewer.vue";
 import Layout from "@/layouts/Default.vue";
-import LaunchedAssayOverview from "@/views/study/assay-overview.vue";
+import LaunchedAssayOverview from "@/views/dashboard/report/AssayReportView.vue";
 import UploadDataset from "@/views/upload-dataset/index.vue";
 import UploadToolDataset from "@/views/upload-dataset/workflow-tool/index.vue";
 import UploadWorkflowDataset from "@/views/upload-dataset/workflow/index.vue";
@@ -37,14 +36,14 @@ const routes = [
           {
             path: "/study-dashboard",
             name: "StudyDashboard",
-            component: StudyDashboard,
-            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'] },
+            component: DashboardView,
+            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'], type: 'study' },
           },
           {
             path: "/clinician-dashboard",
             name: "ClinicianDashboard",
-            component: ClinicianDashboard,
-            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher', 'clinician'] },
+            component: DashboardView,
+            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher', 'clinician'], type: 'clinician' },
           },
           {
             path: "/how-it-works",

@@ -4,6 +4,25 @@ body {
   font-optical-sizing: auto;
 }
 
+/* Aurora-styled tooltips — GLOBAL default for every Vuetify v-tooltip in the
+   project, so the whole app shares one look without per-tooltip opt-in. Lives
+   here (not a scoped block) because tooltip content is teleported to <body>
+   and scoped styles can't reach it. */
+.v-overlay.v-tooltip > .v-overlay__content {
+  max-width: 320px;
+  padding: 7px 12px !important;
+  border-radius: 9px !important;
+  background: rgba(8, 18, 26, 0.97) !important;
+  border: 1px solid rgba(95, 214, 232, 0.32) !important;
+  color: #e9f2f5 !important;
+  font-family: "Nunito", sans-serif !important;
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+  letter-spacing: 0.01em;
+  box-shadow: 0 10px 28px -10px rgba(0, 0, 0, 0.75) !important;
+}
+
 .hover-animate {
   transition: all 0.3s ease;
   transform: scale(1);
