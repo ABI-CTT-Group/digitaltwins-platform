@@ -103,6 +103,7 @@ import {
 } from '@/bootstrap/upload_source';
 import { useCheckName } from '@/bootstrap/api_helpers';
 import { useCreateMeasurement, useMeasurementConfig } from '@/bootstrap/measurement_api';
+import { readSampleTypesFromFiles, buildSampleTypeDescription } from '../components/sampleTypes';
 import type { CheckNameResponse, MeasurementInformationStep, MeasurementResponse } from '@/models/types';
 
 // Operator-tunable upload ceiling. `useMeasurementConfig` reads MAX_UPLOAD_MB
@@ -132,6 +133,10 @@ const sourceMeta = ref<MeasurementUploadSourceResponse | undefined>(undefined);
 // Tracks the last value we auto-filled into the name field, so we can tell a
 // still-auto name apart from one the user typed themselves.
 const autoFilledName = ref('');
+// Same idea for the description: we only auto-fill the sample-type summary when
+// the field is empty or still holds our last auto-filled value, so a
+// description the user typed is never clobbered.
+const autoFilledDescription = ref('');
 
 const nameErr = ref<CheckNameResponse | undefined>(undefined);
 const nameRules = [(v: string) => !!v?.trim() || 'Dataset name is required'];
@@ -202,7 +207,36 @@ const onSourceSelected = (selected: LocalSource) => {
     // Run the uniqueness check on the freshly filled name.
     onNameBlur();
   }
+
+  // Folder mode hands us the raw File objects, so we can read the SPARC
+  // `samples.xlsx` client-side and pre-fill the description with its distinct
+  // `sample type` values. Best-effort and fire-and-forget: zip mode has no
+  // File list here, and any parse failure just leaves the field untouched.
+  if (selected.kind === 'folder') {
+    void autofillDescriptionFromSamples(selected.files);
+  }
 };
+
+// Reads sample types from the dropped folder and writes a one-line summary into
+// the description — but only when the field is empty or still holds our last
+// auto-filled value, mirroring the name auto-fill so user edits are preserved.
+async function autofillDescriptionFromSamples(files: File[]): Promise<void> {
+  const descIsUntouched =
+    !formData.description.trim() || formData.description === autoFilledDescription.value;
+  if (!descIsUntouched) return;
+
+  const types = await readSampleTypesFromFiles(files);
+  const summary = buildSampleTypeDescription(types);
+  if (!summary) return;
+
+  // Re-check after the await: the user may have started typing while we parsed.
+  const stillUntouched =
+    !formData.description.trim() || formData.description === autoFilledDescription.value;
+  if (!stillUntouched) return;
+
+  formData.description = summary;
+  autoFilledDescription.value = summary;
+}
 
 const onUploadCancel = () => {
   abortController.value?.abort();
@@ -214,6 +248,8 @@ const onUploadCancel = () => {
   sourceMeta.value = undefined;
   formData.name = '';
   autoFilledName.value = '';
+  formData.description = '';
+  autoFilledDescription.value = '';
   nameErr.value = undefined;
   showAlert.value = false;
   dropzone.value?.setProgress({ phase: 'reset' });
