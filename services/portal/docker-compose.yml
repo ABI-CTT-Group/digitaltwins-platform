@@ -82,6 +82,9 @@ services:
       # Must match portal-backend's MAX_UPLOAD_MB. entry.sh renders this
       # into client_max_body_size on the upload-source nginx location.
       - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-20480}
+      # Per-chunk body cap for measurement chunked-upload PUTs. Keep >= backend
+      # MEASUREMENT_PART_SIZE_BYTES (default 8 MiB); 16m default has headroom.
+      - MAX_PART_SIZE_MB=${MAX_PART_SIZE_MB:-16}
     volumes:
       - nginx_plugin_configs:/etc/nginx/conf.d/plugins
       - ${SSL_CERT_DIR:-./certs}:/etc/nginx/certs:ro

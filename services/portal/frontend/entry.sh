@@ -22,8 +22,14 @@ fi
 # being so large that a malformed upload fills disk.
 export MAX_UPLOAD_MB="${MAX_UPLOAD_MB:-20480}"
 
+# Per-chunk body cap for the measurement chunked-upload PUTs. Each part is one
+# small request, so this is intentionally tiny vs MAX_UPLOAD_MB (the whole-zip
+# sync path). Must stay >= backend MEASUREMENT_PART_SIZE_BYTES (default 8 MiB);
+# default 16m leaves comfortable headroom.
+export MAX_PART_SIZE_MB="${MAX_PART_SIZE_MB:-16}"
+
 # Substitute environment variables into nginx config
-envsubst '${BACKEND_PORT} ${PORTAL_BACKEND_HOST} ${MAX_UPLOAD_MB}' < "$TEMPLATE" > /etc/nginx/conf.d/default.conf
+envsubst '${BACKEND_PORT} ${PORTAL_BACKEND_HOST} ${MAX_UPLOAD_MB} ${MAX_PART_SIZE_MB}' < "$TEMPLATE" > /etc/nginx/conf.d/default.conf
 
 echo "Starting Nginx..."
 nginx -g "daemon off;"
