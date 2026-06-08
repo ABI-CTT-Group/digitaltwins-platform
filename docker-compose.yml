@@ -65,10 +65,10 @@ include:
   - path:
       - services/jupyterlab/docker-compose.yml
     project_directory: services/jupyterlab
-#  # JupyterHub
-#  - path:
-#      - services/jupyterhub/docker-compose.yml
-#    project_directory: services/jupyterhub
+  # JupyterHub
+  - path:
+      - services/jupyterhub/docker-compose.yml
+    project_directory: services/jupyterhub
 
 volumes:
   portal_datasets:
