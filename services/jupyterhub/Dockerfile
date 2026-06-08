@@ -4,4 +4,5 @@ FROM jupyterhub/jupyterhub:5.4.6
 RUN pip install --no-cache-dir \
     jupyterlab \
     notebook \
-    "packaging>=21.0"
+    "packaging>=21.0" \
+    "oauthenticator>=17.0"

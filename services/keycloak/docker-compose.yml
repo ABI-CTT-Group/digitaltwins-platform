@@ -12,6 +12,10 @@ services:
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}
+      # Set the public hostname so all issued tokens carry iss=http://localhost:8009.
+      # This ensures server-side calls from JupyterHub (via host.docker.internal:8009)
+      # validate correctly, because Keycloak treats both as the same realm endpoint.
+      KC_HOSTNAME: ${KC_HOSTNAME:-http://localhost:8009}
     ports:
       - "8009:8080"
     volumes:
