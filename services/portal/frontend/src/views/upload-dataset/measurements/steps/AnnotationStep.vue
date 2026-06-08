@@ -255,8 +255,14 @@ async function handleSubmit() {
   submitting.value = true;
   alertText.value = '';
   try {
-    const cleaned = stripAuto(descriptions.value);
-    await useUpsertMeasurementAnnotation(props.measurement.id, cleaned);
+    // Persist the descriptions WITH their `_auto` markers intact so reopening a
+    // saved draft can still render the auto-classified count and the modality /
+    // "Auto from…" chips (all of which read `_auto`). The markers are inert
+    // downstream: `apply_descriptions` builds fhir.json from named fields only
+    // and never serialises `_auto`, and the Preview panel below strips them for
+    // display. Re-deriving them on load isn't an option — `/tree` mints fresh
+    // random UUIDs each call, so there's no stable key to merge markers back on.
+    await useUpsertMeasurementAnnotation(props.measurement.id, descriptions.value);
     // Save-only: the annotation is now a draft. Upload to MinIO + FHIR is a
     // separate, explicit Approval action from the registry card menu.
     emit('saved');

@@ -1,12 +1,14 @@
 /**
- * Recursively delete every `_auto` UI marker from a descriptions tree before
- * sending it back to the backend.
+ * Recursively delete every `_auto` UI marker from a descriptions tree to get a
+ * clean fhir-cda view.
  *
  * The marker arrives on `/tree` as a per-resource hint
  * (`{ samplePath, sourceFile, modality, files, truncated }`) that drives the
- * Annotation step's "Auto-detected from sub-XXX/sam-YYY" chips. It should
- * not be persisted in `MeasurementAnnotation.descriptions` or end up in
- * the saved `fhir.json`, so we strip it just before POST.
+ * Annotation step's "Auto-detected from sub-XXX/sam-YYY" chips and the
+ * auto-classified count. The markers ARE persisted with the draft now (so a
+ * reopened annotation keeps those affordances) — this helper is used only to
+ * render the "Preview descriptions" panel as the clean tree that fhir.json
+ * will be built from. It is intentionally NOT applied before POST anymore.
  *
  * Note on key shape: the axios response interceptor (`http.ts`) deep-camelizes
  * `_auto` to `Auto` on incoming responses (the regex eats the leading

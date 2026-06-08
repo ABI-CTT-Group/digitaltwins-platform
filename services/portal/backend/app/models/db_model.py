@@ -457,9 +457,11 @@ class MeasurementAnnotation(Base):
         nullable=False,
     )
     annotation_id = Column(String, unique=True, index=True, nullable=False, default=lambda: str(uuid.uuid4()))
-    # The full fhir-cda descriptions JSON ({"dataset": {...}, "patients": [...]})
-    # with `_auto` markers stripped client-side before POST. This is the input
-    # to MeasurementsFhirAnnotator on submit/retry.
+    # The full fhir-cda descriptions JSON ({"dataset": {...}, "patients": [...]}).
+    # Retains the per-resource `_auto` UI markers (so reopening a saved draft can
+    # still show the auto-classified count + chips); they are inert input to
+    # MeasurementsFhirAnnotator on submit/retry — apply_descriptions reads named
+    # fields only and never serialises `_auto` into fhir.json.
     descriptions = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

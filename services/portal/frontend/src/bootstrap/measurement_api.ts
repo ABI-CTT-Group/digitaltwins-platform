@@ -4,8 +4,10 @@
  * Mirrors the workflow client shape (one function per endpoint), but:
  *  - No `latestBuild` enrichment — measurements have no builds table.
  *    `useMeasurement()` is a plain list fetch; status lives on the row.
- *  - `_auto` markers in the descriptions tree are UI-only and stripped
- *    client-side before being POSTed to `/annotation`.
+ *  - `_auto` markers in the descriptions tree are UI hints. They are persisted
+ *    with the draft (so reopening a saved annotation keeps the auto-classified
+ *    count + chips) and are inert downstream — `apply_descriptions` builds
+ *    fhir.json from named fields only and never serialises `_auto`.
  *  - upsertAnnotation behaviour: server is expected to update if the
  *    annotation row already exists for this measurement (retry-friendly).
  */
@@ -66,8 +68,9 @@ export async function useGetMeasurementAnnotation(
 /**
  * POST /api/measurement/{id}/annotation — create-or-update the descriptions.
  *
- * IMPORTANT: caller must strip `_auto` fields recursively before invoking
- * (see `stripAuto` in `views/upload-dataset/measurements/components/`).
+ * The `_auto` UI markers are persisted as-is (they round-trip through the
+ * lenient `descriptions: dict` schema) so a reopened draft keeps its
+ * auto-classified count + chips. They are ignored when fhir.json is built.
  */
 export async function useUpsertMeasurementAnnotation(
   id: string,

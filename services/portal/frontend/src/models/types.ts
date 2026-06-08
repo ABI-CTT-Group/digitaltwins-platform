@@ -303,10 +303,13 @@ export type BaseInformationStep = ToolInformationStep | WorkflowInformationStep;
 // Measurements upload
 // ---------------------------------------------------------------------------
 //
-// NOTE: `_auto` is a UI-only marker (set by the backend on /tree to hint which
-// sample folder triggered the auto-classification). It MUST be recursively
-// stripped before POSTing to `/api/measurement/{id}/annotation` — see
-// `stripAuto` in `views/upload-dataset/measurements/components/`.
+// NOTE: `_auto` is a UI marker (set by the backend on /tree to hint which
+// sample folder triggered the auto-classification) that drives the
+// auto-classified count + chips. It is persisted with the annotation draft so a
+// reopened draft keeps those affordances, and is inert downstream — fhir.json is
+// built from named fields only. `stripAuto`
+// (`views/upload-dataset/measurements/components/`) is used only to render the
+// clean "Preview descriptions" panel, not before POST.
 //
 // uuid / endpointUrl / endpointUuid fields are MOCK values (prefix `MOCK-`)
 // until digitaltwins-api integration lands. Treat them as read-only in the UI.
