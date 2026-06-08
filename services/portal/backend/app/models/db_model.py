@@ -396,7 +396,8 @@ class WorkflowAnnotationResponse(AnnotationBase):
 
 
 class MeasurementStatus(PyEnum):
-    PENDING = "pending"          # /create done, awaiting annotation+submit
+    PENDING_UPLOAD = "pending_upload"  # row pre-created; chunked source upload in flight (Approach A)
+    PENDING = "pending"          # /create (or /upload/finalize) done, awaiting annotation+submit
     UPLOADING = "uploading"      # submit in progress (any of 6 stages)
     SUBMIT_FAILED = "submit_failed"  # failure during stages 1-3 (staging/fhir_build/upload), MinIO rolled back
     FHIR_FAILED = "fhir_failed"      # failure during stages 4-6 (finalize/fhir_push), MinIO retained

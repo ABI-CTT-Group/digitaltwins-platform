@@ -24,8 +24,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.builder.build_workflow import WorkflowBuilder
@@ -41,6 +42,11 @@ from app.models.db_model import (
     MeasurementCreate,
     MeasurementResponse,
     MeasurementStatus,
+)
+from app.services.measurement_chunk_store import (
+    PART_SIZE,
+    ChunkStoreError,
+    MeasurementChunkStore,
 )
 from app.services.measurement_classifier import (
     _TRUNCATED_MARKER,
@@ -126,6 +132,10 @@ _MEASUREMENT_UPLOAD_MAX_BYTES = _MEASUREMENT_UPLOAD_MAX_MB * 1024 * 1024
 # main.py already scans tmp/ for stale uploads.
 _builder = WorkflowBuilder()
 TMP_DIR = _builder.tmp_dir
+
+# Chunk store for the chunked-upload pipeline. Rooted at the same tmp dir so its
+# ``upload_<id>/`` dirs are swept by the existing orphan-cleanup scan.
+chunk_store = MeasurementChunkStore(TMP_DIR)
 
 
 # ---------------------------------------------------------------------------
@@ -313,6 +323,206 @@ async def create_measurement(measurement: MeasurementCreate, db: Session = Depen
 
     logger.info(f"Created measurement {db_row.id} (expose={expose}) at {target}")
     return db_row
+
+
+# ---------------------------------------------------------------------------
+# Chunked upload (Approach A) — pre-create row, stream parts, finalize
+#
+# For datasets too large for the single-POST /upload-source path (tens of GiB
+# DICOM queues): the row is created up front (status=pending_upload) and source
+# bytes arrive as parts. Finalize assembles them and reuses the exact same SPARC
+# validation + move the sync path uses, so everything downstream is unchanged.
+# ---------------------------------------------------------------------------
+
+
+class _ManifestEntryIn(BaseModel):
+    rel_path: str
+    size: int
+    parts: int
+
+
+class UploadInitRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    source_kind: str  # 'folder' | 'zip'
+    manifest: List[_ManifestEntryIn]
+
+
+class UploadInitResponse(BaseModel):
+    measurement_id: str
+    max_part_size: int
+
+
+def _require_pending_upload(measurement_id: str, db: Session) -> Measurement:
+    """Fetch a measurement that must be mid-upload, else map to 404/409."""
+    row = db.query(Measurement).filter(Measurement.id == measurement_id).first()  # type: ignore
+    if not row:
+        raise HTTPException(status_code=404, detail="Measurement not found")
+    if row.status != MeasurementStatus.PENDING_UPLOAD.value:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Measurement is not accepting chunks (status={row.status}).",
+        )
+    return row
+
+
+@router.post("/upload/init", response_model=UploadInitResponse)
+async def upload_init(req: UploadInitRequest, db: Session = Depends(get_db)):
+    """Pre-create the Measurement row + chunk store for a chunked upload.
+
+    Row creation and chunk-store init happen together: if the store rejects the
+    manifest (e.g. file-count cap), the freshly created row is rolled back so we
+    never leak an orphan ``pending_upload`` with no backing store.
+    """
+    if db.query(Measurement).filter(Measurement.name == req.name).first():  # type: ignore
+        raise HTTPException(status_code=400, detail="Measurement with this name already exists")
+
+    row = Measurement(
+        name=req.name,
+        description=req.description,
+        status=MeasurementStatus.PENDING_UPLOAD.value,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    manifest = [e.model_dump() for e in req.manifest]
+    try:
+        chunk_store.init(row.id, req.source_kind, manifest, owner=None)
+    except (ChunkStoreError, ValueError) as e:
+        db.delete(row)
+        db.commit()
+        raise HTTPException(status_code=400, detail=str(e))
+
+    logger.info(
+        f"Upload init: measurement={row.id} kind={req.source_kind} files={len(manifest)}"
+    )
+    return UploadInitResponse(measurement_id=row.id, max_part_size=PART_SIZE)
+
+
+@router.put("/upload/{measurement_id}/parts/{rel_path:path}")
+async def upload_part(
+    measurement_id: str,
+    rel_path: str,
+    request: Request,
+    n: int,
+    of: int,
+    db: Session = Depends(get_db),
+):
+    """Receive one raw-bytes part for ``rel_path`` (query: ``n`` index, ``of`` count).
+
+    Body is ``application/octet-stream``; never JSON, so the case-converter /
+    pydantic layers are bypassed. Returns bytes received for this rel so far.
+    """
+    _require_pending_upload(measurement_id, db)
+    data = await request.body()
+    try:
+        bytes_received = chunk_store.write_part(measurement_id, rel_path, n, of, data)
+    except (ChunkStoreError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"rel_path": rel_path, "bytes_received": bytes_received}
+
+
+@router.get("/upload/{measurement_id}/status")
+async def upload_status(measurement_id: str, db: Session = Depends(get_db)):
+    """Manifest + per-rel received parts/bytes for resume after reload/reconnect."""
+    _require_pending_upload(measurement_id, db)
+    try:
+        return chunk_store.status(measurement_id)
+    except ChunkStoreError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/upload/{measurement_id}/finalize", response_model=MeasurementResponse)
+async def upload_finalize(measurement_id: str, db: Session = Depends(get_db)):
+    """Assemble parts, run the existing SPARC validation, move into the dataset dir.
+
+    On validation failure the row stays at ``pending_upload`` and the tmp parts
+    are kept, so the user can rename / re-drop and finalize again rather than
+    restart from zero. Only ``/cancel`` deletes the row + tmp.
+    """
+    row = _require_pending_upload(measurement_id, db)
+
+    if not chunk_store.is_complete(measurement_id):
+        raise HTTPException(status_code=400, detail="Upload incomplete; not all parts received.")
+
+    import shutil as _shutil
+
+    # 1. Assemble parts into a staging dir (folder) or a source.zip (zip).
+    try:
+        assembled = chunk_store.assemble(measurement_id)
+    except ChunkStoreError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    source_kind = chunk_store.source_kind(measurement_id)
+    extract_staging: Optional[Path] = None
+    if source_kind == "zip":
+        try:
+            staging = extract_uploaded_archive(
+                TMP_DIR, assembled, max_total_bytes=_MEASUREMENT_UPLOAD_MAX_BYTES
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except zipfile.BadZipFile:
+            raise HTTPException(status_code=400, detail="Assembled archive is not a valid zip")
+        extract_staging = staging
+    else:
+        staging = assembled  # the data/ tree
+
+    # 2. Validate (resolve_project_root is applied inside validate + below).
+    ok, message = validate_sparc_structure(staging)
+    if not ok:
+        # Keep row at pending_upload + keep tmp so the user can fix and retry.
+        if extract_staging and extract_staging.exists():
+            force_rmtree(extract_staging)
+        raise HTTPException(status_code=400, detail=message)
+
+    project_root = resolve_project_root(staging)
+    if not _walk_sparc_meta(project_root)["patients"]:
+        if extract_staging and extract_staging.exists():
+            force_rmtree(extract_staging)
+        raise HTTPException(status_code=400, detail="primary/ contains no patient subdirectories.")
+
+    # 3. Move into the canonical dataset dir (mirrors /create's tail).
+    expose = unique_name(row.name)
+    target = (_DATASET_DIR / expose).resolve()
+    if target.exists():
+        raise HTTPException(
+            status_code=500,
+            detail=f"expose_name {expose} already occupies the dataset dir; retry.",
+        )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    _shutil.move(str(project_root), str(target))
+
+    # 4. Flip the row to the existing pending state; downstream is unchanged.
+    row.dataset_path = str(target)
+    row.expose_name = expose
+    row.local_archive_path = str(target)
+    row.status = MeasurementStatus.PENDING.value
+    db.commit()
+    db.refresh(row)
+
+    # 5. Reap tmp: the chunk store dir + any zip-extract staging leftovers.
+    chunk_store.cleanup(measurement_id)
+    if extract_staging and extract_staging.exists():
+        try:
+            force_rmtree(extract_staging)
+        except Exception as e:
+            logger.warning(f"Failed to clean extract staging {extract_staging}: {e}")
+
+    logger.info(f"Finalized chunked upload measurement={row.id} (expose={expose}) at {target}")
+    return row
+
+
+@router.post("/upload/{measurement_id}/cancel")
+async def upload_cancel(measurement_id: str, db: Session = Depends(get_db)):
+    """Abort an in-flight upload: drop the tmp parts and delete the row."""
+    row = _require_pending_upload(measurement_id, db)
+    chunk_store.cleanup(measurement_id)
+    db.delete(row)
+    db.commit()
+    logger.info(f"Cancelled chunked upload measurement={measurement_id}")
+    return {"success": True, "id": measurement_id}
 
 
 # ---------------------------------------------------------------------------
