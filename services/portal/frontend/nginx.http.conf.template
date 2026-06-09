@@ -43,7 +43,7 @@ server {
     # body cap is MAX_PART_SIZE_MB (default 16m) — far below the whole-zip ceiling
     # above. init / status / finalize / cancel are tiny JSON and fall through to
     # the generic /api/ block. Stream parts through without buffering.
-    location ~ ^/api/measurement/[^/]+/upload/parts/ {
+    location ~ ^/api/measurement/upload/[^/]+/parts/ {
         proxy_pass http://portal-backend:${BACKEND_PORT};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

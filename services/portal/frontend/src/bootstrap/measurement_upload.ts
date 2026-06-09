@@ -163,7 +163,7 @@ async function putPart(
 ): Promise<void> {
   // Preserve slashes (backend route is {rel_path:path}); encode each segment.
   const encRel = rel.split('/').map(encodeURIComponent).join('/');
-  await axios.put(`/measurement/${measurementId}/upload/parts/${encRel}`, blob, {
+  await axios.put(`/measurement/upload/${measurementId}/parts/${encRel}`, blob, {
     params: { n: partNo, of },
     headers: { 'Content-Type': 'application/octet-stream' },
     signal,
