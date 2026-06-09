@@ -40,6 +40,7 @@ import { useRouter } from 'vue-router';
 import RegistryView from '../components/RegistryView.vue';
 import MeasurementCard from './components/MeasurementCard.vue';
 import ApprovalDialog from './components/ApprovalDialog.vue';
+import { clearExportFields } from './components/clearExportFields';
 import {
   useMeasurement,
   useDeleteMeasurement,
@@ -138,7 +139,10 @@ const handlePreview = (m: MeasurementResponse) => {
 const handleExport = async (m: MeasurementResponse) => {
   try {
     const fhir = await useMeasurementFhirPreview(m.id);
-    const blob = new Blob([JSON.stringify(fhir, null, 2)], { type: 'application/json' });
+    // Strip server-assigned identifiers/URLs from the exported document:
+    // all uuid + endpointUrl, and url inside attachments.
+    const exported = clearExportFields(fhir);
+    const blob = new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
