@@ -1,6 +1,22 @@
 <template>
   <v-alert v-show="showAlert" :text="alertText" title="Required Fields Missing" type="error" />
   <v-alert
+    v-if="pendingUploads.length && !source"
+    type="warning"
+    variant="tonal"
+    class="mb-3"
+  >
+    <div class="text-subtitle-2 mb-1">Unfinished upload(s)</div>
+    <div
+      v-for="p in pendingUploads"
+      :key="p.id"
+      class="d-flex align-center justify-space-between text-caption py-1"
+    >
+      <span>{{ p.name }} — {{ p.percent }}% uploaded. Re-drop the same folder below to resume.</span>
+      <v-btn size="x-small" variant="text" color="error" @click="cancelPending(p.id)">Cancel</v-btn>
+    </div>
+  </v-alert>
+  <v-alert
     v-if="resumeId"
     type="info"
     variant="tonal"
@@ -82,10 +98,16 @@ import type { LocalSource } from '@/bootstrap/upload_source';
 import {
   ChunkedUploader,
   findResumableUpload,
+  loadPendingUploads,
+  clearPending,
   type UploaderPhase,
 } from '@/bootstrap/measurement_upload';
 import { useCheckName } from '@/bootstrap/api_helpers';
-import { useMeasurementConfig } from '@/bootstrap/measurement_api';
+import {
+  useMeasurementConfig,
+  useUploadStatus,
+  useUploadCancel,
+} from '@/bootstrap/measurement_api';
 import { readSampleTypesFromFiles, buildSampleTypeDescription } from '../components/sampleTypes';
 import type { CheckNameResponse, MeasurementResponse } from '@/models/types';
 
@@ -108,6 +130,11 @@ const formData = reactive<{ name: string; description: string }>({ name: '', des
 const source = ref<LocalSource | undefined>(undefined);
 const resumeId = ref<string | null>(null);
 const uploader = ref<ChunkedUploader | null>(null);
+
+// Unfinished uploads recorded in this browser. Surfaced on mount so the user
+// knows they can resume by re-dropping the same folder (file bytes don't
+// survive a reload, so resume can't be automatic).
+const pendingUploads = ref<{ id: string; name: string; percent: number }[]>([]);
 
 // Track auto-filled values so we never clobber what the user typed.
 const autoFilledName = ref('');
@@ -136,7 +163,39 @@ onMounted(async () => {
   } catch (err) {
     console.warn('useMeasurementConfig failed; using default upload ceiling', err);
   }
+  void refreshPendingList();
 });
+
+// Build the resume banner: read the localStorage index, fetch each upload's
+// server-side progress, and drop entries whose measurement no longer exists.
+async function refreshPendingList(): Promise<void> {
+  const out: { id: string; name: string; percent: number }[] = [];
+  for (const p of loadPendingUploads()) {
+    try {
+      const status = await useUploadStatus(p.measurementId);
+      const total = status.files.reduce((s, f) => s + f.size, 0);
+      const got = status.files.reduce((s, f) => s + f.bytes, 0);
+      out.push({
+        id: p.measurementId,
+        name: p.name,
+        percent: total > 0 ? Math.round((got / total) * 100) : 0,
+      });
+    } catch (err: any) {
+      if (err?.response?.status === 404) clearPending(p.measurementId);
+    }
+  }
+  pendingUploads.value = out;
+}
+
+async function cancelPending(id: string): Promise<void> {
+  try {
+    await useUploadCancel(id);
+  } catch (err) {
+    console.warn('Cancel pending upload failed (clearing local index anyway)', err);
+  }
+  clearPending(id);
+  pendingUploads.value = pendingUploads.value.filter((p) => p.id !== id);
+}
 
 const onSourceSelected = (selected: LocalSource) => {
   source.value = selected;
