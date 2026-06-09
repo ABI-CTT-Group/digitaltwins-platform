@@ -45,6 +45,7 @@ const props = defineProps<{ measurement: MeasurementResponse }>();
 const emit = defineEmits<{
   (e: 'delete', id: string): void;
   (e: 'cancelUpload', id: string): void;
+  (e: 'resumeUpload', id: string): void;
   (e: 'retryFhir', id: string): void;
   (e: 'approve', m: MeasurementResponse): void;
   (e: 'edit', m: MeasurementResponse): void;
@@ -96,12 +97,10 @@ const menuItems = computed<UCardMenuItem[]>(() => {
   // only meaningful action is to abort it — which must go through /upload/cancel
   // (drops the tmp parts + row), not the generic delete.
   if (measurement.value.status === 'pending_upload') {
-    return [{
-      label: 'Cancel upload',
-      icon: 'mdi-close-circle-outline',
-      danger: true,
-      onClick: onCancelUpload,
-    }];
+    return [
+      { label: 'Resume upload', icon: 'mdi-play-circle-outline', onClick: onResumeUpload },
+      { label: 'Cancel upload', icon: 'mdi-close-circle-outline', danger: true, onClick: onCancelUpload },
+    ];
   }
 
   const items: UCardMenuItem[] = [];
@@ -134,6 +133,7 @@ const onCancelUpload = () => {
   isDeleting.value = true;
   emit('cancelUpload', measurement.value.id);
 };
+const onResumeUpload = () => emit('resumeUpload', measurement.value.id);
 const onRetryFhir = () => {
   retrying.value = true;
   emit('retryFhir', measurement.value.id);

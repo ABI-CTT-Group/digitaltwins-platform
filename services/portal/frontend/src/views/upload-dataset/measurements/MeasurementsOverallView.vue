@@ -15,6 +15,7 @@
         :measurement="m"
         @delete="handleDelete"
         @cancel-upload="handleCancelUpload"
+        @resume-upload="handleResumeUpload"
         @retry-fhir="handleRetryFhir"
         @approve="handleApprove"
         @edit="handleEdit"
@@ -81,6 +82,10 @@ const handleDelete = async (id: string) => {
     await registryRef.value?.handleRefresh();
   }
 };
+
+// Resume = jump to the create form (step 1), where the mount-time banner lists
+// the unfinished upload(s) and the user re-drops the same folder to continue.
+const handleResumeUpload = () => emit('register');
 
 // pending_upload rows are aborted through /upload/cancel (drops tmp parts + row),
 // not the generic delete which assumes a fully-staged dataset.
