@@ -65,6 +65,7 @@ import {
   useGetMeasurement,
   useMeasurementFhirPreview,
 } from '@/bootstrap/measurement_api';
+import { clearExportFields } from './components/clearExportFields';
 
 const route = useRoute();
 const router = useRouter();
@@ -89,7 +90,9 @@ onMounted(async () => {
       useMeasurementFhirPreview(measurementId),
     ]);
     name.value = meas?.name ?? '';
-    fhirJson.value = fhir;
+    // WYSIWYG export: clear uuid / endpointUrl / attachment url so the preview,
+    // Copy, and Download all show the same cleared document.
+    fhirJson.value = clearExportFields(fhir);
   } catch (err: any) {
     errorText.value =
       err?.response?.data?.detail || err?.message || 'Failed to load fhir.json preview.';
