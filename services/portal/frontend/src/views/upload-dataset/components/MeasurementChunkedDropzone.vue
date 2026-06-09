@@ -357,6 +357,7 @@ function handleZipFile(file: File) {
 // ---- API exposed to the parent (which drives the ChunkedUploader) ----------
 function setProgress(
   p:
+    | { phase: 'uploading' }
     | { phase: 'upload'; sentBytes: number; totalBytes: number; percent: number; sentParts: number; totalParts: number }
     | { phase: 'paused' }
     | { phase: 'finalizing' }
@@ -364,13 +365,14 @@ function setProgress(
     | { phase: 'error'; message: string }
     | { phase: 'reset' },
 ) {
+  // Phase is driven solely by 'uploading'/'paused'/'finalizing' (from the
+  // uploader's onPhase). 'upload' only updates the numbers, so straggler
+  // progress after a pause can never flip the UI back out of 'paused'.
+  if (p.phase === 'uploading') {
+    setPhase('uploading');
+    return;
+  }
   if (p.phase === 'upload') {
-    // Straggler progress from in-flight parts can land after the user pauses
-    // (up to CONCURRENCY parts finish their PUT post-pause) or after we flip to
-    // finalizing. Update the numbers, but don't yank the UI back to 'uploading'.
-    if (phase.value !== 'paused' && phase.value !== 'finalizing') {
-      setPhase('uploading');
-    }
     progressPercent.value = p.percent;
     sentBytes.value = p.sentBytes;
     totalBytes.value = p.totalBytes;

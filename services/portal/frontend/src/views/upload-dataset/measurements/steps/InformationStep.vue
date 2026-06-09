@@ -294,7 +294,8 @@ async function handleSubmit() {
           totalParts: p.totalParts,
         }),
       onPhase: (phase: UploaderPhase) => {
-        if (phase === 'paused') dropzone.value?.setProgress({ phase: 'paused' });
+        if (phase === 'uploading') dropzone.value?.setProgress({ phase: 'uploading' });
+        else if (phase === 'paused') dropzone.value?.setProgress({ phase: 'paused' });
         else if (phase === 'finalizing') dropzone.value?.setProgress({ phase: 'finalizing' });
       },
     },
