@@ -187,37 +187,6 @@ export async function useUploadWorkflowSource(
   return postZip('/workflow/upload-source', blob, opts);
 }
 
-/**
- * Response from `POST /api/measurement/upload-source`.
- *
- * Different shape from `UploadSourceResponse` because measurements describe
- * SPARC structure (patients + samples) rather than an executable project.
- */
-export interface MeasurementUploadSourceResponse {
-  uploadId: string;
-  patients: string[];
-  /** patient name -> list of sample folder names. */
-  samplesPerPatient: Record<string, string[]>;
-  /** "<patient>/<sample>" -> file count (post-blacklist). */
-  fileCountPerSample: Record<string, number>;
-}
-
-/**
- * Upload a SPARC measurements dataset (zip + folder both supported via
- * `LocalSource`). Reuses the same blob-build + multipart-post helpers as
- * tool / workflow upload — only the endpoint differs.
- */
-export async function useUploadMeasurementSource(
-  source: LocalSource,
-  opts: UploadSourceOptions = {},
-): Promise<MeasurementUploadSourceResponse> {
-  const blob = await buildBlobForSource(source, opts.onProgress, opts.signal);
-  // postZip returns deep-camelized data; the measurement endpoint's payload
-  // shape is a superset of UploadSourceResponse so we widen the cast here.
-  const res = (await postZip(
-    '/measurement/upload-source',
-    blob,
-    opts,
-  )) as unknown as MeasurementUploadSourceResponse;
-  return res;
-}
+// The measurement sync upload (useUploadMeasurementSource) was removed when the
+// measurement source path moved to chunked upload — see measurement_upload.ts.
+// tool / workflow keep the sync upload helpers above.

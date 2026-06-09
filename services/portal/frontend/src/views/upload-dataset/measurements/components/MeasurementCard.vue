@@ -44,6 +44,7 @@ import type { MeasurementResponse } from '@/models/types';
 const props = defineProps<{ measurement: MeasurementResponse }>();
 const emit = defineEmits<{
   (e: 'delete', id: string): void;
+  (e: 'cancelUpload', id: string): void;
   (e: 'retryFhir', id: string): void;
   (e: 'approve', m: MeasurementResponse): void;
   (e: 'edit', m: MeasurementResponse): void;
@@ -67,6 +68,7 @@ const showAnnotationActions = computed(() => !!measurement.value.hasAnnotation);
 
 const statusLabel = computed(() => {
   switch (measurement.value.status) {
+    case 'pending_upload': return 'uploading source…';
     case 'pending': return 'pending';
     case 'uploading': return 'uploading…';
     case 'submit_failed': return 'submit failed';
@@ -79,6 +81,7 @@ const statusLabel = computed(() => {
 // Aurora status palette — soft tonal chips keyed by lifecycle state.
 const statusColor = computed(() => {
   switch (measurement.value.status) {
+    case 'pending_upload': return '#5fd6e8';
     case 'pending': return '#9fb4bf';
     case 'uploading': return '#5fd6e8';
     case 'submit_failed': return '#ff6b6b';
@@ -89,6 +92,18 @@ const statusColor = computed(() => {
 });
 
 const menuItems = computed<UCardMenuItem[]>(() => {
+  // A pending_upload row is a placeholder for an in-flight chunked upload. The
+  // only meaningful action is to abort it — which must go through /upload/cancel
+  // (drops the tmp parts + row), not the generic delete.
+  if (measurement.value.status === 'pending_upload') {
+    return [{
+      label: 'Cancel upload',
+      icon: 'mdi-close-circle-outline',
+      danger: true,
+      onClick: onCancelUpload,
+    }];
+  }
+
   const items: UCardMenuItem[] = [];
   if (showApproval.value) {
     items.push({ label: 'Approval (upload to MinIO)', icon: 'mdi-cloud-upload-outline', disabled: busy.value, onClick: onApprove });
@@ -114,6 +129,10 @@ const onExport = () => emit('export', measurement.value);
 const onDelete = () => {
   isDeleting.value = true;
   emit('delete', measurement.value.id);
+};
+const onCancelUpload = () => {
+  isDeleting.value = true;
+  emit('cancelUpload', measurement.value.id);
 };
 const onRetryFhir = () => {
   retrying.value = true;

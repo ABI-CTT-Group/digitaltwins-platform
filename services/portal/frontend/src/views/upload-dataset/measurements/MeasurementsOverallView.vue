@@ -14,6 +14,7 @@
         :key="m.id"
         :measurement="m"
         @delete="handleDelete"
+        @cancel-upload="handleCancelUpload"
         @retry-fhir="handleRetryFhir"
         @approve="handleApprove"
         @edit="handleEdit"
@@ -43,6 +44,7 @@ import {
   useDeleteMeasurement,
   useMeasurementRetryFhir,
   useMeasurementFhirPreview,
+  useUploadCancel,
 } from '@/bootstrap/measurement_api';
 import type { MeasurementResponse } from '@/models/types';
 
@@ -64,7 +66,9 @@ const handleRegister = () => emit('register');
 // generous predicate (pending + uploading) so a row that's just been created
 // but not yet submitted still triggers polling — same posture workflow uses.
 const hasPendingItem = (items: MeasurementResponse[]) =>
-  items.some((m) => m.status === 'uploading' || m.status === 'pending');
+  items.some(
+    (m) => m.status === 'uploading' || m.status === 'pending' || m.status === 'pending_upload',
+  );
 
 const handleDelete = async (id: string) => {
   try {
@@ -73,6 +77,20 @@ const handleDelete = async (id: string) => {
   } catch (e) {
     console.error('Delete measurement failed:', e);
     toast.error('Failed to delete measurement.');
+  } finally {
+    await registryRef.value?.handleRefresh();
+  }
+};
+
+// pending_upload rows are aborted through /upload/cancel (drops tmp parts + row),
+// not the generic delete which assumes a fully-staged dataset.
+const handleCancelUpload = async (id: string) => {
+  try {
+    await useUploadCancel(id);
+    toast.success('Upload cancelled.');
+  } catch (e) {
+    console.error('Cancel upload failed:', e);
+    toast.error('Failed to cancel upload.');
   } finally {
     await registryRef.value?.handleRefresh();
   }

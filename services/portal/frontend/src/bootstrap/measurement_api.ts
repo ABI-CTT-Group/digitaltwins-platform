@@ -14,7 +14,6 @@
 
 import http from "./http";
 import type {
-  MeasurementInformationStep,
   MeasurementResponse,
   MeasurementTreeResponse,
   MeasurementAnnotationResponse,
@@ -44,13 +43,6 @@ export async function useMeasurement(): Promise<MeasurementResponse[]> {
 /** GET /api/measurement/{id} — fetch a single measurement row (status polling). */
 export async function useGetMeasurement(id: string): Promise<MeasurementResponse> {
   return http.get<MeasurementResponse>(`/measurement/${id}`);
-}
-
-/** POST /api/measurement/create — create after upload-source. */
-export async function useCreateMeasurement(
-  payload: MeasurementInformationStep,
-): Promise<MeasurementResponse> {
-  return http.post<MeasurementResponse>(`/measurement/create`, payload);
 }
 
 /** GET /api/measurement/{id}/tree — server-classified prefilled descriptions. */
@@ -104,4 +96,66 @@ export async function useMeasurementFhirPreview(id: string): Promise<Record<stri
 /** DELETE /api/measurement/{id}. */
 export async function useDeleteMeasurement(id: string): Promise<MeasurementDeleteResponse> {
   return http.delete<MeasurementDeleteResponse>(`/measurement/${id}`);
+}
+
+// ---------------------------------------------------------------------------
+// Chunked upload (Approach A) — control-plane endpoints.
+//
+// The part PUTs are NOT here: they send raw octet-stream bytes and live in
+// `measurement_upload.ts`, which calls the interceptor-bearing axios instance
+// directly so a mid-upload 401 still triggers the keycloak refresh+retry.
+// init / status / finalize / cancel are ordinary JSON and use the http wrapper.
+// ---------------------------------------------------------------------------
+
+export interface UploadManifestEntry {
+  relPath: string;
+  size: number;
+  parts: number;
+}
+
+export interface UploadInitPayload {
+  name: string;
+  description?: string;
+  sourceKind: 'folder' | 'zip';
+  manifest: UploadManifestEntry[];
+}
+
+export interface UploadInitResponse {
+  measurementId: string;
+  maxPartSize: number;
+}
+
+export interface UploadStatusFile {
+  relPath: string;
+  size: number;
+  parts: number;
+  receivedParts: number[];
+  bytes: number;
+  complete: boolean;
+}
+
+export interface UploadStatusResponse {
+  sourceKind: 'folder' | 'zip';
+  files: UploadStatusFile[];
+  complete: boolean;
+}
+
+/** POST /api/measurement/upload/init — pre-create row + chunk store. */
+export async function useUploadInit(payload: UploadInitPayload): Promise<UploadInitResponse> {
+  return http.post<UploadInitResponse>(`/measurement/upload/init`, payload);
+}
+
+/** GET /api/measurement/upload/{id}/status — received parts, for resume. */
+export async function useUploadStatus(id: string): Promise<UploadStatusResponse> {
+  return http.get<UploadStatusResponse>(`/measurement/upload/${id}/status`);
+}
+
+/** POST /api/measurement/upload/{id}/finalize — assemble + validate + move. */
+export async function useUploadFinalize(id: string): Promise<MeasurementResponse> {
+  return http.post<MeasurementResponse>(`/measurement/upload/${id}/finalize`, {});
+}
+
+/** POST /api/measurement/upload/{id}/cancel — drop tmp parts + delete row. */
+export async function useUploadCancel(id: string): Promise<{ success: boolean; id: string }> {
+  return http.post<{ success: boolean; id: string }>(`/measurement/upload/${id}/cancel`, {});
 }
