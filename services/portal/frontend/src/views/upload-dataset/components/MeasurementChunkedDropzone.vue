@@ -365,7 +365,12 @@ function setProgress(
     | { phase: 'reset' },
 ) {
   if (p.phase === 'upload') {
-    setPhase('uploading');
+    // Straggler progress from in-flight parts can land after the user pauses
+    // (up to CONCURRENCY parts finish their PUT post-pause) or after we flip to
+    // finalizing. Update the numbers, but don't yank the UI back to 'uploading'.
+    if (phase.value !== 'paused' && phase.value !== 'finalizing') {
+      setPhase('uploading');
+    }
     progressPercent.value = p.percent;
     sentBytes.value = p.sentBytes;
     totalBytes.value = p.totalBytes;
