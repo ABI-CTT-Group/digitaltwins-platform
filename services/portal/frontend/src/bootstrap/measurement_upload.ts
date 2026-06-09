@@ -83,6 +83,18 @@ function manifestKey(m: UploadManifestEntry[]): string {
     .join('|');
 }
 
+/** Content fingerprint of a dropped source — for matching against a resume target. */
+export function manifestKeyForSource(source: LocalSource): string {
+  return manifestKey(buildManifest(source).manifest);
+}
+
+/** Content fingerprint built from the server's upload-status file list. */
+export function serverManifestKey(
+  files: { relPath: string; size: number; parts: number }[],
+): string {
+  return manifestKey(files.map((f) => ({ relPath: f.relPath, size: f.size, parts: f.parts })));
+}
+
 /** All unfinished uploads recorded in this browser (for the resume prompt). */
 export function loadPendingUploads(): PendingUpload[] {
   const out: PendingUpload[] = [];

@@ -7,12 +7,14 @@
       <MeasurementsOverallView
         v-if="showOverall"
         @register="handleRegister"
+        @resume="handleResume"
         @edit="handleEdit"
       />
       <UploadMeasurementForm
         v-else
         :measurement="editMeasurement"
         :initial-step="editMeasurement ? 2 : 1"
+        :resume-measurement-id="resumeMeasurementId"
         @finished="handleUploadFinished"
       />
     </div>
@@ -31,6 +33,9 @@ const showOverall = ref(true);
 // When set, the form opens in edit mode (Annotation step) for this draft.
 // Undefined means the create flow (start at Information).
 const editMeasurement = ref<MeasurementResponse | undefined>(undefined);
+// When set, the Information step opens in resume mode bound to this unfinished
+// upload (name locked, dropped folder validated against the server manifest).
+const resumeMeasurementId = ref<string | undefined>(undefined);
 
 const heroDetail = computed(() =>
   showOverall.value
@@ -48,6 +53,13 @@ const heroDetail = computed(() =>
 
 const handleRegister = () => {
   editMeasurement.value = undefined;
+  resumeMeasurementId.value = undefined;
+  showOverall.value = false;
+};
+
+const handleResume = (id: string) => {
+  editMeasurement.value = undefined;
+  resumeMeasurementId.value = id;
   showOverall.value = false;
 };
 
@@ -58,6 +70,7 @@ const handleEdit = (m: MeasurementResponse) => {
 
 const handleUploadFinished = () => {
   editMeasurement.value = undefined;
+  resumeMeasurementId.value = undefined;
   showOverall.value = true;
 };
 </script>

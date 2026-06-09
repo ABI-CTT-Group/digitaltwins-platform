@@ -1,7 +1,29 @@
 <template>
   <v-alert v-show="showAlert" :text="alertText" title="Required Fields Missing" type="error" />
+
+  <!-- Resume mode: bound to one specific unfinished upload (opened from its card). -->
   <v-alert
-    v-if="pendingUploads.length && !source"
+    v-if="resumeTarget && !resumeId && !sourceMismatch"
+    type="info"
+    variant="tonal"
+    class="mb-3"
+  >
+    Resuming <strong>{{ resumeTarget.name }}</strong> ({{ resumeTarget.percent }}% uploaded).
+    Drop the same folder below to continue.
+  </v-alert>
+  <v-alert
+    v-if="resumeTarget && sourceMismatch"
+    type="error"
+    variant="tonal"
+    class="mb-3"
+  >
+    This folder doesn't match <strong>{{ resumeTarget.name }}</strong> (different files or sizes).
+    Drop the correct folder to resume, or cancel this upload from the list.
+  </v-alert>
+
+  <!-- New-upload mode banners (suppressed when resuming a specific upload). -->
+  <v-alert
+    v-if="!resumeTarget && pendingUploads.length && !source"
     type="warning"
     variant="tonal"
     class="mb-3"
@@ -21,10 +43,10 @@
     type="info"
     variant="tonal"
     class="mb-3"
-    text="Resuming a previous upload of this source — already-sent chunks will be skipped."
+    text="Resuming — already-sent chunks will be skipped."
   />
   <v-alert
-    v-if="source && !resumeId && pendingUploads.length"
+    v-if="!resumeTarget && source && !resumeId && pendingUploads.length"
     type="info"
     variant="tonal"
     density="compact"
@@ -41,6 +63,9 @@
         v-model="formData.name"
         :rules="nameRules"
         :error-messages="nameErrorMessages"
+        :readonly="!!resumeTarget"
+        :hint="resumeTarget ? 'Locked while resuming this upload' : undefined"
+        :persistent-hint="!!resumeTarget"
         label="Dataset name"
         required
         clearable
@@ -108,6 +133,8 @@ import {
   findResumableUpload,
   loadPendingUploads,
   clearPending,
+  manifestKeyForSource,
+  serverManifestKey,
   type UploaderPhase,
 } from '@/bootstrap/measurement_upload';
 import { useCheckName } from '@/bootstrap/api_helpers';
@@ -115,6 +142,7 @@ import {
   useMeasurementConfig,
   useUploadStatus,
   useUploadCancel,
+  useGetMeasurement,
 } from '@/bootstrap/measurement_api';
 import { readSampleTypesFromFiles, buildSampleTypeDescription } from '../components/sampleTypes';
 import type { CheckNameResponse, MeasurementResponse } from '@/models/types';
@@ -123,6 +151,13 @@ import type { CheckNameResponse, MeasurementResponse } from '@/models/types';
 // mount; the local fallback keeps the dropzone usable if config is unreachable.
 const DEFAULT_MAX_UPLOAD_BYTES = 20 * 1024 * 1024 * 1024;
 const measurementUploadMaxBytes = ref<number>(DEFAULT_MAX_UPLOAD_BYTES);
+
+const props = defineProps<{
+  // When set, the step opens in resume mode bound to this unfinished upload:
+  // name locked, no uniqueness check, dropped folder validated against the
+  // server's authoritative manifest.
+  resumeMeasurementId?: string;
+}>();
 
 const emit = defineEmits<{
   (e: 'created', m: MeasurementResponse): void;
@@ -144,6 +179,12 @@ const uploader = ref<ChunkedUploader | null>(null);
 // survive a reload, so resume can't be automatic).
 const pendingUploads = ref<{ id: string; name: string; percent: number }[]>([]);
 
+// Resume mode: bound to one specific unfinished upload (opened from its card).
+// serverKey is the authoritative manifest fingerprint the dropped folder must
+// match. sourceMismatch flags a dropped folder that doesn't.
+const resumeTarget = ref<{ id: string; name: string; percent: number; serverKey: string } | null>(null);
+const sourceMismatch = ref(false);
+
 // Track auto-filled values so we never clobber what the user typed.
 const autoFilledName = ref('');
 const autoFilledDescription = ref('');
@@ -160,8 +201,9 @@ const alertText = ref('');
 
 const canContinue = computed(() => {
   if (!source.value) return false;
-  // Resuming targets an existing row; its name legitimately matches, so the
-  // uniqueness check doesn't apply (name isn't sent on resume anyway).
+  // Resume mode: only when the dropped folder matches the bound target.
+  if (resumeTarget.value) return !!resumeId.value;
+  // Legacy auto-match resume (new-upload form): name matches the existing row.
   if (resumeId.value) return true;
   return !!formData.name.trim() && nameErr.value?.available !== false;
 });
@@ -175,8 +217,33 @@ onMounted(async () => {
   } catch (err) {
     console.warn('useMeasurementConfig failed; using default upload ceiling', err);
   }
-  void refreshPendingList();
+  if (props.resumeMeasurementId) {
+    await loadResumeTarget(props.resumeMeasurementId);
+  } else {
+    void refreshPendingList();
+  }
 });
+
+// Resume mode: load the bound upload's name + progress + authoritative manifest
+// fingerprint. If the row is gone, degrade to a normal new-upload form.
+async function loadResumeTarget(id: string): Promise<void> {
+  try {
+    const [m, status] = await Promise.all([useGetMeasurement(id), useUploadStatus(id)]);
+    const total = status.files.reduce((s, f) => s + f.size, 0);
+    const got = status.files.reduce((s, f) => s + f.bytes, 0);
+    resumeTarget.value = {
+      id,
+      name: m.name,
+      percent: total > 0 ? Math.round((got / total) * 100) : 0,
+      serverKey: serverManifestKey(status.files),
+    };
+    formData.name = m.name;
+    if (m.description) formData.description = m.description;
+  } catch (err) {
+    console.warn('Resume target unavailable; opening a fresh form', err);
+    resumeTarget.value = null;
+  }
+}
 
 // Build the resume banner: read the localStorage index, fetch each upload's
 // server-side progress, and drop entries whose measurement no longer exists.
@@ -211,7 +278,17 @@ async function cancelPending(id: string): Promise<void> {
 
 const onSourceSelected = (selected: LocalSource) => {
   source.value = selected;
-  // Exact-manifest match against a recorded pending upload → offer resume.
+
+  // Resume mode: the dropped folder must match the bound upload's server
+  // manifest exactly. No name autofill — the name is locked to the target.
+  if (resumeTarget.value) {
+    const matches = manifestKeyForSource(selected) === resumeTarget.value.serverKey;
+    resumeId.value = matches ? resumeTarget.value.id : null;
+    sourceMismatch.value = !matches;
+    return;
+  }
+
+  // New-upload mode: exact-manifest match against a recorded pending upload → offer resume.
   resumeId.value = findResumableUpload(selected);
 
   const derived = (selected.rootName || '').replace(/\.zip$/i, '').trim();
@@ -253,6 +330,9 @@ const onUploadCancel = () => {
   submitting.value = false;
   source.value = undefined;
   resumeId.value = null;
+  // Aborting also deletes the row server-side, so leave resume mode.
+  resumeTarget.value = null;
+  sourceMismatch.value = false;
   formData.name = '';
   autoFilledName.value = '';
   formData.description = '';
@@ -263,8 +343,9 @@ const onUploadCancel = () => {
 };
 
 const onNameBlur = async () => {
-  // On resume the name matches the existing row by design — not a conflict.
-  if (resumeId.value) {
+  // Resuming (either mode) targets an existing row — its name matching itself
+  // is not a conflict, and the name isn't sent on resume anyway.
+  if (resumeTarget.value || resumeId.value) {
     nameErr.value = undefined;
     return;
   }
@@ -283,9 +364,18 @@ const onNameBlur = async () => {
 async function handleSubmit() {
   if (submitting.value) return;
 
+  // Resume mode: the dropped folder must match the bound upload.
+  if (resumeTarget.value && !resumeId.value) {
+    showAlert.value = true;
+    alertText.value = sourceMismatch.value
+      ? `This folder doesn't match ${resumeTarget.value.name}. Drop the same folder you were uploading.`
+      : 'Drop the folder for this upload to resume.';
+    return;
+  }
+
   const { valid } = await form.value.validate();
   await onNameBlur();
-  const validName = !!resumeId.value || (valid && nameErr.value?.available !== false);
+  const validName = !!resumeTarget.value || !!resumeId.value || (valid && nameErr.value?.available !== false);
   if (!validName || !source.value) {
     showAlert.value = true;
     alertText.value = !source.value

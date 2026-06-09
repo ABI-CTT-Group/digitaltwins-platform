@@ -53,6 +53,7 @@ const toast = useToast();
 const router = useRouter();
 const emit = defineEmits<{
   (e: 'register'): void;
+  (e: 'resume', id: string): void;
   (e: 'edit', m: MeasurementResponse): void;
 }>();
 
@@ -83,9 +84,10 @@ const handleDelete = async (id: string) => {
   }
 };
 
-// Resume = jump to the create form (step 1), where the mount-time banner lists
-// the unfinished upload(s) and the user re-drops the same folder to continue.
-const handleResumeUpload = () => emit('register');
+// Resume = open the form bound to this specific unfinished upload (resume mode):
+// name locked, no uniqueness check, dropped folder validated against the
+// server's authoritative manifest. See InformationStep.
+const handleResumeUpload = (id: string) => emit('resume', id);
 
 // pending_upload rows are aborted through /upload/cancel (drops tmp parts + row),
 // not the generic delete which assumes a fully-staged dataset.

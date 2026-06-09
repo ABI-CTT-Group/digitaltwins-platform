@@ -15,7 +15,11 @@
         <v-stepper-window>
           <v-stepper-window-item :value="1">
             <v-card class="pa-4 step-pane" flat>
-              <InformationStep @created="handleCreated" @cancel="handleCancel" />
+              <InformationStep
+                :resume-measurement-id="resumeMeasurementId"
+                @created="handleCreated"
+                @cancel="handleCancel"
+              />
             </v-card>
           </v-stepper-window-item>
 
@@ -47,6 +51,7 @@ import type { MeasurementResponse } from '@/models/types';
 const props = defineProps<{
   measurement?: MeasurementResponse;
   initialStep?: number;
+  resumeMeasurementId?: string;
 }>();
 
 const emit = defineEmits(['finished']);
