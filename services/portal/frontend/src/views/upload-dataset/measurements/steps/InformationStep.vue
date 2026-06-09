@@ -23,6 +23,14 @@
     class="mb-3"
     text="Resuming a previous upload of this source — already-sent chunks will be skipped."
   />
+  <v-alert
+    v-if="source && !resumeId && pendingUploads.length"
+    type="info"
+    variant="tonal"
+    density="compact"
+    class="mb-3"
+    text="This source doesn't match any unfinished upload — it will start as a brand-new upload (your previous one is untouched)."
+  />
   <div>
     <h3 class="step-heading">Measurements Information</h3>
     <v-divider class="my-2 mb-5" :thickness="3" />
