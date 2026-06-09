@@ -125,7 +125,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
 import MeasurementChunkedDropzone from '../../components/MeasurementChunkedDropzone.vue';
 import type { LocalSource } from '@/bootstrap/upload_source';
 import {
@@ -320,6 +320,13 @@ async function autofillDescriptionFromSamples(files: File[]): Promise<void> {
   formData.description = summary;
   autoFilledDescription.value = summary;
 }
+
+// Leaving the step (back nav / unmount) must stop the in-flight upload —
+// otherwise its async workers keep running (and would auto-finalize) in the
+// background. stop() leaves the partial resumable; it does NOT delete the row.
+onBeforeUnmount(() => {
+  uploader.value?.stop();
+});
 
 const onPause = () => uploader.value?.pause();
 const onResume = () => uploader.value?.resume();

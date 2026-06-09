@@ -247,6 +247,15 @@ export class ChunkedUploader {
     return new Promise<void>((resolve) => this.resumeWaiters.push(resolve));
   }
 
+  /** Abort in-flight parts WITHOUT touching the server row or local index — the
+   *  partial upload stays fully resumable. Used when the user navigates away
+   *  mid-upload so it doesn't keep uploading (and finalizing) in the background. */
+  stop(): void {
+    this.abort.abort();
+    this.paused = false;
+    this.resumeWaiters.splice(0).forEach((w) => w());
+  }
+
   /** Abort in-flight parts, ask the server to drop the row + tmp, clear index. */
   async cancel(): Promise<void> {
     this.abort.abort();
