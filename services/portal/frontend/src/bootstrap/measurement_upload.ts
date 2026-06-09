@@ -260,11 +260,25 @@ export class ChunkedUploader {
     const received = new Map<string, Set<number>>();
 
     this.setPhase('initializing');
+    let resuming = false;
     if (this.resumeId) {
-      this.measurementId = this.resumeId;
-      const status = await useUploadStatus(this.resumeId);
-      for (const f of status.files) received.set(f.relPath, new Set(f.receivedParts));
-    } else {
+      try {
+        const status = await useUploadStatus(this.resumeId);
+        this.measurementId = this.resumeId;
+        for (const f of status.files) received.set(f.relPath, new Set(f.receivedParts));
+        resuming = true;
+      } catch (err: any) {
+        // The recorded upload no longer exists server-side (cancelled elsewhere,
+        // reaped by orphan cleanup, or the backend DB was reset). Drop the stale
+        // localStorage index and fall through to a fresh init instead of failing.
+        if (err?.response?.status === 404) {
+          clearPending(this.resumeId);
+        } else {
+          throw err;
+        }
+      }
+    }
+    if (!resuming) {
       const res = await useUploadInit({
         name: this.meta.name,
         description: this.meta.description,
