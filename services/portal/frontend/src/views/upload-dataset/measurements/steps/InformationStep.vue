@@ -158,9 +158,13 @@ const nameErrorMessages = computed<string[]>(() => {
 const showAlert = ref(false);
 const alertText = ref('');
 
-const canContinue = computed(
-  () => !!source.value && !!formData.name.trim() && nameErr.value?.available !== false,
-);
+const canContinue = computed(() => {
+  if (!source.value) return false;
+  // Resuming targets an existing row; its name legitimately matches, so the
+  // uniqueness check doesn't apply (name isn't sent on resume anyway).
+  if (resumeId.value) return true;
+  return !!formData.name.trim() && nameErr.value?.available !== false;
+});
 
 onMounted(async () => {
   try {
@@ -259,6 +263,11 @@ const onUploadCancel = () => {
 };
 
 const onNameBlur = async () => {
+  // On resume the name matches the existing row by design — not a conflict.
+  if (resumeId.value) {
+    nameErr.value = undefined;
+    return;
+  }
   if (!formData.name?.trim()) {
     nameErr.value = undefined;
     return;
@@ -276,7 +285,7 @@ async function handleSubmit() {
 
   const { valid } = await form.value.validate();
   await onNameBlur();
-  const validName = valid && nameErr.value?.available !== false;
+  const validName = !!resumeId.value || (valid && nameErr.value?.available !== false);
   if (!validName || !source.value) {
     showAlert.value = true;
     alertText.value = !source.value
