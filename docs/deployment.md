@@ -175,7 +175,14 @@ Edit `./services/seek/ldh-deployment/docker-compose.env` and replace `<root-pass
       ```
    4. Exit the container terminal.
 
-## 6. Launch the Entire Platform
+## 6. Build all images
+
+```bash
+sudo docker compose -f services/jupyterhub/docker-compose.yml --env-file ./.env --profile build build
+sudo docker compose -f services/jupyterhub/docker-compose.yml --env-file ./.env build
+```
+
+## 7. Launch the Entire Platform
 
 Run the following command from the repository root to start all services in detached mode:
 
@@ -183,18 +190,19 @@ Run the following command from the repository root to start all services in deta
 sudo docker compose up -d
 ```
 
-## 7. Service Access & Default Credentials
+## 8. Service Access & Default Credentials
 
 Once successfully deployed, the following services and default credentials are available:
 
-| Service | Port | Username | Password | Notes |
-| :--- | :--- | :--- | :--- | :--- |
-| **Portal** | `80` | `admin` | `admin` | Main entry point |
-| **SEEK** | `8001` | `<Created User>` | `<Created Pass>` | Catalogue Service |
-| **Airflow** | `8002` | `admin` | `admin` | Workflow Management |
-| **Postgres** | `8003` | — | — | Database (Connect via pgAdmin) |
-| **pgAdmin** | `8004` | *Check `.env`* | *Check `.env`* | Database GUI |
-| **JupyterLab** | `8008` | — | `admin` | Accessed via Token/Password |
-| **Keycloak** | `8009` | `admin` | `admin` | IAM Service |
-| **REST API** | `8010` | — | — | Docs available at `http://{IP}:8010/docs` |
-| **Minio** | `8012` | `minioadmin` | `minioadmin` | Storage Web GUI (API on `8011`) |
+| Service            | Port   | Username | Password | Notes                                     |
+|:-------------------|:-------| :--- | :--- |:------------------------------------------|
+| **Portal**         | `80`   | `admin` | `admin` | Main entry point                          |
+| **SEEK**           | `8001` | `<Created User>` | `<Created Pass>` | Catalogue Service                         |
+| **Airflow**        | `8002` | `admin` | `admin` | Workflow Management                       |
+| **Postgres**       | `8003` | — | — | Database (Connect via pgAdmin)            |
+| **pgAdmin**        | `8004` | *Check `.env`* | *Check `.env`* | Database GUI                              |
+| **JupyterLab**     | `8008` | — | `admin` | Accessed via Token/Password               |
+| **Keycloak**       | `8009` | `admin` | `admin` | IAM Service                               |
+| **REST API**       | `8010` | — | — | Docs available at `http://{IP}:8010/docs` |
+| **Minio**          | `8012` | `minioadmin` | `minioadmin` | Storage Web GUI (API on `8011`)           |
+| **JupyterHub** | `8010` | — | — | Managed by Keycloak                       |

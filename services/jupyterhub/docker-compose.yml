@@ -3,19 +3,35 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: digitaltwins-platform-jupyterhub
     ports:
       - "${JUPYTERHUB_PORT:-8016}:8000"
     volumes:
       - ./jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro
+      - /var/run/docker.sock:/var/run/docker.sock:rw
       - jupyterhub_data:/srv/jupyterhub
     environment:
       - JUPYTERHUB_CRYPT_KEY=${JUPYTERHUB_CRYPT_KEY:-c3b53f650bf93c3c6f8f5b8a5b2803b9b4d1b8c2810a9a8f2762a4f4e2b027d1}
-      - JUPYTERHUB_DUMMY_PASSWORD=${JUPYTERHUB_DUMMY_PASSWORD:-password}
+      - DOCKER_NETWORK_NAME=${COMPOSE_PROJECT_NAME:-digitaltwins-platform}_digitaltwins
+      - DOCKER_NOTEBOOK_IMAGE=digitaltwins-platform-jupyter-singleuser:latest
+      - DOCKER_NOTEBOOK_DIR=/home/jovyan/work
+      - DOCKER_MEM_LIMIT=8G
+      - DOCKER_CPU_LIMIT=4
     restart: unless-stopped
     networks:
       - digitaltwins
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  # Single-user notebook image — built once, used by DockerSpawner per user
+  singleuser:
+    build:
+      context: .
+      dockerfile: Dockerfile.singleuser
+    image: digitaltwins-platform-jupyter-singleuser:latest
+    command: [ "echo", "Image built successfully" ]
+    profiles:
+      - build
 
 volumes:
   jupyterhub_data:
@@ -27,8 +43,10 @@ networks:
 
 # JupyterHub
 # http://localhost:8016
-# Default credentials: admin / password
 # admin page: http://localhost:8016/hub/admin
 #
-# To run standalone:
-# docker compose -f services/jupyterhub/docker-compose.yml --env-file ./.env up -d
+# Build all images (including singleuser):
+#   docker compose -f services/jupyterhub/docker-compose.yml --env-file ./.env --profile build build
+#
+# Run:
+#   docker compose -f services/jupyterhub/docker-compose.yml --env-file ./.env up -d

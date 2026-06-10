@@ -1,8 +1,7 @@
 FROM jupyterhub/jupyterhub:5.4.6
 
-# Install JupyterLab and dependencies for single-user notebook servers
+# Install Hub dependencies (notebook stack is in Dockerfile.singleuser)
 RUN pip install --no-cache-dir \
-    jupyterlab \
-    notebook \
     "packaging>=21.0" \
-    "oauthenticator>=17.0"
+    "oauthenticator>=17.0" \
+    dockerspawner
