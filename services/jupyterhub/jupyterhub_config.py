@@ -73,22 +73,41 @@ c.Authenticator.admin_users = set(
 )
 
 # ---------------------------------------------------------------------------
-# Spawner – SimpleLocalProcessSpawner runs notebook servers in the same container
+# Spawner — DockerSpawner: one isolated container per user
 # ---------------------------------------------------------------------------
-c.JupyterHub.spawner_class = 'jupyterhub.spawner.SimpleLocalProcessSpawner'
+c.JupyterHub.spawner_class = 'dockerspawner.DockerSpawner'
 
-# Use jupyterhub-singleuser (the canonical single-user server command)
-c.Spawner.cmd = ['jupyterhub-singleuser']
+# Docker image for single-user servers (built from Dockerfile.singleuser)
+c.DockerSpawner.image = os.environ.get('DOCKER_NOTEBOOK_IMAGE', 'digitaltwins-platform-jupyter-singleuser:latest')
 
-# Required when JupyterHub runs as root (as it does inside Docker)
-c.Spawner.args = ['--allow-root']
+# Networking — spawned containers join the same Docker network as the Hub
+_network_name = os.environ.get('DOCKER_NETWORK_NAME', 'digitaltwins-platform_digitaltwins')
+c.DockerSpawner.network_name = _network_name
+c.DockerSpawner.use_internal_ip = True
 
-# Notebook directory — use /tmp so it always exists and is writable by root
-c.Spawner.notebook_dir = '/tmp'
+# Hub URL for user containers (port 8081 = hub API; distinct from proxy port 8000)
+c.JupyterHub.hub_connect_url = 'http://digitaltwins-platform-jupyterhub:8081'
 
-# Give the single-user server a bit more time to start
-c.Spawner.http_timeout = 60
-c.Spawner.start_timeout = 60
+# User notebook directory (inside each user container)
+_notebook_dir = os.environ.get('DOCKER_NOTEBOOK_DIR', '/home/jovyan/work')
+c.DockerSpawner.notebook_dir = _notebook_dir
 
-# Allow admin to access other users' servers
+# Per-user persistent storage via Docker named volumes
+# Automatically creates "digitaltwins-platform_jupyterhub_user_{username}" for each user
+c.DockerSpawner.volumes = {
+    'digitaltwins-platform_jupyterhub_user_{username}': _notebook_dir
+}
+
+# Remove user containers when they stop (data persists in named volumes)
+c.DockerSpawner.remove = True
+
+# Resource limits — sized for ML training / image segmentation workloads
+c.DockerSpawner.mem_limit = os.environ.get('DOCKER_MEM_LIMIT', '8G')
+c.DockerSpawner.cpu_limit = float(os.environ.get('DOCKER_CPU_LIMIT', '4'))
+
+# Timeouts — allow time for image pulls and container startup
+c.DockerSpawner.start_timeout = 120
+c.DockerSpawner.http_timeout = 60
+
+# Allow admin to access other users' servers (via JupyterHub admin panel)
 c.JupyterHub.admin_access = True
