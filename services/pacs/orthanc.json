@@ -13,5 +13,9 @@
     "Enable": true,
     "Root": "/dicom-web/"
   },
-  "StorageDirectory": "/var/lib/orthanc/db"
+  "StorageDirectory": "/var/lib/orthanc/db",
+  "Python": {
+    "Path": "/etc/orthanc/on_received_instance.py",
+    "Verbose": false
+  }
 }
