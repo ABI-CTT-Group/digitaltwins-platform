@@ -12,6 +12,9 @@ services:
       - "8008:8888"
     volumes:
       - notebook_workspace:/home/jovyan/work
+    networks:
+      - digitaltwins
+
     command: start-notebook.sh
     restart: unless-stopped
 

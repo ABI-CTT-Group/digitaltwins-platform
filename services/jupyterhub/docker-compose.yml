@@ -30,6 +30,8 @@ services:
       dockerfile: Dockerfile.singleuser
     image: digitaltwins-platform-jupyter-singleuser:latest
     command: [ "echo", "Image built successfully" ]
+    networks:
+      - digitaltwins
     profiles:
       - build
 
