@@ -2,15 +2,21 @@
 SSO, no password in the terminal) with a password-grant fallback, plus the admin
 role gate.
 
-Heavy imports (``requests`` / the keycloak client) are lazy so ``require_admin``
-(a pure function) stays importable for unit tests without those deps.
+HTTP uses stdlib ``urllib`` (no third-party deps like ``requests``, which isn't
+installed in the backend image). ``require_admin`` is a pure function and stays
+importable for unit tests without the keycloak client.
 """
 from __future__ import annotations
 
+import json
+import ssl
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from typing import Dict, List, Optional
 
-# Roles that count as admin for the import CLI.
+# Role that counts as admin for the import CLI.
 _ADMIN_ROLE = "admin"
 
 
@@ -36,36 +42,59 @@ def _kc():
 
 def _endpoints(kc) -> Dict[str, str]:
     base = f"{kc.server_url.rstrip('/')}/realms/{kc.realm_name}/protocol/openid-connect"
-    return {
-        "device": f"{base}/auth/device",
-        "token": f"{base}/token",
-    }
+    return {"device": f"{base}/auth/device", "token": f"{base}/token"}
 
 
-def _verify_value(kc):
-    return kc.ca_cert if kc.ca_cert else kc.verify_ssl
+def _ssl_context(kc) -> Optional[ssl.SSLContext]:
+    verify = kc.ca_cert if kc.ca_cert else kc.verify_ssl
+    if verify is False:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+    if isinstance(verify, str) and verify:  # CA cert file path
+        return ssl.create_default_context(cafile=verify)
+    return None  # default verification (ignored for http://)
+
+
+def _post_form(url: str, data: Dict[str, str], ctx, timeout: int = 30):
+    """POST application/x-www-form-urlencoded; return (status_code, json_body)."""
+    body = urllib.parse.urlencode(data).encode()
+    req = urllib.request.Request(
+        url, data=body, method="POST",
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+            return resp.status, json.loads(resp.read().decode() or "{}")
+    except urllib.error.HTTPError as e:
+        # Keycloak returns 400 + a JSON {error: ...} for pending/slow_down/etc.
+        try:
+            return e.code, json.loads(e.read().decode() or "{}")
+        except Exception:
+            return e.code, {}
 
 
 def device_login(timeout: int = 600) -> Dict:
     """OAuth2 device-authorization grant. Prints a URL + code for the operator to
     log in via browser SSO, polls for the token, and returns the verified
-    ``user_info`` dict. Raises on timeout / denial / unsupported flow."""
-    import requests  # lazy
-
+    ``user_info`` dict. Raises RuntimeError on unsupported flow, TimeoutError on
+    timeout."""
     kc = _kc()
     eps = _endpoints(kc)
-    verify = _verify_value(kc)
+    ctx = _ssl_context(kc)
+
     data = {"client_id": kc.client_id, "scope": "openid email profile roles"}
     if kc.client_secret:
         data["client_secret"] = kc.client_secret
 
-    resp = requests.post(eps["device"], data=data, verify=verify, timeout=30)
-    if resp.status_code != 200:
+    status, dev = _post_form(eps["device"], data, ctx)
+    if status != 200:
         raise RuntimeError(
-            f"Device authorization not available ({resp.status_code}: {resp.text[:200]}). "
+            f"Device authorization not available ({status}: {dev}). "
             "Enable the device flow on the Keycloak client, or use --password."
         )
-    dev = resp.json()
+
     interval = int(dev.get("interval", 5))
     device_code = dev["device_code"]
     verify_uri = dev.get("verification_uri_complete") or dev.get("verification_uri")
@@ -79,27 +108,25 @@ def device_login(timeout: int = 600) -> Dict:
     deadline = time.time() + timeout
     while time.time() < deadline:
         time.sleep(interval)
-        poll = requests.post(
+        status, poll = _post_form(
             eps["token"],
-            data={
+            {
                 "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
                 "device_code": device_code,
                 "client_id": kc.client_id,
                 **({"client_secret": kc.client_secret} if kc.client_secret else {}),
             },
-            verify=verify,
-            timeout=30,
+            ctx,
         )
-        if poll.status_code == 200:
-            access_token = poll.json()["access_token"]
-            return kc.get_user_info(access_token)
-        err = poll.json().get("error") if poll.headers.get("content-type", "").startswith("application/json") else None
+        if status == 200:
+            return kc.get_user_info(poll["access_token"])
+        err = poll.get("error")
         if err == "authorization_pending":
             continue
         if err == "slow_down":
             interval += 5
             continue
-        raise RuntimeError(f"Login failed: {err or poll.text[:200]}")
+        raise RuntimeError(f"Login failed: {err or poll}")
 
     raise TimeoutError("Timed out waiting for sign-in.")
 
