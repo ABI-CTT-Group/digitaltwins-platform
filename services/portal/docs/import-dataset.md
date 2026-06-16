@@ -4,21 +4,27 @@ A one-command way for an **admin** to import a prepared measurement dataset
 straight into the portal — no GUI, no code. The dataset is uploaded to storage,
 registered, pushed to FHIR, and shown in the portal as **completed** (view-only).
 
-It accepts a dataset folder that **either** already contains an annotated
-`fhir.json` **or** doesn't (it will auto-annotate from the files).
+It accepts a dataset **folder or a `.zip`**, which **either** already contains an
+annotated `fhir.json` **or** doesn't (it will auto-annotate from the files).
+
+> **Data safety:** on success **no local copy remains** — the dataset is removed
+> from both the working area and the inbox; it lives only in storage (MinIO) +
+> FHIR. (On failure the working copy is kept so you can retry.)
 
 ---
 
 ## Three steps
 
-1. **Drop** your dataset folder into the inbox on the host:
+1. **Drop** your dataset into the inbox on the host — a folder **or** a `.zip`:
 
    ```
-   clinical-dashboard/measurement-import/<your-dataset>/
+   clinical-dashboard/measurement-import/<your-dataset>/      (folder)
+   clinical-dashboard/measurement-import/<your-dataset>.zip   (zip)
    ```
 
-   The folder must be a SPARC measurements dataset: a `dataset_description.*`
-   plus `primary/<sub-XXX>/<sam-YYY>/<files>`. If you have an annotated
+   It must be a SPARC measurements dataset: a `dataset_description.*` plus
+   `primary/<sub-XXX>/<sam-YYY>/<files>`. A `.zip` may wrap the dataset in a
+   single top folder — that's unwrapped automatically. If you have an annotated
    `fhir.json`, put it in the dataset root (its `uuid` / URL fields may be empty).
 
 2. **Run** the importer:
@@ -57,14 +63,16 @@ sign in (admin) → validate dataset
 ## Options
 
 ```
-import-dataset.(sh|command|ps1) [FOLDER] [--name NAME] [--consume] [--password] [--username U]
+import-dataset.(sh|command|ps1) [FOLDER_OR_ZIP] [--name NAME] [--password] [--username U]
 ```
 
-- `FOLDER` — dataset folder (default: pick from the inbox)
-- `--name NAME` — dataset name (default: the folder name); must be unique
-- `--consume` — delete the source folder from the inbox after a successful import
+- `FOLDER_OR_ZIP` — dataset folder or `.zip` (default: pick from the inbox)
+- `--name NAME` — dataset name (default: the folder / zip name); must be unique
 - `--password` / `--username U` — use username/password sign-in instead of the
   browser flow (only if the browser device flow isn't enabled)
+
+(The source is always removed from the inbox after a successful import — see
+"Data safety" above.)
 
 ## Exit codes
 
