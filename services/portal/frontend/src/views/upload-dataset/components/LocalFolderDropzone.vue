@@ -159,13 +159,13 @@ const props = withDefaults(
     /** Detected version to show in the ready summary. */
     detectedVersion?: string;
     /**
-     * Per-caller upload ceiling. Tool / workflow stays at 500 MB; measurement
+     * Per-caller upload ceiling. Tool / workflow defaults to 5 GB; measurement
      * raises it to 20 GB to fit DICOM datasets (matches nginx + backend).
      */
     maxTotalBytes?: number;
   }>(),
   {
-    maxTotalBytes: 500 * 1024 * 1024,
+    maxTotalBytes: 5 * 1024 * 1024 * 1024,
   },
 );
 

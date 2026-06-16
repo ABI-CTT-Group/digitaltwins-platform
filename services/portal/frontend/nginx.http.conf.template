@@ -21,7 +21,7 @@ server {
         expires 1y;
     }
 
-    # Plugin / workflow source upload (zip can be up to 500MB).
+    # Plugin / workflow source upload. Body cap is MAX_UPLOAD_MB (default 20480m).
     # Must precede the generic /api/ block; regex match wins anyway, but order keeps it explicit.
     # Cap is configurable via MAX_UPLOAD_MB at startup so operators can dial
     # it up/down without touching code. Same value is surfaced to the backend

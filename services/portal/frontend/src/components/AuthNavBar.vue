@@ -2,10 +2,24 @@
     <v-app-bar class="nav-bar" :class="{ 'is-scrolled': scrolled }" color="transparent" :elevation="0" sticky>
         <router-link to="/" class="brand">
             <span class="brand__mark" aria-hidden="true">
-                <svg width="26" height="22" viewBox="0 0 34 28" fill="none">
-                    <line x1="11" y1="14" x2="23" y2="14" stroke="currentColor" stroke-width="2" opacity=".55"/>
-                    <circle cx="9" cy="14" r="6.5" fill="currentColor"/>
-                    <circle cx="25" cy="14" r="6" fill="none" stroke="currentColor" stroke-width="2"/>
+                <svg width="30" height="26" viewBox="0 0 64 64" fill="none">
+                    <defs>
+                        <linearGradient id="nav-dt-cyan" x1="6" y1="14" x2="40" y2="50" gradientUnits="userSpaceOnUse">
+                            <stop offset="0" stop-color="#8deff6"/>
+                            <stop offset="1" stop-color="#3fb6d6"/>
+                        </linearGradient>
+                        <linearGradient id="nav-dt-mint" x1="24" y1="14" x2="58" y2="50" gradientUnits="userSpaceOnUse">
+                            <stop offset="0" stop-color="#86e7b0"/>
+                            <stop offset="1" stop-color="#3fb589"/>
+                        </linearGradient>
+                        <linearGradient id="nav-dt-core" x1="27" y1="27" x2="37" y2="37" gradientUnits="userSpaceOnUse">
+                            <stop offset="0" stop-color="#9ff0f7"/>
+                            <stop offset="1" stop-color="#8fe9b6"/>
+                        </linearGradient>
+                    </defs>
+                    <circle cx="24" cy="32" r="13" fill="none" stroke="url(#nav-dt-cyan)" stroke-width="4"/>
+                    <circle cx="40" cy="32" r="13" fill="none" stroke="url(#nav-dt-mint)" stroke-width="4"/>
+                    <circle cx="32" cy="32" r="4.6" fill="url(#nav-dt-core)"/>
                 </svg>
             </span>
             <span class="brand__word">DigitalTWINS<span class="brand__dim"> AI Platform</span></span>

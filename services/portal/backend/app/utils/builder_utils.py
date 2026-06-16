@@ -96,7 +96,7 @@ def _archive_entry_blacklisted(name: str) -> bool:
 def extract_uploaded_archive(
     tmp_dir: Path,
     archive_path: Path,
-    max_total_bytes: int = 500 * 1024 * 1024,
+    max_total_bytes: int = 5 * 1024 * 1024 * 1024,
 ) -> Path:
     """Extract a user-uploaded zip into a fresh staging directory under tmp_dir.
 
