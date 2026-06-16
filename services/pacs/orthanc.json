@@ -1,21 +1,44 @@
 {
   "Name": "DigitalTwins PACS",
   "RemoteAccessAllowed": true,
-  "AuthenticationEnabled": true,
-  "RegisteredUsers": {
-    "${ORTHANC_ADMIN_USER}": "${ORTHANC_ADMIN_PASSWORD}"
+  "AuthenticationEnabled": false,
+  "UserContentType": {
+    "clinicalRecords": [1025, "text/csv"],
+    "accessionNumbers": [1026, "text/plain"]
   },
   "DicomAet": "${ORTHANC_AET}",
   "DicomPort": 4242,
   "HttpPort": 8042,
   "DicomModalities": {},
+  "StorageDirectory": "/var/lib/orthanc/db",
   "DicomWeb": {
     "Enable": true,
     "Root": "/dicom-web/"
   },
-  "StorageDirectory": "/var/lib/orthanc/db",
   "Python": {
     "Path": "/etc/orthanc/on_received_instance.py",
     "Verbose": false
+  },
+  "OrthancExplorer2": {
+    "IsDefaultUI": true,
+    "UiOptions": {
+      "EnableShares": true,
+      "ShareDuration": 0
+    },
+    "Keycloak": {
+      "Enable": true,
+      "Url": "${ORTHANC_KEYCLOAK_URL}",
+      "Realm": "digitaltwins",
+      "ClientId": "orthanc"
+    }
+  },
+  "Authorization": {
+    "WebServiceRootUrl": "http://orthanc-auth-service:8000/",
+    "WebServiceUsername": "orthanc-auth-user",
+    "WebServicePassword": "${ORTHANC_AUTH_SERVICE_PASSWORD}",
+    "StandardConfigurations": [
+      "orthanc-explorer-2"
+    ],
+    "CheckedLevel": "studies"
   }
 }

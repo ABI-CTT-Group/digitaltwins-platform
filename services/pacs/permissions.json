@@ -1,0 +1,29 @@
+{
+  "roles": {
+    "admin": {
+      "authorized-labels": ["*"],
+      "permissions": [
+        "all"
+      ]
+    },
+    "clinician": {
+      "authorized-labels": ["*"],
+      "permissions": [
+        "view",
+        "download",
+        "upload",
+        "send",
+        "share",
+        "q-r-remote-modalities"
+      ]
+    },
+    "researcher": {
+      "authorized-labels": ["*"],
+      "permissions": [
+        "view",
+        "download"
+      ]
+    }
+  },
+  "available-labels": []
+}

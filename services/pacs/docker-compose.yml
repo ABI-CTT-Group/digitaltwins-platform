@@ -13,15 +13,47 @@ services:
       - ./scripts/on_received_instance.py:/etc/orthanc/on_received_instance.py:ro
       - orthanc_data:/var/lib/orthanc/db
     environment:
-      - ORTHANC_ADMIN_USER=${ORTHANC_ADMIN_USER}
-      - ORTHANC_ADMIN_PASSWORD=${ORTHANC_ADMIN_PASSWORD}
       - ORTHANC_AET=${ORTHANC_AET}
+      # Enable bundled plugins
+      - AUTHORIZATION_PLUGIN_ENABLED=true
+      - DICOM_WEB_PLUGIN_ENABLED=true
+      - ORTHANC_EXPLORER_2_ENABLED=true
+      - STONE_WEB_VIEWER_PLUGIN_ENABLED=true
+      # Keycloak / auth-service env vars (substituted into orthanc.json)
+      - ORTHANC_KEYCLOAK_URL=${ORTHANC_KEYCLOAK_URL}
+      - ORTHANC_AUTH_SERVICE_PASSWORD=${ORTHANC_AUTH_SERVICE_PASSWORD}
+    depends_on:
+      orthanc-auth-service:
+        condition: service_started
     healthcheck:
-      test: [ "CMD-SHELL", "wget -q -O /dev/null --user=$ORTHANC_ADMIN_USER --password=$ORTHANC_ADMIN_PASSWORD http://localhost:8042/system" ]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8042/ui/app/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
+    restart: unless-stopped
+    networks:
+      - digitaltwins
+
+  orthanc-auth-service:
+    image: orthancteam/orthanc-auth-service:26.4.0
+    container_name: digitaltwins-orthanc-auth
+    volumes:
+      - ./permissions.json:/orthanc_auth_service/permissions.json:ro
+    environment:
+      SECRET_KEY: "${ORTHANC_AUTH_SECRET_KEY}"
+      ENABLE_KEYCLOAK: "true"
+      KEYCLOAK_URI: "http://keycloak:8080/realms/digitaltwins/"
+      KEYCLOAK_ADMIN_URI: "http://keycloak:8080/admin/realms/digitaltwins/"
+      KEYCLOAK_REALM: "digitaltwins"
+      KEYCLOAK_CLIENT_SECRET: "${ORTHANC_KEYCLOAK_CLIENT_SECRET}"
+      PUBLIC_ORTHANC_ROOT: "http://localhost:${ORTHANC_HTTP_PORT:-8042}/"
+      PUBLIC_LANDING_ROOT: "http://localhost:${ORTHANC_HTTP_PORT:-8042}/ui/app/token-landing.html"
+      PERMISSIONS_FILE_PATH: "/orthanc_auth_service/permissions.json"
+      USERS: |
+        {
+          "orthanc-auth-user": "${ORTHANC_AUTH_SERVICE_PASSWORD}"
+        }
     restart: unless-stopped
     networks:
       - digitaltwins
