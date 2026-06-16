@@ -27,6 +27,7 @@ from app.services.measurement_service import (
     upload_full_dataset,
 )
 from app.services.measurements_fhir_adapter import MeasurementsFhirAnnotator
+from app.utils.utils import force_rmtree
 
 logger = get_logger(__name__)
 
@@ -150,6 +151,19 @@ async def run_measurement_approval(
         set_stage_failure(measurement, "fhir_push", e, db=db,
                           terminal_status=MeasurementStatus.FHIR_FAILED)
         raise ApprovalError("fhir_push", measurement.failure_message)
+
+    # The dataset now lives in MinIO + hapi-fhir — drop the local working copy
+    # (GUI submit/retry AND CLI import) so nothing sensitive lingers on disk.
+    # Reads for completed measurements (preview / stream / export) go to MinIO.
+    if measurement.dataset_path:
+        try:
+            force_rmtree(Path(measurement.dataset_path))
+        except Exception as e:
+            logger.warning(
+                f"Measurement {measurement.id}: failed to remove local dataset "
+                f"{measurement.dataset_path}: {e}"
+            )
+    measurement.dataset_path = None
 
     measurement.status = MeasurementStatus.COMPLETED.value
     measurement.failure_stage = None

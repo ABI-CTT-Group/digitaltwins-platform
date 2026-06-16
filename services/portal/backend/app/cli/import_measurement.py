@@ -161,9 +161,9 @@ async def _import(inbox_item: Path, name: str | None, admin_user: str) -> None:
             _fail(f"Approval failed at stage '{e.stage}': {e.message} "
                   f"(input kept at {inbox_item} for retry)", 2)
 
-        # 5. Success → mark the row clean; local copies are wiped in `finally`.
-        row.dataset_path = None
-        db.commit()
+        # 5. Success. run_measurement_approval already deleted the working dir
+        #    (dataset_path) + set it None; `finally` wipes the outer staging
+        #    wrapper + any zip extraction so nothing local remains.
         succeeded = True
 
         patients = len(descriptions.get("patients", []) or [])
