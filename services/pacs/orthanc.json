@@ -2,6 +2,10 @@
   "Name": "DigitalTwins PACS",
   "RemoteAccessAllowed": true,
   "AuthenticationEnabled": true,
+  "UserContentType": {
+    "clinicalRecords": [1025, "text/csv"],
+    "accessionNumbers": [1026, "text/plain"]
+  },
   "RegisteredUsers": {
     "${ORTHANC_ADMIN_USER}": "${ORTHANC_ADMIN_PASSWORD}"
   },
