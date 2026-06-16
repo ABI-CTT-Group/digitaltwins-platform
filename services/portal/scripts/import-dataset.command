@@ -21,7 +21,7 @@ fi
 
 if docker compose version >/dev/null 2>&1; then DC="docker compose"; else DC="docker-compose"; fi
 BASE="$(basename "$SRC")"
-STAGE_DIR="/portal_workspace/import-staging"
+STAGE_DIR="/portal_workspace/measurement/import-staging"
 STAGE="$STAGE_DIR/$BASE"
 
 $DC exec -T portal-backend sh -c "rm -rf '$STAGE'; mkdir -p '$STAGE_DIR'"

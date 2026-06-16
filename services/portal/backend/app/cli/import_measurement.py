@@ -81,7 +81,9 @@ async def _import(inbox_item: Path, name: str | None, admin_user: str) -> None:
         #    place — no second copy (the input already sits on the fast volume).
         if is_zip:
             print("  Extracting .zip …")
-            extract_tmp = Path(tempfile.mkdtemp(prefix="mimport_", dir=str(_DATASET_DIR)))
+            # Extract next to the input (the staging dir on the fast volume) so
+            # the whole import stays in one place and is cleaned together.
+            extract_tmp = Path(tempfile.mkdtemp(prefix="extract_", dir=str(inbox_item.parent)))
             try:
                 staging = extract_uploaded_archive(extract_tmp, inbox_item, max_total_bytes=_MAX_BYTES)
             except Exception as e:
