@@ -60,6 +60,7 @@ from app.services.measurement_service import (
     delete_hapi_fhir_resources,
     push_to_hapi_fhir,
     read_fhir_json,
+    read_fhir_json_from_minio,
     rollback_minio,
     upload_fhir_json,
     upload_full_dataset,
@@ -75,9 +76,10 @@ from app.utils.builder_utils import (
     validate_sparc_structure,
 )
 from app.utils.measurement_mocks import (
-    mock_dataset_uuid,
-    mock_patient_uuid,
-    mock_resource_uuid,
+    folder_dataset_uuid,
+    folder_endpoint_uuid,
+    folder_patient_uuid,
+    folder_resource_uuid,
 )
 from app.utils.utils import force_rmtree
 
@@ -560,7 +562,7 @@ def _observation_description_from_classify(
 
     return {
         "resourceType": "Observation",
-        "uuid": mock_resource_uuid("obs"),
+        "uuid": folder_resource_uuid(patient, sample),
         "value": value,
         "valueType": value_type,
         "code": "",
@@ -591,8 +593,8 @@ def _imaging_study_description_from_classify(
     here; the submit pipeline's finalize stage rewrites them to the real
     stream-proxy URL after MinIO upload.
     """
-    img_uuid = mock_resource_uuid("img")
-    endpoint_uuid = mock_resource_uuid("endpoint")
+    img_uuid = folder_resource_uuid(patient, sample)
+    endpoint_uuid = folder_endpoint_uuid(patient, sample)
     placeholder_url = f"MOCK://placeholder/{patient}/{sample}"
 
     # Default series payload; the fhir-cda probe below upgrades fields we
@@ -668,7 +670,7 @@ def _document_reference_description_from_classify(
         )
     return {
         "resourceType": "DocumentReference",
-        "uuid": mock_resource_uuid("doc"),
+        "uuid": folder_resource_uuid(patient, sample),
         "description": "",
         "display": "",
         "attachments": attachments,
@@ -704,7 +706,7 @@ async def get_measurement_tree(measurement_id: str, db: Session = Depends(get_db
         )
 
     descriptions: Dict[str, Any] = {
-        "dataset": {"uuid": mock_dataset_uuid(), "name": measurement.name},
+        "dataset": {"uuid": folder_dataset_uuid(measurement.name), "name": measurement.name},
         "patients": [],
     }
     tree: Dict[str, Any] = {
@@ -717,7 +719,7 @@ async def get_measurement_tree(measurement_id: str, db: Session = Depends(get_db
     for patient_dir in sorted(p for p in primary.iterdir() if p.is_dir()):
         patient_name = patient_dir.name
         patient_entry: Dict[str, Any] = {
-            "uuid": mock_patient_uuid(patient_name),
+            "uuid": folder_patient_uuid(patient_name),
             "name": patient_name,
             "observations": [],
             "imagingStudy": [],
@@ -882,7 +884,7 @@ async def submit_measurement(measurement_id: str, db: Session = Depends(get_db))
     descriptions = annotation.descriptions  # already camelCase by /annotation contract
     # propagate the persisted dataset uuid onto the measurement row so retry / delete
     # can find hapi-fhir resources by identifier.
-    dataset_uuid = descriptions.get("dataset", {}).get("uuid") or mock_dataset_uuid()
+    dataset_uuid = descriptions.get("dataset", {}).get("uuid") or folder_dataset_uuid(measurement.name)
     measurement.uuid = dataset_uuid
 
     # Lock-in: any prior failure_* fields are obsolete the moment we re-submit.
@@ -1076,20 +1078,29 @@ async def preview_measurement_fhir(measurement_id: str, db: Session = Depends(ge
             detail="Measurement is uploading; preview unavailable until it settles.",
         )
 
+    # Completed datasets have a finalized fhir.json — read the canonical copy
+    # from MinIO first (works even after the local dataset was cleaned up, e.g.
+    # CLI imports), then the on-disk copy, before falling back to a rebuild.
+    if measurement.status == MeasurementStatus.COMPLETED.value:
+        if measurement.expose_name:
+            try:
+                return JSONResponse(content=read_fhir_json_from_minio(measurement.expose_name, minio))
+            except FileNotFoundError:
+                pass
+        if measurement.dataset_path and Path(measurement.dataset_path).exists():
+            try:
+                return JSONResponse(content=read_fhir_json(Path(measurement.dataset_path)))
+            except FileNotFoundError:
+                pass
+
+    # On-the-fly build (non-completed, or completed with no saved copy anywhere):
+    # the annotator must walk primary/ on disk, so the dataset has to be present.
     dataset_path = Path(measurement.dataset_path) if measurement.dataset_path else None
     if dataset_path is None or not dataset_path.exists():
         raise HTTPException(
             status_code=410,
             detail="dataset_path missing on disk; cannot build fhir.json preview.",
         )
-
-    # Completed datasets already have a finalized fhir.json on disk — prefer it.
-    if measurement.status == MeasurementStatus.COMPLETED.value:
-        try:
-            return JSONResponse(content=read_fhir_json(dataset_path))
-        except FileNotFoundError:
-            # Fall through to a fresh build if the on-disk copy went missing.
-            pass
 
     annotation: Optional[MeasurementAnnotation] = db.query(MeasurementAnnotation).filter(
         MeasurementAnnotation.measurement_id == measurement_id

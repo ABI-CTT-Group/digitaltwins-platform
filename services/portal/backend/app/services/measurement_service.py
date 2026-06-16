@@ -26,6 +26,8 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from botocore.exceptions import ClientError
+
 from fhir_cda.ehr import (
     DocumentReferenceMeasurement,
 )
@@ -369,3 +371,21 @@ def read_fhir_json(dataset_path: Path) -> Dict[str, Any]:
         raise FileNotFoundError(f"fhir.json not found at {local}")
     with open(local, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def read_fhir_json_from_minio(expose_name: str, minio) -> Dict[str, Any]:
+    """Load the finalized fhir.json straight from the ``measurements`` bucket.
+
+    Lets completed-measurement reads (Preview / Export) work without the local
+    dataset on disk — the canonical copy lives in MinIO after the submit
+    pipeline's ``upload_fhir_json``. Raises FileNotFoundError when the object is
+    absent so callers can fall back to the on-disk copy."""
+    key = f"{expose_name}/primary/fhir.json"
+    try:
+        obj = minio.get_object(key)
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code")
+        if code in ("404", "NoSuchKey"):
+            raise FileNotFoundError(f"fhir.json not found in MinIO at {key}")
+        raise
+    return json.load(obj["Body"])

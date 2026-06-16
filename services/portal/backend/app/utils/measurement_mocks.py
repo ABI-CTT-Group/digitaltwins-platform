@@ -1,49 +1,55 @@
-"""Mock UUID generators for the measurements upload flow.
+"""Deterministic placeholder identifiers for the measurements pipeline.
 
-TODO: replace when the digitaltwins-api integration lands. Every callsite
-that currently uses these helpers should switch to a real API call that
-returns the platform-issued UUID for the dataset / patient / resource.
+Until the digitaltwins-api integration lands, every resource gets a placeholder
+UUID derived from its **folder name**, so the real platform-issued UUID returned
+by digitaltwins-api can be mapped back by sub/sam folder. These are business
+identifier *values* (free-form strings), not FHIR logical ids.
 
-To find all callsites: ``grep -rn "MOCK-" backend/app/`` — any literal
-``MOCK-`` prefix in the codebase outside this module is a bug.
+Scheme::
+
+    dataset   -> <slug(name)>                       e.g. "dataset-sparc"
+    patient   -> <slug(sub-folder)>                  e.g. "sub-001"
+    resource  -> <slug(patient)>/<slug(sample)>      e.g. "sub-001/sam-001"
+    endpoint  -> <resource>:endpoint                 e.g. "sub-001/sam-001:endpoint"
+
+``resource`` is qualified by patient so sample names that repeat across patients
+(``sub-001/sam-001`` vs ``sub-002/sam-001``) don't collide.
+
+If hapi-fhir ever rejects ``/`` or ``:`` in an identifier value, swap the
+separators below — callers are unaffected.
 """
 from __future__ import annotations
 
 import re
-from uuid import uuid4
 
-_MOCK_PREFIX = "MOCK"
 _SLUG_RE = re.compile(r"[^A-Za-z0-9]+")
+_RESOURCE_SEP = "/"
+_ENDPOINT_SUFFIX = ":endpoint"
 
 
 def _slug(value: str) -> str:
-    """Sanitise an arbitrary string so it can sit inside a mock UUID without
-    introducing characters that downstream consumers (hapi-fhir identifier,
-    URL path segments) may choke on."""
+    """Sanitise a folder name to safe characters (keeps it readable for mapping)."""
     cleaned = _SLUG_RE.sub("-", (value or "").strip()).strip("-")
     return cleaned or "x"
 
 
-def _short() -> str:
-    """Twelve hex chars from a fresh uuid4 — plenty unique for our mock scope
-    (a few dozen measurements per dataset, max)."""
-    return uuid4().hex[:12]
+def folder_dataset_uuid(dataset_name: str) -> str:
+    """Placeholder dataset UUID = slug of the dataset name."""
+    return _slug(dataset_name)
 
 
-def mock_dataset_uuid() -> str:
-    """One mock UUID per measurement dataset."""
-    return f"{_MOCK_PREFIX}-dataset-{_short()}"
+def folder_patient_uuid(patient: str) -> str:
+    """Placeholder patient UUID = slug of the sub-XXX folder name."""
+    return _slug(patient)
 
 
-def mock_patient_uuid(patient_name: str) -> str:
-    """One mock UUID per patient folder (sub-XXX). Slug is informational —
-    digitaltwins-api will not preserve it, but it makes log inspection easier
-    while we're still in mock-land."""
-    return f"{_MOCK_PREFIX}-pat-{_slug(patient_name)}-{_short()}"
+def folder_resource_uuid(patient: str, sample: str) -> str:
+    """Placeholder Observation / ImagingStudy / DocumentReference UUID,
+    qualified by patient so sample names repeating across patients don't clash."""
+    return f"{_slug(patient)}{_RESOURCE_SEP}{_slug(sample)}"
 
 
-def mock_resource_uuid(prefix: str) -> str:
-    """Generic mock UUID for Observation / ImagingStudy / DocumentReference /
-    Endpoint / etc. ``prefix`` is the resource hint (e.g. ``"obs"``, ``"img"``,
-    ``"doc"``, ``"endpoint"``)."""
-    return f"{_MOCK_PREFIX}-{_slug(prefix)}-{_short()}"
+def folder_endpoint_uuid(patient: str, sample: str) -> str:
+    """Placeholder endpoint UUID for an ImagingStudy series (distinct from the
+    study's own resource UUID)."""
+    return f"{folder_resource_uuid(patient, sample)}{_ENDPOINT_SUFFIX}"
