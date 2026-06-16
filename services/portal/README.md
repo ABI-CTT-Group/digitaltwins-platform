@@ -118,20 +118,20 @@ accepts a **folder or a `.zip`**, with or without an annotated `fhir.json`
 
 **Two steps:** the dataset can live **anywhere on the host** — just give its path.
 
-1. Run the importer with the dataset path (folder or `.zip`):
+1. Run the importer with the dataset (folder or `.zip`):
 
-   ```sh
-   # Linux / any terminal
-   ./scripts/import-dataset.sh /path/to/mydataset            # folder
-   ./scripts/import-dataset.sh /path/to/mydataset.zip --name X
-
-   # macOS — double-click scripts/import-dataset.command (it prompts for the path)
-   # Windows — .\scripts\import-dataset.ps1 C:\data\mydataset
-   ```
+   | OS | Double-click | …or from a terminal |
+   |---|---|---|
+   | **macOS** | `scripts/import-dataset.command` (asks for the path) | `./scripts/import-dataset.sh /path/to/mydataset` |
+   | **Windows** | `scripts\import-dataset.bat` (asks for the path; or drag a folder/zip onto it) | `.\scripts\import-dataset.ps1 C:\data\mydataset` |
+   | **Linux** | servers are usually headless — use a terminal | `./scripts/import-dataset.sh /path/to/mydataset` |
 
    The script copies the dataset into the `portal-backend` container (a live
    progress bar if `pv` is installed; otherwise it prints the size), then runs
    the in-container importer.
+
+   > On Windows double-click the **`.bat`** — double-clicking a `.ps1` just opens
+   > an editor. On macOS the `.command` opens a Terminal window.
 
 2. Sign in (admin) via the printed browser link when prompted.
 

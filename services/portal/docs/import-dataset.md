@@ -23,11 +23,17 @@ the dataset root (its `uuid` / URL fields may be empty).
 
 The dataset can live **anywhere on the host** — you just give its path.
 
-1. **Run** the importer with the dataset path (folder or `.zip`):
+1. **Run** the importer with the dataset (folder or `.zip`):
 
-   - **Linux / any terminal:** `./scripts/import-dataset.sh /path/to/mydataset`
-   - **macOS:** double-click `scripts/import-dataset.command` (it asks for the path)
-   - **Windows:** `.\scripts\import-dataset.ps1 C:\data\mydataset`
+   | OS | Double-click | …or from a terminal |
+   |---|---|---|
+   | **macOS** | `scripts/import-dataset.command` (asks for the path) | `./scripts/import-dataset.sh /path/to/mydataset` |
+   | **Windows** | `scripts\import-dataset.bat` (asks for the path; or drag a folder/zip onto it) | `.\scripts\import-dataset.ps1 C:\data\mydataset` |
+   | **Linux** | servers are usually headless — use a terminal | `./scripts/import-dataset.sh /path/to/mydataset` |
+
+   > **Windows:** double-click the **`.bat`** — double-clicking a `.ps1` only opens
+   > an editor. If a script isn't executable on macOS/Linux, run
+   > `chmod +x scripts/import-dataset.*`.
 
    The script copies the dataset into the `portal-backend` container — with a
    live progress bar if [`pv`](https://www.ivarch.com/programs/pv.shtml) is
