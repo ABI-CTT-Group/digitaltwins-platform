@@ -43,6 +43,11 @@ from app.models.db_model import (
     MeasurementResponse,
     MeasurementStatus,
 )
+from app.services.measurement_approval import (
+    ApprovalError,
+    run_measurement_approval,
+    set_stage_failure,
+)
 from app.services.measurement_chunk_store import (
     PART_SIZE,
     ChunkStoreError,
@@ -55,15 +60,10 @@ from app.services.measurement_classifier import (
 )
 from app.services.measurement_service import (
     apply_descriptions,
-    compute_endpoint_urls,
     deep_camelize_keys,
     delete_hapi_fhir_resources,
-    push_to_hapi_fhir,
     read_fhir_json,
     read_fhir_json_from_minio,
-    rollback_minio,
-    upload_fhir_json,
-    upload_full_dataset,
 )
 from app.services.measurements_fhir_adapter import (
     MeasurementsFhirAnnotator,
@@ -780,31 +780,6 @@ async def get_measurement_tree(measurement_id: str, db: Session = Depends(get_db
 # ---------------------------------------------------------------------------
 
 
-def _set_stage_failure(
-    measurement: Measurement,
-    stage: str,
-    err: Exception,
-    *,
-    db: Session,
-    terminal_status: MeasurementStatus,
-) -> None:
-    """Record a stage failure on the measurement row + commit so polling sees it.
-
-    ``terminal_status`` is the bucket the failure lands in:
-      - SUBMIT_FAILED for stages 1-3 (staging / fhir_build / upload)
-      - FHIR_FAILED for stages 4-6 (finalize / fhir_push)
-    """
-    measurement.failure_stage = stage
-    measurement.failure_message = str(err) or err.__class__.__name__
-    measurement.status = terminal_status.value
-    measurement.updated_at = datetime.utcnow()
-    db.commit()
-    logger.error(
-        f"Measurement {measurement.id} stage '{stage}' failed "
-        f"({terminal_status.value}): {measurement.failure_message}"
-    )
-
-
 @router.post("/{measurement_id}/annotation", response_model=MeasurementAnnotationResponse)
 async def upsert_measurement_annotation(
     measurement_id: str,
@@ -904,72 +879,19 @@ async def submit_measurement(measurement_id: str, db: Session = Depends(get_db))
         if not primary.exists():
             raise FileNotFoundError(f"primary/ missing under dataset_path: {dataset_path}")
     except Exception as e:
-        _set_stage_failure(measurement, "staging", e, db=db,
-                           terminal_status=MeasurementStatus.SUBMIT_FAILED)
+        set_stage_failure(measurement, "staging", e, db=db,
+                          terminal_status=MeasurementStatus.SUBMIT_FAILED)
         raise HTTPException(status_code=500, detail=measurement.failure_message)
 
-    # --- Stage 2: fhir_build (write fhir.json with mock endpoint URLs) -------
+    # --- Stages 2–6 (shared with CLI import) ---------------------------------
     try:
-        annotator = MeasurementsFhirAnnotator(dataset_path)
-        apply_descriptions(annotator, descriptions, dataset_path)
-        annotator.save()
-    except Exception as e:
-        _set_stage_failure(measurement, "fhir_build", e, db=db,
-                           terminal_status=MeasurementStatus.SUBMIT_FAILED)
+        await run_measurement_approval(
+            measurement, annotation,
+            db=db, minio=minio, adapter=adapter, fhir_async_client=fhir_async_client,
+        )
+    except ApprovalError:
         raise HTTPException(status_code=500, detail=measurement.failure_message)
 
-    # --- Stage 3: upload (full dataset to MinIO) -----------------------------
-    try:
-        s3_path = upload_full_dataset(dataset_path, expose, minio)
-        measurement.s3_path = s3_path
-        db.commit()
-    except Exception as e:
-        _set_stage_failure(measurement, "upload", e, db=db,
-                           terminal_status=MeasurementStatus.SUBMIT_FAILED)
-        # Best-effort rollback so a retry doesn't see half-uploaded blobs.
-        rollback_minio(expose, minio)
-        raise HTTPException(status_code=500, detail=measurement.failure_message)
-
-    # --- Stage 4 (finalize) + Stage 5 (re-upload single fhir.json) ----------
-    try:
-        updated_descriptions = compute_endpoint_urls(measurement, descriptions)
-        # Default mode (not update): re-walk primary/ from scratch and replay
-        # the URL-updated descriptions. Avoids upstream fhir-cda 1.2.5's
-        # `DocumentReferenceMeasurement()` no-arg bug that fires when loading
-        # measurements.json with documentReference entries.
-        annotator2 = MeasurementsFhirAnnotator(dataset_path)
-        apply_descriptions(annotator2, updated_descriptions, dataset_path)
-        annotator2.save()
-        # Persist the URL-rewritten descriptions back to the annotation row
-        # so /retry-fhir and read-back see the final shape.
-        annotation.descriptions = updated_descriptions
-        annotation.updated_at = datetime.utcnow()
-        upload_fhir_json(dataset_path, expose, minio)
-        db.commit()
-    except Exception as e:
-        _set_stage_failure(measurement, "finalize", e, db=db,
-                           terminal_status=MeasurementStatus.FHIR_FAILED)
-        # Don't roll back MinIO — partial upload + mock-URL fhir.json is still
-        # a recoverable state; /retry-fhir will overwrite the fhir.json.
-        raise HTTPException(status_code=500, detail=measurement.failure_message)
-
-    # --- Stage 6: fhir_push --------------------------------------------------
-    try:
-        fhir_dict = read_fhir_json(dataset_path)
-        # Defensive cleanup before push: if a prior failed push left half-baked
-        # resources on hapi-fhir under this dataset's identifier, remove them.
-        await delete_hapi_fhir_resources(measurement.uuid, fhir_async_client)
-        await push_to_hapi_fhir(fhir_dict, adapter)
-    except Exception as e:
-        _set_stage_failure(measurement, "fhir_push", e, db=db,
-                           terminal_status=MeasurementStatus.FHIR_FAILED)
-        raise HTTPException(status_code=500, detail=measurement.failure_message)
-
-    measurement.status = MeasurementStatus.COMPLETED.value
-    measurement.failure_stage = None
-    measurement.failure_message = None
-    measurement.updated_at = datetime.utcnow()
-    db.commit()
     db.refresh(measurement)
     logger.info(f"Measurement {measurement.id} submit complete (expose={expose})")
     return measurement
@@ -1013,35 +935,16 @@ async def retry_measurement_fhir(measurement_id: str, db: Session = Depends(get_
     measurement.failure_message = None
     db.commit()
 
-    # finalize again (in case Step 4 had failed)
+    # Re-run finalize + push only (dataset already on MinIO) — shared with submit.
     try:
-        updated_descriptions = compute_endpoint_urls(measurement, descriptions)
-        annotator = MeasurementsFhirAnnotator(dataset_path, mode="update")
-        apply_descriptions(annotator, updated_descriptions, dataset_path)
-        annotator.save()
-        annotation.descriptions = updated_descriptions
-        annotation.updated_at = datetime.utcnow()
-        upload_fhir_json(dataset_path, expose, minio)
-        db.commit()
-    except Exception as e:
-        _set_stage_failure(measurement, "finalize", e, db=db,
-                           terminal_status=MeasurementStatus.FHIR_FAILED)
+        await run_measurement_approval(
+            measurement, annotation,
+            db=db, minio=minio, adapter=adapter, fhir_async_client=fhir_async_client,
+            update_mode=True,
+        )
+    except ApprovalError:
         raise HTTPException(status_code=500, detail=measurement.failure_message)
 
-    try:
-        fhir_dict = read_fhir_json(dataset_path)
-        await delete_hapi_fhir_resources(measurement.uuid, fhir_async_client)
-        await push_to_hapi_fhir(fhir_dict, adapter)
-    except Exception as e:
-        _set_stage_failure(measurement, "fhir_push", e, db=db,
-                           terminal_status=MeasurementStatus.FHIR_FAILED)
-        raise HTTPException(status_code=500, detail=measurement.failure_message)
-
-    measurement.status = MeasurementStatus.COMPLETED.value
-    measurement.failure_stage = None
-    measurement.failure_message = None
-    measurement.updated_at = datetime.utcnow()
-    db.commit()
     db.refresh(measurement)
     logger.info(f"Measurement {measurement.id} retry-fhir complete (expose={expose})")
     return measurement
