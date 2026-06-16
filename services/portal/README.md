@@ -108,6 +108,56 @@ In the registration form, switch the **Source** radio at the top of the *Base In
 
 ---
 
+## Importing a measurement dataset from the server (admin CLI)
+
+An **admin** can import a prepared measurement dataset straight into the portal
+from the server terminal — no GUI. The dataset is uploaded to MinIO, registered,
+and pushed to FHIR, then appears in the portal as **completed** (view-only). It
+accepts a **folder or a `.zip`**, with or without an annotated `fhir.json`
+(missing → auto-annotated from the files).
+
+**Three steps:**
+
+1. Drop the dataset (folder or `.zip`) into the inbox on the host:
+
+   ```
+   clinical-dashboard/measurement-import/<your-dataset>/      # folder
+   clinical-dashboard/measurement-import/<your-dataset>.zip   # zip
+   ```
+
+2. Run the importer (passes args through to the in-container CLI):
+
+   ```sh
+   # Linux / any terminal
+   ./scripts/import-dataset.sh [FOLDER_OR_ZIP] [--name NAME]
+
+   # macOS — double-click scripts/import-dataset.command
+   # Windows — right-click scripts/import-dataset.ps1 → Run with PowerShell
+
+   # Or directly:
+   docker compose exec -it portal-backend python -m app.cli.import_measurement [FOLDER_OR_ZIP] [--name NAME]
+   ```
+
+3. Sign in (admin) via the printed browser link when prompted.
+
+**Notes**
+
+- **Admin only** — enforced by Keycloak (device-flow login; `--password` falls
+  back to username/password).
+- **Data safety** — on success **no local copy remains** (the working copy and
+  the inbox source are removed); the data lives only in MinIO + FHIR. On failure
+  the working copy is kept for retry.
+- `.zip` is extracted with zip-slip / zip-bomb guards; a single wrapper folder
+  inside is unwrapped automatically.
+- Exit codes: `0` success / `1` user error (auth, validation, name clash) / `2`
+  pipeline failure.
+- One-time ops prereqs: the portal Keycloak client has the device flow enabled
+  (or use `--password`), and the operator has the `admin` realm role.
+
+Full guide: [`docs/import-dataset.md`](docs/import-dataset.md).
+
+---
+
 ## Release Notes
 
 See [`docs/release-notes.md`](docs/release-notes.md).
