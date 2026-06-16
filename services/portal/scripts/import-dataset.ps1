@@ -33,7 +33,7 @@ try {
 } catch { Write-Host "  Copying '$base' into the container…" }
 dc cp $Source "portal-backend:$stage"
 
-dc exec -it portal-backend python -m app.cli.import_measurement $stage @Rest
+dc exec -it portal-backend uv run python -m app.cli.import_measurement $stage @Rest
 $code = $LASTEXITCODE
 
 Write-Host ""

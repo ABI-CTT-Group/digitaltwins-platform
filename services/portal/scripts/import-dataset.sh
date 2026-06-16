@@ -44,4 +44,4 @@ else
   $DC cp "$SRC" "portal-backend:$STAGE"
 fi
 
-exec $DC exec -it portal-backend python -m app.cli.import_measurement "$STAGE" "$@"
+exec $DC exec -it portal-backend uv run python -m app.cli.import_measurement "$STAGE" "$@"
