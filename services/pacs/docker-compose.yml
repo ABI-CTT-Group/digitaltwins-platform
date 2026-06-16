@@ -1,6 +1,8 @@
 services:
   orthanc:
-    image: jodogne/orthanc:1.12.10
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: digitaltwins-orthanc
     init: true
     ports:
@@ -8,6 +10,7 @@ services:
       - "${ORTHANC_DICOM_PORT:-4242}:4242" # DICOM protocol
     volumes:
       - ./orthanc.json:/etc/orthanc/orthanc.json:ro
+      - ./scripts/on_received_instance.py:/etc/orthanc/on_received_instance.py:ro
       - orthanc_data:/var/lib/orthanc/db
     environment:
       - ORTHANC_ADMIN_USER=${ORTHANC_ADMIN_USER}
