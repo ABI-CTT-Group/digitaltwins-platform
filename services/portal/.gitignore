@@ -3,3 +3,7 @@ configs.ini
 plan
 nginx
 .superpowers
+
+# CLI dataset import inbox — keep the dir, ignore dropped datasets
+measurement-import/*
+!measurement-import/.gitkeep
