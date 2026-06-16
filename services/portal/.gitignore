@@ -4,10 +4,6 @@ plan
 nginx
 .superpowers
 
-# CLI dataset import inbox — keep the dir, ignore dropped datasets
-measurement-import/*
-!measurement-import/.gitkeep
-
 # Local-dev fallback dataset dirs (Docker uses DATASET_DIR_* in /portal_workspace)
 backend/datasets_measurement/
 backend/datasets_workflow/

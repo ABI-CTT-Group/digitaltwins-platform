@@ -7,39 +7,38 @@ registered, pushed to FHIR, and shown in the portal as **completed** (view-only)
 It accepts a dataset **folder or a `.zip`**, which **either** already contains an
 annotated `fhir.json` **or** doesn't (it will auto-annotate from the files).
 
-> **Data safety:** on success **no local copy remains** — the dataset is removed
-> from both the working area and the inbox; it lives only in storage (MinIO) +
-> FHIR. (On failure the working copy is kept so you can retry.)
+> **Data safety:** on success **no local copy remains** — the copy made inside
+> the container is removed; the data lives only in storage (MinIO) + FHIR. Your
+> original dataset on the host is never modified. (On failure the container copy
+> is kept so you can retry.)
+
+The dataset must be a SPARC measurements dataset: a `dataset_description.*` plus
+`primary/<sub-XXX>/<sam-YYY>/<files>`. A `.zip` may wrap it in a single top folder
+— that's unwrapped automatically. If you have an annotated `fhir.json`, put it in
+the dataset root (its `uuid` / URL fields may be empty).
 
 ---
 
-## Three steps
+## Two steps
 
-1. **Drop** your dataset into the inbox on the host — a folder **or** a `.zip`:
+The dataset can live **anywhere on the host** — you just give its path.
 
-   ```
-   clinical-dashboard/measurement-import/<your-dataset>/      (folder)
-   clinical-dashboard/measurement-import/<your-dataset>.zip   (zip)
-   ```
+1. **Run** the importer with the dataset path (folder or `.zip`):
 
-   It must be a SPARC measurements dataset: a `dataset_description.*` plus
-   `primary/<sub-XXX>/<sam-YYY>/<files>`. A `.zip` may wrap the dataset in a
-   single top folder — that's unwrapped automatically. If you have an annotated
-   `fhir.json`, put it in the dataset root (its `uuid` / URL fields may be empty).
+   - **Linux / any terminal:** `./scripts/import-dataset.sh /path/to/mydataset`
+   - **macOS:** double-click `scripts/import-dataset.command` (it asks for the path)
+   - **Windows:** `.\scripts\import-dataset.ps1 C:\data\mydataset`
 
-2. **Run** the importer:
+   The script copies the dataset into the `portal-backend` container — with a
+   live progress bar if [`pv`](https://www.ivarch.com/programs/pv.shtml) is
+   installed (`apt install pv` / `brew install pv`), otherwise it prints the
+   size — then runs the in-container importer.
 
-   - **macOS:** double-click `scripts/import-dataset.command`
-   - **Windows:** right-click `scripts/import-dataset.ps1` → *Run with PowerShell*
-   - **Linux / any terminal:** `./scripts/import-dataset.sh`
-
-   (You can pass the folder name to skip the picker, e.g. `./scripts/import-dataset.sh my-dataset`.)
-
-3. **Sign in** when prompted: open the printed link in your browser and log in
+2. **Sign in** when prompted: open the printed link in your browser and log in
    with your normal account. You must have the **admin** role.
 
-That's it — it validates, uploads, pushes to FHIR, and prints a summary. The
-local copy is removed afterward (the data lives in storage).
+That's it — it validates, uploads, pushes to FHIR, prints a summary, and removes
+the container-side copy.
 
 ---
 
@@ -63,16 +62,14 @@ sign in (admin) → validate dataset
 ## Options
 
 ```
-import-dataset.(sh|command|ps1) [FOLDER_OR_ZIP] [--name NAME] [--password] [--username U]
+import-dataset.(sh|command|ps1) <FOLDER_OR_ZIP> [--name NAME] [--password] [--username U]
 ```
 
-- `FOLDER_OR_ZIP` — dataset folder or `.zip` (default: pick from the inbox)
+- `FOLDER_OR_ZIP` — host path to the dataset folder or `.zip` (the script copies
+  it into the container)
 - `--name NAME` — dataset name (default: the folder / zip name); must be unique
 - `--password` / `--username U` — use username/password sign-in instead of the
   browser flow (only if the browser device flow isn't enabled)
-
-(The source is always removed from the inbox after a successful import — see
-"Data safety" above.)
 
 ## Exit codes
 

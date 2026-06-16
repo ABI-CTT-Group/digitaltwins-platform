@@ -116,37 +116,32 @@ and pushed to FHIR, then appears in the portal as **completed** (view-only). It
 accepts a **folder or a `.zip`**, with or without an annotated `fhir.json`
 (missing → auto-annotated from the files).
 
-**Three steps:**
+**Two steps:** the dataset can live **anywhere on the host** — just give its path.
 
-1. Drop the dataset (folder or `.zip`) into the inbox on the host:
-
-   ```
-   clinical-dashboard/measurement-import/<your-dataset>/      # folder
-   clinical-dashboard/measurement-import/<your-dataset>.zip   # zip
-   ```
-
-2. Run the importer (passes args through to the in-container CLI):
+1. Run the importer with the dataset path (folder or `.zip`):
 
    ```sh
    # Linux / any terminal
-   ./scripts/import-dataset.sh [FOLDER_OR_ZIP] [--name NAME]
+   ./scripts/import-dataset.sh /path/to/mydataset            # folder
+   ./scripts/import-dataset.sh /path/to/mydataset.zip --name X
 
-   # macOS — double-click scripts/import-dataset.command
-   # Windows — right-click scripts/import-dataset.ps1 → Run with PowerShell
-
-   # Or directly:
-   docker compose exec -it portal-backend python -m app.cli.import_measurement [FOLDER_OR_ZIP] [--name NAME]
+   # macOS — double-click scripts/import-dataset.command (it prompts for the path)
+   # Windows — .\scripts\import-dataset.ps1 C:\data\mydataset
    ```
 
-3. Sign in (admin) via the printed browser link when prompted.
+   The script copies the dataset into the `portal-backend` container (a live
+   progress bar if `pv` is installed; otherwise it prints the size), then runs
+   the in-container importer.
+
+2. Sign in (admin) via the printed browser link when prompted.
 
 **Notes**
 
 - **Admin only** — enforced by Keycloak (device-flow login; `--password` falls
   back to username/password).
-- **Data safety** — on success **no local copy remains** (the working copy and
-  the inbox source are removed); the data lives only in MinIO + FHIR. On failure
-  the working copy is kept for retry.
+- **Data safety** — on success **no local copy remains** (the copy inside the
+  container is removed); the data lives only in MinIO + FHIR. On failure the copy
+  is kept for retry. (Your original dataset on the host is never modified.)
 - `.zip` is extracted with zip-slip / zip-bomb guards; a single wrapper folder
   inside is unwrapped automatically.
 - Exit codes: `0` success / `1` user error (auth, validation, name clash) / `2`

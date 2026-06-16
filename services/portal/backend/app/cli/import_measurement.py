@@ -3,20 +3,25 @@
 Runs inside the portal-backend container, driving the service layer directly:
   login (admin) -> validate dataset -> get/auto-build descriptions -> reset
   placeholder ids -> create row + annotation -> run approval (MinIO + hapi-fhir)
-  -> delete every local copy (staging + the inbox source).
+  -> delete the local copy.
 
-Input (one dataset per run), dropped into the import inbox:
-  - a folder, or a .zip (extracted with zip-slip / zip-bomb guards; a single
-    wrapper folder inside is peeled by resolve_project_root).
+The ``input`` is an **in-container** path (a folder or a .zip). The wrapper
+scripts (scripts/import-dataset.*) copy the operator's host dataset into the
+container first and pass that path here; you can also call it directly on any
+in-container path.
+
+Input handling:
+  - .zip -> extracted (zip-slip / zip-bomb guards); a single wrapper folder is
+    peeled by resolve_project_root.
   - with a root ``fhir.json`` (already annotated) -> validated then approved.
   - without ``fhir.json`` -> auto pre-annotated (no human edit) then approved.
 
-Data-safety: on success NOTHING is left on local disk — both the working copy
-under /portal_workspace and the inbox source are removed; the data lives only in
-MinIO. On failure the working copy is kept so the import can be retried.
+Data-safety: on success NOTHING is left on local disk — the input (and any zip
+extraction) is removed; the data lives only in MinIO + FHIR. On failure the input
+is kept so the import can be retried.
 
 Usage:
-  python -m app.cli.import_measurement [FOLDER_OR_ZIP] [--name NAME]
+  python -m app.cli.import_measurement <FOLDER_OR_ZIP> [--name NAME]
                                        [--password] [--username U]
 
 Exit codes: 0 success / 1 user error (auth, validation, name clash) / 2 pipeline failure.
@@ -27,13 +32,11 @@ import argparse
 import asyncio
 import json
 import os
-import shutil
 import sys
 import tempfile
 import uuid
 from pathlib import Path
 
-_INBOX = Path(os.getenv("IMPORT_INBOX", "/measurement-import"))
 _DATASET_DIR = Path(os.getenv("DATASET_DIR_MEASUREMENT", "./datasets_measurement"))
 _MAX_BYTES = int(os.getenv("MAX_UPLOAD_MB", "20480")) * 1024 * 1024
 
@@ -41,46 +44,6 @@ _MAX_BYTES = int(os.getenv("MAX_UPLOAD_MB", "20480")) * 1024 * 1024
 def _fail(message: str, code: int) -> None:
     print(f"\n  ✗ {message}", file=sys.stderr)
     sys.exit(code)
-
-
-def _delete_inbox_source(item: Path) -> None:
-    """Remove the dropped dataset (folder or .zip) from the inbox."""
-    if item.is_dir():
-        from app.utils.utils import force_rmtree
-        force_rmtree(item)
-    elif item.exists():
-        item.unlink()
-
-
-def _resolve_inbox_item(arg: str | None) -> Path:
-    """Pick the dataset to import: the CLI arg if given, else interactively from
-    the import inbox. Accepts a folder or a .zip."""
-    if arg:
-        p = Path(arg)
-        if not p.exists():
-            _fail(f"No such folder or .zip: {p}", 1)
-        return p
-
-    if not _INBOX.is_dir():
-        _fail(f"No input given and inbox {_INBOX} does not exist.", 1)
-    candidates = sorted(
-        c for c in _INBOX.iterdir()
-        if c.is_dir() or c.suffix.lower() == ".zip"
-    )
-    if not candidates:
-        _fail(f"Nothing to import in {_INBOX}. Drop a dataset folder or .zip there first.", 1)
-    if len(candidates) == 1:
-        return candidates[0]
-    print(f"\n  In {_INBOX}:")
-    for i, c in enumerate(candidates, 1):
-        print(f"    [{i}] {c.name}")
-    if not sys.stdin.isatty():
-        _fail("Multiple inputs found; pass the folder/.zip explicitly (non-interactive).", 1)
-    choice = input("  Choose a number: ").strip()
-    try:
-        return candidates[int(choice) - 1]
-    except (ValueError, IndexError):
-        _fail("Invalid choice.", 1)
 
 
 async def _import(inbox_item: Path, name: str | None, admin_user: str) -> None:
@@ -111,10 +74,11 @@ async def _import(inbox_item: Path, name: str | None, admin_user: str) -> None:
     _DATASET_DIR.mkdir(parents=True, exist_ok=True)
     is_zip = inbox_item.is_file() and inbox_item.suffix.lower() == ".zip"
     extract_tmp: Path | None = None
-    target: Path | None = None
     db = None
+    succeeded = False
     try:
-        # 1. Get the SPARC project root (extract zip; peel wrapper folders).
+        # 1. SPARC project root (extract zip; peel a wrapper folder). Process in
+        #    place — no second copy (the input already sits on the fast volume).
         if is_zip:
             print("  Extracting .zip …")
             extract_tmp = Path(tempfile.mkdtemp(prefix="mimport_", dir=str(_DATASET_DIR)))
@@ -160,20 +124,14 @@ async def _import(inbox_item: Path, name: str | None, admin_user: str) -> None:
 
         descriptions = reset_placeholder_ids(descriptions, project_root)
 
-        # 3. Copy into the canonical working dir on the fast volume.
+        # 3. Register the row + annotation (dataset processed in place).
         expose = unique_name(name)
-        target = (_DATASET_DIR / expose).resolve()
-        if target.exists():
-            _fail(f"working dir {target} already exists; retry.", 2)
-        print(f"  Copying dataset → {target} …")
-        shutil.copytree(project_root, target)
-
         row = Measurement(
             name=name,
             description=(descriptions.get("dataset", {}) or {}).get("description") or None,
-            dataset_path=str(target),
+            dataset_path=str(project_root),
             expose_name=expose,
-            local_archive_path=str(target),
+            local_archive_path=str(project_root),
             status=MeasurementStatus.PENDING.value,
             uuid=(descriptions.get("dataset", {}) or {}).get("uuid"),
         )
@@ -199,13 +157,12 @@ async def _import(inbox_item: Path, name: str | None, admin_user: str) -> None:
             )
         except ApprovalError as e:
             _fail(f"Approval failed at stage '{e.stage}': {e.message} "
-                  f"(working copy kept at {target} for retry)", 2)
+                  f"(input kept at {inbox_item} for retry)", 2)
 
-        # 5. Success → wipe EVERY local copy. The data lives only in MinIO now.
-        force_rmtree(target)
+        # 5. Success → mark the row clean; local copies are wiped in `finally`.
         row.dataset_path = None
         db.commit()
-        _delete_inbox_source(inbox_item)
+        succeeded = True
 
         patients = len(descriptions.get("patients", []) or [])
         print(
@@ -214,12 +171,19 @@ async def _import(inbox_item: Path, name: str | None, admin_user: str) -> None:
             f"No local copy remains."
         )
     finally:
-        # The zip extraction is transient (we copied to `target`); always clean it.
-        if extract_tmp is not None and extract_tmp.exists():
-            try:
-                force_rmtree(extract_tmp)
-            except Exception:
-                pass
+        # On success: wipe every local copy (the input + any zip extraction) so
+        # nothing lingers. On failure: keep them for a retry.
+        if succeeded:
+            for path in (inbox_item, extract_tmp):
+                if path is not None and path.exists():
+                    try:
+                        if path.is_dir():
+                            from app.utils.utils import force_rmtree as _frm
+                            _frm(path)
+                        else:
+                            path.unlink()
+                    except Exception:
+                        pass
         if db is not None:
             db.close()
 
@@ -227,15 +191,17 @@ async def _import(inbox_item: Path, name: str | None, admin_user: str) -> None:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="import_measurement",
-        description="Import a measurement dataset (admin only). Accepts a folder or a .zip.",
+        description="Import a measurement dataset (admin only). Accepts an in-container folder or .zip.",
     )
-    parser.add_argument("input", nargs="?", help="Dataset folder or .zip (default: pick from the inbox)")
+    parser.add_argument("input", help="In-container dataset folder or .zip path")
     parser.add_argument("--name", help="Dataset name (default: folder / zip name)")
     parser.add_argument("--password", action="store_true", help="Use password login instead of device flow")
     parser.add_argument("--username", help="Username for password login")
     args = parser.parse_args(argv)
 
-    inbox_item = _resolve_inbox_item(args.input)
+    inbox_item = Path(args.input)
+    if not inbox_item.exists():
+        _fail(f"No such folder or .zip: {inbox_item}", 1)
 
     from app.cli.keycloak_login import login
 

@@ -49,11 +49,6 @@ services:
       - plugin_database:/data
       - /var/run/docker.sock:/var/run/docker.sock
       - nginx_plugin_configs:/nginx-plugins-conf
-      # Host inbox for the CLI dataset importer (plan 11): an admin drops a
-      # measurement dataset folder into ./measurement-import on the host, then
-      # runs scripts/import-dataset.* — the container reads it here directly
-      # (bind mount, so multi-GB datasets aren't copied via `docker cp`).
-      - ./measurement-import:/measurement-import
     restart: unless-stopped
     # Give the lifespan shutdown hook time to batch-kill all plugin backends
     # before Docker SIGKILLs portal-backend itself.
