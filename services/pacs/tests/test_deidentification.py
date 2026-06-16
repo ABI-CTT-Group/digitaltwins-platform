@@ -112,12 +112,14 @@ class TestResult:
             self.failures.append(label)
 
     def assert_no_private_tags(self, label, dataset):
-        private = [(hex(g), hex(e)) for (g, e) in dataset.keys() if g % 2 != 0]
+        private = [tag for tag in dataset.keys() if tag.group % 2 != 0]
         if not private:
             print(f"  [PASS] {label}: No private tags found ✓")
             self.passed += 1
         else:
-            print(f"  [FAIL] {label}: Private tags still present: {private}")
+            # Format as (group, element) hex strings for display
+            private_formatted = [(hex(t.group), hex(t.element)) for t in private]
+            print(f"  [FAIL] {label}: Private tags still present: {private_formatted}")
             self.failed += 1
             self.failures.append(label)
 
