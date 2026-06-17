@@ -16,7 +16,7 @@
     "Root": "/dicom-web/"
   },
   "Python": {
-    "Path": "/etc/orthanc/on_received_instance.py",
+    "Path": "/etc/orthanc/deidentification.py",
     "Verbose": false
   },
   "OrthancExplorer2": {

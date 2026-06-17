@@ -10,8 +10,10 @@ services:
       - "${ORTHANC_DICOM_PORT:-4242}:4242" # DICOM protocol
     volumes:
       - ./orthanc.json:/etc/orthanc/orthanc.json:ro
-      - ./scripts/on_received_instance.py:/etc/orthanc/on_received_instance.py:ro
       - orthanc_data:/var/lib/orthanc/db
+#      Deidentification script. changing the script will require the orthanc.json to be updated accordingly
+#      - ./scripts/on_received_instance.py:/etc/orthanc/on_received_instance.py:ro
+      - ./scripts/deidentification.py:/etc/orthanc/deidentification.py:ro
     environment:
       - ORTHANC_AET=${ORTHANC_AET}
       # Enable bundled plugins
