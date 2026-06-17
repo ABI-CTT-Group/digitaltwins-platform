@@ -15,6 +15,7 @@ services:
     environment:
       - ORTHANC_AET=${ORTHANC_AET}
       # Enable bundled plugins
+      - PYTHON_PLUGIN_ENABLED=true
       - AUTHORIZATION_PLUGIN_ENABLED=true
       - DICOM_WEB_PLUGIN_ENABLED=true
       - ORTHANC_EXPLORER_2_ENABLED=true
