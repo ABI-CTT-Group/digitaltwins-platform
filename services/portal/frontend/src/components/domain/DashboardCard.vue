@@ -42,14 +42,23 @@ defineEmits<{ (e: 'on-explore', title?: string): void }>();
   overflow: hidden;
   font-family: "Nunito", sans-serif;
   color: inherit;
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.4s ease, background 0.4s ease;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.4s ease, background 0.4s ease, box-shadow 0.4s ease;
 }
 .dcard:hover {
   transform: translateY(-4px);
   border-color: rgba(95, 214, 232, 0.4);
   background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 16px 36px -14px rgba(0, 0, 0, 0.55), 0 0 26px -8px rgba(95, 214, 232, 0.3);
 }
-.dcard__cover { position: relative; display: block; }
+.dcard__cover { position: relative; display: block; overflow: hidden; }
+/* subtle cover zoom on hover */
+.dcard__cover :deep(.v-img__img) { transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1); }
+.dcard:hover .dcard__cover :deep(.v-img__img) { transform: scale(1.06); }
+@media (prefers-reduced-motion: reduce) {
+  .dcard, .dcard__cover :deep(.v-img__img) { transition: none; }
+  .dcard:hover { transform: none; }
+  .dcard:hover .dcard__cover :deep(.v-img__img) { transform: none; }
+}
 .dcard__badge {
   position: absolute;
   top: 8px;

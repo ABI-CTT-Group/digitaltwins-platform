@@ -66,7 +66,9 @@ const goTutorial = () => router.push({ name: 'TutorialDashboard' });
 </script>
 
 <style scoped>
-.home { min-height: 100%; }
+/* the landing page is presentational (and the hero is drag-to-rotate), so no
+   text should be selectable */
+.home { min-height: 100%; -webkit-user-select: none; user-select: none; }
 .home__launchpad {
     max-width: 1200px;
     margin: 0 auto;

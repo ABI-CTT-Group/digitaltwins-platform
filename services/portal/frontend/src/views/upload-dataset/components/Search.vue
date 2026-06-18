@@ -41,5 +41,7 @@ function handleSearch() {
 </script>
 
 <style scoped>
-
+/* Typed text is otherwise rendered in a near-invisible color against the dark
+   panel; force a legible light fill for the input and its caret. */
+:deep(.v-field__input) { color: #c3d2d8; caret-color: #c3d2d8; }
 </style>
