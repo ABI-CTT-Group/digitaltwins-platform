@@ -3,8 +3,14 @@
   "RemoteAccessAllowed": true,
   "AuthenticationEnabled": false,
   "UserContentType": {
-    "clinicalRecords": [1025, "text/csv"],
-    "accessionNumbers": [1026, "text/plain"]
+    "clinicalRecords": [
+      1025,
+      "text/csv"
+    ],
+    "accessionNumbers": [
+      1026,
+      "text/plain"
+    ]
   },
   "DicomAet": "${ORTHANC_AET}",
   "DicomPort": 4242,
@@ -39,6 +45,23 @@
     "StandardConfigurations": [
       "orthanc-explorer-2"
     ],
-    "CheckedLevel": "studies"
+    "CheckedLevel": "studies",
+    "AllowedRoutes": [
+      {
+        "Method": "PUT",
+        "Path": "/patients/(.*)/attachments/(.*)"
+      },
+      {
+        "Method": "GET",
+        "Path": "/patients/(.*)/attachments/(.*)"
+      },
+      {
+        "Method": "DELETE",
+        "Path": "/patients/(.*)/attachments/(.*)"
+      }
+    ],
+    "UncheckedRoutes": [
+      "/patients/.*"
+    ]
   }
 }
