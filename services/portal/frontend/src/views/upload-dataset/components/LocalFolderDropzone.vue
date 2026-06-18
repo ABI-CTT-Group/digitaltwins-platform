@@ -31,15 +31,15 @@
       />
 
       <div v-if="phase === 'idle'" class="dropzone__hint">
-        <v-icon size="42" color="cyan-lighten-2">mdi-folder-upload-outline</v-icon>
+        <v-icon size="42" color="#5fd6e8">mdi-folder-upload-outline</v-icon>
         <div class="text-h6 mt-2">Drag a folder or a .zip file here, or click to browse</div>
         <div class="text-caption text-grey-lighten-1 mt-1">
           We auto-skip <code>node_modules</code>, <code>.git</code>,
-          <code>dist</code>, <code>build</code>. Max total size 500 MB.
+          <code>dist</code>, <code>build</code>. Max total size {{ formatBytes(MAX_TOTAL_BYTES) }}.
         </div>
         <a
           href="#"
-          class="text-caption text-cyan-lighten-2 mt-2 d-inline-block"
+          class="text-caption dz-link mt-2 d-inline-block"
           @click.stop.prevent="triggerZipInput"
         >
           Or pick a .zip file
@@ -47,7 +47,7 @@
       </div>
 
       <div v-else-if="phase === 'scanning'" class="dropzone__progress">
-        <v-progress-circular indeterminate color="cyan" :size="36" :width="3" />
+        <v-progress-circular indeterminate color="#5fd6e8" :size="36" :width="3" />
         <div class="text-subtitle-2 mt-2">{{ scanningLabel }}</div>
         <div v-if="scannedCount > 0" class="text-caption text-grey-lighten-1 mt-1">
           {{ scannedCount }} files seen{{ scanKind === 'zip' ? ' in archive' : '' }}
@@ -55,7 +55,7 @@
       </div>
 
       <div v-else-if="phase === 'scanned'" class="dropzone__hint">
-        <v-icon size="36" :color="scanKind === 'zip' ? 'cyan-lighten-2' : 'cyan-lighten-2'">
+        <v-icon size="36" color="#5fd6e8">
           {{ scanKind === 'zip' ? 'mdi-zip-box-outline' : 'mdi-folder-check-outline' }}
         </v-icon>
         <div class="text-subtitle-1 mt-1">
@@ -76,7 +76,7 @@
           v-model="progressPercent"
           striped
           height="10"
-          color="cyan"
+          color="#5fd6e8"
         />
         <div class="text-caption mt-2">{{ progressLabel }}</div>
         <div v-if="currentFile" class="text-caption text-grey-lighten-2 text-truncate">
@@ -94,8 +94,20 @@
       </div>
 
       <div v-else-if="phase === 'analyzing'" class="dropzone__progress">
-        <v-progress-circular indeterminate color="cyan" :size="36" :width="3" />
+        <v-progress-circular indeterminate color="#5fd6e8" :size="36" :width="3" />
         <div class="text-caption mt-2">Analyzing on server…</div>
+        <div class="text-caption text-grey-lighten-1 mt-1">
+          Upload finished — the server is unpacking and validating your dataset.
+        </div>
+        <v-btn
+          size="small"
+          variant="text"
+          color="error"
+          class="mt-2"
+          @click.stop="cancel"
+        >
+          Stop waiting
+        </v-btn>
       </div>
 
       <div v-else-if="phase === 'ready'" class="dropzone__hint">
@@ -121,6 +133,14 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import type { LocalSource } from '@/bootstrap/upload_source';
+import {
+  captureDataTransfer,
+  filterFolderFiles,
+  findRootPrefix,
+  formatBytes,
+  isZipFile,
+  traverseEntry,
+} from '@/composables/useFolderScan';
 
 export type DropzonePhase =
   | 'idle'
@@ -132,12 +152,22 @@ export type DropzonePhase =
   | 'ready'
   | 'error';
 
-const props = defineProps<{
-  /** Detected folders to show in the ready summary (from server response). */
-  detectedFolders?: string[];
-  /** Detected version to show in the ready summary. */
-  detectedVersion?: string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    /** Detected folders to show in the ready summary (from server response). */
+    detectedFolders?: string[];
+    /** Detected version to show in the ready summary. */
+    detectedVersion?: string;
+    /**
+     * Per-caller upload ceiling. Tool / workflow defaults to 5 GB; measurement
+     * raises it to 20 GB to fit DICOM datasets (matches nginx + backend).
+     */
+    maxTotalBytes?: number;
+  }>(),
+  {
+    maxTotalBytes: 5 * 1024 * 1024 * 1024,
+  },
+);
 
 const emit = defineEmits<{
   (e: 'source-selected', source: LocalSource): void;
@@ -145,8 +175,10 @@ const emit = defineEmits<{
   (e: 'cancel-requested'): void;
 }>();
 
-const MAX_TOTAL_BYTES = 500 * 1024 * 1024;
-const FOLDER_BLACKLIST = new Set(['node_modules', '.git', 'dist', 'build']);
+// Computed so a parent that fetches the limit at mount can flow it in
+// after the dropzone is already alive — non-reactive const would freeze
+// the initial default.
+const MAX_TOTAL_BYTES = computed(() => props.maxTotalBytes);
 
 const folderInput = ref<HTMLInputElement | null>(null);
 const zipInput = ref<HTMLInputElement | null>(null);
@@ -203,24 +235,6 @@ const readyDetected = computed(() => {
   return parts.join(' · ') || 'source archive';
 });
 
-function isBlacklisted(relPath: string): boolean {
-  return relPath.split('/').some((seg) => FOLDER_BLACKLIST.has(seg));
-}
-
-function isZipFile(f: File): boolean {
-  return f.name.toLowerCase().endsWith('.zip')
-    || f.type === 'application/zip'
-    || f.type === 'application/x-zip-compressed';
-}
-
-function formatBytes(n: number): string {
-  if (!Number.isFinite(n) || n <= 0) return '0 B';
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
-  return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
-}
-
 function setPhase(next: DropzonePhase) {
   phase.value = next;
   emit('phase-change', next);
@@ -235,42 +249,6 @@ function setPhase(next: DropzonePhase) {
 async function yieldToPaint(minMs = 120): Promise<void> {
   await new Promise<void>((r) => requestAnimationFrame(() => r()));
   if (minMs > 0) await new Promise((r) => setTimeout(r, minMs));
-}
-
-/**
- * Recursive single-wrapper detection. Mirrors the backend's
- * `resolve_project_root`: peels nested `outer/inner/project/...` chains until
- * we hit a level that contains either multiple top-level dirs OR any
- * top-level files. Returns the prefix to strip (with trailing slash) or `""`.
- */
-function findRootPrefix(entries: { path: string; isDir: boolean }[]): string {
-  let prefix = '';
-  for (let depth = 0; depth < 20; depth++) {
-    const topDirs = new Set<string>();
-    const topFiles = new Set<string>();
-    for (const e of entries) {
-      if (e.path === '__MACOSX' || e.path.startsWith('__MACOSX/')) continue;
-      if (prefix && !e.path.startsWith(prefix)) continue;
-      const rel = prefix ? e.path.slice(prefix.length) : e.path;
-      if (!rel) continue;
-      const trimmed = rel.replace(/\/$/, '');
-      if (!trimmed) continue;
-      const segments = trimmed.split('/');
-      if (!segments[0]) continue;
-      if (segments.length === 1) {
-        if (e.isDir) topDirs.add(segments[0]);
-        else topFiles.add(segments[0]);
-      } else {
-        topDirs.add(segments[0]);
-      }
-    }
-    if (topDirs.size === 1 && topFiles.size === 0) {
-      prefix += `${Array.from(topDirs)[0]}/`;
-    } else {
-      break;
-    }
-  }
-  return prefix;
 }
 
 function reset() {
@@ -304,81 +282,16 @@ function onDragOver() {
   dragActive.value = true;
 }
 
-// ---- Folder traversal (drag-drop case) ------------------------------------
-// `webkitGetAsEntry` exposes a tree we walk recursively. We periodically
-// yield to the event loop so the spinner + counter actually animate.
-async function traverseEntry(entry: any, out: File[], pathPrefix: string): Promise<void> {
-  if (entry.isFile) {
-    await new Promise<void>((resolve) => {
-      entry.file((file: File) => {
-        const relPath = pathPrefix ? `${pathPrefix}/${entry.name}` : entry.name;
-        try {
-          Object.defineProperty(file, 'webkitRelativePath', {
-            value: relPath,
-            configurable: true,
-          });
-        } catch {
-          // Some browsers won't let us redefine; ignore.
-        }
-        out.push(file);
-        resolve();
-      });
-    });
-    // Bump the live counter and yield every 25 files so the UI repaints.
-    if (out.length % 25 === 0) {
-      scannedCount.value = out.length;
-      await new Promise((r) => setTimeout(r, 0));
-    }
-    return;
-  }
-  if (entry.isDirectory) {
-    const reader = entry.createReader();
-    const children: any[] = await new Promise((resolve) => {
-      const all: any[] = [];
-      const readBatch = () =>
-        reader.readEntries((batch: any[]) => {
-          if (batch.length === 0) resolve(all);
-          else {
-            all.push(...batch);
-            readBatch();
-          }
-        });
-      readBatch();
-    });
-    const nextPrefix = pathPrefix ? `${pathPrefix}/${entry.name}` : entry.name;
-    for (const child of children) {
-      await traverseEntry(child, out, nextPrefix);
-    }
-  }
-}
-
 // ---- Drop / input change handlers ----------------------------------------
 async function onDrop(ev: DragEvent) {
   dragActive.value = false;
   if (!ev.dataTransfer) return;
   if (isBusy.value) return;
 
-  // CRITICAL: snapshot DataTransfer state SYNCHRONOUSLY before any await.
-  // Once this handler yields, `dataTransfer.items` is cleared by the browser
-  // and `webkitGetAsEntry()` returns null — we'd silently get zero files.
-  // FileSystemEntry refs and File objects survive across awaits; the act of
-  // *obtaining* them is what must happen sync.
-  const dt = ev.dataTransfer;
-  const flatFiles = Array.from(dt.files);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const captured: { entry?: any; file?: File }[] = [];
-  for (let i = 0; i < dt.items.length; i++) {
-    const item = dt.items[i];
-    if (item.kind !== 'file') continue;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const entry: any = (item as any).webkitGetAsEntry?.();
-    if (entry) {
-      captured.push({ entry });
-    } else {
-      const f = item.getAsFile();
-      if (f) captured.push({ file: f });
-    }
-  }
+  // CRITICAL: snapshot DataTransfer state SYNCHRONOUSLY before any await
+  // (captureDataTransfer does this) — once this handler yields, items are
+  // cleared and webkitGetAsEntry returns null.
+  const { flatFiles, captured } = captureDataTransfer(ev.dataTransfer);
 
   // Single .zip file → zip path.
   if (flatFiles.length === 1 && isZipFile(flatFiles[0])) {
@@ -396,7 +309,7 @@ async function onDrop(ev: DragEvent) {
     const out: File[] = [];
     for (const c of captured) {
       if (c.entry) {
-        await traverseEntry(c.entry, out, '');
+        await traverseEntry(c.entry, out, '', (count) => { scannedCount.value = count; });
       } else if (c.file) {
         out.push(c.file);
       }
@@ -439,21 +352,8 @@ function finalizeFolderScan(files: File[]) {
     return;
   }
 
-  const kept: File[] = [];
-  let keptS = 0;
-  let skippedC = 0;
-  let skippedS = 0;
-
-  for (const f of files) {
-    const relPath = f.webkitRelativePath || f.name;
-    if (isBlacklisted(relPath)) {
-      skippedC += 1;
-      skippedS += f.size;
-      continue;
-    }
-    kept.push(f);
-    keptS += f.size;
-  }
+  const { kept, keptSize: keptS, skippedCount: skippedC, skippedSize: skippedS, rootName: root } =
+    filterFolderFiles(files);
 
   if (kept.length === 0) {
     errorMessage.value = 'No files left after filtering. Did you drop an empty or fully-skipped folder?';
@@ -461,14 +361,12 @@ function finalizeFolderScan(files: File[]) {
     return;
   }
 
-  if (keptS > MAX_TOTAL_BYTES) {
-    errorMessage.value = `Folder is ${formatBytes(keptS)} after filtering — exceeds the 500 MB upload limit.`;
+  if (keptS > MAX_TOTAL_BYTES.value) {
+    errorMessage.value = `Folder is ${formatBytes(keptS)} after filtering — exceeds the ${formatBytes(MAX_TOTAL_BYTES.value)} upload limit.`;
     setPhase('error');
     return;
   }
 
-  const firstRelPath = kept[0].webkitRelativePath || kept[0].name;
-  const root = firstRelPath.includes('/') ? firstRelPath.split('/')[0] : '';
   rootName.value = root;
   keptCount.value = kept.length;
   keptSize.value = keptS;
@@ -494,8 +392,8 @@ async function handleZipFile(file: File) {
   // we kick off JSZip (which itself yields, so the spinner stays animated).
   await yieldToPaint();
 
-  if (file.size > MAX_TOTAL_BYTES) {
-    errorMessage.value = `Archive is ${formatBytes(file.size)} — exceeds the 500 MB upload limit.`;
+  if (file.size > MAX_TOTAL_BYTES.value) {
+    errorMessage.value = `Archive is ${formatBytes(file.size)} — exceeds the ${formatBytes(MAX_TOTAL_BYTES.value)} upload limit.`;
     setPhase('error');
     return;
   }
@@ -552,7 +450,11 @@ async function handleZipFile(file: File) {
 }
 
 function cancel() {
-  if (phase.value === 'zipping' || phase.value === 'uploading') {
+  // `analyzing` is included: the bytes are already sent, so this aborts the
+  // client's wait for the response rather than the transfer. The backend's
+  // orphaned staging dir is reaped by the tmp/ orphan cleanup, so nothing is
+  // left behind as a dataset (the user never reached /create).
+  if (phase.value === 'zipping' || phase.value === 'uploading' || phase.value === 'analyzing') {
     emit('cancel-requested');
     setPhase('idle');
     reset();
@@ -622,9 +524,10 @@ defineExpose({ setProgress });
   justify-content: center;
 }
 .dropzone--active {
-  border-color: var(--v-theme-cyan, #4dd0e1);
-  background: rgba(77, 208, 225, 0.08);
+  border-color: #5fd6e8;
+  background: rgba(95, 214, 232, 0.08);
 }
+.dz-link { color: #5fd6e8; }
 .dropzone--error {
   border-color: rgba(244, 67, 54, 0.7);
   background: rgba(244, 67, 54, 0.05);

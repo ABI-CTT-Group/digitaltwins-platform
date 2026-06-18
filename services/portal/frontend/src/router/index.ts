@@ -8,16 +8,17 @@ import {
 import { useAuthStore } from "@/store/auth_store";
 import { isAuthenticated } from "@/bootstrap/keycloak";
 import Home from "@/views/home/index.vue";
-import StudyDashboard from "@/views/study/index.vue";
-import ClinicianDashboard from "@/views/clinician/index.vue";
+import DashboardView from "@/views/dashboard/DashboardView.vue";
 import TutorialDashboard from "@/views/tutorial/index.vue";
 import CatalogueDashboardView from "@/views/catalogue/catalogue-dashboard-view.vue";
 import ToolsViewer from "@/views/catalogue/tools-viewer.vue";
 import Layout from "@/layouts/Default.vue";
-import LaunchedAssayOverview from "@/views/study/assay-overview.vue";
+import LaunchedAssayOverview from "@/views/dashboard/report/AssayReportView.vue";
 import UploadDataset from "@/views/upload-dataset/index.vue";
 import UploadToolDataset from "@/views/upload-dataset/workflow-tool/index.vue";
 import UploadWorkflowDataset from "@/views/upload-dataset/workflow/index.vue";
+import UploadMeasurementsDataset from "@/views/upload-dataset/measurements/index.vue";
+import MeasurementFhirPreview from "@/views/upload-dataset/measurements/MeasurementFhirPreview.vue";
 
 import ToolPluginView from "@/views/tool-plugin/tool-plugin-view.vue";
 
@@ -35,56 +36,66 @@ const routes = [
           {
             path: "/study-dashboard",
             name: "StudyDashboard",
-            component: StudyDashboard,
-            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'], showBack: true },
+            component: DashboardView,
+            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'], type: 'study' },
           },
           {
             path: "/clinician-dashboard",
             name: "ClinicianDashboard",
-            component: ClinicianDashboard,
-            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher', 'clinician'], showBack: true },
+            component: DashboardView,
+            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher', 'clinician'], type: 'clinician' },
           },
           {
             path: "/how-it-works",
             name: "TutorialDashboard",
             component: TutorialDashboard,
-            meta: { showBack: true },
           },
           {
             path: "/catalogue-dashboard",
             name: "CatalogueDashboardView",
             component: CatalogueDashboardView,
-            meta: { showBack: true },
           },
           {
             path: "/catalogue-dashboard-tools",
             name: "ToolsViewer",
             component: ToolsViewer,
-            meta: { requiresAuth: true, showBack: true },
+            meta: { requiresAuth: true },
           },
           {
             path: "/launched-assay",
             name: "LaunchedAssayOverview",
             component: LaunchedAssayOverview,
-            meta: { requiresAuth: true, showBack: true },
+            meta: { requiresAuth: true },
           },
           {
             path: "/upload-dataset",
             name: "UploadDataset",
             component: UploadDataset,
-            meta: { requiresAuth: true, showBack: true },
+            meta: { requiresAuth: true },
             children:[
               {
                 path: "/upload-tool-dataset",
                 name: "UploadToolDataset",
                 component: UploadToolDataset,
-                meta: { requiresAuth: true, requiresRoles: ['admin'], showBack: true },
+                meta: { requiresAuth: true, requiresRoles: ['admin'] },
               },
               {
                 path: "/upload-workflow-dataset",
                 name: "UploadWorkflowDataset",
                 component: UploadWorkflowDataset,
-                meta: { requiresAuth: true, requiresRoles: ['admin'], showBack: true },
+                meta: { requiresAuth: true, requiresRoles: ['admin'] },
+              },
+              {
+                path: "/upload-dataset/measurements",
+                name: "UploadMeasurementsDataset",
+                component: UploadMeasurementsDataset,
+                meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'] },
+              },
+              {
+                path: "/upload-dataset/measurements/:id/preview",
+                name: "MeasurementFhirPreview",
+                component: MeasurementFhirPreview,
+                meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'] },
               },
             ]
           },

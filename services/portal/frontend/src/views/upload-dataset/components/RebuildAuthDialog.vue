@@ -1,18 +1,16 @@
 <template>
   <v-dialog v-model="open" max-width="560" persistent transition="dialog-bottom-transition">
-    <v-card rounded="lg" elevation="10" class="overflow-hidden">
-      <!-- Clean, simple header with cyan branding -->
-      <v-card-title class="d-flex align-center px-6 pt-6 pb-4 text-h5 font-weight-bold text-cyan-darken-3">
-        <v-icon color="cyan-darken-3" class="mr-3" size="32">mdi-shield-refresh-outline</v-icon>
+    <v-card rounded="lg" flat class="overflow-hidden auth-dialog">
+      <v-card-title class="d-flex align-center px-6 pt-6 pb-4 text-h5 dialog-title">
+        <v-icon color="#5fd6e8" class="mr-3" size="32">mdi-shield-refresh-outline</v-icon>
         Rebuild Access
       </v-card-title>
-      
+
       <v-card-text class="px-6 pb-6">
-        <!-- Alert matching standard Vuetify style but looking clean -->
         <v-alert
           type="info"
           variant="tonal"
-          color="cyan-darken-3"
+          color="#5fd6e8"
           density="comfortable"
           class="mb-6 rounded-md text-body-2"
           icon="mdi-information-outline"
@@ -22,11 +20,11 @@
         </v-alert>
 
         <!-- Provider Chip area -->
-        <v-sheet class="d-flex align-center mb-6 pa-4 bg-grey-lighten-4 rounded-md border">
-          <v-icon color="grey-darken-1" class="mr-3">mdi-source-branch</v-icon>
-          <span class="text-body-1 font-weight-medium text-grey-darken-2">Detected provider:</span>
+        <v-sheet class="d-flex align-center mb-6 pa-4 rounded-md provider-sheet">
+          <v-icon color="#9fb4bf" class="mr-3">mdi-source-branch</v-icon>
+          <span class="text-body-1 font-weight-medium provider-label">Detected provider:</span>
           <v-spacer></v-spacer>
-          <v-chip size="default" color="cyan-darken-3" variant="elevated" class="font-weight-bold px-4 elevation-1">
+          <v-chip size="default" color="#5fd6e8" variant="tonal" class="font-weight-bold px-4">
             <v-icon start size="small">{{ providerIcon }}</v-icon>
             {{ providerLabel }}
           </v-chip>
@@ -40,7 +38,7 @@
           label="Personal Access Token"
           placeholder="ghp_... / glpat-... / app password"
           variant="outlined"
-          color="cyan-darken-3"
+          color="#5fd6e8"
           density="comfortable"
           prepend-inner-icon="mdi-key-outline"
           clearable
@@ -56,7 +54,7 @@
             label="Username (self-hosted git only)"
             placeholder="HTTP basic-auth username"
             variant="outlined"
-            color="cyan-darken-3"
+            color="#5fd6e8"
             density="comfortable"
             prepend-inner-icon="mdi-account-outline"
             clearable
@@ -65,9 +63,9 @@
           />
         </v-expand-transition>
 
-        <v-sheet 
-          class="pa-3 border rounded-md transition-swing mt-2" 
-          :class="trustSelfSigned ? 'border-error bg-red-lighten-5' : 'bg-transparent'"
+        <v-sheet
+          class="pa-3 rounded-md transition-swing mt-2 ssl-sheet"
+          :class="trustSelfSigned ? 'ssl-sheet--on' : ''"
         >
           <v-checkbox
             v-model="trustSelfSigned"
@@ -77,11 +75,11 @@
           >
             <template #label>
               <div class="d-flex flex-column ml-1 py-1">
-                <span class="text-body-1 font-weight-medium" :class="trustSelfSigned ? 'text-error' : 'text-grey-darken-3'">
+                <span class="text-body-1 font-weight-medium" :class="trustSelfSigned ? 'text-error' : 'ssl-label'">
                   Trust self-signed certificate
                 </span>
-                <span class="text-caption font-weight-medium d-flex align-center mt-1" :class="trustSelfSigned ? 'text-error' : 'text-grey-darken-1'">
-                  <v-icon size="x-small" class="mr-1" :color="trustSelfSigned ? 'error' : 'grey-darken-1'">mdi-alert-outline</v-icon>
+                <span class="text-caption font-weight-medium d-flex align-center mt-1" :class="trustSelfSigned ? 'text-error' : 'ssl-hint'">
+                  <v-icon size="x-small" class="mr-1" :color="trustSelfSigned ? 'error' : '#9fb4bf'">mdi-alert-outline</v-icon>
                   MITM risk — only enable for trusted internal networks
                 </span>
               </div>
@@ -103,12 +101,12 @@
 
       <v-card-actions class="px-6 py-4 justify-center">
         <v-btn
-          color="red"
+          color="#9fb4bf"
           text="Cancel"
-          variant="tonal"
+          variant="text"
           :min-width="150"
-          rounded="md"
-          class="hover-animate mx-3"
+          rounded="lg"
+          class="text-none mx-3"
           :disabled="busy"
           @click="cancel"
         />
@@ -117,8 +115,8 @@
           :text="buildButtonLabel"
           variant="tonal"
           :min-width="200"
-          rounded="md"
-          class="hover-animate mx-3"
+          rounded="lg"
+          class="text-none mx-3"
           :loading="busy"
           :disabled="busy || !canSubmit"
           @click="submit"
@@ -206,9 +204,9 @@ const buildButtonLabel = computed(() => {
 })
 
 const buildButtonColor = computed(() => {
-  // Subdued color when not actionable; success when ready.
-  if (!canSubmit.value) return 'grey'
-  return 'success'
+  // Subdued color when not actionable; aqua accent when ready.
+  if (!canSubmit.value) return '#9fb4bf'
+  return '#5fd6e8'
 })
 
 const hintText = computed(() => {
@@ -233,7 +231,7 @@ const hintIcon = computed(() => {
 const hintClass = computed(() => {
   if (!canSubmit.value) return 'text-warning'
   if (token.value) return 'text-success'
-  return 'text-grey-darken-1'
+  return 'hint-muted'
 })
 
 // Reset on open so a stale token from a previous dialog can never leak.
@@ -259,3 +257,32 @@ const cancel = () => {
   emit('update:modelValue', false)
 }
 </script>
+
+<style scoped>
+.auth-dialog {
+  background: rgba(8, 18, 26, 0.97) !important;
+  border: 1px solid rgba(120, 200, 220, 0.18);
+  color: #e9f2f5;
+}
+.dialog-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+  color: #fff;
+}
+.provider-sheet {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(120, 200, 220, 0.14);
+}
+.provider-label { color: #c3d2d8; }
+.ssl-sheet {
+  background: transparent !important;
+  border: 1px solid rgba(120, 200, 220, 0.14);
+}
+.ssl-sheet--on {
+  background: rgba(255, 107, 107, 0.06) !important;
+  border-color: rgba(255, 107, 107, 0.45);
+}
+.ssl-label { color: #c3d2d8; }
+.ssl-hint { color: #9fb4bf; }
+.hint-muted { color: #7f97a1; }
+</style>

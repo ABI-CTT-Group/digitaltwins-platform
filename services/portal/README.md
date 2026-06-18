@@ -108,6 +108,51 @@ In the registration form, switch the **Source** radio at the top of the *Base In
 
 ---
 
+## Importing a measurement dataset from the server (admin CLI)
+
+An **admin** can import a prepared measurement dataset straight into the portal
+from the server terminal — no GUI. The dataset is uploaded to MinIO, registered,
+and pushed to FHIR, then appears in the portal as **completed** (view-only). It
+accepts a **folder or a `.zip`**, with or without an annotated `fhir.json`
+(missing → auto-annotated from the files).
+
+**Two steps:** the dataset can live **anywhere on the host** — just give its path.
+
+1. Run the importer with the dataset (folder or `.zip`):
+
+   | OS | Double-click | …or from a terminal |
+   |---|---|---|
+   | **macOS** | `scripts/import-dataset.command` (asks for the path) | `./scripts/import-dataset.sh /path/to/mydataset` |
+   | **Windows** | `scripts\import-dataset.bat` (asks for the path; or drag a folder/zip onto it) | `.\scripts\import-dataset.ps1 C:\data\mydataset` |
+   | **Linux** | servers are usually headless — use a terminal | `./scripts/import-dataset.sh /path/to/mydataset` |
+
+   The script copies the dataset into the `portal-backend` container (a live
+   progress bar if `pv` is installed; otherwise it prints the size), then runs
+   the in-container importer.
+
+   > On Windows double-click the **`.bat`** — double-clicking a `.ps1` just opens
+   > an editor. On macOS the `.command` opens a Terminal window.
+
+2. Sign in (admin) via the printed browser link when prompted.
+
+**Notes**
+
+- **Admin only** — enforced by Keycloak (device-flow login; `--password` falls
+  back to username/password).
+- **Data safety** — on success **no local copy remains** (the copy inside the
+  container is removed); the data lives only in MinIO + FHIR. On failure the copy
+  is kept for retry. (Your original dataset on the host is never modified.)
+- `.zip` is extracted with zip-slip / zip-bomb guards; a single wrapper folder
+  inside is unwrapped automatically.
+- Exit codes: `0` success / `1` user error (auth, validation, name clash) / `2`
+  pipeline failure.
+- One-time ops prereqs: the portal Keycloak client has the device flow enabled
+  (or use `--password`), and the operator has the `admin` realm role.
+
+Full guide: [`docs/import-dataset.md`](docs/import-dataset.md).
+
+---
+
 ## Release Notes
 
 See [`docs/release-notes.md`](docs/release-notes.md).

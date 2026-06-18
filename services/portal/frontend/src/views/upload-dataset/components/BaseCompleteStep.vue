@@ -1,26 +1,26 @@
 ﻿<template>
   <v-container class="fill-height d-flex flex-column build-step-container">
     <div class="d-flex flex-column align-center justify-center flex-grow-1 text-center">
-      <v-icon size="64" color="cyan-darken-1">mdi-cog-sync</v-icon>
+      <v-icon size="64" color="#5fd6e8">mdi-cog-sync</v-icon>
 
-      <h2 class="mt-4 text-cyan">
+      <h2 class="mt-4 step-title">
         {{ type === 'workflow' ? 'Workflow Build in Progress' : 'Workflow Tool Build in Progress' }}
       </h2>
 
-      <p class="text-grey">
-        Your {{ type === 'workflow' ? 'workflow' : 'workflow tool' }} "{{ data?.name }}" is currently being built. Once the build is completed, 
+      <p class="step-sub">
+        Your {{ type === 'workflow' ? 'workflow' : 'workflow tool' }} "{{ data?.name }}" is currently being built. Once the build is completed,
         you will be able to upload its dataset to the <strong>DigitalTWINS</strong> platform.
       </p>
     </div>
 
     <div class="d-flex flex-row justify-center">
       <v-btn
-        color="success"
-        :text="'Done'"
+        color="#5fd6e8"
+        text="Done"
         variant="tonal"
         :width="150"
-        rounded="md"
-        class="hover-animate ma-5"
+        rounded="lg"
+        class="text-none ma-5"
         @click="handleDone"
       ></v-btn>
     </div>
@@ -46,4 +46,10 @@ const handleDone = () => {
 .build-step-container {
   min-height: 40vh;
 }
+.step-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 500;
+  color: #fff;
+}
+.step-sub { color: #9fb4bf; }
 </style>

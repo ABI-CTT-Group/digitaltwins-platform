@@ -21,16 +21,36 @@ server {
         expires 1y;
     }
 
-    # Plugin / workflow source upload (zip can be up to 500MB).
+    # Plugin / workflow source upload. Body cap is MAX_UPLOAD_MB (default 20480m).
     # Must precede the generic /api/ block; regex match wins anyway, but order keeps it explicit.
-    location ~ ^/api/(tools|workflow)/upload-source$ {
+    # Cap is configurable via MAX_UPLOAD_MB at startup so operators can dial
+    # it up/down without touching code. Same value is surfaced to the backend
+    # and to the frontend via GET /api/measurement/config.
+    location ~ ^/api/(tools|workflow|measurement)/upload-source$ {
         proxy_pass http://portal-backend:${BACKEND_PORT};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        client_max_body_size 500m;
+        client_max_body_size ${MAX_UPLOAD_MB}m;
+        proxy_request_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    # Measurement chunked-upload part PUTs. Each request is one small part, so the
+    # body cap is MAX_PART_SIZE_MB (default 16m) — far below the whole-zip ceiling
+    # above. init / status / finalize / cancel are tiny JSON and fall through to
+    # the generic /api/ block. Stream parts through without buffering.
+    location ~ ^/api/measurement/upload/[^/]+/parts/ {
+        proxy_pass http://portal-backend:${BACKEND_PORT};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        client_max_body_size ${MAX_PART_SIZE_MB}m;
         proxy_request_buffering off;
         proxy_read_timeout 3600s;
         proxy_send_timeout 3600s;

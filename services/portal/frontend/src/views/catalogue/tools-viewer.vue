@@ -1,5 +1,6 @@
 ﻿<template>
-    <v-container class="d-flex justify-center align-center h-100 w-100">
+    <v-container class="d-flex justify-center align-center h-100 w-100 tv-container">
+        <BackLink to="CatalogueDashboardView" label="Catalogue" class="tv-back" />
         <v-row>
             <v-col cols="12" md="6" class="d-flex justify-center align-center">
                 <CatalogueColumn
@@ -55,6 +56,7 @@ import { DashboardWorkflow } from "@/models/types";
 import Dialog from '@/components/common/Dialog.vue';
 import CWLWorkflowViewer from '@/components/domain/workflow/CWLWorkflowViewer.vue';
 import CatalogueColumn from './components/CatalogueColumn.vue';
+import BackLink from '@/components/common/BackLink.vue';
 
 const dashboardWorkflows = ref<DashboardWorkflow[]>();
 const getDashboardWorkflows = async () => {
@@ -115,3 +117,17 @@ const handleWorkflowLoaded = (data: any) => {
     workflowData.value = data;
 }
 </script>
+
+<style scoped>
+/* BackLink floats in the top-left corner without disturbing the centred
+   columns (it is out of flow). */
+.tv-container {
+  position: relative;
+}
+.tv-back {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  z-index: 2;
+}
+</style>

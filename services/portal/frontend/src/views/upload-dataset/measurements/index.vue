@@ -1,0 +1,80 @@
+<template>
+  <div class="container d-flex justify-center" style="padding-top: 16px;">
+    <div class="w-100">
+      <BackLink to="CatalogueDashboardView" label="Catalogue" sticky class="mb-4" />
+      <Hero :title="heroDetail.title" :subtitle="heroDetail.subtitle" />
+
+      <MeasurementsOverallView
+        v-if="showOverall"
+        @register="handleRegister"
+        @resume="handleResume"
+        @edit="handleEdit"
+      />
+      <UploadMeasurementForm
+        v-else
+        :measurement="editMeasurement"
+        :initial-step="editMeasurement ? 2 : 1"
+        :resume-measurement-id="resumeMeasurementId"
+        @finished="handleUploadFinished"
+      />
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import Hero from '@/components/domain/Hero.vue';
+import BackLink from '@/components/common/BackLink.vue';
+import MeasurementsOverallView from './MeasurementsOverallView.vue';
+import UploadMeasurementForm from './UploadMeasurementForm.vue';
+import type { MeasurementResponse } from '@/models/types';
+
+const showOverall = ref(true);
+// When set, the form opens in edit mode (Annotation step) for this draft.
+// Undefined means the create flow (start at Information).
+const editMeasurement = ref<MeasurementResponse | undefined>(undefined);
+// When set, the Information step opens in resume mode bound to this unfinished
+// upload (name locked, dropped folder validated against the server manifest).
+const resumeMeasurementId = ref<string | undefined>(undefined);
+
+const heroDetail = computed(() =>
+  showOverall.value
+    ? {
+        title: 'Measurements Hub',
+        subtitle:
+          'Register SPARC measurements datasets and annotate patients, observations, imaging studies, and document references.',
+      }
+    : {
+        title: 'Upload & Annotate Measurements',
+        subtitle:
+          'Drag a folder or .zip, fine-tune the auto-detected annotation, and we will push it to MinIO + FHIR.',
+      },
+);
+
+const handleRegister = () => {
+  editMeasurement.value = undefined;
+  resumeMeasurementId.value = undefined;
+  showOverall.value = false;
+};
+
+const handleResume = (id: string) => {
+  editMeasurement.value = undefined;
+  resumeMeasurementId.value = id;
+  showOverall.value = false;
+};
+
+const handleEdit = (m: MeasurementResponse) => {
+  editMeasurement.value = m;
+  showOverall.value = false;
+};
+
+const handleUploadFinished = () => {
+  editMeasurement.value = undefined;
+  resumeMeasurementId.value = undefined;
+  showOverall.value = true;
+};
+</script>
+
+<style scoped>
+
+</style>

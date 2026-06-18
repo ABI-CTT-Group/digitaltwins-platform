@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from pathlib import Path
 import io
-from app.router import dashboard, clinical_report_viewer, workflow_tool_plugin, workflow_router
+from app.router import dashboard, clinical_report_viewer, workflow_tool_plugin, workflow_router, measurement_router
 from contextlib import asynccontextmanager
 from app.database.database import init_db
 from dotenv import load_dotenv
@@ -124,6 +124,39 @@ def _cleanup_orphan_staging(max_age_hours: float = 24):
         logger.warning(f"Orphan-staging cleanup: failed to read DB references: {e}")
         return
 
+    # Measurement chunked uploads: tmp/upload_<measurement_id>/ is the live chunk
+    # store for a pending_upload row (no local_archive_path until finalize, so the
+    # Plugin/Workflow pass above can't see it). Protect fresh ones from the generic
+    # sweep; reap abandoned ones (dir + row) so a closed-tab upload can't pin disk.
+    from datetime import datetime, timedelta
+    from app.models.db_model import Measurement, MeasurementStatus
+
+    row_cutoff = datetime.utcnow() - timedelta(hours=max_age_hours)
+    try:
+        with SessionLocal() as session:
+            pending = session.query(Measurement).filter(
+                Measurement.status == MeasurementStatus.PENDING_UPLOAD.value
+            ).all()
+            for row in pending:
+                updir = tmp_dir / f"upload_{row.id}"
+                last_active = (
+                    datetime.utcfromtimestamp(updir.stat().st_mtime)
+                    if updir.exists() else None
+                )
+                abandoned = (
+                    (last_active is not None and last_active < row_cutoff)
+                    or (last_active is None and bool(row.created_at) and row.created_at < row_cutoff)
+                )
+                if abandoned:
+                    if updir.exists():
+                        force_rmtree(updir)
+                    session.delete(row)
+                else:
+                    referenced.add(updir.name)
+            session.commit()
+    except Exception as e:
+        logger.warning(f"Orphan-staging cleanup: measurement pass failed: {e}")
+
     removed = 0
     for entry in tmp_dir.iterdir():
         if not entry.is_dir() or not entry.name.startswith("upload_"):
@@ -197,6 +230,7 @@ app.include_router(clinical_report_viewer.router)
 app.include_router(workflow_tool_plugin.router)
 
 app.include_router(workflow_router.router)
+app.include_router(measurement_router.router)
 
 # app.add_middleware(
 #     CORSMiddleware,

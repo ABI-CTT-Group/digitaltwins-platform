@@ -3,6 +3,7 @@
     ref="registryRef"
     register-label="Register a new workflow"
     search-label="Search workflows"
+    accent="#7fb2f0"
     :fetch-list="useWorkflow"
     :is-pending="(items) => items.some(w => w.status === 'building')"
     @register="handleRegister"

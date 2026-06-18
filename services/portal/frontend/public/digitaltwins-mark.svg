@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="DigitalTWINS">
+  <defs>
+    <linearGradient id="dt-cyan" x1="6" y1="14" x2="40" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8deff6"/>
+      <stop offset="1" stop-color="#3fb6d6"/>
+    </linearGradient>
+    <linearGradient id="dt-mint" x1="24" y1="14" x2="58" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#86e7b0"/>
+      <stop offset="1" stop-color="#3fb589"/>
+    </linearGradient>
+    <linearGradient id="dt-core" x1="27" y1="27" x2="37" y2="37" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9ff0f7"/>
+      <stop offset="1" stop-color="#8fe9b6"/>
+    </linearGradient>
+    <radialGradient id="dt-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#bdf4f7" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#bdf4f7" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- twin rings: physical entity (cyan) synced to its digital twin (mint) -->
+  <circle cx="24" cy="32" r="13" fill="none" stroke="url(#dt-cyan)" stroke-width="4"/>
+  <circle cx="40" cy="32" r="13" fill="none" stroke="url(#dt-mint)" stroke-width="4"/>
+
+  <!-- synchronized live core at the intersection -->
+  <circle cx="32" cy="32" r="10" fill="url(#dt-glow)" opacity="0.55"/>
+  <circle cx="32" cy="32" r="4.6" fill="url(#dt-core)"/>
+
+  <!-- data nodes orbiting the twin pair -->
+  <circle cx="24" cy="13.4" r="2" fill="#8deff6"/>
+  <circle cx="40" cy="50.6" r="2" fill="#86e7b0"/>
+</svg>

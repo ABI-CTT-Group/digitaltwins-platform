@@ -298,3 +298,165 @@ export interface WorkflowStepAnnotation {
 }
 
 export type BaseInformationStep = ToolInformationStep | WorkflowInformationStep;
+
+// ---------------------------------------------------------------------------
+// Measurements upload
+// ---------------------------------------------------------------------------
+//
+// NOTE: `_auto` is a UI marker (set by the backend on /tree to hint which
+// sample folder triggered the auto-classification) that drives the
+// auto-classified count + chips. It is persisted with the annotation draft so a
+// reopened draft keeps those affordances, and is inert downstream — fhir.json is
+// built from named fields only. `stripAuto`
+// (`views/upload-dataset/measurements/components/`) is used only to render the
+// clean "Preview descriptions" panel, not before POST.
+//
+// uuid / endpointUrl / endpointUuid fields are MOCK values (prefix `MOCK-`)
+// until digitaltwins-api integration lands. Treat them as read-only in the UI.
+
+export type MeasurementStatus =
+  | "pending"
+  | "uploading"
+  | "submit_failed"
+  | "fhir_failed"
+  | "completed";
+
+export type MeasurementFailureStage =
+  | "staging"
+  | "fhir_build"
+  | "upload"
+  | "finalize"
+  | "fhir_push";
+
+export interface MeasurementInformationStep {
+  name: string;
+  description?: string;
+  uploadId: string;
+}
+
+export interface MeasurementResponse {
+  id: string;
+  name: string;
+  description?: string;
+  uuid?: string;
+  datasetPath?: string;
+  exposeName?: string;
+  s3Path?: string;
+  status: MeasurementStatus | string;
+  failureStage?: MeasurementFailureStage | string;
+  failureMessage?: string;
+  /** Whether a draft annotation exists — drives card menu button visibility.
+   *  camelized from the backend's `has_annotation` by http.ts. */
+  hasAnnotation?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Response from `POST /api/measurement/upload-source`. */
+export interface MeasurementSourceMeta {
+  uploadId: string;
+  patients: string[];
+  samplesPerPatient: Record<string, string[]>;
+  fileCountPerSample: Record<string, number>;
+}
+
+/** Tree node returned alongside descriptions on /tree. Loose shape — UI only
+ *  consumes counts / labels, so we keep it as an open dict. */
+export type MeasurementTreeNode = {
+  name: string;
+  type?: "dataset" | "patient" | "sample" | "file";
+  children?: MeasurementTreeNode[];
+  [k: string]: any;
+};
+
+/** Response from `GET /api/measurement/{id}/tree`. */
+export interface MeasurementTreeResponse {
+  tree: MeasurementTreeNode;
+  descriptions: FhirCdaDescriptions;
+  skippedSamples: string[];
+}
+
+/** UI-only auto-classification hint. Stripped before POST. */
+export interface FhirCdaAutoMeta {
+  samplePath?: string;
+  sourceFile?: string;
+  modality?: string;
+  files?: string[];
+}
+
+export interface ObservationDescription {
+  resourceType: "Observation";
+  uuid: string;
+  /** Quantity value (number) OR string value depending on `valueType`. */
+  value?: number | string;
+  /** "Quantity" | "String" — local-only UI tag, not part of FHIR shape. */
+  valueType?: "Quantity" | "String";
+  code: string;
+  codeSystem: string;
+  unit?: string;
+  display?: string;
+  _auto?: FhirCdaAutoMeta;
+}
+
+export interface DocumentAttachment {
+  url: string;
+  contentType: string;
+  title?: string;
+  size?: number;
+}
+
+export interface DocumentReferenceDescription {
+  resourceType: "DocumentReference";
+  uuid: string;
+  description?: string;
+  display?: string;
+  attachments: DocumentAttachment[];
+  _auto?: FhirCdaAutoMeta;
+}
+
+export interface ImagingStudySeries {
+  uid?: string;
+  endpointUrl: string;
+  endpointUuid: string;
+  name: string;
+  numberOfInstances: number;
+  bodySite?: string;
+  instances: any[];
+}
+
+export interface ImagingStudyDescription {
+  resourceType: "ImagingStudy";
+  uuid: string;
+  endpointUrl: string;
+  description: string;
+  display?: string;
+  series: ImagingStudySeries[];
+  _auto?: FhirCdaAutoMeta;
+}
+
+export interface FhirCdaPatient {
+  uuid: string;
+  name: string;
+  observations: ObservationDescription[];
+  imagingStudy: ImagingStudyDescription[];
+  documentReference: DocumentReferenceDescription[];
+}
+
+export interface FhirCdaDescriptions {
+  dataset: { uuid: string; name: string };
+  patients: FhirCdaPatient[];
+}
+
+export interface MeasurementAnnotationResponse {
+  id: string;
+  measurementId: string;
+  annotationId: string;
+  descriptions?: FhirCdaDescriptions;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MeasurementDeleteResponse {
+  status: boolean;
+  message: string;
+}
