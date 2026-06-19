@@ -45,23 +45,6 @@
     "StandardConfigurations": [
       "orthanc-explorer-2"
     ],
-    "CheckedLevel": "studies",
-    "AllowedRoutes": [
-      {
-        "Method": "PUT",
-        "Path": "/patients/(.*)/attachments/(.*)"
-      },
-      {
-        "Method": "GET",
-        "Path": "/patients/(.*)/attachments/(.*)"
-      },
-      {
-        "Method": "DELETE",
-        "Path": "/patients/(.*)/attachments/(.*)"
-      }
-    ],
-    "UncheckedRoutes": [
-      "/patients/.*"
-    ]
+    "CheckedLevel": "studies"
   }
 }
