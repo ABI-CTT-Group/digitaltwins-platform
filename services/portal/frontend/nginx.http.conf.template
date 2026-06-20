@@ -56,6 +56,20 @@ server {
         proxy_send_timeout 3600s;
     }
 
+    # SSE live build/deploy logs — must NOT be buffered or the terminal
+    # output arrives in one delayed burst instead of streaming.
+    location ~ ^/api/tools/(builds|deploy)/[^/]+/logs/stream$ {
+        proxy_pass http://portal-backend:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+        proxy_set_header Host $host;
+        proxy_set_header Authorization $http_authorization;
+        proxy_buffering off;
+        proxy_cache off;
+        chunked_transfer_encoding off;
+        proxy_read_timeout 86400;
+    }
+
     # Proxy API requests to portal-backend
     location /api/ {
         proxy_pass http://portal-backend:${BACKEND_PORT}/api/;

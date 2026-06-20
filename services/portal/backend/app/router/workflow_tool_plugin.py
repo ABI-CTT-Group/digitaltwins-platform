@@ -1,10 +1,11 @@
+import asyncio
 import os
 import json
 import yaml
 import uvicorn
 import zipfile
 from fastapi import APIRouter, FastAPI, Depends, HTTPException, BackgroundTasks, Request, Query, UploadFile, File
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, PlainTextResponse
 from app.database.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -800,6 +801,70 @@ async def get_build_direct_url(build_id: str, db: Session = Depends(get_db)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate direct url for build {build_id}: {e}")
+
+
+async def _sse_log_generator(job_key: str):
+    """Async generator that yields SSE-formatted log lines for the given job key."""
+    offset = 0
+    # First frame: if job doesn't exist (restart/evicted), close immediately
+    # so the frontend falls back to the history endpoint.
+    if not log_registry.exists(job_key):
+        yield "event: end\ndata: gone\n\n"
+        return
+    while True:
+        new_lines, offset, done, status = log_registry.snapshot(job_key, offset)
+        for ln in new_lines:
+            # One SSE data field per log line; strip carriage returns.
+            yield "data: " + ln.replace("\r", "") + "\n\n"
+        if done:
+            yield f"event: end\ndata: {status or 'completed'}\n\n"
+            return
+        await asyncio.sleep(0.25)
+
+
+def _sse_response(job_key: str) -> StreamingResponse:
+    return StreamingResponse(
+        _sse_log_generator(job_key),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",   # belt-and-suspenders even if nginx is misconfigured
+            "Connection": "keep-alive",
+        },
+    )
+
+
+@router.get("/builds/{build_id}/logs/stream")
+async def stream_build_logs(build_id: str):
+    """SSE endpoint: stream live build logs for a running or recently finished build."""
+    return _sse_response(f"build:{build_id}")
+
+
+@router.get("/deploy/{deploy_id}/logs/stream")
+async def stream_deploy_logs(deploy_id: str):
+    """SSE endpoint: stream live deploy logs for a running or recently finished deploy."""
+    return _sse_response(f"deploy:{deploy_id}")
+
+
+@router.get("/builds/{build_id}/logs", response_class=PlainTextResponse)
+async def get_build_logs(build_id: str, db: Session = Depends(get_db)):
+    """Return full build log text. In-memory first (live/recent), DB fallback (completed)."""
+    key = f"build:{build_id}"
+    if log_registry.exists(key):
+        return log_registry.full_text(key)
+    rec = db.query(PluginBuild).filter(PluginBuild.build_id == build_id).first()
+    if rec is None:
+        raise HTTPException(status_code=404, detail="Build not found")
+    return rec.build_logs or ""
+
+
+@router.get("/deploy/{deploy_id}/logs", response_class=PlainTextResponse)
+async def get_deploy_logs(deploy_id: str):
+    """Return full deploy log text (in-memory only — no DB column for deploy logs)."""
+    key = f"deploy:{deploy_id}"
+    if log_registry.exists(key):
+        return log_registry.full_text(key)
+    raise HTTPException(status_code=410, detail="Deploy logs expired (in-memory only)")
 
 
 @router.get("/test-build")
