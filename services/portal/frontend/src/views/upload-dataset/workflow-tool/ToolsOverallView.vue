@@ -27,6 +27,7 @@
         @compose-down="(id) => handleExecuteDockerCompose(id, 'down')"
         @delete="handleDeleteTool"
         @submit-approve="(id) => handleToolApproval(id)"
+        @view-logs="handleViewLogs"
       />
     </template>
   </RegistryView>
@@ -38,6 +39,15 @@
     @submit="onRebuildAuthSubmit"
     @cancel="onRebuildCancel"
   />
+
+  <LogConsole
+    v-model="logConsoleOpen"
+    :kind="logKind"
+    :job-id="logJobId"
+    :title="logTitle"
+    :started-at="logStartedAt"
+    :initial-status="logInitialStatus"
+  />
 </template>
 
 <script setup lang="ts">
@@ -46,6 +56,7 @@ import { useToast } from 'vue-toastification';
 import RegistryView from '../components/RegistryView.vue';
 import ToolCard from '../components/ToolCard.vue';
 import RebuildAuthDialog from '../components/RebuildAuthDialog.vue';
+import LogConsole from '../components/LogConsole.vue';
 import {
   useWorkflowTools,
   useToolMetadata,
@@ -58,6 +69,40 @@ import type { ToolMinIOToolMetadata, ToolResponse, SourceType, TransientAuth } f
 import { useRemoteAppStore } from '@/store/remote_store';
 import { useRouter } from 'vue-router';
 import { ref } from 'vue';
+
+// --- LogConsole state ---
+const logConsoleOpen = ref(false);
+const logKind = ref<'build' | 'deploy'>('build');
+const logJobId = ref('');
+const logTitle = ref('');
+const logStartedAt = ref('');
+const logInitialStatus = ref('');
+
+function openLogConsole(kind: 'build' | 'deploy', jobId: string, title: string, initialStatus: string) {
+  logKind.value = kind;
+  logJobId.value = jobId;
+  logTitle.value = title;
+  logStartedAt.value = new Date().toISOString();
+  logInitialStatus.value = initialStatus;
+  logConsoleOpen.value = true;
+}
+
+interface ViewLogsPayload {
+  kind: 'build' | 'deploy';
+  jobId: string;
+  title: string;
+  startedAt: string;
+  initialStatus: string;
+}
+
+function handleViewLogs(payload: ViewLogsPayload) {
+  logKind.value = payload.kind;
+  logJobId.value = payload.jobId;
+  logTitle.value = payload.title;
+  logStartedAt.value = payload.startedAt;
+  logInitialStatus.value = payload.initialStatus;
+  logConsoleOpen.value = true;
+}
 
 const router = useRouter();
 const remoteAppStore = useRemoteAppStore();
@@ -115,8 +160,9 @@ const handleRebuild = async (id: string) => {
   if (st === 'local') {
     // Local source: no token concept, fire directly.
     try {
-      await useWorkflowToolBuild(id);
+      const res = await useWorkflowToolBuild(id);
       toast.success('Rebuild started. Watch the registry for status updates.');
+      openLogConsole('build', res.buildId, tool?.name ?? id, 'building');
       await registryRef.value?.handleRefresh();
     } catch (err: any) {
       console.error('Local rebuild failed:', err);
@@ -148,11 +194,18 @@ const onRebuildAuthSubmit = async (auth: TransientAuth) => {
   if (!id) return;
   rebuildBusy.value = true;
   try {
-    await useWorkflowToolBuild(id, auth);
+    const res = await useWorkflowToolBuild(id, auth);
     rebuildDialogOpen.value = false;
+    // Capture tool name before clearing rebuildTargetId
+    let toolName = id;
+    try {
+      const items = (await useWorkflowTools()) as ToolResponse[];
+      toolName = items.find((t) => t.id === id)?.name ?? id;
+    } catch { /* fallback to id */ }
     rebuildTargetId.value = null;
     rebuildSourceType.value = null;
     toast.success('Rebuild started. Watch the registry for status updates.');
+    openLogConsole('build', res.buildId, toolName, 'building');
     await registryRef.value?.handleRefresh();
   } catch (err: any) {
     // Show backend's actual error if available so the user knows whether
@@ -181,7 +234,17 @@ const onRebuildCancel = () => {
 };
 
 const handleDeploy = async (id: string) => {
-  await useDeployTool(id);
+  const res = await useDeployTool(id) as any;
+  const deployId: string = res?.deployId ?? res?.deploy_id ?? '';
+  // Resolve tool name for the console title
+  let toolName = id;
+  try {
+    const items = (await useWorkflowTools()) as ToolResponse[];
+    toolName = items.find((t) => t.id === id)?.name ?? id;
+  } catch { /* fallback to id */ }
+  if (deployId) {
+    openLogConsole('deploy', deployId, toolName, 'deploying');
+  }
   await registryRef.value?.handleRefresh();
 };
 

@@ -84,7 +84,11 @@ const auroraStatus = (s?: string) => {
   }
 }
 
-const emit = defineEmits(["launch", "rebuild", "submit-approve", "deploy", "compose-up", "compose-down", "delete"])
+const emit = defineEmits(["launch", "rebuild", "submit-approve", "deploy", "compose-up", "compose-down", "delete", "view-logs"])
+
+const hasViewLogs = computed(() =>
+  !!(tool.value.latestDeployId || tool.value.latestBuildId)
+)
 
 const menuItems = computed<UCardMenuItem[]>(() => {
   const isGui = tool.value.label === 'GUI'
@@ -99,9 +103,34 @@ const menuItems = computed<UCardMenuItem[]>(() => {
     items.push({ label: 'Compose up', icon: 'mdi-play-circle-outline', onClick: onDockerComposeUp })
     items.push({ label: 'Compose down', icon: 'mdi-stop-circle-outline', onClick: onDockerComposeDown })
   }
+  if (hasViewLogs.value) {
+    items.push({ label: 'View logs', icon: 'mdi-console-line', onClick: onViewLogs })
+  }
   items.push({ label: 'Delete tool', icon: 'mdi-trash-can-outline', danger: true, onClick: onDelete })
   return items
 })
+
+const onViewLogs = () => {
+  const t = tool.value
+  // Prefer the latest deploy if it exists, otherwise fall back to latest build
+  if (t.latestDeployId) {
+    emit('view-logs', {
+      kind: 'deploy',
+      jobId: t.latestDeployId,
+      title: t.name,
+      startedAt: t.updatedAt ?? new Date().toISOString(),
+      initialStatus: t.deployStatus ?? 'completed',
+    })
+  } else if (t.latestBuildId) {
+    emit('view-logs', {
+      kind: 'build',
+      jobId: t.latestBuildId,
+      title: t.name,
+      startedAt: t.updatedAt ?? new Date().toISOString(),
+      initialStatus: t.status ?? 'completed',
+    })
+  }
+}
 
 const onLaunch = async () => {
     if(tool.value.label === "Script"){
