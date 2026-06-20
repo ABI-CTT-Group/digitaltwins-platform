@@ -14,7 +14,19 @@ import {
   ProbeSourceResponse,
 } from "@/models/types";
 import { useCheckName, fetchWithLatestBuild } from "./api_helpers";
-import { getAccessToken } from './keycloak';
+import { getAccessToken, getKeycloak } from './keycloak';
+
+/** Proactively refresh the Keycloak token before making raw fetch calls that
+ *  bypass axios. Falls through to the current token on any error. */
+async function freshToken(): Promise<string> {
+  try {
+    const kc = getKeycloak();
+    if (kc) await kc.updateToken(5);
+  } catch {
+    /* fall through to current token */
+  }
+  return getAccessToken() as string;
+}
 
 /** Build the optional POST body for a build trigger. Sent in camelCase —
  *  http.ts axios interceptor deep-snake_cases outgoing JSON. Empty / missing
@@ -145,8 +157,9 @@ export function streamLogs(
   const ctrl = new AbortController();
   (async () => {
     try {
+      const token = await freshToken();
       const res = await fetch(`${_logPath(kind, jobId)}/stream`, {
-        headers: { Authorization: `Bearer ${getAccessToken()}` },
+        headers: { Authorization: `Bearer ${token}` },
         signal: ctrl.signal,
       });
       if (!res.body) throw new Error('no stream body');
@@ -177,8 +190,9 @@ export function streamLogs(
 }
 
 export async function getLogs(kind: 'build' | 'deploy', jobId: string): Promise<string> {
+  const token = await freshToken();
   const res = await fetch(_logPath(kind, jobId), {
-    headers: { Authorization: `Bearer ${getAccessToken()}` },
+    headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`logs ${res.status}`);
   return res.text();
