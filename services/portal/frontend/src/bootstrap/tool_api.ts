@@ -126,3 +126,60 @@ export async function useGetWorkflowToolAnnotation(id:string){
 export async function useGetToolLocalCwl(id: string): Promise<{ cwlFile: string; content: string }> {
   return http.get<{ cwlFile: string; content: string }>(`/tools/plugin/${id}/cwl`);
 }
+
+// ---------------------------------------------------------------------------
+// SSE log streaming (Phase 4)
+// ---------------------------------------------------------------------------
+import { getAccessToken } from './keycloak';
+
+const _logPath = (kind: 'build' | 'deploy', id: string) =>
+  kind === 'build' ? `/api/tools/builds/${id}/logs` : `/api/tools/deploy/${id}/logs`;
+
+export function streamLogs(
+  kind: 'build' | 'deploy',
+  jobId: string,
+  onLine: (l: string) => void,
+  onEnd: (status: string) => void,
+  onError: (e: unknown) => void,
+): AbortController {
+  const ctrl = new AbortController();
+  (async () => {
+    try {
+      const res = await fetch(`${_logPath(kind, jobId)}/stream`, {
+        headers: { Authorization: `Bearer ${getAccessToken()}` },
+        signal: ctrl.signal,
+      });
+      if (!res.body) throw new Error('no stream body');
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        // SSE events are separated by blank lines
+        let idx;
+        while ((idx = buf.indexOf('\n\n')) !== -1) {
+          const evt = buf.slice(0, idx); buf = buf.slice(idx + 2);
+          const isEnd = evt.startsWith('event: end');
+          const data = evt.split('\n')
+            .filter((l) => l.startsWith('data:'))
+            .map((l) => l.slice(5).replace(/^ /, '')).join('\n');
+          if (isEnd) { onEnd(data || 'completed'); return; }
+          if (data) onLine(data);
+        }
+      }
+    } catch (e) {
+      if (!ctrl.signal.aborted) onError(e);
+    }
+  })();
+  return ctrl;
+}
+
+export async function getLogs(kind: 'build' | 'deploy', jobId: string): Promise<string> {
+  const res = await fetch(_logPath(kind, jobId), {
+    headers: { Authorization: `Bearer ${getAccessToken()}` },
+  });
+  if (!res.ok) throw new Error(`logs ${res.status}`);
+  return res.text();
+}
