@@ -16,6 +16,7 @@ from app.models.db_model import (
 from datetime import datetime
 from fastapi import BackgroundTasks
 from app.builder.logger import get_logger
+from app.builder.log_stream import log_registry
 
 logger = get_logger(__name__)
 
@@ -329,6 +330,7 @@ def execute_build_in_background(
         Build: Type[Union[PluginBuild, WorkflowBuild]],
         background_tasks: BackgroundTasks = None):
     def run_build():
+        job_key = f"build:{build_id}"
         try:
             with SessionLocal() as session:
                 build_record = session.query(Build).filter(
@@ -337,7 +339,11 @@ def execute_build_in_background(
                     build_record.status = BuildStatus.BUILDING.value
                     session.commit()
 
-            result = builder.build(data)
+            log_registry.open(job_key)
+            sink = lambda line: log_registry.append(job_key, line)
+            result = builder.build(data, sink=sink)
+            log_registry.finish(job_key, "completed" if result["success"] else "failed")
+
             with SessionLocal() as session:
                 build_record = session.query(Build).filter(Build.build_id == build_id).first()
                 if build_record:
@@ -350,11 +356,12 @@ def execute_build_in_background(
                         build_record.status = BuildStatus.FAILED.value
                         build_record.error = result["error_message"]
 
-                    build_record.build_logs = result["build_logs"]
+                    build_record.build_logs = log_registry.full_text(job_key)
                     build_record.updated_at = datetime.now()
                     session.commit()
 
         except Exception as e:
+            log_registry.finish(job_key, "failed")
             # Update build record with error
             with SessionLocal() as session:
                 build_record = session.query(Build).filter(Build.build_id == build_id).first()
@@ -364,7 +371,7 @@ def execute_build_in_background(
                     build_record.updated_at = datetime.now()
                     session.commit()
                 else:
-                    print("⚠️ Build record not found when writing error message")
+                    logger.warning("Build record not found when writing error message")
 
     if background_tasks:
         background_tasks.add_task(run_build)

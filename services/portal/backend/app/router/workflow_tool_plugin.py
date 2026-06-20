@@ -46,6 +46,7 @@ from app.utils.builder_utils import (
     read_root_cwl,
     resolve_project_root,
 )
+from app.builder.log_stream import log_registry
 from uuid import UUID
 from app.utils.utils import force_rmtree, is_empty
 from fhir_cda import Annotator
@@ -582,6 +583,7 @@ async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = 
     db.refresh(db_deploy)
 
     def run_deploy():
+        job_key = f"deploy:{deploy_id}"
         try:
             with SessionLocal() as session:
                 deploy_record = session.query(PluginDeployment).filter(
@@ -589,12 +591,14 @@ async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = 
                 if deploy_record:
                     deploy_record.status = DeployStatus.DEPLOYING.value
                     session.commit()
+            log_registry.open(job_key)
             logger.info("Starting plugin deployment...")
-            result = deployer.deploy(plugin_dict)
+            result = deployer.deploy(plugin_dict, sink=lambda l: log_registry.append(job_key, l))
             with SessionLocal() as session:
                 deploy_record = session.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()
                 if deploy_record:
                     if result["success"]:
+                        log_registry.finish(job_key, "completed")
                         deploy_record.status = DeployStatus.COMPLETED.value
                         deploy_record.source_path = result["backend_dir"]
                         deploy_record.up = True
@@ -618,12 +622,14 @@ async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = 
                             deployer.reload_nginx()
                             logger.info(f"Nginx config generated for plugin {expose_name}")
                     else:
+                        log_registry.finish(job_key, "failed")
                         deploy_record.status = BuildStatus.FAILED.value
                         deploy_record.error = result["error_message"]
 
                     deploy_record.updated_at = datetime.now()
                     session.commit()
         except Exception as e:
+            log_registry.finish(job_key, "failed")
             logger.error(f"Deploy failed: {e}")
             with SessionLocal() as session:
                 deploy_record = session.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()

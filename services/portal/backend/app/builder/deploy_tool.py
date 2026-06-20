@@ -110,7 +110,7 @@ location {route_prefix}/ {{
             raise Exception("Docker compose file is not exist")
 
     @staticmethod
-    def _compose_execute(backend_dir: Path, command: str, extra_env: dict = None) -> int:
+    def _compose_execute(backend_dir: Path, command: str, extra_env: dict = None, sink=None) -> int:
         """Run a docker compose command. Returns the process exit code (0 = success)."""
         try:
             logger.info(f"Running command {command} for deployment of {backend_dir}")
@@ -127,7 +127,13 @@ location {route_prefix}/ {{
                     env=env,
             ) as process:
                 for line in process.stdout:
-                    logger.info(line.strip())
+                    stripped = line.rstrip("\n")
+                    logger.info(stripped)
+                    if sink:
+                        try:
+                            sink(stripped)
+                        except Exception:
+                            pass
 
                 return_code = process.wait()
                 if return_code == 0:
@@ -151,7 +157,7 @@ location {route_prefix}/ {{
         """Build a docker compose command with project name scoped to the plugin."""
         return f"docker compose -p {expose_name} {action}"
 
-    def deploy(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
+    def deploy(self, plugin: Dict[str, Any], sink=None) -> Dict[str, Any]:
 
         deploy_logs = []
         expose_name = plugin.get("expose_name", )
@@ -168,7 +174,7 @@ location {route_prefix}/ {{
             # Step 3 deploy backend in docker with project name = expose_name
             logger.info(f"Step 3: Start docker compose with project name '{expose_name}'...")
             deploy_command = self._build_compose_command(expose_name, "up --build -d --force-recreate")
-            rc = self._compose_execute(backend_dir, deploy_command, extra_env={"PLUGIN_ROUTE_PREFIX": f"/plugin/{expose_name}"})
+            rc = self._compose_execute(backend_dir, deploy_command, extra_env={"PLUGIN_ROUTE_PREFIX": f"/plugin/{expose_name}"}, sink=sink)
             if rc != 0:
                 # The compose process exited non-zero (build/start failure). Surface
                 # it as a deploy failure instead of silently reporting success.
