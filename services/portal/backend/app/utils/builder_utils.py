@@ -368,6 +368,7 @@ def execute_build_in_background(
                 if build_record:
                     build_record.status = BuildStatus.FAILED.value
                     build_record.error_message = str(e)
+                    build_record.build_logs = log_registry.full_text(job_key)
                     build_record.updated_at = datetime.now()
                     session.commit()
                 else:
