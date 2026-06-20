@@ -168,7 +168,13 @@ location {route_prefix}/ {{
             # Step 3 deploy backend in docker with project name = expose_name
             logger.info(f"Step 3: Start docker compose with project name '{expose_name}'...")
             deploy_command = self._build_compose_command(expose_name, "up --build -d --force-recreate")
-            self._compose_execute(backend_dir, deploy_command, extra_env={"PLUGIN_ROUTE_PREFIX": f"/plugin/{expose_name}"})
+            rc = self._compose_execute(backend_dir, deploy_command, extra_env={"PLUGIN_ROUTE_PREFIX": f"/plugin/{expose_name}"})
+            if rc != 0:
+                # The compose process exited non-zero (build/start failure). Surface
+                # it as a deploy failure instead of silently reporting success.
+                raise Exception(
+                    f"docker compose up failed for project '{expose_name}' at {backend_dir} (exit code {rc})"
+                )
             return {
                 "success": True,
                 "backend_dir": str(backend_dir) if backend_dir else None,
