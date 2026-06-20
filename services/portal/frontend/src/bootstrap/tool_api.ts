@@ -14,6 +14,7 @@ import {
   ProbeSourceResponse,
 } from "@/models/types";
 import { useCheckName, fetchWithLatestBuild } from "./api_helpers";
+import { getAccessToken } from './keycloak';
 
 /** Build the optional POST body for a build trigger. Sent in camelCase —
  *  http.ts axios interceptor deep-snake_cases outgoing JSON. Empty / missing
@@ -130,7 +131,6 @@ export async function useGetToolLocalCwl(id: string): Promise<{ cwlFile: string;
 // ---------------------------------------------------------------------------
 // SSE log streaming (Phase 4)
 // ---------------------------------------------------------------------------
-import { getAccessToken } from './keycloak';
 
 const _logPath = (kind: 'build' | 'deploy', id: string) =>
   kind === 'build' ? `/api/tools/builds/${id}/logs` : `/api/tools/deploy/${id}/logs`;

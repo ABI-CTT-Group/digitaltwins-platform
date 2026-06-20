@@ -132,7 +132,7 @@ function connect() {
     props.kind,
     props.jobId,
     (l) => { lines.value.push(l); autoscroll(); },
-    (s) => { status.value = s; },
+    (s) => { status.value = s; clearInterval(timer); },
     (e) => { lines.value.push(`[stream error] ${String(e)}`); },
   );
 }
@@ -140,7 +140,7 @@ function connect() {
 watch(() => props.modelValue, (isOpen) => {
   if (isOpen) {
     status.value = props.initialStatus;
-    elapsed.value = '00:00';
+    elapsed.value = fmt(Date.now() - new Date(props.startedAt).getTime());
     connect();
     startTimer();
   } else {
