@@ -29,6 +29,23 @@ def safe_dump(d: Mapping[str, Any], **kwargs: Any) -> str:
     return json.dumps(safe, **kwargs)
 
 
+_PAT_RE = re.compile(r"\b[A-Za-z0-9_\-]{20,}\b")
+
+
+def _mask_match(m: "re.Match[str]") -> str:
+    s = m.group(0)
+    return "***" if len(s) <= 8 else f"{s[:4]}***{s[-2:]}"
+
+
+def mask_secrets(text: str) -> str:
+    """Mask PAT-shaped substrings. Shared by the log filter and the
+    live-log registry so streamed logs are masked exactly like container logs."""
+    try:
+        return _PAT_RE.sub(_mask_match, text)
+    except Exception:
+        return text
+
+
 class _PatMaskingFilter(logging.Filter):
     """Mask Personal Access Token-shaped strings in log records.
 
@@ -37,12 +54,11 @@ class _PatMaskingFilter(logging.Filter):
     the last-line-of-defense — primary defense is `safe_dump` at the call
     site, plus never passing tokens into log-bound dicts in the first place.
     """
-    _PAT_RE = re.compile(r"\b[A-Za-z0-9_\-]{20,}\b")
 
     def filter(self, record: logging.LogRecord) -> bool:
         try:
             msg = record.getMessage()
-            masked = self._PAT_RE.sub(self._mask, msg)
+            masked = mask_secrets(msg)
             if masked != msg:
                 # Replace the formatted message; clear args so handlers
                 # don't re-format and re-introduce the unmasked value.
@@ -52,13 +68,6 @@ class _PatMaskingFilter(logging.Filter):
             # Never let masking break logging — fail open on filter errors.
             pass
         return True
-
-    @staticmethod
-    def _mask(m: "re.Match[str]") -> str:
-        s = m.group(0)
-        if len(s) <= 8:
-            return "***"
-        return f"{s[:4]}***{s[-2:]}"
 
 
 def _ensure_mask_on_root_handlers() -> None:
