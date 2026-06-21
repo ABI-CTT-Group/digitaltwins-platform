@@ -53,7 +53,10 @@ class PluginBuilder:
                 args, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, bufsize=1,
             ) as proc:
-                for line in proc.stdout:
+                # iter(readline, '') instead of `for line in proc.stdout` avoids
+                # Python's iterator read-ahead, so each line surfaces as soon as
+                # the child flushes it (closer to real-time).
+                for line in iter(proc.stdout.readline, ''):
                     stripped = line.rstrip("\n")
                     captured.append(stripped)
                     logger.info(stripped)

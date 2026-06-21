@@ -103,12 +103,24 @@ const statusColor = computed(() => {
 
 // Elapsed timer — computed from startedAt ISO prop, not stream duration
 function fmt(ms: number) {
-  const s = Math.floor(ms / 1000);
+  const s = Math.max(0, Math.floor(ms / 1000));
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
+// Parse a start timestamp robustly. Backend DB timestamps (createdAt/updatedAt)
+// are serialized WITHOUT a timezone designator but are actually UTC; a bare
+// `new Date('2026-06-20T21:00:00')` would parse them as LOCAL time, throwing the
+// elapsed timer off by the viewer's UTC offset (e.g. +12h in Auckland). Treat
+// tz-less strings as UTC by appending 'Z'.
+function parseStart(s: string): number {
+  if (!s) return Date.now();
+  const hasTz = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(s.trim());
+  const t = new Date(hasTz ? s : `${s}Z`).getTime();
+  return Number.isNaN(t) ? Date.now() : t;
+}
+
 function startTimer() {
-  const t0 = new Date(props.startedAt).getTime();
+  const t0 = parseStart(props.startedAt);
   timer = window.setInterval(() => {
     if (
       status.value === 'building' ||
@@ -140,7 +152,7 @@ function connect() {
 watch(() => props.modelValue, (isOpen) => {
   if (isOpen) {
     status.value = props.initialStatus;
-    elapsed.value = fmt(Date.now() - new Date(props.startedAt).getTime());
+    elapsed.value = fmt(Date.now() - parseStart(props.startedAt));
     connect();
     startTimer();
   } else {

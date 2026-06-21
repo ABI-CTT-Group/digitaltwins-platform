@@ -144,7 +144,9 @@ location {route_prefix}/ {{
                     bufsize=1,
                     env=env,
             ) as process:
-                for line in process.stdout:
+                # iter(readline, '') avoids Python's iterator read-ahead so each
+                # compose line surfaces as soon as it's flushed (real-time).
+                for line in iter(process.stdout.readline, ''):
                     stripped = line.rstrip("\n")
                     logger.info(stripped)
                     if sink:

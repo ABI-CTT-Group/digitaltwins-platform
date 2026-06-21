@@ -16,7 +16,7 @@ from app.models.db_model import (
 from datetime import datetime
 from fastapi import BackgroundTasks
 from app.builder.logger import get_logger
-from app.builder.log_stream import log_registry
+from app.builder.log_stream import log_registry, bind_thread_job, unbind_thread_job
 
 logger = get_logger(__name__)
 
@@ -347,8 +347,14 @@ def execute_build_in_background(
                     session.commit()
 
             log_registry.open(job_key)
-            sink = lambda line: log_registry.append(job_key, line)
-            result = builder.build(data, sink=sink)
+            # Bind this background thread so EVERY log record it emits during the
+            # build (clone, vite patch, npm install/build, SPARC, MinIO upload,
+            # cleanup, errors) streams into the console — not just the subprocess.
+            bind_thread_job(job_key)
+            try:
+                result = builder.build(data)
+            finally:
+                unbind_thread_job()
             log_registry.finish(job_key, "completed" if result["success"] else "failed")
 
             with SessionLocal() as session:

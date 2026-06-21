@@ -47,7 +47,7 @@ from app.utils.builder_utils import (
     read_root_cwl,
     resolve_project_root,
 )
-from app.builder.log_stream import log_registry
+from app.builder.log_stream import log_registry, bind_thread_job, unbind_thread_job
 from uuid import UUID
 from app.utils.utils import force_rmtree, is_empty
 from fhir_cda import Annotator
@@ -593,8 +593,14 @@ async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = 
                     deploy_record.status = DeployStatus.DEPLOYING.value
                     session.commit()
             log_registry.open(job_key)
+            # Bind this thread so every deploy log record (compose up output AND
+            # the surrounding orchestration steps) streams into the console.
+            bind_thread_job(job_key)
             logger.info("Starting plugin deployment...")
-            result = deployer.deploy(plugin_dict, sink=lambda l: log_registry.append(job_key, l))
+            try:
+                result = deployer.deploy(plugin_dict)
+            finally:
+                unbind_thread_job()
             with SessionLocal() as session:
                 deploy_record = session.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()
                 if deploy_record:

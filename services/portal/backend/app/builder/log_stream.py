@@ -1,3 +1,4 @@
+import logging
 import threading
 from collections import OrderedDict, deque
 from typing import Optional
@@ -76,3 +77,53 @@ class LogStreamRegistry:
 
 
 log_registry = LogStreamRegistry()
+
+
+# ---------------------------------------------------------------------------
+# Thread-bound capture of ALL build/deploy logging into the registry.
+#
+# The build/deploy pipelines emit far more than the two npm/compose subprocess
+# streams — clone, vite-config patch, SPARC dataset creation, MinIO upload,
+# cleanup, errors — all via `logger.info(...)`. Threading an explicit sink
+# only into the subprocess calls captured a fraction of that. Instead, each
+# build/deploy runs in its own background thread; we bind that thread to a
+# job_key and attach ONE logging handler to the "app" logger. Every record
+# emitted from a bound thread (the orchestration steps AND the per-line
+# subprocess output, which is also logged) is forwarded to that job's buffer.
+# Records from unbound threads (normal request handling) are ignored.
+# ---------------------------------------------------------------------------
+_thread_jobs: "dict[int, str]" = {}
+_thread_jobs_lock = threading.Lock()
+
+
+def bind_thread_job(job_key: str) -> None:
+    """Route this thread's subsequent log records into job_key's buffer."""
+    with _thread_jobs_lock:
+        _thread_jobs[threading.get_ident()] = job_key
+
+
+def unbind_thread_job() -> None:
+    with _thread_jobs_lock:
+        _thread_jobs.pop(threading.get_ident(), None)
+
+
+class _RegistryLogHandler(logging.Handler):
+    """Forward a bound thread's log records to the live log registry."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        with _thread_jobs_lock:
+            job_key = _thread_jobs.get(record.thread)
+        if not job_key:
+            return
+        try:
+            log_registry.append(job_key, self.format(record))
+        except Exception:
+            # Never let log forwarding break the emitting code path.
+            pass
+
+
+_registry_handler = _RegistryLogHandler()
+_registry_handler.setFormatter(logging.Formatter("%(message)s"))
+# Attach to the "app" logger so every app.* record (build_tool, deploy_tool,
+# builder_utils, routers) propagates here. Root handlers still print to stdout.
+logging.getLogger("app").addHandler(_registry_handler)
