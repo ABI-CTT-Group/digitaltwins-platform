@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 from typing import Dict, Any, Optional
 from .logger import get_logger
@@ -16,6 +17,23 @@ NGINX_PLUGINS_CONF_DIR = os.environ.get(
 )
 # Container name of the portal-frontend (nginx) service for docker exec
 NGINX_CONTAINER_NAME = os.environ.get("NGINX_CONTAINER_NAME", "portal-frontend")
+
+
+def _compose_project_name(expose_name: str) -> str:
+    """Coerce an expose_name into a valid Docker Compose project name.
+
+    Compose rejects project names that aren't lowercase alphanumeric / hyphen
+    / underscore starting with a letter or number. Tools built before
+    ``unique_name`` was lowercased can have uppercase expose_names stored in
+    the DB, so we sanitize here too — used consistently for ``-p`` and for the
+    ``com.docker.compose.project`` label filters so up/down/status/delete all
+    agree on the same project name. (nginx route + MinIO path keep the raw
+    expose_name; they are case-tolerant and self-consistent.)
+    """
+    if not expose_name:
+        return expose_name
+    s = re.sub(r'[^a-z0-9_-]', '', expose_name.lower())
+    return s.lstrip('-_') or s
 
 
 class PluginDeployer:
@@ -155,7 +173,7 @@ location {route_prefix}/ {{
         action: str = "up --build -d --force-recreate",
     ) -> str:
         """Build a docker compose command with project name scoped to the plugin."""
-        return f"docker compose -p {expose_name} {action}"
+        return f"docker compose -p {_compose_project_name(expose_name)} {action}"
 
     def deploy(self, plugin: Dict[str, Any], sink=None) -> Dict[str, Any]:
 
@@ -275,8 +293,9 @@ location {route_prefix}/ {{
     def _force_remove_project_containers(self, expose_name: str) -> None:
         """Force-remove all containers belonging to a compose project by label."""
         try:
+            project = _compose_project_name(expose_name)
             result = subprocess.run(
-                ["docker", "ps", "-a", "--filter", f"label=com.docker.compose.project={expose_name}", "--quiet"],
+                ["docker", "ps", "-a", "--filter", f"label=com.docker.compose.project={project}", "--quiet"],
                 capture_output=True, text=True,
             )
             container_ids = [c.strip() for c in result.stdout.splitlines() if c.strip()]
@@ -332,17 +351,18 @@ location {route_prefix}/ {{
         """Returns 'running' if any container is up, 'stopped' if exists but stopped, 'gone' if absent."""
         if not expose_name:
             return "gone"
+        project = _compose_project_name(expose_name)
         try:
             running = subprocess.run(
                 ["docker", "ps", "--filter",
-                 f"label=com.docker.compose.project={expose_name}", "--quiet"],
+                 f"label=com.docker.compose.project={project}", "--quiet"],
                 capture_output=True, text=True, timeout=5,
             )
             if running.stdout.strip():
                 return "running"
             all_ = subprocess.run(
                 ["docker", "ps", "-a", "--filter",
-                 f"label=com.docker.compose.project={expose_name}", "--quiet"],
+                 f"label=com.docker.compose.project={project}", "--quiet"],
                 capture_output=True, text=True, timeout=5,
             )
             if all_.stdout.strip():
@@ -365,7 +385,7 @@ location {route_prefix}/ {{
             try:
                 result = subprocess.run(
                     ["docker", "ps", "-a", "--filter",
-                     f"label=com.docker.compose.project={name}", "--quiet"],
+                     f"label=com.docker.compose.project={_compose_project_name(name)}", "--quiet"],
                     capture_output=True, text=True, timeout=10,
                 )
                 ids = [c.strip() for c in result.stdout.splitlines() if c.strip()]
@@ -389,14 +409,16 @@ location {route_prefix}/ {{
             return {"removed": [], "error": str(e)}
 
     def _remove_volumes_by_prefix(self, expose_name: str) -> None:
-        """Find and remove all Docker volumes whose names start with expose_name."""
+        """Find and remove all Docker volumes whose names start with the
+        compose project name (volumes are named ``<project>_<volume>``)."""
+        project = _compose_project_name(expose_name)
         try:
             result = subprocess.run(
-                ["docker", "volume", "ls", "--filter", f"name={expose_name}", "--quiet"],
+                ["docker", "volume", "ls", "--filter", f"name={project}", "--quiet"],
                 capture_output=True,
                 text=True,
             )
-            volumes = [v.strip() for v in result.stdout.splitlines() if v.strip().startswith(expose_name)]
+            volumes = [v.strip() for v in result.stdout.splitlines() if v.strip().startswith(project)]
             if not volumes:
                 logger.info(f"No extra volumes found with prefix '{expose_name}'")
                 return

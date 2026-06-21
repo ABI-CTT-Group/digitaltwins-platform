@@ -261,8 +261,15 @@ def read_root_cwl(staging_dir: Path) -> Optional[Dict[str, str]]:
 
 
 def unique_name(name: str) -> str:
-    """Make the name unique by adding a random string to the end"""
-    clean = re.sub(r'[^a-zA-Z0-9]', '', name)
+    """Make the name unique by adding a random string to the end.
+
+    Lowercased because the result (``expose_name``) is used verbatim as the
+    ``docker compose -p <project>`` name, and Compose rejects project names
+    with uppercase letters ("must consist only of lowercase alphanumeric
+    characters, hyphens, and underscores"). Lowercasing is also safe for the
+    other uses of expose_name (MinIO path, nginx route, vite expose).
+    """
+    clean = re.sub(r'[^a-zA-Z0-9]', '', name).lower()
     return f"{clean}_{uuid.uuid4().hex[:8]}"
 
 
