@@ -39,15 +39,6 @@
     @submit="onRebuildAuthSubmit"
     @cancel="onRebuildCancel"
   />
-
-  <LogConsole
-    v-model="logConsoleOpen"
-    :kind="logKind"
-    :job-id="logJobId"
-    :title="logTitle"
-    :started-at="logStartedAt"
-    :initial-status="logInitialStatus"
-  />
 </template>
 
 <script setup lang="ts">
@@ -56,7 +47,6 @@ import { useToast } from 'vue-toastification';
 import RegistryView from '../components/RegistryView.vue';
 import ToolCard from '../components/ToolCard.vue';
 import RebuildAuthDialog from '../components/RebuildAuthDialog.vue';
-import LogConsole from '../components/LogConsole.vue';
 import {
   useWorkflowTools,
   useToolMetadata,
@@ -69,22 +59,13 @@ import type { ToolMinIOToolMetadata, ToolResponse, SourceType, TransientAuth } f
 import { useRemoteAppStore } from '@/store/remote_store';
 import { useRouter } from 'vue-router';
 import { ref } from 'vue';
+import { useLogConsole } from '@/composables/useLogConsole';
 
-// --- LogConsole state ---
-const logConsoleOpen = ref(false);
-const logKind = ref<'build' | 'deploy'>('build');
-const logJobId = ref('');
-const logTitle = ref('');
-const logStartedAt = ref('');
-const logInitialStatus = ref('');
+// Shared, app-level log console (mounted once in workflow-tool/index.vue).
+const { openConsole } = useLogConsole();
 
 function openLogConsole(kind: 'build' | 'deploy', jobId: string, title: string, initialStatus: string) {
-  logKind.value = kind;
-  logJobId.value = jobId;
-  logTitle.value = title;
-  logStartedAt.value = new Date().toISOString();
-  logInitialStatus.value = initialStatus;
-  logConsoleOpen.value = true;
+  openConsole(kind, jobId, title, initialStatus);
 }
 
 interface ViewLogsPayload {
@@ -96,12 +77,7 @@ interface ViewLogsPayload {
 }
 
 function handleViewLogs(payload: ViewLogsPayload) {
-  logKind.value = payload.kind;
-  logJobId.value = payload.jobId;
-  logTitle.value = payload.title;
-  logStartedAt.value = payload.startedAt;
-  logInitialStatus.value = payload.initialStatus;
-  logConsoleOpen.value = true;
+  openConsole(payload.kind, payload.jobId, payload.title, payload.initialStatus, payload.startedAt);
 }
 
 const router = useRouter();

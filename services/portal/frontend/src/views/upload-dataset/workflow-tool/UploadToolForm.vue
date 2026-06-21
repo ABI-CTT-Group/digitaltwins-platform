@@ -78,8 +78,10 @@ import BaseCompleteStep from '../components/BaseCompleteStep.vue';
 import BaseAnnotateStep from '../components/BaseAnnotateStep.vue';
 import type { ToolResponse, BaseInformationStep as BaseInfoStepType, AnnotateTool, TransientAuth} from '@/models/types';
 import { useCreateTool, useWorkflowToolBuild, useCreateToolAnnotation } from '@/bootstrap/tool_api'
+import { useLogConsole } from '@/composables/useLogConsole';
 import { ref, watch } from "vue";
 
+const { openConsole } = useLogConsole();
 const emit = defineEmits(['finished'])
 const step = ref(0);
 const tool = ref<ToolResponse>()
@@ -105,8 +107,11 @@ const handleAnnotation = async (id:string, data:AnnotateTool) =>{
 }
 
 const handleBuild = async (id:string)=>{
-    await useWorkflowToolBuild(id, pendingAuth.value)
+    const res = await useWorkflowToolBuild(id, pendingAuth.value)
     pendingAuth.value = undefined  // single-use; rebuild will re-prompt
+    // Open the live log console for this first build so the user sees the
+    // npm install/build stream immediately (the hub view isn't mounted yet).
+    openConsole('build', res.buildId, tool.value?.name ?? id, 'building')
     step.value += 1;
 }
 
