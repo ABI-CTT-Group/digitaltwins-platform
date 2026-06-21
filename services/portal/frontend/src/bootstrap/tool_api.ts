@@ -73,6 +73,9 @@ export async function useWorkflowTools(): Promise<ToolResponse[]> {
           return {
             deployStatus: latestDeploy.status,
             latestDeployId: latestDeploy.deployId,
+            // start/end so the log console can show deploy DURATION on reopen
+            latestDeployCreatedAt: latestDeploy.createdAt,
+            latestDeployUpdatedAt: latestDeploy.updatedAt,
           } as Partial<ToolResponse>;
         }
       } catch (err) {

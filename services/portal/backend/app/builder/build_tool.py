@@ -18,6 +18,7 @@ from app.client.minio import get_minio_client
 from sqlalchemy.orm import Session
 from app.models.db_model import Plugin, SessionLocal
 from app.builder.source_acquirer import SourceAcquirer, SourceSpec
+from app.builder.proc_stream import stream_process
 from app.utils.builder_utils import (
     copy_item,
     remove_tmp_folder,
@@ -45,35 +46,30 @@ class PluginBuilder:
         return package_json.exists()
 
     def _run_streaming(self, args, cwd, sink=None) -> Dict[str, Any]:
-        """Run a child process, streaming stdout+stderr line-by-line to logger
-        (and optional sink). Returns the same shape as the old subprocess.run path."""
+        """Run a child process under a PTY (POSIX) so npm/vite stream live,
+        forwarding each line to the logger (captured by the live-log registry).
+        Returns the same shape as the old subprocess.run path."""
         captured: list[str] = []
+
+        def on_line(line: str) -> None:
+            captured.append(line)
+            logger.info(line)
+            if sink:
+                try:
+                    sink(line)
+                except Exception:
+                    pass
+
         try:
-            with subprocess.Popen(
-                args, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, bufsize=1,
-            ) as proc:
-                # iter(readline, '') instead of `for line in proc.stdout` avoids
-                # Python's iterator read-ahead, so each line surfaces as soon as
-                # the child flushes it (closer to real-time).
-                for line in iter(proc.stdout.readline, ''):
-                    stripped = line.rstrip("\n")
-                    captured.append(stripped)
-                    logger.info(stripped)
-                    if sink:
-                        try:
-                            sink(stripped)
-                        except Exception:
-                            pass
-                rc = proc.wait()
-            out = "\n".join(captured)
-            if rc == 0:
-                return {"success": True, "stdout": out, "stderr": ""}
-            return {"success": False, "stdout": out, "stderr": out,
-                    "error": f"exited with code {rc}"}
+            rc = stream_process(args, cwd=cwd, on_line=on_line)
         except FileNotFoundError as e:
             logger.error(f"executable not found: {e}")
             return {"success": False, "stdout": "", "stderr": str(e), "error": str(e)}
+        out = "\n".join(captured)
+        if rc == 0:
+            return {"success": True, "stdout": out, "stderr": ""}
+        return {"success": False, "stdout": out, "stderr": out,
+                "error": f"exited with code {rc}"}
 
     def frontend_install(self, project_dir: Path, sink=None) -> Dict[str, Any]:
         """Run npm install in the project directory"""

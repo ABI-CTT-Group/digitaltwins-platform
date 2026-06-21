@@ -72,6 +72,9 @@ const props = defineProps<{
   jobId: string;
   title: string;
   startedAt: string;
+  /** Finish time — present only for an already-finished job; makes the timer
+   *  show the frozen duration (end - start) instead of "time since". */
+  endedAt?: string;
   initialStatus: string;
 }>();
 
@@ -119,16 +122,29 @@ function parseStart(s: string): number {
   return Number.isNaN(t) ? Date.now() : t;
 }
 
-function startTimer() {
+const isActive = (s: string) =>
+  s === 'building' || s === 'deploying' || s === 'pending';
+
+// Set the displayed elapsed value. For a finished job opened with a known end
+// time, show the frozen DURATION (end - start). Otherwise show wall-clock time
+// since start (live).
+function refreshElapsed() {
   const t0 = parseStart(props.startedAt);
+  if (!isActive(status.value) && props.endedAt) {
+    elapsed.value = fmt(parseStart(props.endedAt) - t0);
+  } else {
+    elapsed.value = fmt(Date.now() - t0);
+  }
+}
+
+function startTimer() {
+  // Reopened on an already-finished job → duration is fixed, no ticking.
+  if (!isActive(status.value)) {
+    refreshElapsed();
+    return;
+  }
   timer = window.setInterval(() => {
-    if (
-      status.value === 'building' ||
-      status.value === 'deploying' ||
-      status.value === 'pending'
-    ) {
-      elapsed.value = fmt(Date.now() - t0);
-    }
+    if (isActive(status.value)) refreshElapsed();
   }, 1000);
 }
 
@@ -152,7 +168,7 @@ function connect() {
 watch(() => props.modelValue, (isOpen) => {
   if (isOpen) {
     status.value = props.initialStatus;
-    elapsed.value = fmt(Date.now() - parseStart(props.startedAt));
+    refreshElapsed();
     connect();
     startTimer();
   } else {

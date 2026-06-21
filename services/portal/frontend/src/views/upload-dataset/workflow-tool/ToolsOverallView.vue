@@ -73,11 +73,12 @@ interface ViewLogsPayload {
   jobId: string;
   title: string;
   startedAt: string;
+  endedAt?: string;
   initialStatus: string;
 }
 
 function handleViewLogs(payload: ViewLogsPayload) {
-  openConsole(payload.kind, payload.jobId, payload.title, payload.initialStatus, payload.startedAt);
+  openConsole(payload.kind, payload.jobId, payload.title, payload.initialStatus, payload.startedAt, payload.endedAt);
 }
 
 const router = useRouter();

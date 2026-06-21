@@ -110,24 +110,33 @@ const menuItems = computed<UCardMenuItem[]>(() => {
   return items
 })
 
+const isTerminal = (s?: string) => s === 'completed' || s === 'failed'
+
 const onViewLogs = () => {
   const t = tool.value
-  // Prefer the latest deploy if it exists, otherwise fall back to latest build
+  // Prefer the latest deploy if it exists, otherwise fall back to latest build.
+  // startedAt = the job's real start (createdAt); endedAt = its finish time, set
+  // ONLY for terminal jobs so the console freezes on the actual DURATION rather
+  // than ticking "time since it finished".
   if (t.latestDeployId) {
+    const st = t.deployStatus ?? 'completed'
     emit('view-logs', {
       kind: 'deploy',
       jobId: t.latestDeployId,
       title: t.name,
-      startedAt: t.updatedAt ?? new Date().toISOString(),
-      initialStatus: t.deployStatus ?? 'completed',
+      startedAt: t.latestDeployCreatedAt ?? t.updatedAt ?? new Date().toISOString(),
+      endedAt: isTerminal(st) ? t.latestDeployUpdatedAt : undefined,
+      initialStatus: st,
     })
   } else if (t.latestBuildId) {
+    const st = t.status ?? 'completed'
     emit('view-logs', {
       kind: 'build',
       jobId: t.latestBuildId,
       title: t.name,
-      startedAt: t.updatedAt ?? new Date().toISOString(),
-      initialStatus: t.status ?? 'completed',
+      startedAt: t.latestBuildCreatedAt ?? t.updatedAt ?? new Date().toISOString(),
+      endedAt: isTerminal(st) ? t.latestBuildUpdatedAt : undefined,
+      initialStatus: st,
     })
   }
 }

@@ -6,6 +6,7 @@ from .logger import get_logger
 import subprocess
 import shlex
 from app.client.minio import get_minio_client
+from app.builder.proc_stream import stream_process
 from sqlalchemy.orm import Session
 from app.models.db_model import Plugin, SessionLocal
 
@@ -129,38 +130,30 @@ location {route_prefix}/ {{
 
     @staticmethod
     def _compose_execute(backend_dir: Path, command: str, extra_env: dict = None, sink=None) -> int:
-        """Run a docker compose command. Returns the process exit code (0 = success)."""
+        """Run a docker compose command under a PTY (POSIX) so its build/pull
+        output streams live. Returns the process exit code (0 = success)."""
         try:
             logger.info(f"Running command {command} for deployment of {backend_dir}")
             env = os.environ.copy()
             if extra_env:
                 env.update(extra_env)
-            with subprocess.Popen(
-                    shlex.split(command),
-                    cwd=backend_dir,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1,
-                    env=env,
-            ) as process:
-                # iter(readline, '') avoids Python's iterator read-ahead so each
-                # compose line surfaces as soon as it's flushed (real-time).
-                for line in iter(process.stdout.readline, ''):
-                    stripped = line.rstrip("\n")
-                    logger.info(stripped)
-                    if sink:
-                        try:
-                            sink(stripped)
-                        except Exception:
-                            pass
 
-                return_code = process.wait()
-                if return_code == 0:
-                    logger.info("Docker compose command executed successfully.")
-                else:
-                    logger.error(f"Docker compose command failed with return code: {return_code}")
-                return return_code
+            def on_line(line: str) -> None:
+                logger.info(line)
+                if sink:
+                    try:
+                        sink(line)
+                    except Exception:
+                        pass
+
+            return_code = stream_process(
+                shlex.split(command), cwd=backend_dir, env=env, on_line=on_line
+            )
+            if return_code == 0:
+                logger.info("Docker compose command executed successfully.")
+            else:
+                logger.error(f"Docker compose command failed with return code: {return_code}")
+            return return_code
 
         except FileNotFoundError as e:
             logger.error(f"Docker or Docker Compose has not been installed or configured correctly. Error: {e}")

@@ -19,6 +19,7 @@
                 :job-id="logConsole.jobId.value"
                 :title="logConsole.title.value"
                 :started-at="logConsole.startedAt.value"
+                :ended-at="logConsole.endedAt.value"
                 :initial-status="logConsole.initialStatus.value"
             />
         </div>

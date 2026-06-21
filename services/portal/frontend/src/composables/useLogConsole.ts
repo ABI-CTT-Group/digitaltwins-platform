@@ -17,13 +17,18 @@ const kind = ref<'build' | 'deploy'>('build');
 const jobId = ref('');
 const title = ref('');
 const startedAt = ref('');
+const endedAt = ref<string | undefined>(undefined);
 const initialStatus = ref('');
 
 export function useLogConsole() {
   /**
    * Open the console for a build/deploy job.
    * @param startedAtIso optional ISO start time (for reopening an existing
-   *   job); omit for a freshly-triggered job to start the timer from now.
+   *   job, pass its createdAt); omit for a freshly-triggered job to start the
+   *   timer from now.
+   * @param endedAtIso optional ISO finish time — pass ONLY for an already-
+   *   finished job so the timer shows the frozen duration (end - start) instead
+   *   of ticking "time since it finished".
    */
   function openConsole(
     k: 'build' | 'deploy',
@@ -31,15 +36,17 @@ export function useLogConsole() {
     t: string,
     status: string,
     startedAtIso?: string,
+    endedAtIso?: string,
   ) {
     if (!id) return; // never open against an empty job id (would 404 the SSE)
     kind.value = k;
     jobId.value = id;
     title.value = t;
     startedAt.value = startedAtIso ?? new Date().toISOString();
+    endedAt.value = endedAtIso;
     initialStatus.value = status;
     open.value = true;
   }
 
-  return { open, kind, jobId, title, startedAt, initialStatus, openConsole };
+  return { open, kind, jobId, title, startedAt, endedAt, initialStatus, openConsole };
 }
