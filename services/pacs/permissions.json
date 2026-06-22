@@ -1,13 +1,14 @@
 {
   "roles": {
     "admin": {
-      "authorized-labels": ["*"],
       "permissions": [
         "all"
+      ],
+      "authorized-labels": [
+        "*"
       ]
     },
     "clinician": {
-      "authorized-labels": ["*"],
       "permissions": [
         "view",
         "download",
@@ -18,7 +19,6 @@
       ]
     },
     "researcher": {
-      "authorized-labels": ["*"],
       "permissions": [
         "view",
         "download"

@@ -47,5 +47,6 @@
       "orthanc-explorer-2"
     ],
     "CheckedLevel": "studies"
-  }
+  },
+  "RestApiWriteToFileSystemEnabled": true
 }
