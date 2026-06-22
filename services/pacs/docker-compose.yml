@@ -11,8 +11,8 @@ services:
     volumes:
       - ./orthanc.json:/etc/orthanc/orthanc.json:ro
       - orthanc_data:/var/lib/orthanc/db
-#      Deidentification script. changing the script will require the orthanc.json to be updated accordingly
-#      - ./scripts/on_received_instance.py:/etc/orthanc/on_received_instance.py:ro
+      #      Deidentification script. changing the script will require the orthanc.json to be updated accordingly
+      #      - ./scripts/on_received_instance_legacy.py:/etc/orthanc/on_received_instance_legacy.py:ro
       - ./scripts/deidentification.py:/etc/orthanc/deidentification.py:ro
     environment:
       - ORTHANC_AET=${ORTHANC_AET}
