@@ -44,8 +44,10 @@
     "WebServicePassword": "${ORTHANC_AUTH_SERVICE_PASSWORD}",
     "StandardConfigurations": [
       "orthanc",
-      "orthanc-explorer-2"
+      "orthanc-explorer-2",
+      "stone-webviewer"
     ],
+    "UncheckedFolders": [],
     "CheckedLevel": "studies"
   },
   "RestApiWriteToFileSystemEnabled": true
