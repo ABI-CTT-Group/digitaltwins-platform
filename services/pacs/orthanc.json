@@ -43,6 +43,7 @@
     "WebServiceUsername": "orthanc-auth-user",
     "WebServicePassword": "${ORTHANC_AUTH_SERVICE_PASSWORD}",
     "StandardConfigurations": [
+      "orthanc",
       "orthanc-explorer-2"
     ],
     "CheckedLevel": "studies"
