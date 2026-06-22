@@ -3,8 +3,14 @@
   "RemoteAccessAllowed": true,
   "AuthenticationEnabled": false,
   "UserContentType": {
-    "clinicalRecords": [1025, "text/csv"],
-    "accessionNumbers": [1026, "text/plain"]
+    "clinicalRecords": [
+      1025,
+      "text/csv"
+    ],
+    "accessionNumbers": [
+      1026,
+      "text/plain"
+    ]
   },
   "DicomAet": "${ORTHANC_AET}",
   "DicomPort": 4242,
@@ -37,8 +43,10 @@
     "WebServiceUsername": "orthanc-auth-user",
     "WebServicePassword": "${ORTHANC_AUTH_SERVICE_PASSWORD}",
     "StandardConfigurations": [
+      "orthanc",
       "orthanc-explorer-2"
     ],
     "CheckedLevel": "studies"
-  }
+  },
+  "RestApiWriteToFileSystemEnabled": true
 }

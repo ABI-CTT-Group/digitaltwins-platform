@@ -11,8 +11,8 @@ services:
     volumes:
       - ./orthanc.json:/etc/orthanc/orthanc.json:ro
       - orthanc_data:/var/lib/orthanc/db
-#      Deidentification script. changing the script will require the orthanc.json to be updated accordingly
-#      - ./scripts/on_received_instance.py:/etc/orthanc/on_received_instance.py:ro
+      #      Deidentification script. changing the script will require the orthanc.json to be updated accordingly
+      #      - ./scripts/on_received_instance_legacy.py:/etc/orthanc/on_received_instance_legacy.py:ro
       - ./scripts/deidentification.py:/etc/orthanc/deidentification.py:ro
     environment:
       - ORTHANC_AET=${ORTHANC_AET}
@@ -29,7 +29,7 @@ services:
       orthanc-auth-service:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8042/ui/app/"]
+      test: [ "CMD-SHELL", "wget -q -O /dev/null http://localhost:8042/ui/app/" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -53,6 +53,7 @@ services:
       PUBLIC_ORTHANC_ROOT: "http://localhost:${ORTHANC_HTTP_PORT:-8042}/"
       PUBLIC_LANDING_ROOT: "http://localhost:${ORTHANC_HTTP_PORT:-8042}/ui/app/token-landing.html"
       PERMISSIONS_FILE_PATH: "/orthanc_auth_service/permissions.json"
+#      AUTHZ_UNCHECKED_RESOURCES: "^/patients/(.*)/attachments/(.*)$|^/instances/(.*)/file$"
       USERS: |
         {
           "orthanc-auth-user": "${ORTHANC_AUTH_SERVICE_PASSWORD}"

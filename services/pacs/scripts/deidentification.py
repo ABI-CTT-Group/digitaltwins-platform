@@ -22,6 +22,10 @@ Dependencies (add to your Docker image / pip install):
 import orthanc
 from io import BytesIO
 from pydicom import dcmread
+
+# PROVE SCRIPT IS RUNNING
+with open("/tmp/orthanc_plugin_running.txt", "w") as f:
+    f.write("Plugin loaded!")
 from pydicom.filebase import DicomFileLike
 from pydicom import dcmwrite
 
@@ -44,6 +48,7 @@ TAGS_TO_KEEP = {
     (0x0010, 0x1010): keep,  # Patient's Age
     (0x0010, 0x1030): keep,  # Patient's Weight
     (0x0010, 0x1020): keep,  # Patient's Size
+    (0x0042, 0x0011): keep,  # Encapsulated Document (fixes dicom-anonymizer crash on VR 'OB')
 }
 
 # Remove manufacturer-specific private tags (recommended for HIPAA compliance).
@@ -84,6 +89,12 @@ def ReceivedInstanceCallback(receivedDicom, origin):
     try:
         dataset = dcmread(BytesIO(receivedDicom))
 
+        # Skip anonymization for our Encapsulated Documents (Modality DOC)
+        # because dicom-anonymizer crashes on VR OB tags like EncapsulatedDocument.
+        if dataset.get("Modality", "") == "DOC":
+            orthanc.LogWarning("[de-id] Skipping anonymization for encapsulated document.")
+            return orthanc.ReceivedInstanceAction.MODIFY, write_dataset_to_bytes(dataset)
+
         # Apply the DICOM standard anonymization profile with custom overrides.
         # extra_anonymization_rules is merged AFTER the base profile, so any
         # tag listed in TAGS_TO_KEEP will be processed with `keep` (no-op),
@@ -101,8 +112,12 @@ def ReceivedInstanceCallback(receivedDicom, origin):
         return orthanc.ReceivedInstanceAction.MODIFY, write_dataset_to_bytes(dataset)
 
     except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        for line in tb.split('\n'):
+            orthanc.LogError(f"[de-id] traceback: {line}")
         orthanc.LogError(
-            "[de-id] FAILED — discarding instance to prevent PHI storage: %s" % str(e)
+            f"[de-id] FAILED — discarding instance to prevent PHI storage: {str(e)}"
         )
         return orthanc.ReceivedInstanceAction.DISCARD, None
 
