@@ -61,10 +61,10 @@ include:
   - path:
       - services/api/digitaltwins-api/docker-compose.yml
     project_directory: services/api/digitaltwins-api
-  # JupyterLab
-  - path:
-      - services/jupyterlab/docker-compose.yml
-    project_directory: services/jupyterlab
+  #  # JupyterLab
+  #  - path:
+  #      - services/jupyterlab/docker-compose.yml
+  #    project_directory: services/jupyterlab
   # JupyterHub
   - path:
       - services/jupyterhub/docker-compose.yml
