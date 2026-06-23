@@ -3,7 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: digitaltwins-orthanc
     init: true
     ports:
       - "${ORTHANC_HTTP_PORT:-8042}:8042" # Web UI and REST API
@@ -29,7 +28,7 @@ services:
       orthanc-auth-service:
         condition: service_started
     healthcheck:
-      test: [ "CMD-SHELL", "wget -q -O /dev/null http://localhost:8042/ui/app/" ]
+      test: [ "CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8042/ui/app/\")'" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -40,7 +39,6 @@ services:
 
   orthanc-auth-service:
     image: orthancteam/orthanc-auth-service:26.4.0
-    container_name: digitaltwins-orthanc-auth
     volumes:
       - ./permissions.json:/orthanc_auth_service/permissions.json:ro
     environment:
