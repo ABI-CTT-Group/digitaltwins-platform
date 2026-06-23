@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: digitaltwins-platform-jupyterhub
     ports:
-      - "${JUPYTERHUB_PORT:-8016}:8000"
+      - "${JUPYTERHUB_PORT:-8008}:8000"
     volumes:
       - ./jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro
       - /var/run/docker.sock:/var/run/docker.sock:rw
