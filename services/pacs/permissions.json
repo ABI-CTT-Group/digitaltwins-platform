@@ -16,12 +16,18 @@
         "send",
         "share",
         "q-r-remote-modalities"
+      ],
+      "authorized-labels": [
+        "*"
       ]
     },
     "researcher": {
       "permissions": [
         "view",
         "download"
+      ],
+      "authorized-labels": [
+        "*"
       ]
     }
   },
