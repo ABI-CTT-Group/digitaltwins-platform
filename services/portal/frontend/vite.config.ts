@@ -40,28 +40,21 @@ export default defineConfig({
       // Compress shader by default using logic from rollup-plugin-glsl
       compress: true,
     }),
-    // PWA — installable DigitalTWINS Portal with an app-shell-only service
-    // worker. The SW precaches ONLY the built static shell (JS/CSS/fonts/icons).
-    // Everything dynamic in this portal — Keycloak auth, the streaming /api,
-    // the runtime /plugin UMD bundles, the public /tools (MinIO) bucket and the
-    // /minio-console — must never be served stale, so they are kept network-only
-    // (not precached) and excluded from the SPA navigation fallback below.
+    // PWA — keeps the DigitalTWINS Portal installable / full-screen
+    // (standalone display) via the web app manifest below, but the service
+    // worker does NO caching. It precaches nothing and serves every request
+    // network-only, so a plain browser refresh after a redeploy always loads
+    // the freshest code — no "empty cache and hard refresh" needed. The SW
+    // exists only to satisfy the browser installability criteria.
     VitePWA({
       registerType: "autoUpdate",
       injectRegister: "auto",
       // Don't run the SW under `vite dev` — it would interfere with the
       // Keycloak redirect/iframe flow and hot reload.
       devOptions: { enabled: false },
-      includeAssets: [
-        "favicon.ico",
-        "digitaltwins-mark.svg",
-        "digitaltwins-icon.svg",
-        "digitaltwins-maskable.svg",
-        "apple-touch-icon.png",
-        "pwa-192x192.png",
-        "pwa-512x512.png",
-        "pwa-maskable-512x512.png",
-      ],
+      // No `includeAssets` — we don't want the SW precaching icons/fonts
+      // either. The icons referenced by the manifest below live in public/
+      // and are served over the network; they don't need to be cached.
       manifest: {
         id: "/",
         name: "DigitalTWINS Portal",
@@ -93,32 +86,25 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Precache the built app shell only (code + styles + fonts + icons).
-        // Bundled raster content (the large hashed assets/*.png screenshots) is
-        // deliberately excluded — those load over the network when online and
-        // would bloat the SW install. The small PWA icon PNGs are precached via
-        // `includeAssets` above instead.
-        globPatterns: ["**/*.{js,css,html,woff,woff2,ttf,svg}"],
-        // Keep heavy/static public assets out of the precache.
-        globIgnores: ["**/*.pdf", "pdfjs/**", "eps/**", "plugins/**"],
-        // The main bundle is ~2.2 MiB; raise the cap so the shell precaches.
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-        // SPA fallback for client-side routes, but NEVER hijack portal routes
-        // that nginx proxies to the backend / MinIO, the Keycloak SSO iframe,
-        // or any file request with an extension.
-        navigateFallback: "index.html",
-        navigateFallbackDenylist: [
-          /^\/api(\/|$)/,
-          /^\/plugin(\/|$)/,
-          /^\/tools(\/|$)/,
-          /^\/minio-console(\/|$)/,
-          /^\/realms(\/|$)/,
-          /silent-check-sso\.html$/,
-          /\/[^/?]+\.[^/]+$/,
-        ],
+        // Precache NOTHING — we never want the SW to serve a stale asset.
+        globPatterns: [],
+        // No SW-side SPA navigation fallback; nginx already does try_files,
+        // and a fallback would risk serving a cached shell.
+        navigateFallback: null,
+        // Wipe any precache left behind by the previous caching service
+        // worker so returning clients are cleaned up automatically.
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
+        // Every request goes straight to the network and is never stored.
+        // This keeps a fetch handler present (required for installability)
+        // while guaranteeing zero caching.
+        runtimeCaching: [
+          {
+            urlPattern: /.*/,
+            handler: "NetworkOnly",
+          },
+        ],
       },
     }),
   ],

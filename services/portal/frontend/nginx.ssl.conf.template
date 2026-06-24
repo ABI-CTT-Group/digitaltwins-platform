@@ -29,9 +29,13 @@ server {
     root   /usr/share/nginx/html;
     index  index.html index.htm;
 
-    # SPA Routing Fallback
+    # SPA Routing Fallback. The HTML entry point must never be cached so a
+    # plain browser refresh always picks up the newest content-hashed bundles
+    # after a redeploy (the hashed files under /assets/ keep their long-lived
+    # immutable cache below — their names change every build).
     location / {
         try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache";
     }
 
     # Static File Caching
