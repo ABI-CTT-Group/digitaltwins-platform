@@ -186,8 +186,7 @@ Edit `./services/seek/ldh-deployment/docker-compose.env` and replace `<root-pass
 ## 6. Build all images
 
 ```bash
-sudo docker compose -f services/jupyterhub/docker-compose.yml --env-file ./.env --profile build build
-sudo docker compose -f services/jupyterhub/docker-compose.yml --env-file ./.env build
+sudo docker compose build
 ```
 
 ## 7. Launch the Entire Platform
