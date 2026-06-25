@@ -1,20 +1,23 @@
 services:
-  orthanc:
+  orthanc-1:
     build:
       context: .
       dockerfile: Dockerfile
     init: true
     ports:
-      - "${ORTHANC_HTTP_PORT:-8042}:8042" # Web UI and REST API
-      - "${ORTHANC_DICOM_PORT:-4242}:4242" # DICOM protocol
+      - "${ORTHANC_1_HTTP_PORT:-8042}:8042" # Web UI and REST API
+      - "${ORTHANC_1_DICOM_PORT:-4242}:4242" # DICOM protocol
     volumes:
       - ./orthanc.json:/etc/orthanc/orthanc.json:ro
-      - orthanc_data:/var/lib/orthanc/db
+      - orthanc_1_data:/var/lib/orthanc/db
       #      Deidentification script. changing the script will require the orthanc.json to be updated accordingly
       #      - ./scripts/on_received_instance_legacy.py:/etc/orthanc/on_received_instance_legacy.py:ro
       - ./scripts/deidentification.py:/etc/orthanc/deidentification.py:ro
     environment:
-      - ORTHANC_AET=${ORTHANC_AET}
+      - ORTHANC_AET=${ORTHANC_1_AET}
+      - PEER_AET=${ORTHANC_2_AET}
+      - PEER_HOST=orthanc-2
+      - ORTHANC_AUTH_SERVICE_HOST=orthanc-auth-service-1
       # Enable bundled plugins
       - PYTHON_PLUGIN_ENABLED=true
       - AUTHORIZATION_PLUGIN_ENABLED=true
@@ -25,7 +28,7 @@ services:
       - ORTHANC_KEYCLOAK_URL=${ORTHANC_KEYCLOAK_URL}
       - ORTHANC_AUTH_SERVICE_PASSWORD=${ORTHANC_AUTH_SERVICE_PASSWORD}
     depends_on:
-      orthanc-auth-service:
+      orthanc-auth-service-1:
         condition: service_started
     healthcheck:
       test: [ "CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8042/ui/app/\")'" ]
@@ -37,7 +40,46 @@ services:
     networks:
       - digitaltwins
 
-  orthanc-auth-service:
+  orthanc-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    ports:
+      - "${ORTHANC_2_HTTP_PORT:-8042}:8042" # Web UI and REST API
+      - "${ORTHANC_2_DICOM_PORT:-4242}:4242" # DICOM protocol
+    volumes:
+      - ./orthanc.json:/etc/orthanc/orthanc.json:ro
+      - orthanc_2_data:/var/lib/orthanc/db
+      - ./scripts/deidentification.py:/etc/orthanc/deidentification.py:ro
+    environment:
+      - ORTHANC_AET=${ORTHANC_2_AET}
+      - PEER_AET=${ORTHANC_1_AET}
+      - PEER_HOST=orthanc-1
+      - ORTHANC_AUTH_SERVICE_HOST=orthanc-auth-service-2
+      # Enable bundled plugins
+      - PYTHON_PLUGIN_ENABLED=true
+      - AUTHORIZATION_PLUGIN_ENABLED=true
+      - DICOM_WEB_PLUGIN_ENABLED=true
+      - ORTHANC_EXPLORER_2_ENABLED=true
+      - STONE_WEB_VIEWER_PLUGIN_ENABLED=true
+      # Keycloak / auth-service env vars (substituted into orthanc.json)
+      - ORTHANC_KEYCLOAK_URL=${ORTHANC_KEYCLOAK_URL}
+      - ORTHANC_AUTH_SERVICE_PASSWORD=${ORTHANC_AUTH_SERVICE_PASSWORD}
+    depends_on:
+      orthanc-auth-service-2:
+        condition: service_started
+    healthcheck:
+      test: [ "CMD-SHELL", "python3 -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8042/ui/app/\")'" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - digitaltwins
+
+  orthanc-auth-service-1:
     image: orthancteam/orthanc-auth-service:26.4.0
     volumes:
       - ./permissions.json:/orthanc_auth_service/permissions.json:ro
@@ -48,10 +90,31 @@ services:
       KEYCLOAK_ADMIN_URI: "http://keycloak:8080/admin/realms/digitaltwins/"
       KEYCLOAK_REALM: "digitaltwins"
       KEYCLOAK_CLIENT_SECRET: "${ORTHANC_KEYCLOAK_CLIENT_SECRET}"
-      PUBLIC_ORTHANC_ROOT: "http://localhost:${ORTHANC_HTTP_PORT:-8042}/"
-      PUBLIC_LANDING_ROOT: "http://localhost:${ORTHANC_HTTP_PORT:-8042}/ui/app/token-landing.html"
+      PUBLIC_ORTHANC_ROOT: "http://localhost:${ORTHANC_1_HTTP_PORT:-8042}/"
+      PUBLIC_LANDING_ROOT: "http://localhost:${ORTHANC_1_HTTP_PORT:-8042}/ui/app/token-landing.html"
       PERMISSIONS_FILE_PATH: "/orthanc_auth_service/permissions.json"
-      #      AUTHZ_UNCHECKED_RESOURCES: "^/patients/(.*)/attachments/(.*)$|^/instances/(.*)/file$"
+      USERS: |
+        {
+          "orthanc-auth-user": "${ORTHANC_AUTH_SERVICE_PASSWORD}"
+        }
+    restart: unless-stopped
+    networks:
+      - digitaltwins
+
+  orthanc-auth-service-2:
+    image: orthancteam/orthanc-auth-service:26.4.0
+    volumes:
+      - ./permissions.json:/orthanc_auth_service/permissions.json:ro
+    environment:
+      SECRET_KEY: "${ORTHANC_AUTH_SECRET_KEY}"
+      ENABLE_KEYCLOAK: "true"
+      KEYCLOAK_URI: "http://keycloak:8080/realms/digitaltwins/"
+      KEYCLOAK_ADMIN_URI: "http://keycloak:8080/admin/realms/digitaltwins/"
+      KEYCLOAK_REALM: "digitaltwins"
+      KEYCLOAK_CLIENT_SECRET: "${ORTHANC_KEYCLOAK_CLIENT_SECRET}"
+      PUBLIC_ORTHANC_ROOT: "http://localhost:${ORTHANC_2_HTTP_PORT:-8042}/"
+      PUBLIC_LANDING_ROOT: "http://localhost:${ORTHANC_2_HTTP_PORT:-8042}/ui/app/token-landing.html"
+      PERMISSIONS_FILE_PATH: "/orthanc_auth_service/permissions.json"
       USERS: |
         {
           "orthanc-auth-user": "${ORTHANC_AUTH_SERVICE_PASSWORD}"
@@ -61,7 +124,9 @@ services:
       - digitaltwins
 
 volumes:
-  orthanc_data:
+  orthanc_1_data:
+    driver: local
+  orthanc_2_data:
     driver: local
 
 networks:
