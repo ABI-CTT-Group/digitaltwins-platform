@@ -32,8 +32,6 @@ services:
     command: [ "echo", "Image built successfully" ]
     networks:
       - digitaltwins
-    profiles:
-      - build
 
 volumes:
   jupyterhub_data:
