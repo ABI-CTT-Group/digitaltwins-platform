@@ -38,6 +38,14 @@ Set the following variables in your new `.env` file:
     > [!TIP]
     > Run `echo $(id -u)` to find your user ID, then update the `AIRFLOW_UID` variable in your `.env` file with this ID.
 
+- **JupyterHub**
+  - `JUPYTERHUB_CRYPT_KEY`: YOUR_JUPYTERHUB_CRYPT_KEY_HERE
+    > [!TIP]
+    > Generate a secure random key using the following command:
+    > ```bash
+    > openssl rand -base64 32
+    > ```
+
 ### 2.2 SEEK Configuration
 
 Copy the SEEK deployment configuration template:
