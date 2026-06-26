@@ -61,6 +61,41 @@ The `jupyterhub` client must be present in the realm with:
 - Redirect URI: `https://${PLATFORM_DOMAIN}/jupyterhub/hub/oauth_callback`
 - A `groups` protocol mapper so group membership is included in the userinfo response
 
+## Access control
+
+Only users in the `JUPYTERHUB_ALLOWED_GROUPS` groups (default: `admin,researcher`) can log in. Clinicians and other roles are intentionally excluded.
+
+If a user logs in with an account that doesn't have access, they will receive a 403 with no logout option on the page. To escape, navigate directly to:
+
+```
+https://<PLATFORM_DOMAIN>/jupyterhub/hub/logout
+```
+
+This clears both the JupyterHub session and the Keycloak SSO session.
+
+## Orthanc Explorer 2 proxy
+
+Orthanc Explorer 2 serves its assets at paths like `/ui/assets/...`, not just `/ui/app/`. The nginx block must cover the entire `/ui/` subtree:
+
+```nginx
+location /ui/ {
+    proxy_pass http://digitaltwins-orthanc:8042/ui/;
+    ...
+}
+```
+
+Using `/ui/app/` alone causes a black screen because the browser fetches `/ui/assets/...` and gets a 404 from nginx.
+
+### Keycloak redirect URI for Orthanc
+
+The orthanc Keycloak client must include a wildcard redirect URI:
+
+```
+https://<PLATFORM_DOMAIN>/ui/app/*
+```
+
+Without this, Keycloak rejects the OIDC callback with `Invalid parameter: redirect_uri`.
+
 ## Env vars (add to `.env`)
 | Variable | Example | Notes |
 |---|---|---|

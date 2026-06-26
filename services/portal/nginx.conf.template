@@ -133,8 +133,9 @@ server {
         proxy_set_header Connection "upgrade";
     }
 
-    location /ui/app/ {
-        proxy_pass http://digitaltwins-orthanc:8042/ui/app/;
+    # Orthanc Explorer 2 — proxied at the same path it serves from
+    location /ui/ {
+        proxy_pass http://digitaltwins-orthanc:8042/ui/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
