@@ -7,5 +7,9 @@ mc mb --ignore-existing digitaltwins/workflow
 mc mb --ignore-existing digitaltwins/tool
 mc mb --ignore-existing digitaltwins/process
 mc mb --ignore-existing digitaltwins/airflow-workspace
+
+# Set Public Access Policy
+mc anonymous set public digitaltwins/tool
+
 echo 'Buckets created successfully'
 exit 0
