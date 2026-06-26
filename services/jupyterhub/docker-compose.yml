@@ -45,10 +45,6 @@ volumes:
   jupyterhub_data:
     driver: local
 
-networks:
-  digitaltwins:
-    external: true
-    name: digitaltwins
 
 # JupyterHub
 # http://localhost:8016

@@ -1,7 +1,4 @@
 services:
-  postgres:
-    networks:
-      - digitaltwins
   redis:
     networks:
       - digitaltwins
