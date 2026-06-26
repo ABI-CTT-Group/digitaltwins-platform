@@ -154,8 +154,6 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
-      airflow-init:
-        condition: service_completed_successfully
 
   airflow-scheduler:
     <<: *airflow-common
@@ -169,8 +167,6 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
-      airflow-init:
-        condition: service_completed_successfully
 
   airflow-dag-processor:
     <<: *airflow-common
@@ -184,8 +180,6 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
-      airflow-init:
-        condition: service_completed_successfully
 
   airflow-worker:
     <<: *airflow-common
@@ -211,8 +205,6 @@ services:
       <<: *airflow-common-depends-on
       airflow-apiserver:
         condition: service_healthy
-      airflow-init:
-        condition: service_completed_successfully
 
   airflow-triggerer:
     <<: *airflow-common
@@ -226,11 +218,11 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
-      airflow-init:
-        condition: service_completed_successfully
 
   airflow-init:
     <<: *airflow-common
+    profiles:
+      - init
     entrypoint: /bin/bash
     # yamllint disable rule:line-length
     command:
@@ -355,6 +347,4 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
-      airflow-init:
-        condition: service_completed_successfully
 
