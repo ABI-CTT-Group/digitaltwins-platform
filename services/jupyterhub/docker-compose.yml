@@ -1,0 +1,61 @@
+services:
+  jupyterhub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: digitaltwins-platform-jupyterhub
+    ports:
+      - "${JUPYTERHUB_PORT:-8016}:8000"
+    volumes:
+      - ./jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+      - jupyterhub_data:/srv/jupyterhub
+    environment:
+      - JUPYTERHUB_CRYPT_KEY=${JUPYTERHUB_CRYPT_KEY:-c3b53f650bf93c3c6f8f5b8a5b2803b9b4d1b8c2810a9a8f2762a4f4e2b027d1}
+      - DOCKER_NETWORK_NAME=${DOCKER_NETWORK_NAME:-digitaltwins}
+      - DOCKER_NOTEBOOK_IMAGE=digitaltwins-platform-jupyter-singleuser:latest
+      - DOCKER_NOTEBOOK_DIR=/home/jovyan/work
+      - DOCKER_MEM_LIMIT=8G
+      - DOCKER_CPU_LIMIT=4
+      - JUPYTERHUB_PUBLIC_URL=${PLATFORM_PROTOCOL:-https}://${PLATFORM_DOMAIN}/jupyterhub
+      - KEYCLOAK_PUBLIC_URL=${PLATFORM_PROTOCOL:-https}://${PLATFORM_DOMAIN}/auth
+      - KEYCLOAK_INTERNAL_URL=http://keycloak:8080/auth
+      - JUPYTERHUB_CLIENT_ID=${JUPYTERHUB_CLIENT_ID:-jupyterhub}
+      - JUPYTERHUB_CLIENT_SECRET=${JUPYTERHUB_CLIENT_SECRET:-jupyterhub-secret}
+      - JUPYTERHUB_ALLOWED_GROUPS=${JUPYTERHUB_ALLOWED_GROUPS:-admin,researcher}
+      - JUPYTERHUB_ADMIN_GROUPS=${JUPYTERHUB_ADMIN_GROUPS:-admin}
+      - JUPYTERHUB_ADMIN_USERS=${JUPYTERHUB_ADMIN_USERS:-admin}
+    restart: unless-stopped
+    networks:
+      - digitaltwins
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Single-user notebook image — built once, used by DockerSpawner per user
+  singleuser:
+    build:
+      context: .
+      dockerfile: Dockerfile.singleuser
+    image: digitaltwins-platform-jupyter-singleuser:latest
+    command: [ "echo", "Image built successfully" ]
+    networks:
+      - digitaltwins
+
+volumes:
+  jupyterhub_data:
+    driver: local
+
+networks:
+  digitaltwins:
+    external: true
+    name: digitaltwins
+
+# JupyterHub
+# http://localhost:8016
+# admin page: http://localhost:8016/hub/admin
+#
+# Build all images (including singleuser):
+#   docker compose -f services/jupyterhub/docker-compose.yml --env-file ./.env --profile build build
+#
+# Run:
+#   docker compose -f services/jupyterhub/docker-compose.yml --env-file ./.env up -d

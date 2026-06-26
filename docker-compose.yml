@@ -62,10 +62,10 @@ include:
   - path:
     - services/api/digitaltwins-api/docker-compose.yml
     project_directory: services/api/digitaltwins-api
-  # JupyterLab
+  # JupyterHub
   - path:
-    - services/jupyterlab/docker-compose.yml
-    project_directory: services/jupyterlab
+    - services/jupyterhub/docker-compose.yml
+    project_directory: services/jupyterhub
 
 volumes:
   portal_datasets:

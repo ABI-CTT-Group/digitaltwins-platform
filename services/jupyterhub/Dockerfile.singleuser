@@ -1,0 +1,6 @@
+# Single-user notebook image for JupyterHub DockerSpawner
+# Based on quay.io/jupyter/scipy-notebook which includes:
+#   Python, NumPy, SciPy, pandas, matplotlib, jupyterhub==5.4.6, jupyterlab
+#
+# Pin to a specific digest for reproducibility (quay.io/jupyter/scipy-notebook:lab-4.5.8 as of 2026-06-10)
+FROM quay.io/jupyter/scipy-notebook:lab-4.5.8@sha256:7901fffcb245325b08495588a4cb5bc248e6a820c4d8455d73507b1e0c8b529a
