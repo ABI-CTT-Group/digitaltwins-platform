@@ -1,4 +1,13 @@
-# Assay Workflow Routing — Merge Notes for Chinchien
+# main_buildout Merge Notes for Chinchien
+
+This document covers all conflicts resolved when merging `origin/main` into
+`main_buildout` across the three submodules. It explains what each branch
+contributed and why each decision was made, so the changes can be reviewed
+and ported back to `main` where appropriate.
+
+---
+
+# Part 1: digitaltwins-api — Assay Workflow Routing
 
 ## Background
 
@@ -102,3 +111,131 @@ improvements that should be safe to bring into `main` as well. The
 JupyterHub URL change only applies if `main` also adopts JupyterHub
 (replacing JupyterLab) — otherwise the original JupyterLab URL is
 correct for that branch.
+
+---
+
+# Part 2: DigitalTWINS-Portal — Five Conflicts
+
+## Context
+
+`main_buildout` diverged from `main` by approximately 30 commits. Chinchien
+added a measurement import system, a major frontend refactor, a new landing
+page, and assorted backend improvements. Five files had conflicts.
+
+---
+
+## Conflict 1: `backend/app/main.py` (imports + lifespan)
+
+### What `main` added
+- `measurement_router` added to the router import line
+- Startup: `_reconcile_plugin_state()` — syncs DB plugin state with actual
+  Docker container state on startup (handles unclean shutdowns)
+- Startup: `_cleanup_orphan_staging()` — removes stale upload staging
+  directories to bound disk usage
+- Shutdown: `_shutdown_all_plugin_backends()` — batch-kills all plugin
+  containers before portal-backend exits
+
+### What `main_buildout` had
+- `import httpx` + `app.state.http_client = httpx.AsyncClient()` in lifespan
+  — a shared connection pool so dashboard requests reuse TCP connections
+  instead of opening a new one per request
+- `await app.state.http_client.aclose()` on shutdown
+
+### Resolution
+All four are kept. The httpx client is needed because `dashboard.py` reads
+`request.app.state.http_client` on every request. The plugin
+reconcile/cleanup/shutdown hooks are correct and safe to run alongside it.
+`measurement_router` added to imports.
+
+---
+
+## Conflict 2: `backend/app/router/dashboard.py` (response key naming)
+
+### What `main` changed
+Returned dict key changed from `"seekId"` (camelCase) to `"seek_id"`
+(snake_case) in the assay and non-assay branches of
+`get_dashboard_category_children`. Also restructured to use a `temp`
+variable before returning (functionally identical).
+
+### What `main_buildout` had
+Used `"seekId"` (camelCase) and returned directly.
+
+### Resolution
+Used `"seek_id"` (Chinchien's version) with the direct `return {}` pattern
+(our version). Rationale: `"seek_id"` is consistent with every other key in
+the same file (`seek_id`, `study_seek_id`, `investigation_seek_id`, etc.),
+and Chinchien's new frontend code was written expecting `seek_id`. The `temp`
+variable pattern is equivalent and was dropped in favour of the cleaner
+direct return.
+
+**Note for `main`:** if `main`'s frontend already uses `seek_id` everywhere,
+no change needed. If any frontend component still reads `seekId`, it should
+be updated to `seek_id`.
+
+---
+
+## Conflict 3: `docker-compose.yml` (frontend environment variables)
+
+### What `main` added
+```yaml
+- MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-20480}
+- MAX_PART_SIZE_MB=${MAX_PART_SIZE_MB:-16}
+```
+These feed into nginx `client_max_body_size` for measurement dataset uploads.
+
+### What `main_buildout` had
+```yaml
+- SSL=${SSL:-false}
+```
+Used by the frontend nginx config to decide whether to serve HTTP or HTTPS.
+
+### Resolution
+Both kept. They are independent env vars with no interaction.
+
+---
+
+## Conflict 4: `frontend/entry.sh` (nginx config generation)
+
+### What `main` added
+SSL certificate auto-detection: if `${PORTAL_BACKEND_HOST}.crt` and `.key`
+exist in `/etc/nginx/certs/`, the SSL nginx template is used; otherwise HTTP.
+Also added `envsubst` substitution for `MAX_UPLOAD_MB` and `MAX_PART_SIZE_MB`.
+
+### What `main_buildout` had
+A commented-out `envsubst` line — the envsubst approach had been disabled and
+the nginx config was being mounted as a volume directly.
+
+### Resolution
+Took Chinchien's version in full. The cert-detection logic is more robust
+than the `SSL=true/false` env var approach, and it degrades gracefully: in
+the `main_buildout` deployment (nginx proxy handles SSL externally, no certs
+inside the container), it correctly falls back to HTTP mode. The
+`MAX_UPLOAD_MB`/`MAX_PART_SIZE_MB` substitution is harmless even if those
+limits aren't enforced at the container level.
+
+---
+
+## Conflict 5: `frontend/src/views/dashboard/study-dashboard/index.vue` (modify/delete)
+
+### What happened
+Chinchien deleted this file as part of a large dashboard refactor that
+restructured views under new paths. `main_buildout` had made minor
+modifications to it.
+
+### Resolution
+Accepted the deletion. Chinchien's refactor replaced the entire
+`study-dashboard/` directory with a new component structure under
+`frontend/src/views/dashboard/components/`. Keeping our version would
+conflict with the new routing and component hierarchy.
+
+---
+
+## Summary table
+
+| File | main_buildout contribution kept | main contribution kept |
+|---|---|---|
+| `main.py` | httpx AsyncClient pool | measurement_router, plugin reconcile/cleanup/shutdown |
+| `dashboard.py` | direct return pattern | `seek_id` key name |
+| `docker-compose.yml` | `SSL` env var | `MAX_UPLOAD_MB`, `MAX_PART_SIZE_MB` |
+| `entry.sh` | — (superseded) | SSL cert detection + envsubst |
+| `study-dashboard/index.vue` | — | deletion accepted |
