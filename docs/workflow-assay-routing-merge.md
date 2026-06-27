@@ -239,3 +239,102 @@ conflict with the new routing and component hierarchy.
 | `docker-compose.yml` | `SSL` env var | `MAX_UPLOAD_MB`, `MAX_PART_SIZE_MB` |
 | `entry.sh` | — (superseded) | SSL cert detection + envsubst |
 | `study-dashboard/index.vue` | — | deletion accepted |
+
+---
+
+# Part 3: Platform — Portal compose restructured from `extends` to `include`
+
+## Background
+
+When merging Chinchien's `entry.sh` (which now generates `/etc/nginx/conf.d/default.conf`
+from a template via `envsubst`), a structural problem surfaced in the root
+`docker-compose.yml`: the portal services were wired in via `extends:` rather
+than `include:` like every other service (airflow, postgres, keycloak, etc.).
+
+---
+
+## The problem with `extends:`
+
+`extends:` pulls individual service definitions up into the root project's
+namespace. That means the root compose must also declare any volumes those
+services reference. The submodule declared:
+
+```yaml
+volumes:
+  portal_workspace:
+    name: digitaltwins_portal_workspace
+```
+
+But the root compose had no `portal_workspace` entry, so `docker compose build`
+failed with "service portal-backend refers to undefined volume portal_workspace".
+
+A temporary fix added `portal_workspace:` to the root compose — but this
+actually created a new `digitaltwins-platform_portal_workspace` volume (the
+project-prefixed name Docker uses when no `name:` override is present) rather
+than reusing any pre-existing data. Since portal_workspace holds only build
+staging and upload temp data (not persistent user data), this was safe.
+
+---
+
+## The fix: switch to `include:`
+
+The `include:` pattern (used by all other services) treats the submodule as a
+self-contained sub-project. Volumes are declared and owned entirely within the
+submodule's compose. The root compose never needs to know about them.
+
+To attach the portal's services to the shared `digitaltwins` Docker network, a
+`network-override.yml` is added alongside the submodule (same pattern as
+`services/airflow/network-override.yml`):
+
+**`services/portal/network-override.yml`** — attaches all portal services to
+the `digitaltwins` network and declares the network as external so the
+sub-project doesn't try to create it.
+
+The root `docker-compose.yml` changes from:
+
+```yaml
+services:
+  portal-backend:
+    extends:
+      file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
+      service: portal-backend
+    networks:
+      - digitaltwins
+  portal-frontend:
+    extends:
+      ...
+    networks:
+      - digitaltwins
+```
+
+to:
+
+```yaml
+include:
+  - path:
+    - services/portal/DigitalTWINS-Portal/docker-compose.yml
+    - services/portal/network-override.yml
+    project_directory: services/portal/DigitalTWINS-Portal
+```
+
+The temporary `portal_workspace:` entry added to root compose volumes is
+removed.
+
+---
+
+## Other post-merge boot fixes
+
+Two additional issues surfaced when the rebuilt portal-frontend container
+first started:
+
+1. **Read-only `default.conf` mount** — the old `main_buildout` volume mount
+   `./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro` conflicted with
+   Chinchien's `entry.sh`, which writes that file at container startup. Fix:
+   remove the bind mount from `docker-compose.yml`. The templates inside the
+   image (`nginx.http.conf.template`, `nginx.ssl.conf.template`) are the source
+   of truth; `entry.sh` generates `default.conf` from them at runtime.
+
+2. **Missing `BACKEND_PORT` env var** — `entry.sh` calls `envsubst` with
+   `${BACKEND_PORT}` but it wasn't in the portal-frontend environment block.
+   Fix: added `- BACKEND_PORT=${BACKEND_PORT:-8000}` to portal-frontend's
+   `environment:` in `docker-compose.yml`.
