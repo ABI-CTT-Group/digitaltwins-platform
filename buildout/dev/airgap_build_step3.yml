@@ -1,3 +1,14 @@
+# Before running this playbook, source secrets.env to load all secrets and
+# deployment config into the environment:
+#
+#   source /mnt/install_src/data/secrets.env
+#   source /mnt/install_src/data/env
+#   ansible-playbook -i inventory airgap_build_step3.yml
+#
+# secrets.env contains all passwords, keys, and tokens.
+# env contains the deployment-specific config (PLATFORM_DOMAIN, PLATFORM_PROTOCOL).
+# Neither file is in git or clean_src.
+
 - name: VM setup
   gather_facts: false
   hosts: all
@@ -142,11 +153,9 @@
 
   - name: Generate .env from template (first deploy only)
     ansible.builtin.shell:
-      cmd: "envsubst '${PLATFORM_DOMAIN} ${PLATFORM_PROTOCOL}' < .env.template > .env"
+      cmd: "set -a && source {{ install_src_dir }}/data/secrets.env && set +a && envsubst < .env.template > .env"
       chdir: "{{ install_src_dir }}/data"
-    environment:
-      PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
-      PLATFORM_PROTOCOL: "{{ lookup('env', 'PLATFORM_PROTOCOL') | default('https') }}"
+      executable: /bin/bash
     when: not dotenv_check.stat.exists
 
   - name: Copy .env to platform dir (first deploy only)
@@ -259,12 +268,12 @@
 
   - name: Generate digitaltwins-realm.json from template
     ansible.builtin.shell:
-      cmd: "envsubst '${PLATFORM_DOMAIN} ${PLATFORM_PROTOCOL} ${KC_SSL_REQUIRED}' < digitaltwins-realm.json.template > digitaltwins-realm.json"
+      cmd: >
+        set -a && source {{ install_src_dir }}/data/secrets.env && set +a &&
+        export KC_SSL_REQUIRED=$([ "$PLATFORM_PROTOCOL" = "https" ] && echo "external" || echo "none") &&
+        envsubst < digitaltwins-realm.json.template > digitaltwins-realm.json
       chdir: "{{ install_src_dir }}/data"
-    environment:
-      PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
-      PLATFORM_PROTOCOL: "{{ lookup('env', 'PLATFORM_PROTOCOL') | default('https') }}"
-      KC_SSL_REQUIRED: "{{ 'external' if lookup('env', 'PLATFORM_PROTOCOL') | default('https') == 'https' else 'none' }}"
+      executable: /bin/bash
 
   - name: Copy realm import to remote server
     ansible.builtin.copy:
