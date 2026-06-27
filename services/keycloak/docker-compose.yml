@@ -21,20 +21,22 @@ services:
       KC_PROXY: edge
       KC_PROXY_HEADERS: xforwarded
       KC_HOSTNAME: ${PLATFORM_PROTOCOL:-https}://${PLATFORM_DOMAIN}/auth
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://database:5432/keycloak
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
 #    ports:
 #      - "${KEYCLOAK_BIND_ADDRESS:-0.0.0.0}:8009:8443"
 #      - "8009:8080"
     volumes:
       - ./import:/opt/keycloak/data/import
-      - keycloak_data:/opt/keycloak/data
       - ./digitaltwins-login-theme:/opt/keycloak/themes/digitaltwins-login-theme:ro
+    depends_on:
+      database:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - digitaltwins
-
-volumes:
-  keycloak_data:
-    driver: local
 
 #networks:
 #  digitaltwins:
