@@ -35,11 +35,23 @@ echo "=== Backup started: $now ==="
 echo "=== Destination: $BACKUP_DIR ==="
 
 # ── PostgreSQL ────────────────────────────────────────────────────────────────
-echo "--- Backing up PostgreSQL..."
+echo "--- Backing up PostgreSQL (digitaltwins)..."
 docker exec digitaltwins-platform-database-1 \
     pg_dump -U "$POSTGRES_USER" --clean --if-exists "$POSTGRES_DB" \
     > postgres.sql
 echo "    Done: postgres.sql"
+
+echo "--- Backing up PostgreSQL (airflow)..."
+docker exec digitaltwins-platform-database-1 \
+    pg_dump -U "$POSTGRES_USER" --clean --if-exists "${AIRFLOW_DB_NAME:-airflow}" \
+    > postgres_airflow.sql
+echo "    Done: postgres_airflow.sql"
+
+echo "--- Backing up PostgreSQL (keycloak)..."
+docker exec digitaltwins-platform-database-1 \
+    pg_dump -U "$POSTGRES_USER" --clean --if-exists "${KEYCLOAK_DB_USER:-keycloak}" \
+    > postgres_keycloak.sql
+echo "    Done: postgres_keycloak.sql"
 
 # ── SEEK MySQL ────────────────────────────────────────────────────────────────
 echo "--- Backing up SEEK MySQL..."
@@ -99,11 +111,13 @@ cat > restore.sh << EOF
 # Source host: $(hostname)
 #
 # Contents of this backup:
-#   postgres.sql      — Platform PostgreSQL database dump
-#   seek_mysql.sql    — SEEK MySQL database dump
-#   seek_filestore/   — SEEK uploaded files
-#   minio/            — MinIO bucket contents (measurements, models, workflows, processes, tools)
-#   dags.tar          — Airflow DAG files
+#   postgres.sql          — Platform PostgreSQL database (digitaltwins)
+#   postgres_airflow.sql  — Airflow PostgreSQL database
+#   postgres_keycloak.sql — Keycloak PostgreSQL database
+#   seek_mysql.sql        — SEEK MySQL database dump
+#   seek_filestore/       — SEEK uploaded files
+#   minio/                — MinIO bucket contents
+#   dags.tar              — Airflow DAG files
 #
 # Usage:
 #   Copy this directory to the target machine, then:
@@ -133,7 +147,7 @@ docker load < "\$RESTORE_DIR/minio_mc_image.tar.gz"
 echo "    Done."
 
 # ── Step 2: PostgreSQL ────────────────────────────────────────────────────────
-echo "--- Restoring PostgreSQL..."
+echo "--- Restoring PostgreSQL (digitaltwins)..."
 docker exec digitaltwins-platform-database-1 \\
     psql -U "\$POSTGRES_USER" postgres \\
     -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '\$POSTGRES_DB';" \\
@@ -141,6 +155,26 @@ docker exec digitaltwins-platform-database-1 \\
     -c "CREATE DATABASE \"\$POSTGRES_DB\";"
 docker exec -i digitaltwins-platform-database-1 \\
     psql -U "\$POSTGRES_USER" "\$POSTGRES_DB" < "\$RESTORE_DIR/postgres.sql"
+echo "    Done."
+
+echo "--- Restoring PostgreSQL (airflow)..."
+docker exec digitaltwins-platform-database-1 \\
+    psql -U "\$POSTGRES_USER" postgres \\
+    -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '\${AIRFLOW_DB_NAME:-airflow}';" \\
+    -c "DROP DATABASE IF EXISTS \"\${AIRFLOW_DB_NAME:-airflow}\";" \\
+    -c "CREATE DATABASE \"\${AIRFLOW_DB_NAME:-airflow}\" OWNER \"\${AIRFLOW_DB_USER:-airflow}\";"
+docker exec -i digitaltwins-platform-database-1 \\
+    psql -U "\$POSTGRES_USER" "\${AIRFLOW_DB_NAME:-airflow}" < "\$RESTORE_DIR/postgres_airflow.sql"
+echo "    Done."
+
+echo "--- Restoring PostgreSQL (keycloak)..."
+docker exec digitaltwins-platform-database-1 \\
+    psql -U "\$POSTGRES_USER" postgres \\
+    -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '\${KEYCLOAK_DB_USER:-keycloak}';" \\
+    -c "DROP DATABASE IF EXISTS \"\${KEYCLOAK_DB_USER:-keycloak}\";" \\
+    -c "CREATE DATABASE \"\${KEYCLOAK_DB_USER:-keycloak}\" OWNER \"\${KEYCLOAK_DB_USER:-keycloak}\";"
+docker exec -i digitaltwins-platform-database-1 \\
+    psql -U "\$POSTGRES_USER" "\${KEYCLOAK_DB_USER:-keycloak}" < "\$RESTORE_DIR/postgres_keycloak.sql"
 echo "    Done."
 
 # ── Step 3: SEEK MySQL ────────────────────────────────────────────────────────
