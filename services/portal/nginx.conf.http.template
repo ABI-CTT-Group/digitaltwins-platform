@@ -41,8 +41,8 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    location /jupyter/ {
-        proxy_pass http://jupyterlab:8888/jupyter/;
+    location /jupyterhub/ {
+        proxy_pass http://digitaltwins-platform-jupyterhub:8000/jupyterhub/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
