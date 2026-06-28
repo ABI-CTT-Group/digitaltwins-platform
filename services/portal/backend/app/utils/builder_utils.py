@@ -16,6 +16,7 @@ from app.models.db_model import (
 from datetime import datetime
 from fastapi import BackgroundTasks
 from app.builder.logger import get_logger
+from app.builder.log_stream import log_registry, bind_thread_job, unbind_thread_job
 
 logger = get_logger(__name__)
 
@@ -260,8 +261,15 @@ def read_root_cwl(staging_dir: Path) -> Optional[Dict[str, str]]:
 
 
 def unique_name(name: str) -> str:
-    """Make the name unique by adding a random string to the end"""
-    clean = re.sub(r'[^a-zA-Z0-9]', '', name)
+    """Make the name unique by adding a random string to the end.
+
+    Lowercased because the result (``expose_name``) is used verbatim as the
+    ``docker compose -p <project>`` name, and Compose rejects project names
+    with uppercase letters ("must consist only of lowercase alphanumeric
+    characters, hyphens, and underscores"). Lowercasing is also safe for the
+    other uses of expose_name (MinIO path, nginx route, vite expose).
+    """
+    clean = re.sub(r'[^a-zA-Z0-9]', '', name).lower()
     return f"{clean}_{uuid.uuid4().hex[:8]}"
 
 
@@ -329,6 +337,7 @@ def execute_build_in_background(
         Build: Type[Union[PluginBuild, WorkflowBuild]],
         background_tasks: BackgroundTasks = None):
     def run_build():
+        job_key = f"build:{build_id}"
         try:
             with SessionLocal() as session:
                 build_record = session.query(Build).filter(
@@ -337,7 +346,17 @@ def execute_build_in_background(
                     build_record.status = BuildStatus.BUILDING.value
                     session.commit()
 
-            result = builder.build(data)
+            log_registry.open(job_key)
+            # Bind this background thread so EVERY log record it emits during the
+            # build (clone, vite patch, npm install/build, SPARC, MinIO upload,
+            # cleanup, errors) streams into the console — not just the subprocess.
+            bind_thread_job(job_key)
+            try:
+                result = builder.build(data)
+            finally:
+                unbind_thread_job()
+            log_registry.finish(job_key, "completed" if result["success"] else "failed")
+
             with SessionLocal() as session:
                 build_record = session.query(Build).filter(Build.build_id == build_id).first()
                 if build_record:
@@ -350,21 +369,23 @@ def execute_build_in_background(
                         build_record.status = BuildStatus.FAILED.value
                         build_record.error = result["error_message"]
 
-                    build_record.build_logs = result["build_logs"]
+                    build_record.build_logs = log_registry.full_text(job_key)
                     build_record.updated_at = datetime.now()
                     session.commit()
 
         except Exception as e:
+            log_registry.finish(job_key, "failed")
             # Update build record with error
             with SessionLocal() as session:
                 build_record = session.query(Build).filter(Build.build_id == build_id).first()
                 if build_record:
                     build_record.status = BuildStatus.FAILED.value
                     build_record.error_message = str(e)
+                    build_record.build_logs = log_registry.full_text(job_key)
                     build_record.updated_at = datetime.now()
                     session.commit()
                 else:
-                    print("⚠️ Build record not found when writing error message")
+                    logger.warning("Build record not found when writing error message")
 
     if background_tasks:
         background_tasks.add_task(run_build)

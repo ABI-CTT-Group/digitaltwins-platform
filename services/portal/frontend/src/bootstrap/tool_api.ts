@@ -14,6 +14,19 @@ import {
   ProbeSourceResponse,
 } from "@/models/types";
 import { useCheckName, fetchWithLatestBuild } from "./api_helpers";
+import { getAccessToken, getKeycloak } from './keycloak';
+
+/** Proactively refresh the Keycloak token before making raw fetch calls that
+ *  bypass axios. Falls through to the current token on any error. */
+async function freshToken(): Promise<string> {
+  try {
+    const kc = getKeycloak();
+    if (kc) await kc.updateToken(5);
+  } catch {
+    /* fall through to current token */
+  }
+  return getAccessToken() as string;
+}
 
 /** Build the optional POST body for a build trigger. Sent in camelCase —
  *  http.ts axios interceptor deep-snake_cases outgoing JSON. Empty / missing
@@ -60,6 +73,9 @@ export async function useWorkflowTools(): Promise<ToolResponse[]> {
           return {
             deployStatus: latestDeploy.status,
             latestDeployId: latestDeploy.deployId,
+            // start/end so the log console can show deploy DURATION on reopen
+            latestDeployCreatedAt: latestDeploy.createdAt,
+            latestDeployUpdatedAt: latestDeploy.updatedAt,
           } as Partial<ToolResponse>;
         }
       } catch (err) {
@@ -125,4 +141,62 @@ export async function useGetWorkflowToolAnnotation(id:string){
 
 export async function useGetToolLocalCwl(id: string): Promise<{ cwlFile: string; content: string }> {
   return http.get<{ cwlFile: string; content: string }>(`/tools/plugin/${id}/cwl`);
+}
+
+// ---------------------------------------------------------------------------
+// SSE log streaming (Phase 4)
+// ---------------------------------------------------------------------------
+
+const _logPath = (kind: 'build' | 'deploy', id: string) =>
+  kind === 'build' ? `/api/tools/builds/${id}/logs` : `/api/tools/deploy/${id}/logs`;
+
+export function streamLogs(
+  kind: 'build' | 'deploy',
+  jobId: string,
+  onLine: (l: string) => void,
+  onEnd: (status: string) => void,
+  onError: (e: unknown) => void,
+): AbortController {
+  const ctrl = new AbortController();
+  (async () => {
+    try {
+      const token = await freshToken();
+      const res = await fetch(`${_logPath(kind, jobId)}/stream`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: ctrl.signal,
+      });
+      if (!res.body) throw new Error('no stream body');
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        // SSE events are separated by blank lines
+        let idx;
+        while ((idx = buf.indexOf('\n\n')) !== -1) {
+          const evt = buf.slice(0, idx); buf = buf.slice(idx + 2);
+          const isEnd = evt.startsWith('event: end');
+          const data = evt.split('\n')
+            .filter((l) => l.startsWith('data:'))
+            .map((l) => l.slice(5).replace(/^ /, '')).join('\n');
+          if (isEnd) { onEnd(data || 'completed'); return; }
+          if (data) onLine(data);
+        }
+      }
+    } catch (e) {
+      if (!ctrl.signal.aborted) onError(e);
+    }
+  })();
+  return ctrl;
+}
+
+export async function getLogs(kind: 'build' | 'deploy', jobId: string): Promise<string> {
+  const token = await freshToken();
+  const res = await fetch(_logPath(kind, jobId), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`logs ${res.status}`);
+  return res.text();
 }

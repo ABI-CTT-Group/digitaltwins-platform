@@ -158,6 +158,12 @@ export interface ToolResponse {
     deployStatus?: string
     latestBuildId?: string
     latestDeployId?: string
+    // Latest build/deploy start+end timestamps — used by the log console to show
+    // the job DURATION when reopened on a finished job (see ToolCard view-logs).
+    latestBuildCreatedAt?: string
+    latestBuildUpdatedAt?: string
+    latestDeployCreatedAt?: string
+    latestDeployUpdatedAt?: string
     createdAt: string
     updatedAt: string
     sourceType?: SourceType

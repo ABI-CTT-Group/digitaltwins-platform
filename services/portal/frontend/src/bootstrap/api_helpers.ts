@@ -61,13 +61,22 @@ export async function fetchWithLatestBuild<
   listUrl: string,
   buildsUrlFn: (id: string) => string,
   enrichFn?: (item: T, latestBuild: BuildResponse) => Promise<Partial<T>>,
-): Promise<(T & { status: string; latestBuildId?: string })[]> {
+): Promise<(T & {
+  status: string;
+  latestBuildId?: string;
+  latestBuildCreatedAt?: string;
+  latestBuildUpdatedAt?: string;
+})[]> {
   const items = await http.get<T[]>(listUrl);
 
   const enriched = await Promise.all(
     items.map(async (item) => {
       let buildStatus = 'pending';
       let latestBuildId: string | undefined;
+      // Build start/end timestamps so the log console can show the build
+      // DURATION when reopened on a finished job (not "time since it ran").
+      let latestBuildCreatedAt: string | undefined;
+      let latestBuildUpdatedAt: string | undefined;
       let extra: Partial<T> = {};
 
       try {
@@ -79,6 +88,8 @@ export async function fetchWithLatestBuild<
           )[0];
           buildStatus = latestBuild.status;
           latestBuildId = latestBuild.buildId;
+          latestBuildCreatedAt = latestBuild.createdAt;
+          latestBuildUpdatedAt = latestBuild.updatedAt;
 
           if (enrichFn) {
             extra = await enrichFn(item, latestBuild);
@@ -93,6 +104,8 @@ export async function fetchWithLatestBuild<
         description: item.description === '' ? 'No description available' : item.description,
         status: buildStatus,
         latestBuildId: latestBuildId,
+        latestBuildCreatedAt,
+        latestBuildUpdatedAt,
         ...extra,
       };
     }),

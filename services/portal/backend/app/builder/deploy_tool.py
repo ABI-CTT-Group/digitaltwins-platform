@@ -1,10 +1,12 @@
 import os
+import re
 from pathlib import Path
 from typing import Dict, Any, Optional
 from .logger import get_logger
 import subprocess
 import shlex
 from app.client.minio import get_minio_client
+from app.builder.proc_stream import stream_process
 from sqlalchemy.orm import Session
 from app.models.db_model import Plugin, SessionLocal
 
@@ -16,6 +18,23 @@ NGINX_PLUGINS_CONF_DIR = os.environ.get(
 )
 # Container name of the portal-frontend (nginx) service for docker exec
 NGINX_CONTAINER_NAME = os.environ.get("NGINX_CONTAINER_NAME", "portal-frontend")
+
+
+def _compose_project_name(expose_name: str) -> str:
+    """Coerce an expose_name into a valid Docker Compose project name.
+
+    Compose rejects project names that aren't lowercase alphanumeric / hyphen
+    / underscore starting with a letter or number. Tools built before
+    ``unique_name`` was lowercased can have uppercase expose_names stored in
+    the DB, so we sanitize here too — used consistently for ``-p`` and for the
+    ``com.docker.compose.project`` label filters so up/down/status/delete all
+    agree on the same project name. (nginx route + MinIO path keep the raw
+    expose_name; they are case-tolerant and self-consistent.)
+    """
+    if not expose_name:
+        return expose_name
+    s = re.sub(r'[^a-z0-9_-]', '', expose_name.lower())
+    return s.lstrip('-_') or s
 
 
 class PluginDeployer:
@@ -110,31 +129,31 @@ location {route_prefix}/ {{
             raise Exception("Docker compose file is not exist")
 
     @staticmethod
-    def _compose_execute(backend_dir: Path, command: str, extra_env: dict = None) -> int:
-        """Run a docker compose command. Returns the process exit code (0 = success)."""
+    def _compose_execute(backend_dir: Path, command: str, extra_env: dict = None, sink=None) -> int:
+        """Run a docker compose command under a PTY (POSIX) so its build/pull
+        output streams live. Returns the process exit code (0 = success)."""
         try:
             logger.info(f"Running command {command} for deployment of {backend_dir}")
             env = os.environ.copy()
             if extra_env:
                 env.update(extra_env)
-            with subprocess.Popen(
-                    shlex.split(command),
-                    cwd=backend_dir,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1,
-                    env=env,
-            ) as process:
-                for line in process.stdout:
-                    logger.info(line.strip())
 
-                return_code = process.wait()
-                if return_code == 0:
-                    logger.info("Docker compose command executed successfully.")
-                else:
-                    logger.error(f"Docker compose command failed with return code: {return_code}")
-                return return_code
+            def on_line(line: str) -> None:
+                logger.info(line)
+                if sink:
+                    try:
+                        sink(line)
+                    except Exception:
+                        pass
+
+            return_code = stream_process(
+                shlex.split(command), cwd=backend_dir, env=env, on_line=on_line
+            )
+            if return_code == 0:
+                logger.info("Docker compose command executed successfully.")
+            else:
+                logger.error(f"Docker compose command failed with return code: {return_code}")
+            return return_code
 
         except FileNotFoundError as e:
             logger.error(f"Docker or Docker Compose has not been installed or configured correctly. Error: {e}")
@@ -149,9 +168,9 @@ location {route_prefix}/ {{
         action: str = "up --build -d --force-recreate",
     ) -> str:
         """Build a docker compose command with project name scoped to the plugin."""
-        return f"docker compose -p {expose_name} {action}"
+        return f"docker compose -p {_compose_project_name(expose_name)} {action}"
 
-    def deploy(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
+    def deploy(self, plugin: Dict[str, Any], sink=None) -> Dict[str, Any]:
 
         deploy_logs = []
         expose_name = plugin.get("expose_name", )
@@ -168,7 +187,13 @@ location {route_prefix}/ {{
             # Step 3 deploy backend in docker with project name = expose_name
             logger.info(f"Step 3: Start docker compose with project name '{expose_name}'...")
             deploy_command = self._build_compose_command(expose_name, "up --build -d --force-recreate")
-            self._compose_execute(backend_dir, deploy_command, extra_env={"PLUGIN_ROUTE_PREFIX": f"/plugin/{expose_name}"})
+            rc = self._compose_execute(backend_dir, deploy_command, extra_env={"PLUGIN_ROUTE_PREFIX": f"/plugin/{expose_name}"}, sink=sink)
+            if rc != 0:
+                # The compose process exited non-zero (build/start failure). Surface
+                # it as a deploy failure instead of silently reporting success.
+                raise Exception(
+                    f"docker compose up failed for project '{expose_name}' at {backend_dir} (exit code {rc})"
+                )
             return {
                 "success": True,
                 "backend_dir": str(backend_dir) if backend_dir else None,
@@ -263,8 +288,9 @@ location {route_prefix}/ {{
     def _force_remove_project_containers(self, expose_name: str) -> None:
         """Force-remove all containers belonging to a compose project by label."""
         try:
+            project = _compose_project_name(expose_name)
             result = subprocess.run(
-                ["docker", "ps", "-a", "--filter", f"label=com.docker.compose.project={expose_name}", "--quiet"],
+                ["docker", "ps", "-a", "--filter", f"label=com.docker.compose.project={project}", "--quiet"],
                 capture_output=True, text=True,
             )
             container_ids = [c.strip() for c in result.stdout.splitlines() if c.strip()]
@@ -320,17 +346,18 @@ location {route_prefix}/ {{
         """Returns 'running' if any container is up, 'stopped' if exists but stopped, 'gone' if absent."""
         if not expose_name:
             return "gone"
+        project = _compose_project_name(expose_name)
         try:
             running = subprocess.run(
                 ["docker", "ps", "--filter",
-                 f"label=com.docker.compose.project={expose_name}", "--quiet"],
+                 f"label=com.docker.compose.project={project}", "--quiet"],
                 capture_output=True, text=True, timeout=5,
             )
             if running.stdout.strip():
                 return "running"
             all_ = subprocess.run(
                 ["docker", "ps", "-a", "--filter",
-                 f"label=com.docker.compose.project={expose_name}", "--quiet"],
+                 f"label=com.docker.compose.project={project}", "--quiet"],
                 capture_output=True, text=True, timeout=5,
             )
             if all_.stdout.strip():
@@ -353,7 +380,7 @@ location {route_prefix}/ {{
             try:
                 result = subprocess.run(
                     ["docker", "ps", "-a", "--filter",
-                     f"label=com.docker.compose.project={name}", "--quiet"],
+                     f"label=com.docker.compose.project={_compose_project_name(name)}", "--quiet"],
                     capture_output=True, text=True, timeout=10,
                 )
                 ids = [c.strip() for c in result.stdout.splitlines() if c.strip()]
@@ -377,14 +404,16 @@ location {route_prefix}/ {{
             return {"removed": [], "error": str(e)}
 
     def _remove_volumes_by_prefix(self, expose_name: str) -> None:
-        """Find and remove all Docker volumes whose names start with expose_name."""
+        """Find and remove all Docker volumes whose names start with the
+        compose project name (volumes are named ``<project>_<volume>``)."""
+        project = _compose_project_name(expose_name)
         try:
             result = subprocess.run(
-                ["docker", "volume", "ls", "--filter", f"name={expose_name}", "--quiet"],
+                ["docker", "volume", "ls", "--filter", f"name={project}", "--quiet"],
                 capture_output=True,
                 text=True,
             )
-            volumes = [v.strip() for v in result.stdout.splitlines() if v.strip().startswith(expose_name)]
+            volumes = [v.strip() for v in result.stdout.splitlines() if v.strip().startswith(project)]
             if not volumes:
                 logger.info(f"No extra volumes found with prefix '{expose_name}'")
                 return

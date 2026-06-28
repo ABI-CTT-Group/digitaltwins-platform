@@ -9,9 +9,13 @@
     <div class="ucard__head">
       <div class="ucard__heading">
         <span v-if="kind" class="ucard__kind">{{ kind }}</span>
-        <v-tooltip :text="title" location="top" open-delay="250" :disabled="!truncated">
+        <!-- Always show the full name on hover: card titles are routinely
+             clipped (ellipsis) and the truncation-detection was unreliable, so
+             the user couldn't tell which tool a card was. Native `title` attr is
+             a guaranteed fallback even if the v-tooltip teleport misbehaves. -->
+        <v-tooltip :text="title" location="top" open-delay="200">
           <template #activator="{ props: tip }">
-            <span ref="titleEl" class="ucard__name" v-bind="tip">{{ title }}</span>
+            <span class="ucard__name" :title="title" v-bind="tip">{{ title }}</span>
           </template>
         </v-tooltip>
       </div>
@@ -55,7 +59,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
+import { ref } from "vue";
 
 export interface UCardMenuItem {
   label: string;
@@ -83,25 +87,6 @@ const props = withDefaults(
 );
 
 const menu = ref(false);
-
-// Show the title tooltip only when the single-line name is actually clipped —
-// no tooltip on short names. Re-measured on resize + title change.
-const titleEl = ref<HTMLElement>();
-const truncated = ref(false);
-let ro: ResizeObserver | undefined;
-const measure = () => {
-  const el = titleEl.value;
-  if (el) truncated.value = el.scrollWidth > el.clientWidth + 1;
-};
-onMounted(() => {
-  measure();
-  if (typeof ResizeObserver !== "undefined" && titleEl.value) {
-    ro = new ResizeObserver(measure);
-    ro.observe(titleEl.value);
-  }
-});
-watch(() => props.title, () => nextTick(measure));
-onBeforeUnmount(() => ro?.disconnect());
 
 const run = (item: UCardMenuItem) => {
   if (item.disabled) return;

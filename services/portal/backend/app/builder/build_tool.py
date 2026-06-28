@@ -18,6 +18,7 @@ from app.client.minio import get_minio_client
 from sqlalchemy.orm import Session
 from app.models.db_model import Plugin, SessionLocal
 from app.builder.source_acquirer import SourceAcquirer, SourceSpec
+from app.builder.proc_stream import stream_process
 from app.utils.builder_utils import (
     copy_item,
     remove_tmp_folder,
@@ -44,62 +45,41 @@ class PluginBuilder:
         package_json = project_dir / "package.json"
         return package_json.exists()
 
-    def frontend_install(self, project_dir: Path) -> Dict[str, Any]:
+    def _run_streaming(self, args, cwd, sink=None) -> Dict[str, Any]:
+        """Run a child process under a PTY (POSIX) so npm/vite stream live,
+        forwarding each line to the logger (captured by the live-log registry).
+        Returns the same shape as the old subprocess.run path."""
+        captured: list[str] = []
+
+        def on_line(line: str) -> None:
+            captured.append(line)
+            logger.info(line)
+            if sink:
+                try:
+                    sink(line)
+                except Exception:
+                    pass
+
+        try:
+            rc = stream_process(args, cwd=cwd, on_line=on_line)
+        except FileNotFoundError as e:
+            logger.error(f"executable not found: {e}")
+            return {"success": False, "stdout": "", "stderr": str(e), "error": str(e)}
+        out = "\n".join(captured)
+        if rc == 0:
+            return {"success": True, "stdout": out, "stderr": ""}
+        return {"success": False, "stdout": out, "stderr": out,
+                "error": f"exited with code {rc}"}
+
+    def frontend_install(self, project_dir: Path, sink=None) -> Dict[str, Any]:
         """Run npm install in the project directory"""
-        try:
-            logger.info(f"Running npm install in {project_dir}")
+        logger.info(f"Running npm install in {project_dir}")
+        return self._run_streaming(self._convert_command("npm install --force"), project_dir, sink)
 
-            result = subprocess.run(
-                self._convert_command("npm install --force"),
-                cwd=project_dir,
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            logger.info("npm installation completed successfully")
-            return {
-                "success": True,
-                "stdout": result.stdout,
-                "stderr": result.stderr
-            }
-        except subprocess.CalledProcessError as e:
-            logger.error(f"npm install failed: {e}")
-            logger.error(f"stdout: {e.stdout}")
-            logger.error(f"stderr: {e.stderr}")
-            return {
-                "success": False,
-                "stdout": e.stdout,
-                "stderr": e.stderr,
-                "error": str(e)
-            }
-
-    def frontend_build(self, project_dir: Path, build_cmd: str) -> Dict[str, Any]:
+    def frontend_build(self, project_dir: Path, build_cmd: str, sink=None) -> Dict[str, Any]:
         """Run npm build in the project directory"""
-        try:
-            logger.info(f"Running {build_cmd} in {project_dir}")
-            result = subprocess.run(
-                self._convert_command(cmd=build_cmd),
-                cwd=project_dir,
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            logger.info("npm build completed successfully")
-            return {
-                "success": True,
-                "stdout": result.stdout,
-                "stderr": result.stderr
-            }
-        except subprocess.CalledProcessError as e:
-            logger.error(f"npm build failed: {e}")
-            logger.error(f"stdout: {e.stdout}")
-            logger.error(f"stderr: {e.stderr}")
-            return {
-                "success": False,
-                "stdout": e.stdout,
-                "stderr": e.stderr,
-                "error": str(e)
-            }
+        logger.info(f"Running {build_cmd} in {project_dir}")
+        return self._run_streaming(self._convert_command(cmd=build_cmd), project_dir, sink)
 
     @staticmethod
     def _convert_command(cmd: str) -> list:
@@ -502,7 +482,7 @@ class PluginBuilder:
                 f.write(f"{key}={val}\n")
         logger.info(f"Updated env file in {env_path} with route prefix /plugin/{expose_name}")
 
-    def build(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
+    def build(self, plugin: Dict[str, Any], sink=None) -> Dict[str, Any]:
         """Complete plugin build process"""
         build_logs = []
         error_message = None
@@ -588,14 +568,14 @@ class PluginBuilder:
 
                 # Step 3: npm install
                 logger.info("Step 3: Running npm install")
-                install_result = self.frontend_install(frontend_path)
+                install_result = self.frontend_install(frontend_path, sink=sink)
                 if not install_result["success"]:
                     raise RuntimeError(f"npm install failed: {install_result.get('error', 'Unknown error')}")
                 logger.info("npm install completed successfully")
 
                 # Step 4: npm build
                 logger.info("Step 4: Running npm build...")
-                build_result = self.frontend_build(frontend_path, frontend_build_command)
+                build_result = self.frontend_build(frontend_path, frontend_build_command, sink=sink)
                 if not build_result["success"]:
                     raise RuntimeError(f"npm build failed: {build_result.get('error', 'Unknown error')}")
                 logger.info("npm build completed successfully")
