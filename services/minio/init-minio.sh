@@ -7,6 +7,7 @@ mc mb --ignore-existing digitaltwins/workflow
 mc mb --ignore-existing digitaltwins/tool
 mc mb --ignore-existing digitaltwins/process
 mc mb --ignore-existing digitaltwins/airflow-workspace
+mc mb --ignore-existing digitaltwins/airflow-logs
 
 # Set Public Access Policy
 mc anonymous set public digitaltwins/tool
