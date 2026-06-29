@@ -269,25 +269,28 @@
   # come from data/secrets.env; PLATFORM_DOMAIN/PROTOCOL from data/env. The
   # template carries no realm signing keys (Keycloak regenerates them on import)
   # and seeds test users with plaintext passwords (see deployment docs).
+  # Generate the realm import straight into the keycloak import dir — no
+  # realm artifact is left in data/. The data dir only holds the secrets
+  # (secrets.env) and per-deployment config (env) that feed envsubst.
   - name: Generate digitaltwins-realm.json from repo template
     ansible.builtin.shell:
       cmd: >
         set -a && source {{ install_src_dir }}/data/secrets.env && source {{ install_src_dir }}/data/env && set +a &&
         export KC_SSL_REQUIRED=$([ "$PLATFORM_PROTOCOL" = "https" ] && echo "external" || echo "none") &&
-        envsubst < {{ install_src_dir }}/clean_src/digitaltwins-platform/services/keycloak/digitaltwins-realm.json.template > {{ install_src_dir }}/data/digitaltwins-realm.json
+        envsubst < {{ install_src_dir }}/clean_src/digitaltwins-platform/services/keycloak/digitaltwins-realm.json.template > {{ platform_dir }}/services/keycloak/import/digitaltwins-realm.json
       executable: /bin/bash
 
-  - name: Copy realm import to remote server
-    ansible.builtin.copy:
-      src: "{{ install_src_dir }}/data/digitaltwins-realm.json"
-      dest: "{{ platform_dir }}/services/keycloak/import/digitaltwins-realm.json"
+  - name: Set realm import permissions
+    ansible.builtin.file:
+      path: "{{ platform_dir }}/services/keycloak/import/digitaltwins-realm.json"
       mode: '0644'
 
-  - name: Copy realm import to keys
+  - name: Copy realm import to keys (backup)
     ansible.builtin.copy:
-      src: "{{ install_src_dir }}/data/digitaltwins-realm.json"
+      src: "{{ platform_dir }}/services/keycloak/import/digitaltwins-realm.json"
       dest: "{{ keys_dir }}/digitaltwins-realm.json"
       mode: '0600'
+      remote_src: true
 
   - name: Startup seek
     ansible.builtin.command: docker compose up -d seek
