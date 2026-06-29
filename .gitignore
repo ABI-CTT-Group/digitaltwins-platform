@@ -165,3 +165,7 @@ data/
 
 # Scratch / working dir
 tmp/
+
+# Generated realm import (contains injected secrets at deploy time);
+# the committed source is services/keycloak/digitaltwins-realm.json.template
+services/keycloak/import/digitaltwins-realm.json
