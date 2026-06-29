@@ -159,3 +159,9 @@ cython_debug/
 /my_workspace/
 
 data/
+
+# macOS
+.DS_Store
+
+# Scratch / working dir
+tmp/
