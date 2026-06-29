@@ -151,29 +151,27 @@
       path: "{{ platform_dir }}/.env"
     register: dotenv_check
 
-  - name: Generate .env from template (first deploy only)
+  # Template comes from the version-controlled repo (clean_src), the single
+  # source of truth. Only the secrets (secrets.env) and the per-deployment
+  # config (env) live in the untracked data dir. The operator must source
+  # both secrets.env and env before running this playbook so ${VAR} and
+  # ${PLATFORM_DOMAIN}/${PLATFORM_PROTOCOL} resolve.
+  - name: Generate .env from repo template (first deploy only)
     ansible.builtin.shell:
-      cmd: "set -a && source {{ install_src_dir }}/data/secrets.env && set +a && envsubst < .env.template > .env"
-      chdir: "{{ install_src_dir }}/data"
+      cmd: "set -a && source {{ install_src_dir }}/data/secrets.env && source {{ install_src_dir }}/data/env && set +a && envsubst < {{ install_src_dir }}/clean_src/digitaltwins-platform/.env.template > {{ platform_dir }}/.env"
       executable: /bin/bash
     when: not dotenv_check.stat.exists
 
-  - name: Copy .env to platform dir (first deploy only)
-    ansible.builtin.copy:
-      src: "{{ install_src_dir }}/data/.env"
-      dest: "{{ platform_dir }}/.env"
+  - name: Ensure .env permissions (first deploy only)
+    ansible.builtin.file:
+      path: "{{ platform_dir }}/.env"
       mode: '0600'
     when: not dotenv_check.stat.exists
 
-  - name: Generate env from template
-    ansible.builtin.shell:
-      cmd: "envsubst '${PLATFORM_DOMAIN} ${PLATFORM_PROTOCOL}' < env.template > env"
-      chdir: "{{ install_src_dir }}/data"
-    environment:
-      PLATFORM_DOMAIN: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
-      PLATFORM_PROTOCOL: "{{ lookup('env', 'PLATFORM_PROTOCOL') | default('https') }}"
-
-  - name: Copy env to platform dir
+  # env is the operator-maintained per-deployment config (data/env), copied
+  # verbatim. The committed env.template is only the starter the operator
+  # copied data/env from — it is never used to generate the live env.
+  - name: Copy per-deployment env to platform dir
     ansible.builtin.copy:
       src: "{{ install_src_dir }}/data/env"
       dest: "{{ platform_dir }}/env"
