@@ -13,6 +13,13 @@ services:
     restart: unless-stopped
     networks:
       - digitaltwins
+    # Shadow the image-baked nginx templates with the host copies so routing
+    # changes take effect with `docker compose restart portal-frontend`
+    # (entry.sh re-runs envsubst at startup) — no image rebuild needed.
+    # The image still ships working defaults, so it runs standalone without these.
+    volumes:
+      - ./services/portal/DigitalTWINS-Portal/frontend/nginx.ssl.conf.template:/etc/nginx/conf.d/nginx.ssl.conf.template:ro
+      - ./services/portal/DigitalTWINS-Portal/frontend/nginx.http.conf.template:/etc/nginx/conf.d/nginx.http.conf.template:ro
 #  hapi-fhir:
 #    extends:
 #      file: ./services/hapi-fhir/docker-compose.yml

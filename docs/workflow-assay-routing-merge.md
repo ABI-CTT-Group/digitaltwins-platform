@@ -1,4 +1,4 @@
-# main_buildout Merge Notes for Chinchien
+# main_buildout Merge Notes for Chinchien and Linkun
 
 This document covers all conflicts resolved when merging `origin/main` into
 `main_buildout` across the three submodules. It explains what each branch
@@ -18,7 +18,7 @@ the result ported back to `main` if desired.
 
 ---
 
-## What Chinchien's `main` added
+## What `main` added
 
 **Commit:** `d22b208 feat [assay]: run jupyter assay`
 
@@ -86,7 +86,7 @@ in `.env`.
 
 The merged `main_buildout` combines all three contributions:
 
-1. **Tag-based dispatch** from Chinchien — unchanged logic, `script` vs
+1. **Tag-based dispatch** from main — unchanged logic, `script` vs
    `notebook` vs error.
 2. **User token passthrough** — applied to the `script` branch's
    `_trigger_dag` call.
@@ -118,7 +118,7 @@ correct for that branch.
 
 ## Context
 
-`main_buildout` diverged from `main` by approximately 30 commits. Chinchien
+`main_buildout` diverged from `main` by approximately 30 commits. main
 added a measurement import system, a major frontend refactor, a new landing
 page, and assorted backend improvements. Five files had conflicts.
 
@@ -161,10 +161,10 @@ variable before returning (functionally identical).
 Used `"seekId"` (camelCase) and returned directly.
 
 ### Resolution
-Used `"seek_id"` (Chinchien's version) with the direct `return {}` pattern
+Used `"seek_id"` (main's version) with the direct `return {}` pattern
 (our version). Rationale: `"seek_id"` is consistent with every other key in
 the same file (`seek_id`, `study_seek_id`, `investigation_seek_id`, etc.),
-and Chinchien's new frontend code was written expecting `seek_id`. The `temp`
+and main's new frontend code was written expecting `seek_id`. The `temp`
 variable pattern is equivalent and was dropped in favour of the cleaner
 direct return.
 
@@ -206,7 +206,7 @@ A commented-out `envsubst` line — the envsubst approach had been disabled and
 the nginx config was being mounted as a volume directly.
 
 ### Resolution
-Took Chinchien's version in full. The cert-detection logic is more robust
+Took main's version in full. The cert-detection logic is more robust
 than the `SSL=true/false` env var approach, and it degrades gracefully: in
 the `main_buildout` deployment (nginx proxy handles SSL externally, no certs
 inside the container), it correctly falls back to HTTP mode. The
@@ -218,12 +218,12 @@ limits aren't enforced at the container level.
 ## Conflict 5: `frontend/src/views/dashboard/study-dashboard/index.vue` (modify/delete)
 
 ### What happened
-Chinchien deleted this file as part of a large dashboard refactor that
+main deleted this file as part of a large dashboard refactor that
 restructured views under new paths. `main_buildout` had made minor
 modifications to it.
 
 ### Resolution
-Accepted the deletion. Chinchien's refactor replaced the entire
+Accepted the deletion. main's refactor replaced the entire
 `study-dashboard/` directory with a new component structure under
 `frontend/src/views/dashboard/components/`. Keeping our version would
 conflict with the new routing and component hierarchy.
@@ -246,7 +246,7 @@ conflict with the new routing and component hierarchy.
 
 ## Background
 
-When merging Chinchien's `entry.sh` (which now generates `/etc/nginx/conf.d/default.conf`
+When merging main's `entry.sh` (which now generates `/etc/nginx/conf.d/default.conf`
 from a template via `envsubst`), a structural problem surfaced in the root
 `docker-compose.yml`: the portal services were wired in via `extends:` rather
 than `include:` like every other service (airflow, postgres, keycloak, etc.).
@@ -329,7 +329,7 @@ first started:
 
 1. **Read-only `default.conf` mount** — the old `main_buildout` volume mount
    `./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro` conflicted with
-   Chinchien's `entry.sh`, which writes that file at container startup. Fix:
+   main's `entry.sh`, which writes that file at container startup. Fix:
    remove the bind mount from `docker-compose.yml`. The templates inside the
    image (`nginx.http.conf.template`, `nginx.ssl.conf.template`) are the source
    of truth; `entry.sh` generates `default.conf` from them at runtime.
@@ -338,3 +338,131 @@ first started:
    `${BACKEND_PORT}` but it wasn't in the portal-frontend environment block.
    Fix: added `- BACKEND_PORT=${BACKEND_PORT:-8000}` to portal-frontend's
    `environment:` in `docker-compose.yml`.
+
+---
+
+# Part 4: PWA service worker hijacked the Keycloak login redirect
+
+## Symptom
+
+After rebuilding portal-frontend, clicking **Sign In** (or navigating to any
+SSO-protected service such as `/airflow`) produced a **blank black screen**.
+A hard refresh (Ctrl+Shift+R) always got through; a normal reload did not.
+No JavaScript console errors, and `styles.css` for the Keycloak theme never
+appeared in the Network tab. `curl` of the same Keycloak auth URL returned the
+correct login HTML every time.
+
+## Root cause
+
+The portal is a PWA (`vite-plugin-pwa` / Workbox). Its service worker uses a
+`navigateFallback` to `index.html` so client-side routes resolve to the SPA
+shell. A `navigateFallbackDenylist` is supposed to exempt paths that nginx
+reverse-proxies to other services so the SW doesn't hijack them.
+
+The denylist contained `/^\/realms(\/|$)/` — written for a Keycloak mounted at
+the **root** (`/realms/...`). But this deployment mounts Keycloak under
+`/auth` (`KC_HTTP_RELATIVE_PATH=/auth`, so the login URL is
+`/auth/realms/...`). The `/realms` pattern never matched `/auth/realms`, so the
+service worker intercepted the browser's redirect to the Keycloak login page and
+served the cached SPA shell instead. The shell mounts Vue at an unknown
+`/auth/...` route and renders nothing → black screen.
+
+This explained every symptom: hard refresh bypasses the SW (works); the
+Keycloak page never loads so its CSS is never requested; and `curl` has no
+service worker so it always sees the real page.
+
+## Fix
+
+Extend the denylist in
+`services/portal/DigitalTWINS-Portal/frontend/vite.config.ts` to cover `/auth`
+and every other reverse-proxied service, not just the bare `/realms`:
+
+```js
+navigateFallbackDenylist: [
+  /^\/api(\/|$)/,
+  /^\/plugin(\/|$)/,
+  /^\/tools(\/|$)/,
+  /^\/minio-console(\/|$)/,
+  /^\/auth(\/|$)/,        // Keycloak (mounted under /auth in this deployment)
+  /^\/realms(\/|$)/,
+  /^\/airflow(\/|$)/,
+  /^\/jupyterhub(\/|$)/,
+  /^\/seek(\/|$)/,
+  /^\/grafana(\/|$)/,
+  /^\/dtapi(\/|$)/,
+  /silent-check-sso\.html$/,
+  /\/[^/?]+\.[^/]+$/,
+],
+```
+
+Requires a portal-frontend image rebuild (the SW is baked at build time).
+Because `skipWaiting`/`clientsClaim` are set, the new SW takes over on next
+load — but browsers already running the old SW must evict it once
+(DevTools → Application → Clear site data, then full browser restart).
+
+## Recommendation for `main`
+
+If `main` ever serves Keycloak (or Airflow/JupyterHub/SEEK/Grafana) behind the
+portal's nginx under a sub-path, this denylist must list those sub-paths.
+The bare `/realms` entry is only correct when Keycloak is at the domain root.
+Safest to keep all reverse-proxied prefixes in the denylist regardless.
+
+---
+
+# Part 5: nginx templates bind-mounted so config edits don't need a rebuild
+
+## Background
+
+Chinchien's `entry.sh` design `COPY`s `nginx.http.conf.template` and
+`nginx.ssl.conf.template` into the image (Dockerfile), then at container
+startup picks one (based on cert presence) and runs `envsubst` to produce
+`/etc/nginx/conf.d/default.conf`.
+
+The templates are the source of truth — but because they live *inside* the
+image, **any routing change requires rebuilding the portal-frontend image**.
+A `docker compose restart` alone has no effect: the container still holds the
+old baked-in template. For a deployment where nginx routing is tweaked
+relatively often (adding a proxied service, adjusting a location block), a full
+image rebuild per edit is heavy.
+
+## The change
+
+Bind-mount the two host templates over their in-image paths, in the **root**
+`docker-compose.yml` (the platform repo), on the `portal-frontend` service:
+
+```yaml
+  portal-frontend:
+    extends:
+      file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
+      service: portal-frontend
+    ...
+    volumes:
+      - ./services/portal/DigitalTWINS-Portal/frontend/nginx.ssl.conf.template:/etc/nginx/conf.d/nginx.ssl.conf.template:ro
+      - ./services/portal/DigitalTWINS-Portal/frontend/nginx.http.conf.template:/etc/nginx/conf.d/nginx.http.conf.template:ro
+```
+
+`entry.sh` now reads the host copy. The new workflow is:
+
+> edit the template → `docker compose restart portal-frontend` → entry.sh
+> re-runs `envsubst` → new routing live. **No image rebuild.**
+
+## Why this is non-invasive
+
+- **Chinchien's submodule is untouched** — `entry.sh` and the Dockerfile are
+  unchanged. The mount lives entirely in the platform repo's root compose.
+- The image still bakes in working defaults, so it runs standalone (e.g. local
+  dev without the platform compose) exactly as before.
+- The mount is read-only (`:ro`); nginx never writes to the templates.
+
+## Trade-off
+
+A template typo now surfaces at **restart** (nginx fails to come up) instead of
+at build time. Mitigate with `docker exec <container> nginx -t` against the
+generated `default.conf`, or just watch `docker compose logs portal-frontend`
+after the restart.
+
+## Recommendation for `main`
+
+This is purely a deployment-ergonomics improvement and is safe for `main` too.
+It changes nothing about how the image is built or how `entry.sh` behaves —
+it only lets operators iterate on nginx routing without a rebuild cycle.
