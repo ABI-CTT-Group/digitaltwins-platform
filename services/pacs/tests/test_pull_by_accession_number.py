@@ -20,14 +20,11 @@ OUR_AET = b"localhost"
 # Target PACS Application Entity Title (Orthanc 2)
 TARGET_PACS_AET = b"dt_pacs_2"
 
-# Target Accession Number
-TARGET_ACCESSION_NUMBER = "ACC-2024-00123"
-
-def main():
+def pull_by_accession_number(target_accession_number):
     print(f"Starting DICOM test script using C-MOVE...")
     print(f"Source Orthanc: {ORTHANC_IP}:{ORTHANC_PORT} (AET: {ORTHANC_AET.decode()})")
     print(f"Destination PACS AET: {TARGET_PACS_AET.decode()}")
-    print(f"Searching for Accession Number: {TARGET_ACCESSION_NUMBER}")
+    print(f"Searching for Accession Number: {target_accession_number}")
 
     # Initialize SCU Application Entity
     scu_ae = AE(ae_title=OUR_AET)
@@ -39,7 +36,7 @@ def main():
 
     if not assoc.is_established:
         print("Failed to establish association. Check Orthanc is running and DICOM port is exposed.")
-        sys.exit(1)
+        return
 
     print("Association established successfully.")
 
@@ -48,7 +45,7 @@ def main():
 
     ds = Dataset()
     ds.QueryRetrieveLevel = 'STUDY'
-    ds.AccessionNumber = TARGET_ACCESSION_NUMBER
+    ds.AccessionNumber = target_accession_number
     ds.StudyInstanceUID = ''
     ds.PatientID = ''
     ds.PatientName = ''
@@ -74,7 +71,7 @@ def main():
 
     if not study_uids:
         print("No studies found with the given Accession Number.")
-        sys.exit(0)
+        return
 
     # 2. C-MOVE to request transfer to Target PACS
     print(f"\n--- 2. C-MOVE ---")
@@ -83,7 +80,7 @@ def main():
 
     if not assoc_move.is_established:
         print("Failed to establish association for C-MOVE.")
-        sys.exit(1)
+        return
 
     for study_uid in study_uids:
         print(f"Sending C-MOVE request for Study UID: {study_uid} to destination {TARGET_PACS_AET.decode()}...")
@@ -107,6 +104,23 @@ def main():
     assoc_move.release()
     print(f"\nAssociation released. C-MOVE operation finished.")
 
+def pull_by_accession_numbers(accession_numbers):
+    for acc_num in accession_numbers:
+        print(f"\n{'='*50}\nProcessing Accession Number: {acc_num}\n{'='*50}")
+        pull_by_accession_number(acc_num)
+
+def main():
+    if len(sys.argv) > 1:
+        accession_nums = sys.argv[1:]
+    else:
+        user_input = input("Enter Accession Numbers (comma separated): ").strip()
+        if not user_input:
+            print("No accession numbers provided.")
+            return
+        accession_nums = [acc.strip() for acc in user_input.split(',')]
+    
+    pull_by_accession_numbers(accession_nums)
+    
 if __name__ == "__main__":
     main()
 
