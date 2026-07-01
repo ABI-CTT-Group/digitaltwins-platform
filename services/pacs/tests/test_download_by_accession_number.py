@@ -15,7 +15,7 @@ ORTHANC_PORT = 8015  # DICOM port from .env (ORTHANC_1_DICOM_PORT=8015)
 ORTHANC_AET = b"dt_pacs_1"  # AET from .env (ORTHANC_1_AET=dt_pacs_1)
 
 # Our SCU Application Entity Title
-OUR_AET = b"TEST_SCU"
+OUR_AET = b"localhost"
 
 # Target PACS Application Entity Title (Orthanc 2)
 TARGET_PACS_AET = b"dt_pacs_2"

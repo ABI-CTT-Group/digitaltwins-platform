@@ -17,6 +17,11 @@
   "HttpPort": 8042,
   "DicomCheckModalityHost": true,
   "DicomModalities": {
+    "localhost": [
+      "localhost",
+      "172.18.0.1",
+      11112
+    ],
     "PEER": [
       "${PEER_AET}",
       "${PEER_HOST}",
