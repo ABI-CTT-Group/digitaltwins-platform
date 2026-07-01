@@ -45,6 +45,7 @@ from dicomanonymizer.simpledicomanonymizer import (
 # The `keep` action (from dicomanonymizer) is a no-op — it leaves the tag
 # value exactly as received, overriding whatever the base profile would do.
 TAGS_TO_KEEP = {
+    (0x0008, 0x0050): keep,  # Accession Number
     (0x0010, 0x1010): keep,  # Patient's Age
     (0x0010, 0x1030): keep,  # Patient's Weight
     (0x0010, 0x1020): keep,  # Patient's Size
