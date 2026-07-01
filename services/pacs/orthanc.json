@@ -15,6 +15,7 @@
   "DicomAet": "${ORTHANC_AET}",
   "DicomPort": 4242,
   "HttpPort": 8042,
+  "DicomCheckModalityHost": true,
   "DicomModalities": {
     "PEER": [
       "${PEER_AET}",
