@@ -18,6 +18,12 @@ NGINX_PLUGINS_CONF_DIR = os.environ.get(
 )
 # Container name of the portal-frontend (nginx) service for docker exec
 NGINX_CONTAINER_NAME = os.environ.get("NGINX_CONTAINER_NAME", "portal-frontend")
+# Upload body cap (MB) for plugin runtime traffic (/plugin/<expose>/...). The
+# main nginx only sets client_max_body_size on the registration upload-source
+# location, NOT server-wide, so the generated plugin location must set its own —
+# otherwise large plugin uploads (e.g. 3D models) hit nginx's 1MB default → 413.
+# Default 20480 MB (20 GB); override with PLUGIN_MAX_UPLOAD_MB.
+PLUGIN_MAX_UPLOAD_MB = os.environ.get("PLUGIN_MAX_UPLOAD_MB", "20480")
 
 
 def _compose_project_name(expose_name: str) -> str:
@@ -63,13 +69,20 @@ location {route_prefix}/ {{
     # rather than at startup. This prevents nginx from crashing on startup ('host not found in upstream')
     # if the plugin container isn't running yet when the portal restarts.
     resolver 127.0.0.11 valid=30s ipv6=off;
-    
+
     # Store the dynamic upstream address in a variable BEFORE the rewrite break
     set $plugin_upstream http://{internal_host}:{internal_port};
-    
+
     # Strip the prefix route when forwarding the request to the plugin
     rewrite ^{route_prefix}/(.*)$ /$1 break;
-    
+
+    # Upload cap for plugin traffic. Without this the plugin location inherits
+    # nginx's 1MB default (the server block sets no server-wide cap), so large
+    # plugin uploads (3D models, datasets) get 413. Stream large bodies straight
+    # through instead of buffering the whole request first.
+    client_max_body_size {PLUGIN_MAX_UPLOAD_MB}m;
+    proxy_request_buffering off;
+
     proxy_pass $plugin_upstream;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;

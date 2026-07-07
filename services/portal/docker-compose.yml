@@ -8,9 +8,9 @@ services:
     environment:
       - PYTHONPATH=/app
       - DATABASE_PATH=/data/plugin_registry.db
-      - DATASET_DIR_TOOL=/portal_workspace/tool
-      - DATASET_DIR_MEASUREMENT=/portal_workspace/measurement
-      - DATASET_DIR_WORKFLOW=/portal_workspace/workflow
+      - DATASET_DIR_TOOL=/portal_workspace/tools
+      - DATASET_DIR_MEASUREMENT=/portal_workspace/measurements
+      - DATASET_DIR_WORKFLOW=/portal_workspace/workflows
       - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio:9000}
       - MINIO_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
@@ -36,7 +36,7 @@ services:
     volumes:
       - portal_datasets:/app/data
       # /portal_workspace holds tool + workflow + measurement staging in
-      # three subdirs (tool/, workflow/, measurement/), keyed off the
+      # three subdirs (tools/, workflows/, measurements/), keyed off the
       # DATASET_DIR_* env vars above. It was a Windows host bind mount, but
       # Docker Desktop's gRPC-FUSE hangs under SPARC dataset creation for
       # large plugins (thousands of small files — VolView/itk pipelines).
