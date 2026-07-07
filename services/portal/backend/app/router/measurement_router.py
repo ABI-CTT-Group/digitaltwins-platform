@@ -10,7 +10,7 @@ Endpoints implemented here:
 Bucket: ``measurements`` (private, streamed through this backend; never
 direct from MinIO). Staging directory: ``DATASET_DIR_MEASUREMENT`` env, default
 ``./datasets_measurement`` for local dev (Docker compose sets it to
-``/portal_workspace/measurement``).
+``/portal_workspace/measurements``).
 """
 from __future__ import annotations
 

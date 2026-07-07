@@ -21,7 +21,7 @@ if ($LASTEXITCODE -eq 0) { $dc = @("docker", "compose") } else { $dc = @("docker
 function dc { & $dc[0] $dc[1..($dc.Length - 1)] @args }
 
 $base = Split-Path $Source -Leaf
-$stageDir = "/portal_workspace/measurement/import-staging"
+$stageDir = "/portal_workspace/measurements/import-staging"
 $stage = "$stageDir/$base"
 
 dc exec -T portal-backend sh -c "rm -rf '$stage'; mkdir -p '$stageDir'"

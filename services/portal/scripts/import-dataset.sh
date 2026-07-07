@@ -23,7 +23,7 @@ SRC="${SRC%/}"
 if docker compose version >/dev/null 2>&1; then DC="docker compose"; else DC="docker-compose"; fi
 
 BASE="$(basename "$SRC")"
-STAGE_DIR="/portal_workspace/measurement/import-staging"
+STAGE_DIR="/portal_workspace/measurements/import-staging"
 STAGE="$STAGE_DIR/$BASE"
 
 # Fresh staging slot inside the container.
