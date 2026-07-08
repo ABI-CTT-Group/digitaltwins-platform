@@ -13,20 +13,20 @@ services:
     restart: unless-stopped
     networks:
       - digitaltwins
-#  hapi-fhir:
-#    extends:
-#      file: ./services/hapi-fhir/docker-compose.yml
-#      service: hapi-fhir
-#    restart: unless-stopped
-#    networks:
-#      - digitaltwins
-#  hapi-fhir-postgres:
-#    extends:
-#      file: ./services/hapi-fhir/docker-compose.yml
-#      service: hapi-fhir-postgres
-#    restart: unless-stopped
-#    networks:
-#      - digitaltwins
+  hapi-fhir:
+    extends:
+      file: ./services/hapi-fhir/docker-compose.yml
+      service: hapi-fhir
+    restart: unless-stopped
+    networks:
+      - digitaltwins
+  hapi-fhir-postgres:
+    extends:
+      file: ./services/hapi-fhir/docker-compose.yml
+      service: hapi-fhir-postgres
+    restart: unless-stopped
+    networks:
+      - digitaltwins
 
 include:
   # to run only a specific included project with the root .env: sudo docker compose -f services/<service_name>/docker-compose.yml --env-file ./.env up
@@ -57,6 +57,10 @@ include:
   - path:
       - services/pacs/docker-compose.yml
     project_directory: services/pacs
+  # TODO. disable for production. External PACS (pretend to be external). only for testing
+  - path:
+      - services/pacs_pretend_external/docker-compose.yml
+    project_directory: services/pacs_pretend_external
   # digitaltwins-api
   - path:
       - services/api/digitaltwins-api/docker-compose.yml
