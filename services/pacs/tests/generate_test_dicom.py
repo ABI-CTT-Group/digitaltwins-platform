@@ -62,7 +62,7 @@ def create_synthetic_dicom():
     ds.AdditionalPatientHistory = "No relevant history"
 
     # Institution identifiers
-    ds.AccessionNumber = "ACC-2024-00123"
+    ds.AccessionNumber = "ACC-2026-00002"
     ds.InstitutionName = "Springfield General Hospital"
     ds.InstitutionAddress = "123 Main Street, Springfield, IL 62701"
     ds.ReferringPhysicianName = "DR^SMITH^JAMES"
@@ -92,7 +92,7 @@ def create_synthetic_dicom():
     ds.PatientSize = 1.78      # (0010,1020) Patient's Size (height in m)
 
     # --- Image module (minimal valid SC image) --------------------------------
-    ds.Modality = "OT"
+    ds.Modality = "MR"
     ds.SeriesNumber = "1"
     ds.InstanceNumber = "1"
     ds.SamplesPerPixel = 1
