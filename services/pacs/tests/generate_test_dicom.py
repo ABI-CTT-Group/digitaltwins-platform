@@ -15,10 +15,8 @@ Usage:
 """
 
 import os
-import sys
 import pydicom
-from pydicom.dataset import Dataset, FileDataset
-from pydicom.sequence import Sequence
+from pydicom.dataset import FileDataset
 from pydicom.uid import generate_uid, ExplicitVRLittleEndian
 import pydicom.uid
 import numpy as np
