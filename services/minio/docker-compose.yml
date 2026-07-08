@@ -31,8 +31,8 @@ services:
       minio:
         condition: service_healthy
     environment:
-      - MINIO_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
       - ./init-minio.sh:/init-minio.sh:ro
     entrypoint: /bin/sh /init-minio.sh
