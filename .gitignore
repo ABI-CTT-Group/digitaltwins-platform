@@ -161,3 +161,11 @@ cython_debug/
 
 # Git worktrees
 .worktrees/
+
+# Keycloak realm imports - keep the folder, ignore everything else
+services/keycloak/import/*
+!services/keycloak/import/.gitkeep
+
+# Airflow config - keep the folder, ignore everything else
+services/airflow/config/*
+!services/airflow/config/.gitkeep
