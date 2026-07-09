@@ -12,7 +12,7 @@ services:
       - jupyterhub_data:/srv/jupyterhub
     environment:
       - JUPYTERHUB_CRYPT_KEY=${JUPYTERHUB_CRYPT_KEY:-c3b53f650bf93c3c6f8f5b8a5b2803b9b4d1b8c2810a9a8f2762a4f4e2b027d1}
-      - DOCKER_NETWORK_NAME=${COMPOSE_PROJECT_NAME:-digitaltwins-platform}_digitaltwins-platform
+      - DOCKER_NETWORK_NAME=${PROJECT_NAME:-digitaltwins-platform}
       - DOCKER_NOTEBOOK_IMAGE=digitaltwins-platform-jupyter-singleuser:latest
       - DOCKER_NOTEBOOK_DIR=/home/jovyan/work
       - DOCKER_MEM_LIMIT=8G
