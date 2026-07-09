@@ -38,7 +38,7 @@ services:
       start_period: 15s
     restart: unless-stopped
     networks:
-      - digitaltwins
+      - digitaltwins-platform
 
   orthanc-2:
     build:
@@ -77,7 +77,7 @@ services:
       start_period: 15s
     restart: unless-stopped
     networks:
-      - digitaltwins
+      - digitaltwins-platform
 
   orthanc-auth-service-1:
     image: orthancteam/orthanc-auth-service:26.4.0
@@ -99,7 +99,7 @@ services:
         }
     restart: unless-stopped
     networks:
-      - digitaltwins
+      - digitaltwins-platform
 
   orthanc-auth-service-2:
     image: orthancteam/orthanc-auth-service:26.4.0
@@ -121,14 +121,17 @@ services:
         }
     restart: unless-stopped
     networks:
-      - digitaltwins
+      - digitaltwins-platform
 
 volumes:
   orthanc_1_data:
     driver: local
+    name: ${PROJECT_NAME}_orthanc_1_data
   orthanc_2_data:
     driver: local
+    name: ${PROJECT_NAME}_orthanc_2_data
 
 networks:
-  digitaltwins:
+  digitaltwins-platform:
     driver: bridge
+    name: ${PROJECT_NAME}

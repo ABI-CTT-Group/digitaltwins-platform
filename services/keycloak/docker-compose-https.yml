@@ -27,15 +27,17 @@ services:
       - ./server.jks:/opt/keycloak/conf/server.jks
     restart: unless-stopped
     networks:
-      - digitaltwins
+      - digitaltwins-platform
 
 volumes:
   keycloak_data:
     driver: local
+    name: ${PROJECT_NAME}_keycloak_data
 
 networks:
-  digitaltwins:
+  digitaltwins-platform:
     driver: bridge
+    name: ${PROJECT_NAME}
 
 # Keycloak Admin Console
 # http://localhost:8080/admin
@@ -46,4 +48,4 @@ networks:
 
 
 # creating network
-# sudo docker network create digitaltwins
+# sudo docker network create digitaltwins-platform
