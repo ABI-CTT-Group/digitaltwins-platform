@@ -187,7 +187,7 @@ No portal rebuild, no nginx image rebuild — the plugin showed up because of a 
   networks:
     digitaltwins:
       external: true
-      name: digitaltwins
+      name: digitaltwins-platform   # real network name = ${PROJECT_NAME}
   ```
 - If the backend needs to know its own public URL, reference `${PLUGIN_ROUTE_PREFIX}` in the compose env — the deployer passes it in.
 - If the backend needs to read `measurements`/`models` from MinIO, the compose should forward `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY` (from the parent `.env` via `${VAR}` substitution).

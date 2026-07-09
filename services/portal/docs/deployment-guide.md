@@ -52,9 +52,11 @@ There is **no** `frontend/nginx.conf` or `frontend/nginx.conf.template` anymore.
 Before deploying:
 
 1. Docker + Docker Compose v2 on the host.
-2. The `digitaltwins` external network already created:
+2. The shared external network already created. The main stack creates it as
+   `${PROJECT_NAME}` (with `PROJECT_NAME=digitaltwins-platform` in `.env`, the
+   real name is `digitaltwins-platform`); to pre-create it manually:
    ```bash
-   docker network inspect digitaltwins >/dev/null 2>&1 || docker network create digitaltwins
+   docker network inspect digitaltwins-platform >/dev/null 2>&1 || docker network create digitaltwins-platform
    ```
 3. Your existing `.env` must contain:
    ```dotenv
@@ -233,7 +235,7 @@ This means the same Docker image is used in dev and prod — only the **host-mou
 ## 8. What NOT to change
 
 - **`NGINX_CONF=nginx.conf.http` in `.env`** — belongs to SEEK, keep as-is.
-- **Shared external network `digitaltwins`** — plugin backends join this network and nginx resolves their hostnames through it. Changing the network name will break plugin routing.
+- **Shared external network (real name `digitaltwins-platform`, = `${PROJECT_NAME}`)** — plugin backends join this network and nginx resolves their hostnames through it. Changing the network name (or `PROJECT_NAME`) will break plugin routing.
 - **`include /etc/nginx/conf.d/plugins/*.conf;`** — present in both templates. Removing it breaks the plugin system.
 - **The `nginx_plugin_configs` volume mount** — shared between `portal-backend` (writer) and `portal-frontend` (reader). Do not change its name or path.
 

@@ -170,24 +170,24 @@ services:
 networks:
   digitaltwins:
     driver: bridge
-    name: digitaltwins
+    name: ${PROJECT_NAME}
 
 volumes:
   portal_datasets:
-    name: digitaltwins_portal_datasets
+    name: ${PROJECT_NAME}_portal_datasets
     driver: local
   portal_workspace:
-    name: digitaltwins_portal_workspace
+    name: ${PROJECT_NAME}_portal_workspace
     driver: local
   hapi_fhir_postgres:
-    name: digitaltwins_hapi_fhir_postgres
+    name: ${PROJECT_NAME}_hapi_fhir_postgres
     driver: local
   plugin_database:
-    name: digitaltwins_plugin_database
+    name: ${PROJECT_NAME}_plugin_database
     driver: local
   minio_data:
-    name: digitaltwins_minio_data
+    name: ${PROJECT_NAME}_minio_data
     driver: local
   nginx_plugin_configs:
-    name: digitaltwins_nginx_plugin_configs
+    name: ${PROJECT_NAME}_nginx_plugin_configs
     driver: local
