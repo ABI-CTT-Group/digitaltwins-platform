@@ -101,7 +101,7 @@ services:
   # -----------------------------------------------------------------------
   # Local postgres service REMOVED – Airflow now uses the platform-wide
   # PostgreSQL service (services/postgres/) reachable as 'database' on the
-  # shared 'digitaltwins' network.
+  # shared 'digitaltwins-platform' network.
   # -----------------------------------------------------------------------
   # postgres:
   #   image: postgres:13

@@ -13,7 +13,7 @@ services:
     volumes:
       - notebook_workspace:/home/jovyan/work
     networks:
-      - digitaltwins
+      - digitaltwins-platform
 
     command: start-notebook.sh
     restart: unless-stopped
@@ -21,7 +21,9 @@ services:
 volumes:
   notebook_workspace:
     driver: local
+    name: ${PROJECT_NAME}_notebook_workspace
 
 networks:
-  digitaltwins:
+  digitaltwins-platform:
     driver: bridge
+    name: ${PROJECT_NAME}
