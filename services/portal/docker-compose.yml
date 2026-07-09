@@ -15,6 +15,17 @@ services:
       - MINIO_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
       - MINIO_PORT=${MINIO_PORT:-8004}
+      # Pass-through vars consumed by PLUGIN compose files, not by this backend.
+      # PluginDeployer shells out to `docker compose` from inside this container
+      # with os.environ as the interpolation source, and compose looks for a .env
+      # in the plugin's own project dir — never in clinical-dashboard/.env. So a
+      # `${VAR}` in any plugin compose resolves against THIS block, and a missing
+      # name degrades silently to the plugin's `:-` default rather than erroring.
+      # These names are the plugin-facing contract; keep them even though the
+      # backend's own code reads the MINIO_ACCESS_KEY/MINIO_SECRET_KEY above.
+      - MINIO_SERVER_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
+      - MINIO_SERVER_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
+      - PROJECT_NAME=${PROJECT_NAME:-digitaltwins-platform}
       - USE_SSL=${USE_SSL:-false}
       - FHIR_ENDPOINT=${FHIR_ENDPOINT:-hapi-fhir:8080/fhir}
       - DIGITALTWINS_API_BASE_URL=${DIGITALTWINS_API_BASE_URL:-http://digitaltwins-api}
@@ -28,7 +39,7 @@ services:
       - KEYCLOAK_CA_CERT=${KEYCLOAK_CA_CERT:-}
       # Nginx plugin config (shared volume with portal-frontend)
       - NGINX_PLUGINS_CONF_DIR=/nginx-plugins-conf
-      - NGINX_CONTAINER_NAME=digitaltwins-platform-portal-frontend
+      - NGINX_CONTAINER_NAME=${PROJECT_NAME}-portal-frontend
       # Upload ceiling — read by /api/measurement and surfaced to nginx +
       # the frontend dropzone via /api/measurement/config so all three
       # layers move together when an operator edits .env and restarts.
@@ -72,7 +83,7 @@ services:
         - VITE_KEYCLOAK_URL=${PORTAL_KEYCLOAK_BASE_URL}
         - VITE_KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
         - VITE_KEYCLOAK_CLIENT_ID=portal-frontend
-    container_name: digitaltwins-platform-portal-frontend
+    container_name: ${PROJECT_NAME}-portal-frontend
     ports:
       - "80:80"
       - "443:443"
@@ -107,10 +118,13 @@ services:
     volumes:
       - 'minio_data:/data'
     environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
-      - MINIO_SERVER_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
-      - MINIO_SERVER_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
+      # MinIO authenticates against MINIO_ROOT_USER/PASSWORD and nothing else.
+      # These were hardcoded to minioadmin while portal-backend derived its
+      # credentials from MINIO_SERVER_*, so filling those in .env used to hand the
+      # backend a credential this server had never heard of (403 on every bucket).
+      # Both sides now read the same two .env keys.
+      - MINIO_ROOT_USER=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_SERVER_SECRET_KEY:-minioadmin}
       # Tells the Console its public base URL so all static/API/redirect paths get the /minio-console prefix.
       # Filled from .env (see .env.template). HTTP default is used only when unset.
       - MINIO_BROWSER_REDIRECT_URL=${MINIO_BROWSER_REDIRECT_URL:-http://localhost/minio-console}
@@ -149,10 +163,17 @@ services:
     networks:
       - digitaltwins-platform
     restart: "no"
+    environment:
+      # Same two .env keys the minio server derives its root credentials from.
+      # Hardcoding minioadmin here meant bucket creation broke the moment anyone
+      # set real credentials. $$VAR escapes compose interpolation so the value is
+      # expanded by the container's shell, not substituted into the entrypoint.
+      - MC_USER=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
+      - MC_PASS=${MINIO_SERVER_SECRET_KEY:-minioadmin}
     entrypoint: >
       /bin/sh -c "
       echo 'Waiting for MinIO...';
-      until mc alias set myminio http://minio:9000 minioadmin minioadmin; do
+      until mc alias set myminio http://minio:9000 $$MC_USER $$MC_PASS; do
         sleep 2;
       done;
       echo 'MinIO is up!';
