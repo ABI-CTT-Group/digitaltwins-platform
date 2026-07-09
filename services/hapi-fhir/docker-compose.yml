@@ -6,7 +6,7 @@ services:
     ports:
       - "8013:8080"
     networks:
-      - digitaltwins
+      - digitaltwins-platform
     volumes:
       - ./application.yaml:/app/config/application.yaml
     environment:
@@ -18,7 +18,7 @@ services:
     container_name: hapi-fhir-postgres
     restart: always
     networks:
-      - digitaltwins
+      - digitaltwins-platform
     environment:
       POSTGRES_DB: "hapi"
       POSTGRES_USER: "admin"
@@ -29,7 +29,9 @@ services:
 volumes:
   hapi_fhir_postgres:
     driver: local
+    name: ${PROJECT_NAME}_hapi_fhir_postgres
 
 networks:
-  digitaltwins:
+  digitaltwins-platform:
     driver: bridge
+    name: ${PROJECT_NAME}
