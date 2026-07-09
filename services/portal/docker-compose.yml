@@ -60,7 +60,7 @@ services:
       retries: 5
       start_period: 30s
     networks:
-      - digitaltwins
+      - digitaltwins-platform
     depends_on:
       - minio
 
@@ -96,14 +96,14 @@ services:
       retries: 5
       start_period: 20s
     networks:
-      - digitaltwins
+      - digitaltwins-platform
     depends_on:
       - portal-backend
   
   minio:
     image: quay.io/minio/minio:latest
     networks:
-      - digitaltwins
+      - digitaltwins-platform
     volumes:
       - 'minio_data:/data'
     environment:
@@ -122,7 +122,7 @@ services:
     ports:
       - "8006:8080"
     networks:
-      - digitaltwins
+      - digitaltwins-platform
     volumes:
       - ./hapi/application.yaml:/app/config/application.yaml
     environment:
@@ -134,7 +134,7 @@ services:
     image: postgres:13-alpine
     restart: always
     networks:
-      - digitaltwins
+      - digitaltwins-platform
     environment:
       POSTGRES_DB: "hapi"
       POSTGRES_USER: "admin"
@@ -147,7 +147,7 @@ services:
     depends_on:
       - minio
     networks:
-      - digitaltwins
+      - digitaltwins-platform
     restart: "no"
     entrypoint: >
       /bin/sh -c "
@@ -168,7 +168,7 @@ services:
       "
 
 networks:
-  digitaltwins:
+  digitaltwins-platform:
     driver: bridge
     name: ${PROJECT_NAME}
 
