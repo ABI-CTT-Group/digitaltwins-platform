@@ -6,7 +6,7 @@
     </div>
 
     <div class="hero__inner">
-      <p class="hero__eyebrow">DigitalTWINS AI Platform</p>
+      <p class="hero__eyebrow">ABI Digital Twins Platform</p>
       <h1 class="hero__title">{{ title }}</h1>
       <p class="hero__sub">{{ subtitle }}</p>
       <div class="hero__cta">
