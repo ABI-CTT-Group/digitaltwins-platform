@@ -22,7 +22,7 @@
                     <circle cx="32" cy="32" r="4.6" fill="url(#nav-dt-core)"/>
                 </svg>
             </span>
-            <span class="brand__word">DigitalTWINS<span class="brand__dim"> AI Platform</span></span>
+            <span class="brand__word">ABI Digital Twins<span class="brand__dim"> Platform</span></span>
         </router-link>
 
         <v-spacer></v-spacer>
