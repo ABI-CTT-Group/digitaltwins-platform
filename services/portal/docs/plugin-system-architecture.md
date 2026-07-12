@@ -128,8 +128,8 @@ Runs after build for plugins with a backend folder. Steps:
        proxy_read_timeout 86400;
    }
    ```
-   `<internal_host>` is the plugin container's service name on the `digitaltwins` network; `<internal_port>` is its internal port (e.g. `8082`).
-5. **Reload nginx** — `docker exec <NGINX_CONTAINER_NAME> nginx -s reload`. Nginx picks up the new file via the `include /etc/nginx/conf.d/plugins/*.conf;` directive that is baked into both `nginx.http.conf.template` and `nginx.ssl.conf.template`.
+   `<internal_host>` is the plugin container's service name on the `digitaltwins-platform` network; `<internal_port>` is its internal port (e.g. `8082`).
+5. **Reload nginx** — `docker exec <NGINX_CONTAINER_NAME> nginx -s reload`. Nginx picks up the new file via the `include /etc/nginx/conf.d/plugins/*.conf;` directive at the bottom of `nginx.conf.template`.
 6. **Write `PluginDeployment` row** with `route_prefix`, `internal_host`, `internal_port`, `has_websocket`, `status=COMPLETED`, `up=true`.
 
 The URL `http(s)://<host>/plugin/<expose>/…` is now live.
@@ -241,10 +241,8 @@ After this the plugin is fully gone — no containers, no files, no route, no DB
 |---|---|
 | `src/components/RemoteComponentApp.vue` | Dynamically `<script>`-loads a plugin UMD bundle and mounts `window[expose]` |
 | `src/plugins/plugin_api.ts`, `workflow_api.ts` | Portal's own API client to the plugin registry endpoints |
-| `entry.sh` | Picks HTTP or SSL nginx template at runtime based on cert presence |
-| `nginx.http.conf.template` | HTTP mode (local dev), includes `plugins/*.conf` |
-| `nginx.ssl.conf.template` | HTTPS mode (production), includes `plugins/*.conf` |
-| `Dockerfile` | Builds both templates into the image; EXPOSE 80 443 |
+| `nginx.conf.template` | The portal's only nginx config. HTTP-only — TLS terminates at the platform gateway. Includes `plugins/*.conf` |
+| `Dockerfile` | Copies the template to `/etc/nginx/templates/`, where the stock nginx entrypoint renders it with `envsubst`; EXPOSE 80 |
 
 ### Infra (`DigitalTWINS-Portal/docker-compose.yml`)
 
@@ -275,7 +273,7 @@ Because the browser fetches the UMD JS bundle directly. Giving the browser MinIO
 `expose_name` is made unique by the builder (`unique_name()` appends a short hash). Two identical plugin repos installed twice will get distinct expose names and distinct nginx location blocks. A `window[expose_name]` collision is prevented by construction.
 
 **"Do I need to edit the portal's main nginx template when I add a plugin?"**
-No. Never. If you find yourself editing `nginx.http.conf.template` or `nginx.ssl.conf.template` to add a plugin, stop — the system is broken elsewhere. All plugin routes must come from the generated `plugins/*.conf` files.
+No. Never. If you find yourself editing `nginx.conf.template` — or the platform gateway's config — to add a plugin, stop; the system is broken elsewhere. All plugin routes must come from the generated `plugins/*.conf` files.
 
 **"Does HTTPS/HTTP mode affect plugins?"**
 No. Both templates contain the same `include /etc/nginx/conf.d/plugins/*.conf;` line. The only difference is the surrounding `server { listen … }` block. Plugin routes work identically in both modes; the browser just uses whatever scheme the portal page was loaded with.

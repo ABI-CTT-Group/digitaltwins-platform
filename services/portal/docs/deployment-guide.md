@@ -1,289 +1,168 @@
 # Clinical Dashboard — Deployment Guide (Portal Frontend Nginx)
 
-**Audience:** Ops / platform team integrating `clinical-dashboard` into the existing `DigitalTWINS-Portal` stack at `test.digitaltwins.auckland.ac.nz`.
+**Audience:** Ops / platform team running `clinical-dashboard`, either standalone or as the `DigitalTWINS-Portal` submodule inside `digitaltwins-platform`.
 
-**Date:** 2026-04-20
-**Status:** Active — supersedes the prior approach of hand-writing `nginx.conf` and bind-mounting it into the frontend container.
+**Date:** 2026-07-13
+**Status:** Active — supersedes the `entry.sh` + dual-template approach. TLS and platform-level routes now live in the platform's own edge gateway.
 
 ---
 
 ## 0. TL;DR
 
-The `portal-frontend` container no longer ships a fixed `nginx.conf`. At container start, `entry.sh` picks **one of two templates** (`nginx.http.conf.template` or `nginx.ssl.conf.template`) based on whether SSL certs are present on disk, then renders it with `envsubst` using `${PORTAL_BACKEND_HOST}` and `${BACKEND_PORT}`.
+`portal-frontend`'s nginx serves **only what the portal owns**: the SPA, `/api/` → portal-backend, `/tools/` → the public MinIO bucket, and the dynamically generated `/plugin/*` routes.
 
-- **Same image** works for local HTTP dev and production HTTPS — nothing to rebuild between environments.
-- **No bind mount of `nginx.conf`** is needed anymore. If your old compose has `./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro`, **remove it** (it will shadow the rendered file and break the plugin system).
-- **No new env var** needs to be added. We use the existing `PORTAL_BACKEND_HOST` from your `.env`.
+- **HTTP only.** There is no SSL template and no `entry.sh` anymore. TLS terminates at the platform gateway (`digitaltwins-platform/services/nginx`), which proxies everything it doesn't recognise back to `portal-frontend` via `location /`.
+- **Standalone is a development inner loop**, not a deployment target. Real deployments go through the platform.
+- **Config is rendered by the official nginx image.** `frontend/nginx.conf.template` is copied to `/etc/nginx/templates/default.conf.template`; the stock entrypoint runs `envsubst` over it at container start. No custom shell script.
+- **Host ports come from `docker-compose.override.yml`**, which only the standalone stack loads.
 
 ---
 
-## 1. Why this changed
+## 1. Standalone and the platform cannot run at the same time
 
-The previous approach had two problems:
+Both stacks derive their identity from the same `PROJECT_NAME=digitaltwins-platform`, so they collide on three things at once:
 
-1. **Mixed Content on `/api/tools/`.** FastAPI's 307 trailing-slash redirect combined with nginx `X-Forwarded-Proto $scheme` (which is `http` inside the container) produced redirect URLs with the wrong protocol, so the browser blocked them. 
-2. **One fixed `nginx.conf` per environment.** You had to maintain `nginx.conf.http` and `nginx.conf.https` variants and swap them manually. The plugin system also needs `include /etc/nginx/conf.d/plugins/*.conf` which was easy to lose when hand-editing.
+| Resource | Value in both |
+|---|---|
+| `container_name` | `digitaltwins-platform-portal-frontend` |
+| Docker network | `digitaltwins-platform` |
+| Host port | `80` |
 
-The new approach uses **one templated config**, picks HTTP vs HTTPS at runtime from cert presence, and always includes the plugin directory.
+Starting one while the other is up will fail on the container-name conflict — and recovering from that can take the *other* stack's containers and network with it. **Bring one down before bringing the other up.**
+
+```bash
+# switching from platform to standalone
+cd digitaltwins-platform && docker compose down
+cd ../clinical-dashboard && docker compose up -d
+```
+
+Named volumes survive `down`, so no data is lost either way.
 
 ---
 
 ## 2. What's in the repo
 
 ```
-DigitalTWINS-Portal/
-├── docker-compose.yml                       # portal-frontend env + cert volume
-├── certs/                                   # HOST-SIDE dir, mounted read-only
-│   ├── .gitkeep
-│   └── .gitignore                           # ignores *.crt / *.key
+clinical-dashboard/
+├── docker-compose.yml               # base: NO host ports (the platform gateway owns 80/443)
+├── docker-compose.override.yml      # dev-only: publishes 80. Auto-merged by `docker compose up`
 └── frontend/
-    ├── Dockerfile                           # EXPOSE 80 443, ships both templates
-    ├── entry.sh                             # chooses template, runs envsubst, starts nginx
-    ├── nginx.http.conf.template             # HTTP mode (no cert)
-    └── nginx.ssl.conf.template              # HTTPS mode (certs present)
+    ├── Dockerfile                   # EXPOSE 80. Stock nginx entrypoint, no ENTRYPOINT override
+    └── nginx.conf.template          # the only nginx config. HTTP only
 ```
 
-There is **no** `frontend/nginx.conf` or `frontend/nginx.conf.template` anymore. If you still see one, it's stale — delete it.
+`entry.sh`, `nginx.http.conf.template`, and `nginx.ssl.conf.template` are **gone**. If you still see them, your checkout is stale.
+
+There is no `certs/` requirement for the portal anymore — certificates belong to the gateway.
 
 ---
 
-## 3. Prerequisites
+## 3. Running it standalone (development)
 
-Before deploying:
+```bash
+cd clinical-dashboard
+docker compose up -d --build
+```
 
-1. Docker + Docker Compose v2 on the host.
-2. The shared external network already created. The main stack creates it as
-   `${PROJECT_NAME}` (with `PROJECT_NAME=digitaltwins-platform` in `.env`, the
-   real name is `digitaltwins-platform`); to pre-create it manually:
-   ```bash
-   docker network inspect digitaltwins-platform >/dev/null 2>&1 || docker network create digitaltwins-platform
-   ```
-3. Your existing `.env` must contain:
-   ```dotenv
-   PORTAL_BACKEND_HOST=test.digitaltwins.auckland.ac.nz
-   ```
-   If you're running locally, either leave it unset or set `PORTAL_BACKEND_HOST=localhost`.
-4. Ports 80 and 443 free on the host (or mapped via reverse proxy).
+Browse `http://localhost/`.
+
+> **Use `docker compose up`, not `docker compose -f docker-compose.yml up`.** Compose only auto-merges `docker-compose.override.yml` when you don't pass `-f`, and port 80 is published in that override. With an explicit `-f` the stack comes up with no published ports and nothing is reachable.
+
+That asymmetry is deliberate: the platform consumes this repo through `extends: { file: docker-compose.yml, service: portal-frontend }`, which reads only the file it names. So the platform never picks up the override, and 80/443 stay free for the gateway.
 
 ---
 
-## 4. Step-by-step deployment (production, HTTPS)
-
-### Step 1 — Pull the updated `DigitalTWINS-Portal`
-
-Replace your current `DigitalTWINS-Portal` (or `services/portal/DigitalTWINS-Portal/frontend` if you mount the source tree directly) with this repo's version. The files that **must** be present in the frontend build context:
-
-```
-frontend/Dockerfile
-frontend/entry.sh
-frontend/nginx.http.conf.template
-frontend/nginx.ssl.conf.template
-```
-
-If any of these are missing, the container will fail to start with either "template not found" or fall back to the wrong mode.
-
-### Step 2 — Verify `.env`
-
-Open your `.env` and confirm:
+## 4. Environment variables
 
 ```dotenv
-# Required — used by nginx server_name, SSL cert filename, and backend URL generation
-PORTAL_BACKEND_HOST=test.digitaltwins.auckland.ac.nz
+# Hostname the portal is reached at. Used for CORS origins and generated URLs.
+PORTAL_BACKEND_HOST=localhost
 
-# Optional — defaults to 8000. Only change if portal-backend runs on a different port.
+# Public scheme of the portal. Decides whether the backend emits http:// or https://
+# in generated URLs (workflow metadata, MinIO presigned links, CORS origins).
+#
+# Behind the platform gateway this must match how a *browser* reaches the gateway —
+# including the case where TLS is terminated by a load balancer in front of it
+# (then SSL=true even though the gateway itself speaks plain HTTP).
+SSL=false
+
+# portal-backend's port. Rendered into the nginx proxy_pass targets.
 BACKEND_PORT=8000
 
-# Optional — path on the HOST where SSL certs live. Defaults to ./certs relative to compose file.
-SSL_CERT_DIR=./certs
+# Upload ceiling, in MB. Rendered into client_max_body_size on the upload-source
+# location, enforced by portal-backend, and surfaced to the frontend dropzone via
+# GET /api/measurement/config — so all three layers move together.
+MAX_UPLOAD_MB=20480
+
+# Per-chunk body cap for measurement chunked-upload PUTs. Must stay >= the backend's
+# MEASUREMENT_PART_SIZE_BYTES (default 8 MiB).
+MAX_PART_SIZE_MB=16
 ```
 
-**Do NOT remove** `NGINX_CONF=nginx.conf.http` if it already exists in your `.env`. That variable belongs to the **SEEK** service (in the "Metadata service" section of `.env`) and is unrelated to portal-frontend. Leave it alone.
+> `SSL` used to be read as `USE_SSL` by the backend while every `.env` shipped `SSL` — so the flag was permanently `false` and HTTPS deployments silently emitted `http://` URLs. The key is now `SSL` everywhere. If you have `USE_SSL` in an old `.env`, it does nothing; rename it.
 
-### Step 3 — Place SSL certificates
+> **Do NOT remove `NGINX_CONF=nginx.conf.http`** if it exists in your `.env`. That belongs to **SEEK**, not to portal-frontend.
 
-The entry script looks for files named exactly `${PORTAL_BACKEND_HOST}.crt` and `${PORTAL_BACKEND_HOST}.key`.
+---
 
-For production, that means:
+## 5. How the config is rendered
 
-```
-<host path pointed to by SSL_CERT_DIR>/
-├── test.digitaltwins.auckland.ac.nz.crt
-└── test.digitaltwins.auckland.ac.nz.key
-```
+The official `nginx` image's entrypoint runs `envsubst` over `/etc/nginx/templates/*.template` and writes the result to `/etc/nginx/conf.d/`. The Dockerfile copies `nginx.conf.template` there; nothing else is needed.
 
-If `SSL_CERT_DIR` is unset, the default is `./certs` relative to the compose file. Example:
-
-```bash
-mkdir -p DigitalTWINS-Portal/certs
-cp /path/to/fullchain.pem DigitalTWINS-Portal/certs/test.digitaltwins.auckland.ac.nz.crt
-cp /path/to/privkey.pem   DigitalTWINS-Portal/certs/test.digitaltwins.auckland.ac.nz.key
-chmod 644 DigitalTWINS-Portal/certs/test.digitaltwins.auckland.ac.nz.crt
-chmod 600 DigitalTWINS-Portal/certs/test.digitaltwins.auckland.ac.nz.key
-```
-
-The cert directory is mounted **read-only** into the container at `/etc/nginx/certs`. Permissions on the host are your responsibility.
-
-### Step 4 — Remove any legacy bind-mount of `nginx.conf`
-
-If your root `docker-compose.yml` or the extended compose at `services/portal/DigitalTWINS-Portal/docker-compose.yml` contains any of these lines on the `portal-frontend` service, **delete them**:
+By default that entrypoint treats **every defined environment variable** as substitutable, which would happily replace nginx's own `$host` / `$scheme` / `$connection_upgrade` with empty strings. `docker-compose.yml` narrows it:
 
 ```yaml
-# DELETE any of these — they will override the rendered default.conf
-- ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-- ./frontend/nginx.conf.http:/etc/nginx/conf.d/default.conf:ro
-- ./frontend/nginx.conf.https:/etc/nginx/conf.d/default.conf:ro
+- NGINX_ENVSUBST_FILTER=^(BACKEND_PORT|MAX_UPLOAD_MB|MAX_PART_SIZE_MB)$$
 ```
 
-Keep only the two volume mounts that `DigitalTWINS-Portal/docker-compose.yml` already declares:
+(`$$` escapes compose interpolation, so the container sees a single `$`.)
 
-```yaml
-volumes:
-  - nginx_plugin_configs:/etc/nginx/conf.d/plugins         # for plugin route configs
-  - ${SSL_CERT_DIR:-./certs}:/etc/nginx/certs:ro           # for SSL certs
-```
-
-### Step 5 — Rebuild the image
+Sanity check after a deploy:
 
 ```bash
-cd DigitalTWINS-Portal   # or wherever the compose file lives
-docker compose build portal-frontend
-```
-
-This builds a single image with both templates baked in. You do **not** need separate "dev" and "prod" images.
-
-### Step 6 — Bring up the stack
-
-```bash
-docker compose up -d
-```
-
-### Step 7 — Verify the container picked HTTPS mode
-
-```bash
-docker compose logs portal-frontend | head -n 5
-```
-
-You should see:
-
-```
-SSL certs found for test.digitaltwins.auckland.ac.nz, using HTTPS mode.
-Starting Nginx...
-```
-
-If you instead see `No SSL certs found ... using HTTP mode`, the cert filenames do not match `${PORTAL_BACKEND_HOST}.crt` / `${PORTAL_BACKEND_HOST}.key`. Check step 3.
-
-### Step 8 — Inspect the rendered config (optional sanity check)
-
-```bash
+docker compose exec portal-frontend nginx -t
 docker compose exec portal-frontend cat /etc/nginx/conf.d/default.conf
 ```
 
-You should see `server_name test.digitaltwins.auckland.ac.nz;`, `listen 443 ssl;`, and at the bottom `include /etc/nginx/conf.d/plugins/*.conf;`.
-
-### Step 9 — End-to-end checks
-
-1. `curl -I https://test.digitaltwins.auckland.ac.nz/` → `200` (HTML served).
-2. `curl -I https://test.digitaltwins.auckland.ac.nz/api/tools/` → `200` or `401` (not a redirect to `http://`).
-3. Open the portal in a browser, install a plugin, confirm the plugin frontend loads and its backend responds via `/plugin/<name>/`.
+You should see `proxy_pass http://portal-backend:8000;` (substituted), `proxy_set_header Host $host;` (**not** substituted), and at the bottom `include /etc/nginx/conf.d/plugins/*.conf;`.
 
 ---
 
-## 5. Local development (HTTP)
+## 6. Deploying under the platform
 
-No cert files means automatic HTTP mode:
+The platform builds this repo as a git submodule and adds its own edge:
 
-```bash
-# .env (or shell export)
-PORTAL_BACKEND_HOST=localhost
-# no certs in ./certs — that's fine
-
-docker compose up --build
+```
+browser → gateway (digitaltwins-platform/services/nginx, owns 80/443 + TLS)
+            ├── /seek/ /jupyter/ /auth/ /airflow/ /minio-console/
+            └── /  →  portal-frontend  (this repo: SPA, /api/, /tools/, /plugin/*)
 ```
 
-Browse `http://localhost/`. The rendered `default.conf` will listen on port 80 only, proxy `/api/` to `portal-backend:8000`, and include the plugin directory.
+Gateway config is bind-mounted, so operators change a route and `nginx -s reload` — no image rebuild. See `digitaltwins-platform/services/nginx/README.md`.
+
+**Never edit `services/portal/DigitalTWINS-Portal/` from the platform side.** It is a git submodule; editing it dirties the working tree and the next `git submodule update` will conflict. Portal changes are made here, pushed, and picked up by bumping the submodule SHA.
 
 ---
 
-## 6. How the template selection works
+## 7. What NOT to change
 
-`entry.sh` at container startup:
-
-1. Reads `$PORTAL_BACKEND_HOST` (defaults to `localhost`).
-2. Checks for `/etc/nginx/certs/${PORTAL_BACKEND_HOST}.crt` **and** `.key`.
-3. If both exist → uses `nginx.ssl.conf.template` (HTTP→HTTPS redirect + 443 SSL block).
-4. Otherwise → uses `nginx.http.conf.template` (plain port 80).
-5. Runs `envsubst` to replace `${PORTAL_BACKEND_HOST}` and `${BACKEND_PORT}` in the chosen template, writes the result to `/etc/nginx/conf.d/default.conf`.
-6. Starts nginx in the foreground.
-
-This means the same Docker image is used in dev and prod — only the **host-mounted cert directory** differs.
+- **`NGINX_CONF=nginx.conf.http` in `.env`** — belongs to SEEK.
+- **The shared network name** (real name `digitaltwins-platform`, = `${PROJECT_NAME}`). Plugin backends join it and nginx resolves their container hostnames through it. Renaming it — or `PROJECT_NAME` — breaks plugin routing.
+- **`include /etc/nginx/conf.d/plugins/*.conf;`** at the bottom of `nginx.conf.template`. Removing it breaks the plugin system.
+- **The `nginx_plugin_configs` volume mount** — portal-backend writes, portal-frontend reads. Do not rename its path.
+- **`NGINX_ENVSUBST_FILTER`** — dropping it lets envsubst eat nginx's own variables.
 
 ---
 
-## 7. File reference
-
-| File | Purpose |
-|---|---|
-| `frontend/entry.sh` | Chooses HTTP/SSL template at runtime based on cert presence, renders via envsubst, starts nginx. |
-| `frontend/nginx.http.conf.template` | Port 80 only. Used when certs are absent (local dev). |
-| `frontend/nginx.ssl.conf.template` | Port 80 redirect + 443 SSL. Uses `${PORTAL_BACKEND_HOST}` for `server_name` and cert paths. |
-| `frontend/Dockerfile` | Copies both templates into the image; `EXPOSE 80 443`. |
-| `docker-compose.yml` (portal-frontend service) | Ports 80/443, env vars `PORTAL_BACKEND_HOST` and `BACKEND_PORT`, volume mounts for certs and plugin configs. |
-| `certs/` | Host directory for SSL certs. `.gitignore` keeps certs out of VCS, `.gitkeep` keeps the empty folder in the repo. |
-
----
-
-## 8. What NOT to change
-
-- **`NGINX_CONF=nginx.conf.http` in `.env`** — belongs to SEEK, keep as-is.
-- **Shared external network (real name `digitaltwins-platform`, = `${PROJECT_NAME}`)** — plugin backends join this network and nginx resolves their hostnames through it. Changing the network name (or `PROJECT_NAME`) will break plugin routing.
-- **`include /etc/nginx/conf.d/plugins/*.conf;`** — present in both templates. Removing it breaks the plugin system.
-- **The `nginx_plugin_configs` volume mount** — shared between `portal-backend` (writer) and `portal-frontend` (reader). Do not change its name or path.
-
----
-
-## 9. Rollback plan
-
-If the new config misbehaves in production:
-
-1. Restore the previous `frontend/` directory (with the old `nginx.conf`) from git.
-2. Re-add the bind mount on `portal-frontend` in compose:
-   ```yaml
-   volumes:
-     - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-     - nginx_plugin_configs:/etc/nginx/conf.d/plugins
-   ```
-3. `docker compose up -d --force-recreate portal-frontend`.
-
-Note: rolling back loses the Mixed Content fix — see [`https-mixed-content-fix.md`](./https-mixed-content-fix.md) for the other two fixes (frontend trailing-slash URLs and uvicorn `--proxy-headers`) that must stay in place.
-
----
-
-## 10. Troubleshooting
+## 8. Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `No SSL certs found ..., using HTTP mode` on production | Cert filename mismatch | Rename certs to `${PORTAL_BACKEND_HOST}.crt` / `.key`. |
-| `nginx: [emerg] cannot load certificate` | `.crt`/`.key` unreadable inside container | Check host-side permissions; the mount is `:ro` but the files still must be world-readable for the nginx user. |
-| Plugin URLs return 404 | `include /etc/nginx/conf.d/plugins/*.conf;` missing, or `nginx_plugin_configs` volume not mounted | Re-check both templates and compose volume list. |
-| `Mixed Content: ... http:// ...` blocked in browser | Old frontend bundle or missing `--proxy-headers` on backend | Rebuild `portal-frontend` and ensure `portal-backend` Dockerfile has `CMD uv run uvicorn ... --proxy-headers --forwarded-allow-ips *`. |
-| `default.conf` inside container still shows old server block | A bind mount is overriding the rendered file | Remove any `- ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro` from compose. |
-| 502 from `/api/` | `portal-backend` not ready or on wrong port | Check `docker compose ps portal-backend`; adjust `BACKEND_PORT` in `.env` if backend listens on a non-default port. |
-
----
-
-## 11. PR checklist for merging into `DigitalTWINS-Portal`
-
-When opening the PR against `ABI-CTT-Group/DigitalTWINS-Portal`:
-
-- [ ] Replace `frontend/entry.sh` with the new version.
-- [ ] Replace `frontend/Dockerfile` with the new version (`EXPOSE 80 443`, copies both templates).
-- [ ] Add `frontend/nginx.http.conf.template` and `frontend/nginx.ssl.conf.template`.
-- [ ] Delete `frontend/nginx.conf` and `frontend/nginx.conf.template` if present.
-- [ ] Update the root `docker-compose.yml` (or `services/portal/DigitalTWINS-Portal/docker-compose.yml`) `portal-frontend` section:
-  - [ ] Add `ports: - "443:443"` (keep existing `"80:80"`).
-  - [ ] Add `environment: - PORTAL_BACKEND_HOST=${PORTAL_BACKEND_HOST:-localhost}` and `- BACKEND_PORT=${BACKEND_PORT:-8000}`.
-  - [ ] Add `volumes: - ${SSL_CERT_DIR:-./certs}:/etc/nginx/certs:ro`.
-  - [ ] Remove any `./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro` bind mount.
-- [ ] Confirm `.env` already has `PORTAL_BACKEND_HOST` (it does, per `test/.env`).
-- [ ] Place production certs as `${PORTAL_BACKEND_HOST}.crt` / `.key` under `SSL_CERT_DIR`.
-- [ ] Do NOT touch the SEEK-related `NGINX_CONF` variable.
+| Nothing on `http://localhost/` after `docker compose up` | You passed `-f docker-compose.yml`, so the override with `ports: 80:80` was skipped | Drop the `-f` |
+| `Conflict. The container name "digitaltwins-platform-portal-frontend" is already in use` | The other stack (platform or standalone) is still up — they share `PROJECT_NAME` | `docker compose down` the other one first (§1) |
+| Rendered `default.conf` has `proxy_set_header Host ;` — empty values | `NGINX_ENVSUBST_FILTER` missing or its `$` not escaped as `$$` in compose | Restore the filter |
+| Backend emits `http://` URLs on an HTTPS deployment | `SSL` not set to `true`, or still using the dead `USE_SSL` key | Set `SSL=true` and rebuild portal-backend |
+| Plugin URLs return 404 | Plugin `include` line missing, or `nginx_plugin_configs` not mounted | Check the template's last line and the compose volume list |
+| 502 from `/api/` | portal-backend not ready, or on a non-default port | `docker compose ps portal-backend`; check `BACKEND_PORT` |
+| SSE build logs arrive in one delayed burst instead of streaming | A proxy hop is buffering — most likely the gateway's fallback `location /` | Confirm `proxy_buffering off` in `services/nginx/snippets/portal-fallback.conf` |
+| Uploads fail with **413** at the edge | The gateway's fallback is capping the body | The edge must be transparent (`client_max_body_size 0`); the real cap belongs to portal-frontend's `MAX_UPLOAD_MB` |

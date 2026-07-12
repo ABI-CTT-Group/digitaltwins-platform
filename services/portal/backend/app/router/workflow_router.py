@@ -210,7 +210,7 @@ async def get_plugins(skip: int = 0, limit: int = 100, db: Session = Depends(get
 
 @router.get("/metadata")
 async def get_metadata_json(db: Session = Depends(get_db)):
-    use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
+    use_ssl = os.getenv('SSL', "false").lower() == 'true'
     http_protocol = 'https' if use_ssl else 'http'
     host = os.environ.get('PORTAL_BACKEND_HOST', 'localhost')
 

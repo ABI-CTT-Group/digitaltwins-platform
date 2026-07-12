@@ -1047,7 +1047,7 @@ async def get_metadata_json(db: Session = Depends(get_db)):
     consumers, mirroring workflow_router.get_metadata_json. Only completed
     measurements appear here — pending / in-flight / failed ones are kept
     out of the public component listing."""
-    use_ssl = os.getenv("USE_SSL", "false").lower() == "true"
+    use_ssl = os.getenv("SSL", "false").lower() == "true"
     proto = "https" if use_ssl else "http"
     host = os.getenv("PORTAL_BACKEND_HOST", "localhost")
 

@@ -243,7 +243,7 @@ def apply_descriptions(
 
 
 def _portal_base() -> str:
-    use_ssl = os.getenv("USE_SSL", "false").lower() == "true"
+    use_ssl = os.getenv("SSL", "false").lower() == "true"
     host = os.getenv("PORTAL_BACKEND_HOST", "localhost")
     proto = "https" if use_ssl else "http"
     return f"{proto}://{host}"

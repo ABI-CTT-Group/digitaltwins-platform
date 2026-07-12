@@ -23,10 +23,19 @@ services:
       # name degrades silently to the plugin's `:-` default rather than erroring.
       # These names are the plugin-facing contract; keep them even though the
       # backend's own code reads the MINIO_ACCESS_KEY/MINIO_SECRET_KEY above.
+      #
+      # Corollary: every name in this block occupies a slot in the interpolation
+      # namespace of every third-party plugin's compose file. SSL below is already
+      # a bare, generic word — don't add more of them (HOST, PORT, DEBUG, ENV...)
+      # or a plugin author's unrelated ${VAR} will silently resolve to ours.
       - MINIO_SERVER_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
       - MINIO_SERVER_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
       - PROJECT_NAME=${PROJECT_NAME:-digitaltwins-platform}
-      - USE_SSL=${USE_SSL:-false}
+      # Public scheme of the portal — decides whether generated URLs (workflow
+      # metadata, MinIO presigned links) say http:// or https://. The key is SSL
+      # because that is what every .env has always shipped; the backend used to
+      # read USE_SSL, which nothing ever set, so the flag was permanently false.
+      - SSL=${SSL:-false}
       - FHIR_ENDPOINT=${FHIR_ENDPOINT:-hapi-fhir:8080/fhir}
       - DIGITALTWINS_API_BASE_URL=${DIGITALTWINS_API_BASE_URL:-http://digitaltwins-api}
       - DIGITALTWINS_API_PORT=${DIGITALTWINS_API_PORT:-8000}
@@ -84,21 +93,27 @@ services:
         - VITE_KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
         - VITE_KEYCLOAK_CLIENT_ID=portal-frontend
     container_name: ${PROJECT_NAME}-portal-frontend
-    ports:
-      - "80:80"
-      - "443:443"
+    # Host ports are published by docker-compose.override.yml, which only the
+    # standalone dev stack loads. Under the platform, 80/443 belong to the
+    # gateway (digitaltwins-platform/services/nginx) and publishing them here too
+    # would just collide. The platform reaches this container by service name on
+    # the shared network.
     environment:
       - BACKEND_PORT=${BACKEND_PORT:-8000}
-      - PORTAL_BACKEND_HOST=${PORTAL_BACKEND_HOST:-localhost}
-      # Must match portal-backend's MAX_UPLOAD_MB. entry.sh renders this
-      # into client_max_body_size on the upload-source nginx location.
+      # Must match portal-backend's MAX_UPLOAD_MB. Rendered into
+      # client_max_body_size on the upload-source nginx location.
       - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-20480}
       # Per-chunk body cap for measurement chunked-upload PUTs. Keep >= backend
       # MEASUREMENT_PART_SIZE_BYTES (default 8 MiB); 16m default has headroom.
       - MAX_PART_SIZE_MB=${MAX_PART_SIZE_MB:-16}
+      # The official nginx image's entrypoint runs envsubst over
+      # /etc/nginx/templates/*.template, and by default treats *every* defined
+      # environment variable as substitutable. Narrow it to the three the
+      # template actually uses, or nginx's own $host / $scheme / $connection_upgrade
+      # risk being replaced with empty strings. ($$ escapes compose interpolation.)
+      - NGINX_ENVSUBST_FILTER=^(BACKEND_PORT|MAX_UPLOAD_MB|MAX_PART_SIZE_MB)$$
     volumes:
       - nginx_plugin_configs:/etc/nginx/conf.d/plugins
-      - ${SSL_CERT_DIR:-./certs}:/etc/nginx/certs:ro
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:80" ]
