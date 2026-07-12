@@ -15,7 +15,7 @@ class MinioClient:
 
     def __init__(self, bucket_name):
         # MINIO_ENDPOINT is expected as host:port; this client adds its own
-        # scheme below based on USE_SSL. Tolerate a scheme-prefixed value so a
+        # scheme below based on SSL. Tolerate a scheme-prefixed value so a
         # shared platform .env (which sets MINIO_ENDPOINT=http://minio:9000 for
         # other services) doesn't double up into http://http://minio:9000.
         endpoint = os.getenv('MINIO_ENDPOINT', "localhost:9000").strip()
@@ -27,7 +27,7 @@ class MinioClient:
         self.access_key = os.getenv('MINIO_ACCESS_KEY', "minioadmin")
         self.secret_key = os.getenv('MINIO_SECRET_KEY', "minioadmin")
         self.bucket_name = bucket_name
-        self.use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
+        self.use_ssl = os.getenv('SSL', "false").lower() == 'true'
 
         self.client = boto3.client(
             's3',

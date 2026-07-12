@@ -29,7 +29,7 @@ class WorkflowBuilder:
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
         self.dataset_dir = Path(dataset_dir)
         self.dataset_dir.mkdir(parents=True, exist_ok=True)
-        self.use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
+        self.use_ssl = os.getenv('SSL', "false").lower() == 'true'
         self._http_protocol: Literal['http', 'https'] = 'https' if self.use_ssl else 'http'
 
     def create_sparc_dataset(self,
