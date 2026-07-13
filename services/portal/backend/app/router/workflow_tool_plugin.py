@@ -37,7 +37,6 @@ from pathlib import Path
 from botocore.exceptions import ClientError
 from app.utils.workflow_tool_utils import (
     get_build_record_or_404,
-    get_public_url_for_build,
     get_latest_build_record,
     shuttle_down_deployed_backend)
 from app.utils.builder_utils import (
@@ -772,41 +771,6 @@ async def get_all_builds(skip: int = 0, limit: int = 100, status: BuildStatus = 
 
     builds = query.offset(skip).limit(limit).all()
     return builds
-
-
-@router.get("/builds/{build_id}/download-url")
-async def get_build_download_url(build_id: str, db: Session = Depends(get_db)):
-    """Get a presigned download URL for a build's artifacts"""
-
-    try:
-        build_record = get_build_record_or_404(build_id, db, PluginBuild)
-        url, s3_path = get_public_url_for_build(build_record, "tools")
-
-        return {
-            "build_id": build_id,
-            "download_url": url,
-            "expires_in": None,  # No expiration for public URLs
-            "s3_path": s3_path
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate download url for build {build_id}: {e}")
-
-
-@router.get("/builds/{build_id}/direct-url")
-async def get_build_direct_url(build_id: str, db: Session = Depends(get_db)):
-    """Get a direct public URL for a build's artifacts (no expiration)"""
-    try:
-        build_record = get_build_record_or_404(build_id, db, PluginBuild)
-        url, s3_path = get_public_url_for_build(build_record, "tools")
-
-        return {
-            "build_id": build_id,
-            "direct_url": url,
-            "s3_path": s3_path,
-            "note": "This URL has no expiration and is publicly accessible"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate direct url for build {build_id}: {e}")
 
 
 async def _sse_log_generator(job_key: str):
