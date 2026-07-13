@@ -1,0 +1,5 @@
+# TLS certificates for the edge gateway. Never commit them.
+*.crt
+*.key
+*.pem
+!.gitkeep
