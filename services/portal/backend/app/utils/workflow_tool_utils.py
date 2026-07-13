@@ -1,5 +1,4 @@
 from sqlalchemy.orm import Session
-from app.client.minio import get_minio_client
 from fastapi import HTTPException
 from typing import Tuple, Optional, Union, Type
 from app.models.db_model import (
@@ -27,20 +26,6 @@ def get_build_record_or_404(build_id: str, db: Session, Build: Type[Union[Plugin
         raise HTTPException(status_code=400, detail="Build is not completed")
 
     return build_record
-
-
-def get_object_key_from_s3_path(s3_path: str) -> str:
-    if not s3_path.startswith("s3://"):
-        raise HTTPException(status_code=500, detail="Invalid S3 path format")
-    return s3_path.replace("s3://", "").split("/", 1)[1]
-
-
-def get_public_url_for_build(build_record: Union[PluginBuild, WorkflowBuild], client_name: str) -> tuple[str, str]:
-    s3_path = build_record.s3_path
-    object_key = get_object_key_from_s3_path(s3_path)
-    minio_client = get_minio_client(client_name)
-    url = minio_client.get_public_url(object_key)
-    return url, s3_path
 
 
 # def get_latest_build_record(id: str, category: str, db: Session) -> Tuple[Union[Plugin, Workflow], Optional[PluginBuild]]:
