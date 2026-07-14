@@ -11,6 +11,16 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:rw
       - jupyterhub_data:/srv/jupyterhub
     environment:
+      # Keycloak, split into the two addresses jupyterhub_config.py needs.
+      # PUBLIC is where the user's BROWSER is redirected to authorize — it must be the
+      # gateway URL, and it must match KC_HOSTNAME or the issuer check fails.
+      # INTERNAL is the container-to-container hop for token exchange / userinfo; it goes
+      # straight to the keycloak service on the shared network and never leaves it. This
+      # replaces the old host.docker.internal:8009 workaround, which existed only because
+      # Keycloak used to have no stable public address.
+      - KEYCLOAK_PUBLIC_URL=${KEYCLOAK_PUBLIC_URL:-http://localhost/auth}
+      - KEYCLOAK_INTERNAL_URL=${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080/auth}
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
       - JUPYTERHUB_CRYPT_KEY=${JUPYTERHUB_CRYPT_KEY:-c3b53f650bf93c3c6f8f5b8a5b2803b9b4d1b8c2810a9a8f2762a4f4e2b027d1}
       - DOCKER_NETWORK_NAME=${PROJECT_NAME:-digitaltwins-platform}
       - DOCKER_NOTEBOOK_IMAGE=digitaltwins-platform-jupyter-singleuser:latest

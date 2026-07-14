@@ -5,13 +5,16 @@ c = get_config()  # noqa
 # ---------------------------------------------------------------------------
 # Authenticator — Keycloak OIDC via oauthenticator 17.x GenericOAuthenticator
 # ---------------------------------------------------------------------------
-# Browser-facing Keycloak URL — used for the authorize redirect the user's browser follows
-_keycloak_public = os.environ.get('KEYCLOAK_PUBLIC_URL', 'http://localhost:8009')
-# Container-to-host URL — used for server-side token exchange and userinfo calls.
-# host.docker.internal resolves to the Docker host's IP (mapped via extra_hosts in docker-compose).
-# KC_HOSTNAME=localhost:8009 is set in Keycloak so issued tokens always carry iss=localhost:8009;
-# host.docker.internal:8009 reaches that same Keycloak instance, so validation passes.
-_keycloak_internal = os.environ.get('KEYCLOAK_INTERNAL_URL', 'http://host.docker.internal:8009')
+# Browser-facing Keycloak URL — where the user's browser is redirected to authorize.
+# Keycloak now lives behind the edge gateway at <public-url>/auth, so this is a normal
+# same-origin URL on 443 and works under HTTPS. It must match Keycloak's KC_HOSTNAME,
+# because that is the `iss` baked into every token.
+_keycloak_public = os.environ.get('KEYCLOAK_PUBLIC_URL', 'http://localhost/auth')
+# Container-to-container URL — server-side token exchange and userinfo. Straight to the
+# keycloak service on the shared network; never leaves it, so it stays plain HTTP.
+# (This used to be host.docker.internal:8009, a workaround from when Keycloak had no
+# stable public address and the only way to reach the same instance was via the host.)
+_keycloak_internal = os.environ.get('KEYCLOAK_INTERNAL_URL', 'http://keycloak:8080/auth')
 _realm = os.environ.get('KEYCLOAK_REALM', 'digitaltwins')
 _base_public = f'{_keycloak_public}/realms/{_realm}/protocol/openid-connect'
 _base_internal = f'{_keycloak_internal}/realms/{_realm}/protocol/openid-connect'
