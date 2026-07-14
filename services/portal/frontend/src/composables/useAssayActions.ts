@@ -10,6 +10,7 @@ import {
   useSaveAssayDetails,
 } from "@/bootstrap/dashboard_api";
 import { DashboardCategory } from "@/models/types";
+import { JUPYTER_BASE_URL } from "@/config/platform-links";
 import { getApiErrorMessage } from "@/utils/common";
 
 // Sheet UI state is shared across every component that drives the assay
@@ -116,7 +117,7 @@ export function useAssayActions() {
   const verify = (seekId: string) => {
     const workflowUUID = assayDetails.value[seekId]?.workflow.uuid;
     window.open(
-      `${import.meta.env.VITE_JUPYTER_BASE_URL}/lab/tree/workflow_outputs/${workflowUUID}/verify.ipynb`,
+      `${JUPYTER_BASE_URL}/lab/tree/workflow_outputs/${workflowUUID}/verify.ipynb`,
       "_blank",
     );
   };

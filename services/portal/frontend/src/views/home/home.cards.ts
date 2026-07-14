@@ -7,6 +7,7 @@ import mydigitaltwinNavImage from '@/assets/dashboard/my-digital-twin-nav.jpg';
 import fcMapImage from '@/assets/dashboard/fc-map.jpg';
 import annotatorImage from '@/assets/dashboard/annotator.jpg';
 import digitalRepositoryImage from '@/assets/dashboard/digital-repository.jpg';
+import { SEEK_URL } from '@/config/platform-links';
 
 export type CardConfig = {
     title: string;
@@ -67,7 +68,7 @@ export const cards: CardConfig[] = [
         image: digitalRepositoryImage,
         location: 'Auckland Bioengineering Institute',
         description: 'World’s first data resource where health information from participants across multiple research studies can be contributed, linked, and reused with informed consent for developing digital twins.',
-        action: { type: 'external', url: import.meta.env.VITE_SEEK_URL || 'http://130.216.216.26:8001/' }
+        action: { type: 'external', url: SEEK_URL }
     },
     {
         title: 'My digital health navigator',
