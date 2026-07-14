@@ -11,7 +11,8 @@ services:
   #
   # No image rebuild, no restart. See services/nginx/README.md.
   gateway:
-    image: nginx:stable-alpine
+    # nginx 1.30.3-alpine — the current stable release, pinned to an exact version.
+    image: nginx:1.30.3-alpine
     container_name: ${PROJECT_NAME}-gateway
     ports:
       - "80:80"
@@ -28,8 +29,6 @@ services:
     restart: unless-stopped
     networks:
       - digitaltwins-platform
-    depends_on:
-      - portal-frontend
 
   portal-backend:
     extends:

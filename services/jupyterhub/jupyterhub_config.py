@@ -2,6 +2,12 @@ import os
 
 c = get_config()  # noqa
 
+# Settings that come from .env are read with os.environ[...], so the `${X:-...}` in
+# docker-compose.yml holds their only default. A second default here would drift from it
+# — DOCKER_NETWORK_NAME's did, for as long as both existed. Indexing also fails loudly:
+# .get() with no default returns None and quietly builds a URL out of the string "None".
+# Everything else keeps its default here.
+
 # ---------------------------------------------------------------------------
 # Authenticator — Keycloak OIDC via oauthenticator 17.x GenericOAuthenticator
 # ---------------------------------------------------------------------------
@@ -9,13 +15,13 @@ c = get_config()  # noqa
 # Keycloak now lives behind the edge gateway at <public-url>/auth, so this is a normal
 # same-origin URL on 443 and works under HTTPS. It must match Keycloak's KC_HOSTNAME,
 # because that is the `iss` baked into every token.
-_keycloak_public = os.environ.get('KEYCLOAK_PUBLIC_URL', 'http://localhost/auth')
+_keycloak_public = os.environ['KEYCLOAK_PUBLIC_URL']
 # Container-to-container URL — server-side token exchange and userinfo. Straight to the
 # keycloak service on the shared network; never leaves it, so it stays plain HTTP.
 # (This used to be host.docker.internal:8009, a workaround from when Keycloak had no
 # stable public address and the only way to reach the same instance was via the host.)
-_keycloak_internal = os.environ.get('KEYCLOAK_INTERNAL_URL', 'http://keycloak:8080/auth')
-_realm = os.environ.get('KEYCLOAK_REALM', 'digitaltwins')
+_keycloak_internal = os.environ['KEYCLOAK_INTERNAL_URL']
+_realm = os.environ['KEYCLOAK_REALM']
 _base_public = f'{_keycloak_public}/realms/{_realm}/protocol/openid-connect'
 _base_internal = f'{_keycloak_internal}/realms/{_realm}/protocol/openid-connect'
 
@@ -25,6 +31,8 @@ c.GenericOAuthenticator.authorize_url = f'{_base_public}/auth'
 c.GenericOAuthenticator.token_url = f'{_base_internal}/token'
 c.GenericOAuthenticator.userdata_url = f'{_base_internal}/userinfo'
 
+# Declared in .env, but docker-compose.yml does not forward it — so the default here is
+# what actually runs, and the .env value is ignored.
 c.GenericOAuthenticator.client_id = os.environ.get('JUPYTERHUB_CLIENT_ID', 'jupyterhub')
 c.GenericOAuthenticator.client_secret = os.environ.get('JUPYTERHUB_CLIENT_SECRET', 'jupyterhub-secret')
 
@@ -43,6 +51,8 @@ c.GenericOAuthenticator.username_claim = 'preferred_username'
 # Keycloak includes group names in the 'groups' claim via the groups protocol
 # mapper configured on the jupyterhub client.
 # ---------------------------------------------------------------------------
+# Declared in .env, but docker-compose.yml does not forward it — so the default here is
+# what actually runs, and the .env value is ignored.
 _allowed_groups = set(
     os.environ.get('JUPYTERHUB_ALLOWED_GROUPS', 'admin,researcher').split(',')
 )
@@ -71,6 +81,8 @@ c.JupyterHub.hub_ip = '0.0.0.0'
 # ---------------------------------------------------------------------------
 # Admin users (fallback static list; group-based admin via admin_groups is preferred)
 # ---------------------------------------------------------------------------
+# Declared in .env, but docker-compose.yml does not forward it — so the default here is
+# what actually runs, and the .env value is ignored.
 c.Authenticator.admin_users = set(
     os.environ.get('JUPYTERHUB_ADMIN_USERS', 'admin').split(',')
 )
@@ -83,8 +95,11 @@ c.JupyterHub.spawner_class = 'dockerspawner.DockerSpawner'
 # Docker image for single-user servers (built from Dockerfile.singleuser)
 c.DockerSpawner.image = os.environ.get('DOCKER_NOTEBOOK_IMAGE', 'digitaltwins-platform-jupyter-singleuser:latest')
 
-# Networking — spawned containers join the same Docker network as the Hub
-_network_name = os.environ.get('DOCKER_NETWORK_NAME', 'digitaltwins-platform_digitaltwins')
+# Networking — spawned containers join the same Docker network as the Hub. Compose passes
+# ${PROJECT_NAME}, which is the network's real Docker name (the root compose sets
+# networks.digitaltwins-platform.name: ${PROJECT_NAME}). The default this line used to
+# carry, 'digitaltwins-platform_digitaltwins', named a network that does not exist.
+_network_name = os.environ['DOCKER_NETWORK_NAME']
 c.DockerSpawner.network_name = _network_name
 c.DockerSpawner.use_internal_ip = True
 

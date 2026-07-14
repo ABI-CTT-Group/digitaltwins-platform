@@ -10,6 +10,11 @@ services:
       - ./jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro
       - /var/run/docker.sock:/var/run/docker.sock:rw
       - jupyterhub_data:/srv/jupyterhub
+    # The `${X:-...}` defaults here are the only ones: jupyterhub_config.py reads these
+    # with os.environ[...] and keeps no default of its own.
+    #
+    # The JUPYTERHUB_CLIENT_* / *_GROUPS / ADMIN_USERS variables in .env are NOT forwarded
+    # below, so .env cannot set them at all. Pre-existing gap, out of scope here.
     environment:
       # Keycloak, split into the two addresses jupyterhub_config.py needs.
       # PUBLIC is where the user's BROWSER is redirected to authorize — it must be the
