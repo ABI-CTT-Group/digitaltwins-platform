@@ -18,9 +18,10 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
 import abiLogo from "@/assets/images/abi.png";
+import { SEEK_URL } from "@/config/platform-links";
 
 const router = useRouter();
-const seekUrl = import.meta.env.VITE_SEEK_URL || "http://130.216.216.26:8001/";
+const seekUrl = SEEK_URL;
 const year = new Date().getFullYear();
 const version = "3.0.0"; // from package.json
 const go = (name: string) => router.push({ name });

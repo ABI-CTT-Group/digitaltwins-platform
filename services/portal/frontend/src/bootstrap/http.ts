@@ -1,5 +1,6 @@
 import axios, { AxiosRequestConfig } from "axios";
 import { getAccessToken, getKeycloak } from "./keycloak";
+import { emitSessionExpired } from "./session_events";
 
 export interface IHttp {
   get<T>(url: string, params?: unknown): Promise<T>;
@@ -8,12 +9,14 @@ export interface IHttp {
   delete<T>(url: string, params?: unknown): Promise<T>;
 }
 
-function redirectToLogin(msg?: string) {
-  console.warn(msg || "Redirecting to login page...");
-  sessionStorage.removeItem("access_token"); // Clean up any legacy data
-  if (window.location.pathname !== "/") {
-    window.location.href = "/";
-  }
+/**
+ * A 401 that survives a token refresh means the session is genuinely gone. Hand
+ * it to SessionGuard rather than throwing the user at "/" mid-task — a silent
+ * redirect discards whatever they were in the middle of, with no explanation.
+ */
+function handleSessionLost(msg: string) {
+  console.warn(msg);
+  emitSessionExpired();
 }
 
 // =============== init ===============
@@ -103,7 +106,7 @@ axios.interceptors.response.use(
 
     // Prevent infinite retry loops
     if (originalRequest._retry) {
-      redirectToLogin("Token refresh failed → redirect to login");
+      handleSessionLost("Still 401 after a token refresh → session lost");
       return Promise.reject(err);
     }
 
@@ -126,14 +129,14 @@ axios.interceptors.response.use(
             return axios(originalRequest);
           }
         }
-        // No keycloak or no token after refresh
+        // No keycloak, or no token after refresh
         isRefreshing = false;
-        redirectToLogin("Token expired or invalid → redirect to login");
+        handleSessionLost("Token expired or invalid and could not be renewed");
         return Promise.reject(err);
       } catch (refreshErr) {
         isRefreshing = false;
         refreshSubscribers = [];
-        redirectToLogin("Token refresh failed → redirect to login");
+        handleSessionLost("Token refresh was rejected → session lost");
         return Promise.reject(err);
       }
     }

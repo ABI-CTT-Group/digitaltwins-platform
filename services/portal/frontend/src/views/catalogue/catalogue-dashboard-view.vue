@@ -75,6 +75,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthGuard } from '@/composables/useAuthGuard';
+import { SEEK_URL } from '@/config/platform-links';
 
 type CatalogueCard = {
   title: string;
@@ -91,7 +92,7 @@ const hero: CatalogueCard = {
   title: 'SEEK Catalogue',
   description:
     'Browse and author descriptions for programmes, projects, investigations, studies and assays — and explore the workflows and tools already on the platform.',
-  herf: import.meta.env.VITE_SEEK_URL,
+  herf: SEEK_URL,
   icon: 'mdi-database-search-outline',
   cta: 'Open SEEK',
   external: true,
