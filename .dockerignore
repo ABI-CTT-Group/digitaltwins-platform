@@ -1,0 +1,66 @@
+# Git
+.git
+.gitignore
+.gitattributes
+.gitmodules
+
+# Node.js
+node_modules
+npm-debug.log
+yarn-error.log
+.pnp
+.pnp.js
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+*.egg-info/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Documentation
+docs/
+README.md
+CODE_OF_CONDUCT.md
+LICENSE
+
+# Examples and tests
+examples/
+tests/
+
+# CI/CD
+.github/
+
+# Backups
+backups/
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+docker-compose*.yml
+Dockerfile
+
+# local workspace
+my_workspace/

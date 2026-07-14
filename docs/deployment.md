@@ -38,6 +38,14 @@ Set the following variables in your new `.env` file:
     > [!TIP]
     > Run `echo $(id -u)` to find your user ID, then update the `AIRFLOW_UID` variable in your `.env` file with this ID.
 
+- **JupyterHub**
+  - `JUPYTERHUB_CRYPT_KEY`: YOUR_JUPYTERHUB_CRYPT_KEY_HERE
+    > [!TIP]
+    > Generate a secure random key using the following command:
+    > ```bash
+    > openssl rand -base64 32
+    > ```
+
 ### 2.2 SEEK Configuration
 
 Copy the SEEK deployment configuration template:
@@ -78,7 +86,7 @@ cp ./services/seek/ldh-deployment/docker-compose.env.tpl ./services/seek/ldh-dep
    > [!NOTE]
    > A realm file will be created on your host, e.g., `$(pwd)/export/digitaltwins-realm.json`.
 
-**Step B. Import Realm**
+**Step B. Import Realm to the new deployment**
 
 1. Place the exported realm file in the correct directory: `./services/keycloak/import/digitaltwins-realm.json`.
 2. Start Keycloak with the import option:
@@ -175,7 +183,13 @@ Edit `./services/seek/ldh-deployment/docker-compose.env` and replace `<root-pass
       ```
    4. Exit the container terminal.
 
-## 6. Launch the Entire Platform
+## 6. Build all images
+
+```bash
+sudo docker compose build
+```
+
+## 7. Launch the Entire Platform
 
 Run the following command from the repository root to start all services in detached mode:
 
@@ -183,7 +197,7 @@ Run the following command from the repository root to start all services in deta
 sudo docker compose up -d
 ```
 
-## 7. Service Access & Default Credentials
+## 8. Service Access & Default Credentials
 
 Once successfully deployed, the following services and default credentials are available:
 
@@ -198,6 +212,7 @@ Once successfully deployed, the following services and default credentials are a
 | **Keycloak** | `8009` | `admin` | `admin` | IAM Service |
 | **REST API** | `8010` | — | — | Docs available at `http://{IP}:8010/docs` |
 | **Minio** | `8012` | `minioadmin` | `minioadmin` | Storage Web GUI (API on `8011`) |
+| **JupyterHub** | `8017` | — | — | Managed by Keycloak (proxied at `/jupyterhub`) |
 
 ## 8. Keycloak SSO Integration — Scope and Limitations
 

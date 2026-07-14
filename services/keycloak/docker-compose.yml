@@ -36,11 +36,17 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - digitaltwins
+      - digitaltwins-platform
 
-#networks:
-#  digitaltwins:
-#    driver: bridge
+volumes:
+  keycloak_data:
+    driver: local
+    name: ${PROJECT_NAME}_keycloak_data
+
+networks:
+  digitaltwins-platform:
+    driver: bridge
+    name: ${PROJECT_NAME}
 
 # Keycloak Admin Console
 # http://localhost:8080/admin
@@ -51,4 +57,4 @@ services:
 
 
 # creating network
-# sudo docker network create digitaltwins
+# sudo docker network create digitaltwins-platform

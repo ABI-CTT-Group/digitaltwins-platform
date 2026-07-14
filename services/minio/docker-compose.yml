@@ -5,7 +5,7 @@ services:
       - '${MINIO_BIND_ADDRESS:-0.0.0.0}:8011:9000' #api
       - '${MINIO_BIND_ADDRESS:-0.0.0.0}:8012:9001' # web gui
     networks:
-      - digitaltwins
+      - digitaltwins-platform
     volumes:
       - 'minio_data:/data'
     environment:
@@ -13,7 +13,12 @@ services:
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
       - MINIO_SERVER_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
       - MINIO_SERVER_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
-      - MINIO_BROWSER_REDIRECT_URL=https://${PLATFORM_DOMAIN}/minio/
+      # Tells the Console its public base URL so all static/API/redirect paths get the /minio-console prefix.
+      # Filled from .env (see .env.template). The path is /minio-console to match the
+      # portal nginx `location /minio-console/` block (main_buildout previously used
+      # /minio/, but the merged portal template proxies /minio-console/). HTTP default
+      # is used only when unset.
+      - MINIO_BROWSER_REDIRECT_URL=${MINIO_BROWSER_REDIRECT_URL:-http://localhost/minio-console}
     command: server /data --console-address ":9001" --address ":9000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
@@ -29,18 +34,20 @@ services:
       minio:
         condition: service_healthy
     environment:
-      - MINIO_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
       - ./init-minio.sh:/init-minio.sh:ro
     entrypoint: /bin/sh /init-minio.sh
     networks:
-      - digitaltwins
+      - digitaltwins-platform
 
 volumes:
   minio_data:
     driver: local
+    name: ${PROJECT_NAME}_minio_data
 
-#networks:
-#  digitaltwins:
-#    driver: bridge
+networks:
+  digitaltwins-platform:
+    driver: bridge
+    name: ${PROJECT_NAME}

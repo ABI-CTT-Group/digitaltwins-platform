@@ -12,7 +12,7 @@ services:
       - jupyterhub_data:/srv/jupyterhub
     environment:
       - JUPYTERHUB_CRYPT_KEY=${JUPYTERHUB_CRYPT_KEY:-c3b53f650bf93c3c6f8f5b8a5b2803b9b4d1b8c2810a9a8f2762a4f4e2b027d1}
-      - DOCKER_NETWORK_NAME=${DOCKER_NETWORK_NAME:-digitaltwins}
+      - DOCKER_NETWORK_NAME=${PROJECT_NAME:-digitaltwins-platform}
       - DOCKER_NOTEBOOK_IMAGE=digitaltwins-platform-jupyter-singleuser:latest
       - DOCKER_NOTEBOOK_DIR=/home/jovyan/work
       - DOCKER_MEM_LIMIT=8G
@@ -27,7 +27,7 @@ services:
       - JUPYTERHUB_ADMIN_USERS=${JUPYTERHUB_ADMIN_USERS:-admin}
     restart: unless-stopped
     networks:
-      - digitaltwins
+      - digitaltwins-platform
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -39,12 +39,17 @@ services:
     image: digitaltwins-platform-jupyter-singleuser:latest
     command: [ "echo", "Image built successfully" ]
     networks:
-      - digitaltwins
+      - digitaltwins-platform
 
 volumes:
   jupyterhub_data:
     driver: local
+    name: ${PROJECT_NAME}_jupyterhub_data
 
+networks:
+  digitaltwins-platform:
+    driver: bridge
+    name: ${PROJECT_NAME}
 
 # JupyterHub
 # http://localhost:8016

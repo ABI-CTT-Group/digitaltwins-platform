@@ -17,6 +17,9 @@ services:
       - "${JUPYTERLAB_BIND_ADDRESS:-0.0.0.0}:${JUPYTERLAB_BIND_PORT:-8008}:8888"
     volumes:
       - notebook_workspace:/home/jovyan/work
+    networks:
+      - digitaltwins-platform
+
     command: >
       start-notebook.sh
       --NotebookApp.base_url="${JUPYTER_BASE_URL:-/jupyter}"
@@ -27,7 +30,9 @@ services:
 volumes:
   notebook_workspace:
     driver: local
+    name: ${PROJECT_NAME}_notebook_workspace
 
-#networks:
-#  digitaltwins:
-#    driver: bridge
+networks:
+  digitaltwins-platform:
+    driver: bridge
+    name: ${PROJECT_NAME}

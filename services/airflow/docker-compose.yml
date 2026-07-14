@@ -108,6 +108,10 @@ x-airflow-common:
     AIRFLOW__API__PROXY_FIX_X_PORT: '1'
     AIRFLOW__API__PROXY_FIX_X_PREFIX: '1'
 
+    # MinIO credentials — read from .env so DAGs use the correct secret key
+    MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
+    MINIO_ACCESS_KEY: ${MINIO_SERVER_ACCESS_KEY:-minioadmin}
+    MINIO_SECRET_KEY: ${MINIO_SERVER_SECRET_KEY:-minioadmin}
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
@@ -124,6 +128,26 @@ x-airflow-common:
       condition: service_healthy
 
 services:
+  # -----------------------------------------------------------------------
+  # Local postgres service REMOVED – Airflow now uses the platform-wide
+  # PostgreSQL service (services/postgres/) reachable as 'database' on the
+  # shared 'digitaltwins-platform' network.
+  # -----------------------------------------------------------------------
+  # postgres:
+  #   image: postgres:13
+  #   environment:
+  #     POSTGRES_USER: airflow
+  #     POSTGRES_PASSWORD: airflow
+  #     POSTGRES_DB: airflow
+  #   volumes:
+  #     - postgres-db-volume:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD", "pg_isready", "-U", "airflow"]
+  #     interval: 10s
+  #     retries: 5
+  #     start_period: 5s
+  #   restart: always
+
   redis:
     # Redis is limited to 7.2-bookworm due to licencing change
     # https://redis.io/blog/redis-adopts-dual-source-available-licensing/
@@ -348,3 +372,6 @@ services:
     depends_on:
       <<: *airflow-common-depends-on
 
+# volumes:
+#   postgres-db-volume:
+#     name: ${PROJECT_NAME}_airflow_postgres-db-volume

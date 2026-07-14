@@ -1,28 +1,36 @@
 services:
+#  postgres:
+#    networks:
+#      - digitaltwins-platform
   redis:
     networks:
-      - digitaltwins
+      - digitaltwins-platform
   airflow-apiserver:
     networks:
-      - digitaltwins
+      - digitaltwins-platform
   airflow-scheduler:
     networks:
-      - digitaltwins
+      - digitaltwins-platform
   airflow-dag-processor:
     networks:
-      - digitaltwins
+      - digitaltwins-platform
   airflow-worker:
     networks:
-      - digitaltwins
+      - digitaltwins-platform
   airflow-triggerer:
     networks:
-      - digitaltwins
+      - digitaltwins-platform
   airflow-init:
     networks:
-      - digitaltwins
+      - digitaltwins-platform
   airflow-cli:
     networks:
-      - digitaltwins
+      - digitaltwins-platform
   flower:
     networks:
-      - digitaltwins
+      - digitaltwins-platform
+
+networks:
+  digitaltwins-platform:
+    driver: bridge
+    name: ${PROJECT_NAME}

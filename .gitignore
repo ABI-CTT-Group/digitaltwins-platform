@@ -155,6 +155,7 @@ cython_debug/
 
 # JetBrains
 .idea/
+.ollamassist/
 
 /my_workspace/
 
@@ -169,3 +170,6 @@ tmp/
 # Generated realm import (contains injected secrets at deploy time);
 # the committed source is services/keycloak/digitaltwins-realm.json.template
 services/keycloak/import/digitaltwins-realm.json
+
+# Git worktrees
+.worktrees/

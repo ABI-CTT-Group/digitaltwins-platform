@@ -1,13 +1,18 @@
 services:
   db:
     networks:
-      - digitaltwins
+      - digitaltwins-platform
   seek:
     networks:
-      - digitaltwins
+      - digitaltwins-platform
   workers:
     networks:
-      - digitaltwins
+      - digitaltwins-platform
   solr:
     networks:
-      - digitaltwins
+      - digitaltwins-platform
+
+networks:
+  digitaltwins-platform:
+    driver: bridge
+    name: ${PROJECT_NAME}
