@@ -108,17 +108,21 @@
       state: directory
       mode: '0755'
 
-  - name: Copy crt
+  # entry.sh detects HTTPS mode by looking for ${PORTAL_BACKEND_HOST}.crt/.key
+  # (PORTAL_BACKEND_HOST == PLATFORM_DOMAIN) in the certs dir. Copy the PEMs to
+  # those exact names, otherwise nginx silently falls back to HTTP-only and 443
+  # never listens.
+  - name: Copy crt (named for entry.sh cert detection)
     ansible.builtin.copy:
       src: "{{ install_src_dir }}/data/fullchain.pem"
-      dest: "{{ platform_dir }}/services/portal/DigitalTWINS-Portal/certs/"
+      dest: "{{ platform_dir }}/services/portal/DigitalTWINS-Portal/certs/{{ lookup('env', 'PLATFORM_DOMAIN') }}.crt"
       mode: '0600'
     when: lookup('env', 'PLATFORM_PROTOCOL') | default('https') == 'https'
 
-  - name: Copy key
+  - name: Copy key (named for entry.sh cert detection)
     ansible.builtin.copy:
       src: "{{ install_src_dir }}/data/privkey.pem"
-      dest: "{{ platform_dir }}/services/portal/DigitalTWINS-Portal/certs/"
+      dest: "{{ platform_dir }}/services/portal/DigitalTWINS-Portal/certs/{{ lookup('env', 'PLATFORM_DOMAIN') }}.key"
       mode: '0600'
     when: lookup('env', 'PLATFORM_PROTOCOL') | default('https') == 'https'
 
