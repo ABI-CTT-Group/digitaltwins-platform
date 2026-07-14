@@ -70,12 +70,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/store/auth_store';
-import { getKeycloak } from '@/bootstrap/keycloak';
+import { login } from '@/bootstrap/keycloak';
 import { useScrollState } from '@/composables/useScrollState';
 
-const router = useRouter();
 const authStore = useAuthStore();
 const { scrolled } = useScrollState();
 
@@ -89,23 +87,21 @@ const initials = computed(() => {
     return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || 'U';
 });
 
+// Both of these hand the browser to Keycloak, which redirects back on its own —
+// there is nothing to route to afterwards.
 const handleLogout = async () => {
     try {
         await authStore.logout();
-        await router.push({ name: 'Login' });
     } catch (error) {
         console.error('Logout error:', error);
     }
 };
 
 const handleLogin = async () => {
-    const keycloak = getKeycloak();
-    if (keycloak) {
-        try {
-            await keycloak.login();
-        } catch (error) {
-            console.error('Login failed:', error);
-        }
+    try {
+        await login();
+    } catch (error) {
+        console.error('Login failed:', error);
     }
 };
 </script>

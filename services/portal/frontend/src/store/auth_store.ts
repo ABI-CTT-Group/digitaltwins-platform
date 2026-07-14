@@ -55,7 +55,6 @@ export const useAuthStore = defineStore('auth', () => {
       if (isAuthenticated()) {
         await keycloakLogout();
       }
-      sessionStorage.removeItem('access_token'); // Clean up any legacy data
       isLoggedIn.value = false;
       user.value = null;
       accessToken.value = undefined;

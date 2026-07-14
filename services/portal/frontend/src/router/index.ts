@@ -123,12 +123,12 @@ router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
   const requiresAuth = to.matched.some(r => r.meta?.requiresAuth);
   const requiresRoles = (to.meta?.requiresRoles ?? []) as string[];
-  const hasToken = !!sessionStorage.getItem('access_token');
   authStore.updateAuthState();
 
   if (requiresAuth) {
-    if (!isAuthenticated() && !hasToken) {
-      console.warn('⚠️ Router Guard: NOT authenticated & no sessionStorage token → redirecting to Home');
+    // Keycloak is the only source of truth. (There used to be a sessionStorage
+    // `access_token` fallback here, but nothing ever wrote that key.)
+    if (!isAuthenticated()) {
       next({ name: 'Home' });
       return;
     }

@@ -1,7 +1,7 @@
 // @ts-ignore - vue-toastification is installed but missing type declarations
 import { useToast } from 'vue-toastification';
 import { useAuthStore } from '@/store/auth_store';
-import { getKeycloak } from '@/bootstrap/keycloak';
+import { login } from '@/bootstrap/keycloak';
 
 export function useAuthGuard() {
   const authStore = useAuthStore();
@@ -14,7 +14,7 @@ export function useAuthGuard() {
     if (!authStore.isLoggedIn) {
       toast.warning('Please log in to access this feature.', {
         timeout: 4000,
-        onClick: () => getKeycloak()?.login(),
+        onClick: () => login(),
       });
       return false;
     }
