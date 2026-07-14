@@ -1,7 +1,11 @@
-# By default Keycloak requires HTTPS to be enabled for external IP addresses,
-# if you access Keycloak with an internal IP address, this is not required.
-# However, if you access Keycloak from a external network,
-# you need to add your proxy configs/SSL certificate to Keycloak, see docker-compose-https.yml as an example
+# Keycloak sits BEHIND the edge gateway at <public-url>/auth. That is what makes an
+# HTTPS deployment possible at all: a browser on an https:// page may not call an
+# http:// endpoint (mixed active content is blocked outright), so Keycloak cannot stay
+# on a plain-HTTP :8009 once the portal is served over TLS. Putting it behind the
+# gateway gives it the gateway's certificate and a single origin on 443 — no second
+# cert, no extra port. (Serving TLS on :8009 directly is NOT an equivalent option with
+# a self-signed cert: browsers prompt for a page's bad cert, but silently fail an XHR's
+# — and keycloak-js fetches its tokens by XHR.)
 
 services:
   keycloak:
@@ -12,11 +16,26 @@ services:
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}
-      # Set the public hostname so all issued tokens carry iss=http://localhost:8009.
-      # This ensures server-side calls from JupyterHub (via host.docker.internal:8009)
-      # validate correctly, because Keycloak treats both as the same realm endpoint.
-      KC_HOSTNAME: ${KC_HOSTNAME:-http://localhost:8009}
+
+      # Context path Keycloak serves from. Keycloak 17+ dropped the historical /auth
+      # prefix and serves at / by default; we put it back so the gateway can route a
+      # clean /auth/* subtree to it without rewriting paths.
+      KC_HTTP_RELATIVE_PATH: ${KC_HTTP_RELATIVE_PATH:-/auth}
+
+      # Trust X-Forwarded-Proto/Host from the gateway. Without this Keycloak believes
+      # it is being reached over plain HTTP and hands the browser http:// redirect URLs
+      # and non-Secure cookies — which the https page then refuses.
+      KC_PROXY_HEADERS: xforwarded
+
+      # Public address Keycloak believes it lives at. Every token it issues carries this
+      # as `iss`, and every service that validates a token must expect the same value —
+      # so this and PORTAL_KEYCLOAK_BASE_URL / ORTHANC_KEYCLOAK_URL / KEYCLOAK_PUBLIC_URL
+      # must all agree. Must include the /auth path, matching KC_HTTP_RELATIVE_PATH.
+      KC_HOSTNAME: ${KC_HOSTNAME:-http://localhost/auth}
     ports:
+      # Kept for direct admin access / debugging. Normal traffic goes through the
+      # gateway at <public-url>/auth. Note that with KC_HOSTNAME pointing at the
+      # gateway, Keycloak still generates gateway URLs even when reached on this port.
       - "8009:8080"
     volumes:
       - ./import:/opt/keycloak/data/import

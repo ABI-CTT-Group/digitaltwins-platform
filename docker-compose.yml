@@ -1,4 +1,35 @@
 services:
+  # The platform's edge. Owns host ports 80/443 and TLS, and carries the
+  # platform-level routes (/seek /jupyter /auth /airflow /minio-console). Everything
+  # else falls through to portal-frontend.
+  #
+  # Stock nginx image — no build:, no Dockerfile, no entrypoint script. The config is
+  # bind-mounted, so operators edit a plain file and reload:
+  #
+  #     docker exec ${PROJECT_NAME}-gateway nginx -t
+  #     docker exec ${PROJECT_NAME}-gateway nginx -s reload
+  #
+  # No image rebuild, no restart. See services/nginx/README.md.
+  gateway:
+    # nginx 1.30.3-alpine — the current stable release, pinned to an exact version.
+    image: nginx:1.30.3-alpine
+    container_name: ${PROJECT_NAME}-gateway
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # NGINX_MODE (root .env) selects the server shell: `http` or `ssl`. Docker picks
+      # the directory — that is what replaced the if-statement in the portal's old
+      # entry.sh. The routes themselves are shared by both shells via snippets/.
+      - ./services/nginx/conf/${NGINX_MODE:-http}:/etc/nginx/conf.d:ro
+      - ./services/nginx/snippets:/etc/nginx/snippets:ro
+      # Certs live with the only service that reads them. Override SSL_CERT_DIR in
+      # .env to point somewhere else (e.g. /etc/letsencrypt/live/<domain>).
+      - ${SSL_CERT_DIR:-./services/nginx/certs}:/etc/nginx/certs:ro
+    restart: unless-stopped
+    networks:
+      - digitaltwins-platform
+
   portal-backend:
     extends:
       file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
@@ -6,6 +37,10 @@ services:
     restart: unless-stopped
     networks:
       - digitaltwins-platform
+  # No host ports: the portal's base compose deliberately publishes none, so 80/443
+  # stay free for the gateway above. (Its docker-compose.override.yml publishes 80 for
+  # standalone dev, and `extends` reads only the file it names — so we never see it.)
+  # The gateway reaches this container by service name on the shared network.
   portal-frontend:
     extends:
       file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
