@@ -26,6 +26,11 @@ services:
       - KEYCLOAK_PUBLIC_URL=${KEYCLOAK_PUBLIC_URL:-http://localhost/auth}
       - KEYCLOAK_INTERNAL_URL=${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080/auth}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
+      # Browser-facing base URL of the Hub — the gateway's /jupyter route, matching
+      # c.JupyterHub.base_url. Every URL the browser is redirected back to is built from
+      # it, and Keycloak validates those against the `jupyterhub` client's registered
+      # redirectUris, so this, jupyterhub_config.py and the realm import must agree.
+      - JUPYTERHUB_PUBLIC_URL=${JUPYTERHUB_PUBLIC_URL:-http://localhost/jupyter}
       - JUPYTERHUB_CRYPT_KEY=${JUPYTERHUB_CRYPT_KEY:-c3b53f650bf93c3c6f8f5b8a5b2803b9b4d1b8c2810a9a8f2762a4f4e2b027d1}
       - DOCKER_NETWORK_NAME=${PROJECT_NAME:-digitaltwins-platform}
       - DOCKER_NOTEBOOK_IMAGE=digitaltwins-platform-jupyter-singleuser:latest

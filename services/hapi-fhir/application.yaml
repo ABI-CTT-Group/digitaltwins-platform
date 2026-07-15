@@ -2,6 +2,13 @@
 #server:
 #  servlet:
 #    context-path: /example/path
+server:
+  # HAPI is reached through the platform gateway at http://<host>/fhir, and it builds the
+  # absolute URLs in every Bundle.link and resource `fullUrl` from the incoming request.
+  # Spring's default is NONE — it ignores X-Forwarded-* entirely — so behind the gateway
+  # it would hand clients back http://hapi-fhir:8080/..., an internal container address no
+  # browser can resolve. FRAMEWORK makes it honour the headers the gateway already sends.
+  forward-headers-strategy: FRAMEWORK
 #Adds the option to go to eg. http://localhost:8080/actuator/health for seeing the running configuration
 #see https://docs.spring.io/spring-boot/docs/current/reference/html/actuator.html#actuator.endpoints
 management:

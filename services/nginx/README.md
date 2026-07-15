@@ -98,7 +98,7 @@ nothing else notices.
 The catch: with a variable, nginx no longer strips the location prefix for you. A
 trailing slash on `proxy_pass` does **not** rewrite the path — it sends a literal
 `/` for every request. Where you need the strip, use `rewrite ... break` (see
-`/minio-console/` for the pattern).
+`/minio/` for the pattern).
 
 **2. `snippets/portal-fallback.conf` is not boilerplate.**
 
