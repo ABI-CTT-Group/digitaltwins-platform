@@ -63,19 +63,6 @@ services:
     networks:
       - digitaltwins-platform
 
-  # digitaltwins-api is brought in whole by the `include` below; this same-named block only
-  # OVERRIDES its start command to add --root-path. The gateway mounts it at /digitaltwins-api
-  # and strips that prefix before proxying, so the app serves at root — but FastAPI's /docs
-  # then points Swagger at a root-absolute /openapi.json, which behind the gateway resolves to
-  # the portal, not the spec ("Unable to render this definition"). --root-path tells FastAPI
-  # its external prefix so /docs fetches /digitaltwins-api/openapi.json instead. Kept here, in
-  # the platform repo, so the digitaltwins-api submodule stays pristine — the prefix is a
-  # platform routing decision, not the app's.
-  # Trade-off: with root_path set, /docs on the raw published port (8010) no longer finds its
-  # spec; reach the docs through the gateway at http://<host>/digitaltwins-api/docs.
-  digitaltwins-api:
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/digitaltwins-api"]
-
 include:
   # to run only a specific included project with the root .env: sudo docker compose -f services/<service_name>/docker-compose.yml --env-file ./.env up
 
