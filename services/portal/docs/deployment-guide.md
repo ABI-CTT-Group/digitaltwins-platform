@@ -134,7 +134,7 @@ The platform builds this repo as a git submodule and adds its own edge:
 
 ```
 browser → gateway (digitaltwins-platform/services/nginx, owns 80/443 + TLS)
-            ├── /seek/ /jupyter/ /auth/ /airflow/ /minio-console/
+            ├── /seek/ /jupyter/ /auth/ /airflow/ /minio/
             └── /  →  portal-frontend  (this repo: SPA, /api/, /tools/, /plugin/*)
 ```
 

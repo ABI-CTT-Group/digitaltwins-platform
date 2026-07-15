@@ -119,14 +119,14 @@ server {
     # The authoritative copy lives in the platform repo at
     # digitaltwins-platform/services/nginx/snippets/platform-routes.conf, where
     # operators can hand-edit it and `nginx -s reload` without a rebuild. In the
-    # platform stack the gateway matches /minio-console/ first, so requests never
+    # platform stack the gateway matches /minio/ first, so requests never
     # reach this block — it is dead code there.
     #
     # It stays here only so the standalone dev stack (which has no gateway) can
     # still open the Console. To change platform behaviour, edit the gateway copy.
     #
     # Console learns its public base from MINIO_BROWSER_REDIRECT_URL.
-    location /minio-console/ {
+    location /minio/ {
         proxy_pass http://minio:9001/;
         proxy_http_version 1.1;
 

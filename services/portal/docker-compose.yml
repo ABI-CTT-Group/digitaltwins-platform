@@ -140,9 +140,9 @@ services:
       # Both sides now read the same two .env keys.
       - MINIO_ROOT_USER=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_SERVER_SECRET_KEY:-minioadmin}
-      # Tells the Console its public base URL so all static/API/redirect paths get the /minio-console prefix.
+      # Tells the Console its public base URL so all static/API/redirect paths get the /minio prefix.
       # Filled from .env (see .env.template). HTTP default is used only when unset.
-      - MINIO_BROWSER_REDIRECT_URL=${MINIO_BROWSER_REDIRECT_URL:-http://localhost/minio-console}
+      - MINIO_BROWSER_REDIRECT_URL=${MINIO_BROWSER_REDIRECT_URL:-http://localhost/minio}
     command: server /data --console-address ":9001" --address ":9000"
   
   hapi-fhir:
