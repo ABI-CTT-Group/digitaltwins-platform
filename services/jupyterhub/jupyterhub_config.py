@@ -36,8 +36,18 @@ c.GenericOAuthenticator.userdata_url = f'{_base_internal}/userinfo'
 c.GenericOAuthenticator.client_id = os.environ.get('JUPYTERHUB_CLIENT_ID', 'jupyterhub')
 c.GenericOAuthenticator.client_secret = os.environ.get('JUPYTERHUB_CLIENT_SECRET', 'jupyterhub-secret')
 
-# Redirection on Logout to clear the Keycloak SSO session
-c.GenericOAuthenticator.logout_redirect_url = f'{_base_public}/logout?client_id={c.GenericOAuthenticator.client_id}&post_logout_redirect_uri=http://localhost:8016/hub/login'
+# Browser-facing base URL of JupyterHub itself — the gateway's /jupyter route.
+# Every URL a browser is sent back to (the OAuth callback, the post-logout landing) has
+# to be built from this, not from the published container port: once JupyterHub is
+# mounted under /jupyter, http://localhost:8016/hub/... is no longer a valid address.
+_public_url = os.environ['JUPYTERHUB_PUBLIC_URL'].rstrip('/')
+
+# Redirection on Logout to clear the Keycloak SSO session.
+# This used to hardcode http://localhost:8016/hub/login — the published port, not the
+# public route. Keycloak validates post_logout_redirect_uri against the client's
+# registered redirectUris, so this string and the `jupyterhub` client's redirectUris in
+# services/keycloak/import/*.json must name the same origin, or logout 400s.
+c.GenericOAuthenticator.logout_redirect_url = f'{_base_public}/logout?client_id={c.GenericOAuthenticator.client_id}&post_logout_redirect_uri={_public_url}/hub/login'
 
 
 # Scopes requested from Keycloak
@@ -74,6 +84,14 @@ c.GenericOAuthenticator.admin_groups = _admin_groups
 # ---------------------------------------------------------------------------
 c.JupyterHub.ip = '0.0.0.0'
 c.JupyterHub.port = 8000  # internal container port
+
+# Mounts JupyterHub under the gateway's /jupyter/ route. Without it JupyterHub assumes
+# it lives at `/` and emits absolute /hub/... links, so proxying it at /jupyter/ served
+# a page whose every link escaped the prefix. This one setting moves the Hub, the
+# configurable-http-proxy routes and each spawned single-user server together — nginx
+# forwards /jupyter/... through unrewritten and JupyterHub owns the whole subtree.
+# The trailing slash is required by JupyterHub (it normalises to it anyway).
+c.JupyterHub.base_url = '/jupyter/'
 
 # Hub bind address (used by single-user servers to reach the hub)
 c.JupyterHub.hub_ip = '0.0.0.0'
