@@ -91,7 +91,14 @@ location {route_prefix}/ {{
     proxy_set_header X-Forwarded-Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    # Preserve the proto the EDGE (gateway) already set — do NOT use $scheme here.
+    # portal-frontend sits behind the gateway on a plain-HTTP hop, so its own $scheme is
+    # always "http"; using it would clobber the gateway's "https" and make plugin backends
+    # emit http:// URLs, tripping Mixed Content on an https page. The gateway overwrites this
+    # header with its own $scheme, so the value is trustworthy by the time it reaches here.
+    # Standalone stack (no gateway): the header is absent, $http_x_forwarded_proto is empty,
+    # nginx omits the header, and the plugin backend's own "http" default applies.
+    proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
     proxy_read_timeout 86400;
 }}
 """
