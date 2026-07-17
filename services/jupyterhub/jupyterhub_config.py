@@ -42,6 +42,10 @@ c.GenericOAuthenticator.client_secret = os.environ.get('JUPYTERHUB_CLIENT_SECRET
 # mounted under /jupyter, http://localhost:8016/hub/... is no longer a valid address.
 _public_url = os.environ['JUPYTERHUB_PUBLIC_URL'].rstrip('/')
 
+# Explicit browser callback URL for Keycloak. Without this, oauthenticator can derive
+# the callback from the published container port instead of the public /jupyter route.
+c.GenericOAuthenticator.oauth_callback_url = f'{_public_url}/hub/oauth_callback'
+
 # Redirection on Logout to clear the Keycloak SSO session.
 # This used to hardcode http://localhost:8016/hub/login — the published port, not the
 # public route. Keycloak validates post_logout_redirect_uri against the client's
