@@ -86,8 +86,8 @@ services:
     environment:
       SECRET_KEY: "${ORTHANC_AUTH_SECRET_KEY}"
       ENABLE_KEYCLOAK: "true"
-      KEYCLOAK_URI: "http://keycloak:8080/realms/digitaltwins/"
-      KEYCLOAK_ADMIN_URI: "http://keycloak:8080/admin/realms/digitaltwins/"
+      KEYCLOAK_URI: "http://keycloak:8080/auth/realms/digitaltwins/"
+      KEYCLOAK_ADMIN_URI: "http://keycloak:8080/auth/admin/realms/digitaltwins/"
       KEYCLOAK_REALM: "digitaltwins"
       KEYCLOAK_CLIENT_SECRET: ${ORTHANC_KEYCLOAK_CLIENT_SECRET:-orthanc-secret}
       PUBLIC_ORTHANC_ROOT: "http://localhost:${ORTHANC_1_HTTP_PORT:-8042}/"
@@ -108,8 +108,8 @@ services:
     environment:
       SECRET_KEY: "${ORTHANC_AUTH_SECRET_KEY}"
       ENABLE_KEYCLOAK: "true"
-      KEYCLOAK_URI: "http://keycloak:8080/realms/digitaltwins/"
-      KEYCLOAK_ADMIN_URI: "http://keycloak:8080/admin/realms/digitaltwins/"
+      KEYCLOAK_URI: "http://keycloak:8080/auth/realms/digitaltwins/"
+      KEYCLOAK_ADMIN_URI: "http://keycloak:8080/auth/admin/realms/digitaltwins/"
       KEYCLOAK_REALM: "digitaltwins"
       KEYCLOAK_CLIENT_SECRET: ${ORTHANC_KEYCLOAK_CLIENT_SECRET:-orthanc-secret}
       PUBLIC_ORTHANC_ROOT: "http://localhost:${ORTHANC_2_HTTP_PORT:-8042}/"
