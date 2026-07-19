@@ -67,7 +67,7 @@ x-airflow-common:
     # the React bundle 404s and the page is blank — even though the request reaches Airflow
     # (HTTP 200 index). Direct port access at :8002 works regardless. Must match the gateway
     # location in services/nginx/snippets/platform-routes.conf.
-    AIRFLOW__API__BASE_URL: 'http://localhost/airflow'
+    AIRFLOW__API__BASE_URL: '${AIRFLOW__API__BASE_URL:-http://localhost/airflow}'
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
     # See https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/check-health.html#scheduler-health-check-server
