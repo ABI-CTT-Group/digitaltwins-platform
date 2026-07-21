@@ -99,6 +99,11 @@ export function useAssayActions() {
       } else if (res.type === "airflow") {
         store.setAssayExecute(seekId, "Monitor", res.data);
         toast.success("Workflow launched successfully. Click Monitor to track progress.");
+      } else if (res.type === "notebook") {
+        // Notebook assays open straight into JupyterHub. Open the tab now and
+        // stash the URL under Monitor so re-opening it uses the same path.
+        store.setAssayExecute(seekId, "Monitor", res.data);
+        window.open(res.data, "_blank");
       } else if (res.type === "EP3 workflow launch") {
         window.open(res.data, "_blank");
       }

@@ -461,6 +461,13 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None), clie
                 "type": "airflow",
                 "data": workflow_monitor_url
             }
+        if workflow_type == "notebook":
+            res = await client.post(f"/assays/{seek_id}/run", {})
+            jupyter_hub_url = res.json().get("url", "")
+            return {
+                "type": "notebook",
+                "data": jupyter_hub_url
+            }
         else:
             return {
                 "message": "Currently only script based workflow launch is supported. GUI based workflow launch is under development.",
