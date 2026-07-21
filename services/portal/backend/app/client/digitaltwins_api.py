@@ -18,10 +18,15 @@ class DigitalTWINSAPIClient:
         _url = os.getenv('DIGITALTWINS_API_BASE_URL', "http://localhost").rstrip('/')
         _port = os.getenv('DIGITALTWINS_API_PORT', '8000')
         self.base_url = f"{_url}:{_port}"
+        # self.base_url = "https://dev-digitaltwins.abi-ctt-ctp.cloud.edu.au/digitaltwins-api"
         self.username = username
         self.password = password
         self.token = token
-        self.client = httpx.AsyncClient()
+        # Local testing against the nectar dev endpoint hits a self-signed cert;
+        # allow disabling TLS verification via env (defaults to verifying in prod).
+
+        verify = True # True for production, False for local testing with self-signed certs
+        self.client = httpx.AsyncClient(verify=verify)
 
     def _get_auth_headers(self) -> Dict[str, str]:
         headers = {}
