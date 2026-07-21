@@ -59,7 +59,7 @@ APIUSERNAME: str = os.environ.get("_AIRFLOW_WWW_USER_USERNAME", "admin")
 APIPASSWORD: str = os.environ.get("_AIRFLOW_WWW_USER_PASSWORD", "admin")
 
 # Airflow REST API — internal Docker service name (from docker-compose.yml: airflow-apiserver:8080)
-AIRFLOW_ENDPOINT: str = os.environ.get("AIRFLOW_ENDPOINT", "http://airflow-apiserver:8080")
+AIRFLOW_ENDPOINT: str = os.environ.get("AIRFLOW_ENDPOINT", "http://airflow-apiserver:8080/airflow")
 AIRFLOW_USERNAME: str = os.environ.get("AIRFLOW_USERNAME", "admin")
 AIRFLOW_PASSWORD: str = os.environ.get("AIRFLOW_PASSWORD", "admin")
 
