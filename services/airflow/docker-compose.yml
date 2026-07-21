@@ -61,7 +61,7 @@ x-airflow-common:
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/airflow/execution/'
     # Mounts the Airflow UI under the gateway's /airflow route. Without it the api-server
     # emits <base href="/"> and root-absolute /static/... asset paths, so behind /airflow
     # the React bundle 404s and the page is blank — even though the request reaches Airflow
