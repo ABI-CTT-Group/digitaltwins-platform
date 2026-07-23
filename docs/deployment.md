@@ -27,23 +27,27 @@ cp .env.template .env
 
 Set the following variables in your new `.env` file:
 
-- **Portal Service**
-  - `PORTAL_BACKEND_HOST`: Your host machine IP address for the portal backend. 
+- **Public URLs & Keycloak integration**
+  - `PORTAL_BACKEND_HOST`: Your host machine IP address (or domain) for the portal backend. 
     > [!TIP]
     > You can find your host IP address by running `curl ifconfig.me` on a Linux terminal.
-  - `PORTAL_KEYCLOAK_BASE_URL`: your host machine IP address and keycloak port number
+  - **Four settings must name the EXACT same public address** (including the `/auth` path) to prevent issuer-mismatch failures:
+    - `KC_HOSTNAME`
+    - `KEYCLOAK_PUBLIC_URL`
+    - `PORTAL_KEYCLOAK_BASE_URL`
+    - `ORTHANC_KEYCLOAK_URL`
 
 - **Workflow Service (Airflow)**
-  - `AIRFLOW_UID`: Your local user ID.
+  - `AIRFLOW_UID`: Your local user ID. Replace `<YOUR_USER_ID>`.
     > [!TIP]
-    > Run `echo $(id -u)` to find your user ID, then update the `AIRFLOW_UID` variable in your `.env` file with this ID.
+    > Run `echo $(id -u)` to find your user ID.
 
 - **JupyterHub**
-  - `JUPYTERHUB_CRYPT_KEY`: YOUR_JUPYTERHUB_CRYPT_KEY_HERE
+  - `JUPYTERHUB_CRYPT_KEY`: Replace `<YOUR_JUPYTERHUB_CRYPT_KEY>`.
     > [!TIP]
     > Generate a secure random key using the following command:
     > ```bash
-    > openssl rand -base64 32
+    > openssl rand -hex 32
     > ```
 
 ### 2.2 SEEK Configuration
@@ -96,10 +100,7 @@ cp ./services/seek/ldh-deployment/docker-compose.env.tpl ./services/seek/ldh-dep
 3. Retrieve your Keycloak client secret:
    1. Log in to the Keycloak admin console at `http://localhost:8009`. *(Check your username and password in the `.env` file if you changed them; defaults are `admin`/`admin`)*.
    2. Navigate to **Manage realm** > `digitaltwins` > **Clients** > choose `api` from the client list > **Credentials** > copy the **Client Secret**.
-   3. Update your `.env` file with the copied client secret:
-      ```ini
-      KEYCLOAK_CLIENT_SECRET=YOUR_KEYCLOAK_CLIENT_SECRET_HERE
-      ```
+   3. Update the `<YOUR_KEYCLOAK_CLIENT_SECRET>` placeholder in your `.env` file with the copied client secret.
 
 ## 4. Initialise Workflow Service (Airflow)
 
@@ -159,10 +160,7 @@ Edit `./services/seek/ldh-deployment/docker-compose.env` and replace `<root-pass
    1. In the SEEK UI, navigate to **My Profile > Actions > API Tokens > New API Token**.
    2. Provide a title and create the token.
    3. Copy and save the generated API token.
-   4. Add the API token to your `.env` file:
-      ```ini
-      SEEK_API_TOKEN=YOUR_SEEK_API_TOKEN_HERE
-      ```
+   4. Update the `<YOUR_SEEK_API_TOKEN>` placeholder in your `.env` file with the copied API token.
 
 5. **Enable "Git" Support (Command Line)**:
    1. Enter the SEEK container:
@@ -201,15 +199,17 @@ sudo docker compose up -d
 
 Once successfully deployed, the following services and default credentials are available:
 
-| Service            | Port   | Username | Password | Notes                                     |
-|:-------------------|:-------| :--- | :--- |:------------------------------------------|
-| **Portal**         | `80`   | `admin` | `admin` | Main entry point                          |
-| **SEEK**           | `8001` | `<Created User>` | `<Created Pass>` | Catalogue Service                         |
-| **Airflow**        | `8002` | `admin` | `admin` | Workflow Management                       |
-| **Postgres**       | `8003` | — | — | Database (Connect via pgAdmin)            |
-| **pgAdmin**        | `8004` | *Check `.env`* | *Check `.env`* | Database GUI                              |
-| **JupyterLab**     | `8008` | — | `admin` | Accessed via Token/Password               |
-| **Keycloak**       | `8009` | `admin` | `admin` | IAM Service                               |
-| **REST API**       | `8010` | — | — | Docs available at `http://{IP}:8010/docs` |
-| **Minio**          | `8012` | `minioadmin` | `minioadmin` | Storage Web GUI (API on `8011`)           |
-| **JupyterHub** | `8010` | — | — | Managed by Keycloak                       |
+| Service            | URL Path | Username | Password | Notes                                     |
+|:-------------------|:---------| :--- | :--- |:------------------------------------------|
+| **Portal**         | `/`      | *Via Keycloak* | — | Main entry point                          |
+| **SEEK**           | `/seek/` | *Via Keycloak* or `<Created User>` | `<Created Pass>` | Catalogue Service                         |
+| **Airflow**        | `/airflow/` | `admin` | `admin` | Workflow Management                       |
+| **pgAdmin**        | `/pgadmin/` | *Check `.env`* | *Check `.env`* | Database GUI                              |
+| **Keycloak**       | `/auth/` | `admin` | `admin` | IAM Service (Admin Console)               |
+| **REST API**       | `/digitaltwins-api/` | — | — | Docs at `http://{IP}/digitaltwins-api/docs` |
+| **Minio**          | `/minio/` | `minioadmin` | `minioadmin` | Storage Web GUI                           |
+| **Orthanc 1**      | `/orthanc-1/` | *Via Keycloak* | — | PACS Service 1                            |
+| **Orthanc 2**      | `/orthanc-2/` | *Via Keycloak* | — | PACS Service 2                            |
+| **JupyterHub**     | `/jupyter/` | *Via Keycloak* | — | Notebook Service                          |
+| **HAPI FHIR**      | `/fhir/` | — | — | EHR Service REST API                      |
+| **Postgres**       | `N/A`    | — | — | Internal Database (Connect via pgAdmin)   |
