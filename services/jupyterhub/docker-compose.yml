@@ -10,28 +10,27 @@ services:
       - ./jupyterhub_config.py:/srv/jupyterhub/jupyterhub_config.py:ro
       - /var/run/docker.sock:/var/run/docker.sock:rw
       - jupyterhub_data:/srv/jupyterhub
-    # The `${X:-...}` defaults here are the only ones: jupyterhub_config.py reads these
-    # with os.environ[...] and keeps no default of its own.
-    #
-    # The JUPYTERHUB_CLIENT_* / *_GROUPS / ADMIN_USERS variables in .env are NOT forwarded
-    # below, so .env cannot set them at all. Pre-existing gap, out of scope here.
+    # The `${X:-...}` defaults here are the only ones: jupyterhub_config.py
+    # reads these with os.environ[...] and keeps no default of its own.
     environment:
-      # Keycloak, split into the two addresses jupyterhub_config.py needs.
-      # PUBLIC is where the user's BROWSER is redirected to authorize — it must be the
-      # gateway URL, and it must match KC_HOSTNAME or the issuer check fails.
-      # INTERNAL is the container-to-container hop for token exchange / userinfo; it goes
-      # straight to the keycloak service on the shared network and never leaves it. This
-      # replaces the old host.docker.internal:8009 workaround, which existed only because
-      # Keycloak used to have no stable public address.
+      # --- Keycloak OIDC ---
+      # PUBLIC: browser redirect URL, must match KC_HOSTNAME.
+      # INTERNAL: container-to-container hop for token exchange / userinfo.
       - KEYCLOAK_PUBLIC_URL=${KEYCLOAK_PUBLIC_URL:-http://localhost/auth}
       - KEYCLOAK_INTERNAL_URL=${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080/auth}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
-      # Browser-facing base URL of the Hub — the gateway's /jupyter route, matching
-      # c.JupyterHub.base_url. Every URL the browser is redirected back to is built from
-      # it, and Keycloak validates those against the `jupyterhub` client's registered
-      # redirectUris, so this, jupyterhub_config.py and the realm import must agree.
+      # Keycloak OIDC client credentials.
+      - JUPYTERHUB_CLIENT_ID=${JUPYTERHUB_CLIENT_ID:-jupyterhub}
+      - JUPYTERHUB_CLIENT_SECRET=${JUPYTERHUB_CLIENT_SECRET:-jupyterhub-secret}
+      # --- JupyterHub ---
+      # Browser-facing base URL (must match gateway route and Keycloak redirectUris).
       - JUPYTERHUB_PUBLIC_URL=${JUPYTERHUB_PUBLIC_URL:-http://localhost/jupyter}
       - JUPYTERHUB_CRYPT_KEY=${JUPYTERHUB_CRYPT_KEY:-c3b53f650bf93c3c6f8f5b8a5b2803b9b4d1b8c2810a9a8f2762a4f4e2b027d1}
+      # --- Group / user access control ---
+      - JUPYTERHUB_ALLOWED_GROUPS=${JUPYTERHUB_ALLOWED_GROUPS:-admin,researcher}
+      - JUPYTERHUB_ADMIN_GROUPS=${JUPYTERHUB_ADMIN_GROUPS:-admin}
+      - JUPYTERHUB_ADMIN_USERS=${JUPYTERHUB_ADMIN_USERS:-admin}
+      # --- Docker spawner ---
       - DOCKER_NETWORK_NAME=${PROJECT_NAME:-digitaltwins-platform}
       - DOCKER_NOTEBOOK_IMAGE=digitaltwins-platform-jupyter-singleuser:latest
       - DOCKER_NOTEBOOK_DIR=/home/jovyan/work
