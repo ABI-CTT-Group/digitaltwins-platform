@@ -129,6 +129,14 @@ ENV/
 env.bak/
 venv.bak/
 
+# Platform deployment env inputs: copy the *.template files to `env` and
+# `secrets.env`, fill in real values, and never commit the filled files.
+# The templates themselves ARE committed (secrets.env.template would
+# otherwise be caught by *.env.* above).
+/env
+/secrets.env
+!secrets.env.template
+
 # Spyder project settings
 .spyderproject
 .spyproject
