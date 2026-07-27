@@ -55,14 +55,6 @@ services:
     restart: unless-stopped
     networks:
       - digitaltwins-platform
-  hapi-fhir-postgres:
-    extends:
-      file: ./services/hapi-fhir/docker-compose.yml
-      service: hapi-fhir-postgres
-    restart: unless-stopped
-    networks:
-      - digitaltwins-platform
-
 include:
   # to run only a specific included project with the root .env: sudo docker compose -f services/<service_name>/docker-compose.yml --env-file ./.env up
 
@@ -119,9 +111,6 @@ volumes:
   plugin_database:
     driver: local
     name: ${PROJECT_NAME}_plugin_database
-  hapi_fhir_postgres:
-    driver: local
-    name: ${PROJECT_NAME}_hapi_fhir_postgres
   nginx_plugin_configs:
     driver: local
     name: ${PROJECT_NAME}_nginx_plugin_configs

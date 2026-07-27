@@ -10,6 +10,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./digitaltwins_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
       - ./airflow_init.sql:/docker-entrypoint-initdb.d/02_airflow.sql:ro
+      - ./keycloak_init.sql:/docker-entrypoint-initdb.d/03_keycloak.sql:ro
+      - ./hapi_init.sql:/docker-entrypoint-initdb.d/04_hapi.sql:ro
     ports:
       - "8003:5432"
     healthcheck:
