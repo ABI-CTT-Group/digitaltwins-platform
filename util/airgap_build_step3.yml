@@ -125,6 +125,12 @@
   # git pulls proved unreliable on the target, so we rsync the checkout from
   # the install-source drive. .env is git-ignored and generated below, so it is
   # excluded from the sync and never clobbered.
+  #
+  # services/airflow/dags is EXCLUDED: the DAGs are managed outside the repo
+  # (developers change them daily) and provisioned separately via
+  # util/sync-dags.sh. Excluding them means --delete never wipes runtime DAGs on
+  # a redeploy, and a fresh box just starts with an empty dags dir (created
+  # below) until sync-dags.sh populates it.
   - name: Sync the repo checkout to the platform dir
     ansible.posix.synchronize:
       src: "{{ clean_src }}/"
@@ -134,6 +140,12 @@
       rsync_opts:
         - "--exclude=.git/"
         - "--exclude=.env"
+        - "--exclude=services/airflow/dags/"
+
+  - name: Ensure the Airflow DAGs directory exists (DAGs come from util/sync-dags.sh)
+    ansible.builtin.file:
+      path: "{{ platform_dir }}/services/airflow/dags"
+      state: directory
 
   - name: Convenience — set COMPOSE_FILE in ~/.bashrc so `docker compose` works from anywhere
     ansible.builtin.lineinfile:

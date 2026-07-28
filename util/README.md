@@ -251,6 +251,80 @@ every container's actual image (so exited one-shots like `minio-init` and the
 machine's install source; subsequent runs with the default
 `load_frozen_images=true` will load it.
 
+## Transferring data from one system to another
+
+Copies the live data from one instance (e.g. a staging box) into another (e.g.
+the portal). Uses **logical dumps + object mirrors**, not raw volume copies, so
+it survives the two layouts differing — which they do:
+
+- **Keycloak** may be embedded **H2** on one box and **Postgres** on the other.
+  A DB copy is impossible across engines, so Keycloak is **not** handled here —
+  migrate realms/users via a Keycloak realm export/import instead.
+- **HAPI FHIR** may have its **own Postgres** on one box and live in the
+  **shared Postgres** on the other. A logical `pg_dump` restores fine across
+  that (and across major versions, e.g. 13 → 16).
+
+### Scripts
+
+| Script | Runs on | What it does |
+|---|---|---|
+| `util/stage-dump.sh [OUT]` | **source** | READ-ONLY dump → `OUT` (default `/tmp/dtwins-migrate`). Nothing on the source is stopped or modified. |
+| `util/portal-restore.sh [IN]` | **target** | **Destructive** restore from `IN`. Prompts for confirmation. |
+| `util/sync-dags.sh <SRC> <DST> [--mirror]` | **control machine** | Copies Airflow DAGs SRC→DST over ssh. Separate from the above (DAGs are managed outside the repo). |
+
+Both dump/restore read credentials from the containers' own env, so the two
+boxes need not share passwords. Container/volume names default to the
+`digitaltwins-platform` project; override with the `PROJECT` / `*_C` / `*_VOLS`
+env vars if yours differ.
+
+### What's covered
+
+`digitaltwins` DB · HAPI FHIR DB · SEEK (MySQL + filestore) · MinIO buckets ·
+portal **plugin registry** (`plugin_registry.db`) · Orthanc DICOM volumes.
+
+**Not** covered: Keycloak (see above), Airflow metadata (runtime state — skip),
+and Airflow DAGs (use `sync-dags.sh`).
+
+### Procedure
+
+```bash
+# 1. On the SOURCE (read-only; writes to /tmp):
+ssh <source>
+util/stage-dump.sh                      # -> /tmp/dtwins-migrate on the source
+
+# 2. Move the dump to the TARGET (relay through your workstation if the boxes
+#    can't reach each other):
+rsync -az -e ssh <source>:/tmp/dtwins-migrate/ ./dtwins-migrate/
+rsync -az -e ssh ./dtwins-migrate/ <target>:/tmp/dtwins-migrate/
+
+# 3. On the TARGET (destructive; asks for confirmation):
+ssh <target>
+cd ~/digitaltwins-platform
+util/portal-restore.sh                  # <- /tmp/dtwins-migrate on the target
+
+# 4. Re-mint the SEEK API token (restore replaced SEEK's users, so the
+#    buildout's token is stale). On the target:
+SECRETS_FILE=/mnt/install_src/data/secrets.env util/generate-token.sh admin
+util/gen-env.sh -e /mnt/install_src/data/env -s /mnt/install_src/data/secrets.env
+docker compose up -d digitaltwins-api
+
+# 5. DAGs — separate, run from a machine that can ssh to both:
+util/sync-dags.sh <source> <target>
+```
+
+### Caveats
+
+- **Overwrite:** `portal-restore.sh` replaces the target's `digitaltwins`,
+  `hapi`, `seek`, MinIO, plugin registry and Orthanc data. Intended for a fresh
+  target; don't run it over data you want to keep.
+- **Orthanc** restore briefly **stops** the target's `orthanc-1/2` containers to
+  swap their volumes.
+- **Plugin images:** the plugin *registry* comes across, but a registered
+  plugin only runs if its image/source is also present on the target. If a
+  migrated plugin fails to start, its build context/image still needs providing.
+- **SEEK API token** must be re-minted (step 4) or the portal's API can't talk
+  to SEEK after the restore.
+
 ## Files in `/mnt/install_src` (reference)
 
 | File | Purpose |

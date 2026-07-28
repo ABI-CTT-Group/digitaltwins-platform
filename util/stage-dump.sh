@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# stage-dump.sh — READ-ONLY dump of a DigitalTWINS instance for migration.
+#
+# Run this ON THE SOURCE box. It mutates nothing on the source (no compose
+# down, volumes mounted read-only) and writes all archives under OUT
+# (default /tmp/dtwins-migrate). Pair it with portal-restore.sh on the target.
+#
+# Covers:  digitaltwins DB, HAPI FHIR DB, SEEK (mysql + filestore), MinIO
+#          buckets, portal plugin registry, Orthanc DICOM volumes.
+# Does NOT cover:  Keycloak (H2 here vs Postgres on the portal — migrate via a
+#          realm export/import instead), Airflow metadata (runtime state), and
+#          Airflow DAGs (managed outside the repo — use sync-dags.sh).
+#
+# Credentials are read from the containers' own env, so this works regardless
+# of how each box names things in .env.
+#
+#   util/stage-dump.sh [OUT_DIR]
+#
+# Container/volume names default to the `digitaltwins-platform` compose project;
+# override via the PROJECT / *_C / *_VOLS env vars if yours differ.
+# ---------------------------------------------------------------------------
+set -euo pipefail
+
+OUT="${1:-/tmp/dtwins-migrate}"
+PROJECT="${PROJECT:-digitaltwins-platform}"
+NETWORK="${NETWORK:-$PROJECT}"
+DB_C="${DB_C:-${PROJECT}-database-1}"          # shared Postgres (digitaltwins, ...)
+SEEKDB_C="${SEEKDB_C:-${PROJECT}-db-1}"        # SEEK MySQL
+SEEK_C="${SEEK_C:-${PROJECT}-seek-1}"
+PORTAL_BE_C="${PORTAL_BE_C:-${PROJECT}-portal-backend-1}"
+MINIO_C="${MINIO_C:-${PROJECT}-minio-1}"
+HAPI_PG_C="${HAPI_PG_C:-hapi-fhir-postgres}"   # separate pg on some layouts; "" to skip
+ORTHANC_VOLS="${ORTHANC_VOLS:-${PROJECT}_orthanc_1_data ${PROJECT}_orthanc_2_data}"
+MC_IMAGE="${MC_IMAGE:-quay.io/minio/mc:latest}"
+
+mkdir -p "$OUT"
+echo "stage-dump: source project '$PROJECT' -> $OUT"
+
+# 1. Platform Postgres DB (digitaltwins) --------------------------------------
+echo "== digitaltwins DB =="
+docker exec "$DB_C" sh -c \
+  'pg_dump -U "$POSTGRES_USER" --clean --if-exists "${POSTGRES_DB:-digitaltwins}"' \
+  > "$OUT/digitaltwins.sql"
+
+# 2. HAPI FHIR DB (its own Postgres on staging; folded into shared pg on portal)
+if [ -n "$HAPI_PG_C" ] && docker ps --format '{{.Names}}' | grep -qx "$HAPI_PG_C"; then
+  echo "== hapi DB (from $HAPI_PG_C) =="
+  docker exec "$HAPI_PG_C" sh -c \
+    'pg_dump -U "$POSTGRES_USER" --clean --if-exists "${POSTGRES_DB:-hapi}"' \
+    > "$OUT/hapi.sql"
+else
+  echo "== hapi: no container '$HAPI_PG_C'; skipping (set HAPI_PG_C to override) =="
+fi
+
+# 3. SEEK MySQL ---------------------------------------------------------------
+echo "== seek mysql =="
+docker exec "$SEEKDB_C" sh -c 'exec mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" seek' \
+  > "$OUT/seek_mysql.sql"
+
+# 4. SEEK filestore -----------------------------------------------------------
+echo "== seek filestore =="
+rm -rf "$OUT/seek_filestore"; mkdir -p "$OUT/seek_filestore"
+docker cp "$SEEK_C:/seek/filestore/." "$OUT/seek_filestore/"
+
+# 5. Portal plugin registry (SQLite) ------------------------------------------
+echo "== plugin registry =="
+docker cp "$PORTAL_BE_C:/data/plugin_registry.db" "$OUT/plugin_registry.db"
+
+# 6. MinIO buckets ------------------------------------------------------------
+echo "== minio =="
+rm -rf "$OUT/minio"; mkdir -p "$OUT/minio"
+MINIO_USER=$(docker exec "$MINIO_C" printenv MINIO_ROOT_USER)
+MINIO_PASS=$(docker exec "$MINIO_C" printenv MINIO_ROOT_PASSWORD)
+docker run --rm --network "$NETWORK" -v "$OUT/minio":/backup \
+  -e A="$MINIO_USER" -e B="$MINIO_PASS" --entrypoint /bin/sh "$MC_IMAGE" -c '
+    mc alias set src http://minio:9000 "$A" "$B" >/dev/null
+    for b in $(mc ls src | awk "{print \$NF}" | tr -d "/"); do
+      [ "$b" = "airflow-logs" ] && { echo "  skip $b"; continue; }
+      echo "  mirror $b"
+      mc mirror src/"$b" /backup/"$b" || true
+    done'
+
+# 7. Orthanc DICOM volumes (read-only tar) ------------------------------------
+echo "== orthanc dicom =="
+for v in $ORTHANC_VOLS; do
+  if ! docker volume inspect "$v" >/dev/null 2>&1; then echo "  no volume $v; skip"; continue; fi
+  echo "  tar $v"
+  docker run --rm -v "$v":/v:ro -v "$OUT":/backup alpine tar -C /v -cf "/backup/${v}.tar" .
+done
+
+echo "stage-dump: done."
+du -sh "$OUT"/* 2>/dev/null || true
+echo "Next: copy $OUT to the target and run util/portal-restore.sh there."
