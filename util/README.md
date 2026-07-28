@@ -164,21 +164,47 @@ This step (all automatic):
 
 ## 6. Verify
 
-Open a browser to (swap in your `PLATFORM_DOMAIN`; `http://localhost` for the
-localhost/http build):
+Open a browser to `https://${PLATFORM_DOMAIN}<path>` (use `http://localhost` for
+the localhost/http build). Every route below is served by the edge **gateway**
+(`services/nginx`); see the routing table in the next section.
 
-| URL | Service |
-|---|---|
-| `https://${PLATFORM_DOMAIN}/`         | Portal |
-| `https://${PLATFORM_DOMAIN}/seek`     | SEEK (catalogue) |
-| `https://${PLATFORM_DOMAIN}/jupyter`  | JupyterHub |
-| `https://${PLATFORM_DOMAIN}/auth`     | Keycloak admin |
-| `https://${PLATFORM_DOMAIN}/airflow`  | Airflow |
+Quick smoke test: `/` (portal), `/seek`, `/jupyter`, `/auth`, `/airflow`.
 
 **Pre-canned realm users** (from the realm template — change/remove for
 production): `admin` (password = your `KEYCLOAK_REALM_ADMIN_PASSWORD`), and the
 plaintext test users `clinician`/`clinician`, `researcher`/`researcher`,
 `test1`/`test1`, `test2`/`test2`.
+
+## 7. Gateway proxy routes (reference)
+
+The edge gateway (`services/nginx`) owns all of `80`/`443` and proxies these
+paths. Every `proxy_pass` goes through a `set $var` + the docker `resolver`
+(`http-level.conf`), so a service that is down 502s **only its own route**
+instead of stopping nginx from starting. Routes are defined in
+`services/nginx/snippets/platform-routes.conf`; the `/` fallback in
+`portal-fallback.conf`.
+
+| Path | Upstream (service:port) | Keycloak auth | Prefix handling |
+|---|---|:---:|---|
+| `/`                 | `portal-frontend`         | **Yes** — OIDC login (frontend `VITE_KEYCLOAK_*`; backend validates the `api` client). Also carries `/api/`, `/tools/`, `/plugin/<expose>/`. | passthrough |
+| `/seek/`            | `seek:3000`               | **No** — local admin login (`SEEK_ADMIN_PASSWORD`). `omniauth_enabled` is on but no provider is wired; the realm ships a `seek` client for future SSO. | passthrough (`RAILS_RELATIVE_URL_ROOT=/seek`) |
+| `/airflow/`         | `airflow-apiserver:8080`  | **No** — baked FAB admin (`admin`/`admin`). Realm has an `airflow` client, not wired. | passthrough (`AIRFLOW__API__BASE_URL`) |
+| `/jupyter/`         | `jupyterhub:8000`         | **Yes** — OIDC (GenericOAuthenticator → Keycloak). | passthrough (`c.JupyterHub.base_url=/jupyter/`) |
+| `/auth/`            | `keycloak:8080`           | *is Keycloak* | passthrough (`KC_HTTP_RELATIVE_PATH=/auth`) |
+| `/fhir/`            | `hapi-fhir:8080`          | **No** — open REST API. | passthrough (native `/fhir`) |
+| `/minio/`           | `minio:9001`              | **No** — root creds (`minioadmin`). | rewrite (strips `/minio/`) |
+| `/pgadmin/`         | `pgadmin:80`              | **No** — own login (`PGADMIN_DEFAULT_*`). | rewrite (strips `/pgadmin/`) |
+| `/orthanc-1/`       | `orthanc-1:8042`          | **Yes** — `ENABLE_KEYCLOAK=true` (orthanc auth plugin). | rewrite (strips `/orthanc-1/`) |
+| `/orthanc-2/`       | `orthanc-2:8042`          | **Yes** — `ENABLE_KEYCLOAK=true`. | rewrite (strips `/orthanc-2/`) |
+| `/digitaltwins-api/`| `digitaltwins-api:8000`   | **Yes** — validates Keycloak tokens (resource server, `api` client). | rewrite (strips `/digitaltwins-api/`) |
+
+- **passthrough** routes forward the URI unchanged; the app is *told* it lives
+  under the prefix by the setting shown. A 404/redirect-to-`/` there is an app
+  config problem, not nginx.
+- **rewrite** routes strip the prefix because the app serves at root (needed
+  only because the `set $var` form disables nginx's automatic prefix strip).
+- Edit a route and reload with no rebuild/restart:
+  `docker exec ${PROJECT_NAME}-gateway nginx -t && docker exec ${PROJECT_NAME}-gateway nginx -s reload`.
 
 ---
 
