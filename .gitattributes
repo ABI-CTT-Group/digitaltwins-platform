@@ -12,3 +12,7 @@
 util/export_realm_and_users text eol=lf
 util/realm_exporter         text eol=lf
 util/mkbundle               text eol=lf
+
+# Shell-sourced env templates — a CRLF here leaves a stray \r inside sourced
+# values (e.g. PLATFORM_PROTOCOL=http\r), silently breaking protocol checks.
+*env.template   text eol=lf
