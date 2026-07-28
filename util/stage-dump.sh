@@ -80,10 +80,16 @@ mc_run() {  # run an mc command in the container with src aliased + /backup moun
     -c "mc alias set src http://minio:9000 \"\$A\" \"\$B\" >/dev/null && $1"
 }
 buckets=$(mc_run 'mc ls src' | awk '{print $NF}' | tr -d '/')
+mirror_failed=0
 for b in $buckets; do
   [ "$b" = "airflow-logs" ] && { echo "  skip $b"; continue; }
   echo "  mirror $b"
-  mc_run "mc mirror src/$b /backup/$b" || true
+  # Don't swallow failures — a partial mirror must not pass silently (that is how
+  # the original bucket-enumeration bug went unnoticed).
+  if ! mc_run "mc mirror src/$b /backup/$b"; then
+    echo "  !! MinIO mirror FAILED for bucket '$b'" >&2
+    mirror_failed=1
+  fi
 done
 
 # 7. Orthanc DICOM volumes (read-only tar) ------------------------------------
@@ -96,4 +102,8 @@ done
 
 echo "stage-dump: done."
 du -sh "$OUT"/* 2>/dev/null || true
+if [ "$mirror_failed" -ne 0 ]; then
+  echo "stage-dump: ERROR — one or more MinIO buckets failed to mirror; dump is INCOMPLETE." >&2
+  exit 1
+fi
 echo "Next: copy $OUT to the target and run util/portal-restore.sh there."
