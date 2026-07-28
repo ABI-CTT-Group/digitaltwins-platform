@@ -28,6 +28,24 @@ The install source is assumed mounted at `/mnt/install_src`, laid out as:
 └── ansible-packages.tar.gz              # ansible wheels (to install ansible)
 ```
 
+### Getting the code into `clean_src`
+
+Populate `clean_src/digitaltwins-platform/` with a **recursive** clone. The repos
+are public, so this needs no auth over HTTPS (the box's only GitHub block is
+SSH); `--recursive` pulls the three submodules (portal / api / seek) at their
+pinned commits:
+
+```bash
+cd /mnt/install_src/clean_src
+git clone --recursive -b env-config-generation \
+  https://github.com/ABI-CTT-Group/digitaltwins-platform.git
+```
+
+> **Branch note:** this currently tracks the `env-config-generation` branch.
+> That work is slated to merge into `main` soon (see
+> `util/MR-env-config-generation.md`) — once it does, drop
+> `-b env-config-generation` and clone `main` instead.
+
 ---
 
 ## 0. Mount the install source
