@@ -28,6 +28,11 @@ for f in "$TEMPLATE" "$ENV_FILE" "$SECRETS_FILE"; do
   [ -f "$f" ] || { echo "gen-realm.sh: missing input: $f" >&2; exit 1; }
 done
 
+# A slashless path passed to `.`/source is resolved via PATH, not the cwd — so
+# `-e env` would source /usr/bin/env (the binary!) and fail. Force a slash.
+case "$ENV_FILE"     in */*) ;; *) ENV_FILE="./$ENV_FILE";;         esac
+case "$SECRETS_FILE" in */*) ;; *) SECRETS_FILE="./$SECRETS_FILE";; esac
+
 set -a
 # shellcheck disable=SC1090
 . "$ENV_FILE"
