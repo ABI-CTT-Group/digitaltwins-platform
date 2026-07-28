@@ -1,0 +1,334 @@
+# ===========================================================================
+# airgap_build_step3.yml — deploy the DigitalTWINS platform onto a prepared VM.
+#
+# This is the app-deployment stage. It assumes the earlier airgap stages have
+# already run on the target: the install-source drive mounted at
+# /mnt/install_src (step0), the firewall configured (step1), and Docker +
+# compose installed (step2).
+#
+# Unlike the old inline playbook, config is rendered by the committed helper
+# scripts (the single source of truth):
+#   util/gen-env.sh    -> .env
+#   util/gen-realm.sh  -> services/keycloak/import/digitaltwins-realm.json
+#
+# The install-source drive carries only the untracked bits:
+#   {{ install_src_dir }}/clean_src/digitaltwins-platform/   full repo checkout
+#   {{ install_src_dir }}/data/env                           per-deployment config
+#   {{ install_src_dir }}/data/secrets.env                   all secrets
+#   {{ install_src_dir }}/data/public_keys/*.pub             operator SSH keys
+#   {{ install_src_dir }}/data/fullchain.pem, privkey.pem    TLS cert (https only)
+#   {{ install_src_dir }}/digitaltwins-images-all.tar.gz     frozen docker images
+#
+# Before running, source BOTH data files so PLATFORM_DOMAIN / SEEK_ADMIN_* /
+# MYSQL_* resolve for the tasks below (the gen-*.sh scripts re-read the files
+# themselves via -e/-s, so the values always agree):
+#
+#   source /mnt/install_src/data/secrets.env
+#   source /mnt/install_src/data/env
+#   ansible-playbook -i inventory util/airgap_build_step3.yml
+#
+# NOTE: the frozen frontend image bakes the Keycloak URL at build time
+# (VITE_KEYCLOAK_URL build-arg), so images must be frozen for the SAME
+# PLATFORM_DOMAIN this deploys to. Re-freeze on a build host if the domain
+# changes; this playbook does not rebuild images in the airgap.
+# ===========================================================================
+
+- name: DigitalTWINS platform deployment (airgap step 3)
+  gather_facts: false
+  hosts: all
+
+  vars:
+    install_src_dir: /mnt/install_src
+    data_dir: "{{ install_src_dir }}/data"
+    env_file: "{{ data_dir }}/env"
+    secrets_file: "{{ data_dir }}/secrets.env"
+    clean_src: "{{ install_src_dir }}/clean_src/digitaltwins-platform"
+    images_archive: "{{ install_src_dir }}/digitaltwins-images-all.tar.gz"
+    platform_dir: ~/digitaltwins-platform
+    keys_dir: ~/keys
+    platform_domain: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
+    platform_protocol: "{{ lookup('env', 'PLATFORM_PROTOCOL') | default('https', true) }}"
+
+  tasks:
+
+  # --- Preflight: fail early with a clear message ---------------------------
+  - name: Verify required environment variables are set
+    ansible.builtin.assert:
+      that:
+        - "lookup('env', item) | length > 0"
+      fail_msg: "FATAL: required environment variable '{{ item }}' is unset — did you source data/env and data/secrets.env?"
+      quiet: true
+    loop:
+      - PLATFORM_DOMAIN
+      - PLATFORM_PROTOCOL
+      - SEEK_ADMIN_PASSWORD
+      - SEEK_ADMIN_EMAIL
+      - MYSQL_ROOT_PASSWORD
+      - MYSQL_PASSWORD
+
+  - name: Verify the install-source inputs are present
+    ansible.builtin.stat:
+      path: "{{ item }}"
+    register: src_check
+    failed_when: not src_check.stat.exists
+    loop:
+      - "{{ clean_src }}"
+      - "{{ env_file }}"
+      - "{{ secrets_file }}"
+      - "{{ images_archive }}"
+
+  - name: Verify the TLS cert/key are present (https only)
+    ansible.builtin.stat:
+      path: "{{ item }}"
+    register: cert_check
+    failed_when: not cert_check.stat.exists
+    loop:
+      - "{{ data_dir }}/fullchain.pem"
+      - "{{ data_dir }}/privkey.pem"
+    when: platform_protocol == 'https'
+
+  # --- Access / keys --------------------------------------------------------
+  - name: Reset SSH connection to pick up the docker group from step2
+    ansible.builtin.meta: reset_connection
+
+  - name: Authorise operator SSH keys
+    ansible.posix.authorized_key:
+      user: "{{ ansible_user }}"
+      state: present
+      key: "{{ lookup('file', item) }}"
+    with_fileglob:
+      - "{{ data_dir }}/public_keys/*.pub"
+
+  - name: Ensure keys/public_keys directory exists
+    ansible.builtin.file:
+      path: "{{ keys_dir }}/public_keys"
+      state: directory
+      mode: '0700'
+
+  - name: Copy public keys into the keys dir
+    ansible.posix.synchronize:
+      src: "{{ data_dir }}/public_keys/"
+      dest: "{{ keys_dir }}/public_keys/"
+      recursive: true
+      rsync_opts:
+        - "--include=*.pub"
+        - "--exclude=*"
+
+  # --- Code --------------------------------------------------------------
+  # git pulls proved unreliable on the target, so we rsync the checkout from
+  # the install-source drive. .env is git-ignored and generated below, so it is
+  # excluded from the sync and never clobbered.
+  - name: Sync the repo checkout to the platform dir
+    ansible.posix.synchronize:
+      src: "{{ clean_src }}/"
+      dest: "{{ platform_dir }}/"
+      archive: true
+      delete: true
+      rsync_opts:
+        - "--exclude=.git/"
+        - "--exclude=.env"
+
+  - name: Convenience — set COMPOSE_FILE in ~/.bashrc so `docker compose` works from anywhere
+    ansible.builtin.lineinfile:
+      path: "~/.bashrc"
+      regexp: '^export COMPOSE_FILE='
+      line: "export COMPOSE_FILE={{ platform_dir }}/docker-compose.yml"
+      create: true
+      mode: '0644'
+
+  # --- Render config from templates ----------------------------------------
+  # SEEK_API_TOKEN is only known after SEEK is up, but .env.template references
+  # it and gen-env.sh fails on unset vars — so seed a placeholder for the first
+  # render. generate-token.sh writes the real value back and we re-render below.
+  - name: Seed a placeholder SEEK_API_TOKEN if the secrets file has none yet
+    ansible.builtin.lineinfile:
+      path: "{{ secrets_file }}"
+      regexp: '^SEEK_API_TOKEN='
+      line: 'SEEK_API_TOKEN=PLACEHOLDER_REPLACED_AFTER_SEEK_STARTS'
+    when: lookup('env', 'SEEK_API_TOKEN') | length == 0
+
+  - name: Render .env from .env.template
+    ansible.builtin.command:
+      cmd: "./util/gen-env.sh -e {{ env_file }} -s {{ secrets_file }}"
+      chdir: "{{ platform_dir }}"
+    changed_when: true
+
+  - name: Render the Keycloak realm import from its template
+    ansible.builtin.command:
+      cmd: "./util/gen-realm.sh -e {{ env_file }} -s {{ secrets_file }}"
+      chdir: "{{ platform_dir }}"
+    changed_when: true
+
+  - name: Back up the realm import to the keys dir
+    ansible.builtin.copy:
+      src: "{{ platform_dir }}/services/keycloak/import/digitaltwins-realm.json"
+      dest: "{{ keys_dir }}/digitaltwins-realm.json"
+      mode: '0600'
+      remote_src: true
+
+  # --- TLS certs for the edge gateway (https only) --------------------------
+  # The gateway reads /etc/nginx/certs/server.crt and .key (SSL_CERT_DIR ->
+  # services/nginx/certs). NGINX_MODE in .env selects the ssl vs http server
+  # shell, so there is nothing else to template.
+  # data/fullchain.pem and privkey.pem are typically SYMLINKS to the domain's
+  # real cert files, so we `install` (which reads through the link and sets the
+  # mode in one step) rather than copy — a copied symlink would dangle in the
+  # certs dir and nginx would silently fall back to http-only.
+  - name: Install the gateway TLS certificate (https only)
+    ansible.builtin.command:
+      cmd: "install -m 0644 {{ data_dir }}/fullchain.pem services/nginx/certs/server.crt"
+      chdir: "{{ platform_dir }}"
+    changed_when: true
+    when: platform_protocol == 'https'
+
+  - name: Install the gateway TLS key (https only)
+    ansible.builtin.command:
+      cmd: "install -m 0600 {{ data_dir }}/privkey.pem services/nginx/certs/server.key"
+      chdir: "{{ platform_dir }}"
+    changed_when: true
+    when: platform_protocol == 'https'
+
+  # --- SEEK's own MySQL env (rendered separately from the platform .env) -----
+  - name: Create SEEK's docker-compose.env (first deploy only)
+    ansible.builtin.copy:
+      dest: "{{ platform_dir }}/services/seek/ldh-deployment/docker-compose.env"
+      content: |
+        MYSQL_HOST=db
+        MYSQL_ROOT_PASSWORD={{ lookup('env', 'MYSQL_ROOT_PASSWORD') }}
+        MYSQL_DATABASE=seek
+        MYSQL_USER=seek
+        MYSQL_PASSWORD={{ lookup('env', 'MYSQL_PASSWORD') }}
+      mode: '0600'
+      force: false
+
+  # --- Docker images (airgap) ----------------------------------------------
+  # Freeze a working system's images with (on the build host):
+  #   docker compose ps -aq | xargs docker inspect --format '{{.Config.Image}}' \
+  #     | sort -u | xargs docker save | gzip > digitaltwins-images-all.tar.gz
+  # then drop the archive on the install-source drive.
+  - name: Load docker images from the frozen archive
+    ansible.builtin.shell:
+      cmd: "gunzip -c {{ images_archive }} | docker load"
+    args:
+      executable: /bin/bash
+    changed_when: true
+
+  # --- Airflow init ---------------------------------------------------------
+  # airflow-init's entrypoint creates airflow.cfg (config list), migrates the
+  # DB, creates the www admin, and fixes ownership. base_url / proxy behaviour
+  # now come from AIRFLOW__API__BASE_URL in .env, so no airflow.cfg patching is
+  # needed here.
+  #
+  # (If cross-origin XHR to /airflow ever needs CORS, set
+  # AIRFLOW__API__ACCESS_CONTROL_ALLOW_* in services/airflow/docker-compose.yml
+  # rather than sed-ing the container-owned airflow.cfg.)
+  - name: Initialise Airflow (config, DB migrate, admin user)
+    ansible.builtin.command:
+      cmd: docker compose up airflow-init
+      chdir: "{{ platform_dir }}"
+    changed_when: true
+
+  - name: Bring the stack down after Airflow init
+    ansible.builtin.command:
+      cmd: docker compose down
+      chdir: "{{ platform_dir }}"
+    changed_when: true
+
+  # --- SEEK bootstrap: admin user, features, API token ----------------------
+  - name: Start SEEK (and its db/solr) to bootstrap it
+    ansible.builtin.command:
+      cmd: docker compose up -d seek
+      chdir: "{{ platform_dir }}"
+    changed_when: true
+
+  - name: Wait for SEEK's background migrations to create the users table
+    ansible.builtin.command:
+      cmd: >
+        docker compose exec -T seek bash -c
+        'cd /seek && RAILS_ENV=production bundle exec rails runner
+        "exit(ActiveRecord::Base.connection.table_exists?(:users) ? 0 : 1)"'
+      chdir: "{{ platform_dir }}"
+    register: table_check
+    retries: 15
+    delay: 10
+    until: table_check.rc == 0
+    changed_when: false
+
+  - name: Create the SEEK admin user
+    ansible.builtin.command:
+      cmd: "./util/create-admin-user.sh admin {{ lookup('env', 'SEEK_ADMIN_PASSWORD') }} {{ lookup('env', 'SEEK_ADMIN_EMAIL') }}"
+      chdir: "{{ platform_dir }}"
+    changed_when: true
+
+  - name: Enable SEEK features and set the site base host
+    ansible.builtin.command:
+      cmd: "./util/enable-features.sh"
+      chdir: "{{ platform_dir }}"
+    environment:
+      SEEK_SITE_BASE_URL: "{{ platform_protocol }}://{{ platform_domain }}/seek"
+    changed_when: true
+
+  - name: Mint a SEEK API token and write it back to secrets.env
+    ansible.builtin.command:
+      cmd: "./util/generate-token.sh admin"
+      chdir: "{{ platform_dir }}"
+    environment:
+      SECRETS_FILE: "{{ secrets_file }}"
+    changed_when: true
+
+  - name: Re-render .env now that secrets.env holds the real SEEK_API_TOKEN
+    ansible.builtin.command:
+      cmd: "./util/gen-env.sh -e {{ env_file }} -s {{ secrets_file }}"
+      chdir: "{{ platform_dir }}"
+    changed_when: true
+
+  - name: Bring the stack down before the final launch
+    ansible.builtin.command:
+      cmd: docker compose down
+      chdir: "{{ platform_dir }}"
+    changed_when: true
+
+  # --- Launch ---------------------------------------------------------------
+  - name: Start the whole platform
+    ansible.builtin.command:
+      cmd: docker compose up -d
+      chdir: "{{ platform_dir }}"
+    changed_when: true
+
+  # --- SEEK asset precompile (must be AFTER the final up) --------------------
+  # The stock LDH image bakes its assets WITHOUT RAILS_RELATIVE_URL_ROOT, so
+  # under /seek they 404 until recompiled with the root set (it is in seek's
+  # compose environment). assets:precompile writes to /seek/public/assets in the
+  # container's writable layer — NOT a volume — so it must run against the FINAL
+  # seek container; doing it during bootstrap would be wiped by the down/up above.
+  # Redo this whenever the LDH image version changes (see readme_notes.txt).
+  - name: Wait for SEEK to be ready after the final launch
+    ansible.builtin.command:
+      cmd: >
+        docker compose exec -T seek bash -c
+        'cd /seek && RAILS_ENV=production bundle exec rails runner
+        "exit(ActiveRecord::Base.connection.table_exists?(:users) ? 0 : 1)"'
+      chdir: "{{ platform_dir }}"
+    register: seek_ready
+    retries: 15
+    delay: 10
+    until: seek_ready.rc == 0
+    changed_when: false
+
+  - name: Precompile SEEK assets with the /seek relative root
+    ansible.builtin.command:
+      cmd: docker compose exec -T seek bundle exec rake assets:precompile
+      chdir: "{{ platform_dir }}"
+    changed_when: true
+
+  - name: Clear SEEK tmp cache
+    ansible.builtin.command:
+      cmd: docker compose exec -T seek bundle exec rake tmp:clear
+      chdir: "{{ platform_dir }}"
+    changed_when: true
+
+  - name: Restart SEEK, workers and portal-frontend to serve the recompiled assets
+    ansible.builtin.command:
+      cmd: docker compose restart seek workers portal-frontend
+      chdir: "{{ platform_dir }}"
+    changed_when: true
