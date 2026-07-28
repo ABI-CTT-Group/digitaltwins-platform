@@ -21,10 +21,14 @@
 #
 # Before running, source BOTH data files so PLATFORM_DOMAIN / SEEK_ADMIN_* /
 # MYSQL_* resolve for the tasks below (the gen-*.sh scripts re-read the files
-# themselves via -e/-s, so the values always agree):
+# themselves via -e/-s, so the values always agree). Use `set -a` so the bare
+# KEY=value lines in secrets.env are EXPORTED — a plain source leaves them as
+# shell vars the ansible child process can't see:
 #
+#   set -a
 #   source /mnt/install_src/data/secrets.env
 #   source /mnt/install_src/data/env
+#   set +a
 #   ansible-playbook -i inventory util/airgap_build_step3.yml
 #
 # NOTE: the frozen frontend image bakes the Keycloak URL at build time

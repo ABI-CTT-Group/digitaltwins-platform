@@ -117,11 +117,15 @@ ln -sf abi1.drai.auckland.ac.nz.privkey.pem  privkey.pem
 (Or drop in your own `fullchain.pem` / `privkey.pem`.) If you're testing a domain
 whose DNS doesn't point here, add it to `/etc/hosts` (e.g. `0.0.0.0 abi1.drai.auckland.ac.nz`).
 
-**Source both files** so the playbook tasks can read them:
+**Source both files** so the playbook tasks can read them. Use `set -a` so the
+bare `KEY=value` lines in `secrets.env` are **exported** — a plain `source`
+leaves them as shell variables the `ansible-playbook` process can't see:
 
 ```bash
+set -a
 source /mnt/install_src/data/secrets.env
 source /mnt/install_src/data/env
+set +a
 ```
 
 ## 5. Deploy the platform (playbook)
