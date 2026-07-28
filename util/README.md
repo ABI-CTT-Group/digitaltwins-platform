@@ -325,6 +325,45 @@ util/sync-dags.sh <source> <target>
 - **SEEK API token** must be re-minted (step 4) or the portal's API can't talk
   to SEEK after the restore.
 
+## Working with the submodules (portal / api / seek)
+
+`services/portal/DigitalTWINS-Portal`, `services/api/digitaltwins-api`, and
+`services/seek/ldh-deployment` are **git submodules**: this platform repo does
+**not** contain their code — it stores a *bookmark* (an exact commit hash) saying
+"use this submodule at this commit". Each submodule is its own repo with its own
+`main` and PRs. So changing submodule code is always **two repos, two commits**:
+
+```bash
+# 1. Change the code IN THE SUBMODULE'S OWN REPO (branch -> commit -> push -> PR)
+cd services/portal/DigitalTWINS-Portal
+git checkout -b feat/my-change
+# ...edit...
+git commit -am "..."
+git push -u origin feat/my-change
+gh pr create --base main               # open the PR in the submodule's repo
+
+# 2. Point the PLATFORM's bookmark at that commit (pin) and commit it here
+cd -                                   # back to the platform repo root
+git add services/portal/DigitalTWINS-Portal
+git commit -m "chore(portal): pin submodule to <commit>"
+```
+
+**Re-pin after the submodule PR merges.** Pinning to a feature-branch commit is
+fine short-term, but once the submodule PR lands on its `main` (especially with a
+squash-merge, which makes a *new* hash), bump the pointer again:
+
+```bash
+cd services/portal/DigitalTWINS-Portal && git fetch origin && git checkout origin/main
+cd - && git add services/portal/DigitalTWINS-Portal && git commit -m "chore(portal): re-pin to main"
+```
+
+> The pin only works if the commit is **pushed** to the submodule's remote — a
+> local-only commit would be an unfetchable bookmark for anyone else.
+>
+> **Outstanding:** the portal is currently pinned to the PR branch commit
+> `e0fa472` (`VITE_KEYCLOAK_URL=/auth`, ABI-CTT-Group/DigitalTWINS-Portal#90);
+> re-pin to `main` once that PR merges.
+
 ## Files in `/mnt/install_src` (reference)
 
 | File | Purpose |
