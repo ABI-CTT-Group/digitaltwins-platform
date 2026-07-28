@@ -52,6 +52,11 @@
     keys_dir: ~/keys
     platform_domain: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
     platform_protocol: "{{ lookup('env', 'PLATFORM_PROTOCOL') | default('https', true) }}"
+    # true  = airgap: load images from the frozen archive (no Internet needed).
+    # false = connected host: build/pull images from source instead, e.g. to
+    #         produce a fresh archive with util/freeze_images.sh afterwards.
+    #         Override on the CLI:  -e load_frozen_images=false
+    load_frozen_images: true
 
   tasks:
 
@@ -205,17 +210,24 @@
       mode: '0600'
       force: false
 
-  # --- Docker images (airgap) ----------------------------------------------
-  # Freeze a working system's images with (on the build host):
-  #   docker compose ps -aq | xargs docker inspect --format '{{.Config.Image}}' \
-  #     | sort -u | xargs docker save | gzip > digitaltwins-images-all.tar.gz
-  # then drop the archive on the install-source drive.
-  - name: Load docker images from the frozen archive
+  # --- Docker images --------------------------------------------------------
+  # Airgap path: load the frozen bundle. Connected path: build/pull from source
+  # (then re-freeze afterwards with util/freeze_images.sh). Either way the final
+  # `up -d` still pulls any stock image:-only services it needs.
+  - name: Load docker images from the frozen archive (airgap)
     ansible.builtin.shell:
       cmd: "gunzip -c {{ images_archive }} | docker load"
     args:
       executable: /bin/bash
     changed_when: true
+    when: load_frozen_images | bool
+
+  - name: Build images from source (connected host)
+    ansible.builtin.command:
+      cmd: docker compose build
+      chdir: "{{ platform_dir }}"
+    changed_when: true
+    when: not (load_frozen_images | bool)
 
   # --- Airflow init ---------------------------------------------------------
   # airflow-init's entrypoint creates airflow.cfg (config list), migrates the

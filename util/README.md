@@ -141,7 +141,9 @@ This step (all automatic):
 - rsyncs `clean_src` → `~/digitaltwins-platform` (you do **not** copy code yourself),
 - renders `.env` (`gen-env.sh`) and the Keycloak realm (`gen-realm.sh`),
 - installs the gateway TLS cert to `services/nginx/certs/server.{crt,key}`,
-- loads the frozen docker images,
+- loads the frozen docker images (**airgap default**) — or, on a connected host,
+  add `-e load_frozen_images=false` to **build/pull from source instead** (use
+  this to produce a fresh archive, then re-freeze — see below),
 - initialises Airflow,
 - bootstraps SEEK (admin user, features, API token → written back to
   `secrets.env`, then `.env` re-rendered),
@@ -192,6 +194,29 @@ docker compose exec seek bundle exec rake tmp:clear
 docker compose restart seek workers portal-frontend
 ```
 
+## Rebuilding the frozen image archive (connected host)
+
+When the archive is stale (or missing), build fresh on an Internet-connected box
+and re-freeze:
+
+```bash
+# 1. Deploy, building from source instead of loading the stale archive:
+set -a; source /mnt/install_src/data/secrets.env; source /mnt/install_src/data/env; set +a
+ansible-playbook -i "localhost," -c local \
+  /mnt/install_src/clean_src/digitaltwins-platform/util/airgap_build_step3.yml \
+  -e "ansible_user=$USER" -e "install_src_dir=/mnt/install_src" \
+  -e load_frozen_images=false
+
+# 2. Verify the app (see section 6), then re-freeze the running system's images:
+util/freeze_images.sh          # writes /mnt/install_src/digitaltwins-images-all.tar.gz
+```
+
+`freeze_images.sh` saves the union of the compose config's declared images and
+every container's actual image (so exited one-shots like `minio-init` and the
+`singleuser` build are included). Copy the resulting `.tar.gz` to the airgapped
+machine's install source; subsequent runs with the default
+`load_frozen_images=true` will load it.
+
 ## Files in `/mnt/install_src` (reference)
 
 | File | Purpose |
@@ -200,7 +225,7 @@ docker compose restart seek workers portal-frontend
 | `data/env`, `data/secrets.env` | your host config + secrets → rendered into `.env`. Never commit these. |
 | `data/<domain>.fullchain.pem`/`.privkey.pem` | per-domain TLS cert/key; symlink the chosen one to `fullchain.pem`/`privkey.pem`. |
 | `data/public_keys/*.pub` | operator SSH keys, authorised by step 5. |
-| `digitaltwins-images-all.tar.gz` | all docker images. Rebuild on a connected host with: `docker compose ps -aq \| xargs docker inspect --format '{{.Config.Image}}' \| sort -u \| xargs docker save \| gzip > digitaltwins-images-all.tar.gz`. **Re-freeze if `PLATFORM_DOMAIN` changes** — the frontend bakes the Keycloak URL at build time. |
+| `digitaltwins-images-all.tar.gz` | all docker images. Recreate with **`util/freeze_images.sh`** on a connected host once the stack is built and up. **Re-freeze if `PLATFORM_DOMAIN` changes** — the frontend bakes the Keycloak URL at build time. |
 | `airflow-worker.tar.gz` | just the airflow-worker image, for remote compute nodes. |
 | `docker-29.4.0.tgz` | docker static binaries (`wget https://download.docker.com/linux/static/stable/x86_64/docker-29.4.0.tgz`). |
 | `docker-compose-linux-x86_64-v5.1.2` | compose plugin (`wget https://github.com/docker/compose/releases/download/v5.1.2/docker-compose-linux-x86_64`). |
