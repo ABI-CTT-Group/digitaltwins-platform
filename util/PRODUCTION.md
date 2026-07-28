@@ -97,6 +97,17 @@ Set every one of these to a strong value in `secrets.env` (never leave a
   scripts catalogued in `util/legacy-buildout-utils.md`.
 - [ ] Restore has been **tested**, not just backup.
 
+## 9. Pre-release verification
+
+- [ ] **Smoke-test both protocols end-to-end.** Bring the stack up once with
+  `PLATFORM_PROTOCOL=http` + `PLATFORM_DOMAIN=localhost` (the developer path) and
+  once with `https` + a real domain. The **Keycloak login redirect** is where
+  http-vs-https subtleties surface — confirm login actually succeeds on both.
+  (The runtime is wired for both — `sslRequired`, gateway shell, relative
+  `VITE_KEYCLOAK_URL`, and `KC_HOSTNAME_STRICT*` all key off the protocol — but
+  as of this branch that http/localhost path has been verified by code
+  inspection, not an actual run.)
+
 ---
 
 > This list is a starting point drawn from the current codebase; review each
