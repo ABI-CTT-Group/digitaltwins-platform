@@ -177,3 +177,11 @@ services/keycloak/import/*
 # Airflow config - keep the folder, ignore everything else
 services/airflow/config/*
 !services/airflow/config/.gitkeep
+
+# macOS junk
+.DS_Store
+
+# Local scratch / realm-export working files (never commit — realm exports can
+# contain client secrets and user data)
+/tmp/
+/*_realm_*.json
