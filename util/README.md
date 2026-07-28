@@ -131,10 +131,18 @@ set +a
 ## 5. Deploy the platform (playbook)
 
 ```bash
+# use this if airgapped
 ansible-playbook -i "localhost," -c local \
   /mnt/install_src/clean_src/digitaltwins-platform/util/airgap_build_step3.yml \
   -e "ansible_user=$USER" \
   -e "install_src_dir=/mnt/install_src"
+
+# Use this if rebuilding in a connected environment
+ansible-playbook -i "localhost," -c local \
+  /mnt/install_src/clean_src/digitaltwins-platform/util/airgap_build_step3.yml \
+  -e "ansible_user=$USER" \
+  -e "install_src_dir=/mnt/install_src" \
+  -e load_frozen_images=false
 ```
 
 This step (all automatic):
