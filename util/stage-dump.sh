@@ -68,18 +68,23 @@ echo "== plugin registry =="
 docker cp "$PORTAL_BE_C:/data/plugin_registry.db" "$OUT/plugin_registry.db"
 
 # 6. MinIO buckets ------------------------------------------------------------
+# The minio/mc image is minimal (no awk/sed/ls), so enumerate buckets on the
+# HOST side of the pipe and run mc per bucket in the container.
 echo "== minio =="
 rm -rf "$OUT/minio"; mkdir -p "$OUT/minio"
 MINIO_USER=$(docker exec "$MINIO_C" printenv MINIO_ROOT_USER)
 MINIO_PASS=$(docker exec "$MINIO_C" printenv MINIO_ROOT_PASSWORD)
-docker run --rm --network "$NETWORK" -v "$OUT/minio":/backup \
-  -e A="$MINIO_USER" -e B="$MINIO_PASS" --entrypoint /bin/sh "$MC_IMAGE" -c '
-    mc alias set src http://minio:9000 "$A" "$B" >/dev/null
-    for b in $(mc ls src | awk "{print \$NF}" | tr -d "/"); do
-      [ "$b" = "airflow-logs" ] && { echo "  skip $b"; continue; }
-      echo "  mirror $b"
-      mc mirror src/"$b" /backup/"$b" || true
-    done'
+mc_run() {  # run an mc command in the container with src aliased + /backup mounted
+  docker run --rm --network "$NETWORK" -v "$OUT/minio":/backup \
+    -e A="$MINIO_USER" -e B="$MINIO_PASS" --entrypoint /bin/sh "$MC_IMAGE" \
+    -c "mc alias set src http://minio:9000 \"\$A\" \"\$B\" >/dev/null && $1"
+}
+buckets=$(mc_run 'mc ls src' | awk '{print $NF}' | tr -d '/')
+for b in $buckets; do
+  [ "$b" = "airflow-logs" ] && { echo "  skip $b"; continue; }
+  echo "  mirror $b"
+  mc_run "mc mirror src/$b /backup/$b" || true
+done
 
 # 7. Orthanc DICOM volumes (read-only tar) ------------------------------------
 echo "== orthanc dicom =="

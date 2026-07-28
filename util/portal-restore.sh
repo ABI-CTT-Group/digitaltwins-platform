@@ -63,16 +63,18 @@ if [ -d "$IN/seek_filestore" ]; then
 fi
 
 # 4. MinIO buckets ------------------------------------------------------------
+# Enumerate bucket dirs on the HOST (the minio/mc image has no ls/awk), then run
+# mc per bucket in the container.
 if [ -d "$IN/minio" ]; then
   echo "== restore minio =="
   MINIO_USER=$(docker exec "$MINIO_C" printenv MINIO_ROOT_USER)
   MINIO_PASS=$(docker exec "$MINIO_C" printenv MINIO_ROOT_PASSWORD)
-  docker run --rm --network "$NETWORK" -v "$IN/minio":/backup \
-    -e A="$MINIO_USER" -e B="$MINIO_PASS" --entrypoint /bin/sh "$MC_IMAGE" -c '
-      mc alias set dst http://minio:9000 "$A" "$B" >/dev/null
-      for b in $(ls /backup); do
-        echo "  $b"; mc mb --ignore-existing dst/"$b" >/dev/null; mc mirror /backup/"$b" dst/"$b" || true
-      done'
+  for b in $(cd "$IN/minio" && ls -1); do
+    echo "  $b"
+    docker run --rm --network "$NETWORK" -v "$IN/minio":/backup \
+      -e A="$MINIO_USER" -e B="$MINIO_PASS" --entrypoint /bin/sh "$MC_IMAGE" \
+      -c "mc alias set dst http://minio:9000 \"\$A\" \"\$B\" >/dev/null && mc mb --ignore-existing dst/$b >/dev/null && mc mirror /backup/$b dst/$b" || true
+  done
 fi
 
 # 5. Portal plugin registry ---------------------------------------------------
