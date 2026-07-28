@@ -75,16 +75,14 @@
       - MYSQL_ROOT_PASSWORD
       - MYSQL_PASSWORD
 
+  # The frozen images archive is only required when loading it; on a connected
+  # build (load_frozen_images=false) it may be absent or about to be recreated.
   - name: Verify the install-source inputs are present
     ansible.builtin.stat:
       path: "{{ item }}"
     register: src_check
     failed_when: not src_check.stat.exists
-    loop:
-      - "{{ clean_src }}"
-      - "{{ env_file }}"
-      - "{{ secrets_file }}"
-      - "{{ images_archive }}"
+    loop: "{{ [clean_src, env_file, secrets_file] + ([images_archive] if (load_frozen_images | bool) else []) }}"
 
   - name: Verify the TLS cert/key are present (https only)
     ansible.builtin.stat:
