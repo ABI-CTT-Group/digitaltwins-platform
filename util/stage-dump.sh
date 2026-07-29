@@ -55,7 +55,7 @@ fi
 
 # 3. SEEK MySQL ---------------------------------------------------------------
 echo "== seek mysql =="
-docker exec "$SEEKDB_C" sh -c 'exec mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" seek' \
+docker exec "$SEEKDB_C" sh -c 'unset MYSQL_HOST; exec mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" seek' \
   > "$OUT/seek_mysql.sql"
 
 # 4. SEEK filestore -----------------------------------------------------------

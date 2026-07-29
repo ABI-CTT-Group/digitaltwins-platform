@@ -54,8 +54,8 @@ fi
 if [ -f "$IN/seek_mysql.sql" ]; then
   echo "== restore seek mysql =="
   docker exec "$SEEKDB_C" sh -c \
-    'exec mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "DROP DATABASE IF EXISTS seek; CREATE DATABASE seek CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"'
-  docker exec -i "$SEEKDB_C" sh -c 'exec mysql -u root -p"$MYSQL_ROOT_PASSWORD" seek' < "$IN/seek_mysql.sql"
+    'unset MYSQL_HOST; exec mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "DROP DATABASE IF EXISTS seek; CREATE DATABASE seek CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"'
+  docker exec -i "$SEEKDB_C" sh -c 'unset MYSQL_HOST; exec mysql -u root -p"$MYSQL_ROOT_PASSWORD" seek' < "$IN/seek_mysql.sql"
 fi
 if [ -d "$IN/seek_filestore" ]; then
   echo "== restore seek filestore =="
