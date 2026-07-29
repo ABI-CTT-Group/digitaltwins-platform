@@ -81,6 +81,8 @@ services:
 
   orthanc-auth-service-1:
     image: orthancteam/orthanc-auth-service:26.4.0
+    # orthanc-auth-service publishes amd64 only — emulate on arm64, no-op on amd64.
+    platform: linux/amd64
     volumes:
       - ./permissions.json:/orthanc_auth_service/permissions.json:ro
     environment:
@@ -103,6 +105,8 @@ services:
 
   orthanc-auth-service-2:
     image: orthancteam/orthanc-auth-service:26.4.0
+    # orthanc-auth-service publishes amd64 only — emulate on arm64, no-op on amd64.
+    platform: linux/amd64
     volumes:
       - ./permissions.json:/orthanc_auth_service/permissions.json:ro
     environment:

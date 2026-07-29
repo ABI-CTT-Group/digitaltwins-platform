@@ -3,12 +3,19 @@ services:
     networks:
       - digitaltwins-platform
   seek:
+    # ldh (SEEK) publishes amd64 only — pin so it emulates on arm64
+    # (Apple Silicon) and is a no-op on amd64 hosts/servers.
+    platform: linux/amd64
     networks:
       - digitaltwins-platform
   workers:
+    # same ldh image as seek — amd64 only.
+    platform: linux/amd64
     networks:
       - digitaltwins-platform
   solr:
+    # fairdom/seek-solr publishes amd64 only.
+    platform: linux/amd64
     networks:
       - digitaltwins-platform
 
