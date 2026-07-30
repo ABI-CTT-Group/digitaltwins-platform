@@ -10,6 +10,35 @@ Config is now **template-driven**: you fill in two small input files
 Keycloak realm for you via `gen-env.sh` / `gen-realm.sh`. You no longer hand-edit
 a `data/.env` or place a `data/digitaltwins-realm.json`.
 
+## Contents
+
+- [Getting the code into `clean_src`](#getting-the-code-into-clean_src)
+- [Installing on a connected machine](#installing-on-a-connected-machine)
+  - [Docker (replaces `airgap_build_step2.yml`)](#docker-replaces-airgap_build_step2yml)
+  - [Ansible (only if you run the step-3 playbook)](#ansible-only-if-you-run-the-step-3-playbook)
+- [Installing on a Mac or other arm64 host](#installing-on-a-mac-or-other-arm64-host)
+  - [macOS (Apple Silicon)](#macos-apple-silicon)
+  - [arm64 Linux (e.g. Graviton)](#arm64-linux-eg-graviton)
+- [0. Mount the install source](#0-mount-the-install-source)
+- [1. (Optional) Airgap the VM](#1-optional-airgap-the-vm)
+- [2. Install Ansible from the local packages](#2-install-ansible-from-the-local-packages)
+- [3. Install Docker (playbook)](#3-install-docker-playbook)
+- [4. Configure the deployment](#4-configure-the-deployment)
+- [5. Deploy the platform (playbook)](#5-deploy-the-platform-playbook)
+- [6. Verify](#6-verify)
+- [7. Gateway proxy routes (reference)](#7-gateway-proxy-routes-reference)
+- [SEEK `/seek` asset precompile](#seek-seek-asset-precompile)
+- [Rebuilding the frozen image archive (connected host)](#rebuilding-the-frozen-image-archive-connected-host)
+- [Transferring data from one system to another](#transferring-data-from-one-system-to-another)
+  - [Scripts](#scripts)
+  - [What's covered](#whats-covered)
+  - [Procedure](#procedure)
+  - [Caveats](#caveats)
+- [Working with the submodules (portal / api / seek)](#working-with-the-submodules-portal--api--seek)
+- [Files in `/mnt/install_src` (reference)](#files-in-mntinstall_src-reference)
+- [Observability (separate, optional)](#observability-separate-optional)
+- [Notes / gotchas](#notes--gotchas)
+
 The install source is assumed mounted at `/mnt/install_src`, laid out as:
 
 ```
