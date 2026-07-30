@@ -535,10 +535,6 @@ cd - && git add services/portal/DigitalTWINS-Portal && git commit -m "chore(port
 
 > The pin only works if the commit is **pushed** to the submodule's remote — a
 > local-only commit would be an unfetchable bookmark for anyone else.
->
-> **Outstanding:** the portal is currently pinned to the PR branch commit
-> `e0fa472` (`VITE_KEYCLOAK_URL=/auth`, ABI-CTT-Group/DigitalTWINS-Portal#90);
-> re-pin to `main` once that PR merges.
 
 ## Files in `/mnt/install_src` (reference)
 
