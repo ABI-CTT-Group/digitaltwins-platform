@@ -89,7 +89,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_KEYCLOAK_URL=${PORTAL_KEYCLOAK_BASE_URL}
+        # Relative URL: keycloak-js resolves it against the current origin, so the
+        # built image is domain-agnostic (works behind any host at /auth) instead
+        # of baking one deployment's absolute Keycloak URL at build time.
+        - VITE_KEYCLOAK_URL=/auth
         - VITE_KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
         - VITE_KEYCLOAK_CLIENT_ID=portal-frontend
     container_name: ${PROJECT_NAME}-portal-frontend
