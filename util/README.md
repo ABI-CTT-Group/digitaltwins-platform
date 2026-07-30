@@ -127,17 +127,36 @@ hosts:
 ### macOS (Apple Silicon)
 
 Use a Docker engine with **Rosetta** enabled for amd64 emulation (much faster
-than QEMU). Either:
+than QEMU) — either **Colima** (CLI, no GUI) or **Docker Desktop**.
 
-- **Colima** (CLI, no GUI) — install the Docker CLI + Compose plugin + Colima via
-  Homebrew, then start with Rosetta:
-  ```bash
-  brew install colima docker docker-compose
-  colima start --cpu 8 --memory 16 --vz-rosetta
-  ```
-  (`--vz-rosetta` turns on Rosetta 2 inside the VM; `vz` is the default VM type.)
-- **Docker Desktop** — enable *Settings → General → "Use Rosetta for x86/amd64
-  emulation"* and give it ≥ 8 CPU / 16 GB under *Settings → Resources*.
+**Colima.** Install the Docker CLI, the Compose plugin, and Colima via Homebrew:
+
+```bash
+brew install colima docker docker-compose
+```
+
+Then start the VM with Rosetta (`--vz-rosetta` turns on Rosetta 2 inside the VM;
+`vz` is the default VM type):
+
+```bash
+colima start --cpu 8 --memory 16 --vz-rosetta
+```
+
+Homebrew installs the Compose plugin, but the Docker CLI only finds it if it's in
+your CLI-plugins dir — otherwise `docker compose …` errors with "is not a docker
+command". Link it once:
+
+```bash
+mkdir -p ~/.docker/cli-plugins
+ln -sfn "$(brew --prefix)/opt/docker-compose/bin/docker-compose" ~/.docker/cli-plugins/docker-compose
+```
+
+(Check with `docker compose version`.)
+
+**Docker Desktop.** Alternatively, enable *Settings → General → "Use Rosetta for
+x86/amd64 emulation"* and give it ≥ 8 CPU / 16 GB under *Settings → Resources*.
+Docker Desktop wires up the `docker compose` plugin itself, so the symlink step
+above isn't needed.
 
 ### arm64 Linux (e.g. Graviton)
 
