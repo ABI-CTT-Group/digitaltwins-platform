@@ -23,7 +23,11 @@ git show main_buildout:buildout/util/<name> > util/<name>   # pull it over
 | `create-admin-user.sh`, `enable-features.sh`, `generate-token.sh` | same names |
 | `mount_install_src` | `mount_src.sh` (hardened) |
 | `backup_data.sh` | `stage-dump.sh` + `portal-restore.sh` (adapted for migration) |
-| `export_realm_and_users`, `realm_exporter`, `mkbundle` | same names (kept as legacy reference) |
+| `export_realm_and_users`, `realm_exporter` | same names (kept as legacy reference) |
+| `mkbundle` | same name (**generalised** — takes a `SRC_DIR` arg / `$INSTALL_SRC_DIR`, no longer must be run from `/mnt/install_src`) |
+| `get_token`, `get_token2`, `get_token3` | same names (verbatim dev helpers; hardcode the old `test.digitaltwins.auckland.ac.nz` domain + `mp1` creds) |
+| `ufw_for_remote_compute.sh` | same name (verbatim; hardcodes a remote-compute IP + service-port list) |
+| `api_examples.txt` | same name (verbatim reference; SEEK REST API create/delete examples) |
 
 ## Not ported — catalogued here
 
@@ -52,13 +56,11 @@ git show main_buildout:buildout/util/<name> > util/<name>   # pull it over
 | File | Inferred purpose |
 |---|---|
 | `integrate-keycloak.sh` | Wire a service to Keycloak. |
-| `get_token` / `get_token2` / `get_token3` | Fetch OIDC/access tokens (iterations). |
 
 ### Remote compute nodes
 | File | Inferred purpose |
 |---|---|
 | `generate-compute-env.sh` | Generate the `.env` for an Airflow remote-compute worker. |
-| `ufw_for_remote_compute.sh` | UFW rules for a remote compute node. |
 | `ufw_for_walled_garden.sh` | UFW rules for a walled-garden network. |
 
 ### Code sync / deploy
@@ -75,4 +77,3 @@ git show main_buildout:buildout/util/<name> > util/<name>   # pull it over
 | `tagger` | Tag docker images (for the freeze/registry). |
 | `rebuild.sh` | Rebuild the stack. |
 | `nuker` | Tear everything down (destructive). |
-| `api_examples.txt` | REST API usage examples (reference notes). |
