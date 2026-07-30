@@ -48,6 +48,60 @@ git clone --recursive -b env-config-generation \
 
 ---
 
+## Installing on a connected machine
+
+The steps below assume an **airgapped** host, so Docker and Ansible come from the
+bundled tarball/wheels on `/mnt/install_src`. On a machine **with Internet
+access** you don't need that bundle — install them from their normal repos
+instead. This **replaces step 2** (and you can skip the airgap-only steps 0 and
+1); the frozen image archive is also unnecessary — run **step 5 with
+`-e load_frozen_images=false`** so it builds/pulls images from source.
+
+### Docker (replaces `airgap_build_step2.yml`)
+
+Install Docker Engine + the Compose plugin from Docker's official apt repo. One
+install gives you `docker`, `docker compose`, containerd, and an enabled systemd
+service — everything the step-2 playbook set up by hand from the static tarball:
+
+```bash
+# Docker's official apt repo (Ubuntu)
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# put your user in the docker group, then log out / back in
+sudo usermod -aG docker "$USER"
+```
+
+(Quick alternative: `curl -fsSL https://get.docker.com | sudo sh`, then the same
+`usermod`.) The `docker-compose-plugin` package provides the `docker compose`
+subcommand (v2) the compose files use — not the old standalone `docker-compose`.
+
+### Ansible (only if you run the step-3 playbook)
+
+Ansible just executes the playbooks; install it from apt instead of the bundled
+wheels:
+
+```bash
+sudo apt install -y ansible
+```
+
+Unlike the airgap `pip … --break-system-packages` install (which lands in
+`~/.local/bin` and needs a re-login for PATH), the apt package puts
+`ansible-playbook` on your PATH immediately. If you'd rather deploy **without**
+Ansible, follow [`../docs/deployment.md`](../docs/deployment.md) instead (manual
+`gen-env.sh` → `docker compose build` → `up`).
+
+Then continue at **step 4** (configure the deployment) and run **step 5** with
+`-e load_frozen_images=false`.
+
+---
+
 ## 0. Mount the install source
 
 The `/dev/vdb` volume persists across VM rebuilds, but `/etc/fstab` on the root
