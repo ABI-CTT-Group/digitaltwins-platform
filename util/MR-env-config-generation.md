@@ -1,6 +1,6 @@
 # Productize deployment: template-driven config, consolidated DB, importable realm, reproducible airgap buildout
 
-Branch: `env-config-generation` → `main` · 13 commits · 33 files · +5764 / −166
+Branch: `env-config-generation` → `main` · 37 commits · 43 files · +6336 / −193
 
 ## Summary
 
