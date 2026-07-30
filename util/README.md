@@ -102,6 +102,62 @@ Then continue at **step 4** (configure the deployment) and run **step 5** with
 
 ---
 
+## Installing on a Mac or other arm64 host
+
+A developer/test setup on **Apple Silicon** or an **arm64 Linux** box (e.g. AWS
+Graviton). This is *not* a production target — the real boxes are amd64 — but
+it's useful for validating the stack off the amd64 servers.
+
+Two things are always true on arm64:
+
+- **Always build/pull from source — never load the frozen archive.** The bundled
+  `digitaltwins-images-all.tar.gz` is amd64, so run **step 5 with
+  `-e load_frozen_images=false`** (or follow [`../docs/deployment.md`](../docs/deployment.md)).
+- **The amd64-only images run under emulation.** Most images are multi-arch and
+  run native arm64, but `ldh` (SEEK), `fairdom/seek-solr`, and
+  `orthanc-auth-service` publish **amd64 only**. The compose files already pin
+  them with `platform: linux/amd64`, so they run — but *emulated*, which is
+  CPU-heavy and slow. Give the machine plenty of headroom (≈8 CPU / 16 GB). The
+  portal backend itself builds **natively** on arm64 (the Docker apt repo in its
+  Dockerfile uses `$(dpkg --print-architecture)`).
+
+Emulation needs a translation layer — the one setup difference between the two
+hosts:
+
+### macOS (Apple Silicon)
+
+Use a Docker engine with **Rosetta** enabled for amd64 emulation (much faster
+than QEMU). Either:
+
+- **Colima** (CLI, no GUI) — install the Docker CLI + Compose plugin + Colima via
+  Homebrew, then start with Rosetta:
+  ```bash
+  brew install colima docker docker-compose
+  colima start --cpu 8 --memory 16 --vz-rosetta
+  ```
+  (`--vz-rosetta` turns on Rosetta 2 inside the VM; `vz` is the default VM type.)
+- **Docker Desktop** — enable *Settings → General → "Use Rosetta for x86/amd64
+  emulation"* and give it ≥ 8 CPU / 16 GB under *Settings → Resources*.
+
+### arm64 Linux (e.g. Graviton)
+
+Install Docker the normal connected way (see **Installing on a connected
+machine** above). Linux has no Rosetta, so register QEMU/binfmt once so the
+kernel can run amd64 binaries:
+
+```bash
+docker run --privileged --rm tonistiigi/binfmt --install all
+```
+
+Without this the amd64-only images fail with `exec format error` even though
+their `platform:` pins are correct. It resets on reboot — re-run it, or install
+the `qemu-user-static` package to persist it.
+
+Then continue at **step 4** (configure) and run **step 5** with
+`-e load_frozen_images=false`.
+
+---
+
 ## 0. Mount the install source
 
 The `/dev/vdb` volume persists across VM rebuilds, but `/etc/fstab` on the root
