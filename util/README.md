@@ -508,6 +508,65 @@ util/sync-dags.sh <source> <target>
 - **SEEK API token** must be re-minted (step 4) or the portal's API can't talk
   to SEEK after the restore.
 
+### How it works & gotchas (for maintainers)
+
+Read this before changing `stage-dump.sh` / `portal-restore.sh` — most of it is
+non-obvious and was learned the hard way.
+
+**Design principles**
+
+- **Logical dumps + object mirrors, never raw volume copies.** The source and
+  target layouts genuinely differ — Keycloak may be embedded **H2** on one box
+  and **Postgres** on the other; HAPI may have its **own Postgres** on one and
+  live in the **shared Postgres** on the other. A `pg_dump`/`mysqldump`/`mc
+  mirror` survives that (and crosses major versions, e.g. pg 13→16); a volume
+  copy would not. (This is also why Keycloak is *not* migrated here — do a realm
+  export/import instead.)
+- **Credentials are read from each container's own env** (`docker exec … printenv`
+  / `sh -c '… "$VAR"'`), so the two boxes need **not** share passwords and the
+  scripts need no `.env`.
+- **Everything is keyed off the compose project name.** Container and volume
+  names default to the `digitaltwins-platform` project (`${PROJECT}-<svc>-1`,
+  `${PROJECT}_<vol>`). If a box uses a different project name, override via the
+  `PROJECT` / `*_C` / `*_VOLS` / `*_VOL` env vars — otherwise steps silently find
+  nothing. **Restore assumes the target project name matches** what the dump
+  captured (volumes are recreated under their original names); that's fine while
+  both boxes are `digitaltwins-platform`, but revisit it if that ever changes.
+
+**Per-step gotchas**
+
+- **MinIO enumeration must happen host-side.** The `minio/mc` image is minimal —
+  no `awk`/`ls`/`sed`. Enumerate buckets on the host side of the pipe and run
+  `mc` per bucket inside the container. `mc` reaches MinIO by its **network alias**
+  (`http://minio:9000`) on the compose network, so MinIO must be **running**.
+- **SEEK MySQL needs `unset MYSQL_HOST`.** The SEEK db container carries
+  `MYSQL_HOST=db` (via `env_file`), so a bare `mysql`/`mysqldump` connects over
+  **TCP** as `root@<network>` and is denied. Unsetting it forces the local socket.
+- **Root-owned output.** The `mc` / `alpine` / `docker cp` helpers run as **root**,
+  so parts of `OUT` end up root-owned. `stage-dump.sh` `chown`s the whole tree
+  back to the invoking user at the end — **keep that step**, or a later non-root
+  `tar`/`rsync` will *silently skip* the root-owned files (that was the original
+  "partial dump" bug).
+- **Orthanc / plugin-config / jupyter volumes are tarred via a throwaway `alpine`**
+  (`-v vol:/v:ro … tar`). Restore **stops** the Orthanc containers to swap their
+  volumes; the plugin-config restore reloads the gateway; jupyter user volumes are
+  recreated by their exact name so the hub mounts them on the user's next login.
+
+**Deliberately fail-loud vs skip**
+
+- MinIO mirror failures **abort** the dump (`set -e`, no `|| true`) — a partial
+  object set must never pass silently.
+- A **missing volume/container** is a **skip with a message** (Orthanc, plugin
+  configs, HAPI-on-shared-pg). That's intentional for legitimately-absent things,
+  but it's also how a wrong `PROJECT`/name yields a quiet partial — so when a box
+  differs, set the overrides rather than trusting the skips.
+
+**Not covered (by design)** — Keycloak (realm export/import), Airflow metadata
+(runtime state), Airflow DAGs (`sync-dags.sh`), the JupyterHub hub DB
+(`jupyterhub_data` — user *data* travels in the per-user volumes; the hub
+re-creates its user record on next Keycloak login), and **docker images** (plugin
+images must be `docker save`/`load`ed separately).
+
 ## Working with the submodules (portal / api / seek)
 
 `services/portal/DigitalTWINS-Portal`, `services/api/digitaltwins-api`, and
