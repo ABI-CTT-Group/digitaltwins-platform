@@ -456,7 +456,14 @@ env vars if yours differ.
 ### What's covered
 
 `digitaltwins` DB · HAPI FHIR DB · SEEK (MySQL + filestore) · MinIO buckets ·
-portal **plugin registry** (`plugin_registry.db`) · Orthanc DICOM volumes.
+portal **plugin registry** (`plugin_registry.db`) · gateway **plugin route
+configs** (`nginx_plugin_configs`) · **JupyterHub per-user volumes**
+(`jupyterhub_user_*`) · Orthanc DICOM volumes.
+
+> **Plugin images are still not covered** — a plugin (e.g. `surfaceannotator`)
+> also needs its docker **image** present on the target. `docker save` it from
+> the source and `docker load` on the target separately (the data tooling moves
+> data, not images).
 
 **Not** covered: Keycloak (see above), Airflow metadata (runtime state — skip),
 and Airflow DAGs (use `sync-dags.sh`).

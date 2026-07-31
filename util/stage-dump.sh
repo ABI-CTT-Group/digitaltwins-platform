@@ -7,7 +7,8 @@
 # (default /tmp/dtwins-migrate). Pair it with portal-restore.sh on the target.
 #
 # Covers:  digitaltwins DB, HAPI FHIR DB, SEEK (mysql + filestore), MinIO
-#          buckets, portal plugin registry, Orthanc DICOM volumes.
+#          buckets, portal plugin registry, gateway plugin route configs,
+#          JupyterHub per-user volumes, Orthanc DICOM volumes.
 # Does NOT cover:  Keycloak (H2 here vs Postgres on the portal — migrate via a
 #          realm export/import instead), Airflow metadata (runtime state), and
 #          Airflow DAGs (managed outside the repo — use sync-dags.sh).
@@ -33,6 +34,8 @@ MINIO_C="${MINIO_C:-${PROJECT}-minio-1}"
 HAPI_PG_C="${HAPI_PG_C:-hapi-fhir-postgres}"   # separate pg on some layouts; "" to skip
 ORTHANC_VOLS="${ORTHANC_VOLS:-${PROJECT}_orthanc_1_data ${PROJECT}_orthanc_2_data}"
 MC_IMAGE="${MC_IMAGE:-quay.io/minio/mc:latest}"
+PLUGIN_CONF_VOL="${PLUGIN_CONF_VOL:-${PROJECT}_nginx_plugin_configs}"   # gateway plugin route configs
+JUSER_VOL_PREFIX="${JUSER_VOL_PREFIX:-${PROJECT}_jupyterhub_user_}"     # per-user notebook volumes
 
 mkdir -p "$OUT"
 echo "stage-dump: source project '$PROJECT' -> $OUT"
@@ -94,6 +97,24 @@ for v in $ORTHANC_VOLS; do
   if ! docker volume inspect "$v" >/dev/null 2>&1; then echo "  no volume $v; skip"; continue; fi
   echo "  tar $v"
   docker run --rm -v "$v":/v:ro -v "$OUT":/backup alpine tar -C /v -cf "/backup/${v}.tar" .
+done
+
+# 8. Gateway plugin route configs (nginx_plugin_configs volume) ---------------
+echo "== plugin nginx configs =="
+if docker volume inspect "$PLUGIN_CONF_VOL" >/dev/null 2>&1; then
+  docker run --rm -v "$PLUGIN_CONF_VOL":/v:ro -v "$OUT":/backup alpine \
+    tar -C /v -cf "/backup/nginx_plugin_configs.tar" .
+else
+  echo "  no volume $PLUGIN_CONF_VOL; skip"
+fi
+
+# 9. JupyterHub per-user volumes (dynamic — one per user that has logged in) ---
+echo "== jupyterhub user volumes =="
+rm -rf "$OUT/jupyter_user_vols"; mkdir -p "$OUT/jupyter_user_vols"
+for v in $(docker volume ls --format '{{.Name}}' | grep -E "^${JUSER_VOL_PREFIX}" || true); do
+  echo "  tar $v"
+  docker run --rm -v "$v":/v:ro -v "$OUT/jupyter_user_vols":/backup alpine \
+    tar -C /v -cf "/backup/${v}.tar" .
 done
 
 # The mc / alpine / docker-cp helper containers ran as root, so parts of OUT are

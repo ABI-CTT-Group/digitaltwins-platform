@@ -5,7 +5,8 @@
 # Run this ON THE TARGET box, pointing at the directory produced by
 # stage-dump.sh (copied over). It is DESTRUCTIVE: it overwrites the target's
 # digitaltwins DB, HAPI DB, SEEK database + filestore, MinIO buckets, plugin
-# registry, and Orthanc DICOM with the source's. It requires confirmation.
+# registry, gateway plugin route configs, JupyterHub per-user volumes, and
+# Orthanc DICOM with the source's. It requires confirmation.
 #
 # Credentials come from the target containers' own env, so the source and
 # target need not share passwords.
@@ -30,10 +31,12 @@ MINIO_C="${MINIO_C:-${PROJECT}-minio-1}"
 # volume=container pairs to stop while their DICOM volume is replaced
 ORTHANC_MAP="${ORTHANC_MAP:-${PROJECT}_orthanc_1_data=${PROJECT}-orthanc-1-1 ${PROJECT}_orthanc_2_data=${PROJECT}-orthanc-2-1}"
 MC_IMAGE="${MC_IMAGE:-quay.io/minio/mc:latest}"
+PLUGIN_CONF_VOL="${PLUGIN_CONF_VOL:-${PROJECT}_nginx_plugin_configs}"
+GATEWAY_C="${GATEWAY_C:-${PROJECT}-gateway}"
 
 [ -d "$IN" ] || { echo "portal-restore: no input dir $IN" >&2; exit 1; }
 echo "portal-restore: $IN -> project '$PROJECT' on $(hostname)"
-echo "This OVERWRITES digitaltwins, hapi, seek, minio, plugin-registry and orthanc on THIS host."
+echo "This OVERWRITES digitaltwins, hapi, seek, minio, plugin-registry, plugin nginx configs, jupyterhub user volumes and orthanc on THIS host."
 printf "Type 'yes' to proceed: "; read -r ans; [ "$ans" = "yes" ] || { echo "aborted."; exit 1; }
 
 cd "$BASE_DIR"
@@ -94,7 +97,32 @@ for map in $ORTHANC_MAP; do
   docker start "$cont" >/dev/null
 done
 
-# 7. Restart SEEK so Solr rebuilds its index from the restored DB -------------
+# 7. Gateway plugin route configs (into nginx_plugin_configs volume) ----------
+if [ -f "$IN/nginx_plugin_configs.tar" ]; then
+  echo "== restore plugin nginx configs =="
+  docker volume create "$PLUGIN_CONF_VOL" >/dev/null
+  docker run --rm -v "$PLUGIN_CONF_VOL":/v -v "$IN":/backup alpine \
+    tar -C /v -xf /backup/nginx_plugin_configs.tar
+  # Reload the gateway so it picks up the restored plugin routes. A route whose
+  # plugin upstream isn't present yet 502s on that route only (resolver/var
+  # pattern), so this is safe even before the plugin image/container is added.
+  docker exec "$GATEWAY_C" nginx -s reload >/dev/null 2>&1 || true
+fi
+
+# 8. JupyterHub per-user volumes ----------------------------------------------
+if [ -d "$IN/jupyter_user_vols" ]; then
+  echo "== restore jupyterhub user volumes =="
+  for tar in "$IN"/jupyter_user_vols/*.tar; do
+    [ -e "$tar" ] || continue
+    v=$(basename "$tar" .tar)
+    echo "  $v"
+    docker volume create "$v" >/dev/null
+    docker run --rm -v "$v":/v -v "$IN/jupyter_user_vols":/backup alpine \
+      sh -c "rm -rf /v/* /v/.[!.]* 2>/dev/null; tar -C /v -xf /backup/${v}.tar"
+  done
+fi
+
+# 9. Restart SEEK so Solr rebuilds its index from the restored DB -------------
 echo "== restart seek/workers (Solr reindex) =="
 docker compose restart seek workers >/dev/null 2>&1 || docker restart "$SEEK_C" >/dev/null
 
