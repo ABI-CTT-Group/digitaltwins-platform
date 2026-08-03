@@ -1,8 +1,11 @@
 # Keep shell scripts and unix tooling as LF on every platform, regardless of a
 # developer's core.autocrlf. CRLF corrupts the `#!/usr/bin/env bash` shebang
-# ("/usr/bin/env: bad interpreter" / "command not found").
+# ("/usr/bin/env: bad interpreter" / "command not found"), and inside Linux
+# containers turns an entrypoint shebang into `#!/bin/sh\r`, so docker fails
+# with:  exec /entry.sh: no such file or directory
 *.sh            text eol=lf
 *.bash          text eol=lf
+Dockerfile      text eol=lf
 
 # Ansible playbooks
 *.yml           text eol=lf
