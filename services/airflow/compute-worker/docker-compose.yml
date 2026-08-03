@@ -23,8 +23,11 @@ services:
       AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://${MAIN_VM_IP}:${AIRFLOW_PORT}/airflow/execution/
       # --- shared secrets (must equal the portal's) ------------------------
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:?set in the node .env (same as platform)}
-      AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW__API_AUTH__JWT_SECRET}
-      AIRFLOW__API__SECRET_KEY: ${AIRFLOW__API__SECRET_KEY}
+      # NOTE: Airflow 3 worker<->apiserver (execution API) auth uses a JWT secret.
+      # The platform does NOT set AIRFLOW__API_AUTH__JWT_SECRET explicitly today, so
+      # nothing is set here either. If a remote worker fails to authenticate to the
+      # execution API at runtime, set the SAME AIRFLOW__API_AUTH__JWT_SECRET on BOTH
+      # the portal and this node (a new shared secret, like FERNET_KEY). Verify live.
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
