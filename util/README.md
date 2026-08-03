@@ -32,8 +32,10 @@ a `data/.env` or place a `data/digitaltwins-realm.json`.
 - [Transferring data from one system to another](#transferring-data-from-one-system-to-another)
   - [Scripts](#scripts)
   - [What's covered](#whats-covered)
+  - [Migrating Airflow runs & logs](#migrating-airflow-runs--logs-optional--not-done-by-default)
   - [Procedure](#procedure)
   - [Caveats](#caveats)
+  - [How it works & gotchas](#how-it-works--gotchas-for-maintainers)
 - [Working with the submodules (portal / api / seek)](#working-with-the-submodules-portal--api--seek)
 - [Files in `/mnt/install_src` (reference)](#files-in-mntinstall_src-reference)
 - [Observability (separate, optional)](#observability-separate-optional)
@@ -465,8 +467,67 @@ configs** (`nginx_plugin_configs`) · **JupyterHub per-user volumes**
 > the source and `docker load` on the target separately (the data tooling moves
 > data, not images).
 
-**Not** covered: Keycloak (see above), Airflow metadata (runtime state — skip),
-and Airflow DAGs (use `sync-dags.sh`).
+**Not** covered: Keycloak (see above), Airflow **run history + task logs** (not by
+default — see [Migrating Airflow runs & logs](#migrating-airflow-runs--logs-optional--not-done-by-default) below), and Airflow DAGs (use `sync-dags.sh`).
+
+### Migrating Airflow runs & logs (optional — not done by default)
+
+The default procedure deliberately leaves Airflow's **run history** and **task
+logs** behind — you migrate the DAG *definitions* with `sync-dags.sh` and
+**re-trigger** on the fresh target. If you specifically need the history/logs too,
+here's what each takes. They are **separate problems**, and the Fernet key only
+touches one of them.
+
+**Logs — easy, no key involved.** Airflow task logs are stored **unencrypted** in
+the MinIO `airflow-logs` bucket. `stage-dump.sh` skips it on purpose:
+
+```bash
+[ "$b" = "airflow-logs" ] && { echo "  skip $b"; continue; }
+```
+
+Delete that line (or gate it behind an opt-in flag) and the bucket mirrors like
+any other — `portal-restore.sh` needs no change, it restores whatever bucket dirs
+are present. Note this bucket can be large.
+
+**Runs — harder; this is where the Fernet key matters.** Run history lives in the
+**`airflow` Postgres database**, which the tooling does **not** dump (it dumps only
+`digitaltwins` + `hapi`). `airflow` shares the same `postgres:16` container, so
+it's a second logical dump/restore against `${PROJECT}-database-1`:
+
+```bash
+# SOURCE (read-only):
+docker exec ${PROJECT}-database-1 sh -c \
+  'pg_dump -U "$POSTGRES_USER" --clean --if-exists airflow' > /tmp/airflow.sql
+# TARGET (destructive — replaces the target's airflow metadata):
+docker exec -i ${PROJECT}-database-1 sh -c 'psql -U "$POSTGRES_USER" airflow' < /tmp/airflow.sql
+# then restart the airflow services
+```
+
+Three prerequisites for that to be *usable*:
+
+1. **Same Airflow version** on both sides (metadata schema / alembic). Both boxes
+   are `apache/airflow:3.0.6` today — but re-check before any version bump.
+2. **Same `AIRFLOW__CORE__FERNET_KEY`.** The run history itself (`dag_run`,
+   `task_instance`, XComs) is stored **plaintext** and migrates regardless. What
+   Fernet encrypts is **Connections** (passwords/extras) and **Variables** — so the
+   target needs the *same key the source's DB was encrypted with*, or those rows
+   won't decrypt and migrated DAGs can't authenticate to anything.
+3. Expect to prune scheduler/executor/worker state that's meaningless on the new
+   box.
+
+**The Fernet catch on this platform.** Until recently both boxes ran with an
+**empty** Fernet key (a bug — the compose hardcoded `''` instead of reading
+`AIRFLOW__CORE__FERNET_KEY` from `secrets.env`; now fixed). A fresh target given a
+*new* real key will **not** decrypt connections/variables that an old source
+encrypted under the empty key. So a runs-migration and the key-fix pull against
+each other: if you must preserve encrypted connections from an old instance, set
+the target's `AIRFLOW__CORE__FERNET_KEY` to *that instance's* key, and re-enter any
+connections/variables that were created under the empty key.
+
+**Recommendation.** For most migrations: bring the **logs** if you want them
+(cheap), and **re-run the DAGs** on the fresh target rather than transplant the
+`airflow` DB — that sidesteps the version and Fernet knots entirely. Reach for the
+DB transplant only when the historical run *records* themselves are the deliverable.
 
 ### Procedure
 
