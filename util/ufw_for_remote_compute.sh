@@ -5,17 +5,18 @@
 #   util/ufw_for_remote_compute.sh <compute_vlan_ip> [port ...]
 #     e.g.  util/ufw_for_remote_compute.sh 10.2.0.42
 #
-# Default ports = the portal services the worker reaches (see
+# Default ports = the raw-TCP portal services the worker reaches directly (see
 # util/compute-node-README.md):
-#   8003 postgres · 8005 redis · 8002 airflow apiserver/execution API ·
-#   8011 minio · 8010 digitaltwins-api
+#   8003 postgres · 8005 redis · 8011 minio (S3) · 8010 digitaltwins-api
+# The Airflow execution API and Keycloak are reached over the gateway's 443
+# (already public), so they need no rule here.
 # Pass an explicit list to override the defaults.
 set -euo pipefail
 
 REMOTE_IP="${1:?usage: ufw_for_remote_compute.sh <compute_vlan_ip> [port ...]}"
 shift
 PORTS=("$@")
-[ "${#PORTS[@]}" -eq 0 ] && PORTS=(8003 8005 8002 8011 8010)
+[ "${#PORTS[@]}" -eq 0 ] && PORTS=(8003 8005 8011 8010)
 
 for p in "${PORTS[@]}"; do
   echo "ufw allow from $REMOTE_IP to any port $p"

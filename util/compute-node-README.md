@@ -1,156 +1,142 @@
-# Installing an Airflow remote compute node (from the running platform)
+# Installing a remote Airflow compute node
 
-A **compute node** is a stripped-down projection of the platform: a *single*
-service — an Airflow **Celery worker** — running on a separate VM, wired back to
-the portal's broker / metadata DB / API / MinIO. It runs no control plane of its
-own (no scheduler, apiserver, Postgres, or Redis). It serves one or more named
-**queues**, so specific workflows can be routed to it (e.g. a GPU box that serves
-the `gpu` queue).
+A compute node is a **single Airflow Celery worker** on its own VM that joins the
+portal's Airflow cluster over the VLAN and runs tasks tagged for its queue (e.g.
+`gpu`). It runs **no platform of its own** — the scheduler, apiserver, Postgres,
+Redis, MinIO and Keycloak all live on the portal.
 
-Assumptions:
-- The compute node and the portal are on the **same VLAN** (private network), and
-  the portal is already up and running.
-- Config is **derived from the running platform**, not built from scratch — the
-  worker reuses the platform's image and its shared secrets (`FERNET_KEY`,
-  `REDIS_PASSWORD`, Postgres/MinIO creds) via `generate-compute-env.sh`, so they
-  can't drift.
+> ### ⚠️ The compute VM MUST be clean
+> A fresh VM with **only** Docker installed. Do **not** run the platform on it and
+> do **not** reuse a box that already runs one — you'll end up with a second
+> Airflow cluster fighting the first, and tasks landing on the wrong worker.
+> Before you start, `docker ps` on the node should show **nothing** (or only
+> containers you put there).
 
-> **STATUS — this is a design/runbook draft on the `remote-compute` branch.**
-> It is deliberately kept out of the `env-config-generation` → `main` PR (#266).
+Everything is driven from the portal (`MAIN_VM_IP`), and the shared secrets come
+straight from the portal's `.env`, so nothing drifts.
 
-## How task routing works (recap)
+## Connection contract
 
-Airflow Celery routes work by **queue name**:
-- A worker serves queues via its start command: `celery worker -q <queues>`.
-- A task declares its queue: `SomeOperator(..., queue="gpu")`.
-- A task lands on the node whose worker serves that queue; unqueued tasks stay on
-  the portal's default worker.
+The worker reaches the portal two ways:
 
-So there are three touch-points that must line up:
-1. **Portal** local worker `command:` → serves `default`.
-2. **Compute node** worker `command:` → serves `gpu` (via `WORKER_QUEUES`).
-3. **DAG** task `queue="gpu"` → sends that workflow to the GPU node.
-
-## Pieces (built on this branch)
-
-- **`services/airflow/compute-worker/docker-compose.yml`** ✅ — single-service
-  worker, `command: celery worker -q ${WORKER_QUEUES:-default}`, GPU reservation
-  (commented), reaches the portal at `${MAIN_VM_IP}`.
-- **`util/generate-compute-env.sh`** ✅ — renders the node `.env` from the running
-  platform `.env` (shared secrets + corrected ports + Keycloak).
-- **`util/ufw_for_remote_compute.sh`** ✅ — takes the node's VLAN IP as an arg.
-- **`services/airflow/remote-compute.override.yml`** ✅ — opt-in portal Redis
-  publish + `requirepass`; base broker URL reads `${REDIS_PASSWORD:-}`.
-- **`services/airflow/compute-worker/digitaltwins-worker.service`** ✅ — systemd unit.
-
-**Still to wire / supply:** `REDIS_PASSWORD` in `.env.template` + `secrets.env`
-(operator); an `airgap_build_step3` flag to auto-include the override (optional);
-and the portal's `KEYCLOAK_CLIENT_SECRET` present in its `.env` (from the auth fix).
-
-### Corrected port / endpoint contract
-
-| what the node reaches | how | via |
+| Portal service | How the worker reaches it | Why |
 |---|---|---|
-| Postgres (metadata) | `${MAIN_VM_IP}:8003` | direct VLAN port |
-| Redis (broker) | `${MAIN_VM_IP}:8005` | direct VLAN port (published + `requirepass`) |
-| Airflow execution API | `${MAIN_VM_IP}:8002` | direct VLAN port |
-| MinIO | `${MAIN_VM_IP}:8011` | direct VLAN port |
-| DigitalTWINS API | `${MAIN_VM_IP}:8010` | direct VLAN port |
-| **Keycloak (token issuer)** | `https://<domain>/auth` | **public gateway (443)** — not a direct port |
+| **Redis** (broker) | direct VLAN port `MAIN_VM_IP:8005` | raw TCP — can't go through the http gateway |
+| **Postgres** (metadata + result backend) | direct VLAN port `MAIN_VM_IP:8003` | raw TCP |
+| **MinIO** (S3 — task logs/data) | direct VLAN port `MAIN_VM_IP:8011` | S3 API (the gateway `/minio` route is the GUI, not the API) |
+| **DigitalTWINS API** | direct VLAN port `MAIN_VM_IP:8010` | — |
+| **Airflow execution API** | **gateway** `https://<domain>/airflow/execution/` | the direct airflow port (8002) is blocked by the cloud security group; the gateway's 443 is open + TLS-correct |
+| **Keycloak** (token issuer) | **gateway** `https://<domain>/auth` | canonical issuer; internal `keycloak` host is unreachable off-box |
 
-The node must **resolve `<domain>` to the portal** (public DNS, or an `/etc/hosts`
-entry → the portal's VLAN IP) and trust its TLS cert (a public-CA/Let's Encrypt
-cert is trusted automatically).
-
-**Open runtime item:** Airflow 3 worker↔apiserver **JWT auth** — the platform sets
-no `AIRFLOW__API_AUTH__JWT_SECRET`; if the worker can't authenticate to the
-execution API, set the same secret on both sides. Verify live.
+So the node needs the portal's **direct ports 8003/8005/8011/8010** opened to it,
+and it must be able to reach the portal's **gateway on 443** by domain name.
 
 ---
 
-## A. Portal side (once)
+## A. Portal side (run once, on the portal)
 
-1. **Harden + expose Redis on the VLAN.** Add `REDIS_PASSWORD` to `secrets.env`,
-   change the broker URL to `redis://:${REDIS_PASSWORD}@redis:6379/0`, and publish
-   `6379` on the VLAN interface. Re-render and apply **without** a wipe:
+Values used below: portal VLAN IP `10.2.0.195`, compute node VLAN IP `10.2.0.14`.
+
+1. **Redis published + password-protected** (so a remote worker can use the broker).
+   Ensure `REDIS_PASSWORD` is set in `secrets.env`/`.env`, then bring the stack up
+   with the remote-compute override (or set it in `COMPOSE_FILE`):
    ```bash
-   util/gen-env.sh -e /mnt/install_src/data/env -s /mnt/install_src/data/secrets.env
-   docker compose up -d          # recreates only redis + the airflow services
+   cd ~/digitaltwins-platform
+   docker compose -f docker-compose.yml -f services/airflow/remote-compute.override.yml up -d
+   docker compose ps redis    # expect 0.0.0.0:8005->6379
    ```
-2. **Open the firewall to the node** (generalised `ufw_for_remote_compute.sh`):
-   allow the compute node's VLAN IP to the Redis, Postgres (`8003`), Airflow API,
-   and MinIO (`8011`) ports.
-3. **Export the worker image:**
+2. **Open the firewall** to the node's VLAN IP (raw-TCP ports only; the gateway's
+   443 is already public):
+   ```bash
+   util/ufw_for_remote_compute.sh 10.2.0.14      # opens 8003 8005 8011 8010
+   ```
+3. **Generate the node's `.env`** from the running platform (carries the shared
+   Fernet/DB/Redis/MinIO/Keycloak secrets, the ports, and the domain):
+   ```bash
+   util/generate-compute-env.sh 10.2.0.195 ~/digitaltwins-platform/.env > /tmp/compute.env
+   ```
+4. **Export the worker image**:
    ```bash
    docker save digitaltwins-platform-airflow-worker:latest | gzip > ~/airflow-worker.tar.gz
    ```
 
-## B. Compute VM prep
+## B. Compute VM (a CLEAN VM)
 
-1. **Docker + Compose** — see *Installing on a connected machine* in
-   [`README.md`](README.md).
-2. **GPU (if applicable):** install the NVIDIA driver + `nvidia-container-toolkit`,
-   then verify: `docker run --rm --gpus all nvidia/cuda:12.4.0-base-ubuntu24.04 nvidia-smi`.
-3. `mkdir ~/digitaltwins-compute`.
-
-## C. Bring the platform's environment across
-
-1. **Worker image:** `scp ~/airflow-worker.tar.gz` to the node, then
-   `docker load -i airflow-worker.tar.gz`.
-2. **Compose:** copy `services/airflow/compute-worker/docker-compose.yml` into
-   `~/digitaltwins-compute/`.
-3. **`.env` derived from the platform** — on the portal, render it from the live
-   `.env`, then copy it over and set the node's queue:
+1. **Install Docker** (+ NVIDIA container toolkit if this is a GPU node) — see the
+   "Installing on a connected machine" section of [`README.md`](README.md).
+2. **Working dir**:
    ```bash
-   # on the portal:
-   util/generate-compute-env.sh <portal_vlan_ip> > /tmp/compute.env
-   # copy /tmp/compute.env -> compute:~/digitaltwins-compute/.env, then on the node:
-   echo 'WORKER_QUEUES=gpu' >> ~/digitaltwins-compute/.env
+   mkdir -p ~/digitaltwins-compute/{dags,config,plugins,data,logs} && cd ~/digitaltwins-compute
    ```
-   This carries the matching `FERNET_KEY`, `REDIS_PASSWORD`, and Postgres/MinIO
-   credentials — the reason the node "reuses the existing environment."
-4. **DAGs / config / plugins / data:**
+3. **Resolve the portal's domain to the portal over the VLAN** (the worker hits the
+   gateway by name for the execution API + Keycloak):
    ```bash
-   rsync -a <portal>:digitaltwins-platform/services/airflow/{dags,config,plugins,data} \
-     ~/digitaltwins-compute/
+   echo '10.2.0.195  <PLATFORM_DOMAIN>' | sudo tee -a /etc/hosts    # your real domain
    ```
 
-## D. Run it
+## C. Copy from the portal → node
 
-1. `cd ~/digitaltwins-compute && docker compose up -d` (the worker is the whole
-   compose).
-2. Install the systemd unit so it survives reboot:
-   ```bash
-   sudo cp digitaltwins-worker.service /etc/systemd/system/
-   sudo systemctl daemon-reload && sudo systemctl enable --now digitaltwins-worker
-   ```
+From the portal:
+```bash
+CS=/mnt/install_src/clean_src/digitaltwins-platform
+scp ~/airflow-worker.tar.gz /tmp/compute.env 10.2.0.14:~/
+scp $CS/services/airflow/compute-worker/docker-compose.yml \
+    $CS/services/airflow/compute-worker/digitaltwins-worker.service 10.2.0.14:~/digitaltwins-compute/
+rsync -a ~/digitaltwins-platform/services/airflow/{dags,config,plugins,data}/ \
+    10.2.0.14:~/digitaltwins-compute/
+```
+
+## D. Configure + run (on the node)
+
+```bash
+cd ~/digitaltwins-compute
+mv ~/compute.env .env
+sed -i 's/^WORKER_QUEUES=.*/WORKER_QUEUES=gpu/' .env      # the queue THIS node serves
+docker load -i ~/airflow-worker.tar.gz
+
+# GPU nodes: uncomment the `gpus: all` / deploy.resources block in docker-compose.yml
+docker compose up -d
+sudo cp digitaltwins-worker.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now digitaltwins-worker
+```
 
 ## E. Verify
 
-1. On the portal, confirm the worker **registered** — Flower on `:5555`, the
-   Airflow UI, or a Celery ping. A missing worker usually means the broker isn't
-   reachable (VLAN firewall / Redis password mismatch).
-2. Trigger a task with `queue="gpu"` and confirm it runs **on the compute node**
-   (check the node's task logs / that the task succeeds while the portal worker is
-   idle).
+1. **The node is registered on the right queue** — on the **portal**:
+   ```bash
+   docker compose exec airflow-scheduler \
+     celery --app airflow.providers.celery.executors.celery_executor.app inspect active_queues
+   ```
+   You should see this node's `celery@<hostname>` listed against **`gpu`** (the
+   portal's own worker is a separate entry on `default`).
+2. **Run a task through it.** Pick (or make) a DAG task tagged `queue="gpu"`,
+   **un-pause the DAG** (they're paused by default), and trigger it. Watch it land
+   on the node:
+   ```bash
+   cd ~/digitaltwins-compute && docker compose logs -f airflow-worker
+   ```
 
 ---
 
-## Notes
+## Gotchas (learned the hard way)
 
-- **The node is a projection of the platform.** Same image, same secrets, same
-  DAGs — only `MAIN_VM_IP` (→ portal VLAN IP) and `WORKER_QUEUES` (→ `gpu`)
-  distinguish it. Adding a second node later is the same procedure with a
-  different queue.
-- **Fernet key must match** across portal and node (connections/variables in the
-  metadata DB are Fernet-encrypted). `generate-compute-env.sh` carries it, so this
-  holds automatically — provided the platform's key is wired (it is, as of the
-  `AIRFLOW__CORE__FERNET_KEY` fix on `env-config-generation`).
-- **DAG code must be present on both sides.** The worker executes the DAG's task
-  code, so the `dags/`+`plugins/` trees are synced to the node (step C4). Keep them
-  in sync with the portal's the same way (`sync-dags.sh` targets the runtime dags
-  dir on each host).
-- **GPU access model — the one open design fork.** If a task runs in-process in
-  the worker, the *worker image* needs CUDA; if it spins up its own task container
-  (e.g. DockerOperator), the GPU flags go on that container instead. Which one
-  applies depends on how the first GPU workflow is written.
+- **Clean VM only.** If the node already runs a platform, its own `airflow-worker`
+  competes for tasks and everything gets tangled. `docker ps` on the node should
+  show only what you put there.
+- **DAGs are paused by default** (`AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION`).
+  A paused DAG leaves tasks sitting in `queued` forever — un-pause it.
+- **Only `queue="gpu"` tasks reach this node.** Untagged tasks go to `default`,
+  which the portal's local worker serves. To offload work here, tag the task (or
+  set the DAG's default queue).
+- **Direct airflow port (8002) is firewall-blocked** by the cloud security group —
+  that's why the execution API goes via the gateway, not a direct port. Don't try
+  to "fix" it by opening 8002 in ufw; ufw isn't the layer blocking it.
+- **`WORKER_QUEUES` defaults to `default`** in the generated `.env` — the `sed` in
+  step D sets it to `gpu`. If you edit `.env` after the worker is up, you must
+  `docker compose up -d --force-recreate` (Compose bakes the queue into the
+  command at create time).
+- **Shared `FERNET_KEY`** must match the portal (it does — `generate-compute-env`
+  carries it). Connections/Variables in the metadata DB are Fernet-encrypted.
+- **Open item — worker↔apiserver JWT:** if a task reaches the node but errors
+  authenticating to the execution API, the platform may need an explicit shared
+  `AIRFLOW__API_AUTH__JWT_SECRET` on both sides. Verify at first run.

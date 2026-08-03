@@ -38,8 +38,12 @@ cat <<EOF
 # Remote Airflow compute node .env — generated from $PLATFORM_ENV on $(date -u +%FT%TZ)
 # DO NOT COMMIT — contains secrets.
 
-# Portal VLAN address + the queue this node serves (change WORKER_QUEUES, e.g. gpu).
+# Portal VLAN address + public domain (the domain is used for the gateway-routed
+# HTTP services — execution API + Keycloak — and must resolve to MAIN_VM_IP on the
+# node, e.g. via /etc/hosts). Set WORKER_QUEUES to the queue this node serves (gpu).
 MAIN_VM_IP=${MAIN_VM_IP}
+PLATFORM_DOMAIN=${PLATFORM_DOMAIN}
+PLATFORM_PROTOCOL=${PLATFORM_PROTOCOL:-https}
 WORKER_QUEUES=${WORKER_QUEUES:-default}
 AIRFLOW_UID=${AIRFLOW_UID:-50000}
 
