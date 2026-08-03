@@ -31,6 +31,8 @@ set +a
 : "${REDIS_PASSWORD:?not set in $PLATFORM_ENV — harden/publish Redis on the portal first}"
 : "${MINIO_SERVER_ACCESS_KEY:?not set in $PLATFORM_ENV}"
 : "${MINIO_SERVER_SECRET_KEY:?not set in $PLATFORM_ENV}"
+: "${PLATFORM_DOMAIN:?not set in $PLATFORM_ENV}"
+: "${KEYCLOAK_CLIENT_SECRET:?not set in $PLATFORM_ENV}"
 
 cat <<EOF
 # Remote Airflow compute node .env — generated from $PLATFORM_ENV on $(date -u +%FT%TZ)
@@ -58,4 +60,11 @@ AIRFLOW__CORE__FERNET_KEY=${AIRFLOW__CORE__FERNET_KEY}
 REDIS_PASSWORD=${REDIS_PASSWORD}
 MINIO_SERVER_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY}
 MINIO_SERVER_SECRET_KEY=${MINIO_SERVER_SECRET_KEY}
+
+# Keycloak (token issuer for DAG -> platform-API auth) — public gateway URL, so the
+# node reaches a resolvable, canonical issuer (not the internal 'keycloak' host).
+KEYCLOAK_INTERNAL_URL=${PLATFORM_PROTOCOL:-https}://${PLATFORM_DOMAIN}/auth
+KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
+KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-api}
+KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
 EOF

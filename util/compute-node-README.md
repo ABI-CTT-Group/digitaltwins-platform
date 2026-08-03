@@ -31,23 +31,40 @@ So there are three touch-points that must line up:
 2. **Compute node** worker `command:` → serves `gpu` (via `WORKER_QUEUES`).
 3. **DAG** task `queue="gpu"` → sends that workflow to the GPU node.
 
-## Pieces this runbook depends on (to build on this branch first)
+## Pieces (built on this branch)
 
-These don't exist on the branch yet — they're the remaining feature work:
+- **`services/airflow/compute-worker/docker-compose.yml`** ✅ — single-service
+  worker, `command: celery worker -q ${WORKER_QUEUES:-default}`, GPU reservation
+  (commented), reaches the portal at `${MAIN_VM_IP}`.
+- **`util/generate-compute-env.sh`** ✅ — renders the node `.env` from the running
+  platform `.env` (shared secrets + corrected ports + Keycloak).
+- **`util/ufw_for_remote_compute.sh`** ✅ — takes the node's VLAN IP as an arg.
+- **`services/airflow/remote-compute.override.yml`** ✅ — opt-in portal Redis
+  publish + `requirepass`; base broker URL reads `${REDIS_PASSWORD:-}`.
+- **`services/airflow/compute-worker/digitaltwins-worker.service`** ✅ — systemd unit.
 
-- **`services/airflow/compute-worker/docker-compose.yml`** — the single-service
-  worker compose. Port from `main_buildout:buildout/dev/compute/docker-compose.yml`;
-  set `command: celery worker -q ${WORKER_QUEUES:-default}` and add a GPU device
-  reservation.
-- **`util/generate-compute-env.sh`** — port from `main_buildout:buildout/util/`.
-  Sources the platform `.env` and emits the worker `.env` (carrying the shared
-  secrets + `MAIN_VM_IP`).
-- **generalise `util/ufw_for_remote_compute.sh`** — take the compute node's VLAN
-  IP + the port list as arguments instead of the hardcoded values.
-- **portal Redis hardening** — a `REDIS_PASSWORD` and publishing Redis on the
-  VLAN interface (small change to `services/airflow/docker-compose.yml` / `.env`).
-- **`digitaltwins-worker.service`** — port the systemd unit from
-  `main_buildout:buildout/dev/compute/`.
+**Still to wire / supply:** `REDIS_PASSWORD` in `.env.template` + `secrets.env`
+(operator); an `airgap_build_step3` flag to auto-include the override (optional);
+and the portal's `KEYCLOAK_CLIENT_SECRET` present in its `.env` (from the auth fix).
+
+### Corrected port / endpoint contract
+
+| what the node reaches | how | via |
+|---|---|---|
+| Postgres (metadata) | `${MAIN_VM_IP}:8003` | direct VLAN port |
+| Redis (broker) | `${MAIN_VM_IP}:8016` | direct VLAN port (published + `requirepass`) |
+| Airflow execution API | `${MAIN_VM_IP}:8013` | direct VLAN port |
+| MinIO | `${MAIN_VM_IP}:8011` | direct VLAN port |
+| DigitalTWINS API | `${MAIN_VM_IP}:8010` | direct VLAN port |
+| **Keycloak (token issuer)** | `https://<domain>/auth` | **public gateway (443)** — not a direct port |
+
+The node must **resolve `<domain>` to the portal** (public DNS, or an `/etc/hosts`
+entry → the portal's VLAN IP) and trust its TLS cert (a public-CA/Let's Encrypt
+cert is trusted automatically).
+
+**Open runtime item:** Airflow 3 worker↔apiserver **JWT auth** — the platform sets
+no `AIRFLOW__API_AUTH__JWT_SECRET`; if the worker can't authenticate to the
+execution API, set the same secret on both sides. Verify live.
 
 ---
 

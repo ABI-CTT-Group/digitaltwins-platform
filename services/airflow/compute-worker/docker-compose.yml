@@ -39,6 +39,15 @@ services:
       MINIO_ENDPOINT: http://${MAIN_VM_IP}:${MINIO_PORT}
       MINIO_ACCESS_KEY: ${MINIO_SERVER_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SERVER_SECRET_KEY}
+      # --- Keycloak (token issuer for DAG -> platform-API auth) ------------
+      # Via the PUBLIC gateway URL — the internal 'keycloak' hostname is
+      # unreachable off-box, and this is the canonical token issuer. Reached at
+      # https://<domain>/auth over the VLAN (gateway 443, already open); the node
+      # must resolve <domain> to the portal (public DNS or an /etc/hosts entry).
+      KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-digitaltwins}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-api}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:?set in the node .env (same as platform)}
       # --- task logs -> the portal's MinIO airflow-logs bucket -------------
       AIRFLOW__LOGGING__REMOTE_LOGGING: 'True'
       AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: minio_logs
