@@ -140,6 +140,32 @@ services:
       start_period: 30s
     restart: always
 
+  # Create the MinIO bucket that Airflow remote logging targets. The compute
+  # workers set AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER=s3://airflow-logs, and
+  # Airflow's S3 logging does NOT create the bucket itself — so without this a
+  # remote worker's task logs are written nowhere and the Airflow UI shows "log
+  # not found" for runs that exist in the metadata DB. Airflow owns this bucket,
+  # so it is created here rather than in the portal submodule's minio-init (which
+  # would be an upstream PR). Idempotent (--ignore-existing) and re-run safe.
+  minio-logs-init:
+    image: quay.io/minio/mc:latest
+    restart: "no"
+    environment:
+      # Same keys the minio server derives its root credentials from; $$VAR is
+      # expanded by the container shell, not by compose interpolation.
+      - MC_USER=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
+      - MC_PASS=${MINIO_SERVER_SECRET_KEY:-minioadmin}
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Waiting for MinIO...';
+      until mc alias set myminio http://minio:9000 $$MC_USER $$MC_PASS; do
+        sleep 2;
+      done;
+      echo 'Creating private bucket airflow-logs...';
+      mc mb myminio/airflow-logs --ignore-existing;
+      echo 'airflow-logs bucket ready.';
+      "
+
   airflow-apiserver:
     <<: *airflow-common
     command: api-server
