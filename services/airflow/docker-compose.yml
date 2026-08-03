@@ -57,7 +57,9 @@ x-airflow-common:
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@database:5432/${AIRFLOW_DB_NAME:-airflow}
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@database:5432/${AIRFLOW_DB_NAME:-airflow}
-    AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
+    # REDIS_PASSWORD is empty by default (single-box: no auth needed, internal-only).
+    # Set it (+ apply remote-compute.override.yml) to auth the broker for remote workers.
+    AIRFLOW__CELERY__BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
     AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:?set AIRFLOW__CORE__FERNET_KEY in secrets.env}
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
