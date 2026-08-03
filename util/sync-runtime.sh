@@ -6,11 +6,16 @@
 #     -n | --dry-run   preview only (rsync --dry-run), change nothing
 #     SRC   default: ${INSTALL_SRC_DIR:-/mnt/install_src}/clean_src/digitaltwins-platform
 #     DEST  default: $HOME/digitaltwins-platform
+#     DATA_DIR (env) default: ${INSTALL_SRC_DIR:-/mnt/install_src}/data
 #
-# Mirrors code with --delete, but PROTECTS the runtime-generated / git-ignored
-# state that clean_src (a git checkout) does NOT contain — so it never wipes your
-# generated .env, TLS certs, imported realm, SEEK env, DAGs, or logs. After it
-# runs, recreate changed services with `docker compose up -d`.
+# 1. Mirrors code with --delete, but PROTECTS the runtime-generated / git-ignored
+#    state that clean_src (a git checkout) does NOT contain — so it never wipes
+#    your generated .env, TLS certs, imported realm, SEEK env, DAGs, or logs.
+# 2. Then RENDERS any of those generated files that are MISSING (from DATA_DIR),
+#    so a fresh runtime comes out complete and a stray earlier --delete can't
+#    leave the portal dead. Existing files are left untouched.
+#
+# After it runs, recreate changed services with `docker compose up -d`.
 set -euo pipefail
 
 DRY=""
@@ -20,6 +25,7 @@ esac
 
 SRC="${1:-${INSTALL_SRC_DIR:-/mnt/install_src}/clean_src/digitaltwins-platform}"
 DEST="${2:-$HOME/digitaltwins-platform}"
+DATA_DIR="${DATA_DIR:-${INSTALL_SRC_DIR:-/mnt/install_src}/data}"
 
 [ -d "$SRC" ]  || { echo "sync-runtime: source not found: $SRC"  >&2; exit 1; }
 [ -d "$DEST" ] || { echo "sync-runtime: dest not found:   $DEST" >&2; exit 1; }
@@ -38,4 +44,50 @@ excludes=(
 echo "sync-runtime: ${DRY:+[dry-run] }$SRC/  ->  $DEST/"
 # shellcheck disable=SC2086  # $DRY is intentionally word-split (empty = no flag)
 rsync -a --delete ${DRY} "${excludes[@]}" "$SRC/" "$DEST/"
+
+# --- render generated files that are MISSING (never overwrite existing) -------
+render_missing() {
+  local env="$DATA_DIR/env" secrets="$DATA_DIR/secrets.env"
+  if [ ! -d "$DATA_DIR" ]; then
+    echo "sync-runtime: DATA_DIR '$DATA_DIR' not found — skipping generated-file render"
+    return 0
+  fi
+  cd "$DEST"
+
+  # SEEK's MySQL env (from secrets.env). Passwords must match the seek_db volume.
+  local seekenv=services/seek/ldh-deployment/docker-compose.env
+  if [ ! -f "$seekenv" ] && [ -f "$secrets" ]; then
+    echo "  render (missing): $seekenv"
+    ( set -a; . "$secrets"; set +a
+      cat > "$seekenv" <<EOF
+MYSQL_HOST=db
+MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD not set in $secrets}
+MYSQL_DATABASE=seek
+MYSQL_USER=seek
+MYSQL_PASSWORD=${MYSQL_PASSWORD:?MYSQL_PASSWORD not set in $secrets}
+EOF
+    )
+    chmod 600 "$seekenv"
+  fi
+
+  # Keycloak realm import (rendered from its template).
+  local realm=services/keycloak/import/digitaltwins-realm.json
+  if [ ! -f "$realm" ] && [ -f "$env" ] && [ -f "$secrets" ]; then
+    echo "  render (missing): $realm"
+    ./util/gen-realm.sh -e "$env" -s "$secrets"
+  fi
+
+  # Gateway TLS certs — https deploys have data/fullchain.pem (a symlink; install derefs it).
+  if [ ! -f services/nginx/certs/server.crt ] && [ -e "$DATA_DIR/fullchain.pem" ]; then
+    echo "  render (missing): gateway TLS certs"
+    mkdir -p services/nginx/certs
+    install -m 0644 "$DATA_DIR/fullchain.pem" services/nginx/certs/server.crt
+    install -m 0600 "$DATA_DIR/privkey.pem"   services/nginx/certs/server.key
+  fi
+}
+
+if [ -z "$DRY" ]; then
+  render_missing
+fi
+
 echo "sync-runtime: done.${DRY:+ (dry-run — nothing changed)}"
