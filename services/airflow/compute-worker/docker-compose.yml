@@ -1,0 +1,74 @@
+---
+# Remote Airflow compute node — a single Celery worker that joins the portal's
+# Airflow cluster over the VLAN. It runs NO control plane; scheduler, apiserver,
+# Postgres, Redis and MinIO all live on the portal and are reached at ${MAIN_VM_IP}.
+#
+# Config comes from a sibling `.env` produced by `util/generate-compute-env.sh`
+# (which reads the running platform's .env), so the shared secrets — FERNET_KEY,
+# REDIS_PASSWORD, DB + MinIO creds — match the portal automatically.
+#
+# Which queue(s) this node serves is set by WORKER_QUEUES in that .env, e.g.
+# WORKER_QUEUES=gpu. Tasks tagged `queue="gpu"` in a DAG then run here.
+services:
+  airflow-worker:
+    image: digitaltwins-platform-airflow-worker:latest
+    command: celery worker -q ${WORKER_QUEUES:-default}
+    environment:
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      # --- reach the portal's control plane over the VLAN -------------------
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD}@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT}/${AIRFLOW_DB_NAME:-airflow}
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD}@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT}/${AIRFLOW_DB_NAME:-airflow}
+      AIRFLOW__CELERY__BROKER_URL: redis://:${REDIS_PASSWORD}@${MAIN_VM_IP}:${REDIS_PORT}/0
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://${MAIN_VM_IP}:${AIRFLOW_PORT}/airflow/execution/
+      # --- shared secrets (must equal the portal's) ------------------------
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:?set in the node .env (same as platform)}
+      AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW__API_AUTH__JWT_SECRET}
+      AIRFLOW__API__SECRET_KEY: ${AIRFLOW__API__SECRET_KEY}
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
+      # Required for clean warm-shutdown of celery workers
+      # https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
+      DUMB_INIT_SETSID: "0"
+      # --- services the DAG tasks call, also over the VLAN -----------------
+      DIGITALTWINS_API_BASE_URL: http://${MAIN_VM_IP}:${DIGITALTWINS_API_PORT}
+      MINIO_ENDPOINT: http://${MAIN_VM_IP}:${MINIO_PORT}
+      MINIO_ACCESS_KEY: ${MINIO_SERVER_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SERVER_SECRET_KEY}
+      # --- task logs -> the portal's MinIO airflow-logs bucket -------------
+      AIRFLOW__LOGGING__REMOTE_LOGGING: 'True'
+      AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: minio_logs
+      AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: s3://airflow-logs
+      AIRFLOW__LOGGING__ENCRYPT_S3_LOGS: 'False'
+      AIRFLOW_CONN_MINIO_LOGS: "aws://${MINIO_SERVER_ACCESS_KEY}:${MINIO_SERVER_SECRET_KEY}@?endpoint_url=http%3A%2F%2F${MAIN_VM_IP}%3A${MINIO_PORT}"
+    volumes:
+      # synced from the portal (rsync services/airflow/{dags,config,plugins,data})
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./config:/opt/airflow/config
+      - ./plugins:/opt/airflow/plugins
+      - ./data:/opt/airflow/data
+    user: "${AIRFLOW_UID:-50000}:0"
+    restart: always
+    # --- GPU access -------------------------------------------------------
+    # On a GPU node (NVIDIA driver + nvidia-container-toolkit installed),
+    # uncomment to give the worker the GPU(s). Only needed if the task code
+    # runs in-process in the worker; a task that spawns its own container
+    # (e.g. DockerOperator) puts the GPU flags on THAT container instead.
+    # gpus: all
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"'
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
