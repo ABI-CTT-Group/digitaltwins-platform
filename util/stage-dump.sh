@@ -38,6 +38,7 @@ PLUGIN_CONF_VOL="${PLUGIN_CONF_VOL:-${PROJECT}_nginx_plugin_configs}"   # gatewa
 JUSER_VOL_PREFIX="${JUSER_VOL_PREFIX:-${PROJECT}_jupyterhub_user_}"     # per-user notebook volumes
 
 mkdir -p "$OUT"
+OUT="$(cd "$OUT" && pwd)"   # absolutise: the docker -v bind mounts below require absolute paths
 echo "stage-dump: source project '$PROJECT' -> $OUT"
 
 # 1. Platform Postgres DB (digitaltwins) --------------------------------------

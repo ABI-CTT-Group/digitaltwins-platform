@@ -35,6 +35,7 @@ PLUGIN_CONF_VOL="${PLUGIN_CONF_VOL:-${PROJECT}_nginx_plugin_configs}"
 GATEWAY_C="${GATEWAY_C:-${PROJECT}-gateway}"
 
 [ -d "$IN" ] || { echo "portal-restore: no input dir $IN" >&2; exit 1; }
+IN="$(cd "$IN" && pwd)"   # absolutise: the later `cd "$BASE_DIR"` must not strand a relative $IN
 echo "portal-restore: $IN -> project '$PROJECT' on $(hostname)"
 echo "This OVERWRITES digitaltwins, hapi, seek, minio, plugin-registry, plugin nginx configs, jupyterhub user volumes and orthanc on THIS host."
 printf "Type 'yes' to proceed: "; read -r ans; [ "$ans" = "yes" ] || { echo "aborted."; exit 1; }
