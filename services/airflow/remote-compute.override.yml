@@ -20,6 +20,6 @@ services:
     environment:
       - REDIS_PASSWORD
     ports:
-      - "${REDIS_HOST_PORT:-8016}:6379"
+      - "${REDIS_HOST_PORT:-8005}:6379"
     healthcheck:
       test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]

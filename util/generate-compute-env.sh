@@ -11,8 +11,8 @@
 # there (e.g. gpu) if this node should serve a non-default queue.
 #
 # Ports below are the portal's PUBLISHED host ports (see compute-node-README.md):
-#   postgres 8003 · redis 8016 · airflow apiserver/execution 8013 · minio 8011 ·
-#   digitaltwins-api 8010.  Redis (8016) is only reachable once the portal's Redis
+#   postgres 8003 · redis 8005 · airflow apiserver/execution 8002 · minio 8011 ·
+#   digitaltwins-api 8010.  Redis (8005) is only reachable once the portal's Redis
 #   is published + password-protected — see the README "portal side" step.
 set -euo pipefail
 
@@ -44,9 +44,9 @@ WORKER_QUEUES=${WORKER_QUEUES:-default}
 AIRFLOW_UID=${AIRFLOW_UID:-50000}
 
 # Portal published host ports.
-AIRFLOW_PORT=${AIRFLOW_PORT:-8013}
+AIRFLOW_PORT=${AIRFLOW_PORT:-8002}
 AIRFLOW_POSTGRES_PORT=8003
-REDIS_PORT=8016
+REDIS_PORT=8005
 MINIO_PORT=8011
 DIGITALTWINS_API_PORT=${DIGITALTWINS_API_PORT:-8010}
 

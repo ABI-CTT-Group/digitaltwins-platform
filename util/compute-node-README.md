@@ -52,8 +52,8 @@ and the portal's `KEYCLOAK_CLIENT_SECRET` present in its `.env` (from the auth f
 | what the node reaches | how | via |
 |---|---|---|
 | Postgres (metadata) | `${MAIN_VM_IP}:8003` | direct VLAN port |
-| Redis (broker) | `${MAIN_VM_IP}:8016` | direct VLAN port (published + `requirepass`) |
-| Airflow execution API | `${MAIN_VM_IP}:8013` | direct VLAN port |
+| Redis (broker) | `${MAIN_VM_IP}:8005` | direct VLAN port (published + `requirepass`) |
+| Airflow execution API | `${MAIN_VM_IP}:8002` | direct VLAN port |
 | MinIO | `${MAIN_VM_IP}:8011` | direct VLAN port |
 | DigitalTWINS API | `${MAIN_VM_IP}:8010` | direct VLAN port |
 | **Keycloak (token issuer)** | `https://<domain>/auth` | **public gateway (443)** — not a direct port |
