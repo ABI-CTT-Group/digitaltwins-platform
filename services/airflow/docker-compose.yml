@@ -85,6 +85,11 @@ x-airflow-common:
     AIRFLOW_ENDPOINT: ${AIRFLOW_ENDPOINT}
     AIRFLOW_USERNAME: ${AIRFLOW_USERNAME}
     AIRFLOW_PASSWORD: ${AIRFLOW_PASSWORD}
+    # Keycloak credentials — used by DAGs for client_credentials grant
+    KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080/auth}
+    KEYCLOAK_REALM: ${KEYCLOAK_REALM:-digitaltwins}
+    KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-api}
+    KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
     # MinIO credentials — read from .env so DAGs use the correct secret key
     MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
     MINIO_ACCESS_KEY: ${MINIO_SERVER_ACCESS_KEY:-minioadmin}
