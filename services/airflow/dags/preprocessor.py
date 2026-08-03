@@ -18,6 +18,8 @@ Trigger via the Airflow UI or REST API with JSON conf::
 from __future__ import annotations
 
 import os
+import requests as req
+from datetime import timezone
 from datetime import datetime
 from typing import Any
 
@@ -25,25 +27,26 @@ from airflow.decorators import dag, task
 
 
 # ---------------------------------------------------------------------------
-# Auth helper — exchanges Basic credentials for a Keycloak Bearer token
-# via the platform API's own /token endpoint
+# Auth helper — obtains a Bearer token via Keycloak client_credentials grant
 # ---------------------------------------------------------------------------
 
-def _get_api_token(api_base: str, username: str, password: str) -> str:
-    """Return a Bearer token for the digitaltwins platform API."""
+def _get_api_token() -> str:
+    """Obtain a Bearer token via Keycloak client_credentials grant."""
     import requests
-    from requests.auth import HTTPBasicAuth
 
-    token_url = f"{api_base}/token"
     resp = requests.post(
-        token_url,
-        auth=HTTPBasicAuth(username, password),
+        KEYCLOAK_TOKEN_URL,
+        data={
+            "grant_type": "client_credentials",
+            "client_id": KEYCLOAK_CLIENT_ID,
+            "client_secret": KEYCLOAK_CLIENT_SECRET,
+        },
         timeout=15,
     )
     resp.raise_for_status()
     token = resp.json().get("access_token")
     if not token:
-        raise ValueError(f"No access_token in response from {token_url}: {resp.json()}")
+        raise ValueError(f"No access_token in Keycloak response: {resp.json()}")
     return token
 
 # ---------------------------------------------------------------------------
@@ -54,9 +57,15 @@ DEFAULT_API_BASE: str = os.environ.get(
 )
 DEFAULT_API_PORT: str = os.environ.get("DIGITALTWINS_API_PORT", "8000")
 
-# Credentials for the digitaltwins platform API (via Keycloak Basic auth)
-APIUSERNAME: str = os.environ.get("_AIRFLOW_WWW_USER_USERNAME", "admin")
-APIPASSWORD: str = os.environ.get("_AIRFLOW_WWW_USER_PASSWORD", "admin")
+# Keycloak service-account credentials (client_credentials grant)
+KEYCLOAK_TOKEN_URL: str = os.environ.get(
+    "KEYCLOAK_TOKEN_URL",
+    f'{os.environ.get("KEYCLOAK_INTERNAL_URL", "http://keycloak:8080/auth")}'
+    f'/realms/{os.environ.get("KEYCLOAK_REALM", "digitaltwins")}'
+    "/protocol/openid-connect/token",
+)
+KEYCLOAK_CLIENT_ID: str = os.environ.get("KEYCLOAK_CLIENT_ID", "api")
+KEYCLOAK_CLIENT_SECRET: str = os.environ.get("KEYCLOAK_CLIENT_SECRET", "")
 
 # Airflow REST API — internal Docker service name (from docker-compose.yml: airflow-apiserver:8080)
 AIRFLOW_ENDPOINT: str = os.environ.get("AIRFLOW_ENDPOINT", "http://airflow-apiserver:8080/airflow")
@@ -74,8 +83,8 @@ DEFAULT_BUCKET: str = "airflow-workspace"
     dag_id="preprocessor",
     dag_display_name="Preprocessor",
     description=(
-        "Fetch assay configs, discover cohort subjects, and trigger "
-        "a workflow DAG run for each subject."
+            "Fetch assay configs, discover cohort subjects, and trigger "
+            "a workflow DAG run for each subject."
     ),
     schedule=None,
     start_date=datetime(2025, 1, 1),
@@ -101,12 +110,8 @@ def preprocessor() -> None:
 
         api_base = conf.get("api_base", f"{DEFAULT_API_BASE}:{DEFAULT_API_PORT}")
 
-        # Obtain a Bearer token from the platform API
-        token = _get_api_token(
-            api_base,
-            conf.get("api_username", APIUSERNAME),
-            conf.get("api_password", APIPASSWORD),
-        )
+        # Obtain a Bearer token via Keycloak client_credentials grant
+        token = _get_api_token()
         headers = {"Authorization": f"Bearer {token}"}
 
         url = f"{api_base}/assays/{assay_id}"
@@ -143,12 +148,8 @@ def preprocessor() -> None:
         conf: dict[str, Any] = context["dag_run"].conf or {}
         api_base = configs.get("api_base", conf.get("api_base", f"{DEFAULT_API_BASE}:{DEFAULT_API_PORT}"))
 
-        # Reuse the Bearer token
-        token = _get_api_token(
-            api_base,
-            conf.get("api_username", APIUSERNAME),
-            conf.get("api_password", APIPASSWORD),
-        )
+        # Obtain a Bearer token via Keycloak client_credentials grant
+        token = _get_api_token()
         headers = {"Authorization": f"Bearer {token}"}
 
         inputs = configs.get("inputs", [])
@@ -200,13 +201,10 @@ def preprocessor() -> None:
     # ------------------------------------------------------------------
     @task()
     def trigger_workflow_runs(
-        configs: dict[str, Any],
-        subjects: list[dict],
+            configs: dict[str, Any],
+            subjects: list[dict],
     ) -> list[dict]:
         """Trigger workflow_{workflow_seek_id} once per subject."""
-        import requests as req
-        from datetime import timezone
-
         workflow_seek_id = configs.get("workflow_seek_id")
         if not workflow_seek_id:
             raise ValueError("workflow_seek_id missing from configs.")
