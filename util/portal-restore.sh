@@ -42,21 +42,37 @@ printf "Type 'yes' to proceed: "; read -r ans; [ "$ans" = "yes" ] || { echo "abo
 
 cd "$BASE_DIR"
 
+# A present-but-empty .sql is the silent trap: `psql < empty.sql` succeeds doing
+# nothing, so the restore "passes" while the data never lands. Refuse to restore
+# a dump that has no schema/data — better to fail here than to look successful and
+# quietly leave the target unchanged. (A genuinely absent file is still skipped by
+# the `if [ -f ]` guards below; this only fires when the file exists but is empty.)
+assert_sql_has_data() {  # $1=file  $2=label
+  [ -s "$1" ] || { echo "FATAL: $2 dump '$1' is empty — refusing to 'restore' nothing. Re-dump on the source." >&2; exit 1; }
+  grep -qiE 'CREATE TABLE|INSERT INTO|^COPY ' "$1" || {
+    echo "FATAL: $2 dump '$1' has no schema/data (no CREATE TABLE/COPY/INSERT) — the source dump was empty or wrong." >&2
+    exit 1
+  }
+}
+
 # 1. digitaltwins DB ----------------------------------------------------------
 if [ -f "$IN/digitaltwins.sql" ]; then
   echo "== restore digitaltwins DB =="
+  assert_sql_has_data "$IN/digitaltwins.sql" "digitaltwins"
   docker exec -i "$DB_C" sh -c 'psql -U "$POSTGRES_USER" "${POSTGRES_DB:-digitaltwins}"' < "$IN/digitaltwins.sql"
 fi
 
 # 2. HAPI DB (source pg -> shared pg here; --clean dump handles the drop) ------
 if [ -f "$IN/hapi.sql" ]; then
   echo "== restore hapi DB =="
+  assert_sql_has_data "$IN/hapi.sql" "hapi"
   docker exec -i "$DB_C" sh -c 'psql -U "$POSTGRES_USER" hapi' < "$IN/hapi.sql"
 fi
 
 # 3. SEEK MySQL + filestore ---------------------------------------------------
 if [ -f "$IN/seek_mysql.sql" ]; then
   echo "== restore seek mysql =="
+  assert_sql_has_data "$IN/seek_mysql.sql" "seek mysql"
   docker exec "$SEEKDB_C" sh -c \
     'unset MYSQL_HOST; exec mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "DROP DATABASE IF EXISTS seek; CREATE DATABASE seek CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"'
   docker exec -i "$SEEKDB_C" sh -c 'unset MYSQL_HOST; exec mysql -u root -p"$MYSQL_ROOT_PASSWORD" seek' < "$IN/seek_mysql.sql"
@@ -77,7 +93,7 @@ if [ -d "$IN/minio" ]; then
     echo "  $b"
     docker run --rm --network "$NETWORK" -v "$IN/minio":/backup \
       -e A="$MINIO_USER" -e B="$MINIO_PASS" --entrypoint /bin/sh "$MC_IMAGE" \
-      -c "mc alias set dst http://minio:9000 \"\$A\" \"\$B\" >/dev/null && mc mb --ignore-existing dst/$b >/dev/null && mc mirror /backup/$b dst/$b" || true
+      -c "mc alias set dst http://minio:9000 \"\$A\" \"\$B\" >/dev/null && mc mb --ignore-existing dst/$b >/dev/null && mc mirror --overwrite /backup/$b dst/$b" || true
   done
 fi
 

@@ -41,11 +41,24 @@ mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"   # absolutise: the docker -v bind mounts below require absolute paths
 echo "stage-dump: source project '$PROJECT' -> $OUT"
 
+# Guard against the silent trap this tool exists to avoid: a dump that "succeeds"
+# (exit 0) but captured an empty or wrong database — e.g. pg_dump of a container
+# whose POSTGRES_DB isn't the data DB emits a header-only file. Shipping that
+# empty .sql makes portal-restore no-op silently and lose the data. Fail loudly.
+assert_sql_has_data() {  # $1=file  $2=label
+  [ -s "$1" ] || { echo "FATAL: $2 dump '$1' is empty — wrong or unreachable source DB?" >&2; exit 1; }
+  grep -qiE 'CREATE TABLE|INSERT INTO|^COPY ' "$1" || {
+    echo "FATAL: $2 dump '$1' has no schema/data (no CREATE TABLE/COPY/INSERT) — likely an empty or wrong database." >&2
+    exit 1
+  }
+}
+
 # 1. Platform Postgres DB (digitaltwins) --------------------------------------
 echo "== digitaltwins DB =="
 docker exec "$DB_C" sh -c \
   'pg_dump -U "$POSTGRES_USER" --clean --if-exists "${POSTGRES_DB:-digitaltwins}"' \
   > "$OUT/digitaltwins.sql"
+assert_sql_has_data "$OUT/digitaltwins.sql" "digitaltwins"
 
 # 2. HAPI FHIR DB (its own Postgres on staging; folded into shared pg on portal)
 if [ -n "$HAPI_PG_C" ] && docker ps --format '{{.Names}}' | grep -qx "$HAPI_PG_C"; then
@@ -53,6 +66,7 @@ if [ -n "$HAPI_PG_C" ] && docker ps --format '{{.Names}}' | grep -qx "$HAPI_PG_C
   docker exec "$HAPI_PG_C" sh -c \
     'pg_dump -U "$POSTGRES_USER" --clean --if-exists "${POSTGRES_DB:-hapi}"' \
     > "$OUT/hapi.sql"
+  assert_sql_has_data "$OUT/hapi.sql" "hapi"
 else
   echo "== hapi: no container '$HAPI_PG_C'; skipping (set HAPI_PG_C to override) =="
 fi
@@ -61,6 +75,7 @@ fi
 echo "== seek mysql =="
 docker exec "$SEEKDB_C" sh -c 'unset MYSQL_HOST; exec mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" seek' \
   > "$OUT/seek_mysql.sql"
+assert_sql_has_data "$OUT/seek_mysql.sql" "seek mysql"
 
 # 4. SEEK filestore -----------------------------------------------------------
 echo "== seek filestore =="
