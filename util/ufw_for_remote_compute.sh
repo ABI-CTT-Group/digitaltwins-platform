@@ -5,18 +5,22 @@
 #   util/ufw_for_remote_compute.sh <compute_vlan_ip> [port ...]
 #     e.g.  util/ufw_for_remote_compute.sh 10.2.0.42
 #
-# Default ports = the raw-TCP portal services the worker reaches directly (see
-# util/compute-node-README.md):
-#   8003 postgres · 8005 redis · 8011 minio (S3) · 8010 digitaltwins-api
-# The Airflow execution API and Keycloak are reached over the gateway's 443
-# (already public), so they need no rule here.
+# Default ports = the portal services the worker reaches directly over the VLAN
+# (see util/compute-node-README.md):
+#   8003 postgres · 8005 redis · 8002 airflow execution API · 8011 minio (S3) ·
+#   8010 digitaltwins-api
+# Only Keycloak is reached over the gateway's already-public 443, so it needs no
+# rule here.
+# NOTE: on OpenStack/cloud the SECURITY GROUP is a separate firewall layer below
+# ufw — these ports (8002 especially) may also need opening there, RESTRICTED to
+# this node's private IP (never 0.0.0.0/0).
 # Pass an explicit list to override the defaults.
 set -euo pipefail
 
 REMOTE_IP="${1:?usage: ufw_for_remote_compute.sh <compute_vlan_ip> [port ...]}"
 shift
 PORTS=("$@")
-[ "${#PORTS[@]}" -eq 0 ] && PORTS=(8003 8005 8011 8010)
+[ "${#PORTS[@]}" -eq 0 ] && PORTS=(8003 8005 8002 8011 8010)
 
 for p in "${PORTS[@]}"; do
   echo "ufw allow from $REMOTE_IP to any port $p"

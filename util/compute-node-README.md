@@ -25,11 +25,16 @@ The worker reaches the portal two ways:
 | **Postgres** (metadata + result backend) | direct VLAN port `MAIN_VM_IP:8003` | raw TCP |
 | **MinIO** (S3 — task logs/data) | direct VLAN port `MAIN_VM_IP:8011` | S3 API (the gateway `/minio` route is the GUI, not the API) |
 | **DigitalTWINS API** | direct VLAN port `MAIN_VM_IP:8010` | — |
-| **Airflow execution API** | **gateway** `https://<domain>/airflow/execution/` | the direct airflow port (8002) is blocked by the cloud security group; the gateway's 443 is open + TLS-correct |
-| **Keycloak** (token issuer) | **gateway** `https://<domain>/auth` | canonical issuer; internal `keycloak` host is unreachable off-box |
+| **Airflow execution API** | direct VLAN port `MAIN_VM_IP:8002` | machine-to-machine API — keep it **internal**, never the public gateway |
+| **Keycloak** (token issuer) | **gateway** `https://<domain>/auth` | canonical token issuer; internal `keycloak` host is unreachable off-box |
 
-So the node needs the portal's **direct ports 8003/8005/8011/8010** opened to it,
-and it must be able to reach the portal's **gateway on 443** by domain name.
+So the node needs the portal's **direct ports 8003/8005/8002/8011/8010** opened to
+it (in ufw **and** the cloud security group — see below), and it must reach the
+portal's **gateway on 443** by domain name (for Keycloak only).
+
+> **Do not expose the execution API on the public gateway.** It's an internal
+> worker↔apiserver API; route it over the VLAN direct port and open `8002` in the
+> cloud security group **restricted to the node's private IP** — never `0.0.0.0/0`.
 
 ---
 
@@ -48,8 +53,11 @@ Values used below: portal VLAN IP `10.2.0.195`, compute node VLAN IP `10.2.0.14`
 2. **Open the firewall** to the node's VLAN IP (raw-TCP ports only; the gateway's
    443 is already public):
    ```bash
-   util/ufw_for_remote_compute.sh 10.2.0.14      # opens 8003 8005 8011 8010
+   util/ufw_for_remote_compute.sh 10.2.0.14      # opens 8003 8005 8002 8011 8010
    ```
+   On OpenStack/NeCTAR, also open these to `10.2.0.14` in the **security group**
+   (a separate firewall layer below ufw) — `8002` in particular tends to be
+   blocked there. Restrict to the node's private IP, never `0.0.0.0/0`.
 3. **Generate the node's `.env`** from the running platform (carries the shared
    Fernet/DB/Redis/MinIO/Keycloak secrets, the ports, and the domain):
    ```bash
@@ -128,9 +136,11 @@ sudo systemctl daemon-reload && sudo systemctl enable --now digitaltwins-worker
 - **Only `queue="gpu"` tasks reach this node.** Untagged tasks go to `default`,
   which the portal's local worker serves. To offload work here, tag the task (or
   set the DAG's default queue).
-- **Direct airflow port (8002) is firewall-blocked** by the cloud security group —
-  that's why the execution API goes via the gateway, not a direct port. Don't try
-  to "fix" it by opening 8002 in ufw; ufw isn't the layer blocking it.
+- **Execution API is internal — never public.** Reach it over the VLAN on
+  `MAIN_VM_IP:8002`, not the gateway. If the direct port is unreachable, the
+  blocker is usually the **cloud security group** (a layer below ufw) — open 8002
+  there **restricted to this node's private IP**, don't route it over the public
+  gateway (it's a machine-to-machine API and shouldn't face the internet).
 - **`WORKER_QUEUES` defaults to `default`** in the generated `.env` — the `sed` in
   step D sets it to `gpu`. If you edit `.env` after the worker is up, you must
   `docker compose up -d --force-recreate` (Compose bakes the queue into the

@@ -20,11 +20,10 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD}@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT}/${AIRFLOW_DB_NAME:-airflow}
       AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD}@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT}/${AIRFLOW_DB_NAME:-airflow}
       AIRFLOW__CELERY__BROKER_URL: redis://:${REDIS_PASSWORD}@${MAIN_VM_IP}:${REDIS_PORT}/0
-      # Execution API via the PUBLIC gateway (443), NOT the direct airflow port:
-      # the cloud security group typically blocks the direct port, and the gateway
-      # is already open + TLS-correct. Raw-TCP services (redis/postgres) still use
-      # direct VLAN ports since they can't go through the http gateway.
-      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: ${PLATFORM_PROTOCOL:-https}://${PLATFORM_DOMAIN}/airflow/execution/
+      # Execution API over the VLAN (direct port) — this is a machine-to-machine
+      # API, keep it INTERNAL, never the public gateway. The direct port must be
+      # opened in the cloud security group RESTRICTED to this node's private IP.
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://${MAIN_VM_IP}:${AIRFLOW_PORT}/airflow/execution/
       # --- shared secrets (must equal the portal's) ------------------------
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:?set in the node .env (same as platform)}
       # NOTE: Airflow 3 worker<->apiserver (execution API) auth uses a JWT secret.
