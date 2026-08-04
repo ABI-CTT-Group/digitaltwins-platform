@@ -52,7 +52,9 @@ AIRFLOW_PORT=${AIRFLOW_PORT:-8002}
 AIRFLOW_POSTGRES_PORT=8003
 REDIS_PORT=8005
 MINIO_PORT=8011
-DIGITALTWINS_API_PORT=${DIGITALTWINS_API_PORT:-8010}
+# Hardcoded like the other published ports above — do NOT inherit the platform's
+# DIGITALTWINS_API_PORT (that's the API's INTERNAL 8000; over the VLAN it's 8010).
+DIGITALTWINS_API_PORT=8010
 
 # Airflow metadata DB (shared postgres on the portal) — must match the platform.
 AIRFLOW_DB_USER=${AIRFLOW_DB_USER:-airflow}

@@ -13,6 +13,11 @@ services:
   airflow-worker:
     image: digitaltwins-platform-airflow-worker:latest
     command: celery worker -q ${WORKER_QUEUES:-default}
+    # DAG tasks reach Keycloak (token issuer) by the portal's PUBLIC DOMAIN, so
+    # the container must resolve that domain to the portal over the VLAN. The
+    # host's /etc/hosts entry does NOT reach inside the container — map it here.
+    extra_hosts:
+      - "${PLATFORM_DOMAIN}:${MAIN_VM_IP}"
     environment:
       AIRFLOW__CORE__EXECUTOR: CeleryExecutor
       AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
@@ -38,7 +43,16 @@ services:
       # https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
       DUMB_INIT_SETSID: "0"
       # --- services the DAG tasks call, also over the VLAN -----------------
-      DIGITALTWINS_API_BASE_URL: http://${MAIN_VM_IP}:${DIGITALTWINS_API_PORT}
+      # Airflow REST API — the preprocessor DAG triggers child workflow_* runs
+      # through it. Off the portal the internal 'airflow-apiserver' name doesn't
+      # resolve; reach the apiserver on its published VLAN port instead.
+      AIRFLOW_ENDPOINT: http://${MAIN_VM_IP}:${AIRFLOW_PORT}/airflow
+      # The DAG builds the DigitalTWINS API URL as base + ":" + DIGITALTWINS_API_PORT,
+      # so the base must NOT carry a port (else it doubles, e.g. host:8010:8010).
+      # Pass the port separately; the DAG appends it. (Over the VLAN the API is on
+      # the published 8010, not the internal 8000.)
+      DIGITALTWINS_API_BASE_URL: http://${MAIN_VM_IP}
+      DIGITALTWINS_API_PORT: ${DIGITALTWINS_API_PORT}
       MINIO_ENDPOINT: http://${MAIN_VM_IP}:${MINIO_PORT}
       MINIO_ACCESS_KEY: ${MINIO_SERVER_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SERVER_SECRET_KEY}
