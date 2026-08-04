@@ -8,7 +8,7 @@
 # REDIS_PASSWORD, DB + MinIO creds — match the portal automatically.
 #
 # Which queue(s) this node serves is set by WORKER_QUEUES in that .env, e.g.
-# WORKER_QUEUES=gpu. Tasks tagged `queue="gpu"` in a DAG then run here.
+# WORKER_QUEUES=remote. Tasks tagged `queue="remote"` in a DAG then run here.
 services:
   airflow-worker:
     image: digitaltwins-platform-airflow-worker:latest

@@ -49,7 +49,7 @@ services:
     environment: *remote-logging
 
   # scheduler + a (kept) local worker WRITE task logs; include them so a hybrid
-  # deploy — local worker on `default`, remote on `gpu` — has readable logs for
+  # deploy — local worker on `default`, remote worker on `remote` — has readable logs for
   # both. Harmless when the local worker is stopped (all compute remote).
   airflow-scheduler:
     environment: *remote-logging

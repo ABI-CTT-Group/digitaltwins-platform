@@ -2,7 +2,7 @@
 
 A compute node is a **single Airflow Celery worker** on its own VM that joins the
 portal's Airflow cluster over the VLAN and runs tasks tagged for its queue (e.g.
-`gpu`). It runs **no platform of its own** — the scheduler, apiserver, Postgres,
+`remote`). It runs **no platform of its own** — the scheduler, apiserver, Postgres,
 Redis, MinIO and Keycloak all live on the portal.
 
 > ### ⚠️ The compute VM MUST be clean
@@ -52,7 +52,7 @@ Values used below: portal VLAN IP `10.2.0.195`, compute node VLAN IP `10.2.0.14`
    ```
    > **Pure-remote vs hybrid — stopping the portal's local worker.** By default
    > the portal keeps its own `airflow-worker` on the `default` queue (hybrid:
-   > local `default` + remote `gpu`). If you want *all* tasks to run on the remote
+   > `default` locally + `remote` on the node). If you want *all* tasks to run on the remote
    > node instead, stop the local worker — and do it so it survives `up -d`, which
    > otherwise restarts a merely-stopped service:
    > ```bash
@@ -119,7 +119,7 @@ rsync -a ~/digitaltwins-platform/services/airflow/data/ 10.2.0.14:~/digitaltwins
 ```bash
 cd ~/digitaltwins-compute
 mv ~/compute.env .env
-sed -i 's/^WORKER_QUEUES=.*/WORKER_QUEUES=gpu/' .env      # the queue THIS node serves
+sed -i 's/^WORKER_QUEUES=.*/WORKER_QUEUES=remote/' .env   # the queue THIS node serves
 docker load -i ~/airflow-worker.tar.gz
 
 # GPU nodes: uncomment the `gpus: all` / deploy.resources block in docker-compose.yml
@@ -135,9 +135,9 @@ sudo systemctl daemon-reload && sudo systemctl enable --now digitaltwins-worker
    docker compose exec airflow-scheduler \
      celery --app airflow.providers.celery.executors.celery_executor.app inspect active_queues
    ```
-   You should see this node's `celery@<hostname>` listed against **`gpu`** (the
+   You should see this node's `celery@<hostname>` listed against **`remote`** (the
    portal's own worker is a separate entry on `default`).
-2. **Run a task through it.** Pick (or make) a DAG task tagged `queue="gpu"`,
+2. **Run a task through it.** Pick (or make) a DAG task tagged `queue="remote"`,
    **un-pause the DAG** (they're paused by default), and trigger it. Watch it land
    on the node:
    ```bash
@@ -170,7 +170,7 @@ util/sync-compute-dags.sh 10.2.0.14 --delete  # same, but also prune DAGs delete
   show only what you put there.
 - **DAGs are paused by default** (`AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION`).
   A paused DAG leaves tasks sitting in `queued` forever — un-pause it.
-- **Only `queue="gpu"` tasks reach this node.** Untagged tasks go to `default`,
+- **Only `queue="remote"` tasks reach this node.** Untagged tasks go to `default`,
   which the portal's local worker serves. To offload work here, tag the task (or
   set the DAG's default queue).
 - **Execution API is internal — never public.** Reach it over the VLAN on
@@ -179,7 +179,7 @@ util/sync-compute-dags.sh 10.2.0.14 --delete  # same, but also prune DAGs delete
   there **restricted to this node's private IP**, don't route it over the public
   gateway (it's a machine-to-machine API and shouldn't face the internet).
 - **`WORKER_QUEUES` defaults to `default`** in the generated `.env` — the `sed` in
-  step D sets it to `gpu`. If you edit `.env` after the worker is up, you must
+  step D sets it to `remote`. If you edit `.env` after the worker is up, you must
   `docker compose up -d --force-recreate` (Compose bakes the queue into the
   command at create time).
 - **Shared `FERNET_KEY`** must match the portal (it does — `generate-compute-env`

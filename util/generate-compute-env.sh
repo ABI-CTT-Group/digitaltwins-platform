@@ -8,7 +8,7 @@
 #
 # platform_env defaults to the runtime ~/digitaltwins-platform/.env. Copy the
 # output to the compute node as ~/digitaltwins-compute/.env, then set WORKER_QUEUES
-# there (e.g. gpu) if this node should serve a non-default queue.
+# there (e.g. remote) if this node should serve a non-default queue.
 #
 # Ports below are the portal's PUBLISHED host ports (see compute-node-README.md):
 #   postgres 8003 · redis 8005 · airflow apiserver/execution 8002 · minio 8011 ·
@@ -40,7 +40,7 @@ cat <<EOF
 
 # Portal VLAN address + public domain (the domain is used for the gateway-routed
 # HTTP services — execution API + Keycloak — and must resolve to MAIN_VM_IP on the
-# node, e.g. via /etc/hosts). Set WORKER_QUEUES to the queue this node serves (gpu).
+# node, e.g. via /etc/hosts). Set WORKER_QUEUES to the queue this node serves (remote).
 MAIN_VM_IP=${MAIN_VM_IP}
 PLATFORM_DOMAIN=${PLATFORM_DOMAIN}
 PLATFORM_PROTOCOL=${PLATFORM_PROTOCOL:-https}
