@@ -50,6 +50,24 @@ Values used below: portal VLAN IP `10.2.0.195`, compute node VLAN IP `10.2.0.14`
    docker compose -f docker-compose.yml -f services/airflow/remote-compute.override.yml up -d
    docker compose ps redis    # expect 0.0.0.0:8005->6379
    ```
+   > **Pure-remote vs hybrid — stopping the portal's local worker.** By default
+   > the portal keeps its own `airflow-worker` on the `default` queue (hybrid:
+   > local `default` + remote `gpu`). If you want *all* tasks to run on the remote
+   > node instead, stop the local worker — and do it so it survives `up -d`, which
+   > otherwise restarts a merely-stopped service:
+   > ```bash
+   > docker compose -f docker-compose.yml -f services/airflow/remote-compute.override.yml \
+   >   up -d --scale airflow-worker=0
+   > ```
+   > (`docker compose ... stop airflow-worker` stops it now, but the next `up -d`
+   > brings it back.) This matters: the preprocessor passes an absolute API URL
+   > through XCom, so a *hybrid* split only works if every worker resolves the same
+   > endpoints — pure-remote (a single worker) sidesteps that. Confirm one node:
+   > ```bash
+   > docker compose -f docker-compose.yml -f services/airflow/remote-compute.override.yml \
+   >   exec airflow-scheduler celery \
+   >   --app airflow.providers.celery.executors.celery_executor.app inspect active_queues
+   > ```
 2. **Open the firewall** to the node's VLAN IP (raw-TCP ports only; the gateway's
    443 is already public):
    ```bash
@@ -90,8 +108,9 @@ CS=/mnt/install_src/clean_src/digitaltwins-platform
 scp ~/airflow-worker.tar.gz /tmp/compute.env 10.2.0.14:~/
 scp $CS/services/airflow/compute-worker/docker-compose.yml \
     $CS/services/airflow/compute-worker/digitaltwins-worker.service 10.2.0.14:~/digitaltwins-compute/
-rsync -a ~/digitaltwins-platform/services/airflow/{dags,config,plugins,data}/ \
-    10.2.0.14:~/digitaltwins-compute/
+util/sync-compute-dags.sh 10.2.0.14      # dags + plugins + config (see §F)
+# data/ is workflow scratch, not code — copy it only if a DAG needs seed data:
+rsync -a ~/digitaltwins-platform/services/airflow/data/ 10.2.0.14:~/digitaltwins-compute/data/
 ```
 
 ## D. Configure + run (on the node)
@@ -123,6 +142,23 @@ sudo systemctl daemon-reload && sudo systemctl enable --now digitaltwins-worker
    ```bash
    cd ~/digitaltwins-compute && docker compose logs -f airflow-worker
    ```
+
+## F. Keeping DAGs in sync (ongoing)
+
+A remote worker only runs the code in **its own** `dags/` folder — it does NOT
+read the portal's. So every time the DAGs change on the portal (they're managed
+outside the repo and edited often), push them to the node. From the **portal**:
+
+```bash
+util/sync-compute-dags.sh 10.2.0.14           # dags + plugins + config -> the node
+util/sync-compute-dags.sh 10.2.0.14 --delete  # same, but also prune DAGs deleted on the portal
+```
+
+- No worker restart needed — the worker re-parses each DAG file per task run.
+- **New DAGs boot PAUSED** — un-pause them (portal UI) or they sit `queued`.
+- A child `workflow_{seek_id}` DAG that the preprocessor triggers must exist AND
+  be synced here too, or its tasks 404 / never land. Keep the portal and node
+  DAG folders identical (that's what `--delete` is for).
 
 ---
 
