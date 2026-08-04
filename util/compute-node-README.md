@@ -60,8 +60,9 @@ Values used below: portal VLAN IP `10.2.0.195`, compute node VLAN IP `10.2.0.14`
    >   up -d --scale airflow-worker=0
    > ```
    > (`docker compose ... stop airflow-worker` stops it now, but the next `up -d`
-   > brings it back.) This matters: the preprocessor passes an absolute API URL
-   > through XCom, so a *hybrid* split only works if every worker resolves the same
+   > brings it back.) This matters: the child workflow_* DAG tasks reach the
+   > platform's services (DigitalTWINS API, MinIO) at absolute VLAN endpoints set
+   > per-worker, so a *hybrid* split only works if every worker resolves the same
    > endpoints — pure-remote (a single worker) sidesteps that. Confirm one node:
    > ```bash
    > docker compose -f docker-compose.yml -f services/airflow/remote-compute.override.yml \
@@ -156,9 +157,9 @@ util/sync-compute-dags.sh 10.2.0.14 --delete  # same, but also prune DAGs delete
 
 - No worker restart needed — the worker re-parses each DAG file per task run.
 - **New DAGs boot PAUSED** — un-pause them (portal UI) or they sit `queued`.
-- A child `workflow_{seek_id}` DAG that the preprocessor triggers must exist AND
-  be synced here too, or its tasks 404 / never land. Keep the portal and node
-  DAG folders identical (that's what `--delete` is for).
+- A child `workflow_{seek_id}` DAG that the API triggers (one run per sample) must
+  exist AND be synced here too, or its tasks 404 / never land. Keep the portal and
+  node DAG folders identical (that's what `--delete` is for).
 
 ---
 

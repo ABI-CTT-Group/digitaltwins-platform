@@ -42,14 +42,15 @@ services:
       # Required for clean warm-shutdown of celery workers
       # https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
       DUMB_INIT_SETSID: "0"
-      # --- services the DAG tasks call, also over the VLAN -----------------
-      # Airflow REST API — the preprocessor DAG triggers child workflow_* runs
-      # through it. Off the portal the internal 'airflow-apiserver' name doesn't
-      # resolve; reach the apiserver on its published VLAN port instead.
-      AIRFLOW_ENDPOINT: http://${MAIN_VM_IP}:${AIRFLOW_PORT}/airflow
-      # The DAG builds the DigitalTWINS API URL as base + ":" + DIGITALTWINS_API_PORT,
+      # --- services the child workflow_* DAG tasks call, also over the VLAN ---
+      # Orchestration (fetch configs, discover samples, trigger the child
+      # workflow_{seek_id} runs) now lives in the DigitalTWINS API on the portal,
+      # not in a preprocessor DAG here — so the worker no longer needs
+      # AIRFLOW_ENDPOINT. It just runs the child DAG tasks, which call the
+      # DigitalTWINS API and MinIO over the VLAN.
+      # The task builds the DigitalTWINS API URL as base + ":" + DIGITALTWINS_API_PORT,
       # so the base must NOT carry a port (else it doubles, e.g. host:8010:8010).
-      # Pass the port separately; the DAG appends it. (Over the VLAN the API is on
+      # Pass the port separately; the task appends it. (Over the VLAN the API is on
       # the published 8010, not the internal 8000.)
       DIGITALTWINS_API_BASE_URL: http://${MAIN_VM_IP}
       DIGITALTWINS_API_PORT: ${DIGITALTWINS_API_PORT}
