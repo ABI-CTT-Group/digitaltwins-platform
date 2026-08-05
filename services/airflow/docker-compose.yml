@@ -63,13 +63,6 @@ x-airflow-common:
     AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:?set AIRFLOW__CORE__FERNET_KEY in secrets.env}
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    # DAG queue routing: DAGs read Variable.get("compute_queue", "default") to pick
-    # their Celery queue. Exposed as an Airflow Variable via this env var (which
-    # takes precedence over the metadata DB), driven by COMPUTE_QUEUE in .env — set
-    # it to `remote` to route work to a remote worker node serving that queue. In
-    # the shared block so every component (incl. the dag-processor that resolves
-    # queues at parse time) sees it.
-    AIRFLOW_VAR_COMPUTE_QUEUE: ${COMPUTE_QUEUE:-default}
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/airflow/execution/'
     # Mounts the Airflow UI under the gateway's /airflow route. Without it the api-server
     # emits <base href="/"> and root-absolute /static/... asset paths, so behind /airflow
@@ -103,6 +96,9 @@ x-airflow-common:
     MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
     MINIO_ACCESS_KEY: ${MINIO_SERVER_ACCESS_KEY:-minioadmin}
     MINIO_SECRET_KEY: ${MINIO_SERVER_SECRET_KEY:-minioadmin}
+    # Any environment variable prefixed with AIRFLOW_VAR_ is mapped to an Airflow Variable.
+    # This allows DAGs to call Variable.get() without querying the Airflow metadata database.
+    AIRFLOW_VAR_COMPUTE_QUEUE: ${AIRFLOW_VAR_COMPUTE_QUEUE}
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs

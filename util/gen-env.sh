@@ -81,12 +81,6 @@ else
   : "${COMPOSE_FILE:=docker-compose.yml}"
 fi
 
-# DAG queue routing — DAGs read Variable.get("compute_queue", "default"); exposed to
-# Airflow as AIRFLOW_VAR_COMPUTE_QUEUE in the compose. Independent of REMOTE_COMPUTE
-# (infra being up != DAGs being routed): defaults local, set COMPUTE_QUEUE=remote
-# once a node is ready to serve the remote queue.
-: "${COMPUTE_QUEUE:=default}"
-
 # shellcheck disable=SC1090
 . "$SECRETS_FILE"   # secrets referenced as ${...} in the template
 set +a
