@@ -81,6 +81,12 @@ else
   : "${COMPOSE_FILE:=docker-compose.yml}"
 fi
 
+# DAG queue routing — DAGs read Variable.get("compute_queue", "default"); Airflow maps
+# AIRFLOW_VAR_* env vars to Variables. Default local; set AIRFLOW_VAR_COMPUTE_QUEUE=remote
+# in the env inputs to route DAGs to a remote node. Rendered into .env via the
+# ${AIRFLOW_VAR_COMPUTE_QUEUE} placeholder in .env.template.
+: "${AIRFLOW_VAR_COMPUTE_QUEUE:=default}"
+
 # shellcheck disable=SC1090
 . "$SECRETS_FILE"   # secrets referenced as ${...} in the template
 set +a
