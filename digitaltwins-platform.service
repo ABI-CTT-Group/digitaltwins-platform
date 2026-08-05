@@ -1,0 +1,37 @@
+# DigitalTWINS platform — brings the full docker compose stack up at boot.
+#
+# Install on the platform host:
+#   sudo cp digitaltwins-platform.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now digitaltwins-platform
+#
+# This unit owns the BOOT-time (re)convergence: `docker compose up -d` reconciles
+# the running containers to the declared compose files (+ COMPOSE_FILE) every
+# boot, so the files are the source of truth. Mid-run crash recovery is a
+# separate concern handled by the containers' own `restart:` policies — this
+# oneshot unit does not supervise them, so keep those policies in place.
+#
+# COMPOSE_FILE (base, or base + the remote-compute override) is read from the
+# project .env in WorkingDirectory — the same value operators' manual `docker
+# compose` commands use — so there's one declared source, not shell state.
+#   NOTE: if your Docker Compose does NOT read COMPOSE_FILE from the auto-loaded
+#   .env, add it here explicitly:  Environment=COMPOSE_FILE=<files>
+#
+# The docker CLI is resolved via PATH (/usr/bin on apt, /usr/local/bin on the
+# airgap static install), so this unit is install-method-agnostic. Adjust
+# WorkingDirectory if the platform lives somewhere other than the path below.
+[Unit]
+Description=DigitalTWINS platform (docker compose stack)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/ubuntu/digitaltwins-platform
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+ExecStart=/usr/bin/env docker compose up -d
+ExecStop=/usr/bin/env docker compose down
+
+[Install]
+WantedBy=multi-user.target

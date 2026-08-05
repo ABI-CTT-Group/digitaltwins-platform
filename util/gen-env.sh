@@ -69,6 +69,18 @@ fi
 # Host UID owning Airflow's mounted files (override by exporting AIRFLOW_UID).
 : "${AIRFLOW_UID:=$(id -u)}"
 
+# Which compose files the stack merges — base always; add the remote-compute
+# override when this deploy drives a remote worker. Emitted into .env so BOTH the
+# systemd unit (docker compose up -d at boot, from its WorkingDirectory) and
+# operators' manual `docker compose` commands read the SAME value — no .bashrc,
+# no scattered -f flags. Flip REMOTE_COMPUTE in the env inputs file (or export
+# COMPOSE_FILE directly) to change it.
+if [ "${REMOTE_COMPUTE:-false}" = "true" ]; then
+  : "${COMPOSE_FILE:=docker-compose.yml:services/airflow/remote-compute.override.yml}"
+else
+  : "${COMPOSE_FILE:=docker-compose.yml}"
+fi
+
 # shellcheck disable=SC1090
 . "$SECRETS_FILE"   # secrets referenced as ${...} in the template
 set +a

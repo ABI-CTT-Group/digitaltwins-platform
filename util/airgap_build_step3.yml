@@ -147,13 +147,10 @@
       path: "{{ platform_dir }}/services/airflow/dags"
       state: directory
 
-  - name: Convenience — set COMPOSE_FILE in ~/.bashrc so `docker compose` works from anywhere
-    ansible.builtin.lineinfile:
-      path: "~/.bashrc"
-      regexp: '^export COMPOSE_FILE='
-      line: "export COMPOSE_FILE={{ platform_dir }}/docker-compose.yml"
-      create: true
-      mode: '0644'
+  # COMPOSE_FILE is no longer written to ~/.bashrc — it's rendered into .env by
+  # gen-env.sh (from REMOTE_COMPUTE), so every `docker compose` run from the
+  # platform dir (this playbook, the systemd unit, and operators) reads the same
+  # value. Confirmed: Compose reads COMPOSE_FILE from the auto-loaded .env.
 
   # --- Render config from templates ----------------------------------------
   # SEEK_API_TOKEN is only known after SEEK is up, but .env.template references
@@ -358,3 +355,28 @@
       cmd: docker compose restart seek workers portal-frontend
       chdir: "{{ platform_dir }}"
     changed_when: true
+
+  # --- Boot persistence: bring the stack up at reboot via a systemd unit -----
+  # Mirrors the compute node's digitaltwins-worker.service so platform and
+  # compute nodes boot identically. `docker compose up -d` reconverges the stack
+  # to the compose files (+ COMPOSE_FILE from .env) on every boot; the
+  # containers' own restart: policies still handle mid-run crash recovery.
+  - name: Install the platform systemd unit
+    ansible.builtin.copy:
+      src: "{{ platform_dir }}/digitaltwins-platform.service"
+      dest: /etc/systemd/system/digitaltwins-platform.service
+      remote_src: true
+      mode: '0644'
+
+  - name: Point the unit's WorkingDirectory at this platform dir
+    ansible.builtin.replace:
+      path: /etc/systemd/system/digitaltwins-platform.service
+      regexp: '^WorkingDirectory=.*'
+      replace: "WorkingDirectory={{ platform_dir }}"
+
+  - name: Enable + start the platform unit (up -d is a no-op when already up)
+    ansible.builtin.systemd:
+      name: digitaltwins-platform
+      enabled: true
+      state: started
+      daemon_reload: true

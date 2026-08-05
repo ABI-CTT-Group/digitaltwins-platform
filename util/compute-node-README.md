@@ -15,6 +15,12 @@ Redis, MinIO and Keycloak all live on the portal.
 Everything is driven from the portal (`MAIN_VM_IP`), and the shared secrets come
 straight from the portal's `.env`, so nothing drifts.
 
+Both the portal and this node **boot their stack the same way** — a systemd unit
+running `docker compose up -d` (`digitaltwins-platform.service` on the portal,
+`digitaltwins-worker.service` here), with the compose file set taken from
+`COMPOSE_FILE` in each host's `.env`. The unit reconverges the stack to the files
+on every boot; the containers' `restart:` policies handle mid-run crashes.
+
 ## Connection contract
 
 The worker reaches the portal two ways:
@@ -43,21 +49,24 @@ portal's **gateway on 443** by domain name (for Keycloak only).
 Values used below: portal VLAN IP `10.2.0.195`, compute node VLAN IP `10.2.0.14`.
 
 1. **Redis published + password-protected** (so a remote worker can use the broker).
-   Ensure `REDIS_PASSWORD` is set in `secrets.env`/`.env`, then bring the stack up
-   with the remote-compute override (or set it in `COMPOSE_FILE`):
+   Set `REDIS_PASSWORD` in `secrets.env` and `REMOTE_COMPUTE=true` in the env inputs
+   file, re-render `.env`, and bring the stack up. `COMPOSE_FILE` in `.env` then
+   pulls in the remote-compute override automatically — no `-f` flags:
    ```bash
    cd ~/digitaltwins-platform
-   docker compose -f docker-compose.yml -f services/airflow/remote-compute.override.yml up -d
+   util/gen-env.sh -e <env> -s <secrets.env>   # renders COMPOSE_FILE=…:remote-compute.override.yml into .env
+   docker compose up -d
    docker compose ps redis    # expect 0.0.0.0:8005->6379
    ```
+   (On a playbook rebuild this is automatic — step3 sets it from `REMOTE_COMPUTE`
+   and installs the `digitaltwins-platform.service` boot unit.)
    > **Pure-remote vs hybrid — stopping the portal's local worker.** By default
    > the portal keeps its own `airflow-worker` on the `default` queue (hybrid:
    > `default` locally + `remote` on the node). If you want *all* tasks to run on the remote
    > node instead, stop the local worker — and do it so it survives `up -d`, which
    > otherwise restarts a merely-stopped service:
    > ```bash
-   > docker compose -f docker-compose.yml -f services/airflow/remote-compute.override.yml \
-   >   up -d --scale airflow-worker=0
+   > docker compose up -d --scale airflow-worker=0
    > ```
    > (`docker compose ... stop airflow-worker` stops it now, but the next `up -d`
    > brings it back.) This matters: the child workflow_* DAG tasks reach the
@@ -65,8 +74,7 @@ Values used below: portal VLAN IP `10.2.0.195`, compute node VLAN IP `10.2.0.14`
    > per-worker, so a *hybrid* split only works if every worker resolves the same
    > endpoints — pure-remote (a single worker) sidesteps that. Confirm one node:
    > ```bash
-   > docker compose -f docker-compose.yml -f services/airflow/remote-compute.override.yml \
-   >   exec airflow-scheduler celery \
+   > docker compose exec airflow-scheduler celery \
    >   --app airflow.providers.celery.executors.celery_executor.app inspect active_queues
    > ```
 2. **Open the firewall** to the node's VLAN IP (raw-TCP ports only; the gateway's
