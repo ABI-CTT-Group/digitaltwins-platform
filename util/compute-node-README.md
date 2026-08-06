@@ -48,10 +48,13 @@ portal's **gateway on 443** by domain name (for Keycloak only).
 
 Values used below: portal VLAN IP `10.2.0.195`, compute node VLAN IP `10.2.0.14`.
 
-1. **Redis published + password-protected** (so a remote worker can use the broker).
-   Set `REDIS_PASSWORD` in `secrets.env` and `REMOTE_COMPUTE=true` in the env inputs
-   file, re-render `.env`, and bring the stack up. `COMPOSE_FILE` in `.env` then
-   pulls in the remote-compute override automatically — no `-f` flags:
+1. **Publish Redis on the VLAN** so the remote worker can reach the broker. (Redis
+   is *always* password-protected in the base compose now — `REMOTE_COMPUTE=true`
+   only adds the VLAN port publish.) Set `REDIS_PASSWORD` in `secrets.env`, and
+   `REMOTE_COMPUTE=true` **plus** `AIRFLOW_VAR_COMPUTE_QUEUE=remote` (routes DAGs to
+   the node — see §E/gotchas) in the env inputs, re-render `.env`, and bring the
+   stack up — `COMPOSE_FILE` in `.env` then pulls in the remote-compute override
+   automatically, no `-f` flags:
    ```bash
    cd ~/digitaltwins-platform
    util/gen-env.sh -e <env> -s <secrets.env>   # renders COMPOSE_FILE=…:remote-compute.override.yml into .env
@@ -145,9 +148,10 @@ sudo systemctl daemon-reload && sudo systemctl enable --now digitaltwins-worker
    ```
    You should see this node's `celery@<hostname>` listed against **`remote`** (the
    portal's own worker is a separate entry on `default`).
-2. **Run a task through it.** Pick (or make) a DAG task tagged `queue="remote"`,
-   **un-pause the DAG** (they're paused by default), and trigger it. Watch it land
-   on the node:
+2. **Run a task through it.** With `AIRFLOW_VAR_COMPUTE_QUEUE=remote` set on the
+   portal, a DAG whose tasks read `Variable.get("compute_queue")` route here (or
+   hardcode `queue="remote"` on a task). **Un-pause the DAG** (paused by default)
+   and trigger it. Watch it land on the node:
    ```bash
    cd ~/digitaltwins-compute && docker compose logs -f airflow-worker
    ```
@@ -178,9 +182,14 @@ util/sync-compute-dags.sh 10.2.0.14 --delete  # same, but also prune DAGs delete
   show only what you put there.
 - **DAGs are paused by default** (`AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION`).
   A paused DAG leaves tasks sitting in `queued` forever — un-pause it.
-- **Only `queue="remote"` tasks reach this node.** Untagged tasks go to `default`,
-  which the portal's local worker serves. To offload work here, tag the task (or
-  set the DAG's default queue).
+- **Routing is by Celery queue, and the platform lever is the `compute_queue`
+  Airflow Variable.** Set `AIRFLOW_VAR_COMPUTE_QUEUE=remote` on the portal and DAGs
+  that call `Variable.get("compute_queue", "default")` route here; untagged /
+  `default` tasks stay on the portal's local worker. **This only works if the DAG
+  actually reads that Variable** — a DAG with no `queue` and no
+  `Variable.get("compute_queue")` runs on `default` regardless of the env var, so
+  its tasks land on the local worker, not here. Per-task `queue="remote"` is the
+  hardcoded alternative.
 - **Execution API is internal — never public.** Reach it over the VLAN on
   `MAIN_VM_IP:8002`, not the gateway. If the direct port is unreachable, the
   blocker is usually the **cloud security group** (a layer below ufw) — open 8002
