@@ -1,9 +1,21 @@
-# Shell scripts run as entrypoints INSIDE Linux containers. If they get
-# checked out with CRLF (which git does on Windows when core.autocrlf=true),
-# the shebang becomes `#!/bin/sh\r`, the kernel can't find the interpreter,
-# and docker fails with:  exec /entry.sh: no such file or directory
-#
-# Forcing eol=lf here overrides every contributor's autocrlf setting, so these
-# files are ALWAYS checked out with LF regardless of OS or local git config.
-*.sh text eol=lf
-Dockerfile text eol=lf
+# Keep shell scripts and unix tooling as LF on every platform, regardless of a
+# developer's core.autocrlf. CRLF corrupts the `#!/usr/bin/env bash` shebang
+# ("/usr/bin/env: bad interpreter" / "command not found"), and inside Linux
+# containers turns an entrypoint shebang into `#!/bin/sh\r`, so docker fails
+# with:  exec /entry.sh: no such file or directory
+*.sh            text eol=lf
+*.bash          text eol=lf
+Dockerfile      text eol=lf
+
+# Ansible playbooks
+*.yml           text eol=lf
+*.yaml          text eol=lf
+
+# Extension-less shell scripts under util/
+util/export_realm_and_users text eol=lf
+util/realm_exporter         text eol=lf
+util/mkbundle               text eol=lf
+
+# Shell-sourced env templates — a CRLF here leaves a stray \r inside sourced
+# values (e.g. PLATFORM_PROTOCOL=http\r), silently breaking protocol checks.
+*env.template   text eol=lf

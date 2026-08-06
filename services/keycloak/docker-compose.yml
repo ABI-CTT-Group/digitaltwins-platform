@@ -3,64 +3,50 @@
 # http:// endpoint (mixed active content is blocked outright), so Keycloak cannot stay
 # on a plain-HTTP :8009 once the portal is served over TLS. Putting it behind the
 # gateway gives it the gateway's certificate and a single origin on 443 — no second
-# cert, no extra port. (Serving TLS on :8009 directly is NOT an equivalent option with
-# a self-signed cert: browsers prompt for a page's bad cert, but silently fail an XHR's
-# — and keycloak-js fetches its tokens by XHR.)
+# cert, no extra port.
 
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.3.2
     command:
-      - start-dev
-      - --import-realm # will only import once on the first startup
+      - start                    # production mode (not start-dev): real DB, optimized
+      - --http-enabled=true      # TLS terminates at the gateway; Keycloak serves HTTP behind it
+      - --import-realm           # imports services/keycloak/import/*.json on FIRST boot only
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}
 
-      # Context path Keycloak serves from. Keycloak 17+ dropped the historical /auth
-      # prefix and serves at / by default; we put it back so the gateway can route a
-      # clean /auth/* subtree to it without rewriting paths.
+      # Context path (Keycloak 17+ serves at / by default; put /auth back for the gateway).
       KC_HTTP_RELATIVE_PATH: ${KC_HTTP_RELATIVE_PATH:-/auth}
 
-      # Trust X-Forwarded-Proto/Host from the gateway. Without this Keycloak believes
-      # it is being reached over plain HTTP and hands the browser http:// redirect URLs
-      # and non-Secure cookies — which the https page then refuses.
+      # Trust the gateway's X-Forwarded-* so Keycloak emits https:// URLs + Secure cookies.
       KC_PROXY_HEADERS: xforwarded
 
-      # Public address Keycloak believes it lives at. Every token it issues carries this
-      # as `iss`, and every service that validates a token must expect the same value —
-      # so this and PORTAL_KEYCLOAK_BASE_URL / ORTHANC_KEYCLOAK_URL / KEYCLOAK_PUBLIC_URL
-      # must all agree. Must include the /auth path, matching KC_HTTP_RELATIVE_PATH.
+      # Public address (the `iss` in every token). Must match PORTAL_KEYCLOAK_BASE_URL /
+      # ORTHANC_KEYCLOAK_URL / KEYCLOAK_PUBLIC_URL. Includes /auth.
       KC_HOSTNAME: ${KC_HOSTNAME:-http://localhost/auth}
+      KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT:-true}
+      KC_HOSTNAME_STRICT_HTTPS: ${KC_HOSTNAME_STRICT_HTTPS:-true}
+
+      # Persist to the shared platform Postgres (service `database`) — no embedded H2.
+      # The `keycloak` role + DB are created by services/postgres/keycloak_init.sql.
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://database:5432/keycloak
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
     ports:
-      # Kept for direct admin access / debugging. Normal traffic goes through the
-      # gateway at <public-url>/auth. Note that with KC_HOSTNAME pointing at the
-      # gateway, Keycloak still generates gateway URLs even when reached on this port.
-      - "8009:8080"
+      - "8009:8080"              # direct admin/debug access; normal traffic via the gateway /auth
     volumes:
       - ./import:/opt/keycloak/data/import
-      - keycloak_data:/opt/keycloak/data
+      - ./digitaltwins-login-theme:/opt/keycloak/themes/digitaltwins-login-theme:ro
+    depends_on:
+      database:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - digitaltwins-platform
-
-volumes:
-  keycloak_data:
-    driver: local
-    name: ${PROJECT_NAME}_keycloak_data
 
 networks:
   digitaltwins-platform:
     driver: bridge
     name: ${PROJECT_NAME}
-
-# Keycloak Admin Console
-# http://localhost:8080/admin
-
-# keycloak account console
-# http://localhost:8080/realms/<myrealm>/account
-# http://localhost:8080/realms/digitaltwins/account
-
-
-# creating network
-# sudo docker network create digitaltwins-platform

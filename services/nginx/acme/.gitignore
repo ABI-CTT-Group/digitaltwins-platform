@@ -1,0 +1,5 @@
+# ACME HTTP-01 webroot. Tracked so the bind-mount target exists on a fresh
+# checkout, but the transient challenge files certbot writes here are not.
+*
+!.gitignore
+!.gitkeep

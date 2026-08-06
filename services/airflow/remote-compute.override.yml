@@ -1,0 +1,21 @@
+---
+# Portal-side override to enable REMOTE COMPUTE.
+#
+# The base compose already password-protects Redis and logs to MinIO/S3 (so the
+# Airflow UI can read a remote worker's logs) — those are ALWAYS on now. The only
+# genuinely remote-specific thing left is publishing the Celery broker (Redis)
+# port on the VLAN so a remote worker can reach it. The execution API (8002),
+# Postgres (8003) and MinIO (8011) are already published by the base compose.
+#
+# Apply alongside the base compose (or set REMOTE_COMPUTE=true so gen-env writes
+# it into COMPOSE_FILE in .env):
+#   docker compose -f docker-compose.yml \
+#     -f services/airflow/remote-compute.override.yml up -d
+#
+# Then open the firewall to the compute node:
+#   util/ufw_for_remote_compute.sh <compute_vlan_ip>
+
+services:
+  redis:
+    ports:
+      - "${REDIS_HOST_PORT:-8005}:6379"
