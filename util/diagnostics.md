@@ -120,10 +120,19 @@ systemctl is-enabled certbot.timer
 
 **Is the ACME challenge path served over http?** (webroot renewal prerequisite —
 want `404`, i.e. the acme location is active and NOT redirected to https; a `301`
-means the redirect is winning):
+means the redirect is winning). Test from INSIDE the gateway — a `127.0.0.1:80`
+test from the host **hangs/000 on an airgapped box** (ufw `deny outgoing` drops the
+docker-proxy host→bridge hop) even though nginx is fine:
 ```
-curl -s -o /dev/null -w '%{http_code}\n' -H 'Host: <domain>' \
-  http://127.0.0.1/.well-known/acme-challenge/does-not-exist
+GW=$(docker compose ps -q gateway)
+docker exec "$GW" wget -q -O /dev/null -S http://127.0.0.1/.well-known/acme-challenge/x 2>&1 | grep -i http
+```
+
+**Cert renewal needs OUTBOUND to Let's Encrypt** — issuance POSTs to LE's ACME API,
+so an airgapped box can't renew even though LE reaches IN on :80. Check before
+renewing (un-airgap with `util/unairgap.sh` if blocked):
+```
+timeout 8 bash -c 'cat </dev/null >/dev/tcp/acme-v02.api.letsencrypt.org/443' && echo OUTBOUND-OK || echo BLOCKED
 ```
 
 ---
