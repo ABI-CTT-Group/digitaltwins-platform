@@ -48,7 +48,10 @@
     secrets_file: "{{ data_dir }}/secrets.env"
     clean_src: "{{ install_src_dir }}/clean_src/digitaltwins-platform"
     images_archive: "{{ install_src_dir }}/digitaltwins-images-all.tar.gz"
-    platform_dir: ~/digitaltwins-platform
+    # Absolute path via a controller-side lookup (= the invoking ansible_user's
+    # home), so it resolves the SAME in `become: true` tasks. A bare `~` expands
+    # to /root under become, which broke the systemd-unit install.
+    platform_dir: "{{ lookup('env', 'HOME') }}/digitaltwins-platform"
     keys_dir: ~/keys
     platform_domain: "{{ lookup('env', 'PLATFORM_DOMAIN') }}"
     platform_protocol: "{{ lookup('env', 'PLATFORM_PROTOCOL') | default('https', true) }}"
