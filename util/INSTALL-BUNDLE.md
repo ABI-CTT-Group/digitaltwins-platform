@@ -15,7 +15,7 @@ consume it, see [`README.md`](README.md).
 | Survives (on `/mnt/install_src`) | Lost with the VM root disk |
 |---|---|
 | `clean_src/` (the code), `data/` (config, secrets, certs) | Docker + all **container volumes** → SEEK MySQL, Postgres, MinIO = **programmes/assays/datasets** |
-| frozen image archive, docker/compose/ansible bundles | `/etc/letsencrypt` (LE certs + renewal state) |
+| frozen image archive, `alpine.tar`, docker/compose/ansible bundles, `letsencrypt.tar` | `/etc/letsencrypt` **on the VM** — but `letsencrypt.tar` on the volume backs it up (restore to keep LE renewal), and the active cert is also in `data/*.pem` |
 | any `stage-dump` you put here before dropping the VM | `~/.bashrc`, SSH host keys, installed packages |
 
 **Implication:** before you drop a VM that holds data you care about, dump it
@@ -25,19 +25,25 @@ just in `/etc/letsencrypt`, which the rebuild wipes.
 ## Bundle contents & how to (re)build each piece
 
 ```
-/mnt/install_src/
-├── clean_src/digitaltwins-platform/     # the code (+ 3 submodules)
+/mnt/install_src/                        # (actual contents on abi_portal, 2026-08-06)
+├── clean_src/digitaltwins-platform/     # the code (+ 3 submodules); tracks remote-compute
 ├── data/
-│   ├── env, secrets.env                 # host config + secrets (you fill in)
+│   ├── env, secrets.env                 # host config + secrets (rendered → .env)
+│   ├── <domain>.fullchain.pem/.privkey.pem   # per-domain certs (abi1, abi2, test.digitaltwins…)
+│   ├── fullchain.pem / privkey.pem      # symlinks → the active domain (currently abi1)
 │   ├── public_keys/*.pub                # operator SSH keys
-│   ├── <domain>.fullchain.pem/.privkey.pem   # per-domain TLS cert
-│   └── fullchain.pem / privkey.pem      # symlinks → the chosen domain
-├── digitaltwins-images-all.tar.gz       # all platform docker images (amd64)
-├── airflow-worker.tar.gz                # just the worker image, for remote nodes
-├── docker-<ver>.tgz                     # docker static binaries (airgap step2)
-├── docker-compose-linux-x86_64-<ver>    # compose plugin binary (airgap step2)
-├── airgap/apt-debs/*.deb                # pip/venv debs (to install ansible)
-└── ansible-packages.tar.gz              # ansible wheels (to install ansible)
+│   ├── backups/                         # staged data dumps (stage-dump output)
+│   ├── docker-compose.yml.compute, .env.compute   # remote compute-node config
+│   └── old/                             # archived config
+├── digitaltwins-images-all.tar.gz  6.3G # all platform images (amd64) — RE-FREEZE on any change
+├── airflow-worker.tar.gz           752M # worker image, for remote nodes
+├── alpine.tar                       4M  # alpine image (offline stage-dump/restore + init helpers)
+├── compute/                        171M # remote compute-node deployment staging
+├── docker-29.4.0.tgz                83M # docker static binaries (airgap step2)
+├── docker-compose-linux-x86_64-v5.1.2  # compose plugin (airgap step2)
+├── airgap/                         1.7G # apt-debs, pip-wheels, binaries, charts, observability, versions.txt
+├── ansible-packages.tar.gz          57M # ansible wheels
+└── letsencrypt.tar                  40K # /etc/letsencrypt backup (preserves LE renewal state)
 ```
 
 | Piece | How to (re)build it | Refresh when |
@@ -47,10 +53,13 @@ just in `/etc/letsencrypt`, which the rebuild wipes.
 | `data/*.pem` (+ symlinks) | issue the cert (LE DNS-01 / institutional — a VPN box isn't HTTP-01-reachable), drop in, symlink to `fullchain.pem`/`privkey.pem` | cert renewal (~90 days for LE) |
 | `digitaltwins-images-all.tar.gz` | on a **connected** host: build + `up -d` the stack, then `util/freeze_images.sh` | **submodule bump, any image/dep change, or `PLATFORM_DOMAIN` change** (frontend bakes the Keycloak URL at build time) |
 | `airflow-worker.tar.gz` | `docker save digitaltwins-platform-airflow-worker:latest \| gzip > airflow-worker.tar.gz` | worker image changes |
-| `docker-<ver>.tgz` | `wget https://download.docker.com/linux/static/stable/x86_64/docker-<ver>.tgz` | docker version bump |
-| `docker-compose-linux-x86_64-<ver>` | `wget https://github.com/docker/compose/releases/download/<ver>/docker-compose-linux-x86_64` | compose version bump |
-| `airgap/apt-debs/*.deb` | `apt-get download python3-pip python3-venv python3.12-venv` | rarely |
+| `docker-29.4.0.tgz` | `wget https://download.docker.com/linux/static/stable/x86_64/docker-29.4.0.tgz` | docker version bump |
+| `docker-compose-linux-x86_64-v5.1.2` | `wget https://github.com/docker/compose/releases/download/v5.1.2/docker-compose-linux-x86_64` | compose version bump |
+| `alpine.tar` | `docker pull alpine && docker save alpine > alpine.tar` | rarely — offline helper image for `stage-dump`/`portal-restore` + `minio-logs-init` |
+| `airgap/` | offline package set: `apt-debs/`, `pip-wheels/`, `binaries/`, observability `charts/`, `versions.txt` | rarely |
 | `ansible-packages.tar.gz` | `pip3 download ansible -d ./ansible-packages/ && tar czf ansible-packages.tar.gz ansible-packages/` | rarely |
+| `compute/` + `data/*.compute` | remote compute-node deployment files (staged for the node) | when compute-node config changes |
+| `letsencrypt.tar` | `tar -C /etc -cf letsencrypt.tar letsencrypt` after issuing/renewing a cert | after a cert change — preserves LE renewal state across a VM rebuild |
 
 ### Freeze gotcha (the one that bites)
 `freeze_images.sh` saves **whatever images exist on the build host right now**, so
