@@ -247,6 +247,37 @@ docker compose config | awk '/^  redis:/{f=1} f&&/command:/{print; exit}'  # mer
 docker compose exec airflow-scheduler $CEL inspect active_queues
 ```
 
+## Remote worker missing from the `remote` queue (esp. after a portal rebuild)
+`active_queues` shows only the local `default` worker; the node's worker is
+`Up (unhealthy)` and its log spams `ConnectionError: Error 104 ... Connection reset
+by peer` against the broker. **Work through it portal-side → node-side:**
+
+Portal is ready to accept a remote worker?
+```
+grep -E '^(COMPOSE_FILE|AIRFLOW_VAR_COMPUTE_QUEUE)=' .env      # override in COMPOSE_FILE; queue=remote
+docker compose ps redis                                        # published 0.0.0.0:8005->6379
+docker inspect $(docker compose ps -q redis) --format '{{.Args}}'   # --requirepass present
+sudo ufw status | grep -E '8005|8002|8003|8010|8011'           # allowed TO the node's IP
+ip -4 addr | grep 'inet 10\.'                                  # portal VLAN IP == node's MAIN_VM_IP?
+```
+Node side — config + is the broker actually reachable/authing?
+```
+grep -E '^(WORKER_QUEUES|MAIN_VM_IP|REDIS_PORT|REDIS_PASSWORD)=' .env   # queue=remote, IP+port+pw match portal
+w=$(docker ps -q --filter name=worker)
+# decisive: isolate AUTH vs NETWORK with a direct PING from the node's netns:
+docker exec "$w" python -c "import redis; print(redis.Redis(host='<portal_ip>',port=8005,password='<pw>').ping())"   # -> True = network+auth fine
+docker exec "$w" python -c "import redis; print(redis.Redis(host='<portal_ip>',port=8005).ping())"                  # -> AuthenticationError = really is Redis
+```
+If the direct PING returns `True` but the worker still resets, the worker is
+holding **dead connections to the pre-rebuild broker**. Fix = restart it:
+```
+docker compose restart airflow-worker
+docker logs $(docker ps -q --filter name=worker) | grep -aiE 'connected to redis|ready|queues'  # expect ready + '.> remote'
+```
+Then re-check `active_queues` on the portal — the node should appear as
+`celery@<host>` on `remote`. (If resets RECUR in steady state — not just at
+startup — suspect cross-VLAN idle-reap and add TCP keepalives.)
+
 ## `COMPOSE_FILE` change "isn't taking"
 Precedence gotchas: a shell `export` beats `.env`; non-interactive shells don't
 read `~/.bashrc`.
