@@ -38,7 +38,10 @@ echo "targets  : ${PKGS[*]}"
 echo "outdir   : $OUTDIR"
 
 mkdir -p "$OUTDIR"; cd "$OUTDIR"
-apt-get update
+# Refresh lists if we can, but don't require root — apt-cache/apt-get download
+# work off the existing lists, and this dir is normally user-owned.
+apt-get update 2>/dev/null || sudo apt-get update 2>/dev/null \
+  || echo "note: couldn't refresh apt lists — using existing ones"
 
 # Full recursive dependency closure, real package names only:
 #   apt-cache depends --recurse walks the whole tree; ^[a-z0-9] keeps the
