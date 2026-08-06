@@ -1,59 +1,21 @@
 ---
-# Portal-side override to enable REMOTE COMPUTE: publish Redis on the VLAN and
-# password-protect it so a remote Airflow worker can reach the Celery broker,
-# and switch the portal's Airflow to MinIO (S3) log storage so the UI can read
-# logs produced by a remote worker.
-# Single-box deploys DON'T use this file (Redis stays internal + unauthenticated,
-# and task logs stay on local disk / served logs — no S3 needed).
+# Portal-side override to enable REMOTE COMPUTE.
 #
-# Apply it alongside the base compose, e.g.:
+# The base compose already password-protects Redis and logs to MinIO/S3 (so the
+# Airflow UI can read a remote worker's logs) — those are ALWAYS on now. The only
+# genuinely remote-specific thing left is publishing the Celery broker (Redis)
+# port on the VLAN so a remote worker can reach it. The execution API (8002),
+# Postgres (8003) and MinIO (8011) are already published by the base compose.
+#
+# Apply alongside the base compose (or set REMOTE_COMPUTE=true so gen-env writes
+# it into COMPOSE_FILE in .env):
 #   docker compose -f docker-compose.yml \
 #     -f services/airflow/remote-compute.override.yml up -d
-# (or let airgap_build_step3 include it via a remote-compute flag — TODO).
-#
-# Requires REDIS_PASSWORD in .env (add to .env.template + secrets.env). The base
-# compose's broker URL already picks REDIS_PASSWORD up via ${REDIS_PASSWORD:-},
-# so the portal's own airflow services authenticate once it's set.
 #
 # Then open the firewall to the compute node:
 #   util/ufw_for_remote_compute.sh <compute_vlan_ip>
 
-# --- Remote logging (MinIO/S3) --------------------------------------------
-# A remote worker can't be reached for "served logs" (the portal would have to
-# connect to the worker's container on 8793 by its container hostname — not
-# resolvable across VMs). So both sides use the shared airflow-logs bucket: the
-# remote worker WRITES its task logs there (its own compose sets these), and the
-# portal's apiserver must READ from there — that's what this block turns on. The
-# minio-logs-init service in the base compose creates the bucket.
-# Endpoint is the INTERNAL minio:9000 (same docker network as the portal's
-# airflow services), NOT the VLAN-published port the remote worker uses.
-x-remote-logging: &remote-logging
-  AIRFLOW__LOGGING__REMOTE_LOGGING: 'True'
-  AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: minio_logs
-  AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: s3://airflow-logs
-  AIRFLOW__LOGGING__ENCRYPT_S3_LOGS: 'False'
-  AIRFLOW_CONN_MINIO_LOGS: "aws://${MINIO_SERVER_ACCESS_KEY}:${MINIO_SERVER_SECRET_KEY}@?endpoint_url=http%3A%2F%2Fminio%3A9000"
-
 services:
   redis:
-    command: redis-server --requirepass ${REDIS_PASSWORD:?set REDIS_PASSWORD in secrets.env for remote compute}
-    environment:
-      - REDIS_PASSWORD
     ports:
       - "${REDIS_HOST_PORT:-8005}:6379"
-    healthcheck:
-      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
-
-  # apiserver READS logs for the UI — the one that must know to look in MinIO.
-  airflow-apiserver:
-    environment: *remote-logging
-
-  # scheduler + a (kept) local worker WRITE task logs; include them so a hybrid
-  # deploy — local worker on `default`, remote worker on `remote` — has readable logs for
-  # both. Harmless when the local worker is stopped (all compute remote).
-  airflow-scheduler:
-    environment: *remote-logging
-  airflow-worker:
-    environment: *remote-logging
-  airflow-triggerer:
-    environment: *remote-logging
