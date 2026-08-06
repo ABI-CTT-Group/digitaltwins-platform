@@ -42,8 +42,10 @@ excludes=(
 )
 
 echo "sync-runtime: ${DRY:+[dry-run] }$SRC/  ->  $DEST/"
-# shellcheck disable=SC2086  # $DRY is intentionally word-split (empty = no flag)
-rsync -a --delete ${DRY} "${excludes[@]}" "$SRC/" "$DEST/"
+# In a dry-run, itemize so the operator actually SEES what would change — without
+# it, rsync is silent and the run looks like a no-op even when it isn't.
+# shellcheck disable=SC2086  # $DRY / itemize flag are intentionally word-split (empty = no flag)
+rsync -a --delete ${DRY} ${DRY:+--itemize-changes} "${excludes[@]}" "$SRC/" "$DEST/"
 
 # --- render generated files that are MISSING (never overwrite existing) -------
 render_missing() {
@@ -90,4 +92,9 @@ if [ -z "$DRY" ]; then
   render_missing
 fi
 
-echo "sync-runtime: done.${DRY:+ (dry-run — nothing changed)}"
+if [ -n "$DRY" ]; then
+  echo "sync-runtime: dry-run complete — the itemized lines above are what a real"
+  echo "              run WOULD write (nothing was changed). Empty list = in sync."
+else
+  echo "sync-runtime: done."
+fi
