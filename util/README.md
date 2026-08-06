@@ -679,6 +679,9 @@ cd - && git add services/portal/DigitalTWINS-Portal && git commit -m "chore(port
 
 ## Files in `/mnt/install_src` (reference)
 
+See [`INSTALL-BUNDLE.md`](INSTALL-BUNDLE.md) for how to (re)build and refresh each
+of these, what survives a VM rebuild, and how to dump data onto the volume first.
+
 | File | Purpose |
 |---|---|
 | `clean_src/` | this repo + its 3 submodules (the deployment source). |
