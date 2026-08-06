@@ -361,7 +361,11 @@
   # compute nodes boot identically. `docker compose up -d` reconverges the stack
   # to the compose files (+ COMPOSE_FILE from .env) on every boot; the
   # containers' own restart: policies still handle mid-run crash recovery.
+  # These three need root (write /etc/systemd/system, daemon-reload, enable) —
+  # step3 otherwise runs as ansible_user, so escalate PER-TASK (not play-wide,
+  # which would wrongly run the docker builds above as root).
   - name: Install the platform systemd unit
+    become: true
     ansible.builtin.copy:
       src: "{{ platform_dir }}/digitaltwins-platform.service"
       dest: /etc/systemd/system/digitaltwins-platform.service
@@ -369,12 +373,14 @@
       mode: '0644'
 
   - name: Point the unit's WorkingDirectory at this platform dir
+    become: true
     ansible.builtin.replace:
       path: /etc/systemd/system/digitaltwins-platform.service
       regexp: '^WorkingDirectory=.*'
       replace: "WorkingDirectory={{ platform_dir }}"
 
   - name: Enable + start the platform unit (up -d is a no-op when already up)
+    become: true
     ansible.builtin.systemd:
       name: digitaltwins-platform
       enabled: true
