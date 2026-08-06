@@ -162,3 +162,111 @@ outbound 22 to the node (ON THE PORTAL):
 sudo ufw status verbose                                    # check Default: outgoing
 sudo ufw allow out to <node_vlan_ip> port 22 proto tcp
 ```
+
+---
+
+# Troubleshooting by symptom
+
+Real failures hit on this platform and the commands that made them legible. DB
+access idioms used below (run from the repo dir):
+```bash
+# Platform Postgres (digitaltwins/hapi):
+docker compose exec -T database sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "…"'
+# SEEK MySQL (programmes/projects/…):  note: unset MYSQL_HOST so mysql uses the socket
+docker compose exec -T db sh -c 'unset MYSQL_HOST; mysql -u root -p"$MYSQL_ROOT_PASSWORD" seek -t -e "…"'
+```
+
+## Portal shows "no programmes" / "couldn't load this level" / 504
+Usually **SEEK is still booting** (slow Rails/Puma), often right after a stack
+recreate — NOT a real break. A blanket `docker compose up -d` that bounced SEEK is
+the common trigger (do scoped recreates instead).
+```bash
+docker compose ps                                        # is seek healthy or still starting?
+docker compose logs --tail=50 seek | grep -i "listening" # wait for "Listening on http://0.0.0.0:2000"
+# rule out a DB restart/OOM/too-many-connections underneath:
+docker compose logs --tail=30 database | grep -iE "shutdown|restart|fatal|too many|out of memory|ready to accept"
+```
+Fix: wait for SEEK to finish booting; recreate services scoped, never blanket.
+
+## Assay launches (API returns 200) but nothing appears in Airflow
+`run_assay` swallows a missing-DAG 404 into a 200. The child `workflow_<seek_id>`
+DAG usually **doesn't exist, is paused, or the dags/ folder is empty** (DAGs aren't
+in the bundle).
+```bash
+# 1. map the assay -> the workflow DAG it will trigger
+docker compose exec -T database sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c \
+  "SELECT assay_seek_id, assay_uuid, workflow_seek_id, cohort, ready FROM assay ORDER BY assay_seek_id;"'
+# 2. does workflow_<seek_id> actually exist / parse?
+docker compose exec -T airflow-scheduler airflow dags list
+docker compose exec -T airflow-scheduler airflow dags list-import-errors
+# 3. is it paused / has it ever run?
+docker compose exec -T airflow-scheduler airflow dags details  <dag_id> | grep -i is_paused
+docker compose exec -T airflow-scheduler airflow dags list-runs <dag_id>
+```
+Fix: `sync-dags` the DAG to the box, wait ~1 min for the dag-processor, **un-pause**
+(new DAGs boot paused).
+
+**Marry an assay to where it lives in the SEEK GUI** (programme→project→
+investigation→study) — handy for support:
+```bash
+docker compose exec -T db sh -c 'unset MYSQL_HOST; mysql -u root -p"$MYSQL_ROOT_PASSWORD" seek -t -e "
+ SELECT a.id AS assay_id, a.title AS assay, pr.title AS programme, p.title AS project,
+        i.title AS investigation, s.title AS study
+ FROM assays a
+ LEFT JOIN studies s               ON s.id = a.study_id
+ LEFT JOIN investigations i        ON i.id = s.investigation_id
+ LEFT JOIN investigations_projects ip ON ip.investigation_id = i.id
+ LEFT JOIN projects p              ON p.id = ip.project_id
+ LEFT JOIN programmes pr           ON pr.id = p.programme_id
+ ORDER BY a.id;"' | grep -v "Using a password"
+```
+
+## DAGs "launched" in the GUI but never reach the Airflow dashboard (fresh/rebuilt box)
+Empty dags/ folder, a wrong dag-processor mount, or a dag-processor startup race.
+```bash
+find services/airflow/dags -type f | head            # empty => no DAG files (sync-dags)
+# what the dag-processor SEES vs the host path actually mounted there:
+docker compose exec -T airflow-dag-processor ls -la /opt/airflow/dags
+docker inspect $(docker compose ps -q airflow-dag-processor) \
+  --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{"\n"}}{{end}}' | grep -i dags
+docker compose logs --tail=25 airflow-dag-processor    # parse/startup errors
+```
+
+## Tasks stuck `queued` forever (remote-compute)
+Either no worker serves the target queue, or the **Redis broker auth is
+mismatched** (broker URL carries `REDIS_PASSWORD` but base Redis wasn't started
+with `--requirepass` — the old override-gated bug), often because a stale
+`~/.bashrc` `export COMPOSE_FILE` overrode `.env` and dropped the override.
+```bash
+grep '^COMPOSE_FILE=' .env                             # does it include the override?
+grep -n COMPOSE_FILE ~/.bashrc || echo "(none - good)" # a stale export here overrides .env
+echo "${COMPOSE_FILE:-(unset in shell)}"
+docker inspect $(docker compose ps -q redis) --format '{{.Args}}'   # is --requirepass present?
+docker compose config | awk '/^  redis:/{f=1} f&&/command:/{print; exit}'  # merged redis command
+# then confirm a worker actually serves the queue (see Airflow/Celery section):
+docker compose exec airflow-scheduler $CEL inspect active_queues
+```
+
+## `COMPOSE_FILE` change "isn't taking"
+Precedence gotchas: a shell `export` beats `.env`; non-interactive shells don't
+read `~/.bashrc`.
+```bash
+grep -n COMPOSE_FILE ~/.bashrc            # legacy home for it (now lives in .env)
+bash -lc 'echo COMPOSE_FILE=$COMPOSE_FILE'
+grep '^COMPOSE_FILE=' .env
+```
+
+## `sync-runtime` deleted airflow.cfg / a generated file
+`services/airflow/config/airflow.cfg` is regenerated by airflow-init (`airflow
+config list`), not hand-edited — settings come from `AIRFLOW__*` env vars. It's now
+excluded from sync; if you see it deleted, it regenerates within seconds:
+```bash
+ls -la services/airflow/config/           # airflow.cfg present again?
+docker compose ps | grep -i airflow       # stack still healthy (no restart)?
+```
+
+## Where does task routing even come from?
+```bash
+# any task hardcoding a queue, or reading the compute_queue Variable?
+grep -rnE "queue\s*=|Variable.get\(\"compute_queue\"" --include=*.py services/airflow/dags/
+```
