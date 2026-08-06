@@ -129,12 +129,19 @@ ENV/
 env.bak/
 venv.bak/
 
-# Platform deployment env inputs: copy the *.template files to `env` and
-# `secrets.env`, fill in real values, and never commit the filled files.
-# The templates themselves ARE committed (secrets.env.template would
-# otherwise be caught by *.env.* above).
+# Platform deployment env inputs: copy the *.template files to `env`,
+# `secrets.env`, `.env`, etc., fill in real values, and NEVER commit the
+# filled files — they hold the Fernet key, REDIS_PASSWORD and DB creds.
+# (`.env` and `*.env.*` above already ignore the rendered .env/.env.compute;
+# these anchor the non-dot inputs too.)
 /env
 /secrets.env
+.env.compute
+# The *.template files ARE committed. Explicit un-ignores so they stay
+# tracked even after a `git rm --cached` — otherwise the `.env` / `*.env.*`
+# rules above would silently re-ignore them:
+!.env.template
+!env.template
 !secrets.env.template
 
 # Spyder project settings
