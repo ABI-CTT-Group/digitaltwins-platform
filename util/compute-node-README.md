@@ -88,6 +88,17 @@ Values used below: portal VLAN IP `10.2.0.195`, compute node VLAN IP `10.2.0.14`
    On OpenStack/NeCTAR, also open these to `10.2.0.14` in the **security group**
    (a separate firewall layer below ufw) — `8002` in particular tends to be
    blocked there. Restrict to the node's private IP, never `0.0.0.0/0`.
+
+   > **SSH-hopping to the node to build it.** The node is often only reachable by
+   > jumping through the portal (`ssh -J <portal> ubuntu@10.2.0.14`). If the portal's
+   > ufw is `default deny (outgoing)` (check `sudo ufw status verbose`), that hop is
+   > blocked — allow the outbound SSH on the **portal**:
+   > ```bash
+   > sudo ufw allow out to 10.2.0.14 port 22 proto tcp
+   > ```
+   > (If instead the *node's* ufw denies inbound 22, allow it there:
+   > `sudo ufw allow from <portal_ip> to any port 22 proto tcp`.) The worker-port
+   > script above does **not** open 22 — SSH access is separate.
 3. **Generate the node's `.env`** from the running platform (carries the shared
    Fernet/DB/Redis/MinIO/Keycloak secrets, the ports, and the domain):
    ```bash
