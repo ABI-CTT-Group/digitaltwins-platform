@@ -176,17 +176,38 @@ docker compose exec -T database sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB
 docker compose exec -T db sh -c 'unset MYSQL_HOST; mysql -u root -p"$MYSQL_ROOT_PASSWORD" seek -t -e "…"'
 ```
 
-## Portal shows "no programmes" / "couldn't load this level" / 504
-Usually **SEEK is still booting** (slow Rails/Puma), often right after a stack
-recreate — NOT a real break. A blanket `docker compose up -d` that bounced SEEK is
-the common trigger (do scoped recreates instead).
+## Portal shows "no programmes" / "couldn't load this level" / 502 / 504
+Two very different causes — **always find out which upstream failed first**, don't
+assume SEEK.
+```
+# WHICH upstream 502/504'd? the gateway log names the route + upstream:
+docker compose logs --tail=40 gateway | grep -iE "50[24]|upstream|unreachable|refused"
+```
+
+**(a) SEEK still booting** (slow Rails/Puma), often right after a stack recreate —
+NOT a real break. A blanket `docker compose up -d` that bounced SEEK is the common
+trigger (do scoped recreates instead).
 ```
 docker compose ps                                        # is seek healthy or still starting?
 docker compose logs --tail=50 seek | grep -i "listening" # wait for "Listening on http://0.0.0.0:2000"
-# rule out a DB restart/OOM/too-many-connections underneath:
 docker compose logs --tail=30 database | grep -iE "shutdown|restart|fatal|too many|out of memory|ready to accept"
 ```
-Fix: wait for SEEK to finish booting; recreate services scoped, never blanket.
+Fix: wait for SEEK to boot; recreate services scoped, never blanket.
+
+**(b) 502 on `/api/...` with SEEK up — portal-frontend cached a stale backend IP.**
+`/api/dashboard/programmes` etc. route through `location /` → **portal-frontend**,
+whose *internal* nginx proxies `/api/` to portal-backend via a LITERAL `proxy_pass`
+resolved once at startup. If portal-backend restarts it gets a new Docker IP and the
+frontend keeps dialing the dead one → 502. Tell-tale in the **portal-frontend** log:
+```
+docker compose logs --tail=40 portal-frontend | grep -iE "unreachable|refused|error|502"
+#  -> connect() failed (113: Host is unreachable) ... upstream: "http://<old-ip>:8000/api/..."
+docker inspect $(docker compose ps -q portal-backend) \
+  --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'   # its ACTUAL ip now (differs)
+```
+Fix: `docker compose restart portal-frontend` (re-resolves the backend). A `401` on
+the retest = reaching the backend again (good); `502` = still stale. (Upstream image
+quirk — the frontend doesn't re-resolve on backend IP change like the gateway does.)
 
 ## Assay launches (API returns 200) but nothing appears in Airflow
 `run_assay` swallows a missing-DAG 404 into a 200. The child `workflow_<seek_id>`
