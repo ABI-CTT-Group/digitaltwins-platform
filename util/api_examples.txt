@@ -1,5 +1,7 @@
 #!/bin/bash
-# Examples for using the api to create stuff in SEEK
+# Examples for using the api to create stuff in SEEK.
+# For platform diagnostics (Airflow/Celery queues, docker, TLS, redis, apt),
+# see the companion cookbook: util/diagnostics.md
 
 SEEK_TOKEN_FILE_NAME=${SEEK_TOKEN_FILE_NAME:=~/keys/seek_api_token.txt}
 IP=$(curl -s ifconfig.me)
