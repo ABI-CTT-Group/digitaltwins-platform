@@ -113,24 +113,39 @@ if ! docker exec "$GW" test -d /var/www/certbot 2>/dev/null; then
   exit 1
 fi
 
-# --- local self-test of the challenge path (catches misconfig before LE) -----
+# --- preflight 1: does nginx serve the challenge file? --------------------------
+# Test from INSIDE the gateway (busybox wget) — robust: independent of host
+# port-publish / ufw quirks (a `deny outgoing` box drops the host->bridge
+# docker-proxy hop, which would falsely fail a 127.0.0.1 test even though nginx
+# is fine). wget exit 0 == the token file was fetched (HTTP 200).
 mkdir -p "$WEBROOT/.well-known/acme-challenge"
 TOKEN=".renew-preflight-$$"
 echo "ok" > "$WEBROOT/.well-known/acme-challenge/$TOKEN"
 cleanup_token() { rm -f "$WEBROOT/.well-known/acme-challenge/$TOKEN" 2>/dev/null || true; }
 trap cleanup_token EXIT
-code="$(curl -s -o /dev/null -w '%{http_code}' -H "Host: $PLATFORM_DOMAIN" \
-         "http://127.0.0.1/.well-known/acme-challenge/$TOKEN" || echo 000)"
-cleanup_token; trap - EXIT
-if [ "$code" != 200 ]; then
-  echo "ERROR: local challenge self-test returned HTTP $code (expected 200)." >&2
-  echo "       nginx isn't serving $WEBROOT on :80. Recreate the gateway and check" >&2
-  echo "       the acme-challenge location in services/nginx/conf/ssl/default.conf." >&2
+if ! docker exec "$GW" wget -q -O /dev/null -T 8 \
+      "http://127.0.0.1/.well-known/acme-challenge/$TOKEN" 2>/dev/null; then
+  cleanup_token; trap - EXIT
+  echo "ERROR: the gateway isn't serving the ACME webroot." >&2
+  echo "       Check the acme-challenge location in services/nginx/conf/ssl/default.conf" >&2
+  echo "       and that services/nginx/acme is bind-mounted (docker compose up -d gateway)." >&2
   exit 1
 fi
-echo "preflight     : challenge path served locally (HTTP 200) ✓"
-echo "NOTE: this only tests LOCAL serving — Let's Encrypt must also reach"
-echo "      http://$PLATFORM_DOMAIN/ from the Internet on port 80."
+cleanup_token; trap - EXIT
+echo "preflight     : gateway serves the challenge path ✓"
+
+# --- preflight 2: can WE reach Let's Encrypt? -----------------------------------
+# Issuance POSTs to LE's ACME API, so an airgapped box (ufw deny outgoing) cannot
+# renew even though LE reaches IN on :80. Catch it here with a clear message
+# instead of a confusing failure mid-issuance.
+if ! timeout 8 bash -c 'cat < /dev/null > /dev/tcp/acme-v02.api.letsencrypt.org/443' 2>/dev/null; then
+  echo "ERROR: no outbound to Let's Encrypt (acme-v02.api.letsencrypt.org:443)." >&2
+  echo "       This box looks airgapped/offline. Cert issuance needs OUTBOUND https to LE" >&2
+  echo "       (separate from LE reaching your :80). Restore outbound — util/unairgap.sh — and retry." >&2
+  exit 1
+fi
+echo "preflight     : outbound to Let's Encrypt reachable ✓"
+echo "NOTE: LE must ALSO reach http://$PLATFORM_DOMAIN/ from the Internet on port 80."
 
 # --- issue / renew -----------------------------------------------------------
 CB=(certbot certonly --webroot -w "$WEBROOT" -d "$PLATFORM_DOMAIN"
