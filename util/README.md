@@ -248,14 +248,22 @@ sudo /mnt/install_src/clean_src/digitaltwins-platform/util/airgap.sh
 No Internet, so install pip and Ansible from the bundle on disk:
 
 ```bash
-# pip + venv from the bundled debs
-sudo dpkg -i /mnt/install_src/airgap/apt-debs/*.deb
+# pip + venv (+ certbot, unzip, …) from the bundled debs — installed THROUGH apt
+# against the local repo so deps resolve and CONFIGURE cleanly (no half-configured
+# 'iU' packages). Do NOT `dpkg -i *.deb` — that can't resolve deps and is what
+# left certbot stuck without python3-josepy/python3-acme.
+CS=/mnt/install_src/clean_src/digitaltwins-platform
+sudo "$CS/util/install-apt-debs.sh"
 
 # ansible from the bundled wheels (as your normal user)
 cd ~
 tar xzf /mnt/install_src/ansible-packages.tar.gz
 pip3 install --no-index --find-links ./ansible-packages/ ansible --break-system-packages
 ```
+
+> The deb set is a real local apt repo (a `Packages` index + the full dependency
+> closure). If it's ever incomplete or you add a package, rebuild it on a
+> **connected** noble host with `util/build-apt-debs.sh` (see the bundle table).
 
 **Log out and back in** so `~/.local/bin` (where `ansible-playbook` lands) is on
 your `PATH`.
@@ -692,7 +700,7 @@ of these, what survives a VM rebuild, and how to dump data onto the volume first
 | `airflow-worker.tar.gz` | just the airflow-worker image, for remote compute nodes. |
 | `docker-29.4.0.tgz` | docker static binaries (`wget https://download.docker.com/linux/static/stable/x86_64/docker-29.4.0.tgz`). |
 | `docker-compose-linux-x86_64-v5.1.2` | compose plugin (`wget https://github.com/docker/compose/releases/download/v5.1.2/docker-compose-linux-x86_64`). |
-| `airgap/apt-debs/*.deb` | pip/venv debs (`apt-get download python3-pip python3-venv python3.12-venv`). |
+| `airgap/apt-debs/` | local apt repo: pip/venv/certbot/unzip debs **+ their full dependency closure** + a `Packages` index + `INSTALL.list`. (Re)build on a **connected noble host** with `util/build-apt-debs.sh`; install on the airgapped target with `util/install-apt-debs.sh`. Don't hand-run `apt-get download <names>` — it skips deps and reintroduces the `iU` breakage. |
 | `ansible-packages.tar.gz` | ansible wheels (`pip3 download ansible -d ./ansible-packages/ && tar czf ansible-packages.tar.gz ansible-packages/`). |
 
 ## Observability (separate, optional)
