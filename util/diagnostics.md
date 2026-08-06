@@ -56,6 +56,13 @@ docker compose exec airflow-scheduler airflow dags list
 docker compose exec airflow-scheduler airflow dags list --output table | grep -i paused
 ```
 
+**Un-pause a DAG** (new DAGs boot PAUSED — a paused DAG leaves triggered runs sitting
+in `queued` forever, so this is the fix when an assay "launches" but never runs):
+```
+docker compose exec -T airflow-scheduler airflow dags unpause <dag_id>   # e.g. workflow_38
+docker compose exec -T airflow-scheduler airflow dags pause   <dag_id>   # reverse
+```
+
 **A worker's broker/connection health** (chasing the Redis AUTH / "No host
 supplied" class of failures):
 ```
