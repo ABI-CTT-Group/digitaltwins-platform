@@ -68,14 +68,18 @@ pinned commits:
 
 ```bash
 cd /mnt/install_src/clean_src
-git clone --recursive -b env-config-generation \
+git clone --recursive -b remote-compute \
   https://github.com/ABI-CTT-Group/digitaltwins-platform.git
 ```
 
-> **Branch note:** this currently tracks the `env-config-generation` branch.
-> That work is slated to merge into `main` soon (see
-> `util/MR-env-config-generation.md`) — once it does, drop
-> `-b env-config-generation` and clone `main` instead.
+> **Branch note:** this currently tracks the `remote-compute` branch — it covers
+> both single-box ("worker in docker") and remote-compute deploys, the systemd
+> boot units, and `COMPOSE_FILE`/queue config rendered into `.env`. Slated to
+> merge into `main`; once it does, drop `-b remote-compute` and clone `main`.
+>
+> After any `git pull` in `clean_src`, re-run `git submodule update --init
+> --recursive` — a pull moves the submodule pointers but does **not** check out
+> their new commits.
 
 ---
 
@@ -280,6 +284,11 @@ Fill in the two input files under `/mnt/install_src/data/` (copy the repo's
   export KC_HOSTNAME_STRICT=true
   export KC_HOSTNAME_STRICT_HTTPS=true
   ```
+  It also carries the compute knobs:
+  ```bash
+  REMOTE_COMPUTE=false              # true → also merge remote-compute.override.yml (publish Redis on the VLAN for a remote worker)
+  AIRFLOW_VAR_COMPUTE_QUEUE=default # 'remote' routes workflow DAGs to a remote compute node
+  ```
 - **`data/secrets.env`** — every password/key (this is where "set up all your
   passwords" now happens). Generate strong values with `openssl rand -hex 32`.
 
@@ -334,11 +343,16 @@ This step (all automatic):
 - bootstraps SEEK (admin user, features, API token → written back to
   `secrets.env`, then `.env` re-rendered),
 - precompiles SEEK's assets for the `/seek` path (see note below),
-- brings the whole stack up (`docker compose up -d`).
+- brings the whole stack up (`docker compose up -d`),
+- installs + enables the `digitaltwins-platform.service` systemd unit, so a reboot
+  reconverges the stack automatically (mirrors the compute node's worker unit).
 
-`COMPOSE_FILE` is written into `~/.bashrc`, so **log out/in** (or
-`export COMPOSE_FILE=~/digitaltwins-platform/docker-compose.yml`) before running
-`docker compose` by hand.
+`COMPOSE_FILE` is rendered into `.env` (by `gen-env.sh`, from `REMOTE_COMPUTE`),
+so `docker compose` run from `~/digitaltwins-platform` picks up the right file set
+automatically — no `~/.bashrc` entry and no re-login needed. **Do not export
+`COMPOSE_FILE` in your shell:** a shell value overrides the one in `.env` and will
+silently pin you to base-only (the remote-compute override then never applies). If
+an old deploy left an `export COMPOSE_FILE=…` line in `~/.bashrc`, delete it.
 
 ## 6. Verify
 
@@ -708,3 +722,13 @@ Then `https://${PLATFORM_DOMAIN}/grafana` should work.
 - **Stale service worker after a rebuild.** A browser that used a previous deploy
   on the same domain can cache a PWA service worker and loop on
   `expired_code` at login. Fix: clear site data / use incognito.
+- **A fresh box has no workflow DAGs.** The `workflow_*` DAGs are managed outside
+  the repo (not in the bundle), so a new install comes up with an empty
+  `services/airflow/dags/`. Sync them (`util/sync-dags.sh <src> <this-box>`), give
+  the dag-processor ~a minute to scan, then **un-pause** them (new DAGs boot
+  paused). Until a DAG exists and is un-paused, launching its assay silently
+  no-ops — the API returns 200 but no run ever appears in Airflow.
+- **`REDIS_PASSWORD` is required.** The base compose now always password-protects
+  Redis, so `secrets.env` must set `REDIS_PASSWORD` (an unset/empty value fails
+  fast at `up`). Broker URL and Redis both read it, so they always match — the
+  remote-compute override only adds the VLAN port publish on top.
