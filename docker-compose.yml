@@ -26,6 +26,11 @@ services:
       # Certs live with the only service that reads them. Override SSL_CERT_DIR in
       # .env to point somewhere else (e.g. /etc/letsencrypt/live/<domain>).
       - ${SSL_CERT_DIR:-./services/nginx/certs}:/etc/nginx/certs:ro
+      # ACME HTTP-01 webroot: certbot (util/renew-cert.sh) drops challenge files
+      # here on the host; the port-80 server block serves them so Let's Encrypt
+      # can validate the domain WITHOUT taking the gateway down. Read-only in the
+      # container — only certbot on the host writes.
+      - ./services/nginx/acme:/var/www/certbot:ro
     restart: unless-stopped
     networks:
       - digitaltwins-platform
