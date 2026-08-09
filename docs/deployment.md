@@ -19,36 +19,43 @@ Set up the necessary environment variables and configuration files for all compo
 
 ### 2.1 Main Environment File
 
-First, copy the template `.env` file to create your local `.env`:
+> [!IMPORTANT]
+> `.env` is **generated**, not hand-edited. `.env.template` is now a `${VAR}`
+> template — copying it directly would leave literal `${...}` placeholders. Fill
+> in two small input files and run the generator instead.
 
 ```bash
-cp .env.template .env
+cp env.template env                    # non-secret host config
+cp secrets.env.template secrets.env    # all passwords/keys
 ```
 
-Set the following variables in your new `.env` file:
+Edit `env` for your deployment. For a **local developer setup (localhost, no
+SSL)**, uncomment the localhost block:
 
-- **Public URLs & Keycloak integration**
-  - `PORTAL_BACKEND_HOST`: Your host machine IP address (or domain) for the portal backend. 
-    > [!TIP]
-    > You can find your host IP address by running `curl ifconfig.me` on a Linux terminal.
-  - **Four settings must name the EXACT same public address** (including the `/auth` path) to prevent issuer-mismatch failures:
-    - `KC_HOSTNAME`
-    - `KEYCLOAK_PUBLIC_URL`
-    - `PORTAL_KEYCLOAK_BASE_URL`
-    - `ORTHANC_KEYCLOAK_URL`
+```bash
+export PLATFORM_PROTOCOL=http
+export PLATFORM_DOMAIN=localhost
+export KC_HOSTNAME_STRICT=false
+export KC_HOSTNAME_STRICT_HTTPS=false
+```
 
-- **Workflow Service (Airflow)**
-  - `AIRFLOW_UID`: Your local user ID. Replace `<YOUR_USER_ID>`.
-    > [!TIP]
-    > Run `echo $(id -u)` to find your user ID.
+(For a real deployment, use `https` + your domain instead.) You no longer set the
+Keycloak/auth URLs (`KC_HOSTNAME`, `KEYCLOAK_PUBLIC_URL`, `PORTAL_KEYCLOAK_BASE_URL`,
+`ORTHANC_KEYCLOAK_URL`) by hand — they, plus `AIRFLOW_UID` / `NGINX_MODE` / `SSL`,
+are **derived automatically** from `PLATFORM_PROTOCOL` + `PLATFORM_DOMAIN`, so the
+four auth URLs can never drift out of sync.
 
-- **JupyterHub**
-  - `JUPYTERHUB_CRYPT_KEY`: Replace `<YOUR_JUPYTERHUB_CRYPT_KEY>`.
-    > [!TIP]
-    > Generate a secure random key using the following command:
-    > ```bash
-    > openssl rand -hex 32
-    > ```
+Fill in every value in `secrets.env` (e.g. generate `JUPYTERHUB_CRYPT_KEY` with
+`openssl rand -hex 32`). Then generate `.env`:
+
+```bash
+util/gen-env.sh -e env -s secrets.env     # renders .env; fails loudly on any unset var
+```
+
+> [!NOTE]
+> The full airgap / production install — Ansible playbooks, image bundling,
+> gateway routes, and cross-system data transfer — is documented in
+> [`util/README.md`](../util/README.md).
 
 ### 2.2 SEEK Configuration
 

@@ -5,6 +5,9 @@ services:
   redis:
     networks:
       - digitaltwins-platform
+  minio-logs-init:
+    networks:
+      - digitaltwins-platform
   airflow-apiserver:
     networks:
       - digitaltwins-platform

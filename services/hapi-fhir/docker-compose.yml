@@ -2,7 +2,7 @@ services:
   hapi-fhir:
     image: hapiproject/hapi:latest
     container_name: hapi-fhir
-    restart: on-failure
+    restart: on-failure          # retries until the shared `database` is up (no depends_on needed cross-include)
     ports:
       - "8013:8080"
     networks:
@@ -11,25 +11,13 @@ services:
       - ./application.yaml:/app/config/application.yaml
     environment:
       - SPRING_CONFIG_LOCATION=/app/config/application.yaml
-    depends_on:
-      - hapi-fhir-postgres
-  hapi-fhir-postgres:
-    image: postgres:13-alpine
-    container_name: hapi-fhir-postgres
-    restart: always
-    networks:
-      - digitaltwins-platform
-    environment:
-      POSTGRES_DB: "hapi"
-      POSTGRES_USER: "admin"
-      POSTGRES_PASSWORD: "admin"
-    volumes:
-      - hapi_fhir_postgres:/var/lib/postgresql/data
-
-volumes:
-  hapi_fhir_postgres:
-    driver: local
-    name: ${PROJECT_NAME}_hapi_fhir_postgres
+      # Use the shared platform Postgres (service `database`) instead of a dedicated
+      # postgres:13 container. HAPI connects as the admin superuser; the `hapi` DB is
+      # created by services/postgres/hapi_init.sql. These env vars override the
+      # datasource block in application.yaml (Spring: env wins over file).
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://database:5432/hapi
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-admin}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-admin}
 
 networks:
   digitaltwins-platform:

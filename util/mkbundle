@@ -1,0 +1,32 @@
+#!/bin/bash
+# Create the install_src archive from an install-source directory.
+#
+# Usage: mkbundle [SRC_DIR] [OUT_FILE]
+#   SRC_DIR   directory to archive  (default: $INSTALL_SRC_DIR, else /mnt/install_src)
+#   OUT_FILE  output tarball path   (default: $HOME/install_src.tar.gz)
+#
+# Archives the CONTENTS of SRC_DIR (not the directory itself), excluding .git and
+# the output tarball. Unlike the original, you no longer have to be sitting in the
+# source directory — it tars via `-C`, so run it from anywhere:
+#   mkbundle                         # bundles /mnt/install_src -> ~/install_src.tar.gz
+#   mkbundle /path/to/src            # bundles that dir
+#   mkbundle /path/to/src /tmp/b.tgz # ...to a chosen output
+set -eu
+
+SRC_DIR="${1:-${INSTALL_SRC_DIR:-/mnt/install_src}}"
+OUT_FILE="${2:-$HOME/install_src.tar.gz}"
+
+[ -d "$SRC_DIR" ] || { echo "mkbundle: source dir not found: $SRC_DIR" >&2; exit 1; }
+
+# resolve OUT_FILE to an absolute path so it's unaffected by the tar `-C` below
+mkdir -p "$(dirname "$OUT_FILE")"
+OUT_FILE="$(cd "$(dirname "$OUT_FILE")" && pwd)/$(basename "$OUT_FILE")"
+
+echo "mkbundle: archiving $SRC_DIR -> $OUT_FILE"
+tar -czvf "$OUT_FILE" \
+  --exclude="$(basename "$OUT_FILE")" \
+  --exclude=.git \
+  -C "$SRC_DIR" .
+
+echo "mkbundle: done."
+du -h "$OUT_FILE"
