@@ -68,17 +68,12 @@ pinned commits:
 
 ```bash
 cd /mnt/install_src/clean_src
-git clone --recursive -b remote-compute \
+git clone --recursive \
   https://github.com/ABI-CTT-Group/digitaltwins-platform.git
 ```
 
-> **Branch note:** this currently tracks the `remote-compute` branch — it covers
-> both single-box ("worker in docker") and remote-compute deploys, the systemd
-> boot units, and `COMPOSE_FILE`/queue config rendered into `.env`. Slated to
-> merge into `main`; once it does, drop `-b remote-compute` and clone `main`.
->
-> After any `git pull` in `clean_src`, re-run `git submodule update --init
-> --recursive` — a pull moves the submodule pointers but does **not** check out
+> **After any `git pull` in `clean_src`, re-run `git submodule update --init
+> --recursive`** — a pull moves the submodule pointers but does **not** check out
 > their new commits.
 
 ---
