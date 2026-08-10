@@ -90,6 +90,18 @@ if [ -d "$DATA_DIR" ]; then
   tar -C /etc -cf "$(dirname "$DATA_DIR")/letsencrypt.tar" letsencrypt 2>/dev/null \
     && echo "bundle    : $DATA_DIR/{fullchain,privkey}.pem → $DOMAIN.* ; letsencrypt.tar refreshed ✓" \
     || echo "bundle    : copied to $DATA_DIR (letsencrypt.tar refresh skipped)"
+  # We ran as root (certbot needs it), so these are root-owned — hand them back to
+  # the invoking user ($SUDO_USER; $USER is 'root' after the sudo re-exec) so the
+  # non-root install step can read them.
+  OWNER="${SUDO_USER:-$USER}"
+  if [ -n "$OWNER" ] && [ "$OWNER" != root ]; then
+    OWNER_GRP="$(id -gn "$OWNER" 2>/dev/null || echo "$OWNER")"
+    chown -h "$OWNER:$OWNER_GRP" \
+      "$DATA_DIR/$DOMAIN.fullchain.pem" "$DATA_DIR/$DOMAIN.privkey.pem" \
+      "$DATA_DIR/fullchain.pem" "$DATA_DIR/privkey.pem" 2>/dev/null || true
+    chown "$OWNER:$OWNER_GRP" "$(dirname "$DATA_DIR")/letsencrypt.tar" 2>/dev/null || true
+    echo "owner     : cert files chowned to $OWNER:$OWNER_GRP"
+  fi
 else
   echo "NOTE: $DATA_DIR not found — cert is in $LIVE/. Copy fullchain.pem + privkey.pem into your install data/ dir." >&2
 fi
