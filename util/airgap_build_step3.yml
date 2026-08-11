@@ -240,10 +240,10 @@
     when: not (load_frozen_images | bool)
 
   # --- Airflow init ---------------------------------------------------------
-  # airflow-init's entrypoint migrates the DB, creates the www admin, and fixes
-  # ownership. Our pre-configured `airflow.cfg` (which handles CORS and SSO) is
+  # airflow-init's entrypoint migrates the DB and fixes ownership. 
+  # Our pre-configured `airflow.cfg` (which handles CORS and SSO) is
   # now tracked in git and rsynced over, so no runtime patching is needed here.
-  - name: Initialise Airflow (config, DB migrate, admin user)
+  - name: Initialise Airflow (config, DB migrate)
     ansible.builtin.command:
       cmd: docker compose up airflow-init
       chdir: "{{ platform_dir }}"
