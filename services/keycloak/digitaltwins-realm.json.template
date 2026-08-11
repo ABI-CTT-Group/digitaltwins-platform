@@ -113,6 +113,15 @@
         "attributes": {}
       },
       {
+        "id": "m1n10-adm1n-r0le-1111-111111111111",
+        "name": "consoleAdmin",
+        "description": "MinIO Administrator",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "3f72fea3-8c6f-4111-a313-e87df25955a1",
+        "attributes": {}
+      },
+      {
         "id": "8cd1046b-b978-41b8-a127-c8b303d5efe1",
         "name": "offline_access",
         "description": "${role_offline-access}",
@@ -666,7 +675,9 @@
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
-        "default-roles-digitaltwins"
+        "default-roles-digitaltwins",
+        "consoleAdmin",
+        "airflow_admin"
       ],
       "notBefore": 0,
       "groups": [
@@ -1622,6 +1633,85 @@
       "authenticationFlowBindingOverrides": {},
       "fullScopeAllowed": true,
       "nodeReRegistrationTimeout": -1,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "basic",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "organization",
+        "microprofile-jwt"
+      ]
+    },
+    {
+      "id": "m1n10-c11ent-1111-111111111111",
+      "clientId": "minio",
+      "name": "",
+      "description": "Used to connect MinIO",
+      "rootUrl": "",
+      "adminUrl": "",
+      "baseUrl": "",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "alwaysDisplayInConsole": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${MINIO_KEYCLOAK_CLIENT_SECRET}",
+      "redirectUris": [
+        "${PLATFORM_PROTOCOL}://${PLATFORM_DOMAIN}/minio/oauth_callback"
+      ],
+      "webOrigins": [
+        "${PLATFORM_PROTOCOL}://${PLATFORM_DOMAIN}"
+      ],
+      "notBefore": 0,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "publicClient": false,
+      "frontchannelLogout": true,
+      "protocol": "openid-connect",
+      "attributes": {
+        "realm_client": "false",
+        "oidc.ciba.grant.enabled": "false",
+        "client.secret.creation.time": "1778029262",
+        "backchannel.logout.session.required": "true",
+        "standard.token.exchange.enabled": "false",
+        "frontchannel.logout.session.required": "true",
+        "post.logout.redirect.uris": "+",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "display.on.consent.screen": "false",
+        "backchannel.logout.revoke.offline.tokens": "false"
+      },
+      "authenticationFlowBindingOverrides": {},
+      "fullScopeAllowed": true,
+      "nodeReRegistrationTimeout": -1,
+      "protocolMappers": [
+        {
+          "id": "m1n10-p01icy-mapp3r-11111111",
+          "name": "realm roles to policy claim",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "policy",
+            "jsonType.label": "String"
+          }
+        }
+      ],
       "defaultClientScopes": [
         "web-origins",
         "acr",
