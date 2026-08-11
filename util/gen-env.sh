@@ -69,6 +69,16 @@ fi
 # Host UID owning Airflow's mounted files (override by exporting AIRFLOW_UID).
 : "${AIRFLOW_UID:=$(id -u)}"
 
+# MinIO strictly extracts the backend `token_endpoint` from Keycloak's discovery document.
+# If PLATFORM_DOMAIN is localhost, Keycloak returns `http://localhost/...`, which MinIO's
+# container resolves to itself, causing a Connection Refused error. To fix this locally,
+# we point MinIO to a custom discovery document hosted on the NGINX gateway.
+if [ "${PLATFORM_DOMAIN}" = "localhost" ]; then
+  : "${MINIO_OIDC_CONFIG_URL:=http://gateway/minio-discovery.json}"
+else
+  : "${MINIO_OIDC_CONFIG_URL:=${PLATFORM_PROTOCOL:-http}://${PLATFORM_DOMAIN}/auth/realms/${KEYCLOAK_REALM:-digitaltwins}/.well-known/openid-configuration}"
+fi
+
 # Which compose files the stack merges — base always; add the remote-compute
 # override when this deploy drives a remote worker. Emitted into .env so BOTH the
 # systemd unit (docker compose up -d at boot, from its WorkingDirectory) and

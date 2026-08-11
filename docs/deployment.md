@@ -226,7 +226,7 @@ Once successfully deployed, the following services and default credentials are a
 | **pgAdmin**        | `/pgadmin/` | *Check `.env`* | *Check `.env`* | Database GUI                              |
 | **Keycloak**       | `/auth/` | `admin` | `admin` | IAM Service (Admin Console)               |
 | **REST API**       | `/digitaltwins-api/` | — | — | Docs at `http://{IP}/digitaltwins-api/docs` |
-| **Minio**          | `/minio/` | `minioadmin` | `minioadmin` | Storage Web GUI                           |
+| **Minio**          | `/minio/` | *Via Keycloak* or `minioadmin` | `minioadmin` | Storage Web GUI (SSO via Keycloak `admin`) |
 | **Orthanc 1**      | `/orthanc-1/` | *Via Keycloak* | — | PACS Service 1                            |
 | **Orthanc 2**      | `/orthanc-2/` | *Via Keycloak* | — | PACS Service 2                            |
 | **JupyterHub**     | `/jupyter/` | *Via Keycloak* | — | Notebook Service                          |
