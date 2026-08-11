@@ -111,23 +111,35 @@ cp ./services/seek/ldh-deployment/docker-compose.env.tpl ./services/seek/ldh-dep
 
 ## 4. Initialise Workflow Service (Airflow)
 
-1. Initialize `airflow.cfg` by running the CLI tool:
-   ```bash
-   sudo docker compose run airflow-cli airflow config list
-   ```
-
-2. Enable CORS in Airflow. Edit `./services/airflow/config/airflow.cfg` and update the `[api]` section:
-   ```ini
-   [api]
-   access_control_allow_headers = origin, content-type, accept
-   access_control_allow_methods = POST, GET, OPTIONS, DELETE
-   access_control_allow_origins = 
-   ```
-
-3. Initialize the Airflow database:
+1. Initialize the Airflow database (this runs the necessary database migrations):
    ```bash
    sudo docker compose up airflow-init
    ```
+
+2. **Enable Keycloak SSO for Airflow** (required to log in with your Keycloak account):
+
+   > [!NOTE]
+   > `services/airflow/config/airflow.cfg` is pre-configured with `FabAuthManager` and
+   > `services/airflow/config/webserver_config.py` provides the Keycloak OAuth2 settings.
+   > The steps below only require Keycloak-side role assignment.
+
+   1. Confirm `auth_manager` is set to FabAuthManager in `./services/airflow/config/airflow.cfg`:
+      ```ini
+      auth_manager = airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      ```
+
+   2. Assign the `airflow_admin` realm role to the Keycloak `admin` user:
+      1. Log in to the Keycloak admin console at `http://localhost/auth` (or the port if not behind the gateway) with `admin` / `admin`.
+      2. Navigate to **Manage realm** → `digitaltwins` → **Users** → click `admin`.
+      3. Go to the **Role mapping** tab → **Assign role** → filter by **realm roles** → select `airflow_admin` → **Assign**.
+
+   3. Restart the Airflow API server to pick up the new config:
+      ```bash
+      sudo docker compose restart airflow-apiserver
+      ```
+
+   4. Navigate to `http://localhost/airflow` — you should see a **Sign in with Keycloak** button.
+      Log in with your Keycloak credentials (`admin` / `admin`).
 
 ## 5. Initialise Catalogue Service (SEEK)
 
@@ -210,7 +222,7 @@ Once successfully deployed, the following services and default credentials are a
 |:-------------------|:---------| :--- | :--- |:------------------------------------------|
 | **Portal**         | `/`      | *Via Keycloak* | — | Main entry point                          |
 | **SEEK**           | `/seek/` | *Via Keycloak* or `<Created User>` | `<Created Pass>` | Catalogue Service                         |
-| **Airflow**        | `/airflow/` | `admin` | `admin` | Workflow Management                       |
+| **Airflow**        | `/airflow/` | *Via Keycloak* | — | Workflow Management (SSO via Keycloak `admin`) |
 | **pgAdmin**        | `/pgadmin/` | *Check `.env`* | *Check `.env`* | Database GUI                              |
 | **Keycloak**       | `/auth/` | `admin` | `admin` | IAM Service (Admin Console)               |
 | **REST API**       | `/digitaltwins-api/` | — | — | Docs at `http://{IP}/digitaltwins-api/docs` |
