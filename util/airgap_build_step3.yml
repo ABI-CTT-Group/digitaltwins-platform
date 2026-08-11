@@ -240,14 +240,9 @@
     when: not (load_frozen_images | bool)
 
   # --- Airflow init ---------------------------------------------------------
-  # airflow-init's entrypoint creates airflow.cfg (config list), migrates the
-  # DB, creates the www admin, and fixes ownership. base_url / proxy behaviour
-  # now come from AIRFLOW__API__BASE_URL in .env, so no airflow.cfg patching is
-  # needed here.
-  #
-  # (If cross-origin XHR to /airflow ever needs CORS, set
-  # AIRFLOW__API__ACCESS_CONTROL_ALLOW_* in services/airflow/docker-compose.yml
-  # rather than sed-ing the container-owned airflow.cfg.)
+  # airflow-init's entrypoint migrates the DB, creates the www admin, and fixes
+  # ownership. Our pre-configured `airflow.cfg` (which handles CORS and SSO) is
+  # now tracked in git and rsynced over, so no runtime patching is needed here.
   - name: Initialise Airflow (config, DB migrate, admin user)
     ansible.builtin.command:
       cmd: docker compose up airflow-init

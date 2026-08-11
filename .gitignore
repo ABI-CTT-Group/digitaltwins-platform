@@ -184,6 +184,8 @@ services/keycloak/import/*
 # Airflow config - keep the folder, ignore everything else
 services/airflow/config/*
 !services/airflow/config/.gitkeep
+!services/airflow/config/airflow.cfg
+!services/airflow/config/webserver_config.py
 
 # macOS junk
 .DS_Store
