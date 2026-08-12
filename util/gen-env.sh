@@ -70,14 +70,26 @@ fi
 : "${AIRFLOW_UID:=$(id -u)}"
 
 # MinIO strictly extracts the backend `token_endpoint` from Keycloak's discovery document.
-# If PLATFORM_DOMAIN is localhost, Keycloak returns `http://localhost/...`, which MinIO's
-# container resolves to itself, causing a Connection Refused error. To fix this locally,
-# we point MinIO to a custom discovery document hosted on the NGINX gateway.
-if [ "${PLATFORM_DOMAIN}" = "localhost" ]; then
-  : "${MINIO_OIDC_CONFIG_URL:=http://gateway/minio-discovery.json}"
-else
-  : "${MINIO_OIDC_CONFIG_URL:=${PLATFORM_PROTOCOL:-http}://${PLATFORM_DOMAIN}/auth/realms/${KEYCLOAK_REALM:-digitaltwins}/.well-known/openid-configuration}"
-fi
+# If MinIO container tries to fetch the real Keycloak discovery document over the public IP,
+# it often fails due to hairpin NAT. To fix this for all deployments, we point MinIO to a
+# custom discovery document hosted on the NGINX gateway and dynamically generate it here.
+: "${MINIO_OIDC_CONFIG_URL:=http://gateway/minio-discovery.json}"
+
+cat <<EOF > services/nginx/snippets/minio-discovery.json
+{
+  "issuer": "${PLATFORM_PROTOCOL:-http}://${PLATFORM_DOMAIN}/auth/realms/${KEYCLOAK_REALM:-digitaltwins}",
+  "authorization_endpoint": "${PLATFORM_PROTOCOL:-http}://${PLATFORM_DOMAIN}/auth/realms/${KEYCLOAK_REALM:-digitaltwins}/protocol/openid-connect/auth",
+  "token_endpoint": "http://keycloak:8080/auth/realms/${KEYCLOAK_REALM:-digitaltwins}/protocol/openid-connect/token",
+  "jwks_uri": "http://keycloak:8080/auth/realms/${KEYCLOAK_REALM:-digitaltwins}/protocol/openid-connect/certs",
+  "userinfo_endpoint": "http://keycloak:8080/auth/realms/${KEYCLOAK_REALM:-digitaltwins}/protocol/openid-connect/userinfo",
+  "response_types_supported": ["code", "none", "id_token", "token", "id_token token", "code id_token", "code token", "code id_token token"],
+  "subject_types_supported": ["public", "pairwise"],
+  "id_token_signing_alg_values_supported": ["RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "HS256", "HS384", "HS512", "PS256", "PS384", "PS512", "EdDSA"],
+  "scopes_supported": ["openid", "profile", "email", "address", "phone", "roles", "web-origins", "microprofile-jwt", "acr"],
+  "token_endpoint_auth_methods_supported": ["private_key_jwt", "client_secret_basic", "client_secret_post", "tls_client_auth", "client_secret_jwt"],
+  "claims_supported": ["sub", "iss", "auth_time", "name", "given_name", "family_name", "preferred_username", "email", "acr"]
+}
+EOF
 
 # Which compose files the stack merges — base always; add the remote-compute
 # override when this deploy drives a remote worker. Emitted into .env so BOTH the

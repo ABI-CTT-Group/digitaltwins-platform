@@ -53,6 +53,9 @@ util/gen-env.sh -e env -s secrets.env     # renders .env; fails loudly on any un
 ```
 
 > [!NOTE]
+> Running `gen-env.sh` also dynamically generates `services/nginx/snippets/minio-discovery.json` using your specified `PLATFORM_DOMAIN`. This is required for MinIO SSO to function correctly on remote deployments (circumventing Docker hairpin NAT issues).
+
+> [!NOTE]
 > The full airgap / production install — Ansible playbooks, image bundling,
 > gateway routes, and cross-system data transfer — is documented in
 > [`util/README.md`](../util/README.md).

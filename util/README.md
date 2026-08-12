@@ -342,7 +342,7 @@ ansible-playbook -i "localhost," -c local \
 
 This step (all automatic):
 - rsyncs `clean_src` → `~/digitaltwins-platform` (you do **not** copy code yourself),
-- renders `.env` (`gen-env.sh`) and the Keycloak realm (`gen-realm.sh`),
+- renders `.env` and `services/nginx/snippets/minio-discovery.json` (`gen-env.sh`), and the Keycloak realm (`gen-realm.sh`),
 - installs the gateway TLS cert to `services/nginx/certs/server.{crt,key}`,
 - loads the frozen docker images (**airgap default**) — or, on a connected host,
   add `-e load_frozen_images=false` to **build/pull from source instead** (use
