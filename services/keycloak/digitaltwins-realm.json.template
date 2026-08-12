@@ -810,7 +810,8 @@
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
-        "default-roles-digitaltwins"
+        "default-roles-digitaltwins",
+        "airflow_admin"
       ],
       "notBefore": 0,
       "groups": []
@@ -966,6 +967,7 @@
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
+      "secret": "${ORTHANC_KEYCLOAK_CLIENT_SECRET}",
       "redirectUris": [],
       "webOrigins": [],
       "notBefore": 0,
@@ -974,8 +976,8 @@
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": true,
-      "serviceAccountsEnabled": false,
-      "publicClient": true,
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
       "frontchannelLogout": false,
       "protocol": "openid-connect",
       "attributes": {
