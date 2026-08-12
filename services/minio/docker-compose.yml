@@ -1,6 +1,6 @@
 services:
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: minio/minio:RELEASE.2024-05-10T01-41-38Z
     ports:
       - '8011:9000' #api
       - '8012:9001' # web gui
@@ -16,9 +16,16 @@ services:
       # Tells the Console its public base URL so all static/API/redirect paths get the /minio prefix.
       # Filled from .env (see .env.template). HTTP default is used only when unset.
       - MINIO_BROWSER_REDIRECT_URL=${MINIO_BROWSER_REDIRECT_URL:-http://localhost/minio}
+      - MINIO_IDENTITY_OPENID_ENABLE=on
+      - MINIO_IDENTITY_OPENID_DISPLAY_NAME=Keycloak
+      - MINIO_IDENTITY_OPENID_CONFIG_URL=${MINIO_OIDC_CONFIG_URL}
+      - MINIO_IDENTITY_OPENID_CLIENT_ID=minio
+      - MINIO_IDENTITY_OPENID_CLIENT_SECRET=${MINIO_KEYCLOAK_CLIENT_SECRET}
+      - MINIO_IDENTITY_OPENID_SCOPES=openid,profile,email
+      - MINIO_IDENTITY_OPENID_CLAIM_NAME=policy
     command: server /data --console-address ":9001" --address ":9000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/ready" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,7 +33,7 @@ services:
 
   # MinIO bucket initialization
   minio-init:
-    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    image: minio/mc:RELEASE.2024-05-09T17-04-24Z
     depends_on:
       minio:
         condition: service_healthy

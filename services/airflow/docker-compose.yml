@@ -71,6 +71,7 @@ x-airflow-common:
     # (HTTP 200 index). Direct port access at :8002 works regardless. Must match the gateway
     # location in services/nginx/snippets/platform-routes.conf.
     AIRFLOW__API__BASE_URL: '${AIRFLOW__API__BASE_URL:-http://localhost/airflow}'
+    AIRFLOW__FAB__ENABLE_PROXY_FIX: 'true'
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
     # See https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/check-health.html#scheduler-health-check-server
@@ -83,8 +84,6 @@ x-airflow-common:
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
     DIGITALTWINS_API_BASE_URL: ${DIGITALTWINS_API_BASE_URL}
     DIGITALTWINS_API_PORT: ${DIGITALTWINS_API_PORT}
-    _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME}
-    _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD}
     AIRFLOW_ENDPOINT: ${AIRFLOW_ENDPOINT}
     AIRFLOW_USERNAME: ${AIRFLOW_USERNAME}
     AIRFLOW_PASSWORD: ${AIRFLOW_PASSWORD}
@@ -93,6 +92,8 @@ x-airflow-common:
     KEYCLOAK_REALM: ${KEYCLOAK_REALM:-digitaltwins}
     KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-api}
     KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+    KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL}
+    AIRFLOW_KEYCLOAK_CLIENT_SECRET: ${AIRFLOW_KEYCLOAK_CLIENT_SECRET:?set AIRFLOW_KEYCLOAK_CLIENT_SECRET in secrets.env}
     # MinIO credentials — read from .env so DAGs use the correct secret key
     MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
     MINIO_ACCESS_KEY: ${MINIO_SERVER_ACCESS_KEY:-minioadmin}
@@ -114,6 +115,7 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
+    - ${AIRFLOW_PROJ_DIR:-.}/config/webserver_config.py:/opt/airflow/webserver_config.py:ro
     - ${AIRFLOW_PROJ_DIR:-.}/data:/opt/airflow/data
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
@@ -363,9 +365,7 @@ services:
     environment:
       <<: *airflow-common-env
       _AIRFLOW_DB_MIGRATE: 'true'
-      _AIRFLOW_WWW_USER_CREATE: 'true'
-      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-admin}
-      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-admin}
+      _AIRFLOW_WWW_USER_CREATE: 'false'
       _PIP_ADDITIONAL_REQUIREMENTS: ''
     user: "0:0"
 

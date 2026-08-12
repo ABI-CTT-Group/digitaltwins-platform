@@ -337,7 +337,7 @@ ansible-playbook -i "localhost," -c local \
 
 This step (all automatic):
 - rsyncs `clean_src` → `~/digitaltwins-platform` (you do **not** copy code yourself),
-- renders `.env` (`gen-env.sh`) and the Keycloak realm (`gen-realm.sh`),
+- renders `.env` and `services/nginx/snippets/minio-discovery.json` (`gen-env.sh`), and the Keycloak realm (`gen-realm.sh`),
 - installs the gateway TLS cert to `services/nginx/certs/server.{crt,key}`,
 - loads the frozen docker images (**airgap default**) — or, on a connected host,
   add `-e load_frozen_images=false` to **build/pull from source instead** (use
@@ -383,11 +383,11 @@ instead of stopping nginx from starting. Routes are defined in
 |---|---|:---:|---|
 | `/`                 | `portal-frontend`         | **Yes** — OIDC login (frontend `VITE_KEYCLOAK_*`; backend validates the `api` client). Also carries `/api/`, `/tools/`, `/plugin/<expose>/`. | passthrough |
 | `/seek/`            | `seek:3000`               | **No** — local admin login (`SEEK_ADMIN_PASSWORD`). `omniauth_enabled` is on but no provider is wired; the realm ships a `seek` client for future SSO. | passthrough (`RAILS_RELATIVE_URL_ROOT=/seek`) |
-| `/airflow/`         | `airflow-apiserver:8080`  | **No** — baked FAB admin (`admin`/`admin`). Realm has an `airflow` client, not wired. | passthrough (`AIRFLOW__API__BASE_URL`) |
+| `/airflow/`         | `airflow-apiserver:8080`  | **Yes** — OIDC (`airflow` client in `digitaltwins` realm). | passthrough (`AIRFLOW__API__BASE_URL`) |
 | `/jupyter/`         | `jupyterhub:8000`         | **Yes** — OIDC (GenericOAuthenticator → Keycloak). | passthrough (`c.JupyterHub.base_url=/jupyter/`) |
 | `/auth/`            | `keycloak:8080`           | *is Keycloak* | passthrough (`KC_HTTP_RELATIVE_PATH=/auth`) |
 | `/fhir/`            | `hapi-fhir:8080`          | **No** — open REST API. | passthrough (native `/fhir`) |
-| `/minio/`           | `minio:9001`              | **No** — root creds (`minioadmin`). | rewrite (strips `/minio/`) |
+| `/minio/`           | `minio:9001`              | **Yes** — OIDC (`minio` client in `digitaltwins` realm) or root creds (`minioadmin`). | rewrite (strips `/minio/`) |
 | `/pgadmin/`         | `pgadmin:80`              | **No** — own login (`PGADMIN_DEFAULT_*`). | rewrite (strips `/pgadmin/`) |
 | `/orthanc-1/`       | `orthanc-1:8042`          | **Yes** — `ENABLE_KEYCLOAK=true` (orthanc auth plugin). | rewrite (strips `/orthanc-1/`) |
 | `/orthanc-2/`       | `orthanc-2:8042`          | **Yes** — `ENABLE_KEYCLOAK=true`. | rewrite (strips `/orthanc-2/`) |
