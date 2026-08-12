@@ -370,6 +370,10 @@ production): `admin` (password = your `KEYCLOAK_REALM_ADMIN_PASSWORD`), and the
 plaintext test users `clinician`/`clinician`, `researcher`/`researcher`,
 `test1`/`test1`, `test2`/`test2`.
 
+> **Realm reference:** for every Keycloak client, which `secrets.env` variable
+> each maps to, the realm roles/groups/users, and how they map to each service,
+> see [`../services/keycloak/REALM.md`](../services/keycloak/REALM.md).
+
 ## 7. Gateway proxy routes (reference)
 
 The edge gateway (`services/nginx`) owns all of `80`/`443` and proxies these
