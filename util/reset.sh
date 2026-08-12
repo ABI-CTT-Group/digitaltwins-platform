@@ -86,6 +86,33 @@ compose_down() {  # $1 = dir, $2 = extra flags
   fi
 }
 
+# Resolve a compose project's name from its runtime .env (COMPOSE_PROJECT_NAME),
+# falling back to $2 when the dir/.env is already gone.
+project_name() {  # $1 = runtime dir, $2 = fallback
+  local envf="$1/.env" p=""
+  [ -f "$envf" ] && p="$(sed -n 's/^COMPOSE_PROJECT_NAME=//p' "$envf" | tail -1)"
+  echo "${p:-$2}"
+}
+
+# GUARANTEED teardown of a compose project, independent of COMPOSE_FILE.
+# `docker compose down -v` silently misses volumes when COMPOSE_FILE isn't fully
+# enumerated (e.g. run without the runtime .env), and the leftover *stopped*
+# containers then make `docker system prune --volumes` skip their volumes — which
+# is why DAG runs (Postgres) and logs (airflow-logs bucket in minio) survived a
+# 'bare' reset. Remove the project's containers, named volumes and network by
+# label / name-prefix so nothing can linger. Platform volumes are named
+# ${PROJECT_NAME}_* and ${PROJECT_NAME} == COMPOSE_PROJECT_NAME by design.
+force_project_teardown() {  # $1 = project name
+  local p="$1"
+  [ -n "$p" ] || return 0
+  echo "  force teardown of compose project: $p"
+  run "docker ps -aq --filter 'label=com.docker.compose.project=$p' | xargs -r docker rm -f"
+  run "docker volume ls -q --filter 'label=com.docker.compose.project=$p' | xargs -r docker volume rm"
+  # explicit name: \${PROJECT_NAME}_* volumes may not carry the project label
+  run "docker volume ls -q | grep -E '^${p}_' | xargs -r docker volume rm"
+  run "docker network rm '$p' 2>/dev/null"
+}
+
 # =============================================================================
 # TIER 1 — platform stack + boot units + runtime copy
 # =============================================================================
@@ -102,8 +129,15 @@ run "systemctl daemon-reload"
 
 # 1b. tear the stack down (data volumes + containers + networks). Keep images at
 #     this tier (fast re-install); 'bare' removes them below.
+#     First the graceful compose path, THEN a guaranteed by-label/name sweep so
+#     nothing survives (see force_project_teardown). Resolve project names BEFORE
+#     1c deletes the runtime dirs their .env lives in.
+plat_project="$(project_name "$RUNTIME_DIR" digitaltwins-platform)"
+comp_project="$(project_name "$COMPUTE_DIR"  digitaltwins-compute)"
 compose_down "$RUNTIME_DIR" ""
 compose_down "$COMPUTE_DIR" ""
+force_project_teardown "$plat_project"
+force_project_teardown "$comp_project"
 
 # 1c. delete the runtime repo copy(ies). sync-runtime recreates from clean_src.
 [ -d "$RUNTIME_DIR" ] && run "rm -rf '$RUNTIME_DIR'"
