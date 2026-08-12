@@ -36,6 +36,9 @@ AUTH_TYPE = AUTH_OAUTH
 # Auto-create an Airflow user on first successful Keycloak login.
 AUTH_USER_REGISTRATION = True
 
+# Ensure roles are re-synced on each login (otherwise they stick to AUTH_USER_REGISTRATION_ROLE)
+AUTH_ROLES_SYNC_AT_LOGIN = True
+
 # Default role when no matching realm role is found in the token.
 AUTH_USER_REGISTRATION_ROLE = "Viewer"
 
