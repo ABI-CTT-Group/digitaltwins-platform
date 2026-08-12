@@ -810,7 +810,8 @@
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
-        "default-roles-digitaltwins"
+        "default-roles-digitaltwins",
+        "airflow_admin"
       ],
       "notBefore": 0,
       "groups": []
