@@ -34,8 +34,18 @@ set -euo pipefail
 LEVEL=platform
 DRY=0
 ASSUME_YES=0
-RUNTIME_DIR="${RUNTIME_DIR:-$HOME/digitaltwins-platform}"
-COMPUTE_DIR="${COMPUTE_DIR:-$HOME/digitaltwins-compute}"
+# Resolve the INVOKING user's home. Under `sudo` (whether the user ran
+# `sudo reset.sh` directly, or we re-exec'd ourselves below), $HOME is /root, so
+# defaulting RUNTIME_DIR to $HOME/digitaltwins-platform points the teardown at
+# /root — where there's no compose file — and it silently does nothing. Use
+# SUDO_USER's real home instead.
+_invoker_home="$HOME"
+if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != root ]; then
+  _sudo_home="$(getent passwd "$SUDO_USER" 2>/dev/null | cut -d: -f6)"
+  [ -n "$_sudo_home" ] && _invoker_home="$_sudo_home"
+fi
+RUNTIME_DIR="${RUNTIME_DIR:-$_invoker_home/digitaltwins-platform}"
+COMPUTE_DIR="${COMPUTE_DIR:-$_invoker_home/digitaltwins-compute}"
 BUNDLE="${INSTALL_SRC_DIR:-/mnt/install_src}"
 
 while [ $# -gt 0 ]; do
