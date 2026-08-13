@@ -91,6 +91,10 @@ Notes:
 - **Realtime task logs** for a *running* task are on the **worker's local disk**;
   the `airflow-logs` MinIO bucket only gets them on completion.
 - **Don't casually blanket `up -d`** — SEEK bounce (above).
+- **Platform→SEEK is an admin service-account** (`SEEK_API_TOKEN` minted for SEEK
+  `admin`): the portal sees *all* SEEK data; SEEK's per-item permissions don't
+  gate the platform path — only the SEEK *UI*. Full model + hardening:
+  [`seek-integration.md`](seek-integration.md).
 - **`reset.sh` runs from the bundle copy**, not the runtime it deletes, and
   `--dry-run` first.
 
