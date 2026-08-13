@@ -10,6 +10,11 @@ Config is now **template-driven**: you fill in two small input files
 Keycloak realm for you via `gen-env.sh` / `gen-realm.sh`. You no longer hand-edit
 a `data/.env` or place a `data/digitaltwins-realm.json`.
 
+> **Already installed and iterating?** For the day-to-day loop of getting code
+> changes into a running box — and what each kind of change (Keycloak, secrets,
+> env vars, DAGs, images…) additionally needs — see
+> [`../docs/development.md`](../docs/development.md).
+
 ## Contents
 
 - [Getting the code into `clean_src`](#getting-the-code-into-clean_src)
