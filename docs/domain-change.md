@@ -82,8 +82,8 @@ URIs*): replace `OLD` with `NEW`, Save.
 ```
 KC=$(docker compose ps -q keycloak)
 docker exec "$KC" /opt/keycloak/bin/kcadm.sh config credentials \
-  --server http://localhost:8080 --realm master \
-  --user <admin-user> --password <admin-pass>
+  --server http://localhost:8080/auth --realm master \
+  --user <admin-user> --password <admin-pass>   # /auth = KC_HTTP_RELATIVE_PATH
 # per client: find its id, then update the URIs, e.g. portal-frontend:
 cid=$(docker exec "$KC" /opt/keycloak/bin/kcadm.sh get clients -r digitaltwins \
         -q clientId=portal-frontend --fields id --format csv --noquotes | tail -1)
