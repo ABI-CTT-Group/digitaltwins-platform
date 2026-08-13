@@ -1,4 +1,10 @@
-export type SectionItem = { title: string; herf: string; width: number };
+export type SectionItem = {
+    title: string;
+    herf: string;
+    width: number;
+    /** Blocked while signed out — clicking prompts the user to log in. */
+    requiresAuth?: boolean;
+};
 
 export type SectionConfig = {
     title: string;
@@ -42,7 +48,8 @@ export const sections: SectionConfig[] = [
             {
                 title: 'Computational physiology workflows',
                 herf: 'https://docs.google.com/document/d/1ArbBXdzKCbM_ED5fDBR9yqC2KGp-1Hl7wrrV29ABB1k/edit?tab=t.0#heading=h.c87qz8f8iu38',
-                width: 350
+                width: 350,
+                requiresAuth: true
             }
         ]
     },
@@ -52,12 +59,14 @@ export const sections: SectionConfig[] = [
             {
                 title: 'DigitalTWINS on FHIR',
                 herf: 'https://colab.research.google.com/drive/15c_v9sK4wSF3Rng3j6xk-L6ngfWEEbPq',
-                width: 350
+                width: 350,
+                requiresAuth: true
             },
             {
                 title: 'Clinical Description Annotator',
                 herf: 'https://colab.research.google.com/drive/1rMgA9ycJHyQ1owI-vRyIquIVOU5eAjIF#scrollTo=oAw8vVmP2AWj',
-                width: 350
+                width: 350,
+                requiresAuth: true
             },
             {
                 title: 'Sparc-me',

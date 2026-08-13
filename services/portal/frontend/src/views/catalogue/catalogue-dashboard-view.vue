@@ -15,7 +15,8 @@
       <button
         type="button"
         class="hero"
-        :class="{ 'is-busy': activeHref === hero.herf }"
+        :class="{ 'is-busy': activeHref === hero.herf, 'is-locked': isLocked(hero) }"
+        :aria-disabled="isLocked(hero)"
         @click="navigate(hero)"
       >
         <span class="hero__glow" aria-hidden="true"></span>
@@ -23,7 +24,13 @@
           <v-icon :icon="hero.icon" size="34"></v-icon>
         </span>
         <span class="hero__body">
-          <span class="hero__eyebrow">External · Research catalogue</span>
+          <span class="hero__eyebrow">
+            External · Research catalogue
+            <span v-if="isLocked(hero)" class="hero__lock">
+              <v-icon icon="mdi-lock-outline" size="12"></v-icon>
+              Sign in required
+            </span>
+          </span>
           <span class="hero__title">{{ hero.title }}</span>
           <span class="hero__desc">{{ hero.description }}</span>
         </span>
@@ -75,6 +82,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthGuard } from '@/composables/useAuthGuard';
+import { useAuthStore } from '@/store/auth_store';
 import { SEEK_URL } from '@/config/platform-links';
 
 type CatalogueCard = {
@@ -96,6 +104,8 @@ const hero: CatalogueCard = {
   icon: 'mdi-database-search-outline',
   cta: 'Open SEEK',
   external: true,
+  // empty list = any authenticated user; blocked while signed out
+  requireRoles: [],
 };
 
 const actions: CatalogueCard[] = [
@@ -138,14 +148,20 @@ const actions: CatalogueCard[] = [
 ];
 
 const router = useRouter();
+const authStore = useAuthStore();
 const activeHref = ref<string | null>(null);
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
+const isLocked = (card: CatalogueCard) =>
+  card.requireRoles !== undefined && !authStore.isLoggedIn;
+
 const navigate = async (card: CatalogueCard) => {
+  // An empty requireRoles list still means "must be signed in", so pass it through
+  // as-is — collapsing it to undefined would skip the auth check entirely.
   if (card.requireRoles) {
     const { check } = useAuthGuard();
-    if (!check(card.requireRoles.length ? card.requireRoles : undefined)) return;
+    if (!check(card.requireRoles)) return;
   }
 
   activeHref.value = card.herf;
@@ -283,11 +299,26 @@ const navigate = async (card: CatalogueCard) => {
 }
 .hero__body { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .hero__eyebrow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--text-faint);
+}
+.hero__lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
 }
 .hero__title {
   font-family: 'Fraunces', Georgia, serif;
@@ -320,6 +351,25 @@ const navigate = async (card: CatalogueCard) => {
   box-shadow: 0 12px 30px -10px rgba(95, 214, 232, 0.6);
   transform: translateX(2px);
 }
+
+/* Signed out: the guard blocks navigation and toasts, so the card stays clickable
+   but reads as unavailable */
+.hero.is-locked { cursor: not-allowed; }
+.hero.is-locked .hero__cta {
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+}
+.hero.is-locked:hover {
+  transform: none;
+  border-color: var(--line);
+  box-shadow: none;
+}
+.hero.is-locked:hover .hero__cta {
+  box-shadow: none;
+  transform: none;
+}
+.hero.is-locked:hover .hero__glow { opacity: 0.7; }
 
 /* ---- Action grid ---- */
 .grid {

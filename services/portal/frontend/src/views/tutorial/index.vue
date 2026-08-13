@@ -28,20 +28,29 @@
             v-for="(item, j) in section.items"
             :key="item.title"
             class="doc-card"
-            :class="{ 'is-disabled': !item.herf }"
-            :href="item.herf || undefined"
+            :class="{ 'is-disabled': !item.herf, 'is-locked': isLocked(item) }"
+            :href="isLocked(item) ? undefined : (item.herf || undefined)"
+            :role="isLocked(item) ? 'button' : undefined"
+            :tabindex="isLocked(item) ? 0 : undefined"
+            :aria-disabled="isLocked(item) || undefined"
             target="_blank"
             rel="noopener noreferrer"
             :style="{ '--delay': `${i * 60 + j * 55}ms` }"
+            @click="onCardClick(item, $event)"
+            @keydown.enter="onCardClick(item, $event)"
           >
             <span class="doc-card__icon">
               <v-icon :icon="section.icon" size="22"></v-icon>
             </span>
             <span class="doc-card__body">
               <span class="doc-card__title">{{ item.title }}</span>
-              <span class="doc-card__meta">{{ item.herf ? 'External resource' : 'Link unavailable' }}</span>
+              <span class="doc-card__meta">{{ cardMeta(item) }}</span>
             </span>
-            <v-icon icon="mdi-arrow-top-right" size="18" class="doc-card__arrow"></v-icon>
+            <v-icon
+              :icon="isLocked(item) ? 'mdi-lock-outline' : 'mdi-arrow-top-right'"
+              size="18"
+              class="doc-card__arrow"
+            ></v-icon>
           </a>
         </div>
       </section>
@@ -52,7 +61,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { sections, SectionConfig } from './tutorial.config';
+import { sections, SectionConfig, SectionItem } from './tutorial.config';
+import { useAuthStore } from '@/store/auth_store';
+import { useAuthGuard } from '@/composables/useAuthGuard';
 
 type SectionMeta = { icon: string; accent: string };
 
@@ -76,6 +87,24 @@ const decoratedSections = computed(() =>
     ...(META[s.title] ?? FALLBACK[i % FALLBACK.length]),
   }))
 );
+
+const authStore = useAuthStore();
+const { check } = useAuthGuard();
+
+const isLocked = (item: SectionItem) => Boolean(item.requiresAuth) && !authStore.isLoggedIn;
+
+const cardMeta = (item: SectionItem) => {
+  if (isLocked(item)) return 'Sign in required';
+  return item.herf ? 'External resource' : 'Link unavailable';
+};
+
+// Locked cards stay clickable so the guard can toast the login prompt; they carry no
+// href, so the click can never navigate. `[]` = "signed in, any role".
+const onCardClick = (item: SectionItem, event: Event) => {
+  if (!isLocked(item)) return;
+  event.preventDefault();
+  check([]);
+};
 </script>
 
 <style scoped>
@@ -242,6 +271,21 @@ const decoratedSections = computed(() =>
 .doc-card.is-disabled {
   opacity: 0.45;
   pointer-events: none;
+}
+
+/* Signed out: clickable so the guard can toast the login prompt, but reads as unavailable */
+.doc-card.is-locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.doc-card.is-locked:hover {
+  transform: none;
+  border-color: var(--line);
+  background: var(--surface);
+}
+.doc-card.is-locked:hover .doc-card__arrow {
+  opacity: 0.7;
+  transform: none;
 }
 
 @keyframes rise {
