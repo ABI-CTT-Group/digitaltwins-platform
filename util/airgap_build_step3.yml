@@ -101,6 +101,20 @@
   - name: Reset SSH connection to pick up the docker group from step2
     ansible.builtin.meta: reset_connection
 
+  - name: Check whether operator public keys were provided
+    ansible.builtin.stat:
+      path: "{{ data_dir }}/public_keys"
+    register: pubkeys_src
+
+  # A localhost / developer install has no data/public_keys — skip the SSH-key
+  # provisioning tasks below rather than failing on the missing source dir.
+  # keys_dir itself is still created (the realm backup, further down, writes there).
+  - name: Ensure the keys dir exists
+    ansible.builtin.file:
+      path: "{{ keys_dir }}"
+      state: directory
+      mode: '0700'
+
   - name: Authorise operator SSH keys
     ansible.posix.authorized_key:
       user: "{{ ansible_user }}"
@@ -108,12 +122,14 @@
       key: "{{ lookup('file', item) }}"
     with_fileglob:
       - "{{ data_dir }}/public_keys/*.pub"
+    when: pubkeys_src.stat.exists
 
   - name: Ensure keys/public_keys directory exists
     ansible.builtin.file:
       path: "{{ keys_dir }}/public_keys"
       state: directory
       mode: '0700'
+    when: pubkeys_src.stat.exists
 
   - name: Copy public keys into the keys dir
     ansible.posix.synchronize:
@@ -123,6 +139,7 @@
       rsync_opts:
         - "--include=*.pub"
         - "--exclude=*"
+    when: pubkeys_src.stat.exists
 
   # --- Code --------------------------------------------------------------
   # git pulls proved unreliable on the target, so we rsync the checkout from
