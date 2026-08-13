@@ -31,10 +31,12 @@
 #   set +a
 #   ansible-playbook -i inventory util/airgap_build_step3.yml
 #
-# NOTE: the frozen frontend image bakes the Keycloak URL at build time
-# (VITE_KEYCLOAK_URL build-arg), so images must be frozen for the SAME
-# PLATFORM_DOMAIN this deploys to. Re-freeze on a build host if the domain
-# changes; this playbook does not rebuild images in the airgap.
+# NOTE: the frozen images are domain-portable. The frontend's only Keycloak
+# build-arg is VITE_KEYCLOAK_URL=/auth (a RELATIVE path — keycloak-js resolves it
+# against whatever origin serves the portal), and the other VITE_* args are the
+# realm name + client id, so no PLATFORM_DOMAIN is baked in. A domain change
+# therefore needs a realm re-render (gen-realm.sh) + a matching gateway TLS cert,
+# NOT an image re-freeze. This playbook does not rebuild images in the airgap.
 # ===========================================================================
 
 - name: DigitalTWINS platform deployment (airgap step 3)
