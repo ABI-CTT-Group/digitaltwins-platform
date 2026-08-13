@@ -129,8 +129,8 @@ sudo apt install -y ansible
 Unlike the airgap `pip … --break-system-packages` install (which lands in
 `~/.local/bin` and needs a re-login for PATH), the apt package puts
 `ansible-playbook` on your PATH immediately. If you'd rather deploy **without**
-Ansible, follow [`../docs/deployment.md`](../docs/deployment.md) instead (manual
-`gen-env.sh` → `docker compose build` → `up`).
+Ansible, run the steps the playbook automates by hand: `gen-env.sh` /
+`gen-realm.sh` → `sync-runtime.sh` → `docker compose build` → `up -d`.
 
 Then continue at **step 4** (configure the deployment) and run **step 5** with
 `-e load_frozen_images=false`.
@@ -146,8 +146,8 @@ it's useful for validating the stack off the amd64 servers.
 Two things are always true on arm64:
 
 - **Always build/pull from source — never load the frozen archive.** The bundled
-  `digitaltwins-images-all.tar.gz` is amd64, so run **step 5 with
-  `-e load_frozen_images=false`** (or follow [`../docs/deployment.md`](../docs/deployment.md)).
+  `digitaltwins-images-all.tar.gz` is amd64, so run **step 5, Option B
+  (`-e load_frozen_images=false`)** — build from source.
 - **The amd64-only images run under emulation.** Most images are multi-arch and
   run native arm64, but `ldh` (SEEK), `fairdom/seek-solr`, and
   `orthanc-auth-service` publish **amd64 only**. The compose files already pin
@@ -325,14 +325,20 @@ set +a
 
 ## 5. Deploy the platform (playbook)
 
+Pick **one** of the two invocations below and run it **in its entirety** — never both.
+
+**Option A — airgapped (default):** load the frozen image archive.
+
 ```bash
-# use this if airgapped
 ansible-playbook -i "localhost," -c local \
   /mnt/install_src/clean_src/digitaltwins-platform/util/airgap_build_step3.yml \
   -e "ansible_user=$USER" \
   -e "install_src_dir=/mnt/install_src"
+```
 
-# Use this if rebuilding in a connected environment
+**Option B — connected rebuild:** build/pull images from source instead (e.g. to produce a fresh archive, or on arm64).
+
+```bash
 ansible-playbook -i "localhost," -c local \
   /mnt/install_src/clean_src/digitaltwins-platform/util/airgap_build_step3.yml \
   -e "ansible_user=$USER" \
