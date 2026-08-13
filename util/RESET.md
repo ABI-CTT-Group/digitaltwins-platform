@@ -68,4 +68,4 @@ the cert on a reachable box and drop it into `data/`.
 - **`bare`** → start from the top of [`README.md`](README.md) (step 2 reinstalls docker).
 
 Companion docs: [`README.md`](README.md) (install), [`INSTALL-BUNDLE.md`](INSTALL-BUNDLE.md)
-(the `/mnt/install_src` bundle), [`diagnostics.md`](diagnostics.md).
+(the `/mnt/install_src` bundle), [`diagnostics.md`](../docs/diagnostics.md).
