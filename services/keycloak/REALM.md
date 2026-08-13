@@ -138,7 +138,7 @@ Airflow role re-synced on each login (`AUTH_ROLES_SYNC_AT_LOGIN = True`).
   validates a **local FAB user** — *not* Keycloak. That user is (re)created by
   `_AIRFLOW_WWW_USER_CREATE: 'true'` with password `${AIRFLOW_PASSWORD}`. If it's
   missing, assay launches fail with `invalid credentials` no matter what Keycloak
-  says. See `util/airflow-api-auth-regression.md`.
+  says. See `docs/airflow-api-auth-regression.md`.
 - **Direct-access-grants** are enabled on several clients (`airflow`, `minio`,
   `seek`, `api`, `admin-cli`) so machine/password flows can mint tokens.
 - **Client-secret ↔ service env must match.** Because both sides read the same

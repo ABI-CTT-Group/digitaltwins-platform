@@ -63,7 +63,7 @@ Notes:
 | **New secret** | Add to `secrets.env.template` **and** the real `secrets.env`. If it's rendered into the realm or `.env`, also add it to the `VARS` list **and** the unresolved-check loop in `gen-realm.sh` / `gen-env.sh`. Those scripts **hard-fail** on a missing/blank secret — that's your safety net. |
 | **Keycloak realm** (client, role, user, mapper) | Edit `services/keycloak/digitaltwins-realm.json.template` (see `services/keycloak/REALM.md`) → `gen-realm.sh -e <env> -s <secrets>`. **The import runs first-boot only**, so pick one: (a) apply the same change live via `kcadm`/admin console, or (b) drop the realm and re-import (wipe the Keycloak DB volume → fresh import). |
 | **New compose service / new image dependency** | `sync-runtime` → `up -d --build <svc>`. On a connected host, re-freeze the image archive: `util/freeze_images.sh`. |
-| **TLS cert / domain** | `util/issue-cert.sh` (connected) or follow `util/domain-change.md`. Certs live in `services/nginx/certs/` and are **not** clobbered by sync — replace them explicitly, then `nginx -s reload`. |
+| **TLS cert / domain** | `util/issue-cert.sh` (connected) or follow `docs/domain-change.md`. Certs live in `services/nginx/certs/` and are **not** clobbered by sync — replace them explicitly, then `nginx -s reload`. |
 | **Data** (datasets, buckets, DBs) | Via the portal, or `util/stage-dump.sh` → `util/portal-restore.sh`. Note the DB and MinIO can drift out of sync (the portal can know about a dataset whose objects aren't present). |
 | **Inconsistent / unknown state** | `sudo util/reset.sh [--level platform\|apt\|bare]` then rebuild (`util/README.md`). This is the worst-case reset button. |
 
