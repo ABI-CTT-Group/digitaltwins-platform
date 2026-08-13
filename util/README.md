@@ -584,6 +584,12 @@ SECRETS_FILE=/mnt/install_src/data/secrets.env util/generate-token.sh admin
 util/gen-env.sh -e /mnt/install_src/data/env -s /mnt/install_src/data/secrets.env
 docker compose up -d digitaltwins-api
 
+# 4b. Reset the local SEEK admin password — the restore also brought the source's
+#     user DB (password hashes you can't read), so your SEEK_ADMIN_PASSWORD no
+#     longer applies. (The admin login may differ from 'admin' after a restore.)
+set -a; . /mnt/install_src/data/secrets.env; set +a
+util/set-seek-password.sh admin "$SEEK_ADMIN_PASSWORD"
+
 # 5. DAGs — separate, run from a machine that can ssh to both:
 util/sync-dags.sh <source> <target>
 ```
@@ -600,6 +606,10 @@ util/sync-dags.sh <source> <target>
   migrated plugin fails to start, its build context/image still needs providing.
 - **SEEK API token** must be re-minted (step 4) or the portal's API can't talk
   to SEEK after the restore.
+- **SEEK local login:** the restore replaces SEEK's users, so the local admin
+  password becomes the source's (an unreadable hash). Reset it with
+  `util/set-seek-password.sh admin "$SEEK_ADMIN_PASSWORD"` (step 4b; login may
+  differ from `admin`).
 
 ### How it works & gotchas (for maintainers)
 
