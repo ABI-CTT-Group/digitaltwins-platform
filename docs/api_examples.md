@@ -11,17 +11,28 @@ for the UI-based workflow.
 
 ## Setup
 
-Read the API token (written by `util/generate-token.sh` to
-`~/keys/seek_api_token.txt`) and point at SEEK. These examples hit SEEK
-**directly** on port 8001, not via the `/seek` gateway route:
+Everything comes from the deployment's own config — nothing hardcoded:
+
+- `SEEK_API_TOKEN` lives in the **rendered `.env`** (runtime dir), written there by
+  `util/generate-token.sh`.
+- `PLATFORM_DOMAIN` / `PLATFORM_PROTOCOL` are gen-env **inputs**, so they live in
+  the `data/env` file — not the rendered `.env` (which only has them baked inside
+  derived URLs).
+
+Point the examples at SEEK through the **gateway** (`<protocol>://<domain>/seek`),
+not a direct container port:
 
 ```
-SEEK_TOKEN_FILE_NAME=${SEEK_TOKEN_FILE_NAME:=~/keys/seek_api_token.txt}
-IP=$(curl -s ifconfig.me)
-BASE_API_URL=http://${IP}:8001
+ENV_FILE=${ENV_FILE:-$HOME/digitaltwins-platform/.env}   # rendered platform .env
+DATA_ENV=${DATA_ENV:-/mnt/install_src/data/env}          # gen-env input (domain/protocol)
 
-[[ -f "$SEEK_TOKEN_FILE_NAME" ]] || { echo "No seek token file: $SEEK_TOKEN_FILE_NAME"; exit 1; }
-SEEK_API_TOKEN=$(<"$SEEK_TOKEN_FILE_NAME") || exit 1
+SEEK_API_TOKEN=$(grep -E '^SEEK_API_TOKEN=' "$ENV_FILE" | cut -d= -f2-)
+PLATFORM_PROTOCOL=$(grep -E '^PLATFORM_PROTOCOL=' "$DATA_ENV" | cut -d= -f2-)
+PLATFORM_DOMAIN=$(grep -E '^PLATFORM_DOMAIN='   "$DATA_ENV" | cut -d= -f2-)
+
+BASE_API_URL=${PLATFORM_PROTOCOL}://${PLATFORM_DOMAIN}/seek
+
+[ -n "$SEEK_API_TOKEN" ] || { echo "SEEK_API_TOKEN not found in $ENV_FILE"; exit 1; }
 ```
 
 SEEK's API uses the `Token token=<token>` authorization scheme. (That's SEEK's own
