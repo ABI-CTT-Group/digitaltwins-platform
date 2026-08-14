@@ -1,7 +1,7 @@
 # Diagnostics cookbook
 
 Proven "how do I check X" commands for the platform, grouped by area. Companion to
-[`api_examples.txt`](api_examples.txt) (which is SEEK REST API create/delete examples).
+[`api_examples.md`](api_examples.md) (SEEK REST API create/delete examples).
 
 **Run these from the platform repo dir** (e.g. `~/digitaltwins-platform`) so
 `docker compose` resolves the project + `COMPOSE_FILE` from `.env`. Read-only
