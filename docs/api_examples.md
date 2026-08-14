@@ -103,9 +103,85 @@ curl -X POST $BASE_API_URL/projects \
   --data @$TFILE
 ```
 
-The same pattern extends down the ISA hierarchy — investigations link to projects,
-studies to investigations, assays to studies — each via a `relationships` block
-referencing the parent's id.
+The rest of the ISA hierarchy follows the same shape — each object links to its
+parent via a `relationships` block. Capture each new id with `| jq -r '.data.id'`
+(as shown for the programme) to feed the next level. Note the relationship name and
+cardinality differ per level: project→`programmes` and investigation→`projects` are
+**to-many** (arrays); study→`investigation` and assay→`study` are **to-one**
+(single objects).
+
+## Create an investigation (under a project)
+
+```
+cat > $TFILE <<EOF
+{
+  "data": {
+    "type": "investigations",
+    "attributes": { "title": "Hello Investigation" },
+    "relationships": {
+      "projects": { "data": [ { "id": "$PROJECT_ID", "type": "projects" } ] }
+    }
+  }
+}
+EOF
+
+INVESTIGATION_ID=$(curl -sX POST $BASE_API_URL/investigations \
+  -H "Authorization: Token token=$SEEK_API_TOKEN" \
+  -H "Content-Type: application/json" -H "Accept: application/json" \
+  --data @$TFILE | jq -r '.data.id')
+```
+
+## Create a study (under an investigation)
+
+```
+cat > $TFILE <<EOF
+{
+  "data": {
+    "type": "studies",
+    "attributes": { "title": "Hello Study" },
+    "relationships": {
+      "investigation": { "data": { "id": "$INVESTIGATION_ID", "type": "investigations" } }
+    }
+  }
+}
+EOF
+
+STUDY_ID=$(curl -sX POST $BASE_API_URL/studies \
+  -H "Authorization: Token token=$SEEK_API_TOKEN" \
+  -H "Content-Type: application/json" -H "Accept: application/json" \
+  --data @$TFILE | jq -r '.data.id')
+```
+
+## Create an assay (under a study)
+
+Assays carry two extra requirements beyond a title + parent `study`: an
+**`assay_class`** (`EXP` = experimental, `MOD` = modelling), and — for experimental
+assays — an **assay type** and **technology type** (ontology term URIs). The exact
+required attributes vary by SEEK version, so if a POST 422s, **`GET` an existing
+assay** and mirror its `attributes`/`relationships` (see "Exporting for re-import"
+below).
+
+```
+cat > $TFILE <<EOF
+{
+  "data": {
+    "type": "assays",
+    "attributes": {
+      "title": "Hello Assay",
+      "assay_class": { "key": "EXP" }
+    },
+    "relationships": {
+      "study": { "data": { "id": "$STUDY_ID", "type": "studies" } }
+    }
+  }
+}
+EOF
+
+ASSAY_ID=$(curl -sX POST $BASE_API_URL/assays \
+  -H "Authorization: Token token=$SEEK_API_TOKEN" \
+  -H "Content-Type: application/json" -H "Accept: application/json" \
+  --data @$TFILE | jq -r '.data.id')
+```
 
 ## Delete
 
@@ -122,3 +198,41 @@ curl -X DELETE $BASE_API_URL/programmes/$PROGRAMME_ID \
   -H "Authorization: Token token=$SEEK_API_TOKEN" \
   -H "Accept: application/json"
 ```
+
+## Exporting for re-import (dumping into another environment)
+
+There is **no one-button "dump the whole hierarchy to a re-POSTable file"** in
+SEEK. But the JSON:API **GET** responses are nearly the same shape as the POST
+bodies above, so you can roll your own export→replay:
+
+```
+# The GET shape is close to the POST shape — fetch an item and keep just the
+# fields you'd re-POST (strip server-managed id / links / meta / timestamps):
+curl -s -H "Authorization: Token token=$SEEK_API_TOKEN" -H "Accept: application/json" \
+  $BASE_API_URL/studies/$STUDY_ID | jq '{data: (.data | {type, attributes, relationships})}'
+```
+
+To move content to another environment, walk the hierarchy **top-down**
+(programmes → projects → investigations → studies → assays), and for each item
+GET it, strip the server-managed fields, and POST it into the target — **remapping
+the parent id** to the id the target returned for that parent.
+
+Two caveats decide whether this is worth it vs. a wholesale copy:
+
+- **ID remapping is mandatory.** Ids differ per environment, so every
+  `relationships` reference must be rewritten from the source id to the target's
+  new id as you go. (Keep a source-id → target-id map as you replay.)
+- **These POSTs move metadata only.** The actual data — **data files, samples,
+  SOPs, models** — lives in SEEK's filestore/MinIO, not in these JSON bodies. A
+  metadata replay creates empty shells; the blobs move separately.
+
+So pick the tool for the job:
+
+- **Full environment clone** → `util/stage-dump.sh` → `util/portal-restore.sh`
+  copies SEEK's entire DB **and** filestore in one shot (see `../util/README.md`).
+  DB-level, so it also brings users/tokens — no ID remapping, but not selective.
+- **Selective, API-native metadata migration** → the GET→remap→POST replay above,
+  using this doc's POST bodies as the target shape.
+- **Standards-based** → SEEK can export an Investigation as **ISA-JSON** and some
+  assets as **RO-Crate** (portable archives), but re-import of those is via SEEK's
+  own import, not these simple POSTs.
