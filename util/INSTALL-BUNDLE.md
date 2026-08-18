@@ -26,7 +26,7 @@ just in `/etc/letsencrypt`, which the rebuild wipes.
 
 ```
 /mnt/install_src/                        # (actual contents on abi_portal, 2026-08-06)
-├── clean_src/digitaltwins-platform/     # the code (+ 3 submodules); tracks remote-compute
+├── clean_src/digitaltwins-platform/     # the code (+ 3 submodules); tracks main
 ├── data/
 │   ├── env, secrets.env                 # host config + secrets (rendered → .env)
 │   ├── <domain>.fullchain.pem/.privkey.pem   # per-domain certs (abi1, abi2, test.digitaltwins…)
@@ -48,7 +48,7 @@ just in `/etc/letsencrypt`, which the rebuild wipes.
 
 | Piece | How to (re)build it | Refresh when |
 |---|---|---|
-| `clean_src/…` | `git clone --recursive -b remote-compute …` (or `git pull && git submodule update --init --recursive` in place) | any code/submodule change |
+| `clean_src/…` | `git clone --recursive …` (or `git pull && git submodule update --init --recursive` in place) | any code/submodule change |
 | `data/env`, `data/secrets.env` | copy `env.template` / `secrets.env.template`, fill in | config/secret changes |
 | `data/*.pem` (+ symlinks) | issue the cert (LE DNS-01 / institutional — a VPN box isn't HTTP-01-reachable), drop in, symlink to `fullchain.pem`/`privkey.pem` | cert renewal (~90 days for LE) |
 | `digitaltwins-images-all.tar.gz` | on a **connected** host: build + `up -d` the stack, then `util/freeze_images.sh` | **submodule bump, any image/dep change, or `PLATFORM_DOMAIN` change** (frontend bakes the Keycloak URL at build time) |

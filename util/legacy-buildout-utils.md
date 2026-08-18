@@ -27,7 +27,7 @@ git show main_buildout:buildout/util/<name> > util/<name>   # pull it over
 | `mkbundle` | same name (**generalised** — takes a `SRC_DIR` arg / `$INSTALL_SRC_DIR`, no longer must be run from `/mnt/install_src`) |
 | `get_token`, `get_token2`, `get_token3` | same names (verbatim dev helpers; hardcode the old `test.digitaltwins.auckland.ac.nz` domain + `mp1` creds) |
 | `ufw_for_remote_compute.sh` | same name (verbatim; hardcodes a remote-compute IP + service-port list) |
-| `api_examples.txt` | same name (verbatim reference; SEEK REST API create/delete examples) |
+| `api_examples.txt` | now `docs/api_examples.md` (converted to markdown; SEEK REST API create/delete examples) |
 
 ## Not ported — catalogued here
 

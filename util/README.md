@@ -10,6 +10,11 @@ Config is now **template-driven**: you fill in two small input files
 Keycloak realm for you via `gen-env.sh` / `gen-realm.sh`. You no longer hand-edit
 a `data/.env` or place a `data/digitaltwins-realm.json`.
 
+> **Already installed and iterating?** For the day-to-day loop of getting code
+> changes into a running box — and what each kind of change (Keycloak, secrets,
+> env vars, DAGs, images…) additionally needs — see
+> [`../docs/development.md`](../docs/development.md).
+
 ## Contents
 
 - [Getting the code into `clean_src`](#getting-the-code-into-clean_src)
@@ -68,17 +73,12 @@ pinned commits:
 
 ```bash
 cd /mnt/install_src/clean_src
-git clone --recursive -b remote-compute \
+git clone --recursive \
   https://github.com/ABI-CTT-Group/digitaltwins-platform.git
 ```
 
-> **Branch note:** this currently tracks the `remote-compute` branch — it covers
-> both single-box ("worker in docker") and remote-compute deploys, the systemd
-> boot units, and `COMPOSE_FILE`/queue config rendered into `.env`. Slated to
-> merge into `main`; once it does, drop `-b remote-compute` and clone `main`.
->
-> After any `git pull` in `clean_src`, re-run `git submodule update --init
-> --recursive` — a pull moves the submodule pointers but does **not** check out
+> **After any `git pull` in `clean_src`, re-run `git submodule update --init
+> --recursive`** — a pull moves the submodule pointers but does **not** check out
 > their new commits.
 
 ---
@@ -129,8 +129,8 @@ sudo apt install -y ansible
 Unlike the airgap `pip … --break-system-packages` install (which lands in
 `~/.local/bin` and needs a re-login for PATH), the apt package puts
 `ansible-playbook` on your PATH immediately. If you'd rather deploy **without**
-Ansible, follow [`../docs/deployment.md`](../docs/deployment.md) instead (manual
-`gen-env.sh` → `docker compose build` → `up`).
+Ansible, run the steps the playbook automates by hand: `gen-env.sh` /
+`gen-realm.sh` → `sync-runtime.sh` → `docker compose build` → `up -d`.
 
 Then continue at **step 4** (configure the deployment) and run **step 5** with
 `-e load_frozen_images=false`.
@@ -146,8 +146,8 @@ it's useful for validating the stack off the amd64 servers.
 Two things are always true on arm64:
 
 - **Always build/pull from source — never load the frozen archive.** The bundled
-  `digitaltwins-images-all.tar.gz` is amd64, so run **step 5 with
-  `-e load_frozen_images=false`** (or follow [`../docs/deployment.md`](../docs/deployment.md)).
+  `digitaltwins-images-all.tar.gz` is amd64, so run **step 5, Option B
+  (`-e load_frozen_images=false`)** — build from source.
 - **The amd64-only images run under emulation.** Most images are multi-arch and
   run native arm64, but `ldh` (SEEK), `fairdom/seek-solr`, and
   `orthanc-auth-service` publish **amd64 only**. The compose files already pin
@@ -325,14 +325,20 @@ set +a
 
 ## 5. Deploy the platform (playbook)
 
+Pick **one** of the two invocations below and run it **in its entirety** — never both.
+
+**Option A — airgapped (default):** load the frozen image archive.
+
 ```bash
-# use this if airgapped
 ansible-playbook -i "localhost," -c local \
   /mnt/install_src/clean_src/digitaltwins-platform/util/airgap_build_step3.yml \
   -e "ansible_user=$USER" \
   -e "install_src_dir=/mnt/install_src"
+```
 
-# Use this if rebuilding in a connected environment
+**Option B — connected rebuild:** build/pull images from source instead (e.g. to produce a fresh archive, or on arm64).
+
+```bash
 ansible-playbook -i "localhost," -c local \
   /mnt/install_src/clean_src/digitaltwins-platform/util/airgap_build_step3.yml \
   -e "ansible_user=$USER" \
@@ -374,6 +380,10 @@ Quick smoke test: `/` (portal), `/seek`, `/jupyter`, `/auth`, `/airflow`.
 production): `admin` (password = your `KEYCLOAK_REALM_ADMIN_PASSWORD`), and the
 plaintext test users `clinician`/`clinician`, `researcher`/`researcher`,
 `test1`/`test1`, `test2`/`test2`.
+
+> **Realm reference:** for every Keycloak client, which `secrets.env` variable
+> each maps to, the realm roles/groups/users, and how they map to each service,
+> see [`../services/keycloak/REALM.md`](../services/keycloak/REALM.md).
 
 ## 7. Gateway proxy routes (reference)
 
@@ -574,6 +584,12 @@ SECRETS_FILE=/mnt/install_src/data/secrets.env util/generate-token.sh admin
 util/gen-env.sh -e /mnt/install_src/data/env -s /mnt/install_src/data/secrets.env
 docker compose up -d digitaltwins-api
 
+# 4b. Reset the local SEEK admin password — the restore also brought the source's
+#     user DB (password hashes you can't read), so your SEEK_ADMIN_PASSWORD no
+#     longer applies. (The admin login may differ from 'admin' after a restore.)
+set -a; . /mnt/install_src/data/secrets.env; set +a
+util/set-seek-password.sh admin "$SEEK_ADMIN_PASSWORD"
+
 # 5. DAGs — separate, run from a machine that can ssh to both:
 util/sync-dags.sh <source> <target>
 ```
@@ -590,6 +606,10 @@ util/sync-dags.sh <source> <target>
   migrated plugin fails to start, its build context/image still needs providing.
 - **SEEK API token** must be re-minted (step 4) or the portal's API can't talk
   to SEEK after the restore.
+- **SEEK local login:** the restore replaces SEEK's users, so the local admin
+  password becomes the source's (an unreadable hash). Reset it with
+  `util/set-seek-password.sh admin "$SEEK_ADMIN_PASSWORD"` (step 4b; login may
+  differ from `admin`).
 
 ### How it works & gotchas (for maintainers)
 
