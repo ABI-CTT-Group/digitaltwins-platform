@@ -47,7 +47,9 @@ These efforts are aimed at **supporting an ecosystem** to:
 
 ## Deploying the DigitalTWINS platform
 
-See [docs/deployment.md](docs/deployment.md)
+See [util/README.md](util/README.md) for the full install runbook (connected or
+airgapped), and [docs/development.md](docs/development.md) for ongoing development
+in a shared environment.
 
 ## Populating data
 

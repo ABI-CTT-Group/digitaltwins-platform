@@ -88,6 +88,14 @@ _ROLE_MAP = {
     "airflow_viewer": "Viewer",
 }
 
+# CustomSecurityManager.get_oauth_user_info() sets info["role_keys"] to Airflow
+# role NAMES (the _ROLE_MAP values). But FAB only turns role_keys into roles when
+# AUTH_ROLES_MAPPING is non-empty — otherwise it ignores them and every OAuth
+# user falls back to AUTH_USER_REGISTRATION_ROLE (Viewer). So map each emitted
+# role name to itself; without this, AUTH_ROLES_SYNC_AT_LOGIN has nothing to sync
+# and no Keycloak user (not even airflow_admin) ever becomes an Airflow Admin.
+AUTH_ROLES_MAPPING = {role: [role] for role in set(_ROLE_MAP.values())}
+
 
 class CustomSecurityManager(FabAirflowSecurityManagerOverride):
     """Map Keycloak realm roles into Airflow roles at login time."""

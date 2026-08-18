@@ -31,10 +31,12 @@
 #   set +a
 #   ansible-playbook -i inventory util/airgap_build_step3.yml
 #
-# NOTE: the frozen frontend image bakes the Keycloak URL at build time
-# (VITE_KEYCLOAK_URL build-arg), so images must be frozen for the SAME
-# PLATFORM_DOMAIN this deploys to. Re-freeze on a build host if the domain
-# changes; this playbook does not rebuild images in the airgap.
+# NOTE: the frozen images are domain-portable. The frontend's only Keycloak
+# build-arg is VITE_KEYCLOAK_URL=/auth (a RELATIVE path — keycloak-js resolves it
+# against whatever origin serves the portal), and the other VITE_* args are the
+# realm name + client id, so no PLATFORM_DOMAIN is baked in. A domain change
+# therefore needs a realm re-render (gen-realm.sh) + a matching gateway TLS cert,
+# NOT an image re-freeze. This playbook does not rebuild images in the airgap.
 # ===========================================================================
 
 - name: DigitalTWINS platform deployment (airgap step 3)
@@ -101,6 +103,20 @@
   - name: Reset SSH connection to pick up the docker group from step2
     ansible.builtin.meta: reset_connection
 
+  - name: Check whether operator public keys were provided
+    ansible.builtin.stat:
+      path: "{{ data_dir }}/public_keys"
+    register: pubkeys_src
+
+  # A localhost / developer install has no data/public_keys — skip the SSH-key
+  # provisioning tasks below rather than failing on the missing source dir.
+  # keys_dir itself is still created (the realm backup, further down, writes there).
+  - name: Ensure the keys dir exists
+    ansible.builtin.file:
+      path: "{{ keys_dir }}"
+      state: directory
+      mode: '0700'
+
   - name: Authorise operator SSH keys
     ansible.posix.authorized_key:
       user: "{{ ansible_user }}"
@@ -108,12 +124,14 @@
       key: "{{ lookup('file', item) }}"
     with_fileglob:
       - "{{ data_dir }}/public_keys/*.pub"
+    when: pubkeys_src.stat.exists
 
   - name: Ensure keys/public_keys directory exists
     ansible.builtin.file:
       path: "{{ keys_dir }}/public_keys"
       state: directory
       mode: '0700'
+    when: pubkeys_src.stat.exists
 
   - name: Copy public keys into the keys dir
     ansible.posix.synchronize:
@@ -123,6 +141,7 @@
       rsync_opts:
         - "--include=*.pub"
         - "--exclude=*"
+    when: pubkeys_src.stat.exists
 
   # --- Code --------------------------------------------------------------
   # git pulls proved unreliable on the target, so we rsync the checkout from
