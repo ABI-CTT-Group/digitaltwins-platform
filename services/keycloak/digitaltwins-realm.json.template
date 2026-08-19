@@ -1601,10 +1601,8 @@
       "clientAuthenticatorType": "client-secret",
       "secret": "${SEEK_KEYCLOAK_CLIENT_SECRET}",
       "redirectUris": [
-        "",
-        "http://seek:8001/users/auth/seek/callback",
-        "http://seek:3000/users/auth/seek/callback",
-        "http://localhost:8001/users/auth/seek/callback"
+        "${PLATFORM_PROTOCOL}://${PLATFORM_DOMAIN}/seek/auth/oidc/callback",
+        "http://localhost/seek/auth/oidc/callback"
       ],
       "webOrigins": [
         "*"
@@ -1626,7 +1624,7 @@
         "backchannel.logout.session.required": "true",
         "standard.token.exchange.enabled": "false",
         "frontchannel.logout.session.required": "true",
-        "post.logout.redirect.uris": "+",
+        "post.logout.redirect.uris": "+##${PLATFORM_PROTOCOL}://${PLATFORM_DOMAIN}/seek##${PLATFORM_PROTOCOL}://${PLATFORM_DOMAIN}/seek/##http://localhost/seek##http://localhost/seek/",
         "oauth2.device.authorization.grant.enabled": "false",
         "display.on.consent.screen": "false",
         "use.jwks.url": "false",
