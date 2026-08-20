@@ -11,10 +11,9 @@ for the UI-based workflow.
 
 ## Setup
 
-Everything comes from the deployment's own config — nothing hardcoded:
+Everything comes from the deployment's own config — nothing hardcoded. Since the platform uses Keycloak JWTs for SEEK authentication, you first need to fetch a token from Keycloak.
 
-- `SEEK_API_TOKEN` lives in the **rendered `.env`** (runtime dir), written there by
-  `util/generate-token.sh`.
+- `KEYCLOAK_CLIENT_SECRET` lives in the **rendered `.env`** (runtime dir).
 - `PLATFORM_DOMAIN` / `PLATFORM_PROTOCOL` are gen-env **inputs**, so they live in
   the `data/env` file — not the rendered `.env` (which only has them baked inside
   derived URLs).
@@ -22,28 +21,33 @@ Everything comes from the deployment's own config — nothing hardcoded:
 Point the examples at SEEK through the **gateway** (`<protocol>://<domain>/seek`),
 not a direct container port:
 
-```
+```bash
 ENV_FILE=${ENV_FILE:-$HOME/digitaltwins-platform/.env}   # rendered platform .env
 DATA_ENV=${DATA_ENV:-/mnt/install_src/data/env}          # gen-env input (domain/protocol)
 
-SEEK_API_TOKEN=$(grep -E '^SEEK_API_TOKEN=' "$ENV_FILE" | cut -d= -f2-)
+KEYCLOAK_SECRET=$(grep -E '^KEYCLOAK_CLIENT_SECRET=' "$ENV_FILE" | cut -d= -f2-)
 PLATFORM_PROTOCOL=$(grep -E '^PLATFORM_PROTOCOL=' "$DATA_ENV" | cut -d= -f2-)
 PLATFORM_DOMAIN=$(grep -E '^PLATFORM_DOMAIN='   "$DATA_ENV" | cut -d= -f2-)
 
 BASE_API_URL=${PLATFORM_PROTOCOL}://${PLATFORM_DOMAIN}/seek
 
-[ -n "$SEEK_API_TOKEN" ] || { echo "SEEK_API_TOKEN not found in $ENV_FILE"; exit 1; }
+# Fetch a Keycloak JWT token using the API client
+JWT_TOKEN=$(curl -s -d "client_id=api" \
+  -d "client_secret=$KEYCLOAK_SECRET" \
+  -d "grant_type=client_credentials" \
+  "${PLATFORM_PROTOCOL}://${PLATFORM_DOMAIN}/auth/realms/digitaltwins/protocol/openid-connect/token" \
+  | jq -r .access_token)
+
+[ "$JWT_TOKEN" != "null" ] || { echo "Failed to get JWT_TOKEN"; exit 1; }
 ```
 
-SEEK's API uses the `Token token=<token>` authorization scheme. (That's SEEK's own
-scheme; the platform's `querier.py` uses a `Bearer` header instead — SEEK accepts
-both.)
+SEEK's API uses the `Authorization: Bearer <token>` header for JWT validation.
 
 ## Create a programme
 
 ```
 curl -X POST $BASE_API_URL/programmes \
-  -H "Authorization: Token token=$SEEK_API_TOKEN" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
   -d '{
@@ -61,7 +65,7 @@ Capture the new programme's id for use below:
 
 ```
 PROGRAMME_ID=$(curl -X POST $BASE_API_URL/programmes \
-  -H "Authorization: Token token=$SEEK_API_TOKEN" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
   -d '{
@@ -97,7 +101,7 @@ cat > $TFILE <<EOF
 EOF
 
 curl -X POST $BASE_API_URL/projects \
-  -H "Authorization: Token token=$SEEK_API_TOKEN" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
   --data @$TFILE
@@ -126,7 +130,7 @@ cat > $TFILE <<EOF
 EOF
 
 INVESTIGATION_ID=$(curl -sX POST $BASE_API_URL/investigations \
-  -H "Authorization: Token token=$SEEK_API_TOKEN" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
   -H "Content-Type: application/json" -H "Accept: application/json" \
   --data @$TFILE | jq -r '.data.id')
 ```
@@ -147,7 +151,7 @@ cat > $TFILE <<EOF
 EOF
 
 STUDY_ID=$(curl -sX POST $BASE_API_URL/studies \
-  -H "Authorization: Token token=$SEEK_API_TOKEN" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
   -H "Content-Type: application/json" -H "Accept: application/json" \
   --data @$TFILE | jq -r '.data.id')
 ```
@@ -178,7 +182,7 @@ cat > $TFILE <<EOF
 EOF
 
 ASSAY_ID=$(curl -sX POST $BASE_API_URL/assays \
-  -H "Authorization: Token token=$SEEK_API_TOKEN" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
   -H "Content-Type: application/json" -H "Accept: application/json" \
   --data @$TFILE | jq -r '.data.id')
 ```
@@ -189,13 +193,13 @@ ASSAY_ID=$(curl -sX POST $BASE_API_URL/assays \
 # Delete a project
 PROJECT_ID=1
 curl -X DELETE $BASE_API_URL/projects/$PROJECT_ID \
-  -H "Authorization: Token token=$SEEK_API_TOKEN" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
   -H "Accept: application/json"
 
 # Delete a programme
 PROGRAMME_ID=1
 curl -X DELETE $BASE_API_URL/programmes/$PROGRAMME_ID \
-  -H "Authorization: Token token=$SEEK_API_TOKEN" \
+  -H "Authorization: Bearer $JWT_TOKEN" \
   -H "Accept: application/json"
 ```
 
@@ -208,7 +212,7 @@ bodies above, so you can roll your own export→replay:
 ```
 # The GET shape is close to the POST shape — fetch an item and keep just the
 # fields you'd re-POST (strip server-managed id / links / meta / timestamps):
-curl -s -H "Authorization: Token token=$SEEK_API_TOKEN" -H "Accept: application/json" \
+curl -s -H "Authorization: Bearer $JWT_TOKEN" -H "Accept: application/json" \
   $BASE_API_URL/studies/$STUDY_ID | jq '{data: (.data | {type, attributes, relationships})}'
 ```
 

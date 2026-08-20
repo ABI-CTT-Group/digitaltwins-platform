@@ -13,9 +13,6 @@
 #
 #   util/portal-restore.sh [IN_DIR]        (default /tmp/dtwins-migrate)
 #
-# NOTE (SEEK API token): restoring SEEK's database replaces the target's SEEK
-# users, so the SEEK_API_TOKEN the buildout minted is no longer valid. After
-# this runs, re-mint it and refresh .env (see the printed reminder at the end).
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -147,15 +144,5 @@ cat <<'EOF'
 
 portal-restore: done.
 
-!! ACTION REQUIRED — SEEK API token
-   The restored SEEK database replaced this host's SEEK users, so the
-   SEEK_API_TOKEN in .env is stale and digitaltwins-api can no longer talk to
-   SEEK. Once SEEK is back up, re-mint and refresh .env, e.g.:
 
-     cd ~/digitaltwins-platform
-     SECRETS_FILE=/mnt/install_src/data/secrets.env util/generate-token.sh admin
-     util/gen-env.sh -e /mnt/install_src/data/env -s /mnt/install_src/data/secrets.env
-     docker compose up -d digitaltwins-api
-
-   (Or copy the source's SEEK_API_TOKEN into secrets.env before re-rendering.)
 EOF
