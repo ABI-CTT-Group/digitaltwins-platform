@@ -45,11 +45,7 @@ change via the admin console on a running system).
 - [ ] **Keycloak bootstrap admin** `KC_BOOTSTRAP_ADMIN_PASSWORD` — strong secret.
 - [ ] SEEK is **not** on Keycloak SSO (local-admin login only) — known/accepted;
   ensure its admin password is strong.
-- [ ] **Platform→SEEK uses an admin-scoped token** (`SEEK_API_TOKEN`, minted for
-  the SEEK `admin`), so the portal can read/write *all* SEEK data — SEEK's
-  per-item permissions do **not** gate the platform path. Decide if that's
-  acceptable (or mint a non-admin token), and confirm SEEK's own sharing /
-  anonymous settings gate the `/seek` UI. Full model:
+- **Platform→SEEK uses per-user Keycloak JWTs**: the portal API extracts the user's Keycloak token and forwards it to SEEK, which verifies it cryptographically. Therefore, what a portal user sees is bound by what their associated SEEK user is authorized to see (i.e. SEEK's permissions gate the platform). Full model:
   [`seek-integration.md`](seek-integration.md).
 
 ## 3. Default / baked-in credentials

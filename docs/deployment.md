@@ -178,13 +178,7 @@ Edit `./services/seek/ldh-deployment/docker-compose.env` and replace `<root-pass
    - **Site Settings** (Go to *Server admin > Settings*):
      - set **Site base Hostname** to `http://localhost:8001`.
 
-4. **Generate API Token**:
-   1. In the SEEK UI, navigate to **My Profile > Actions > API Tokens > New API Token**.
-   2. Provide a title and create the token.
-   3. Copy and save the generated API token.
-   4. Update the `<YOUR_SEEK_API_TOKEN>` placeholder in your `.env` file with the copied API token.
-
-5. **Enable "Git" Support (Command Line)**:
+4. **Enable "Git" Support (Command Line)**:
    1. Enter the SEEK container:
       ```bash
       sudo docker exec -it <container_name> bash
