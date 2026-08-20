@@ -175,15 +175,6 @@
   # value. Confirmed: Compose reads COMPOSE_FILE from the auto-loaded .env.
 
   # --- Render config from templates ----------------------------------------
-  # SEEK_API_TOKEN is only known after SEEK is up, but .env.template references
-  # it and gen-env.sh fails on unset vars — so seed a placeholder for the first
-  # render. generate-token.sh writes the real value back and we re-render below.
-  - name: Seed a placeholder SEEK_API_TOKEN if the secrets file has none yet
-    ansible.builtin.lineinfile:
-      path: "{{ secrets_file }}"
-      regexp: '^SEEK_API_TOKEN='
-      line: 'SEEK_API_TOKEN=PLACEHOLDER_REPLACED_AFTER_SEEK_STARTS'
-    when: lookup('env', 'SEEK_API_TOKEN') | length == 0
 
   - name: Render .env from .env.template
     ansible.builtin.command:
@@ -308,19 +299,7 @@
       SEEK_SITE_BASE_URL: "{{ platform_protocol }}://{{ platform_domain }}/seek"
     changed_when: true
 
-  - name: Mint a SEEK API token and write it back to secrets.env
-    ansible.builtin.command:
-      cmd: "./util/generate-token.sh admin"
-      chdir: "{{ platform_dir }}"
-    environment:
-      SECRETS_FILE: "{{ secrets_file }}"
-    changed_when: true
 
-  - name: Re-render .env now that secrets.env holds the real SEEK_API_TOKEN
-    ansible.builtin.command:
-      cmd: "./util/gen-env.sh -e {{ env_file }} -s {{ secrets_file }}"
-      chdir: "{{ platform_dir }}"
-    changed_when: true
 
   - name: Bring the stack down before the final launch
     ansible.builtin.command:
