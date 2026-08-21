@@ -99,6 +99,12 @@ services:
         {
           "orthanc-auth-user": "${ORTHANC_AUTH_SERVICE_PASSWORD}"
         }
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
     networks:
       - digitaltwins-platform
@@ -123,6 +129,12 @@ services:
         {
           "orthanc-auth-user": "${ORTHANC_AUTH_SERVICE_PASSWORD}"
         }
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
     networks:
       - digitaltwins-platform

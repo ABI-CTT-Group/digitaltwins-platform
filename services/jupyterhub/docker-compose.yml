@@ -37,6 +37,12 @@ services:
       - DOCKER_MEM_LIMIT=8G
       - DOCKER_CPU_LIMIT=4
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/jupyter/hub/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     networks:
       - digitaltwins-platform
     extra_hosts:
