@@ -31,10 +31,9 @@ c.GenericOAuthenticator.authorize_url = f'{_base_public}/auth'
 c.GenericOAuthenticator.token_url = f'{_base_internal}/token'
 c.GenericOAuthenticator.userdata_url = f'{_base_internal}/userinfo'
 
-# Declared in .env, but docker-compose.yml does not forward it — so the default here is
-# what actually runs, and the .env value is ignored.
+# Client ID keeps a local default; client secret must be injected via environment.
 c.GenericOAuthenticator.client_id = os.environ.get('JUPYTERHUB_CLIENT_ID', 'jupyterhub')
-c.GenericOAuthenticator.client_secret = os.environ.get('JUPYTERHUB_CLIENT_SECRET', 'jupyterhub-secret')
+c.GenericOAuthenticator.client_secret = os.environ['JUPYTERHUB_CLIENT_SECRET']
 
 # Browser-facing base URL of JupyterHub itself — the gateway's /jupyter route.
 # Every URL a browser is sent back to (the OAuth callback, the post-logout landing) has
