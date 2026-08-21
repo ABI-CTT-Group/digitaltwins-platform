@@ -21,7 +21,7 @@ services:
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
       # Keycloak OIDC client credentials.
       - JUPYTERHUB_CLIENT_ID=${JUPYTERHUB_CLIENT_ID:-jupyterhub}
-      - JUPYTERHUB_CLIENT_SECRET=${JUPYTERHUB_CLIENT_SECRET:-jupyterhub-secret}
+      - JUPYTERHUB_CLIENT_SECRET=${JUPYTERHUB_CLIENT_SECRET:?JUPYTERHUB_CLIENT_SECRET is required}
       # --- JupyterHub ---
       # Browser-facing base URL (must match gateway route and Keycloak redirectUris).
       - JUPYTERHUB_PUBLIC_URL=${JUPYTERHUB_PUBLIC_URL:-http://localhost/jupyter}
