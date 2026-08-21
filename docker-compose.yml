@@ -31,6 +31,12 @@ services:
       # can validate the domain WITHOUT taking the gateway down. Read-only in the
       # container — only certbot on the host writes.
       - ./services/nginx/acme:/var/www/certbot:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
     networks:
       - digitaltwins-platform

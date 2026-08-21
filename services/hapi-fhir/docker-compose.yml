@@ -9,6 +9,13 @@ services:
       - digitaltwins-platform
     volumes:
       - ./application.yaml:/app/config/application.yaml
+      - ./HealthCheck.class:/app/HealthCheck.class:ro
+    healthcheck:
+      test: ["CMD", "java", "-cp", "/app", "HealthCheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     environment:
       - SPRING_CONFIG_LOCATION=/app/config/application.yaml
       # Use the shared platform Postgres (service `database`) instead of a dedicated
