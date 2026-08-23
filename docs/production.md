@@ -18,7 +18,6 @@ gateway routes are admin-only or redundant and should not hang off the public
 edge. Edit `services/nginx/snippets/platform-routes.conf`, then
 `docker exec ${PROJECT_NAME}-gateway nginx -t && nginx -s reload` (no rebuild).
 
-- [ ] **Remove `/pgadmin/`** — a database admin GUI must never sit at the edge.
 - [ ] **Remove `/fhir/`** — HAPI is served **unauthenticated**; an open
   read/write clinical-data API at the edge is a real exposure. Nothing app-side
   uses it (the backend talks to `hapi-fhir:8080` internally).
@@ -26,7 +25,7 @@ edge. Edit `services/nginx/snippets/platform-routes.conf`, then
   behind default creds. No app path uses it; there is already no edge route to
   MinIO's S3 API (9000).
 - [ ] Admins reach these via SSH tunnel instead, e.g.
-  `ssh -L 5050:pgadmin:80 -L 9001:minio:9001 -L 8080:hapi-fhir:8080 <host>`.
+  `ssh -L 9001:minio:9001 -L 8080:hapi-fhir:8080 <host>`.
 - [ ] **`/airflow/`** — reachable at the edge with baked-in `admin/admin` (see §3).
   Decide whether Airflow should be edge-exposed at all, or tunnel-only.
 
@@ -57,7 +56,6 @@ Set every one of these to a strong value in `secrets.env` (never leave a
   `AIRFLOW_PASSWORD` in `services/airflow/docker-compose.yml` / `.env`).
 - [ ] **MinIO root** — `MINIO_ROOT_PASSWORD` / `MINIO_SERVER_SECRET_KEY` (compose
   falls back to `minioadmin`).
-- [ ] **pgAdmin** — `PGADMIN_DEFAULT_PASSWORD` (`services/postgres/docker-compose.yml`).
 - [ ] **Postgres** superuser — `POSTGRES_PASSWORD` (shared DB, user `admin`).
 - [ ] **JupyterHub** — `JUPYTERHUB_CRYPT_KEY` (compose ships a hardcoded default).
 - [ ] **Orthanc** — `ORTHANC_AUTH_SECRET_KEY`, `ORTHANC_AUTH_SERVICE_PASSWORD`,

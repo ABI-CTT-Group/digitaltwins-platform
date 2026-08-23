@@ -403,7 +403,6 @@ instead of stopping nginx from starting. Routes are defined in
 | `/auth/`            | `keycloak:8080`           | *is Keycloak* | passthrough (`KC_HTTP_RELATIVE_PATH=/auth`) |
 | `/fhir/`            | `hapi-fhir:8080`          | **No** — open REST API. | passthrough (native `/fhir`) |
 | `/minio/`           | `minio:9001`              | **Yes** — OIDC (`minio` client in `digitaltwins` realm) or root creds (`minioadmin`). | rewrite (strips `/minio/`) |
-| `/pgadmin/`         | `pgadmin:80`              | **No** — own login (`PGADMIN_DEFAULT_*`). | rewrite (strips `/pgadmin/`) |
 | `/orthanc-1/`       | `orthanc-1:8042`          | **Yes** — `ENABLE_KEYCLOAK=true` (orthanc auth plugin). | rewrite (strips `/orthanc-1/`) |
 | `/orthanc-2/`       | `orthanc-2:8042`          | **Yes** — `ENABLE_KEYCLOAK=true`. | rewrite (strips `/orthanc-2/`) |
 | `/digitaltwins-api/`| `digitaltwins-api:8000`   | **Yes** — validates Keycloak tokens (resource server, `api` client). | rewrite (strips `/digitaltwins-api/`) |
