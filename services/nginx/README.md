@@ -25,10 +25,9 @@ keeps serving the old one.
 Edit `conf/ssl/default.conf` — cert paths and `server_name` are written as plain
 literals precisely so you can edit them. Then reload as above.
 
-Certificates go in **`certs/`** (this directory). That is the default `SSL_CERT_DIR`
-in the root `.env`; point it elsewhere for a real deployment, e.g.
-`/etc/letsencrypt/live/<domain>`. The gateway is the only service that reads them —
-the portal no longer terminates TLS at all.
+Certificates go in **`certs/`** (this directory). The gateway mounts this directory
+directly as `/etc/nginx/certs` and is the only service that reads the certs — the
+portal no longer terminates TLS at all.
 
 ```
 services/nginx/certs/
@@ -70,7 +69,7 @@ services/nginx/
 │   ├── http-level.conf       # resolver + map (http{} context — NOT locations)
 │   ├── platform-routes.conf  # ← the file you will edit most
 │   └── portal-fallback.conf  # location / → portal-frontend. Read before touching.
-└── certs/                    # TLS certs (gitignored). Default SSL_CERT_DIR.
+└── certs/                    # TLS certs (gitignored).
 ```
 
 `conf/http` and `conf/ssl` are **only server shells**. Both `include` the *same*
