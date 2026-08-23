@@ -146,7 +146,7 @@ util/sync-runtime.sh -n
 
 **Key deploy values as rendered into `.env`:**
 ```
-grep -E '^(PLATFORM_DOMAIN|SSL|NGINX_MODE|SSL_CERT_DIR|REMOTE_COMPUTE|AIRFLOW_VAR_COMPUTE_QUEUE)=' .env
+grep -E '^(PLATFORM_DOMAIN|SSL|NGINX_MODE|REMOTE_COMPUTE|AIRFLOW_VAR_COMPUTE_QUEUE)=' .env
 ```
 
 **Do all the secrets in `secrets.env` exist in the template?** (keys only — no

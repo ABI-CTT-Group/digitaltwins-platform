@@ -11,35 +11,9 @@ services:
   #
   # No image rebuild, no restart. See services/nginx/README.md.
   gateway:
-    # nginx 1.30.3-alpine — the current stable release, pinned to an exact version.
-    image: nginx:1.30.3-alpine
-    container_name: ${PROJECT_NAME}-gateway
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      # NGINX_MODE (root .env) selects the server shell: `http` or `ssl`. Docker picks
-      # the directory — that is what replaced the if-statement in the portal's old
-      # entry.sh. The routes themselves are shared by both shells via snippets/.
-      - ./services/nginx/conf/${NGINX_MODE:-http}:/etc/nginx/conf.d:ro
-      - ./services/nginx/snippets:/etc/nginx/snippets:ro
-      # Certs live with the only service that reads them. Override SSL_CERT_DIR in
-      # .env to point somewhere else (e.g. /etc/letsencrypt/live/<domain>).
-      - ${SSL_CERT_DIR:-./services/nginx/certs}:/etc/nginx/certs:ro
-      # ACME HTTP-01 webroot: certbot (util/renew-cert.sh) drops challenge files
-      # here on the host; the port-80 server block serves them so Let's Encrypt
-      # can validate the domain WITHOUT taking the gateway down. Read-only in the
-      # container — only certbot on the host writes.
-      - ./services/nginx/acme:/var/www/certbot:ro
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    restart: unless-stopped
-    networks:
-      - digitaltwins-platform
+    extends:
+      file: ./services/nginx/docker-compose.yml
+      service: gateway
 
   portal-backend:
     extends:
