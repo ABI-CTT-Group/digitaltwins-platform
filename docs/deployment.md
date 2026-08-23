@@ -220,7 +220,6 @@ Once successfully deployed, the following services and default credentials are a
 | **Portal**         | `/`      | *Via Keycloak* | — | Main entry point                          |
 | **SEEK**           | `/seek/` | *Via Keycloak* or `<Created User>` | `<Created Pass>` | Catalogue Service                         |
 | **Airflow**        | `/airflow/` | *Via Keycloak* | — | Workflow Management (SSO via Keycloak `admin`) |
-| **pgAdmin**        | `/pgadmin/` | *Check `.env`* | *Check `.env`* | Database GUI                              |
 | **Keycloak**       | `/auth/` | `admin` | `admin` | IAM Service (Admin Console)               |
 | **REST API**       | `/digitaltwins-api/` | — | — | Docs at `http://{IP}/digitaltwins-api/docs` |
 | **Minio**          | `/minio/` | *Via Keycloak* or `minioadmin` | `minioadmin` | Storage Web GUI (SSO via Keycloak `admin`) |
@@ -228,4 +227,4 @@ Once successfully deployed, the following services and default credentials are a
 | **Orthanc 2**      | `/orthanc-2/` | *Via Keycloak* | — | PACS Service 2                            |
 | **JupyterHub**     | `/jupyter/` | *Via Keycloak* | — | Notebook Service                          |
 | **HAPI FHIR**      | `/fhir/` | — | — | EHR Service REST API                      |
-| **Postgres**       | `N/A`    | — | — | Internal Database (Connect via pgAdmin)   |
+| **Postgres**       | `N/A`    | — | — | Internal database (optional pgAdmin runs separately via `services/postgres/docker-compose.yml`) |
