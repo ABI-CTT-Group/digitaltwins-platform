@@ -45,9 +45,6 @@ services:
     extends:
       file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
       service: portal-backend
-    restart: unless-stopped
-    networks:
-      - digitaltwins-platform
   # No host ports: the portal's base compose deliberately publishes none, so 80/443
   # stay free for the gateway above. (Its docker-compose.override.yml publishes 80 for
   # standalone dev, and `extends` reads only the file it names — so we never see it.)
@@ -56,24 +53,15 @@ services:
     extends:
       file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
       service: portal-frontend
-    restart: unless-stopped
-    networks:
-      - digitaltwins-platform
   hapi-fhir:
     extends:
       file: ./services/hapi-fhir/docker-compose.yml
       service: hapi-fhir
-    restart: unless-stopped
-    networks:
-      - digitaltwins-platform
   # postgres
   database:
     extends:
       file: ./services/postgres/docker-compose.yml
       service: database
-    restart: unless-stopped
-    networks:
-      - digitaltwins-platform
 include:
   # to run only a specific included project with the root .env: sudo docker compose -f services/<service_name>/docker-compose.yml --env-file ./.env up
 
