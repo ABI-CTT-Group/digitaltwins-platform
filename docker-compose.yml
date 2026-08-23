@@ -66,6 +66,14 @@ services:
     restart: unless-stopped
     networks:
       - digitaltwins-platform
+  # postgres
+  database:
+    extends:
+      file: ./services/postgres/docker-compose.yml
+      service: database
+    restart: unless-stopped
+    networks:
+      - digitaltwins-platform
 include:
   # to run only a specific included project with the root .env: sudo docker compose -f services/<service_name>/docker-compose.yml --env-file ./.env up
 
@@ -73,10 +81,6 @@ include:
   - path:
       - services/keycloak/docker-compose.yml
     project_directory: services/keycloak
-  # postgres
-  - path:
-      - services/postgres/docker-compose.yml
-    project_directory: services/postgres
   # Airflow
   - path:
       - services/airflow/docker-compose.yml
@@ -113,6 +117,9 @@ include:
     project_directory: services/jupyterhub
 
 volumes:
+  postgres_data:
+    driver: local
+    name: ${PROJECT_NAME}_postgres_data
   portal_datasets:
     driver: local
     name: ${PROJECT_NAME}_portal_datasets
