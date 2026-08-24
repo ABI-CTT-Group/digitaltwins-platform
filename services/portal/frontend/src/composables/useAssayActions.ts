@@ -8,6 +8,7 @@ import {
   useDashboardGetAssayLaunch,
   useDashboardWorkflowDetail,
   useSaveAssayDetails,
+  useDashboardSubmitAssayResults,
 } from "@/bootstrap/dashboard_api";
 import { DashboardCategory } from "@/models/types";
 import { JUPYTER_BASE_URL } from "@/config/platform-links";
@@ -133,11 +134,17 @@ export function useAssayActions() {
     toast.info("Download feature is being migrated to the portal backend; not available right now.");
   };
 
-  const submit = (_seekId: string) => {
+  const submit = async (seekId: string) => {
     submitDialog.value = true;
     submitState.value = "waiting";
-    toast.info("Submit feature is being migrated to the portal backend; not available right now.");
-    submitState.value = "unavailable";
+    try {
+      await useDashboardSubmitAssayResults(seekId);
+      submitState.value = "true";
+      toast.success("Successfully submitted assay results.");
+    } catch (e: any) {
+      submitState.value = "false";
+      toast.error(getApiErrorMessage(e, "Submit"));
+    }
   };
 
   const expand = (seekId: string) => {

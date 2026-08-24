@@ -569,3 +569,13 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None), clie
     #             "data": "http://130.216.216.26:8008/lab/tree/ep3/statistical_analysis_of_electrode_measurements.ipynb"
     #         }
     # return None
+
+@router.post("/assay-results-submit")
+async def submit_dashboard_assay_dataset(seek_id: str = Query(None), client: DigitalTWINSAPIClient = Depends(get_client)):
+    try:
+        res = await client.post(f"/assays/{seek_id}/workspace/dataset/upload")
+        return res.json()
+    except HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except RequestError as e:
+        raise HTTPException(status_code=500, detail=str(e))

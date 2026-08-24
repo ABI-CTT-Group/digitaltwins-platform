@@ -47,3 +47,8 @@ export async function useDashboardSelectedDatasetSampleTypes(uuid: string) {
     const sampleTypes = http.get<string[]>("/dashboard/dataset-detail", { uuid });
     return sampleTypes;
 }
+
+export async function useDashboardSubmitAssayResults(seekId: string) {
+    const success = http.post<any>(`/dashboard/assay-results-submit?seek_id=${seekId}`);
+    return success;
+}
