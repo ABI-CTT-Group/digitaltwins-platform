@@ -150,3 +150,14 @@ c.DockerSpawner.http_timeout = 60
 
 # Allow admin to access other users' servers (via JupyterHub admin panel)
 c.JupyterHub.admin_access = True
+
+# ---------------------------------------------------------------------------
+# Services
+# ---------------------------------------------------------------------------
+c.JupyterHub.services = [
+    {
+        'name': 'digitaltwins-api',
+        'api_token': os.environ.get('JUPYTERHUB_API_TOKEN', 'digitaltwins-api-secret-token'),
+        'admin': True
+    }
+]

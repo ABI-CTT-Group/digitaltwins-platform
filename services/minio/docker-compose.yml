@@ -1,6 +1,8 @@
 services:
   minio:
     image: minio/minio:RELEASE.2024-05-10T01-41-38Z
+    depends_on:
+      - gateway
     ports:
       - '8011:9000' #api
       - '8012:9001' # web gui
