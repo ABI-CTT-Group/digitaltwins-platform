@@ -657,10 +657,10 @@
   "users": [
     {
       "id": "1afb2774-0277-494f-a976-34a72683d972",
-      "username": "admin",
-      "firstName": "DigitalTwins",
-      "lastName": "Admin",
-      "email": "matt.pestle@auckland.ac.nz",
+      "username": "admin1",
+      "firstName": "admin1",
+      "lastName": "admin1",
+      "email": "admin@example",
       "emailVerified": false,
       "enabled": true,
       "createdTimestamp": 1777505368388,
@@ -691,17 +691,17 @@
     },
     {
       "id": "e297097d-b2c4-4e95-81e3-135f525d37c4",
-      "username": "clinician",
-      "firstName": "Clinician",
-      "lastName": "User",
-      "email": "clinician@example.com",
+      "username": "clinician1",
+      "firstName": "clinician1",
+      "lastName": "clinician1",
+      "email": "clinician@example",
       "emailVerified": true,
       "enabled": true,
       "totp": false,
       "credentials": [
         {
           "type": "password",
-          "value": "clinician",
+          "value": "BXfeeHe5c4694t6xVMuV",
           "temporary": false
         }
       ],
@@ -777,17 +777,17 @@
     },
     {
       "id": "9043f815-8e6d-4a4f-911f-dd8a767d29cd",
-      "username": "researcher",
-      "firstName": "Researcher",
-      "lastName": "User",
-      "email": "researcher@example.com",
+      "username": "researcher1",
+      "firstName": "researcher1",
+      "lastName": "researcher1",
+      "email": "researcher@example",
       "emailVerified": true,
       "enabled": true,
       "totp": false,
       "credentials": [
         {
           "type": "password",
-          "value": "researcher",
+          "value": "BXfeeHe5c4694t6xVMuV",
           "temporary": false
         }
       ],
@@ -1602,7 +1602,11 @@
       "secret": "${SEEK_KEYCLOAK_CLIENT_SECRET}",
       "redirectUris": [
         "${PLATFORM_PROTOCOL}://${PLATFORM_DOMAIN}/seek/auth/oidc/callback",
-        "http://localhost/seek/auth/oidc/callback"
+        "http://localhost/seek/auth/oidc/callback",
+        "${PLATFORM_PROTOCOL}://${PLATFORM_DOMAIN}/seek",
+        "${PLATFORM_PROTOCOL}://${PLATFORM_DOMAIN}/seek/",
+        "http://localhost/seek",
+        "http://localhost/seek/"
       ],
       "webOrigins": [
         "*"
