@@ -1,0 +1,4 @@
+- `[x]` Implement `get_latest_timestamp_folder` in `MinioDownloader` (`src/digitaltwins/minio/downloader.py`)
+- `[x]` Implement `download_folder` in `MinioDownloader` (`src/digitaltwins/minio/downloader.py`)
+- `[x]` Implement `GET /assays/{assay_id}/workspace/dataset/download` endpoint in `assay.py` (`app/routers/assay.py`)
+- `[x]` Verify changes

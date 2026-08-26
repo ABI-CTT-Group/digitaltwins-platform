@@ -1,0 +1,22 @@
+# Assay Workspace Download Tasks
+
+- [x] Sync artifacts to docs/features/
+- [x] **digitaltwins-api: `assays.py`**
+  - [x] Update `download_workspace_dataset` with `querier` and `credentials` dependencies
+  - [x] Read `tags` from the assay configs
+  - [x] Add conditional logic to handle `"notebook"` tagged assays
+  - [x] Use `_download_jupyter_folder` to fetch from `JUPYTERHUB_INTERNAL_URL`
+- [x] **digitaltwins-api: tests**
+  - [x] Add `test_download_workspace_dataset_jupyter` in `test_download_workspace_dataset_api.py`
+  - [x] Update existing `test_download_workspace_dataset` to `test_download_workspace_dataset_airflow`
+- [x] **Portal backend: `digitaltwins_api.py`**
+  - [x] Add `get_stream` method in `DigitalTWINSAPIClient` to support async chunked downloads with long timeout
+- [x] **Portal backend: `dashboard.py`**
+  - [x] Add `GET /api/dashboard/assay-download` endpoint proxying the `get_stream` 
+- [x] **Portal backend: tests**
+  - [x] Add `test_dashboard_assay_download.py` 
+- [x] **Portal frontend: `dashboard_api.ts`**
+  - [x] Add `useDashboardDownloadAssayWorkspace` API helper
+- [x] **Portal frontend: `useAssayActions.ts`**
+  - [x] Implement actual download logic using `Blob` in `download()` action
+- [x] Verification

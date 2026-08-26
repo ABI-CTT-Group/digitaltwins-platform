@@ -1,0 +1,9 @@
+- `[x]` Implement `POST /assays/{assay_id}/workspace/dataset/upload` in `app/routers/upload.py`
+  - `[x]` Fetch timestamp (latest or param)
+  - `[x]` Fetch assay output configs to map folder names to categories
+  - `[x]` Download timestamp folder to temporary directory
+  - `[x]` Iterate through subdirectories and call `uploader.upload_dataset`
+  - `[x]` Return list of dataset UUIDs
+- `[ ]` Sync artifacts to docs/features/
+- `[x]` Test syntax of `upload.py`
+- `[/]` Write walkthrough.md

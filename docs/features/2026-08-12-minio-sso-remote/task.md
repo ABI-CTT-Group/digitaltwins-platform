@@ -1,0 +1,5 @@
+- [x] Update `services/nginx/snippets/platform-routes.conf` to serve `/minio-discovery.json` from a file.
+- [x] Update `util/gen-env.sh` to generate the `minio-discovery.json` file dynamically and enforce `http://gateway/minio-discovery.json` for MinIO's config URL.
+- [x] Add `services/nginx/snippets/minio-discovery.json` to `.gitignore`.
+- [x] Sync artifacts to `docs/features/`.
+- [x] Generate the new file by running `util/gen-env.sh` (or let user do it).
