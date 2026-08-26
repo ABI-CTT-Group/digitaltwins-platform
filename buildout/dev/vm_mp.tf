@@ -15,28 +15,28 @@ resource "openstack_networking_floatingip_associate_v2" "fip_mp" {
   port_id     = openstack_networking_port_v2.port_auckland_public_mp.id
 }
 
-# mp VM
-resource "openstack_compute_instance_v2" "mp" {
-  name            = "drai_mp"
-  flavor_id       = data.openstack_compute_flavor_v2.r3_medium.id
-  key_pair        = data.openstack_compute_keypair_v2.drai_inn_keypair.id
-  network {
-    port =  openstack_networking_port_v2.port_auckland_public_mp.id 
-  }
-  network {
-    port =  openstack_networking_port_v2.port_auckland_wg_mp.id 
-  }
-
-  block_device {
-    uuid                  = data.openstack_images_image_v2.portal_image2.id
-    source_type           = "image"
-    destination_type      = "volume"
-    boot_index            = 0
-    delete_on_termination = true
-    volume_size           = 70
-    volume_type           = "performance"
-  }
-}
+## mp VM
+#resource "openstack_compute_instance_v2" "mp" {
+#  name            = "drai_mp"
+#  flavor_id       = data.openstack_compute_flavor_v2.r3_medium.id
+#  key_pair        = data.openstack_compute_keypair_v2.drai_inn_keypair.id
+#  network {
+#    port =  openstack_networking_port_v2.port_auckland_public_mp.id 
+#  }
+#  network {
+#    port =  openstack_networking_port_v2.port_auckland_wg_mp.id 
+#  }
+#
+#  block_device {
+#    uuid                  = data.openstack_images_image_v2.portal_image2.id
+#    source_type           = "image"
+#    destination_type      = "volume"
+#    boot_index            = 0
+#    delete_on_termination = true
+#    volume_size           = 70
+#    volume_type           = "performance"
+#  }
+#}
 
 # security groups on the port
 resource "openstack_networking_port_secgroup_associate_v2" "port_sec_group_mp" {
