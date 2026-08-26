@@ -287,7 +287,7 @@
 
   - name: Create the SEEK admin user
     ansible.builtin.command:
-      cmd: "./util/create-admin-user.sh admin {{ lookup('env', 'SEEK_ADMIN_PASSWORD') }} {{ lookup('env', 'SEEK_ADMIN_EMAIL') }}"
+      cmd: "./util/create-admin-user.sh admin1 {{ lookup('env', 'SEEK_ADMIN_PASSWORD') }} {{ lookup('env', 'SEEK_ADMIN_EMAIL') }}"
       chdir: "{{ platform_dir }}"
     changed_when: true
 
