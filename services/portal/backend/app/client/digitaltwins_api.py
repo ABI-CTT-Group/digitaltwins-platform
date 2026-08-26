@@ -63,6 +63,19 @@ class DigitalTWINSAPIClient:
     async def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None):
         return await self.request("GET", endpoint, params=params)
 
+    async def get_stream(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> httpx.Response:
+        url = f"{self.base_url}/{endpoint.lstrip('/')}"
+        headers = self._get_auth_headers()
+
+        auth = None
+        if self.username and self.password and not self.token:
+            auth = (self.username, self.password)
+
+        request = self.client.build_request("GET", url=url, params=params, headers=headers)
+        response = await self.client.send(request, auth=auth, stream=True)
+        response.raise_for_status()
+        return response
+
     async def post(self, endpoint: str, json: Optional[Dict[str, Any]] = None):
         return await self.request("POST", endpoint, json=json)
 
