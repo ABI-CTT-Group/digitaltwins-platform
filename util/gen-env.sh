@@ -111,8 +111,12 @@ fi
 
 # NODE_IP — this host's primary IP, where the k3s Traefik (observability stack)
 # binds :81. The gateway's extra_hosts maps `k3s-node` to it so the /grafana route
-# can reach Grafana. Defaults to 127.0.0.1 when observability isn't deployed, so the
-# route 502s harmlessly instead of blocking the gateway from starting.
+# can reach Grafana. Auto-derived from the host's default-route source address, so
+# it tracks the box and survives rebuilds instead of being frozen per deployment.
+# Override by exporting NODE_IP / setting it in data/env only if the auto-detected
+# value is wrong (e.g. a multi-homed box). Falls back to 127.0.0.1 if detection
+# fails — the /grafana route then 502s harmlessly instead of blocking gateway start.
+: "${NODE_IP:=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')}"
 : "${NODE_IP:=127.0.0.1}"
 
 # shellcheck disable=SC1090
