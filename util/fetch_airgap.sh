@@ -6,7 +6,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-AIRGAP_DIR="${SCRIPT_DIR}/airgap"
+# Where the bundle's airgap/ payload is written. Defaults next to this script, but
+# the deploy expects it at /mnt/install_src/airgap — so when building on the box:
+#   AIRGAP_DIR=/mnt/install_src/airgap ./fetch_airgap.sh
+AIRGAP_DIR="${AIRGAP_DIR:-${SCRIPT_DIR}/airgap}"
 
 # The bundle holds ONLY what is not in the repo and needs the internet to obtain.
 # The observability values, config.alloy, dashboards and Helm charts are NOT copied

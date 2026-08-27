@@ -6,7 +6,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-IMAGE_DIR="${SCRIPT_DIR}/airgap/images"
+# Must match fetch_airgap.sh's AIRGAP_DIR. On the box the deploy expects
+# /mnt/install_src/airgap, so run: AIRGAP_DIR=/mnt/install_src/airgap ./fetch_airgap_images.sh
+IMAGE_DIR="${AIRGAP_DIR:-${SCRIPT_DIR}/airgap}/images"
 KUBECONFIG="${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"
 
 mkdir -p "${IMAGE_DIR}"
