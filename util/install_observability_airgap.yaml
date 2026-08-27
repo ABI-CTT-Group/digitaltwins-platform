@@ -299,7 +299,7 @@
         values_files:
           - /tmp/observability/grafana-values.yaml
         # Domain-specific and secret values injected here — not hardcoded in grafana-values.yaml.
-        # Set PLATFORM_DOMAIN in your environment before running (see buildout/data/ansible_secrets).
+        # Source /mnt/install_src/data/{secrets.env,env} before running (PLATFORM_DOMAIN etc.).
         values:
           adminUser: admin
           adminPassword: "{{ grafana_admin_password }}"

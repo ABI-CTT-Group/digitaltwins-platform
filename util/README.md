@@ -724,20 +724,55 @@ of these, what survives a VM rebuild, and how to dump data onto the volume first
 
 ## Observability (separate, optional)
 
-Unchanged from the original bundle — installs Grafana/Loki/Mimir integrated with
-Keycloak. Set the two vars, then run the observability playbook:
+Installs Grafana / Loki / Mimir on a lightweight **k3s** cluster beside the compose
+platform, plus **Alloy** (a host systemd service) shipping logs+metrics into them,
+all integrated with Keycloak. It's a self-contained second stack — the core platform
+runs fine without it.
 
-```bash
-export GRAFANA_ADMIN_PASSWORD=yourpassword
-export GRAFANA_OAUTH_SECRET=yoursecret
+**Single source of truth:** the configs (`*-values.yaml`, `config.alloy`,
+dashboards) and the Helm charts live in `util/observability/` in this checkout and
+are read from there directly — never copied into the bundle. Only the Internet-only
+parts (k3s/k9s/helm/alloy binaries, k3s image tarballs, python wheels, apt debs) are
+pre-fetched into `/mnt/install_src/airgap/` by `util/fetch_airgap.sh` (versions
+pinned — override with `K3S_VERSION` etc.). After the stack is up, capture the k3s
+container images with `util/fetch_airgap_images.sh`.
 
+**Required env** (all fail-fast up front — source them, don't hand-set):
+`GRAFANA_ADMIN_PASSWORD`, `GRAFANA_OAUTH_SECRET`, `PLATFORM_DOMAIN`,
+`MIMIR_MINIO_ROOT_USER`, `MIMIR_MINIO_SECRET_KEY`. `GRAFANA_OAUTH_SECRET` **must
+equal** the `grafana` client secret in Keycloak — both render from `secrets.env`.
+
+```
+set -a; . /mnt/install_src/data/secrets.env; . /mnt/install_src/data/env; set +a
 ansible-playbook -i 'localhost,' -c local \
   -e "ansible_user=$(whoami)" \
   -e "install_src_dir=/mnt/install_src/airgap" \
-  /mnt/install_src/install_observability_airgap.yaml
+  /mnt/install_src/clean_src/digitaltwins-platform/util/install_observability_airgap.yaml
 ```
 
-Then `https://${PLATFORM_DOMAIN}/grafana` should work.
+**Gateway route:** `/grafana` is served by the platform gateway via a `/grafana/`
+location in `services/nginx/snippets/platform-routes.conf`, proxying to the k3s
+Traefik on the host node's real IP (a `k3s-node` extra_hosts alias → `NODE_IP`,
+which `gen-env.sh` auto-derives). If you add or change it, recreate the gateway
+(`docker compose up -d gateway`). Then `https://${PLATFORM_DOMAIN}/grafana` works.
+
+### Adjusting observability after install
+
+Edit the source in `util/observability/` (git) and re-apply — **never hand-edit the
+running system** (`/tmp`, `/etc/alloy`, the airgap bundle, or the Grafana UI); those
+are overwritten or untracked, and that's exactly how a frozen secret once drifted.
+
+| Change | Edit | Apply |
+|--------|------|-------|
+| Grafana settings / datasources | `grafana-values.yaml` | re-run playbook, or `helm -n grafana upgrade` (`util/helm_mod`) |
+| Grafana admin pw / OAuth secret / public URL | env `GRAFANA_ADMIN_PASSWORD` / `GRAFANA_OAUTH_SECRET` / `PLATFORM_DOMAIN` | re-run (OAuth secret must match Keycloak) |
+| Loki / Mimir settings | `loki-values.yaml` / `mimir-values.yaml` | re-run, or targeted `helm upgrade` |
+| Mimir object-store creds | env `MIMIR_MINIO_ROOT_USER` / `MIMIR_MINIO_SECRET_KEY` | re-run |
+| What Alloy scrapes / ships | `config.alloy` (`${NODE_NAME}` filled from the host) | re-run, then `sudo systemctl restart alloy` |
+| Grafana dashboards | `dashboards/cm-*.yaml` | re-run, or `kubectl -n grafana apply -f …` |
+| `/grafana` route / node IP | `services/nginx/snippets/platform-routes.conf` / `NODE_IP` | `nginx -t && nginx -s reload` (bind-mounted, live) |
+
+The full re-run is idempotent — it's the canonical apply path.
 
 ---
 
