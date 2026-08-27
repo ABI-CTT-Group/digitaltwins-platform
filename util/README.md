@@ -734,8 +734,20 @@ dashboards) and the Helm charts live in `util/observability/` in this checkout a
 are read from there directly — never copied into the bundle. Only the Internet-only
 parts (k3s/k9s/helm/alloy binaries, k3s image tarballs, python wheels, apt debs) are
 pre-fetched into `/mnt/install_src/airgap/` by `util/fetch_airgap.sh` (versions
-pinned — override with `K3S_VERSION` etc.). After the stack is up, capture the k3s
-container images with `util/fetch_airgap_images.sh`.
+pinned — override with `K3S_VERSION` etc.; point it at the bundle with
+`AIRGAP_DIR=/mnt/install_src/airgap`). After the stack is up, capture the k3s
+container images with `util/fetch_airgap_images.sh` (same `AIRGAP_DIR`).
+
+> ⚠️ **Building the bundle needs working Internet apt.** `util/fetch_airgap.sh` (and
+> `util/build-apt-debs.sh`) install `dpkg-dev` and download `.deb`s from the Ubuntu
+> archive. The observability install *disables* the box's real apt sources (moves
+> `sources.list*` → `.bak`, adds a `local-airgap` repo), so run the bundle build on a
+> **fresh connected box**, or **before** the observability install. Otherwise restore
+> apt first:
+> ```
+> sudo mv /etc/apt/sources.list.d/ubuntu.sources{.bak,} 2>/dev/null
+> sudo rm -f /etc/apt/sources.list.d/local-airgap.list && sudo apt-get update
+> ```
 
 **Required env** (all fail-fast up front — source them, don't hand-set):
 `GRAFANA_ADMIN_PASSWORD`, `GRAFANA_OAUTH_SECRET`, `PLATFORM_DOMAIN`,

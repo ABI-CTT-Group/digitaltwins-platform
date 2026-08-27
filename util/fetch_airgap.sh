@@ -91,8 +91,21 @@ echo ""
 echo "==> Downloading apt packages (python3-pip, unzip + ALL deps)"
 APT_PKGS=(python3-pip python3-pip-whl python3-setuptools python3-setuptools-whl python3-wheel python3-yaml python3-venv python3.12-venv python3.12 unzip)
 
-# Ensure dpkg-dev is available to build the repo index later
-sudo apt-get install -y dpkg-dev 2>/dev/null || true
+# Ensure dpkg-dev (provides dpkg-scanpackages, used to build the repo index below)
+# is present. THIS STEP NEEDS WORKING INTERNET APT. If the observability install has
+# already run on this box it disabled the real Ubuntu apt sources (moved them to
+# *.bak, added a local-airgap repo) and this will fail — restore them first.
+sudo apt-get update
+if ! command -v dpkg-scanpackages >/dev/null 2>&1; then
+    sudo apt-get install -y dpkg-dev || {
+        echo "FATAL: cannot install dpkg-dev (dpkg-scanpackages) — apt can't reach the" >&2
+        echo "       Ubuntu archive. If the observability install has run on this box," >&2
+        echo "       restore the real apt sources and drop the local-airgap repo:" >&2
+        echo "         sudo mv /etc/apt/sources.list.d/ubuntu.sources{.bak,} 2>/dev/null" >&2
+        echo "         sudo rm -f /etc/apt/sources.list.d/local-airgap.list && sudo apt-get update" >&2
+        exit 1
+    }
+fi
 
 # Download the target packages + all their dependencies into the apt cache.
 # We use a temp dir so we get a clean set without unrelated cached debs.
@@ -108,7 +121,13 @@ sudo apt-get install -y --download-only --reinstall --no-install-recommends \
 sudo find "${TMP_APT}" -maxdepth 1 -name "*.deb" -exec cp -v {} "${APT_DIR}/" \;
 sudo rm -rf "${TMP_APT}"
 
-echo "    $(ls "${APT_DIR}" | wc -l) .deb(s) saved"
+_deb_count=$(ls "${APT_DIR}"/*.deb 2>/dev/null | wc -l)
+echo "    ${_deb_count} .deb(s) saved"
+if [ "${_deb_count}" -eq 0 ]; then
+    echo "FATAL: no .deb packages downloaded — apt could not reach the Ubuntu archive." >&2
+    echo "       Restore the real apt sources (see above) and re-run." >&2
+    exit 1
+fi
 
 # Build a local apt repository index so the airgapped machine can use apt normally
 echo ""
