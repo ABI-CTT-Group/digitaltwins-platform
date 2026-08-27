@@ -19,18 +19,19 @@ APT_DIR="${AIRGAP_DIR}/apt-debs"
 echo "==> Creating airgap directory structure under ${AIRGAP_DIR}"
 mkdir -p "${BIN_DIR}" "${PIP_DIR}" "${APT_DIR}"
 
-# ─── Detect latest GitHub release tag ────────────────────────────────────────
-latest_release() {
-    # $1 = owner/repo, returns tag name like "v1.2.3"
-    curl -fsSL "https://api.github.com/repos/$1/releases/latest" \
-        | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": "\(.*\)".*/\1/'
-}
+# ─── Pinned tool versions ────────────────────────────────────────────────────
+# Pinned so every bundle build produces the IDENTICAL tool set (the Helm charts are
+# already pinned as committed .tgz). Bump deliberately, or override per-run via env:
+#   K3S_VERSION=v1.36.0+k3s1 ./fetch_airgap.sh
+# k3s binary and its airgap-images tarball share K3S_TAG so they always match.
+K3S_TAG="${K3S_VERSION:-v1.35.3+k3s1}"
+K9S_TAG="${K9S_VERSION:-v0.50.18}"
+HELM_TAG="${HELM_VERSION:-v3.20.2}"          # get.helm.sh wants the bare vX.Y.Z (no +g… git suffix)
+ALLOY_TAG="${ALLOY_VERSION:-v1.15.1}"
 
 # ─── k3s ─────────────────────────────────────────────────────────────────────
 echo ""
-echo "==> Fetching k3s"
-K3S_TAG=$(latest_release "k3s-io/k3s")
-echo "    version: ${K3S_TAG}"
+echo "==> Fetching k3s ${K3S_TAG}"
 curl -fsSL --progress-bar \
     "https://github.com/k3s-io/k3s/releases/download/${K3S_TAG}/k3s" \
     -o "${BIN_DIR}/k3s"
@@ -49,9 +50,7 @@ echo "    k3s ${K3S_TAG} + install script saved"
 
 # ─── k9s ─────────────────────────────────────────────────────────────────────
 echo ""
-echo "==> Fetching k9s"
-K9S_TAG=$(latest_release "derailed/k9s")
-echo "    version: ${K9S_TAG}"
+echo "==> Fetching k9s ${K9S_TAG}"
 curl -fsSL --progress-bar \
     "https://github.com/derailed/k9s/releases/download/${K9S_TAG}/k9s_Linux_amd64.tar.gz" \
     -o "${BIN_DIR}/k9s_Linux_amd64.tar.gz"
@@ -59,11 +58,7 @@ echo "    k9s ${K9S_TAG} saved"
 
 # ─── Helm ─────────────────────────────────────────────────────────────────────
 echo ""
-echo "==> Fetching Helm (latest 3.x — kubernetes.core.helm requires <4.0.0)"
-HELM_TAG=$(curl -fsSL "https://api.github.com/repos/helm/helm/releases" \
-    | grep '"tag_name"' | grep '"v3\.' | head -1 \
-    | sed 's/.*"tag_name": "\(.*\)".*/\1/')
-echo "    version: ${HELM_TAG}"
+echo "==> Fetching Helm ${HELM_TAG} (kubernetes.core.helm requires 3.x, <4.0.0)"
 curl -fsSL --progress-bar \
     "https://get.helm.sh/helm-${HELM_TAG}-linux-amd64.tar.gz" \
     -o "${BIN_DIR}/helm-linux-amd64.tar.gz"
@@ -71,9 +66,7 @@ echo "    helm ${HELM_TAG} saved"
 
 # ─── Grafana Alloy ────────────────────────────────────────────────────────────
 echo ""
-echo "==> Fetching Grafana Alloy"
-ALLOY_TAG=$(latest_release "grafana/alloy")
-echo "    version: ${ALLOY_TAG}"
+echo "==> Fetching Grafana Alloy ${ALLOY_TAG}"
 curl -fsSL --progress-bar \
     "https://github.com/grafana/alloy/releases/download/${ALLOY_TAG}/alloy-linux-amd64.zip" \
     -o "${BIN_DIR}/alloy-linux-amd64.zip"
