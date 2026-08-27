@@ -34,6 +34,13 @@ curl -fsSL --progress-bar \
     "https://github.com/k3s-io/k3s/releases/download/${K3S_TAG}/k3s" \
     -o "${BIN_DIR}/k3s"
 chmod +x "${BIN_DIR}/k3s"
+# k3s system-images tarball (pause / coredns / traefik / metrics-server /
+# local-path-provisioner). The playbook drops this into
+# /var/lib/rancher/k3s/agent/images so k3s brings up its own pods with NO registry
+# access — without it an airgapped k3s never starts. Must match the k3s binary tag.
+curl -fsSL --progress-bar \
+    "https://github.com/k3s-io/k3s/releases/download/${K3S_TAG}/k3s-airgap-images-amd64.tar.gz" \
+    -o "${BIN_DIR}/k3s-airgap-images-amd64.tar.gz"
 # Save the install script too (used to register the k3s systemd service)
 curl -fsSL "https://get.k3s.io" -o "${BIN_DIR}/k3s-install.sh"
 chmod +x "${BIN_DIR}/k3s-install.sh"
