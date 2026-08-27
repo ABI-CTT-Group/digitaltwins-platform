@@ -7,16 +7,17 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AIRGAP_DIR="${SCRIPT_DIR}/airgap"
-OBS_SRC="${SCRIPT_DIR}/observability"
 
+# The bundle holds ONLY what is not in the repo and needs the internet to obtain.
+# The observability values, config.alloy, dashboards and Helm charts are NOT copied
+# here — the playbook reads them straight from the git checkout (observability_dir =
+# playbook_dir/observability). One source of truth, nothing to drift.
 BIN_DIR="${AIRGAP_DIR}/binaries"
-CHART_DIR="${AIRGAP_DIR}/charts"
-OBS_DIR="${AIRGAP_DIR}/observability"
 PIP_DIR="${AIRGAP_DIR}/pip-wheels"
 APT_DIR="${AIRGAP_DIR}/apt-debs"
 
 echo "==> Creating airgap directory structure under ${AIRGAP_DIR}"
-mkdir -p "${BIN_DIR}" "${CHART_DIR}" "${OBS_DIR}/dashboards" "${PIP_DIR}" "${APT_DIR}"
+mkdir -p "${BIN_DIR}" "${PIP_DIR}" "${APT_DIR}"
 
 # ─── Detect latest GitHub release tag ────────────────────────────────────────
 latest_release() {
@@ -78,22 +79,10 @@ curl -fsSL --progress-bar \
     -o "${BIN_DIR}/alloy-linux-amd64.zip"
 echo "    alloy ${ALLOY_TAG} saved"
 
-# ─── Helm charts (copy from existing observability/charts/) ──────────────────
-echo ""
-echo "==> Copying Helm charts"
-for chart in "${OBS_SRC}/charts/"*.tgz; do
-    cp -v "${chart}" "${CHART_DIR}/"
-done
-
-# ─── Observability config/values/dashboards ───────────────────────────────────
-echo ""
-echo "==> Copying observability config files"
-cp -v "${OBS_SRC}/grafana-values.yaml"  "${OBS_DIR}/"
-cp -v "${OBS_SRC}/loki-values.yaml"     "${OBS_DIR}/"
-cp -v "${OBS_SRC}/mimir-values.yaml"    "${OBS_DIR}/"
-cp -v "${OBS_SRC}/config.alloy"         "${OBS_DIR}/"
-cp -v "${OBS_SRC}/alloy.service"        "${OBS_DIR}/"
-cp -v "${OBS_SRC}/dashboards/"*.yaml    "${OBS_DIR}/dashboards/"
+# ─── Helm charts + observability configs/dashboards ──────────────────────────
+# NOT bundled — the playbook reads charts, *-values.yaml, config.alloy and the
+# dashboard ConfigMaps straight from the git checkout (observability_dir). Keeping
+# them out of the bundle is what makes the checkout the single source of truth.
 
 # ─── Python wheels ────────────────────────────────────────────────────────────
 echo ""
@@ -150,7 +139,7 @@ echo "================================================"
 cat "${AIRGAP_DIR}/versions.txt"
 echo ""
 echo "Directory sizes:"
-du -sh "${BIN_DIR}" "${CHART_DIR}" "${OBS_DIR}" "${PIP_DIR}" "${APT_DIR}"
+du -sh "${BIN_DIR}" "${PIP_DIR}" "${APT_DIR}"
 echo ""
 echo "Next step: bring up k3s + observability stack, then run"
 echo "  fetch_airgap_images.sh  (to be written) to capture container images."

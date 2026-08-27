@@ -4,9 +4,16 @@
   gather_facts: true
   become: true
   vars:
-    # Pass via -e "install_src=/path/to/airgap" or accept default
+    # install_src = the AIRGAP BUNDLE. Holds ONLY what is not in the repo and needs
+    # the internet to obtain: binaries/, images/, pip-wheels/, apt-debs/. Override
+    # with -e install_src_dir=/mnt/install_src/airgap.
     install_src: "{{ install_src_dir | default(playbook_dir + '/airgap') }}"
-    observability_dir: "{{ install_src }}/observability"
+    # observability_dir = the git CHECKOUT (this playbook's own directory). The values
+    # files, config.alloy, dashboards and charts are read straight from git here —
+    # never copied into the bundle — so there is ONE source of truth and nothing can
+    # drift. These files keep their ${...} placeholders; resolution happens downstream
+    # on the staged /tmp copies and the deployed /etc/alloy, never on the source.
+    observability_dir: "{{ playbook_dir }}/observability"
     kubeconfig: "/home/{{ ansible_user }}/.kube/config"
 
   tasks:
@@ -238,9 +245,9 @@
         - { src: "{{ observability_dir }}/grafana-values.yaml",  dest: /tmp/observability/ }
         - { src: "{{ observability_dir }}/loki-values.yaml",     dest: /tmp/observability/ }
         - { src: "{{ observability_dir }}/mimir-values.yaml",    dest: /tmp/observability/ }
-        - { src: "{{ install_src }}/charts/grafana-10.5.4.tgz",                      dest: /tmp/observability/ }
-        - { src: "{{ install_src }}/charts/loki-6.49.0.tgz",                         dest: /tmp/observability/ }
-        - { src: "{{ install_src }}/charts/mimir-distributed-6.1.0-weekly.378.tgz",  dest: /tmp/observability/ }
+        - { src: "{{ observability_dir }}/charts/grafana-10.5.4.tgz",                      dest: /tmp/observability/ }
+        - { src: "{{ observability_dir }}/charts/loki-6.49.0.tgz",                         dest: /tmp/observability/ }
+        - { src: "{{ observability_dir }}/charts/mimir-distributed-6.1.0-weekly.378.tgz",  dest: /tmp/observability/ }
 
     - name: Stage dashboard ConfigMaps
       ansible.builtin.copy:
