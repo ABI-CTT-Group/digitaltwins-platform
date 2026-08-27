@@ -1,0 +1,8 @@
+.env
+.env.*
+env
+env.*
+secrets.env
+secrets.env.*
+*.pem
+*.key
