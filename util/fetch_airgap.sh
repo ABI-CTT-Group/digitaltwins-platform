@@ -82,8 +82,14 @@ echo "    alloy ${ALLOY_TAG} saved"
 
 # ─── Python wheels ────────────────────────────────────────────────────────────
 echo ""
-echo "==> Downloading Python wheels (kubernetes, pyyaml)"
-pip3 download kubernetes pyyaml --dest "${PIP_DIR}" --quiet
+echo "==> Downloading Python wheels (kubernetes client + deps)"
+pip3 download kubernetes --dest "${PIP_DIR}" --quiet
+# Drop the PyYAML wheel that comes down as a transitive dep. PyYAML is provided by
+# the OS (python3-yaml) and pip cannot upgrade over the Debian-managed copy at
+# install time ("Cannot uninstall PyYAML …, RECORD file not found"). Leaving a newer
+# wheel in find-links makes pip pick it for the kubernetes dep and fail; the OS copy
+# already satisfies the client.
+rm -f "${PIP_DIR}"/pyyaml-*.whl "${PIP_DIR}"/PyYAML-*.whl
 echo "    $(ls "${PIP_DIR}" | wc -l) wheel(s)/sdist(s) saved"
 
 # ─── APT packages + local repo ────────────────────────────────────────────────
