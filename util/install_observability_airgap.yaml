@@ -76,6 +76,7 @@
           - python3-setuptools
           - python3-setuptools-whl
           - python3-wheel
+          - python3-yaml        # PyYAML for the kubernetes client (OS-managed, not pip — see below)
           - python3-venv
           - python3.12-venv
           - python3.12
@@ -90,11 +91,14 @@
       ignore_errors: true
 
     # ── Python packages ───────────────────────────────────────────────────────
-    - name: Install Python kubernetes + pyyaml from local wheels
+    # Only the kubernetes client comes from pip. PyYAML is provided by the OS
+    # (python3-yaml, installed above) — pip-installing it would try to upgrade over
+    # the Debian-managed copy and fail ("Cannot uninstall PyYAML 6.0.1, RECORD file
+    # not found"). The kubernetes client is satisfied by the OS PyYAML.
+    - name: Install the Python kubernetes client from local wheels
       ansible.builtin.pip:
         name:
           - kubernetes
-          - pyyaml
         extra_args: "--no-index --find-links {{ install_src }}/pip-wheels --break-system-packages"
         executable: pip3
 
