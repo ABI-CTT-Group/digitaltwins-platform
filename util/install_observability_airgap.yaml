@@ -91,16 +91,28 @@
       ignore_errors: true
 
     # ── Python packages ───────────────────────────────────────────────────────
-    # Only the kubernetes client comes from pip. PyYAML is provided by the OS
-    # (python3-yaml, installed above) — pip-installing it would try to upgrade over
-    # the Debian-managed copy and fail ("Cannot uninstall PyYAML 6.0.1, RECORD file
-    # not found"). The kubernetes client is satisfied by the OS PyYAML.
-    - name: Install the Python kubernetes client from local wheels
+    # Install the kubernetes client into a DEDICATED venv, not system Python.
+    # Ubuntu 24.04 marks system Python externally-managed (PEP 668); its Python
+    # packages come from apt with no pip RECORD, so pip cannot uninstall/upgrade them
+    # ("Cannot uninstall <pkg>, RECORD file not found") whenever a newer wheel sits in
+    # find-links — which is true for many kubernetes deps (requests, urllib3, certifi,
+    # idna, six, pyyaml, …). A --system-site-packages venv removes the whole class:
+    # pip installs into the venv and never touches the apt packages in /usr/lib, while
+    # the venv still sees them for anything it doesn't need to override.
+    - name: Install the Python kubernetes client into an isolated venv
       ansible.builtin.pip:
         name:
           - kubernetes
-        extra_args: "--no-index --find-links {{ install_src }}/pip-wheels --break-system-packages"
-        executable: pip3
+        virtualenv: /opt/observability-venv
+        virtualenv_command: "python3 -m venv --system-site-packages"
+        extra_args: "--no-index --find-links {{ install_src }}/pip-wheels"
+
+    # Run the remaining tasks (esp. the kubernetes.core k8s/helm modules) with the
+    # venv's Python so they import that kubernetes client. --system-site-packages
+    # means this interpreter can still run the ordinary builtin modules too.
+    - name: Use the observability venv's Python for the remaining tasks
+      ansible.builtin.set_fact:
+        ansible_python_interpreter: /opt/observability-venv/bin/python
 
     # ── k3s ───────────────────────────────────────────────────────────────────
     - name: Check if k3s already installed
