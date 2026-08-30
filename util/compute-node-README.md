@@ -186,6 +186,57 @@ util/sync-compute-dags.sh 10.2.0.14 --delete  # same, but also prune DAGs delete
 
 ---
 
+## G. Ship telemetry to the observability stack (optional)
+
+Get this node into Grafana alongside the portal — its docker container logs
+(incl. the celery worker), its **Airflow task/DAG-run logs**, and host metrics all
+flow to the portal's Loki/Mimir over the VLAN. One **Alloy** systemd service on the
+node does it; nothing extra runs on the portal beyond opening two ports.
+
+The node ships to the portal's ingest ports — Loki `:3100`, Mimir `:9005` — which
+the observability install port-forwards. They're loopback-only until you expose
+them, exactly like the other portal↔worker ports.
+
+**1. Portal side (once).** Pull the branch that binds those port-forwards to the
+VLAN and re-run the observability playbook (see `util/README.md` → Observability),
+then open the two ports to **this node only**:
+
+```
+util/ufw_for_remote_compute.sh 10.2.0.14 3100 9005
+```
+
+On OpenStack/NeCTAR, also open `3100` and `9005` to `10.2.0.14` in the **security
+group** (never `0.0.0.0/0`) — the same layer you opened 8002/8003/… in.
+
+**2. Node side.** From a checkout of this repo on the node, point it at the
+portal's VLAN IP (Loki is single-tenant and Mimir writes the `anonymous` tenant,
+so no token — the `node` label separates this box from the portal):
+
+```
+util/install-compute-alloy.sh 10.2.0.195
+# 2nd arg overrides the bundle dir if not /mnt/install_src/airgap
+```
+
+It pulls the `alloy` binary from the install bundle (airgap-safe), renders
+`util/observability/config.alloy.compute` with this host's name + the portal IP,
+installs `alloy.service`, and starts it.
+
+**3. Verify (from the portal's Grafana).** Explore →
+- Loki: `{node="drai-compute"}` (container logs) and `{job="airflow-task"}` (task
+  logs; `dag_id`/`task_id` are labels, `run_id`/`attempt` are structured metadata).
+- Mimir: `up{node="drai-compute"}`, plus the node-exporter dashboards.
+
+If nothing arrives: `journalctl -u alloy -f` on the node, and re-check that the
+portal bound 3100/9005 to `0.0.0.0` and opened them (ufw **and** security group)
+to this node.
+
+> **Task logs work with zero compose changes** — the worker already bind-mounts
+> `./logs:/opt/airflow/logs` and keeps a local copy of each task log even with
+> REMOTE_LOGGING to MinIO on, so Alloy tails them straight off the host. MinIO
+> stays the system-of-record for the Airflow UI; Loki is the searchable/audit copy.
+
+---
+
 ## Gotchas (learned the hard way)
 
 - **Clean VM only.** If the node already runs a platform, its own `airflow-worker`

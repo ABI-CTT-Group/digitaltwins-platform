@@ -762,6 +762,11 @@ ansible-playbook -i 'localhost,' -c local \
   /mnt/install_src/clean_src/digitaltwins-platform/util/install_observability_airgap.yaml
 ```
 
+**Remote compute nodes** ship their logs+metrics into this same stack — one Alloy
+service per worker box, pointed at the portal's VLAN-exposed Loki `:3100` / Mimir
+`:9005`. See `util/compute-node-README.md` §G (uses `util/install-compute-alloy.sh`
++ `util/observability/config.alloy.compute`).
+
 **Gateway route:** `/grafana` is served by the platform gateway via a `/grafana/`
 location in `services/nginx/snippets/platform-routes.conf`, proxying to the k3s
 Traefik on the host node's real IP (a `k3s-node` extra_hosts alias → `NODE_IP`,

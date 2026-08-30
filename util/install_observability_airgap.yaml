@@ -516,8 +516,13 @@
           #!/bin/bash
           export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
           pkill -f "kubectl.*port-forward" || true
-          nohup kubectl -n loki   port-forward svc/loki-gateway  3100:80   > /var/log/loki-port-forward.log   2>&1 &
-          nohup kubectl -n mimir  port-forward svc/mimir-gateway 9005:8080 > /var/log/mimir-port-forward.log  2>&1 &
+          # Loki/Mimir ingest bind 0.0.0.0 so a REMOTE COMPUTE NODE's Alloy can ship
+          # over the VLAN (loopback still works, so the portal's own Alloy is
+          # unaffected). Reach is restricted to the node by ufw + the cloud security
+          # group — open 3100/9005 to the node IP only (util/ufw_for_remote_compute.sh
+          # <node_ip> 3100 9005). metrics-server stays loopback (portal-local use only).
+          nohup kubectl -n loki   port-forward --address 0.0.0.0 svc/loki-gateway  3100:80   > /var/log/loki-port-forward.log   2>&1 &
+          nohup kubectl -n mimir  port-forward --address 0.0.0.0 svc/mimir-gateway 9005:8080 > /var/log/mimir-port-forward.log  2>&1 &
           nohup kubectl -n kube-system port-forward svc/metrics-server 8443:443 > /var/log/metrics-port-forward.log 2>&1 &
 
     - name: Create port-forward systemd service
