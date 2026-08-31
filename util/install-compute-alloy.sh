@@ -61,6 +61,10 @@ fi
 
 # ── dirs (owned by the run user) + docker socket access ─────────────────────
 sudo install -d -o "${RUN_USER}" -g "${RUN_GROUP}" /etc/alloy /var/lib/alloy
+# install -d does NOT re-own an existing dir — chown explicitly so a re-run that
+# changes RUN_USER (e.g. from an earlier 'alloy' system user) can still write its
+# state files under /var/lib/alloy. Without this, alloy fails to start.
+sudo chown -R "${RUN_USER}:${RUN_GROUP}" /etc/alloy /var/lib/alloy
 # the docker socket (container logs) is group 'docker' — make sure we can read it
 if getent group docker >/dev/null 2>&1 && ! id -nG "${RUN_USER}" | tr ' ' '\n' | grep -qx docker; then
   echo "==> adding ${RUN_USER} to the docker group"
