@@ -111,8 +111,27 @@ Values used below: portal VLAN IP `10.2.0.195`, compute node VLAN IP `10.2.0.14`
 
 ## B. Compute VM (a CLEAN VM)
 
-1. **Install Docker** (+ NVIDIA container toolkit if this is a GPU node) — see the
-   "Installing on a connected machine" section of [`README.md`](README.md).
+0. **Seed the node's bundle (airgapped nodes).** A remote node has no internet, so
+   it installs from its own `/mnt/install_src` — the subset a *node* needs, not the
+   portal's 6.3G image bundle. From the **portal**, push it over the VLAN:
+   ```bash
+   # refresh the code first so the node gets the latest scripts
+   ( cd /mnt/install_src/clean_src/digitaltwins-platform && git pull \
+       && git submodule update --init --recursive )
+   util/compute-build.sh ubuntu@10.2.0.14           # creates /mnt/install_src on the node + copies
+   # SSH_OPTS='-J abi_portal' util/compute-build.sh ubuntu@10.2.0.14   # if the node is only reachable via the portal
+   ```
+   (Want it to survive a node rebuild? Mount a persistent volume at
+   `/mnt/install_src` on the node *first* — otherwise it lands on the root disk.)
+
+1. **Install Docker** (+ NVIDIA container toolkit if this is a GPU node).
+   - **Airgapped node** (no internet — the usual case): install from the seeded
+     bundle. It's the same three steps as the portal's airgap install
+     ([`README.md`](README.md) §1–§3) but you **stop before step3** (that's the
+     full platform). `compute-build.sh` above prints the exact commands
+     (`install-apt-debs.sh` → ansible from wheels → `util/airgap_build_step2.yml`).
+   - **Connected node**: install Docker the normal way — the "Installing on a
+     connected machine" section of [`README.md`](README.md).
 2. **Working dir**:
    ```bash
    mkdir -p ~/digitaltwins-compute/{dags,config,plugins,data,logs} && cd ~/digitaltwins-compute
