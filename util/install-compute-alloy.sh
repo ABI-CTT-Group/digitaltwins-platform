@@ -55,19 +55,27 @@ sudo install -d -o alloy -g alloy /etc/alloy /var/lib/alloy
 # read the docker socket (container logs) and the bind-mounted airflow logs
 getent group docker >/dev/null 2>&1 && sudo usermod -aG docker alloy || true
 
-# Let the alloy user READ the worker's task logs (written by the airflow uid, and
-# usually under a home dir the alloy system user can't traverse). ACLs grant it
-# without loosening ownership; the -d default ACL covers files Airflow writes later.
+# Let the alloy user READ the worker's task logs. The worker container runs as
+# `${AIRFLOW_UID}:0` (the official Airflow image's arbitrary-uid convention), so the
+# logs are owned airflow-uid:root and sit under a home dir (0750) the alloy system
+# user can't even traverse. Grant access WITHOUT touching ownership:
+#   * preferred: ACLs scoped to the alloy user (targeted; -d default ACL covers
+#     files Airflow writes later);
+#   * fallback (no setfacl, e.g. airgapped node without the `acl` pkg): chmod the
+#     traversal path + make the log tree world-readable (o+rX). Coarser, but the
+#     worker's 0644 log files are already world-readable, so this only opens
+#     *traversal* of the home dir, not its listing.
 if [ -d "${WORKER_LOGS_DIR}" ] && command -v setfacl >/dev/null 2>&1; then
-  echo "==> Granting alloy read access to ${WORKER_LOGS_DIR}"
-  # traverse the parents down to the logs dir
+  echo "==> Granting alloy read access to ${WORKER_LOGS_DIR} (ACL)"
   d="${WORKER_LOGS_DIR}"
   while [ "${d}" != "/" ]; do sudo setfacl -m u:alloy:rx "${d}" 2>/dev/null || true; d="$(dirname "${d}")"; done
   sudo setfacl -R  -m u:alloy:rX "${WORKER_LOGS_DIR}" 2>/dev/null || true
   sudo setfacl -R -d -m u:alloy:rX "${WORKER_LOGS_DIR}" 2>/dev/null || true
 elif [ -d "${WORKER_LOGS_DIR}" ]; then
-  echo "WARN: setfacl not found — if task logs don't appear in Loki, ensure the alloy" >&2
-  echo "      user can read ${WORKER_LOGS_DIR} (o+rx on it and its parent dirs)." >&2
+  echo "==> setfacl absent — granting alloy read access to ${WORKER_LOGS_DIR} (chmod fallback)"
+  d="${WORKER_LOGS_DIR}"
+  while [ "${d}" != "/" ]; do sudo chmod o+x "${d}" 2>/dev/null || true; d="$(dirname "${d}")"; done
+  sudo chmod -R o+rX "${WORKER_LOGS_DIR}" 2>/dev/null || true
 else
   echo "WARN: ${WORKER_LOGS_DIR} not found — override with WORKER_LOGS_DIR=... if the" >&2
   echo "      worker dir isn't ~/digitaltwins-compute. Docker + host metrics still ship." >&2
