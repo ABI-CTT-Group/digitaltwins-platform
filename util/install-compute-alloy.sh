@@ -27,6 +27,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OBS_DIR="${SCRIPT_DIR}/observability"
 ALLOY_ZIP="${INSTALL_SRC}/binaries/alloy-linux-amd64.zip"
 NODE_NAME="$(hostname)"
+# HOST-side path of the worker's ./logs bind-mount (Airflow task logs live here).
+# Alloy runs on the host, so it tails this, NOT the in-container /opt/airflow/logs.
+WORKER_LOGS_DIR="${WORKER_LOGS_DIR:-$HOME/digitaltwins-compute/logs}"
 
 echo "==> Installing Alloy on '${NODE_NAME}', shipping to portal ${OBS_HOST} (Loki :3100 / Mimir :9005)"
 
@@ -52,10 +55,28 @@ sudo install -d -o alloy -g alloy /etc/alloy /var/lib/alloy
 # read the docker socket (container logs) and the bind-mounted airflow logs
 getent group docker >/dev/null 2>&1 && sudo usermod -aG docker alloy || true
 
-# ── config (resolve ${OBS_HOST} + ${NODE_NAME}, leave all other syntax intact) ─
+# Let the alloy user READ the worker's task logs (written by the airflow uid, and
+# usually under a home dir the alloy system user can't traverse). ACLs grant it
+# without loosening ownership; the -d default ACL covers files Airflow writes later.
+if [ -d "${WORKER_LOGS_DIR}" ] && command -v setfacl >/dev/null 2>&1; then
+  echo "==> Granting alloy read access to ${WORKER_LOGS_DIR}"
+  # traverse the parents down to the logs dir
+  d="${WORKER_LOGS_DIR}"
+  while [ "${d}" != "/" ]; do sudo setfacl -m u:alloy:rx "${d}" 2>/dev/null || true; d="$(dirname "${d}")"; done
+  sudo setfacl -R  -m u:alloy:rX "${WORKER_LOGS_DIR}" 2>/dev/null || true
+  sudo setfacl -R -d -m u:alloy:rX "${WORKER_LOGS_DIR}" 2>/dev/null || true
+elif [ -d "${WORKER_LOGS_DIR}" ]; then
+  echo "WARN: setfacl not found — if task logs don't appear in Loki, ensure the alloy" >&2
+  echo "      user can read ${WORKER_LOGS_DIR} (o+rx on it and its parent dirs)." >&2
+else
+  echo "WARN: ${WORKER_LOGS_DIR} not found — override with WORKER_LOGS_DIR=... if the" >&2
+  echo "      worker dir isn't ~/digitaltwins-compute. Docker + host metrics still ship." >&2
+fi
+
+# ── config (resolve ${OBS_HOST}/${NODE_NAME}/${WORKER_LOGS_DIR}, leave the rest) ─
 echo "==> Rendering /etc/alloy/config.alloy"
-OBS_HOST="${OBS_HOST}" NODE_NAME="${NODE_NAME}" \
-  envsubst '${OBS_HOST} ${NODE_NAME}' < "${OBS_DIR}/config.alloy.compute" \
+OBS_HOST="${OBS_HOST}" NODE_NAME="${NODE_NAME}" WORKER_LOGS_DIR="${WORKER_LOGS_DIR}" \
+  envsubst '${OBS_HOST} ${NODE_NAME} ${WORKER_LOGS_DIR}' < "${OBS_DIR}/config.alloy.compute" \
   | sudo tee /etc/alloy/config.alloy >/dev/null
 sudo chown alloy:alloy /etc/alloy/config.alloy
 

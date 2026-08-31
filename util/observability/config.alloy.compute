@@ -79,9 +79,12 @@ loki.source.docker "docker" {
 
 // ========== Airflow task / DAG-run logs -> Loki ==========
 //
-// The worker bind-mounts ./logs:/opt/airflow/logs and keeps a LOCAL copy of every
-// task log even with REMOTE_LOGGING to MinIO on — so we tail them straight off the
-// host. Airflow 3's default path template is:
+// The worker bind-mounts <worker_dir>/logs -> /opt/airflow/logs and keeps a LOCAL
+// copy of every task log even with REMOTE_LOGGING to MinIO on — so we tail them
+// straight off the host. NOTE: Alloy runs on the HOST, not in the container, so
+// this path is the HOST side of that bind-mount (e.g. ~/digitaltwins-compute/logs),
+// resolved at install time as ${WORKER_LOGS_DIR} — NOT the in-container
+// /opt/airflow/logs, which does not exist on the host. Airflow 3's path template:
 //   dag_id=<dag>/run_id=<run>/task_id=<task>/[map_index=<m>/]attempt=<n>.log
 // Label cardinality discipline: keep only {job,node,dag_id,task_id} as LABELS;
 // run_id (a timestamp -> unbounded) and attempt/map_index go to structured
@@ -89,7 +92,7 @@ loki.source.docker "docker" {
 
 local.file_match "airflow_task_logs" {
   path_targets = [{
-    __path__ = "/opt/airflow/logs/dag_id=*/**/attempt=*.log",
+    __path__ = "${WORKER_LOGS_DIR}/dag_id=*/**/attempt=*.log",
     job      = "airflow-task",
     node     = "${NODE_NAME}",
   }]
