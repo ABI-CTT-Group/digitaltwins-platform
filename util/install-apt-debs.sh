@@ -47,9 +47,25 @@ APT_ONLY_LOCAL=(-o Dir::Etc::sourcelist="$LIST"
                 -o Dir::Etc::sourceparts="/dev/null"
                 -o APT::Get::List-Cleanup="0")
 
+# On an AIRGAPPED box, installing packages triggers two things that hang forever
+# waiting on the network:
+#   * esm-cache.service (ubuntu-pro-client) refreshes ESM apt metadata from
+#     Canonical — a package trigger fires it and it sits on DNS/HTTP timeouts.
+#   * needrestart then BATCH-restarts services on outdated libs, and lumps
+#     esm-cache in with the rest (the classic
+#     "systemctl restart esm-cache.service fail2ban.service" stall).
+# Mask esm-cache so it can't run, and drive this apt run with needrestart in
+# list-only mode + a non-interactive frontend so nothing restarts or prompts
+# mid-transaction. All idempotent and guarded — a no-op where they don't apply.
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl kill --signal=SIGKILL esm-cache.service 2>/dev/null || true   # unstick a running one
+  systemctl mask esm-cache.service esm-cache.timer   2>/dev/null || true
+fi
+
 echo "repo     : $REPO"
 echo "install  : ${PKGS[*]}"
 apt-get "${APT_ONLY_LOCAL[@]}" update
-apt-get "${APT_ONLY_LOCAL[@]}" install -y "${PKGS[@]}"
+DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l \
+  apt-get "${APT_ONLY_LOCAL[@]}" install -y "${PKGS[@]}"
 
 echo "done. verify with:  apt-mark showmanual >/dev/null; certbot --version 2>/dev/null || true"
