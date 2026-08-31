@@ -216,9 +216,14 @@ The node ships to the portal's ingest ports — Loki `:3100`, Mimir `:9005` — 
 the observability install port-forwards. They're loopback-only until you expose
 them, exactly like the other portal↔worker ports.
 
-**1. Portal side (once).** Pull the branch that binds those port-forwards to the
-VLAN and re-run the observability playbook (see `util/README.md` → Observability),
-then open the two ports to **this node only**:
+**1. Portal side (once).** Bind the Loki/Mimir port-forwards to the VLAN. A fresh
+observability install already does this; to rebind a **running** install, re-run
+the observability playbook — or do it live (faster). ⚠️ The live rebind has a sharp
+edge (detached `kubectl` procs survive `restart`, and a `127.0.0.1` listener blocks
+the `0.0.0.0` bind) — follow the **stop → kill-by-port → confirm-free → start**
+recipe in [`docs/diagnostics.md`](../docs/diagnostics.md) → "Observability
+port-forwards won't rebind to `0.0.0.0`", not a naive `sed` + `restart`. Then open
+the two ports to **this node only**:
 
 ```
 util/ufw_for_remote_compute.sh 10.2.0.14 3100 9005
