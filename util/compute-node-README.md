@@ -216,6 +216,25 @@ The node ships to the portal's ingest ports — Loki `:3100`, Mimir `:9005` — 
 the observability install port-forwards. They're loopback-only until you expose
 them, exactly like the other portal↔worker ports.
 
+**Two playbooks do the whole thing** (recommended — idempotent, and they bake in the
+gotchas: run-as-login-user, dir re-owning, the safe port-forward rebind). Run each
+locally on its box, as your normal user (not sudo):
+
+```
+# on the PORTAL — open ingress to the node + ensure 0.0.0.0 binding
+ansible-playbook -i 'localhost,' -c local -e "ansible_user=$(whoami)" \
+  -e "compute_node_ip=10.2.0.14" \
+  util/enable_compute_observability_ingress.yaml
+
+# on the NODE — install + run Alloy (as your login user)
+ansible-playbook -i 'localhost,' -c local -e "ansible_user=$(whoami)" \
+  -e "obs_host=10.2.0.195" \
+  util/install_compute_observability_airgap.yaml
+```
+
+Still open the two ports in the **cloud security group** (Ansible can't — see below).
+The manual/shell equivalents of each step are spelled out next.
+
 **1. Portal side (once).** Bind the Loki/Mimir port-forwards to the VLAN. A fresh
 observability install already does this; to rebind a **running** install, re-run
 the observability playbook — or do it live (faster). ⚠️ The live rebind has a sharp
