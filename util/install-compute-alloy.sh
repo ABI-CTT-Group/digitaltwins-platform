@@ -83,7 +83,8 @@ sudo chown alloy:alloy /etc/alloy/config.alloy
 # ── systemd unit ────────────────────────────────────────────────────────────
 sudo cp "${OBS_DIR}/alloy.service" /etc/systemd/system/alloy.service
 sudo systemctl daemon-reload
-sudo systemctl enable --now alloy
+sudo systemctl enable alloy
+sudo systemctl restart alloy   # restart (not just --now) so a re-run reloads the config
 
 echo
 echo "==> alloy status:"
