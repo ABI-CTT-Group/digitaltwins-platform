@@ -193,6 +193,8 @@ services/airflow/config/*
 # Airflow dags - keep the folder, ignore everything else
 services/airflow/dags/*
 !services/airflow/dags/.gitkeep
+services/airflow/logs/*
+!services/airflow/logs/.gitkeep
 
 # macOS junk
 .DS_Store
