@@ -29,25 +29,15 @@ echo ""
 echo "${IMAGES}"
 
 echo ""
-echo "==> Exporting images one at a time (skipping missing layers)..."
-echo "    (This may take several minutes for Mimir...)"
-EXPORTED=0
-SKIPPED=0
-TMPDIR=$(mktemp -d)
-while IFS= read -r image; do
-    SAFE=$(echo "${image}" | tr '/:' '__')
-    if sudo k3s ctr images export "${TMPDIR}/${SAFE}.tar" "${image}" 2>/dev/null; then
-        EXPORTED=$((EXPORTED + 1))
-    else
-        echo "    SKIP: ${image}"
-        SKIPPED=$((SKIPPED + 1))
-    fi
-done <<< "${IMAGES}"
-
-echo ""
-echo "==> Combining ${EXPORTED} image tars (skipped ${SKIPPED})..."
-cat "${TMPDIR}"/*.tar > "${IMAGE_DIR}/k3s-images.tar"
-rm -rf "${TMPDIR}"
+echo "==> Exporting all images into ONE archive..."
+echo "    (single multi-image 'ctr export' — NOT a cat of separate tars. A"
+echo "     concatenated bundle is the bug that bit us: 'ctr images import' stops"
+echo "     at the first archive's EOF, so only ONE image ever imported and every"
+echo "     app pod was ImagePullBackOff on an airgapped box. This may take several"
+echo "     minutes for Mimir.)"
+# ctr export accepts many refs and writes a single valid archive that imports whole.
+mapfile -t IMAGE_ARR < <(printf '%s\n' "${IMAGES}")
+sudo k3s ctr images export "${IMAGE_DIR}/k3s-images.tar" "${IMAGE_ARR[@]}"
 
 echo ""
 echo "==> Compressing..."
