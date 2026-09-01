@@ -54,8 +54,9 @@ else
   tmp="$(mktemp)"
   for spec in "${CHARTS[@]}"; do
     name="${spec%%:*}"; rest="${spec#*:}"; chart_glob="${rest%%:*}"; values="${rest##*:}"
-    chart=$(ls "${OBS_DIR}/${chart_glob}" 2>/dev/null | head -1 || true)
-    [ -n "${chart}" ] || { echo "ERROR: no chart matching ${OBS_DIR}/${chart_glob}" >&2; exit 1; }
+    # charts live in observability/charts/; values files live in observability/
+    chart=$(ls "${OBS_DIR}/charts/${chart_glob}" 2>/dev/null | head -1 || true)
+    [ -n "${chart}" ] || { echo "ERROR: no chart matching ${OBS_DIR}/charts/${chart_glob}" >&2; exit 1; }
     echo "    templating ${name}  (${chart##*/})"
     # -f the values so conditionally-rendered images are included; ignore secret
     # validation (images render regardless). Grab every 'image:' in the manifests.
