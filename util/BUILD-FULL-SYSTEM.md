@@ -249,11 +249,26 @@ Detail: [`README.md`](README.md) §0–6.
    ```
    Do **not** `export COMPOSE_FILE` in your shell — it overrides `.env` and silently
    drops the remote-compute override.
-5. **DAGs** (not in the bundle): sync from your DAG source, then **un-pause**:
+5. **(Optional) Seed with a `stage-dump`.** To bring an existing instance's data
+   into this fresh one, restore a `stage-dump.sh` result now — *after* the stack is
+   up (so the DBs/MinIO exist to restore into), *before* DAGs. `portal-restore.sh`
+   is **destructive** (overwrites the fresh digitaltwins + HAPI DBs, SEEK DB +
+   filestore, MinIO buckets, plugin registry, gateway plugin configs, JupyterHub
+   volumes, Orthanc DICOM with the dump's). It does **not** touch Keycloak, Airflow
+   runs/logs, or DAGs. Run from `~/digitaltwins-platform`, pointing at the dump dir:
+   ```
+   cd ~/digitaltwins-platform
+   util/portal-restore.sh /mnt/install_src/migrate     # your stage-dump dir (default /tmp/dtwins-migrate)
+   ```
+   Then **re-mint the SEEK API token** — the restore replaced SEEK's users, so the
+   token in `secrets.env` is stale (see README → *Transferring data* step 4). Uses
+   the bundled `alpine`/`mc` images (already loaded), so it works airgapped.
+6. **DAGs** (not in the bundle): sync from your DAG source, then **un-pause**. If
+   you seeded in step 5, sync the DAGs that go with that data:
    ```
    util/sync-dags.sh <dag-source-box> <this-box>     # wait ~1 min for the dag-processor
    ```
-6. **Verify** the platform (README §6): the stack is up, and the Airflow API token
+7. **Verify** the platform (README §6): the stack is up, and the Airflow API token
    works (fresh Keycloak+Airflow creates the local `admin1` automatically):
    ```
    docker compose exec -T digitaltwins-api python -c "import os,requests;r=requests.post(os.environ['AIRFLOW_ENDPOINT']+'/auth/token',json={'username':os.environ['AIRFLOW_USERNAME'],'password':os.environ['AIRFLOW_PASSWORD']},timeout=30);print('HTTP',r.status_code)"
