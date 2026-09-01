@@ -61,10 +61,15 @@ else
     echo "    templating ${name}  (${chart##*/})"
     # -f the values so conditionally-rendered images are included; ignore secret
     # validation (images render regardless). Grab every 'image:' in the manifests.
+    # Grab every 'image:' ref. The ref regex allows a BARE official image (no
+    # namespace slash, e.g. memcached:1.6-alpine) as well as registry/ns/name:tag —
+    # the earlier version required a '/' and silently dropped memcached. Drop Helm
+    # TEST-hook images (bats, *helm-test): never run at runtime, and one is :latest.
     helm template "${name}" "${chart}" -f "${OBS_DIR}/${values}" 2>/dev/null \
       | grep -E '^[[:space:]]*image:' \
       | sed -E 's/^[[:space:]]*image:[[:space:]]*//; s/^["'\'']//; s/["'\'']*[[:space:]]*$//' \
-      | grep -E '[a-z0-9._-]+/[a-z0-9._/-]+:[a-zA-Z0-9._-]+$' \
+      | grep -E '^[a-z0-9][a-z0-9._/-]*:[a-zA-Z0-9._-]+$' \
+      | grep -viE 'helm-test|/bats:' \
       >> "${tmp}" || true
   done
   mapfile -t IMAGES < <(sort -u "${tmp}")
@@ -72,6 +77,24 @@ else
 fi
 
 [ "${#IMAGES[@]}" -gt 0 ] || { echo "ERROR: no images resolved — check the charts/values or pass IMAGE_LIST=." >&2; exit 1; }
+
+# Normalise refs to the fully-qualified form containerd stores them under, so the
+# pull, the export, AND image-list.txt all match `ctr images ls -q`. Otherwise the
+# install's verify gate false-fails on short refs (memcached -> docker.io/library/
+# memcached, prom/foo -> docker.io/prom/foo).
+_normalize_ref() {
+  local r="$1" first
+  case "$r" in
+    */*) first="${r%%/*}"
+         case "$first" in
+           *.*|*:*|localhost) printf '%s\n' "$r" ;;   # already has a registry
+           *)                 printf 'docker.io/%s\n' "$r" ;;   # namespace/name
+         esac ;;
+    *) printf 'docker.io/library/%s\n' "$r" ;;        # bare official image
+  esac
+}
+mapfile -t IMAGES < <(for r in "${IMAGES[@]}"; do _normalize_ref "$r"; done | sort -u)
+
 echo "==> ${#IMAGES[@]} images to bundle:"
 printf '    %s\n' "${IMAGES[@]}"
 
