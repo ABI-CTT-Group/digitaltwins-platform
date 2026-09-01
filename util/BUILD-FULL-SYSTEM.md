@@ -296,9 +296,11 @@ Detail: [`README.md`](README.md) §0–6.
    util/sync-dags.sh <dag-source-box> <this-box>     # wait ~1 min for the dag-processor
    ```
 7. **Verify** the platform (README §6): the stack is up, and the Airflow API token
-   works (fresh Keycloak+Airflow creates the local `admin1` automatically):
+   works (fresh Keycloak+Airflow creates the local `admin1` automatically). This
+   mirrors `_get_api_token()` in `assays.py` — `os.getenv(key, default)`, so it uses
+   the same fallbacks the code does and never KeyErrors on an unset var:
    ```
-   docker compose exec -T digitaltwins-api python -c "import os,requests;r=requests.post(os.environ['AIRFLOW_ENDPOINT']+'/auth/token',json={'username':os.environ['AIRFLOW_USERNAME'],'password':os.environ['AIRFLOW_PASSWORD']},timeout=30);print('HTTP',r.status_code)"
+   docker compose exec -T digitaltwins-api python -c "import os,requests; ep=os.getenv('AIRFLOW_ENDPOINT','http://airflow-apiserver:8080/airflow'); u=os.getenv('AIRFLOW_USERNAME','admin'); p=os.getenv('AIRFLOW_PASSWORD','admin'); r=requests.post(ep+'/auth/token',json={'username':u,'password':p},timeout=30); print('HTTP',r.status_code)"
    ```
    Expect `HTTP 200`.
 
