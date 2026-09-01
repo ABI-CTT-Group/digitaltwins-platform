@@ -78,7 +78,6 @@ services:
       - ./logs:/opt/airflow/logs
       - ./config:/opt/airflow/config
       - ./plugins:/opt/airflow/plugins
-      - ./data:/opt/airflow/data
     user: "${AIRFLOW_UID:-50000}:0"
     restart: always
     # --- GPU access -------------------------------------------------------
