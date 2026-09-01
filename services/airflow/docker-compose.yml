@@ -366,7 +366,10 @@ services:
       <<: *airflow-common-env
       _AIRFLOW_DB_MIGRATE: 'true'
       _AIRFLOW_WWW_USER_CREATE: 'true'
-      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-admin}
+      # Create the SAME local FAB user the API logs in as (AIRFLOW_USERNAME, e.g.
+      # admin1) — else init makes 'admin', the API auths as 'admin1', and /auth/token
+      # 401s on a fresh build (the recurring auth regression). Follows AIRFLOW_USERNAME.
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_USERNAME:-admin}
       _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_PASSWORD:-admin}
       _PIP_ADDITIONAL_REQUIREMENTS: ''
     user: "0:0"
