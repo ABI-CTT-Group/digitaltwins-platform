@@ -33,7 +33,7 @@ PORTAL_BE_C="${PORTAL_BE_C:-${PROJECT}-portal-backend-1}"
 MINIO_C="${MINIO_C:-${PROJECT}-minio-1}"
 HAPI_PG_C="${HAPI_PG_C:-hapi-fhir-postgres}"   # separate pg on some layouts; "" to skip
 ORTHANC_VOLS="${ORTHANC_VOLS:-${PROJECT}_orthanc_1_data ${PROJECT}_orthanc_2_data}"
-MC_IMAGE="${MC_IMAGE:-quay.io/minio/mc:latest}"
+MC_IMAGE="${MC_IMAGE:-minio/mc:RELEASE.2024-05-09T17-04-24Z}"
 PLUGIN_CONF_VOL="${PLUGIN_CONF_VOL:-${PROJECT}_nginx_plugin_configs}"   # gateway plugin route configs
 JUSER_VOL_PREFIX="${JUSER_VOL_PREFIX:-${PROJECT}_jupyterhub_user_}"     # per-user notebook volumes
 

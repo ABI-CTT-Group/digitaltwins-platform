@@ -174,7 +174,7 @@ services:
   # so it is created here rather than in the portal submodule's minio-init (which
   # would be an upstream PR). Idempotent (--ignore-existing) and re-run safe.
   minio-logs-init:
-    image: quay.io/minio/mc:latest
+    image: minio/mc:RELEASE.2024-05-09T17-04-24Z   # pinned (was :latest) — airgap-reproducible; matches services/minio
     restart: "no"
     environment:
       # Same keys the minio server derives its root credentials from; $$VAR is
