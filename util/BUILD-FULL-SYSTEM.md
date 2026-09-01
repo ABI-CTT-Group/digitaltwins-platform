@@ -95,8 +95,8 @@ connected and disposable, so it bootstraps itself from the internet (unlike the
 airgapped targets, which get everything from the bundle it builds). Install
 whatever's missing:
 ```
-# Docker + compose plugin — full apt-repo steps in README "Installing on a
-# connected machine"; afterwards put yourself in the docker group + re-login:
+# Docker + compose plugin (official convenience script), then join the docker group:
+curl -fsSL https://get.docker.com | sudo sh
 sudo usermod -aG docker "$USER"      # then log out / back in
 
 # Ansible (runs the playbooks) + dpkg-dev (for build-apt-debs.sh):
