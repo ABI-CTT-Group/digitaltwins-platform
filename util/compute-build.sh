@@ -18,12 +18,10 @@
 #   util/compute-build.sh [user@]<node-host> [remote_mnt_dir]
 #     e.g.  util/compute-build.sh ubuntu@10.2.0.14
 #           SSH_OPTS='-J abi_portal' util/compute-build.sh ubuntu@10.2.0.14
-#           DRY_RUN=1 util/compute-build.sh ubuntu@10.2.0.14      # preview only
 #
 # Env:
 #   SRC_DIR    source bundle dir on THIS box     (default /mnt/install_src)
 #   SSH_OPTS   extra ssh options, e.g. '-J jump' (default empty)
-#   DRY_RUN    non-empty = rsync --dry-run, skip remote mkdir
 #
 # NOT copied (they aren't in /mnt/install_src) — do these separately, from the
 # portal, per util/compute-node-README.md:
@@ -80,18 +78,13 @@ echo "==> Seeding compute node '$TARGET':$REMOTE_MNT from $SRC"
 echo "    items: ${ITEMS[*]}"
 du -shc "${ITEMS[@]}" 2>/dev/null | awk 'END{print "    total to copy: " $1}'
 
-RSYNC_OPTS=(-aR --human-readable --info=progress2 --partial)
-if [ -n "$DRY_RUN" ]; then
-  echo "==> DRY RUN (no changes)"
-  RSYNC_OPTS+=(--dry-run)
-else
-  echo "==> Creating $REMOTE_MNT on the node (owned by the login user)"
-  # shellcheck disable=SC2029  # deliberately expand id/quoting on the REMOTE side
-  ssh $SSH_OPTS "$TARGET" \
-    "sudo mkdir -p '$REMOTE_MNT' && sudo chown \"\$(id -un)\":\"\$(id -gn)\" '$REMOTE_MNT'"
-fi
+echo "==> Creating $REMOTE_MNT on the node (owned by the login user)"
+# shellcheck disable=SC2029  # deliberately expand id/quoting on the REMOTE side
+ssh $SSH_OPTS "$TARGET" \
+  "sudo mkdir -p '$REMOTE_MNT' && sudo chown \"\$(id -un)\":\"\$(id -gn)\" '$REMOTE_MNT'"
 
 echo "==> rsync -> $TARGET:$REMOTE_MNT/"
+RSYNC_OPTS=(-aR --human-readable --info=progress2 --partial)
 rsync "${RSYNC_OPTS[@]}" -e "ssh $SSH_OPTS" "${ITEMS[@]}" "$TARGET:$REMOTE_MNT/"
 
 echo
