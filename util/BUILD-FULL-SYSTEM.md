@@ -197,14 +197,28 @@ AIRGAP_DIR=/mnt/install_src/airgap "$CS/util/build_image_bundle.sh"
 > (`util/fetch_airgap_images.sh` is the alternative, capturing from a fully-running
 > obs stack; prefer `build_image_bundle.sh` for reproducibility.)
 
-### A.5  Confirm the bundle is complete
-`/mnt/install_src` should now hold:
+### A.5  Confirm the bundle is complete — GREEN LIGHT before you drop the build box
+This checks the pieces that actually break an airgap install — the apt repo **index**
+(not just the debs), the image bundle, the binaries — not merely that directories
+exist. Run it on the build box; only ship / drop when it prints **BUNDLE COMPLETE**:
 ```
-clean_src/  data/  airgap/  ansible-packages.tar.gz
-docker-29.4.0.tgz  docker-compose-linux-x86_64-v5.1.2  alpine.tar
-digitaltwins-images-all.tar.gz  airflow-worker.tar.gz
-airgap/images/k3s-images.tar.gz  airgap/images/image-list.txt
+cd /mnt/install_src; ok=1
+for f in \
+  clean_src data data/env data/secrets.env \
+  ansible-packages.tar.gz alpine.tar \
+  docker-*.tgz docker-compose-linux-x86_64-* \
+  digitaltwins-images-all.tar.gz airflow-worker.tar.gz \
+  airgap/apt-debs/Packages airgap/apt-debs/INSTALL.list \
+  airgap/binaries/alloy-linux-amd64.zip \
+  airgap/images/k3s-images.tar.gz airgap/images/image-list.txt ; do
+  if ls -d $f >/dev/null 2>&1; then echo "OK       $f"; else echo "MISSING  $f"; ok=0; fi
+done
+[ "$ok" = 1 ] && echo "== BUNDLE COMPLETE ==" || echo "== BUNDLE INCOMPLETE — do NOT drop the build box =="
 ```
+> `airgap/apt-debs/Packages` is the one that bites: `build-apt-debs.sh` writes it,
+> and without it `install-apt-debs.sh` on the target fails with "no Packages index".
+> A bundle can look present (dirs exist) yet be missing this — hence the explicit check.
+
 **Ship** the `/mnt/install_src` volume (or its contents on media) to each target.
 
 ---
