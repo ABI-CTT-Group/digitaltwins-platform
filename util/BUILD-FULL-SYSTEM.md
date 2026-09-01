@@ -145,9 +145,22 @@ mkdir -p /mnt/install_src/data
 ```
 
 ### A.2  Offline packages + binaries (internet)
+Every line here fetches from the internet, so a silent failure here only surfaces
+at airgap-install time on a box that can no longer fetch anything. **Verify each
+generated piece before moving on** — the inline `test` lines below stop you at the
+step instead of three phases later.
 ```
 AIRGAP_DIR=/mnt/install_src/airgap "$CS/util/fetch_airgap.sh"   # k3s/helm/alloy/k9s, pip wheels, k3s system-image tarball
-"$CS/util/build-apt-debs.sh"                                    # local apt repo (needs dpkg-dev)
+test -s /mnt/install_src/airgap/binaries/alloy-linux-amd64.zip \
+  || { echo "STOP: fetch_airgap.sh did not populate airgap/binaries — fix before continuing"; }
+
+"$CS/util/build-apt-debs.sh"                                    # local apt repo (needs dpkg-dev + internet)
+# ^ THE one that silently goes missing: build-apt-debs writes the Packages INDEX
+#   that install-apt-debs needs. Without it the airgap install dies with "no
+#   Packages index in .../apt-debs". Verify it HERE, not on the airgapped target:
+test -s /mnt/install_src/airgap/apt-debs/Packages \
+  || { echo "STOP: build-apt-debs.sh did not write airgap/apt-debs/Packages — did it error? is dpkg-dev installed (A.0.1)? fix before continuing"; }
+
 # docker static binaries (airgap_build_step2 on the targets installs these):
 wget -O /mnt/install_src/docker-29.4.0.tgz \
   https://download.docker.com/linux/static/stable/x86_64/docker-29.4.0.tgz
