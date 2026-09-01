@@ -78,6 +78,16 @@ rm -rf airgap ansible-packages.tar.gz *.tgz docker-compose-linux-* \
        digitaltwins-images-all.tar.gz airflow-worker.tar.gz alpine.tar letsencrypt.tar
 CS=/mnt/install_src/clean_src/digitaltwins-platform
 ```
+> **Also wipe docker volumes if this box has run the platform before.** Volumes
+> live on the docker root, NOT under `/mnt/install_src`, so the reset above leaves
+> stale SEEK/Postgres/MinIO data behind — which contaminates the build (e.g. A.3
+> aborts with "Email has already been taken" from a leftover SEEK admin). For a
+> truly clean bundle build:
+> ```
+> ( cd ~/digitaltwins-platform && docker compose down 2>/dev/null ) || true
+> "$CS/util/docker_delete_volumes.sh"     # removes digitaltwins-platform* volumes
+> ```
+> (Skip this on a fresh VM that never ran the stack — there's nothing to wipe.)
 
 ### A.1  Code + config
 
