@@ -52,45 +52,98 @@ Two things trip everyone; note them now:
 
 ---
 
-## A. Build box (connected) — manufacture the bundle
+## A. Build box (connected) — manufacture the bundle from scratch
 
-Do this once per release, on a box **with internet**. Full detail:
-[`INSTALL-BUNDLE.md`](INSTALL-BUNDLE.md).
+Do this once per release, on a box **with internet**. This section is complete on
+its own: starting from **only `clean_src/` + `data/`**, it regenerates every other
+piece of `/mnt/install_src`. Per-piece "what/why" detail:
+[`INSTALL-BUNDLE.md`](INSTALL-BUNDLE.md) → *Bundle contents & how to (re)build each piece*.
 
-1. **Code + config into the bundle**
-   ```
-   # clean_src tracks the release branch; refresh it + submodules
-   ( cd /mnt/install_src/clean_src/digitaltwins-platform && git pull \
-       && git submodule update --init --recursive )
-   # fill in data/env + data/secrets.env (see Phase B.3 for the required keys)
-   ```
-2. **Internet-only bits** (binaries, apt debs, pip wheels, charts):
-   ```
-   AIRGAP_DIR=/mnt/install_src/airgap util/fetch_airgap.sh
-   util/build-apt-debs.sh          # regenerate the local apt repo (full dep closure)
-   ```
-3. **Platform images** (docker-compose stack) — build/pull the stack, then freeze:
-   ```
-   # bring the platform up from source once (connected), verify, then:
-   util/freeze_images.sh           # -> /mnt/install_src/digitaltwins-images-all.tar.gz
-   docker save digitaltwins-platform-airflow-worker:latest | gzip > /mnt/install_src/airflow-worker.tar.gz
-   ```
-4. **Observability images** (k3s stack) — **deterministic, chart-driven**, needs
-   k3s running on the build box (containerd as the pull engine; no charts deployed):
-   ```
-   AIRGAP_DIR=/mnt/install_src/airgap util/build_image_bundle.sh
-   #  -> airgap/images/k3s-images.tar.gz  (ONE valid multi-image archive)
-   #  -> airgap/images/image-list.txt     (the manifest the install verifies against)
-   ```
-   > This replaces the old capture-from-a-running-stack step. It derives the image
-   > set from the Helm charts themselves, so it can't miss a subchart (MinIO) or a
-   > hook Job (the make-bucket job) — the exact gap that made airgap installs hang.
-5. **Capture k3s app images too** (if you brought the obs stack up connected and
-   prefer capturing what actually ran): `AIRGAP_DIR=/mnt/install_src/airgap
-   util/fetch_airgap_images.sh` — either script produces the same
-   `images/{k3s-images.tar.gz,image-list.txt}` pair. Prefer `build_image_bundle.sh`
-   for reproducibility.
+> **The two things `clean_src` can NOT give you** (provide them yourself):
+> - **`data/`** — `data/env`, `data/secrets.env`, and the TLS cert are *config*, not
+>   code. Fill env/secrets from the `.template` files; obtain the cert (LE DNS-01 /
+>   institutional). Keep `data/` across a reset — losing it means re-entering all
+>   secrets.
+> - **Build-box tooling** — this box needs `docker`, `ansible`, `k3s` + `helm`, and
+>   `dpkg-dev`, installed the normal *connected* way ([`README.md`](README.md) →
+>   *Installing on a connected machine*). You're building the bundle that bootstraps
+>   the airgapped targets, so the build box bootstraps itself from the internet.
 
+### A.0  Reset to a clean starting point
+Keep only the two non-regenerable dirs, wipe the rest:
+```
+cd /mnt/install_src
+# (keep clean_src/ and data/; remove the generated artifacts)
+rm -rf airgap ansible-packages.tar.gz *.tgz docker-compose-linux-* \
+       digitaltwins-images-all.tar.gz airflow-worker.tar.gz alpine.tar letsencrypt.tar
+CS=/mnt/install_src/clean_src/digitaltwins-platform
+```
+
+### A.1  Code + config
+```
+( cd "$CS" && git pull && git submodule update --init --recursive )   # refresh the release branch
+# fill data/env + data/secrets.env from the templates if not already present:
+[ -f data/env ]        || cp "$CS/env.template" data/env
+[ -f data/secrets.env ] || cp "$CS/secrets.env.template" data/secrets.env
+#   ... edit both (required keys listed in Phase B.3) ...
+# TLS cert -> data/<domain>.fullchain.pem/.privkey.pem (+ symlinks); letsencrypt.tar backup
+```
+
+### A.2  Offline packages + binaries (internet)
+```
+AIRGAP_DIR=/mnt/install_src/airgap "$CS/util/fetch_airgap.sh"   # k3s/helm/alloy/k9s, pip wheels, k3s system-image tarball
+"$CS/util/build-apt-debs.sh"                                    # local apt repo (needs dpkg-dev)
+# docker static binaries (airgap_build_step2 on the targets installs these):
+wget -O /mnt/install_src/docker-29.4.0.tgz \
+  https://download.docker.com/linux/static/stable/x86_64/docker-29.4.0.tgz
+wget -O /mnt/install_src/docker-compose-linux-x86_64-v5.1.2 \
+  https://github.com/docker/compose/releases/download/v5.1.2/docker-compose-linux-x86_64
+# ansible wheels (targets install ansible from these):
+pip3 download ansible -d /mnt/install_src/ansible-packages/ \
+  && tar -C /mnt/install_src -czf /mnt/install_src/ansible-packages.tar.gz ansible-packages/ \
+  && rm -rf /mnt/install_src/ansible-packages/
+# offline helper image (stage-dump / minio-logs-init):
+docker pull alpine && docker save alpine > /mnt/install_src/alpine.tar
+```
+> The observability Helm **charts are already in `clean_src`**
+> (`util/observability/charts/*.tgz`, committed) — nothing to fetch.
+
+### A.3  Platform images (build from source, then freeze)
+Bring the docker-compose platform up **from source** on this connected box, verify
+it, then freeze the running images:
+```
+ansible-playbook -i "localhost," -c local "$CS/util/airgap_build_step3.yml" \
+  -e "ansible_user=$USER" -e "install_src_dir=/mnt/install_src" -e load_frozen_images=false
+#   ... verify the app (README §6) ...
+"$CS/util/freeze_images.sh"        # -> /mnt/install_src/digitaltwins-images-all.tar.gz
+docker save digitaltwins-platform-airflow-worker:latest | gzip \
+  > /mnt/install_src/airflow-worker.tar.gz
+```
+> **Freeze gotcha:** `freeze_images.sh` saves whatever images exist *right now*, so
+> always `git submodule update` + `up -d` first (so one-shot/init images exist to
+> capture). A tarball older than your last image build is stale — re-freeze.
+
+### A.4  Observability images (deterministic, chart-driven)
+Needs `k3s` + `helm` on this box (k3s's containerd is the pull engine — no charts
+need to be deployed):
+```
+AIRGAP_DIR=/mnt/install_src/airgap "$CS/util/build_image_bundle.sh"
+#  -> airgap/images/k3s-images.tar.gz   ONE valid multi-image archive
+#  -> airgap/images/image-list.txt      manifest the install verifies against
+```
+> Derives the image set from the charts themselves, so it can't miss a subchart
+> (MinIO) or a hook Job (the make-bucket job) — the gap that hung airgap installs.
+> (`util/fetch_airgap_images.sh` is the alternative, capturing from a fully-running
+> obs stack; prefer `build_image_bundle.sh` for reproducibility.)
+
+### A.5  Confirm the bundle is complete
+`/mnt/install_src` should now hold:
+```
+clean_src/  data/  airgap/  ansible-packages.tar.gz
+docker-29.4.0.tgz  docker-compose-linux-x86_64-v5.1.2  alpine.tar
+digitaltwins-images-all.tar.gz  airflow-worker.tar.gz
+airgap/images/k3s-images.tar.gz  airgap/images/image-list.txt
+```
 **Ship** the `/mnt/install_src` volume (or its contents on media) to each target.
 
 ---
