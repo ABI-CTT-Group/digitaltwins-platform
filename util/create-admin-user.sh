@@ -37,9 +37,13 @@ echo "Creating SEEK admin user '$USERNAME' (service: $SEEK_SERVICE, email: $EMAI
 [ "$KEYCLOAK_MODE" = true ] && echo "Mode: Keycloak (no local password)" || echo "Mode: local password"
 
 cat << RUBY_SCRIPT | docker compose exec -T "$SEEK_SERVICE" bash -c 'cd /seek && RAILS_ENV=production bundle exec rails runner -'
-user = User.find_by(login: "$USERNAME")
-if user
-  puts "User '$USERNAME' already exists"
+user   = User.find_by(login: "$USERNAME")
+person = Person.find_by(email: "$EMAIL")
+if user || person
+  # Idempotent: a re-run over a persisted SEEK volume finds the login OR the
+  # email already taken. Either means the admin was provisioned before — skip,
+  # don't abort the whole deploy on the unique-email constraint.
+  puts "SEEK admin already provisioned (login present: #{!user.nil?}, email present: #{!person.nil?}) — skipping"
 else
   user = User.new
   user.login = "$USERNAME"
