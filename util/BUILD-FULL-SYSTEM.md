@@ -89,6 +89,30 @@ CS=/mnt/install_src/clean_src/digitaltwins-platform
 > ```
 > (Skip this on a fresh VM that never ran the stack — there's nothing to wipe.)
 
+### A.0.1  Bootstrap the build box (fresh VM only)
+A brand-new connected VM has none of the tooling Phase A drives. This box is
+connected and disposable, so it bootstraps itself from the internet (unlike the
+airgapped targets, which get everything from the bundle it builds). Install
+whatever's missing:
+```
+# Docker + compose plugin — full apt-repo steps in README "Installing on a
+# connected machine"; afterwards put yourself in the docker group + re-login:
+sudo usermod -aG docker "$USER"      # then log out / back in
+
+# Ansible (runs the playbooks) + dpkg-dev (for build-apt-debs.sh):
+sudo apt-get update && sudo apt-get install -y ansible dpkg-dev
+
+# k3s — its containerd is the pull/export engine for build_image_bundle.sh (A.4).
+# Pin to the bundle's K3S_VERSION (see util/fetch_airgap.sh) so it matches the
+# target's k3s; plain 'sh -' takes latest, which is fine for image pull/export:
+curl -sfL https://get.k3s.io | sh -
+
+# helm — client-side chart templating for build_image_bundle.sh (A.4):
+curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+```
+> Verify before continuing: `docker ps`, `ansible --version`,
+> `sudo k3s ctr version`, `helm version`. All four must work.
+
 ### A.1  Code + config
 
 **Get `clean_src`** — clone from scratch, or refresh if you kept it in A.0:
