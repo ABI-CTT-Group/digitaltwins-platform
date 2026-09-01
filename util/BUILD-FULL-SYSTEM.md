@@ -80,11 +80,31 @@ CS=/mnt/install_src/clean_src/digitaltwins-platform
 ```
 
 ### A.1  Code + config
+
+**Get `clean_src`** — clone from scratch, or refresh if you kept it in A.0:
 ```
-( cd "$CS" && git pull && git submodule update --init --recursive )   # refresh the release branch
-# fill data/env + data/secrets.env from the templates if not already present:
-[ -f data/env ]        || cp "$CS/env.template" data/env
-[ -f data/secrets.env ] || cp "$CS/secrets.env.template" data/secrets.env
+BRANCH=observability-mainline     # the current release branch
+mkdir -p /mnt/install_src/clean_src
+if [ -d "$CS/.git" ]; then
+  ( cd "$CS" && git fetch origin && git checkout "$BRANCH" \
+      && git pull && git submodule update --init --recursive )
+else
+  git clone --recurse-submodules -b "$BRANCH" \
+    https://github.com/ABI-CTT-Group/digitaltwins-platform.git \
+    /mnt/install_src/clean_src/digitaltwins-platform
+fi
+```
+> Public repos — HTTPS needs no auth (the box's only GitHub block is SSH).
+> `--recurse-submodules` checks out the three submodules (portal / api / seek) at
+> their pinned commits. **After ANY later `git pull` in `clean_src`, re-run
+> `git submodule update --init --recursive`** — a pull moves the submodule pointers
+> but doesn't check them out.
+
+**Config** — `data/` is not code, so provide it (absolute paths; cwd-independent):
+```
+mkdir -p /mnt/install_src/data
+[ -f /mnt/install_src/data/env ]         || cp "$CS/env.template"         /mnt/install_src/data/env
+[ -f /mnt/install_src/data/secrets.env ] || cp "$CS/secrets.env.template" /mnt/install_src/data/secrets.env
 #   ... edit both (required keys listed in Phase B.3) ...
 # TLS cert -> data/<domain>.fullchain.pem/.privkey.pem (+ symlinks); letsencrypt.tar backup
 ```
