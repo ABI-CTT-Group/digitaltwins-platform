@@ -165,8 +165,14 @@ docker pull alpine && docker save alpine > /mnt/install_src/alpine.tar
 
 ### A.3  Platform images (build from source, then freeze)
 Bring the docker-compose platform up **from source** on this connected box, verify
-it, then freeze the running images:
+it, then freeze the running images. **step3 reads config + secrets from the SHELL
+ENVIRONMENT** (`lookup('env', …)` for `PLATFORM_DOMAIN`, the MySQL passwords, the
+SEEK admin creds, …), so you MUST `source` `data/env` + `data/secrets.env` first —
+and re-set `CS` if you logged out/in for the docker group (a fresh shell has neither):
 ```
+CS=/mnt/install_src/clean_src/digitaltwins-platform
+set -a; . /mnt/install_src/data/secrets.env; . /mnt/install_src/data/env; set +a
+
 ansible-playbook -i "localhost," -c local "$CS/util/airgap_build_step3.yml" \
   -e "ansible_user=$USER" -e "install_src_dir=/mnt/install_src" -e load_frozen_images=false
 #   ... verify the app (README §6) ...
@@ -232,8 +238,12 @@ Detail: [`README.md`](README.md) §0–6.
    > `GRAFANA_OAUTH_SECRET` must be **identical** on the Keycloak side (rendered by
    > `gen-realm.sh`, imported **first-boot only**) and the Grafana side (shell env at
    > obs-playbook time). Source `secrets.env` for both so they can't drift.
-4. **Deploy the platform** — `install_src` is **`/mnt/install_src`** here:
+4. **Deploy the platform** — `install_src` is **`/mnt/install_src`** here. step3
+   reads config + secrets from the **shell environment** (`PLATFORM_DOMAIN`, MySQL +
+   SEEK creds, …), so source `data/env` + `data/secrets.env` first:
    ```
+   CS=/mnt/install_src/clean_src/digitaltwins-platform
+   set -a; . /mnt/install_src/data/secrets.env; . /mnt/install_src/data/env; set +a
    ansible-playbook -i "localhost," -c local "$CS/util/airgap_build_step3.yml" \
      -e "ansible_user=$USER" -e "install_src_dir=/mnt/install_src"
    ```
