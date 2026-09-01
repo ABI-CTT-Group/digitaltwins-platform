@@ -99,8 +99,9 @@ whatever's missing:
 curl -fsSL https://get.docker.com | sudo sh
 sudo usermod -aG docker "$USER"      # then log out / back in
 
-# Ansible (runs the playbooks) + dpkg-dev (for build-apt-debs.sh):
-sudo apt-get update && sudo apt-get install -y ansible dpkg-dev
+# Ansible (runs the playbooks) + dpkg-dev (build-apt-debs.sh) + pip3 (A.2's
+# `pip3 download ansible` — not shipped on a fresh Ubuntu 24.04):
+sudo apt-get update && sudo apt-get install -y ansible dpkg-dev python3-pip
 
 # k3s — its containerd is the pull/export engine for build_image_bundle.sh (A.4).
 # Pin to the bundle's K3S_VERSION (see util/fetch_airgap.sh) so it matches the
