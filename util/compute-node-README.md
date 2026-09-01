@@ -1,5 +1,10 @@
 # Installing a remote Airflow compute node
 
+> Building a whole system (portal + observability + this node) from scratch?
+> The ordered master runbook is [`BUILD-FULL-SYSTEM.md`](BUILD-FULL-SYSTEM.md);
+> this file is the compute-node detail it points to (§E/§F there).
+
+
 A compute node is a **single Airflow Celery worker** on its own VM that joins the
 portal's Airflow cluster over the VLAN and runs tasks tagged for its queue (e.g.
 `remote`). It runs **no platform of its own** — the scheduler, apiserver, Postgres,

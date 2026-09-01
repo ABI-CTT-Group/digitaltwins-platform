@@ -1,5 +1,10 @@
 # Airgap buildout — DigitalTWINS platform
 
+> **Building a whole system from scratch (portal + observability + remote
+> compute)?** Start with the ordered master runbook —
+> [`BUILD-FULL-SYSTEM.md`](BUILD-FULL-SYSTEM.md). It owns the *order* the pieces
+> compose in; this file is the detail for the portal-platform steps within it.
+
 Everything needed to bring the platform up on an **airgapped Ubuntu 24.04**
 machine with no Internet access. You can run it on `http`/`localhost` or behind
 `https` on a (real or `/etc/hosts`-faked) domain.
