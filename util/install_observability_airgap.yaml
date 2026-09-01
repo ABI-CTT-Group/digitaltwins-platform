@@ -159,21 +159,61 @@
         state: started
         enabled: true
 
-    # ── Load container images into k3s ────────────────────────────────────────
-    - name: Check if image bundle exists
+    # ── Load + VERIFY container images (airgap: no registry to fall back to) ────
+    # A hospital/airgap install cannot pull anything — so a missing or incomplete
+    # image bundle must fail HERE, loudly, not 30 minutes later as a Helm timeout
+    # full of ImagePullBackOff. This block imports the bundle and then asserts
+    # every image the bundle claims is actually in containerd.
+    - name: Require the image bundle + its manifest
       ansible.builtin.stat:
-        path: "{{ install_src }}/images/k3s-images.tar.gz"
-      register: image_bundle
+        path: "{{ item }}"
+      loop:
+        - "{{ install_src }}/images/k3s-images.tar.gz"
+        - "{{ install_src }}/images/image-list.txt"
+      register: bundle_files
+
+    - name: Fail if the image bundle or manifest is missing
+      ansible.builtin.fail:
+        msg: >-
+          Missing {{ item.item }} — an airgapped install has no registry to pull from.
+          Build the bundle on a CONNECTED box with util/fetch_airgap_images.sh and ship
+          images/ in {{ install_src }}.
+      when: not item.stat.exists
+      loop: "{{ bundle_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
 
     - name: Load container images into k3s containerd
-      ansible.builtin.shell: >
-        k3s ctr images import {{ install_src }}/images/k3s-images.tar.gz
-      when: image_bundle.stat.exists
+      ansible.builtin.command: k3s ctr images import {{ install_src }}/images/k3s-images.tar.gz
       register: image_import
+      changed_when: true
 
-    - name: Show image import result
+    - name: Read the bundle's expected image manifest
+      ansible.builtin.slurp:
+        src: "{{ install_src }}/images/image-list.txt"
+      register: image_list_raw
+
+    - name: List images now present in containerd
+      ansible.builtin.command: k3s ctr images ls -q
+      register: ctr_images
+      changed_when: false
+
+    - name: Determine which bundled images failed to import
+      ansible.builtin.set_fact:
+        missing_images: "{{ (image_list_raw.content | b64decode).splitlines() | map('trim') | select('search', '/') | list | difference(ctr_images.stdout_lines) }}"
+
+    - name: FAIL FAST if any bundled image is not in containerd
+      ansible.builtin.fail:
+        msg: >-
+          {{ missing_images | length }} image(s) from the bundle did NOT import into
+          containerd — this airgap install would fail with ImagePullBackOff. Rebuild the
+          bundle with util/fetch_airgap_images.sh (single multi-image export, NOT a cat
+          of tars). Missing: {{ missing_images | join(', ') }}
+      when: missing_images | length > 0
+
+    - name: Image bundle verified
       ansible.builtin.debug:
-        msg: "{{ image_import.stdout_lines | default(['Image bundle not found — skipping']) }}"
+        msg: "Verified: all {{ ((image_list_raw.content | b64decode).splitlines() | select('search','/') | list) | length }} bundled images are present in containerd."
 
     # ── k9s ───────────────────────────────────────────────────────────────────
     - name: Check if k9s already installed
