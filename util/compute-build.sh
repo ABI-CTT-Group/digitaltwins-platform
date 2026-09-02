@@ -56,6 +56,7 @@ PATTERNS=(
   airflow-worker.tar.gz
   airgap/apt-debs
   airgap/binaries/alloy-linux-amd64.zip
+  data/public_keys            # operator SSH pubkeys (public; for util/authorise-keys.yaml on the node)
 )
 # Items whose absence should HARD-FAIL (a node can't come up without them).
 CRITICAL=(clean_src docker-*.tgz airflow-worker.tar.gz airgap/apt-debs)

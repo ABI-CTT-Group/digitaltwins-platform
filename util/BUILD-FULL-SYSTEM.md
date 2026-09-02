@@ -424,6 +424,14 @@ Detail: [`compute-node-README.md`](compute-node-README.md) §A–F. **Portal mus
      celery --app airflow.providers.celery.executors.celery_executor.app inspect active_queues
    ```
    Expect `celery@<node> -> remote`.
+6. **(Optional) operator SSH access to the node.** The node doesn't run step3, so it
+   doesn't authorise `data/public_keys` (that's portal-only — see A.1). `compute-build`
+   copies the pubkeys over, so restore direct operator SSH with the standalone playbook:
+   ```
+   # on the NODE:
+   ansible-playbook -i 'localhost,' -c local -e "ansible_user=$USER" \
+     "$CS/util/authorise-keys.yaml"
+   ```
 
 ---
 
