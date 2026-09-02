@@ -332,9 +332,15 @@ Detail: [`README.md`](README.md) §0–6.
    cd ~/digitaltwins-platform
    util/portal-restore.sh /mnt/install_src/migrate     # your stage-dump dir (default /tmp/dtwins-migrate)
    ```
-   Then **re-mint the SEEK API token** — the restore replaced SEEK's users, so the
-   token in `secrets.env` is stale (see README → *Transferring data* step 4). Uses
-   the bundled `alpine`/`mc` images (already loaded), so it works airgapped.
+   Uses the bundled `alpine`/`mc` images (already loaded), so it works airgapped.
+   > **No SEEK-token re-mint needed** (older docs said to — that's stale). Platform→SEEK
+   > auth is now per-request **Keycloak JWT** forwarding; the global `SEEK_API_TOKEN` was
+   > removed (see `seek-integration.md`), so there's no static token to go stale. What
+   > *does* change: the restore brings the **dump's** SEEK user DB, incl. the `identities`
+   > table that maps Keycloak `sub` UUIDs → SEEK users — so users resolve correctly only
+   > if the dump came from a system sharing **your Keycloak realm/users**. And the SEEK
+   > **admin login/password become the dump's** (unreadable hashes), not your
+   > `SEEK_ADMIN_PASSWORD`.
 6. **DAGs** (not in the bundle): sync from your DAG source, then **un-pause**. If
    you seeded in step 5, sync the DAGs that go with that data:
    ```

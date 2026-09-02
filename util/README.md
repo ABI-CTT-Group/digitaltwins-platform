@@ -582,11 +582,12 @@ ssh <target>
 cd ~/digitaltwins-platform
 util/portal-restore.sh                  # <- /tmp/dtwins-migrate on the target
 
-# 4. Re-mint the SEEK API token (restore replaced SEEK's users, so the
-#    buildout's token is stale). On the target:
-SECRETS_FILE=/mnt/install_src/data/secrets.env util/generate-token.sh admin
-util/gen-env.sh -e /mnt/install_src/data/env -s /mnt/install_src/data/secrets.env
-docker compose up -d digitaltwins-api
+# 4. (No SEEK API-token re-mint — that step is obsolete.) Platform->SEEK auth is now
+#    per-request Keycloak JWT forwarding; the global SEEK_API_TOKEN was removed
+#    (see docs/seek-integration.md), and util/generate-token.sh no longer exists.
+#    What the restore DOES bring: the dump's SEEK users + the `identities` table
+#    (Keycloak sub-UUID -> SEEK user maps), so users resolve only if the dump came
+#    from a system sharing your Keycloak realm/users.
 
 # 4b. Reset the local SEEK admin password — the restore also brought the source's
 #     user DB (password hashes you can't read), so your SEEK_ADMIN_PASSWORD no
