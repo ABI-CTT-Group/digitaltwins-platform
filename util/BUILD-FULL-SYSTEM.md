@@ -527,9 +527,24 @@ docker group) — no dedicated user, no ACL/chmod.
    cd ~/digitaltwins-compute && docker compose logs -f airflow-worker
    ```
 3. **Drive load** — trigger the `cpu_burn_primes` DAG (unpaused on creation) from the
-   portal (▶ in the Airflow UI, or `airflow dags trigger cpu_burn_primes`). Within a
-   second or two the node's worker log should show it **receive and start** the task —
-   lines like:
+   portal (▶ in the Airflow UI, or `airflow dags trigger cpu_burn_primes`). It's the
+   built-in smoke test: self-contained (no MinIO/Keycloak deps) and already tagged
+   `queue='remote'`, so it exercises exactly this path. *(Or trigger any DAG with a task
+   tagged `queue='remote'` — but a data-dependent one can fail for unrelated reasons and
+   muddy the verify.)*
+   > It ships in the repo (`services/airflow/dags/cpu_burn_primes.py`), but the dags dir
+   > is **sync-excluded** (B.6 syncs DAGs from your *source box*, not `clean_src`), so it
+   > only runs if that source carried it. If `airflow dags list` doesn't show it, place it
+   > from the checkout — on the **portal**:
+   > ```
+   > CS=/mnt/install_src/clean_src/digitaltwins-platform
+   > cp "$CS/services/airflow/dags/cpu_burn_primes.py" ~/digitaltwins-platform/services/airflow/dags/
+   > "$CS/util/sync-compute-dags.sh" 10.2.0.14   # push it to the node too, so the worker can execute it
+   > ```
+   > Wait ~1 min for the dag-processor to pick it up.
+
+   Within a second or two the node's worker log should show it **receive and start** the
+   task — lines like:
    ```
    Task ...execute_workload... received
    [...] Executing workload in Celery: ... queue='remote' ... dag_id='cpu_burn_primes' ...
