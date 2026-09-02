@@ -328,6 +328,13 @@ Detail: [`README.md`](README.md) §0–6.
    ```
    Do **not** `export COMPOSE_FILE` in your shell — it overrides `.env` and silently
    drops the remote-compute override.
+   > **Why the override exists:** with `REMOTE_COMPUTE=true`, `gen-env` sets `COMPOSE_FILE`
+   > to **two** files — the base `docker-compose.yml` **plus**
+   > `services/airflow/remote-compute.override.yml`. The override's only job is to publish
+   > Redis (the Celery **broker**) on the VLAN so the remote worker can reach it; the base
+   > compose already exposes the execution API, Postgres and MinIO. Drop the override and
+   > the broker stays unpublished — the remote worker can't connect and its `remote`-queued
+   > tasks sit in `queued` (no error at deploy; you'd only catch it at Phase G verify).
 5. **(Optional) Seed with a `stage-dump`.** To bring an existing instance's data
    into this fresh one, restore a `stage-dump.sh` result now — *after* the stack is
    up (so the DBs/MinIO exist to restore into), *before* DAGs. `portal-restore.sh`
