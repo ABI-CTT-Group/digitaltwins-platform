@@ -29,7 +29,7 @@
     observability_dir: "{{ playbook_dir }}/observability"
     run_user: "{{ ansible_user | default(lookup('env', 'USER')) }}"
     run_group: "{{ run_user }}"
-    node_name: "{{ ansible_hostname }}"
+    node_name: "{{ ansible_facts['hostname'] }}"
     worker_logs_dir: "/home/{{ run_user }}/digitaltwins-compute/logs"
     # obs_host (the portal VLAN IP where Loki :3100 / Mimir :9005 are published)
     # is REQUIRED — pass -e obs_host=...

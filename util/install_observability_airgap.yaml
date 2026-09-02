@@ -496,7 +496,7 @@
       ansible.builtin.replace:
         path: /etc/alloy/config.alloy
         regexp: '\$\{NODE_NAME\}'
-        replace: "{{ ansible_hostname }}"
+        replace: "{{ ansible_facts['hostname'] }}"
 
     - name: Copy alloy systemd service
       ansible.builtin.copy:
