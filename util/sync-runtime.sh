@@ -40,6 +40,8 @@ excludes=(
   --exclude='services/keycloak/import/'                        # rendered realm (gen-realm.sh)
   --exclude='services/nginx/certs/'                            # installed TLS certs
   --exclude='services/nginx/acme/.well-known/'                 # transient ACME challenge files (certbot/renew-cert.sh)
+  --exclude='services/nginx/snippets/minio-discovery.json'     # rendered by gen-env.sh, served live by nginx (tracked snippet siblings still sync)
+  --exclude='services/api/digitaltwins-api/configs.ini'        # root-owned dir Docker auto-creates for a bind mount; --delete as non-root would abort the sync
   --exclude='services/seek/ldh-deployment/docker-compose.env'  # rendered SEEK env
 )
 
