@@ -25,8 +25,8 @@ OUT="${1:-$INSTALL_SRC_DIR/digitaltwins-images-all.tar.gz}"
 # `docker run --rm` (ephemeral — NOT in the compose stack, so the compose-based
 # union below never sees them). Without these in the archive, a restore on the
 # airgapped box has no alpine/mc to run. Keep MC_IMAGE in sync with those scripts.
-MC_IMAGE="${MC_IMAGE:-quay.io/minio/mc:latest}"
-# Override the whole set with e.g. EXTRA_IMAGES="alpine:latest quay.io/minio/mc:latest"
+MC_IMAGE="${MC_IMAGE:-minio/mc:RELEASE.2024-05-09T17-04-24Z}"
+# Override the whole set with e.g. EXTRA_IMAGES="alpine:latest minio/mc:RELEASE.2024-05-09T17-04-24Z"
 read -r -a extra_imgs <<< "${EXTRA_IMAGES:-alpine:latest $MC_IMAGE}"
 
 cd "$PLATFORM_DIR"

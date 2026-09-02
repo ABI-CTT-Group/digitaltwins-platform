@@ -1,0 +1,82 @@
+---
+# Portal side of "ship a remote compute node's telemetry to observability":
+# open the Loki :3100 / Mimir :9005 ingest ports to the node over the VLAN, and
+# make sure the k3s port-forwards are bound to 0.0.0.0.
+#
+# The Ansible equivalent of `util/ufw_for_remote_compute.sh <node> 3100 9005`
+# plus the port-forward rebind. A FRESH observability install already binds
+# 0.0.0.0 (install_observability_airgap.yaml does it), so on a clean box the
+# rebind is a no-op; this playbook also safely fixes an older loopback-bound one.
+#
+# Run ON THE PORTAL, locally, after the observability stack is installed:
+#   ansible-playbook -i 'localhost,' -c local \
+#     -e "ansible_user=$(whoami)" \
+#     -e "compute_node_ip=10.2.0.14" \
+#     /mnt/install_src/clean_src/digitaltwins-platform/util/enable_compute_observability_ingress.yaml
+#
+# NOTE: the cloud SECURITY GROUP is a separate firewall layer below ufw and can't
+# be set from here — open 3100/9005 to the node's IP there too (never 0.0.0.0/0).
+- name: Portal — open Loki/Mimir ingress to a remote compute node
+  hosts: all
+  become: true
+  vars:
+    obs_ports: [3100, 9005]
+    pf_script: /usr/local/bin/k3s-port-forward.sh
+    # compute_node_ip (the node's VLAN IP) is REQUIRED — pass -e compute_node_ip=...
+  tasks:
+    - name: Require compute_node_ip (the node's VLAN IP)
+      ansible.builtin.assert:
+        that:
+          - compute_node_ip is defined
+          - compute_node_ip | length > 0
+        fail_msg: "Pass -e compute_node_ip=<node_vlan_ip>."
+
+    - name: Allow Loki/Mimir ingest from the node (ufw, restricted to its IP)
+      ansible.builtin.command: "ufw allow from {{ compute_node_ip }} to any port {{ item }} proto tcp"
+      register: ufw_res
+      changed_when: "'Skipping' not in ufw_res.stdout"
+      loop: "{{ obs_ports }}"
+
+    - name: Is the k3s port-forward script present?
+      ansible.builtin.stat:
+        path: "{{ pf_script }}"
+      register: pf
+
+    - name: Ensure the Loki/Mimir port-forwards bind 0.0.0.0
+      ansible.builtin.replace:
+        path: "{{ pf_script }}"
+        regexp: 'port-forward svc/(loki-gateway|mimir-gateway)'
+        replace: 'port-forward --address 0.0.0.0 svc/\1'
+      when: pf.stat.exists
+      register: pf_bind
+
+    # If we actually changed the binding, a plain `systemctl restart` doesn't work:
+    # the oneshot unit nohup-backgrounds kubectl, the old loopback procs survive the
+    # restart, and a 127.0.0.1 listener blocks the new 0.0.0.0 bind. Do the safe
+    # dance (see docs/diagnostics.md): stop -> kill by port -> start.
+    - name: Rebind cleanly when the binding changed (stop -> kill by port -> start)
+      when: pf.stat.exists and pf_bind is changed
+      block:
+        - name: Stop the port-forward service
+          ansible.builtin.systemd:
+            name: k3s-port-forward
+            state: stopped
+
+        - name: Kill anything still holding the ingest ports
+          ansible.builtin.shell: |
+            set -o pipefail
+            for p in $(ss -tlnpH 'sport = :3100 or sport = :9005' | grep -oP 'pid=\K[0-9]+' | sort -u); do
+              kill -9 "$p" || true
+            done
+          args:
+            executable: /bin/bash
+          changed_when: false
+
+        - name: Start the port-forward service
+          ansible.builtin.systemd:
+            name: k3s-port-forward
+            state: started
+
+    - name: Reminder — the cloud security group is separate
+      ansible.builtin.debug:
+        msg: "ufw opened {{ obs_ports }} to {{ compute_node_ip }}. ALSO open these two ports to {{ compute_node_ip }} in the OpenStack security group (never 0.0.0.0/0), or the node still can't reach them."

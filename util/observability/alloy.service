@@ -1,0 +1,17 @@
+[Unit]
+Description=Grafana Alloy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=alloy
+Group=alloy
+ExecStart=/usr/local/bin/alloy run /etc/alloy/config.alloy \
+  --storage.path=/var/lib/alloy
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

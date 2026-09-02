@@ -27,7 +27,7 @@ PORTAL_BE_C="${PORTAL_BE_C:-${PROJECT}-portal-backend-1}"
 MINIO_C="${MINIO_C:-${PROJECT}-minio-1}"
 # volume=container pairs to stop while their DICOM volume is replaced
 ORTHANC_MAP="${ORTHANC_MAP:-${PROJECT}_orthanc_1_data=${PROJECT}-orthanc-1-1 ${PROJECT}_orthanc_2_data=${PROJECT}-orthanc-2-1}"
-MC_IMAGE="${MC_IMAGE:-quay.io/minio/mc:latest}"
+MC_IMAGE="${MC_IMAGE:-minio/mc:RELEASE.2024-05-09T17-04-24Z}"
 PLUGIN_CONF_VOL="${PLUGIN_CONF_VOL:-${PROJECT}_nginx_plugin_configs}"
 GATEWAY_C="${GATEWAY_C:-${PROJECT}-gateway}"
 

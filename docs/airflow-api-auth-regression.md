@@ -102,3 +102,52 @@ hold `airflow_admin` in the realm before/at login), otherwise UI admins stay stu
   not by the buildout.)
 - API 404 on `.../dags/workflow_XX/dagRuns` = DAG missing or the assay is linked to a different
   workflow SEEK id than the DAG that exists.
+
+---
+
+## Root-cause fix (shipped)
+
+The 401 on a **fresh** build had a concrete cause: the API authenticates as
+`AIRFLOW_USERNAME` (`admin1` in `.env.template`), but `airflow-init` created
+`_AIRFLOW_WWW_USER_USERNAME` = `admin`, so `admin1` had no local password and every
+fresh build 401'd (which is why we kept hand-creating `admin1`). Fixed in
+`services/airflow/docker-compose.yml`: `_AIRFLOW_WWW_USER_USERNAME` now follows
+`${AIRFLOW_USERNAME:-admin}`, so init creates the *same* local FAB user the API logs
+in as. Passwords already both come from `AIRFLOW_PASSWORD`. No more manual
+`airflow users create` after a rebuild; only an *already-running* box created before
+this fix needs the one-liner (see *Immediate fix*).
+
+---
+
+## OPEN CONCERN — user identity does not reach Airflow (attribution + UI isolation)
+
+The regression above is about auth *working*. Separately, the identity **model** has
+gaps worth a deliberate design decision **before a hospital / multi-institution
+deployment** — surfaced 2026-09.
+
+**Trigger runs as a shared service account, not the user.** A user launches a workflow
+from the portal with their own Keycloak JWT; the API authenticates *them* and gates
+data access via SEEK **as them** (see `seek-integration.md`). But the API→Airflow
+trigger uses `AIRFLOW_USERNAME`/`AIRFLOW_PASSWORD` — the shared `admin1` local FAB user.
+So **every** DAG run is triggered into Airflow as `admin1`; Airflow has no record of
+which user launched which run. Authorization is real (upstream, per-user); **attribution
+in Airflow is not**.
+
+**The monitor GUI has no per-user isolation.** `run_assay` returns a `monitor_url`
+pointing the user straight at the Airflow **UI** (`/airflow/dags/workflow_<id>`), where
+they log in as themselves via Keycloak OAuth (auto-provisioned FAB user; role from
+`AUTH_ROLES_MAPPING`, default `Viewer`). Open-source Airflow's UI is **not multi-tenant**:
+any authenticated user sees **all** DAGs, **all** runs, and **all task logs** — not just
+their own (and there's nothing to filter on, since all runs are `admin1`'s). For
+clinical / cross-institution data this is a **cross-tenant visibility problem**: pointing
+end users at the Airflow GUI exposes everyone's runs and logs.
+
+**Directions (dev-team decision):**
+- **Audit (cheap):** have the API log the user→run mapping at trigger time — it knows the
+  user (JWT) and the `run_id` it creates. A trail without re-architecting.
+- **Isolation (the real fix):** don't expose the Airflow UI to end users. The portal
+  shows a user *their own* run status (the API can map runs→users); Airflow stays an
+  internal ops-only tool behind admin logins. Today's `monitor_url` does the opposite.
+- **Identity to Airflow (largest):** the API gets its Airflow token via Keycloak (service
+  account, or user-token exchange — "Option B" above), so identity reaches Airflow and
+  per-user attribution/authorization become possible.
