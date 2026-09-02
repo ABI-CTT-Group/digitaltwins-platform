@@ -428,8 +428,11 @@ Detail: [`compute-node-README.md`](compute-node-README.md) §A–F. **Portal mus
 3. **Wire up the worker.** First on the **portal** (the node `.env` reads the *running*
    portal's config, and the node needs the VLAN ports opened):
    ```
-   # on the PORTAL:
+   # on the PORTAL — source the bundle secrets first (generate-compute-env reads
+   # them; without this it exits before writing and leaves an EMPTY compute.env):
+   set -a; . /mnt/install_src/data/secrets.env; . /mnt/install_src/data/env; set +a
    util/generate-compute-env.sh 10.2.0.195 ~/digitaltwins-platform/.env > /tmp/compute.env
+   test -s /tmp/compute.env || { echo "compute.env is EMPTY — a secret above is unset"; }
    scp /tmp/compute.env ubuntu@10.2.0.14:~/compute.env
    util/ufw_for_remote_compute.sh 10.2.0.14     # 8002/8003/8005/8010/8011 (+ security group)
    ```
