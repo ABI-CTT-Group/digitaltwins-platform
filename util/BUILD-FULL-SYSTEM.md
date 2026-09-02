@@ -446,9 +446,27 @@ docker group) — no dedicated user, no ACL/chmod.
    ```
    docker compose exec -T airflow-scheduler airflow variables set compute_queue remote
    ```
-2. **Drive load** — trigger the `cpu_burn_primes` DAG (unpaused on creation). It burns
-   CPU on the node for a few minutes.
-3. **See it in Grafana** (`https://<domain>/grafana` → Explore):
+2. **Watch the node's worker first** — on the **node**, tail the worker so you can see
+   the message land on the `remote` queue and execution begin. Start this *before* you
+   trigger:
+   ```
+   # on the NODE:
+   cd ~/digitaltwins-compute && docker compose logs -f airflow-worker
+   ```
+3. **Drive load** — trigger the `cpu_burn_primes` DAG (unpaused on creation) from the
+   portal (▶ in the Airflow UI, or `airflow dags trigger cpu_burn_primes`). Within a
+   second or two the node's worker log should show it **receive and start** the task —
+   lines like:
+   ```
+   Task ...execute_workload... received
+   [...] Executing workload in Celery: ... queue='remote' ... dag_id='cpu_burn_primes' ...
+   ... Burning N core(s) ...   /  heartbeats  /  Task ... succeeded in <n>s
+   ```
+   If the trigger fires but **nothing appears on the node**, the task isn't reaching it:
+   re-check `compute_queue` = `remote` AND that `active_queues` lists `celery@<node> ->
+   remote` (Phase E.5) — a mismatch leaves the task stuck `queued` on the portal, never
+   dispatched. `htop` on the node is the ground-truth "is it actually running" check.
+4. **See it in Grafana** (`https://<domain>/grafana` → Explore):
    - Logs (`dititaltwins-log`): `{node="drai-compute"}` and `{job="airflow-task"}`
    - Metrics (`dititaltwins-metric`): `node_load1{node="drai-compute"}` — climbs during the burn
    - Or straight from the box, no Grafana:
