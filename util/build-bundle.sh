@@ -112,6 +112,18 @@ code_config() {
     fi
   fi
   ok "data/env + data/secrets.env present (using the values as-is)"
+  # TLS cert — required for https (A.3/step3 verifies + installs data/{fullchain,privkey}.pem).
+  # Check it HERE (seconds in) rather than let A.3's platform build get 20 min in and fail.
+  local proto
+  proto="$(grep -E '^(export[[:space:]]+)?PLATFORM_PROTOCOL=' "$SRC/data/env" | tail -1 | sed -E 's/.*=//; s/["'\'' ]//g' || true)"
+  proto="${proto:-https}"
+  if [ "$proto" = https ]; then
+    { [ -e "$SRC/data/fullchain.pem" ] && [ -e "$SRC/data/privkey.pem" ]; } \
+      || die "PLATFORM_PROTOCOL=https but data/fullchain.pem and/or data/privkey.pem missing (or a dangling symlink) — put the TLS cert, or symlinks to it, in data/ (see INSTALL-BUNDLE). A.3 needs it."
+    ok "TLS cert (data/fullchain.pem + privkey.pem)"
+  else
+    ok "PLATFORM_PROTOCOL=$proto — no TLS cert needed"
+  fi
 }
 
 # ── A.2  offline packages + binaries ────────────────────────────────────────
