@@ -76,15 +76,16 @@ its own: starting from **only `clean_src/` + `data/`**, it regenerates every oth
 piece of `/mnt/install_src`. Per-piece "what/why" detail:
 [`INSTALL-BUNDLE.md`](INSTALL-BUNDLE.md) → *Bundle contents & how to (re)build each piece*.
 
-> **The two things `clean_src` can NOT give you** (provide them yourself):
+> **The one thing `clean_src` can NOT give you** (you must provide it):
 > - **`data/`** — `data/env`, `data/secrets.env`, and the TLS cert are *config*, not
 >   code. Fill env/secrets from the `.template` files; obtain the cert (LE DNS-01 /
 >   institutional). Keep `data/` across a reset — losing it means re-entering all
->   secrets.
-> - **Build-box tooling** — this box needs `docker`, `ansible`, `k3s` + `helm`, and
->   `dpkg-dev`, installed the normal *connected* way ([`README.md`](README.md) →
->   *Installing on a connected machine*). You're building the bundle that bootstraps
->   the airgapped targets, so the build box bootstraps itself from the internet.
+>   secrets. (`build-bundle.sh` stops on the first run if these are missing.)
+>
+> **Build-box tooling** (`docker`, `ansible`, `k3s` + `helm`, `dpkg-dev`) is installed
+> for you by `build-bundle.sh`'s A.0.1 bootstrap — nothing to do up front. Only if you
+> run A.0.1–A.5 by hand instead of the one command do you install it yourself, the
+> connected way ([`README.md`](README.md) → *Installing on a connected machine*).
 
 ### A.0  Reset to a clean starting point
 Keep only the two non-regenerable dirs, wipe the rest:
