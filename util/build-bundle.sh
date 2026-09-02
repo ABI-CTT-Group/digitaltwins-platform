@@ -140,9 +140,14 @@ offline_packages() {
   ls "$AIRGAP"/pip-wheels/kubernetes-* >/dev/null 2>&1        || die "fetch_airgap: airgap/pip-wheels (kubernetes client) empty — is pip3 installed?"
   ok "binaries + pip-wheels"
 
-  if [ "$FORCE" = 1 ] || [ ! -s "$AIRGAP/apt-debs/Packages" ]; then "$CS/util/build-apt-debs.sh"; else ok "apt-debs/Packages present (skip)"; fi
-  test -s "$AIRGAP/apt-debs/Packages" || die "build-apt-debs: airgap/apt-debs/Packages missing (dpkg-dev installed? internet up?)"
-  ok "apt repo index"
+  # re-run if EITHER the index or the manifest is missing (a bare dpkg-scanpackages
+  # recovery writes Packages but not INSTALL.list — don't let that slip through)
+  if [ "$FORCE" = 1 ] || [ ! -s "$AIRGAP/apt-debs/Packages" ] || [ ! -s "$AIRGAP/apt-debs/INSTALL.list" ]; then
+    "$CS/util/build-apt-debs.sh"
+  else ok "apt-debs Packages + INSTALL.list present (skip)"; fi
+  test -s "$AIRGAP/apt-debs/Packages"     || die "build-apt-debs: airgap/apt-debs/Packages missing (dpkg-dev installed? internet up?)"
+  test -s "$AIRGAP/apt-debs/INSTALL.list" || die "build-apt-debs: airgap/apt-debs/INSTALL.list missing — regenerate with build-apt-debs.sh (not a bare dpkg-scanpackages)"
+  ok "apt repo index + manifest"
 
   # docker static binaries — versions read from airgap_build_step2.yml so they can't drift
   local dtgz dcver
