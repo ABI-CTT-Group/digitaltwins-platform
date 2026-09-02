@@ -21,11 +21,11 @@
 #   ./build-bundle.sh --yes           # accept data/env + data/secrets.env as-is (don't stop to fill them)
 #   ./build-bundle.sh --clean         # wipe generated artifacts + docker volumes first
 #
-# Env: SRC_DIR (default /mnt/install_src), BRANCH (default observability-mainline).
+# Env: SRC_DIR (default /mnt/install_src), BRANCH (default main).
 #
 # Run as your NORMAL user (not sudo) on a box with internet + passwordless sudo.
 # On a truly bare box, get this script first:
-#   curl -fsSLO https://raw.githubusercontent.com/ABI-CTT-Group/digitaltwins-platform/observability-mainline/util/build-bundle.sh
+#   curl -fsSLO https://raw.githubusercontent.com/ABI-CTT-Group/digitaltwins-platform/main/util/build-bundle.sh
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -33,7 +33,7 @@ SELF="$(readlink -f "$0")"
 SRC="${SRC_DIR:-/mnt/install_src}"
 CS="$SRC/clean_src/digitaltwins-platform"
 AIRGAP="$SRC/airgap"
-BRANCH="${BRANCH:-observability-mainline}"
+BRANCH="${BRANCH:-main}"
 REPO="${REPO:-https://github.com/ABI-CTT-Group/digitaltwins-platform.git}"
 
 FROM=""; GATE_ONLY=0; FORCE=0; CLEAN=0; ACCEPT=0
