@@ -155,6 +155,15 @@ mkdir -p /mnt/install_src/data
 # TLS cert -> data/<domain>.fullchain.pem/.privkey.pem (+ symlinks); letsencrypt.tar backup
 ```
 
+> **Optional — `data/public_keys/*.pub` (operator SSH access):** drop any operator SSH
+> **public** keys here and A.3 (step3's *"Authorise operator SSH keys"* task) adds each
+> one to the deploy user's `~/.ssh/authorized_keys` on the **portal** — so those
+> operators can SSH in after the build. Skipped if the dir is absent (dev/localhost).
+> **Portal-only:** the compute node runs step2 + the worker compose, **not** step3, so
+> it does **not** process `data/public_keys` — set up SSH access to the node separately
+> (e.g. generate a key on the portal and authorise it on the node so `ssh <node>` works,
+> which `compute-build.sh` / `sync-compute-dags.sh` need).
+
 ### A.2  Offline packages + binaries (internet)
 Every line here fetches from the internet, so a silent failure here only surfaces
 at airgap-install time on a box that can no longer fetch anything. **Verify each
