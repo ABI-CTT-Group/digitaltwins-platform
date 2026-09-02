@@ -151,8 +151,14 @@ generated piece before moving on** — the inline `test` lines below stop you at
 step instead of three phases later.
 ```
 AIRGAP_DIR=/mnt/install_src/airgap "$CS/util/fetch_airgap.sh"   # k3s/helm/alloy/k9s, pip wheels, k3s system-image tarball
+# fetch_airgap does `pip3 download kubernetes` internally, so it needs pip3 (A.0.1).
+# Verify BOTH the binaries AND the kubernetes wheels landed — the wheels are what the
+# observability venv installs, and Step C dies with "No matching distribution ...
+# kubernetes" if pip-wheels is empty (pip3 was missing when fetch_airgap ran):
 test -s /mnt/install_src/airgap/binaries/alloy-linux-amd64.zip \
   || { echo "STOP: fetch_airgap.sh did not populate airgap/binaries — fix before continuing"; }
+ls /mnt/install_src/airgap/pip-wheels/kubernetes-* >/dev/null 2>&1 \
+  || { echo "STOP: fetch_airgap.sh did not populate airgap/pip-wheels (kubernetes client) — is pip3 installed (A.0.1)? re-run fetch_airgap"; }
 
 "$CS/util/build-apt-debs.sh"                                    # local apt repo (needs dpkg-dev + internet)
 # ^ THE one that silently goes missing: build-apt-debs writes the Packages INDEX
@@ -222,7 +228,7 @@ for f in \
   docker-*.tgz docker-compose-linux-x86_64-* \
   digitaltwins-images-all.tar.gz airflow-worker.tar.gz \
   airgap/apt-debs/Packages airgap/apt-debs/INSTALL.list \
-  airgap/binaries/alloy-linux-amd64.zip \
+  airgap/binaries/alloy-linux-amd64.zip airgap/pip-wheels/kubernetes-* \
   airgap/images/k3s-images.tar.gz airgap/images/image-list.txt ; do
   if ls -d $f >/dev/null 2>&1; then echo "OK       $f"; else echo "MISSING  $f"; ok=0; fi
 done
