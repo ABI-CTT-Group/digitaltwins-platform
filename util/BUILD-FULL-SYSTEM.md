@@ -399,6 +399,32 @@ can't touch that layer. (The playbook opens ufw and ensures the port-forwards bi
 
 Detail: [`compute-node-README.md`](compute-node-README.md) §A–F. **Portal must be up first.**
 
+**Prerequisite — portal → compute SSH trust.** E.1 (`compute-build.sh`) rsyncs
+from the portal *into* the node, so the portal's user must be able to SSH the node
+non-interactively. Nothing earlier sets this up (the portal only authorises inbound
+keys via `data/public_keys`; that doesn't give the portal an outbound key). Do it
+once, now:
+```
+# on the PORTAL — make a key if this user has none, then print the public half:
+[ -f ~/.ssh/id_ed25519 ] || ssh-keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519
+cat ~/.ssh/id_ed25519.pub
+```
+Put that one line into the **node's** `~/.ssh/authorized_keys`, using whatever
+access you already have to the node — the cloud console, or the operator/control
+box that provisioned both VMs (the same box the `keys2`-style helper ran from):
+```
+# on the NODE (paste the portal's pubkey printed above):
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+echo 'ssh-ed25519 AAAA...PASTE-THE-PORTAL-PUBKEY...' >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+Verify from the portal (also pins the host key so E.1's rsync won't hang on a
+prompt):
+```
+# on the PORTAL:
+ssh -o StrictHostKeyChecking=accept-new ubuntu@10.2.0.14 true && echo "portal -> compute OK"
+```
+
 1. **Seed the node's bundle** from the portal (only the subset a node needs):
    ```
    # on the PORTAL:
