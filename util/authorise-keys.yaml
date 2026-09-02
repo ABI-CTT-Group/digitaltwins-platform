@@ -14,7 +14,10 @@
   hosts: all
   gather_facts: false
   vars:
-    public_keys_dir: "{{ public_keys_dir | default('/mnt/install_src/data/public_keys') }}"
+    # Plain literal — do NOT write `{{ public_keys_dir | default(...) }}` here; a var
+    # defined in terms of itself is a recursive-loop error in newer ansible-core. An
+    # `-e public_keys_dir=...` override still wins (extra-vars outrank play vars).
+    public_keys_dir: /mnt/install_src/data/public_keys
   tasks:
     - name: Check for operator public keys
       ansible.builtin.stat:
