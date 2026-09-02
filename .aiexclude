@@ -1,0 +1,24 @@
+.env
+.env.*
+env
+env.*
+secrets.env
+secrets.env.*
+*.pem
+*.key
+
+# Git internals
+.git/
+.worktrees/
+
+# Virtual environments
+.venv/
+
+# Caches and logs
+.pytest_cache/
+__pycache__/
+*.log
+
+# IDE and Editor
+.idea/
+.vscode/

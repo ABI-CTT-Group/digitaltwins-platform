@@ -190,6 +190,12 @@ services/airflow/config/*
 !services/airflow/config/airflow.cfg
 !services/airflow/config/webserver_config.py
 
+# Airflow dags - keep the folder, ignore everything else
+services/airflow/dags/*
+!services/airflow/dags/.gitkeep
+services/airflow/logs/*
+!services/airflow/logs/.gitkeep
+
 # macOS junk
 .DS_Store
 
