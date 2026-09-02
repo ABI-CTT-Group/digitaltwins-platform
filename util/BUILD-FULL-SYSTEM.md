@@ -61,7 +61,13 @@ Two things trip everyone; note them now:
 > `--from <phase>` to resume). The manual steps below are exactly what it automates —
 > read them to understand it or to debug a step it stops on.
 > ```
-> ./util/build-bundle.sh            # full build + gate  (fill data/env + data/secrets.env when it stops on first run)
+> # bare box — grab just this one script; it clones the repo (into clean_src/) and
+> # bootstraps docker/ansible/k3s/helm itself, so nothing else is needed up front:
+> curl -fsSLO https://raw.githubusercontent.com/ABI-CTT-Group/digitaltwins-platform/observability-mainline/util/build-bundle.sh
+> chmod +x build-bundle.sh
+> ./build-bundle.sh                 # full build + gate  (fill data/env + data/secrets.env when it stops on first run)
+>
+> # (inside an existing checkout it already lives at util/:)
 > ./util/build-bundle.sh --gate-only   # just verify the bundle is complete
 > ```
 
