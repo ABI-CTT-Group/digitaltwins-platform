@@ -393,21 +393,25 @@ ansible-playbook -i 'localhost,' -c local -e "ansible_user=$(whoami)" \
 can't touch that layer. (The playbook opens ufw and ensures the port-forwards bind
 `0.0.0.0`.)
 
+Then let the portal SSH the node — E.1 seeds the node's bundle over this, and the
+portal's ufw is `default deny (outgoing)`, so the connection is blocked until you
+allow it:
+
+```
+sudo ufw allow out to 10.2.0.14 port 22 proto tcp
+```
+
 ---
 
 ## E. Compute node — the platform worker
 
 Detail: [`compute-node-README.md`](compute-node-README.md) §A–F. **Portal must be up first.**
 
-1. **Seed the node's bundle** (only the subset a node needs). Run this from a box
-   that already has SSH to the node. The node usually isn't reachable directly —
-   hop through the portal with `SSH_OPTS='-J <portal>'` (compute-build passes it to
-   both the ssh and the rsync). If the portal's ufw is `default deny (outgoing)`,
-   allow the hop first: `sudo ufw allow out to <node_ip> port 22 proto tcp` on the
-   portal (see [`compute-node-README.md`](compute-node-README.md) §A.2):
+1. **Seed the node's bundle** from the portal (only the subset a node needs). The
+   portal's outbound SSH to the node was opened in Section D:
    ```
-   SSH_OPTS='-J <portal>' util/compute-build.sh ubuntu@10.2.0.14
-   # util/compute-build.sh ubuntu@10.2.0.14        # if you're already on/at the node's network, no hop needed
+   # on the PORTAL:
+   util/compute-build.sh ubuntu@10.2.0.14
    ```
 2. **On the node — install Docker + Ansible FROM THE BUNDLE** (compute-build seeded
    it in E.1). Must finish before E.3, or `docker compose` isn't there. Same as B.2:
