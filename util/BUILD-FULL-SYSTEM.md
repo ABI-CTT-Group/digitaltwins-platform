@@ -267,6 +267,14 @@ done
 
 Detail: [`README.md`](README.md) §0–6.
 
+> **(Optional — do this FIRST) Airgap the VM.** If this box is meant to be airgapped
+> and isn't yet, **cut its internet now**, before you install anything from the bundle,
+> so the install genuinely proves the offline path (nothing silently pulled from the
+> net masking a bundle gap). See [`README.md`](README.md) → *§1 Airgap the VM* for the
+> ufw recipe. Skip if it's already airgapped, or if you're deliberately validating
+> connected. (Forgetting this is why an install can "work" yet still fail when done
+> for real — the whole point of the bundle is that it needs no internet.)
+
 1. **Mount the bundle** (fstab is on the wiped root disk, so mount once by hand):
    ```
    sudo mkdir -p /mnt/install_src && sudo mount /dev/vdb /mnt/install_src
