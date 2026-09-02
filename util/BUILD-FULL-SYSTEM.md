@@ -228,7 +228,8 @@ for f in \
   docker-*.tgz docker-compose-linux-x86_64-* \
   digitaltwins-images-all.tar.gz airflow-worker.tar.gz \
   airgap/apt-debs/Packages airgap/apt-debs/INSTALL.list \
-  airgap/binaries/alloy-linux-amd64.zip airgap/pip-wheels/kubernetes-* \
+  airgap/binaries/alloy-linux-amd64.zip airgap/binaries/k3s airgap/binaries/k3s-airgap-images-amd64.tar.gz \
+  airgap/binaries/helm-linux-amd64.tar.gz airgap/pip-wheels/kubernetes-* \
   airgap/images/k3s-images.tar.gz airgap/images/image-list.txt ; do
   if ls -d $f >/dev/null 2>&1; then echo "OK       $f"; else echo "MISSING  $f"; ok=0; fi
 done
