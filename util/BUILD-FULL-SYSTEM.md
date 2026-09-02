@@ -272,6 +272,12 @@ Detail: [`README.md`](README.md) §0–6.
    sudo mkdir -p /mnt/install_src && sudo mount /dev/vdb /mnt/install_src
    sudo /mnt/install_src/clean_src/digitaltwins-platform/util/mount_src.sh
    ```
+   > **(Optional) operator SSH access to the portal.** Put the operators' SSH **public**
+   > keys in `data/public_keys/*.pub` (they ride along on the volume from the build). The
+   > platform deploy below (B.4 / step3) authorises each into the deploy user's
+   > `~/.ssh/authorized_keys`, so those people can `ssh` the portal after the build (see
+   > A.1). If you *also* want them to reach the **compute node**, run `authorise-keys.yaml`
+   > there — Phase E step 6.
 2. **OS deps + Ansible + Docker** (airgap path — README §2–3):
    ```
    CS=/mnt/install_src/clean_src/digitaltwins-platform
@@ -424,9 +430,11 @@ Detail: [`compute-node-README.md`](compute-node-README.md) §A–F. **Portal mus
      celery --app airflow.providers.celery.executors.celery_executor.app inspect active_queues
    ```
    Expect `celery@<node> -> remote`.
-6. **(Optional) operator SSH access to the node.** The node doesn't run step3, so it
-   doesn't authorise `data/public_keys` (that's portal-only — see A.1). `compute-build`
-   copies the pubkeys over, so restore direct operator SSH with the standalone playbook:
+6. **(Optional) operator SSH access to the node — only if you want those people able to
+   SSH the compute node directly.** (Many deployments keep the node ops-only, reached
+   via the portal, and skip this.) The node doesn't run step3, so it doesn't authorise
+   `data/public_keys` (portal-only — see A.1). `compute-build` copies the pubkeys over,
+   so authorise them with the standalone playbook:
    ```
    # on the NODE:
    ansible-playbook -i 'localhost,' -c local -e "ansible_user=$USER" \
