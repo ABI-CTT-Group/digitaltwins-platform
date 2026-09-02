@@ -1,0 +1,36 @@
+---
+# authorise-keys.yaml — authorise operator SSH public keys into the current user's
+# ~/.ssh/authorized_keys, from the bundle's data/public_keys. Run LOCALLY on ANY box
+# that has the keys (the portal AND the compute node), so operators can SSH in.
+#
+#   ansible-playbook -i 'localhost,' -c local -e "ansible_user=$USER" \
+#     util/authorise-keys.yaml
+#     # override the source dir with -e public_keys_dir=/path/to/public_keys
+#
+# The PORTAL already does this inside airgap_build_step3.yml. This standalone
+# playbook is for boxes that DON'T run step3 — chiefly the compute node — restoring
+# the multi-host behaviour of the old buildout/dev/keys.yaml. Idempotent.
+- name: Authorise operator SSH keys (from data/public_keys)
+  hosts: all
+  gather_facts: false
+  vars:
+    public_keys_dir: "{{ public_keys_dir | default('/mnt/install_src/data/public_keys') }}"
+  tasks:
+    - name: Check for operator public keys
+      ansible.builtin.stat:
+        path: "{{ public_keys_dir }}"
+      register: pk
+
+    - name: "Authorise each *.pub for {{ ansible_user }}"
+      ansible.posix.authorized_key:
+        user: "{{ ansible_user }}"
+        state: present
+        key: "{{ lookup('file', item) }}"
+      with_fileglob:
+        - "{{ public_keys_dir }}/*.pub"
+      when: pk.stat.exists
+
+    - name: Note when there are none
+      ansible.builtin.debug:
+        msg: "No {{ public_keys_dir }} — nothing to authorise (drop operator *.pub keys there and re-run)."
+      when: not pk.stat.exists
