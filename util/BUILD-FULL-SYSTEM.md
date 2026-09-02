@@ -54,6 +54,17 @@ Two things trip everyone; note them now:
 
 ## A. Build box (connected) — manufacture the bundle from scratch
 
+> **Prefer one command:** `util/build-bundle.sh` runs everything in A.0.1–A.5 below,
+> verifies each step, self-re-execs for the docker group (no logout), and ends on the
+> A.5 gate — so you get either `== BUNDLE COMPLETE ==` or a precise STOP naming what's
+> wrong. It's idempotent (`--force` to redo, `--gate-only` to just re-check,
+> `--from <phase>` to resume). The manual steps below are exactly what it automates —
+> read them to understand it or to debug a step it stops on.
+> ```
+> ./util/build-bundle.sh            # full build + gate  (fill data/env + data/secrets.env when it stops on first run)
+> ./util/build-bundle.sh --gate-only   # just verify the bundle is complete
+> ```
+
 Do this once per release, on a box **with internet**. This section is complete on
 its own: starting from **only `clean_src/` + `data/`**, it regenerates every other
 piece of `/mnt/install_src`. Per-piece "what/why" detail:
