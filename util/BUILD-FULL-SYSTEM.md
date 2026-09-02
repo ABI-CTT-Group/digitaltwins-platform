@@ -466,6 +466,7 @@ Detail: [`compute-node-README.md`](compute-node-README.md) §A–F. **Portal mus
    so authorise them with the standalone playbook:
    ```
    # on the NODE:
+   CS=/mnt/install_src/clean_src/digitaltwins-platform
    ansible-playbook -i 'localhost,' -c local -e "ansible_user=$USER" \
      "$CS/util/authorise-keys.yaml"
    ```
