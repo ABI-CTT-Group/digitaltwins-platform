@@ -26,5 +26,11 @@ services:
       retries: 3
       start_period: 10s
     restart: unless-stopped
+    extra_hosts:
+      # Reach the k3s Traefik (observability stack) on the host node's real IP —
+      # NOT the docker bridge gateway (the k3s CNI hostport DNAT only masquerades
+      # bridge/localhost sources, so a bridge-IP:81 connection hangs). NODE_IP is
+      # rendered into .env by gen-env.sh (defaults to 127.0.0.1 when unset).
+      - "k3s-node:${NODE_IP}"
     networks:
       - digitaltwins-platform

@@ -1,0 +1,150 @@
+---
+# Install Grafana Alloy on a REMOTE COMPUTE NODE so it ships this box's docker
+# logs, Airflow task logs, and host metrics to the observability stack on the
+# portal (Loki :3100 / Mimir :9005 over the VLAN).
+#
+# The Ansible equivalent of util/install-compute-alloy.sh. Reads config.alloy.compute
+# and alloy.service straight from this checkout (util/observability/), same as the
+# observability playbook reads its own configs.
+#
+# Run ON THE COMPUTE NODE, locally, as your normal login user (NOT via sudo —
+# become handles root per-task, and Alloy must run as your login user):
+#   ansible-playbook -i 'localhost,' -c local \
+#     -e "ansible_user=$(whoami)" \
+#     -e "obs_host=10.2.0.195" \
+#     /mnt/install_src/clean_src/digitaltwins-platform/util/install_compute_observability_airgap.yaml
+#
+# Alloy runs as the LOGIN user (owns its home, reads the world-readable task logs,
+# is in the docker group) — no dedicated 'alloy' account, no ACL/chmod dance. The
+# `file` module re-owns /var/lib/alloy even if it already exists, so a re-run after
+# an older install "just works" (the bug the shell script had to special-case).
+#
+# Prereqs: portal side done (util/enable_compute_observability_ingress.yaml +
+# the cloud security group), and the bundle's binaries/alloy-linux-amd64.zip present.
+- name: Install Alloy on a remote compute node (ships to the portal's Loki/Mimir)
+  hosts: all
+  become: true
+  vars:
+    install_src_dir: /mnt/install_src/airgap
+    observability_dir: "{{ playbook_dir }}/observability"
+    run_user: "{{ ansible_user | default(lookup('env', 'USER')) }}"
+    run_group: "{{ run_user }}"
+    node_name: "{{ ansible_facts['hostname'] }}"
+    worker_logs_dir: "/home/{{ run_user }}/digitaltwins-compute/logs"
+    # obs_host (the portal VLAN IP where Loki :3100 / Mimir :9005 are published)
+    # is REQUIRED — pass -e obs_host=...
+  tasks:
+    - name: Require obs_host (the portal VLAN IP)
+      ansible.builtin.assert:
+        that:
+          - obs_host is defined
+          - obs_host | length > 0
+        fail_msg: "Pass -e obs_host=<portal_vlan_ip> (where Loki :3100 / Mimir :9005 are published)."
+
+    # ── alloy binary (from the bundle) ──────────────────────────────────────
+    - name: Is alloy already installed?
+      ansible.builtin.stat:
+        path: /usr/local/bin/alloy
+      register: alloy_binary
+
+    - name: Extract alloy from the bundle zip
+      ansible.builtin.shell: >
+        unzip -o {{ install_src_dir }}/binaries/alloy-linux-amd64.zip alloy-linux-amd64 -d /tmp/
+        && mv /tmp/alloy-linux-amd64 /usr/local/bin/alloy
+        && chmod +x /usr/local/bin/alloy
+      args:
+        creates: /usr/local/bin/alloy
+      when: not alloy_binary.stat.exists
+
+    # ── dirs (owned by the run user) + docker socket access ─────────────────
+    - name: Create alloy dirs owned by the run user (re-owns if they already exist)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ run_user }}"
+        group: "{{ run_group }}"
+        mode: '0755'
+      loop:
+        - /etc/alloy
+        - /var/lib/alloy
+
+    - name: Does the docker group exist?
+      ansible.builtin.command: getent group docker
+      register: docker_grp
+      changed_when: false
+      failed_when: false
+
+    - name: Add the run user to the docker group (read the docker socket)
+      ansible.builtin.user:
+        name: "{{ run_user }}"
+        groups: docker
+        append: true
+      when: docker_grp.rc == 0
+
+    - name: Check the worker logs dir exists
+      ansible.builtin.stat:
+        path: "{{ worker_logs_dir }}"
+      register: worker_logs
+
+    - name: Warn if the worker logs dir isn't there yet
+      ansible.builtin.debug:
+        msg: "WARN: {{ worker_logs_dir }} not found — pass -e worker_logs_dir=... if the worker dir isn't ~/digitaltwins-compute. Docker + host metrics still ship."
+      when: not worker_logs.stat.exists
+
+    # ── config (copy the template, then resolve the ${...} placeholders) ─────
+    - name: Install the Alloy config
+      ansible.builtin.copy:
+        src: "{{ observability_dir }}/config.alloy.compute"
+        dest: /etc/alloy/config.alloy
+        owner: "{{ run_user }}"
+        group: "{{ run_group }}"
+        mode: '0644'
+
+    - name: Resolve config placeholders
+      ansible.builtin.replace:
+        path: /etc/alloy/config.alloy
+        regexp: "{{ item.re }}"
+        replace: "{{ item.val }}"
+      loop:
+        - { re: '\$\{OBS_HOST\}', val: "{{ obs_host }}" }
+        - { re: '\$\{NODE_NAME\}', val: "{{ node_name }}" }
+        - { re: '\$\{WORKER_LOGS_DIR\}', val: "{{ worker_logs_dir }}" }
+
+    # ── systemd unit (run as the login user, not a system 'alloy' account) ───
+    - name: Install the Alloy systemd unit
+      ansible.builtin.copy:
+        src: "{{ observability_dir }}/alloy.service"
+        dest: /etc/systemd/system/alloy.service
+        mode: '0644'
+
+    - name: Run Alloy as the login user
+      ansible.builtin.replace:
+        path: /etc/systemd/system/alloy.service
+        regexp: "{{ item.re }}"
+        replace: "{{ item.val }}"
+      loop:
+        - { re: '^User=.*', val: "User={{ run_user }}" }
+        - { re: '^Group=.*', val: "Group={{ run_group }}" }
+
+    - name: Guarantee docker-socket access via SupplementaryGroups
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/system/alloy.service
+        insertafter: '^Group='
+        line: 'SupplementaryGroups=docker'
+        firstmatch: true
+        state: present
+
+    - name: Enable and (re)start Alloy
+      ansible.builtin.systemd:
+        name: alloy
+        enabled: true
+        state: restarted
+        daemon_reload: true
+
+    - name: Where to look
+      ansible.builtin.debug:
+        msg:
+          - "Alloy up on '{{ node_name }}' as '{{ run_user }}' -> portal {{ obs_host }} (Loki :3100 / Mimir :9005)."
+          - "Grafana (Loki):  {node=\"{{ node_name }}\"}   and   {job=\"airflow-task\"}"
+          - "Grafana (Mimir): node_load1{node=\"{{ node_name }}\"}"
+          - "If empty: journalctl -u alloy -f here; confirm the portal opened 3100/9005 (ufw + security group)."

@@ -315,6 +315,42 @@ Then re-check `active_queues` on the portal — the node should appear as
 `celery@<host>` on `remote`. (If resets RECUR in steady state — not just at
 startup — suspect cross-VLAN idle-reap and add TCP keepalives.)
 
+## Observability port-forwards (Loki/Mimir) won't rebind to `0.0.0.0`
+So a remote compute node can ship to Loki `:3100` / Mimir `:9005`, they must bind
+`0.0.0.0` (loopback-only by default). A **fresh install already does this** — the
+playbook's `k3s-port-forward.sh` uses `--address 0.0.0.0`. This gotcha only bites
+when **rebinding a running install by hand**: `ss` keeps showing `127.0.0.1:3100`
+no matter how many times you edit the script and `systemctl restart`.
+
+Why: `k3s-port-forward` is a `Type=oneshot` unit that `nohup`-backgrounds
+`kubectl port-forward`. Those procs **detach and survive `systemctl restart`**, and
+a name-based `pkill` often misses them. Meanwhile a `127.0.0.1:3100` listener
+**overlaps** `0.0.0.0:3100`, so the new wildcard bind is refused with
+`bind: address already in use` (see `/var/log/loki-port-forward.log`) — the old
+loopback proc keeps the port and you're stuck.
+
+Rebind safely — **stop, kill by port (not name), confirm free, then start**:
+```
+# 1. script already correct? (git has --address 0.0.0.0; a live box may not)
+grep -n 'address 0.0.0.0' /usr/local/bin/k3s-port-forward.sh   # expect the loki + mimir lines
+# 2. stop the unit so it can't race you
+sudo systemctl stop k3s-port-forward
+# 3. kill whatever holds the ports BY PID — name-based pkill misses detached procs
+for p in $(sudo ss -tlnpH 'sport = :3100 or sport = :9005' | grep -oP 'pid=\K[0-9]+' | sort -u); do
+  sudo kill -9 "$p"
+done
+# 4. MUST be empty before continuing
+sudo ss -tlnp | grep -E ':3100|:9005' || echo "ports free — good"
+# 5. start + verify 0.0.0.0
+sudo systemctl start k3s-port-forward; sleep 3
+sudo ss -tlnp | grep -E ':3100|:9005'      # expect 0.0.0.0:3100 and 0.0.0.0:9005
+```
+Canonical alternative: re-run the observability playbook (it rewrites the script
+and restarts) — but the manual steps above are faster and don't need secrets
+sourced. Future hardening idea: run each port-forward as its own `Type=exec`
+systemd unit so `restart` actually owns and replaces the process, instead of the
+oneshot+`nohup` pattern that detaches them.
+
 ## `COMPOSE_FILE` change "isn't taking"
 Precedence gotchas: a shell `export` beats `.env`; non-interactive shells don't
 read `~/.bashrc`.

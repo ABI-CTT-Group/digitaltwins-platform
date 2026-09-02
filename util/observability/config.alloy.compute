@@ -1,0 +1,197 @@
+// Grafana Alloy config for a REMOTE COMPUTE NODE (e.g. drai-compute).
+//
+// Unlike the portal's config.alloy, this box runs NO k3s and NO local Loki/Mimir.
+// It SHIPS its telemetry over the VLAN to the observability stack on the portal:
+//   Loki  ingest -> http://${OBS_HOST}:3100   (loki-gateway,  port-forwarded on the portal)
+//   Mimir ingest -> http://${OBS_HOST}:9005   (mimir-gateway, port-forwarded on the portal)
+// Those two portal ports must be VLAN-published and opened to THIS node's IP
+// (ufw + cloud security group) — see util/compute-node-README.md §G.
+//
+// Two placeholders are resolved at install time by util/install-compute-alloy.sh
+// (envsubst): ${OBS_HOST} = the portal's VLAN IP, ${NODE_NAME} = this host's name.
+// Everything else is literal Alloy syntax. Loki is single-tenant (auth_enabled:false)
+// and Mimir accepts the default "anonymous" tenant, so no X-Scope-OrgID header is
+// needed — identical to the portal Alloy; the `node` label separates the two.
+
+logging {
+  level = "info"
+}
+
+// ========== Ship endpoints (portal, over the VLAN) ==========
+
+loki.write "default" {
+  endpoint {
+    url = "http://${OBS_HOST}:3100/loki/api/v1/push"
+  }
+}
+
+prometheus.remote_write "mimir" {
+  endpoint {
+    url = "http://${OBS_HOST}:9005/api/v1/push"
+
+    queue_config {
+      capacity             = 10000
+      max_shards           = 10
+      min_shards           = 1
+      max_samples_per_send = 5000
+      batch_send_deadline  = "5s"
+    }
+  }
+}
+
+// ========== Docker container logs (the celery worker et al.) -> Loki ==========
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "docker" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_id"]
+    target_label  = "container_id"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+  rule {
+    target_label = "job"
+    replacement  = "docker"
+  }
+  // Tag every line with this node so portal vs compute is separable in Grafana.
+  rule {
+    target_label = "node"
+    replacement  = "${NODE_NAME}"
+  }
+}
+
+loki.source.docker "docker" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.docker.output
+  forward_to = [loki.write.default.receiver]
+}
+
+// ========== Airflow task / DAG-run logs -> Loki ==========
+//
+// The worker bind-mounts <worker_dir>/logs -> /opt/airflow/logs and keeps a LOCAL
+// copy of every task log even with REMOTE_LOGGING to MinIO on — so we tail them
+// straight off the host. NOTE: Alloy runs on the HOST, not in the container, so
+// this path is the HOST side of that bind-mount (e.g. ~/digitaltwins-compute/logs),
+// resolved at install time as ${WORKER_LOGS_DIR} — NOT the in-container
+// /opt/airflow/logs, which does not exist on the host. Airflow 3's path template:
+//   dag_id=<dag>/run_id=<run>/task_id=<task>/[map_index=<m>/]attempt=<n>.log
+// Label cardinality discipline: keep only {job,node,dag_id,task_id} as LABELS;
+// run_id (a timestamp -> unbounded) and attempt/map_index go to structured
+// metadata, which Loki indexes without exploding the stream count.
+
+local.file_match "airflow_task_logs" {
+  path_targets = [{
+    __path__ = "${WORKER_LOGS_DIR}/dag_id=*/**/attempt=*.log",
+    job      = "airflow-task",
+    node     = "${NODE_NAME}",
+  }]
+}
+
+loki.source.file "airflow_task_logs" {
+  targets    = local.file_match.airflow_task_logs.targets
+  forward_to = [loki.process.airflow_task_logs.receiver]
+}
+
+loki.process "airflow_task_logs" {
+  forward_to = [loki.write.default.receiver]
+
+  // Pull the identifiers out of the file path (loki.source.file exposes it as `filename`).
+  stage.regex {
+    source     = "filename"
+    expression = "dag_id=(?P<dag_id>[^/]+)/run_id=(?P<run_id>[^/]+)/task_id=(?P<task_id>[^/]+)/(?:map_index=(?P<map_index>[^/]+)/)?attempt=(?P<attempt>[0-9]+)\\.log"
+  }
+
+  // Low-cardinality identifiers as labels.
+  stage.labels {
+    values = {
+      dag_id  = "",
+      task_id = "",
+    }
+  }
+
+  // High-cardinality identifiers as structured metadata (queryable, not indexed as streams).
+  stage.structured_metadata {
+    values = {
+      run_id    = "",
+      attempt   = "",
+      map_index = "",
+    }
+  }
+
+  // Drop the per-file `filename` label loki.source.file adds — it embeds run_id +
+  // attempt and would blow up stream cardinality.
+  stage.label_drop {
+    values = ["filename"]
+  }
+}
+
+// ========== Host (VM) metrics -> Mimir ==========
+
+prometheus.exporter.unix "node" {
+  enable_collectors = ["cpu", "meminfo", "diskstats", "filesystem", "netdev", "loadavg", "time"]
+}
+
+prometheus.relabel "node" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+
+  rule {
+    target_label = "job"
+    replacement  = "node-exporter"
+  }
+  rule {
+    target_label = "instance"
+    replacement  = "${NODE_NAME}"
+  }
+  rule {
+    target_label = "node"
+    replacement  = "${NODE_NAME}"
+  }
+}
+
+prometheus.scrape "node_metrics" {
+  targets         = prometheus.exporter.unix.node.targets
+  forward_to      = [prometheus.relabel.node.receiver]
+  scrape_interval = "15s"
+}
+
+// Alloy's own process metrics (cheap; handy for "is the shipper healthy").
+prometheus.exporter.process "alloy" {
+}
+
+prometheus.relabel "process" {
+  forward_to = [prometheus.remote_write.mimir.receiver]
+
+  rule {
+    target_label = "job"
+    replacement  = "process-exporter"
+  }
+  rule {
+    target_label = "instance"
+    replacement  = "${NODE_NAME}"
+  }
+  rule {
+    target_label = "node"
+    replacement  = "${NODE_NAME}"
+  }
+}
+
+prometheus.scrape "process_metrics" {
+  targets         = prometheus.exporter.process.alloy.targets
+  forward_to      = [prometheus.relabel.process.receiver]
+  scrape_interval = "15s"
+}
+
+// NOTE: no cAdvisor / kubelet scrapes here — those are the portal's k3s stack.
+// Per-container CPU/mem metrics for this node would need a cAdvisor container in
+// the bundle; that's a deliberate follow-on, not part of this cut.

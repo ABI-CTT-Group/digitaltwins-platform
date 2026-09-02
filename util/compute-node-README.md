@@ -1,5 +1,10 @@
 # Installing a remote Airflow compute node
 
+> Building a whole system (portal + observability + this node) from scratch?
+> The ordered master runbook is [`BUILD-FULL-SYSTEM.md`](BUILD-FULL-SYSTEM.md);
+> this file is the compute-node detail it points to (§E/§F there).
+
+
 A compute node is a **single Airflow Celery worker** on its own VM that joins the
 portal's Airflow cluster over the VLAN and runs tasks tagged for its queue (e.g.
 `remote`). It runs **no platform of its own** — the scheduler, apiserver, Postgres,
@@ -111,8 +116,27 @@ Values used below: portal VLAN IP `10.2.0.195`, compute node VLAN IP `10.2.0.14`
 
 ## B. Compute VM (a CLEAN VM)
 
-1. **Install Docker** (+ NVIDIA container toolkit if this is a GPU node) — see the
-   "Installing on a connected machine" section of [`README.md`](README.md).
+0. **Seed the node's bundle (airgapped nodes).** A remote node has no internet, so
+   it installs from its own `/mnt/install_src` — the subset a *node* needs, not the
+   portal's 6.3G image bundle. From the **portal**, push it over the VLAN:
+   ```bash
+   # refresh the code first so the node gets the latest scripts
+   ( cd /mnt/install_src/clean_src/digitaltwins-platform && git pull \
+       && git submodule update --init --recursive )
+   util/compute-build.sh ubuntu@10.2.0.14           # creates /mnt/install_src on the node + copies
+   # SSH_OPTS='-J abi_portal' util/compute-build.sh ubuntu@10.2.0.14   # if the node is only reachable via the portal
+   ```
+   (Want it to survive a node rebuild? Mount a persistent volume at
+   `/mnt/install_src` on the node *first* — otherwise it lands on the root disk.)
+
+1. **Install Docker** (+ NVIDIA container toolkit if this is a GPU node).
+   - **Airgapped node** (no internet — the usual case): install from the seeded
+     bundle. It's the same three steps as the portal's airgap install
+     ([`README.md`](README.md) §1–§3) but you **stop before step3** (that's the
+     full platform). `compute-build.sh` above prints the exact commands
+     (`install-apt-debs.sh` → ansible from wheels → `util/airgap_build_step2.yml`).
+   - **Connected node**: install Docker the normal way — the "Installing on a
+     connected machine" section of [`README.md`](README.md).
 2. **Working dir**:
    ```bash
    mkdir -p ~/digitaltwins-compute/{dags,config,plugins,data,logs} && cd ~/digitaltwins-compute
@@ -183,6 +207,81 @@ util/sync-compute-dags.sh 10.2.0.14 --delete  # same, but also prune DAGs delete
 - A child `workflow_{seek_id}` DAG that the API triggers (one run per sample) must
   exist AND be synced here too, or its tasks 404 / never land. Keep the portal and
   node DAG folders identical (that's what `--delete` is for).
+
+---
+
+## G. Ship telemetry to the observability stack (optional)
+
+Get this node into Grafana alongside the portal — its docker container logs
+(incl. the celery worker), its **Airflow task/DAG-run logs**, and host metrics all
+flow to the portal's Loki/Mimir over the VLAN. One **Alloy** systemd service on the
+node does it; nothing extra runs on the portal beyond opening two ports.
+
+The node ships to the portal's ingest ports — Loki `:3100`, Mimir `:9005` — which
+the observability install port-forwards. They're loopback-only until you expose
+them, exactly like the other portal↔worker ports.
+
+**Two playbooks do the whole thing** (recommended — idempotent, and they bake in the
+gotchas: run-as-login-user, dir re-owning, the safe port-forward rebind). Run each
+locally on its box, as your normal user (not sudo):
+
+```
+# on the PORTAL — open ingress to the node + ensure 0.0.0.0 binding
+ansible-playbook -i 'localhost,' -c local -e "ansible_user=$(whoami)" \
+  -e "compute_node_ip=10.2.0.14" \
+  util/enable_compute_observability_ingress.yaml
+
+# on the NODE — install + run Alloy (as your login user)
+ansible-playbook -i 'localhost,' -c local -e "ansible_user=$(whoami)" \
+  -e "obs_host=10.2.0.195" \
+  util/install_compute_observability_airgap.yaml
+```
+
+Still open the two ports in the **cloud security group** (Ansible can't — see below).
+The manual/shell equivalents of each step are spelled out next.
+
+**1. Portal side (once).** Bind the Loki/Mimir port-forwards to the VLAN. A fresh
+observability install already does this; to rebind a **running** install, re-run
+the observability playbook — or do it live (faster). ⚠️ The live rebind has a sharp
+edge (detached `kubectl` procs survive `restart`, and a `127.0.0.1` listener blocks
+the `0.0.0.0` bind) — follow the **stop → kill-by-port → confirm-free → start**
+recipe in [`docs/diagnostics.md`](../docs/diagnostics.md) → "Observability
+port-forwards won't rebind to `0.0.0.0`", not a naive `sed` + `restart`. Then open
+the two ports to **this node only**:
+
+```
+util/ufw_for_remote_compute.sh 10.2.0.14 3100 9005
+```
+
+On OpenStack/NeCTAR, also open `3100` and `9005` to `10.2.0.14` in the **security
+group** (never `0.0.0.0/0`) — the same layer you opened 8002/8003/… in.
+
+**2. Node side.** From a checkout of this repo on the node, point it at the
+portal's VLAN IP (Loki is single-tenant and Mimir writes the `anonymous` tenant,
+so no token — the `node` label separates this box from the portal):
+
+```
+util/install-compute-alloy.sh 10.2.0.195
+# 2nd arg overrides the bundle dir if not /mnt/install_src/airgap
+```
+
+It pulls the `alloy` binary from the install bundle (airgap-safe), renders
+`util/observability/config.alloy.compute` with this host's name + the portal IP,
+installs `alloy.service`, and starts it.
+
+**3. Verify (from the portal's Grafana).** Explore →
+- Loki: `{node="drai-compute"}` (container logs) and `{job="airflow-task"}` (task
+  logs; `dag_id`/`task_id` are labels, `run_id`/`attempt` are structured metadata).
+- Mimir: `up{node="drai-compute"}`, plus the node-exporter dashboards.
+
+If nothing arrives: `journalctl -u alloy -f` on the node, and re-check that the
+portal bound 3100/9005 to `0.0.0.0` and opened them (ufw **and** security group)
+to this node.
+
+> **Task logs work with zero compose changes** — the worker already bind-mounts
+> `./logs:/opt/airflow/logs` and keeps a local copy of each task log even with
+> REMOTE_LOGGING to MinIO on, so Alloy tails them straight off the host. MinIO
+> stays the system-of-record for the Airflow UI; Loki is the searchable/audit copy.
 
 ---
 

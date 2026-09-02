@@ -1,5 +1,10 @@
 # Airgap buildout — DigitalTWINS platform
 
+> **Building a whole system from scratch (portal + observability + remote
+> compute)?** Start with the ordered master runbook —
+> [`BUILD-FULL-SYSTEM.md`](BUILD-FULL-SYSTEM.md). It owns the *order* the pieces
+> compose in; this file is the detail for the portal-platform steps within it.
+
 Everything needed to bring the platform up on an **airgapped Ubuntu 24.04**
 machine with no Internet access. You can run it on `http`/`localhost` or behind
 `https` on a (real or `/etc/hosts`-faked) domain.
@@ -577,11 +582,12 @@ ssh <target>
 cd ~/digitaltwins-platform
 util/portal-restore.sh                  # <- /tmp/dtwins-migrate on the target
 
-# 4. Re-mint the SEEK API token (restore replaced SEEK's users, so the
-#    buildout's token is stale). On the target:
-SECRETS_FILE=/mnt/install_src/data/secrets.env util/generate-token.sh admin
-util/gen-env.sh -e /mnt/install_src/data/env -s /mnt/install_src/data/secrets.env
-docker compose up -d digitaltwins-api
+# 4. (No SEEK API-token re-mint — that step is obsolete.) Platform->SEEK auth is now
+#    per-request Keycloak JWT forwarding; the global SEEK_API_TOKEN was removed
+#    (see docs/seek-integration.md), and util/generate-token.sh no longer exists.
+#    What the restore DOES bring: the dump's SEEK users + the `identities` table
+#    (Keycloak sub-UUID -> SEEK user maps), so users resolve only if the dump came
+#    from a system sharing your Keycloak realm/users.
 
 # 4b. Reset the local SEEK admin password — the restore also brought the source's
 #     user DB (password hashes you can't read), so your SEEK_ADMIN_PASSWORD no
@@ -724,20 +730,72 @@ of these, what survives a VM rebuild, and how to dump data onto the volume first
 
 ## Observability (separate, optional)
 
-Unchanged from the original bundle — installs Grafana/Loki/Mimir integrated with
-Keycloak. Set the two vars, then run the observability playbook:
+Installs Grafana / Loki / Mimir on a lightweight **k3s** cluster beside the compose
+platform, plus **Alloy** (a host systemd service) shipping logs+metrics into them,
+all integrated with Keycloak. It's a self-contained second stack — the core platform
+runs fine without it.
 
-```bash
-export GRAFANA_ADMIN_PASSWORD=yourpassword
-export GRAFANA_OAUTH_SECRET=yoursecret
+**Single source of truth:** the configs (`*-values.yaml`, `config.alloy`,
+dashboards) and the Helm charts live in `util/observability/` in this checkout and
+are read from there directly — never copied into the bundle. Only the Internet-only
+parts (k3s/k9s/helm/alloy binaries, k3s image tarballs, python wheels, apt debs) are
+pre-fetched into `/mnt/install_src/airgap/` by `util/fetch_airgap.sh` (versions
+pinned — override with `K3S_VERSION` etc.; point it at the bundle with
+`AIRGAP_DIR=/mnt/install_src/airgap`). After the stack is up, capture the k3s
+container images with `util/fetch_airgap_images.sh` (same `AIRGAP_DIR`).
 
+> ⚠️ **Building the bundle needs working Internet apt.** `util/fetch_airgap.sh` (and
+> `util/build-apt-debs.sh`) install `dpkg-dev` and download `.deb`s from the Ubuntu
+> archive. The observability install *disables* the box's real apt sources (moves
+> `sources.list*` → `.bak`, adds a `local-airgap` repo), so run the bundle build on a
+> **fresh connected box**, or **before** the observability install. Otherwise restore
+> apt first:
+> ```
+> sudo mv /etc/apt/sources.list.d/ubuntu.sources{.bak,} 2>/dev/null
+> sudo rm -f /etc/apt/sources.list.d/local-airgap.list && sudo apt-get update
+> ```
+
+**Required env** (all fail-fast up front — source them, don't hand-set):
+`GRAFANA_ADMIN_PASSWORD`, `GRAFANA_OAUTH_SECRET`, `PLATFORM_DOMAIN`,
+`MIMIR_MINIO_ROOT_USER`, `MIMIR_MINIO_SECRET_KEY`. `GRAFANA_OAUTH_SECRET` **must
+equal** the `grafana` client secret in Keycloak — both render from `secrets.env`.
+
+```
+set -a; . /mnt/install_src/data/secrets.env; . /mnt/install_src/data/env; set +a
 ansible-playbook -i 'localhost,' -c local \
   -e "ansible_user=$(whoami)" \
   -e "install_src_dir=/mnt/install_src/airgap" \
-  /mnt/install_src/install_observability_airgap.yaml
+  /mnt/install_src/clean_src/digitaltwins-platform/util/install_observability_airgap.yaml
 ```
 
-Then `https://${PLATFORM_DOMAIN}/grafana` should work.
+**Remote compute nodes** ship their logs+metrics into this same stack — one Alloy
+service per worker box, pointed at the portal's VLAN-exposed Loki `:3100` / Mimir
+`:9005`. See `util/compute-node-README.md` §G (uses `util/install-compute-alloy.sh`
++ `util/observability/config.alloy.compute`).
+
+**Gateway route:** `/grafana` is served by the platform gateway via a `/grafana/`
+location in `services/nginx/snippets/platform-routes.conf`, proxying to the k3s
+Traefik on the host node's real IP (a `k3s-node` extra_hosts alias → `NODE_IP`,
+which `gen-env.sh` auto-derives). If you add or change it, recreate the gateway
+(`docker compose up -d gateway`). Then `https://${PLATFORM_DOMAIN}/grafana` works.
+
+### Adjusting observability after install
+
+Edit the source in `util/observability/` (git) and re-apply — **never hand-edit the
+running system** (`/tmp`, `/etc/alloy`, the airgap bundle, or the Grafana UI); those
+are overwritten or untracked, and that's exactly how a frozen secret once drifted.
+
+| Change | Edit | Apply |
+|--------|------|-------|
+| Grafana settings / datasources | `grafana-values.yaml` | re-run playbook, or `helm -n grafana upgrade` (`util/helm_mod`) |
+| Grafana admin pw / OAuth secret / public URL | env `GRAFANA_ADMIN_PASSWORD` / `GRAFANA_OAUTH_SECRET` / `PLATFORM_DOMAIN` | re-run (OAuth secret must match Keycloak) |
+| Loki / Mimir settings | `loki-values.yaml` / `mimir-values.yaml` | re-run, or targeted `helm upgrade` |
+| Mimir object-store creds | env `MIMIR_MINIO_ROOT_USER` / `MIMIR_MINIO_SECRET_KEY` | re-run |
+| What Alloy scrapes / ships | `config.alloy` (`${NODE_NAME}` filled from the host) | re-run, then `sudo systemctl restart alloy` |
+| Grafana dashboards | `dashboards/cm-*.yaml` | re-run, or `kubectl -n grafana apply -f …` |
+| `/grafana` route / node IP | `services/nginx/snippets/platform-routes.conf` / `NODE_IP` | `nginx -t && nginx -s reload` (bind-mounted, live) |
+
+The full re-run is idempotent — it's the canonical apply path.
 
 ---
 
