@@ -292,10 +292,14 @@ Detail: [`README.md`](README.md) §0–6.
    sudo "$CS/util/install-apt-debs.sh"                       # unzip, pip, … (also masks the esm-cache hang)
    tar xzf /mnt/install_src/ansible-packages.tar.gz -C ~ \
      && pip3 install --no-index --find-links ~/ansible-packages/ ansible --break-system-packages
-   #   ... log out / back in (PATH) ...
+   export PATH="$HOME/.local/bin:$PATH"     # ansible-playbook lands here — no logout needed
    ansible-playbook -i "localhost," -c local "$CS/util/airgap_build_step2.yml" \
      -e "ansible_user=$USER" -e "install_src_dir=/mnt/install_src"
-   #   ... log out / back in (docker group) ...
+   ```
+   Docker is now installed. If a later docker step fails with **permission denied**
+   (not "command not found"), activate the docker group without a logout:
+   ```
+   newgrp docker      # starts a subshell WITH the group; then re-set CS + re-run. (Or just log out / back in.)
    ```
 3. **Configure** `data/env` + `data/secrets.env`. Required for a remote-compute +
    observability build:
@@ -402,10 +406,10 @@ Detail: [`compute-node-README.md`](compute-node-README.md) §A–F. **Portal mus
    sudo "$CS/util/install-apt-debs.sh"
    tar xzf /mnt/install_src/ansible-packages.tar.gz -C ~ \
      && pip3 install --no-index --find-links ~/ansible-packages/ ansible --break-system-packages
-   #   ... log out / back in (PATH) ...
+   export PATH="$HOME/.local/bin:$PATH"     # ansible-playbook lands here — no logout needed
    ansible-playbook -i "localhost," -c local "$CS/util/airgap_build_step2.yml" \
      -e "ansible_user=$USER" -e "install_src_dir=/mnt/install_src"
-   #   ... log out / back in (docker group) — then `docker ps` must work ...
+   #   docker installed. If a later step hits docker "permission denied": newgrp docker (or log out/in).
    ```
 3. **Wire up the worker.** First on the **portal** (the node `.env` reads the *running*
    portal's config, and the node needs the VLAN ports opened):
