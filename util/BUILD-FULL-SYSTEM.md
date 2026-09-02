@@ -399,37 +399,15 @@ can't touch that layer. (The playbook opens ufw and ensures the port-forwards bi
 
 Detail: [`compute-node-README.md`](compute-node-README.md) §A–F. **Portal must be up first.**
 
-**Prerequisite — portal → compute SSH trust.** E.1 (`compute-build.sh`) rsyncs
-from the portal *into* the node, so the portal's user must be able to SSH the node
-non-interactively. Nothing earlier sets this up (the portal only authorises inbound
-keys via `data/public_keys`; that doesn't give the portal an outbound key). Do it
-once, now:
-```
-# on the PORTAL — make a key if this user has none, then print the public half:
-[ -f ~/.ssh/id_ed25519 ] || ssh-keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519
-cat ~/.ssh/id_ed25519.pub
-```
-Put that one line into the **node's** `~/.ssh/authorized_keys`, using whatever
-access you already have to the node — the cloud console, or the operator/control
-box that provisioned both VMs (the same box the `keys2`-style helper ran from):
-```
-# on the NODE (paste the portal's pubkey printed above):
-mkdir -p ~/.ssh && chmod 700 ~/.ssh
-echo 'ssh-ed25519 AAAA...PASTE-THE-PORTAL-PUBKEY...' >> ~/.ssh/authorized_keys
-chmod 600 ~/.ssh/authorized_keys
-```
-Verify from the portal (also pins the host key so E.1's rsync won't hang on a
-prompt):
-```
-# on the PORTAL:
-ssh -o StrictHostKeyChecking=accept-new ubuntu@10.2.0.14 true && echo "portal -> compute OK"
-```
-
-1. **Seed the node's bundle** from the portal (only the subset a node needs):
+1. **Seed the node's bundle** (only the subset a node needs). Run this from a box
+   that already has SSH to the node. The node usually isn't reachable directly —
+   hop through the portal with `SSH_OPTS='-J <portal>'` (compute-build passes it to
+   both the ssh and the rsync). If the portal's ufw is `default deny (outgoing)`,
+   allow the hop first: `sudo ufw allow out to <node_ip> port 22 proto tcp` on the
+   portal (see [`compute-node-README.md`](compute-node-README.md) §A.2):
    ```
-   # on the PORTAL:
-   util/compute-build.sh ubuntu@10.2.0.14
-   # SSH_OPTS='-J <portal>' util/compute-build.sh ubuntu@10.2.0.14   # if node is reachable only via the portal
+   SSH_OPTS='-J <portal>' util/compute-build.sh ubuntu@10.2.0.14
+   # util/compute-build.sh ubuntu@10.2.0.14        # if you're already on/at the node's network, no hop needed
    ```
 2. **On the node — install Docker + Ansible FROM THE BUNDLE** (compute-build seeded
    it in E.1). Must finish before E.3, or `docker compose` isn't there. Same as B.2:
