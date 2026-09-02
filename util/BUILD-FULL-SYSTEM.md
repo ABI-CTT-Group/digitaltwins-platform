@@ -450,6 +450,10 @@ Detail: [`compute-node-README.md`](compute-node-README.md) §A–F. **Portal mus
    scp /tmp/compute.env ubuntu@10.2.0.14:~/compute.env
    util/ufw_for_remote_compute.sh 10.2.0.14     # 8002/8003/8005/8010/8011 (+ security group)
    ```
+   > **Also open `8002`, `8003`, `8005`, `8010`, `8011` to `10.2.0.14` in the cloud
+   > security group** — that layer sits below ufw and the script can't touch it (same as
+   > Phase D). No-op where the security group already lets the VLAN talk to itself freely
+   > (intra-`10.2.0.*`) — needed only where it doesn't.
    Then on the **node** — the worker image and compute-worker files are already here
    (image in the bundle from compute-build; files in clean_src). Copy them into place,
    load the image, THEN bring it up:
