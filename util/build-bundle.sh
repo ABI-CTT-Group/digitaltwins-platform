@@ -18,6 +18,7 @@
 #   ./build-bundle.sh --gate-only     # just re-run the A.5 completeness gate
 #   ./build-bundle.sh --from packages # resume from a phase (bootstrap|code|packages|freeze|obsimages|gate)
 #   ./build-bundle.sh --force         # redo steps even if their output exists
+#   ./build-bundle.sh --yes           # accept data/env + data/secrets.env as-is (don't stop to fill them)
 #   ./build-bundle.sh --clean         # wipe generated artifacts + docker volumes first
 #
 # Env: SRC_DIR (default /mnt/install_src), BRANCH (default observability-mainline).
@@ -35,14 +36,15 @@ AIRGAP="$SRC/airgap"
 BRANCH="${BRANCH:-observability-mainline}"
 REPO="${REPO:-https://github.com/ABI-CTT-Group/digitaltwins-platform.git}"
 
-FROM=""; GATE_ONLY=0; FORCE=0; CLEAN=0
+FROM=""; GATE_ONLY=0; FORCE=0; CLEAN=0; ACCEPT=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --from) FROM="$2"; shift 2 ;;
     --gate-only) GATE_ONLY=1; shift ;;
     --force) FORCE=1; shift ;;
     --clean) CLEAN=1; shift ;;
-    -h|--help) sed -n '2,32p' "$SELF"; exit 0 ;;
+    -y|--yes|--accept-config) ACCEPT=1; shift ;;
+    -h|--help) sed -n '2,33p' "$SELF"; exit 0 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
 done
@@ -54,6 +56,7 @@ if [ -n "$FROM" ];       then REEXEC_ARGS+=" --from $FROM"; fi
 if [ "$GATE_ONLY" = 1 ]; then REEXEC_ARGS+=" --gate-only"; fi
 if [ "$FORCE" = 1 ];     then REEXEC_ARGS+=" --force"; fi
 if [ "$CLEAN" = 1 ];     then REEXEC_ARGS+=" --clean"; fi
+if [ "$ACCEPT" = 1 ];    then REEXEC_ARGS+=" --yes"; fi
 
 c_hdr=$'\033[1;36m'; c_ok=$'\033[32m'; c_warn=$'\033[1;33m'; c_err=$'\033[1;31m'; c_off=$'\033[0m'
 log()  { printf '\n%s==> %s%s\n' "$c_hdr" "$*" "$c_off"; }
@@ -101,8 +104,14 @@ code_config() {
   local fresh=0
   [ -f "$SRC/data/env" ]         || { cp "$CS/env.template"         "$SRC/data/env";         fresh=1; }
   [ -f "$SRC/data/secrets.env" ] || { cp "$CS/secrets.env.template" "$SRC/data/secrets.env"; fresh=1; }
-  [ "$fresh" -eq 0 ] || die "created data/env + data/secrets.env from templates — FILL THEM IN (PLATFORM_DOMAIN, DB/SEEK passwords, GRAFANA_*, MIMIR_*) then re-run. (Config is not code; the build can't invent your secrets.)"
-  ok "data/env + data/secrets.env present"
+  if [ "$fresh" -ne 0 ]; then
+    if [ "$ACCEPT" = 1 ]; then
+      warn "data/env + data/secrets.env were just created from templates, and --yes was given — proceeding with them AS-IS. Make sure they're actually filled in."
+    else
+      die "created data/env + data/secrets.env from templates — FILL THEM IN (PLATFORM_DOMAIN, DB/SEEK passwords, GRAFANA_*, MIMIR_*) then re-run; or pass --yes to accept them as-is. (Config is not code; the build can't invent your secrets.)"
+    fi
+  fi
+  ok "data/env + data/secrets.env present (using the values as-is)"
 }
 
 # ── A.2  offline packages + binaries ────────────────────────────────────────
