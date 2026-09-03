@@ -354,7 +354,7 @@ Detail: [`README.md`](README.md) §0–6.
    > table that maps Keycloak `sub` UUIDs → SEEK users — so users resolve correctly only
    > if the dump came from a system sharing **your Keycloak realm/users**. And the SEEK
    > **admin login/password become the dump's** (unreadable hashes), not your
-   > `SEEK_ADMIN_PASSWORD`.
+   > `PLATFORM_ADMIN_PASSWORD`.
 6. **DAGs** (not in the bundle): sync from your DAG source, then **un-pause**. If
    you seeded in step 5, sync the DAGs that go with that data:
    ```
