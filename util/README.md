@@ -382,7 +382,7 @@ the localhost/http build). Every route below is served by the edge **gateway**
 Quick smoke test: `/` (portal), `/seek`, `/jupyter`, `/auth`, `/airflow`.
 
 **Pre-canned realm users** (from the realm template — change/remove for
-production): `admin` (password = your `KEYCLOAK_REALM_ADMIN_PASSWORD`), and the
+production): `admin` (password = your `PLATFORM_ADMIN_PASSWORD`), and the
 plaintext test users `clinician`/`clinician`, `researcher`/`researcher`,
 `test1`/`test1`, `test2`/`test2`.
 
@@ -402,7 +402,7 @@ instead of stopping nginx from starting. Routes are defined in
 | Path | Upstream (service:port) | Keycloak auth | Prefix handling |
 |---|---|:---:|---|
 | `/`                 | `portal-frontend`         | **Yes** — OIDC login (frontend `VITE_KEYCLOAK_*`; backend validates the `api` client). Also carries `/api/`, `/tools/`, `/plugin/<expose>/`. | passthrough |
-| `/seek/`            | `seek:3000`               | **No** — local admin login (`SEEK_ADMIN_PASSWORD`). `omniauth_enabled` is on but no provider is wired; the realm ships a `seek` client for future SSO. | passthrough (`RAILS_RELATIVE_URL_ROOT=/seek`) |
+| `/seek/`            | `seek:3000`               | **No** — local admin login (`PLATFORM_ADMIN_PASSWORD`). `omniauth_enabled` is on but no provider is wired; the realm ships a `seek` client for future SSO. | passthrough (`RAILS_RELATIVE_URL_ROOT=/seek`) |
 | `/airflow/`         | `airflow-apiserver:8080`  | **Yes** — OIDC (`airflow` client in `digitaltwins` realm). | passthrough (`AIRFLOW__API__BASE_URL`) |
 | `/jupyter/`         | `jupyterhub:8000`         | **Yes** — OIDC (GenericOAuthenticator → Keycloak). | passthrough (`c.JupyterHub.base_url=/jupyter/`) |
 | `/auth/`            | `keycloak:8080`           | *is Keycloak* | passthrough (`KC_HTTP_RELATIVE_PATH=/auth`) |
@@ -590,10 +590,10 @@ util/portal-restore.sh                  # <- /tmp/dtwins-migrate on the target
 #    from a system sharing your Keycloak realm/users.
 
 # 4b. Reset the local SEEK admin password — the restore also brought the source's
-#     user DB (password hashes you can't read), so your SEEK_ADMIN_PASSWORD no
+#     user DB (password hashes you can't read), so your PLATFORM_ADMIN_PASSWORD no
 #     longer applies. (The admin login may differ from 'admin' after a restore.)
 set -a; . /mnt/install_src/data/secrets.env; set +a
-util/set-seek-password.sh admin "$SEEK_ADMIN_PASSWORD"
+util/set-seek-password.sh admin "$PLATFORM_ADMIN_PASSWORD"
 
 # 5. DAGs — separate, run from a machine that can ssh to both:
 util/sync-dags.sh <source> <target>
@@ -613,7 +613,7 @@ util/sync-dags.sh <source> <target>
   to SEEK after the restore.
 - **SEEK local login:** the restore replaces SEEK's users, so the local admin
   password becomes the source's (an unreadable hash). Reset it with
-  `util/set-seek-password.sh admin "$SEEK_ADMIN_PASSWORD"` (step 4b; login may
+  `util/set-seek-password.sh admin "$PLATFORM_ADMIN_PASSWORD"` (step 4b; login may
   differ from `admin`).
 
 ### How it works & gotchas (for maintainers)

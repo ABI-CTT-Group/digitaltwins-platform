@@ -657,10 +657,10 @@
   "users": [
     {
       "id": "1afb2774-0277-494f-a976-34a72683d972",
-      "username": "admin1",
-      "firstName": "admin1",
-      "lastName": "admin1",
-      "email": "admin@example",
+      "username": "${PLATFORM_ADMIN_USERNAME}",
+      "firstName": "${PLATFORM_ADMIN_USERNAME}",
+      "lastName": "${PLATFORM_ADMIN_USERNAME}",
+      "email": "${PLATFORM_ADMIN_EMAIL}",
       "emailVerified": false,
       "enabled": true,
       "createdTimestamp": 1777505368388,
@@ -668,7 +668,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "${KEYCLOAK_REALM_ADMIN_PASSWORD}",
+          "value": "${PLATFORM_ADMIN_PASSWORD}",
           "temporary": false
         }
       ],
