@@ -46,6 +46,9 @@
         :ready="ready"
         :launching="launching"
         :can-monitor="canMonitor"
+        :is-script="isScript"
+        :downloading="actions.downloadingMap.value[data.seekId]"
+        :submitting="actions.submittingMap.value[data.seekId]"
         @launch="actions.launch(data.seekId)"
         @monitor="actions.monitor(data.seekId)"
         @verify="actions.verify(data.seekId)"
@@ -96,6 +99,7 @@ const configLoading = computed(() => !detail.value);
 const ready = computed(() => detail.value?.isAssayReadyToLaunch ?? false);
 const launching = computed(() => exec.value?.isLaunching ?? false);
 const canMonitor = computed(() => exec.value?.text === "Monitor");
+const isScript = computed(() => (props.data.tag ?? "").toLowerCase().includes("script"));
 
 const openConfig = () => {
   actions.openEdit(props.data.seekId);
