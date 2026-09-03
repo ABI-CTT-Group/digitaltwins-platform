@@ -18,6 +18,13 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
+# docker compose needs the RUNTIME checkout (where .env/secrets.env are
+# rendered), which is not necessarily the caller's cwd -- e.g. on an airgapped
+# install the git source lives at /mnt/install_src/clean_src/... while the
+# actual running stack is at ~/digitaltwins-platform. Match portal-restore.sh.
+BASE_DIR="${BASE_DIR:-$HOME/digitaltwins-platform}"
+cd "$BASE_DIR"
+
 SEEK_SERVICE="${SEEK_SERVICE:-seek}"
 
 docker compose exec -T "$SEEK_SERVICE" bash -c 'cd /seek && RAILS_ENV=production bundle exec rails runner -' <<'RUBY'
