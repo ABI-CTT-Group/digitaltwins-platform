@@ -11,6 +11,11 @@
 # Credentials come from the target containers' own env, so the source and
 # target need not share passwords.
 #
+# After the data is restored it RE-STAMPS the SEEK config the restore clobbers
+# (step 10): site_base_host + feature flags (enable-features.sh) and the admin's
+# local password (set-seek-password.sh), read from THIS host's rendered .env — so
+# you don't have to remember to re-run them by hand.
+#
 #   util/portal-restore.sh [IN_DIR]        (default /tmp/dtwins-migrate)
 #
 # ---------------------------------------------------------------------------
@@ -139,6 +144,46 @@ fi
 # 9. Restart SEEK so Solr rebuilds its index from the restored DB -------------
 echo "== restart seek/workers (Solr reindex) =="
 docker compose restart seek workers >/dev/null 2>&1 || docker restart "$SEEK_C" >/dev/null
+
+# 10. Re-stamp the SEEK config the restore clobbered --------------------------
+# The SEEK MySQL restore (step 3) overwrote the `settings` and `users` tables with
+# the SOURCE's, which reverts three TARGET-specific things:
+#   - site_base_host  -> the source's (e.g. http://localhost:8001) — breaks every
+#     "SEEK ID" URL on this host until reset;
+#   - the feature flags (omniauth/programmes/workflows/GA4GH/git) -> the source's;
+#   - the admin's LOCAL password -> the source's (a hash you can't read).
+# enable-features.sh re-applies site_base_host + the flags; set-seek-password.sh
+# resets the admin's local password. Both values come from THIS host's rendered
+# .env (PLATFORM_PROTOCOL/PLATFORM_DOMAIN are emitted there; the admin identity is
+# AIRFLOW_USERNAME/AIRFLOW_PASSWORD = the single PLATFORM_ADMIN_*). Non-fatal: a
+# failure here warns and points at the manual fix rather than aborting the restore.
+echo "== re-stamp SEEK site_base_host + features + admin password =="
+ENV_FILE="$BASE_DIR/.env"
+if [ -f "$ENV_FILE" ]; then
+  PROT=$(grep -E '^PLATFORM_PROTOCOL=' "$ENV_FILE" | cut -d= -f2-)
+  DOM=$(grep  -E '^PLATFORM_DOMAIN='   "$ENV_FILE" | cut -d= -f2-)
+  ADMIN_U=$(grep -E '^AIRFLOW_USERNAME=' "$ENV_FILE" | cut -d= -f2-)
+  ADMIN_P=$(grep -E '^AIRFLOW_PASSWORD=' "$ENV_FILE" | cut -d= -f2-)
+  # SEEK was just restarted — wait until Rails answers before poking it.
+  for _ in $(seq 1 30); do
+    docker exec "$SEEK_C" sh -c 'cd /seek && RAILS_ENV=production bundle exec rails runner "exit 0"' >/dev/null 2>&1 && break
+    sleep 5
+  done
+  if [ -n "$PROT" ] && [ -n "$DOM" ]; then
+    SEEK_SITE_BASE_URL="$PROT://$DOM/seek" ./util/enable-features.sh \
+      || echo "  WARN: enable-features failed — site_base_host/features NOT reset; run: SEEK_SITE_BASE_URL=$PROT://$DOM/seek ./util/enable-features.sh"
+  else
+    echo "  WARN: PLATFORM_PROTOCOL/DOMAIN missing from $ENV_FILE — site_base_host NOT reset"
+  fi
+  if [ -n "$ADMIN_U" ] && [ -n "$ADMIN_P" ]; then
+    ./util/set-seek-password.sh "$ADMIN_U" "$ADMIN_P" \
+      || echo "  WARN: set-seek-password failed — the admin's LOCAL login is still the source's; run: ./util/set-seek-password.sh $ADMIN_U <password>"
+  else
+    echo "  WARN: admin username/password missing from $ENV_FILE — admin password NOT reset"
+  fi
+else
+  echo "  WARN: $ENV_FILE not found — cannot auto re-stamp. Run enable-features.sh (with SEEK_SITE_BASE_URL) + set-seek-password.sh manually."
+fi
 
 cat <<'EOF'
 

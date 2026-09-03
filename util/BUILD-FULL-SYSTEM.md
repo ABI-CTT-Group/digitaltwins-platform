@@ -352,9 +352,15 @@ Detail: [`README.md`](README.md) §0–6.
    > removed (see `seek-integration.md`), so there's no static token to go stale. What
    > *does* change: the restore brings the **dump's** SEEK user DB, incl. the `identities`
    > table that maps Keycloak `sub` UUIDs → SEEK users — so users resolve correctly only
-   > if the dump came from a system sharing **your Keycloak realm/users**. And the SEEK
-   > **admin login/password become the dump's** (unreadable hashes), not your
-   > `PLATFORM_ADMIN_PASSWORD`.
+   > if the dump came from a system sharing **your Keycloak realm/users** (the realm
+   > template pins the admin's `sub`, so the admin link survives).
+   >
+   > **Auto re-stamped (step 10 of the script):** the restore also clobbers SEEK's
+   > `settings`/`users` with the dump's — reverting **`site_base_host`** (to the dump's
+   > `localhost:…`, which breaks every "SEEK ID" URL), the **feature flags**, and the
+   > admin's **local password**. `portal-restore.sh` now re-applies all three at the end
+   > (`enable-features.sh` + `set-seek-password.sh`, reading this host's `.env`), so you
+   > no longer re-run them by hand. Watch for a `WARN:` line if any step couldn't.
 6. **DAGs** (not in the bundle): sync from your DAG source, then **un-pause**. If
    you seeded in step 5, sync the DAGs that go with that data:
    ```
