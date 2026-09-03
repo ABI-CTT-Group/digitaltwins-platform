@@ -362,10 +362,14 @@ Detail: [`README.md`](README.md) §0–6.
    >
    > **Auto re-stamped (step 10 of the script):** the restore also clobbers SEEK's
    > `settings`/`users` with the dump's — reverting **`site_base_host`** (to the dump's
-   > `localhost:…`, which breaks every "SEEK ID" URL), the **feature flags**, and the
-   > admin's **local password**. `portal-restore.sh` now re-applies all three at the end
-   > (`enable-features.sh` + `set-seek-password.sh`, reading this host's `.env`), so you
-   > no longer re-run them by hand. Watch for a `WARN:` line if any step couldn't.
+   > `localhost:…`, which breaks every "SEEK ID" URL) and the **feature flags**, and
+   > replacing SEEK's whole user set (so whichever user was server admin before is
+   > gone). `portal-restore.sh` now re-applies the first two at the end
+   > (`enable-features.sh`, reading this host's `.env`) and restores admin access via
+   > `promote-seek-admin.sh`, which promotes the SEEK user linked to the platform
+   > admin's Keycloak `sub` (**not** a guessed SEEK login — SEEK derives its own,
+   > e.g. Keycloak `admin1` → SEEK `admin1186`). So you no longer re-run any of this
+   > by hand. Watch for a `WARN:` line if any step couldn't.
 6. **DAGs** (not in the bundle): sync from your DAG source, then **un-pause**. If
    you seeded in step 5, sync the DAGs that go with that data:
    ```
