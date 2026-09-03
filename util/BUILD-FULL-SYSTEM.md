@@ -63,7 +63,7 @@ Two things trip everyone; note them now:
 > ```
 > # bare box — grab just this one script; it clones the repo (into clean_src/) and
 > # bootstraps docker/ansible/k3s/helm itself, so nothing else is needed up front:
-> curl -fsSLO https://raw.githubusercontent.com/ABI-CTT-Group/digitaltwins-platform/observability-mainline/util/build-bundle.sh
+> curl -fsSLO https://raw.githubusercontent.com/ABI-CTT-Group/digitaltwins-platform/main/util/build-bundle.sh
 > chmod +x build-bundle.sh
 > ./build-bundle.sh                 # full build + gate  (fill data/env + data/secrets.env when it stops on first run)
 >
@@ -136,7 +136,7 @@ curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 |
 
 **Get `clean_src`** — clone from scratch, or refresh if you kept it in A.0:
 ```
-BRANCH=observability-mainline     # the current release branch
+BRANCH=main     # the current release branch
 mkdir -p /mnt/install_src/clean_src
 if [ -d "$CS/.git" ]; then
   ( cd "$CS" && git fetch origin && git checkout "$BRANCH" \
