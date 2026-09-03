@@ -43,6 +43,24 @@
 # (queues a background reindex). These are supported, run-anytime SEEK admin
 # tasks, not something bespoke to this script.
 #
+# Also transfers Project/Programme-SCOPED roles (pal, project_administrator,
+# asset_housekeeper, asset_gatekeeper, programme_administrator — the `roles`
+# table, NOT contributor_id): these are what SEEK actually shows as e.g. a
+# project's "Project Administrator", entirely separate from item ownership,
+# and are easy to miss — is_admin does not imply it, so promoting the
+# platform admin to server admin does not make them appear as any project's
+# administrator. The site-wide `admin` role (scope NULL) is deliberately
+# EXCLUDED here — that one is managed by promote-seek-admin.sh /
+# demote-seek-admin.sh, addressed by Keycloak sub, not by this FROM/TO
+# transfer, so the two mechanisms do not fight over the same role.
+# A Project-scoped role requires the holder to already be a member of that
+# project (a real SEEK model validation), so if TO is not yet a member,
+# this first mirrors FROM's own project membership (GroupMembership) onto
+# TO before moving the role — through real ActiveRecord saves, not raw SQL,
+# since membership/role creation has validations worth actually running
+# (unlike the bulk contributor_id columns, which are plain FKs with no
+# validation of their own).
+#
 # FROM/TO each accept one of:
 #   <seek-login>        e.g. clin864
 #   email:<address>     e.g. email:admin@example.com
@@ -127,6 +145,7 @@ tables = conn.tables.select { |t| conn.columns(t).any? { |c| c.name == 'contribu
 tables = tables.reject { |t| t == 'permissions' || HISTORY_EXCLUDED.call(t) }
 
 total = 0
+role_total = 0
 transfer = lambda do
   tables.sort.each do |t|
     has_type = conn.columns(t).any? { |c| c.name == 'contributor_type' }
@@ -147,18 +166,52 @@ transfer = lambda do
     end
     puts "#{apply ? 'moved' : 'would move'} %5d  %s" % [count, t]
   end
+
+  # Project/Programme-scoped roles (see the header comment) -- deliberately
+  # excludes the site-wide "admin" role (scope nil), owned by
+  # promote/demote-seek-admin.sh.
+  scoped_type_ids = RoleType.all.reject { |rt| rt.scope.nil? }.map(&:id)
+  Role.where(person_id: from_person.id, role_type_id: scoped_type_ids).each do |role|
+    role_type = RoleType.find_by_id(role.role_type_id)
+    label = "#{role_type.key} on #{role.scope_type}/#{role.scope_id}"
+
+    if role.scope_type == 'Project' && role.scope && !role.scope.people.include?(to_person)
+      from_memberships = GroupMembership.joins(:work_group).where(person_id: from_person.id, work_groups: { project_id: role.scope_id })
+      if from_memberships.none?
+        puts "SKIPPED #{label}: FROM has no project membership to mirror onto TO"
+        next
+      end
+      from_memberships.each do |gm|
+        next if GroupMembership.exists?(person_id: to_person.id, work_group_id: gm.work_group_id)
+        if apply
+          Seek::Permissions::Authorization.disable_authorization_checks { GroupMembership.create!(person: to_person, work_group: gm.work_group) }
+        end
+        puts "#{apply ? 'added' : 'would add'} membership: ##{to_person.id} -> project #{role.scope_id} (work_group #{gm.work_group_id})"
+      end
+    end
+
+    already_has_it = Role.exists?(person_id: to_person.id, role_type_id: role.role_type_id, scope_type: role.scope_type, scope_id: role.scope_id)
+    role_total += 1
+    if apply
+      Seek::Permissions::Authorization.disable_authorization_checks do
+        Role.create!(person: to_person, role_type_id: role.role_type_id, scope_type: role.scope_type, scope_id: role.scope_id) unless already_has_it
+        role.destroy!
+      end
+    end
+    puts "#{apply ? 'moved' : 'would move'} role: #{label}#{already_has_it ? ' (TO already had it -- just removed from FROM)' : ''}"
+  end
 end
 # All-or-nothing when actually applying, so a mid-loop failure can't leave
 # ownership half-migrated across tables.
 apply ? ActiveRecord::Base.transaction { transfer.call } : transfer.call
 
 puts
-if total.zero?
-  puts "Nothing to do: person ##{from_person.id} owns nothing."
+if total.zero? && role_total.zero?
+  puts "Nothing to do: person ##{from_person.id} owns nothing and holds no scoped roles."
 elsif apply
-  puts "OK: moved #{total} item(s) from ##{from_person.id} to ##{to_person.id}."
+  puts "OK: moved #{total} item(s) and #{role_total} role(s) from ##{from_person.id} to ##{to_person.id}."
 else
-  puts "DRY RUN: #{total} item(s) would move. Re-run with -y/--yes to apply."
+  puts "DRY RUN: #{total} item(s) and #{role_total} role(s) would move. Re-run with -y/--yes to apply."
 end
 RUBY
 }
