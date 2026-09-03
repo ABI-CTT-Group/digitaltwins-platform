@@ -54,7 +54,7 @@ import { watch, ref } from 'vue';
 const props = defineProps({
     downloadZipProgressValue:Number
 })
-const description = ref('Downloading dataset from DigitalTWINS Platform')
+const description = ref('Downloading dataset from Digital Twins Platform')
 
 const dialog = defineModel("downloadDialog")
 
@@ -63,7 +63,7 @@ watch(()=>props.downloadZipProgressValue,(newVal, oldVal)=>{
     if(newVal==100){
         description.value = "Successfully download the dataset"
     }else{
-        description.value = "Downloading dataset from DigitalTWINS Platform"
+        description.value = "Downloading dataset from Digital Twins Platform"
     }
 })
 
