@@ -32,6 +32,9 @@
             :ready="ready"
             :launching="launching"
             :can-monitor="canMonitor"
+            :is-script="isScript"
+            :downloading="actions.downloadingMap.value[assayId]"
+            :submitting="actions.submittingMap.value[assayId]"
             @launch="actions.launch(assayId)"
             @monitor="actions.monitor(assayId)"
             @verify="actions.verify(assayId)"
@@ -55,14 +58,7 @@
       </template>
     </div>
 
-    <DownloadSheet
-      v-model:download-dialog="actions.downloadDialog.value"
-      :download-zip-progress-value="actions.downloadZipProgressValue.value"
-    />
-    <SubmitSheet
-      v-model:submit-dialog="actions.submitDialog.value"
-      :submit-state="actions.submitState.value"
-    />
+
   </section>
 </template>
 
@@ -71,8 +67,7 @@ import { ref, computed, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import BackLink from "@/components/common/BackLink.vue";
 import AssayActionBar from "@/views/dashboard/components/AssayActionBar.vue";
-import DownloadSheet from "@/components/domain/DownloadSheet.vue";
-import SubmitSheet from "@/components/domain/SubmitSheet.vue";
+
 import { useAssayActions } from "@/composables/useAssayActions";
 import { useDashboardCacheStore } from "@/store/dashboard_cache_store";
 import {
@@ -103,6 +98,7 @@ const exec = computed(() => store.assayExecute[assayId]);
 const ready = computed(() => detail.value?.isAssayReadyToLaunch ?? false);
 const launching = computed(() => exec.value?.isLaunching ?? false);
 const canMonitor = computed(() => exec.value?.text === "Monitor");
+const isScript = computed(() => (detail.value?.workflow.type ?? "").toLowerCase().includes("script"));
 
 // Prefer the name cached from the assays list; fall back to the fetched seek
 // assay only on a deep-link where the list was never loaded.

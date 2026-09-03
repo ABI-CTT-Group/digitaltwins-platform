@@ -26,7 +26,7 @@ class DigitalTWINSAPIClient:
         # allow disabling TLS verification via env (defaults to verifying in prod).
 
         verify = True # True for production, False for local testing with self-signed certs
-        self.client = httpx.AsyncClient(verify=verify)
+        self.client = httpx.AsyncClient(verify=verify, timeout=600.0)
 
     def _get_auth_headers(self) -> Dict[str, str]:
         headers = {}

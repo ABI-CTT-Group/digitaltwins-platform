@@ -22,14 +22,7 @@
       />
     </div>
 
-    <DownloadSheet
-      v-model:download-dialog="actions.downloadDialog.value"
-      :download-zip-progress-value="actions.downloadZipProgressValue.value"
-    />
-    <SubmitSheet
-      v-model:submit-dialog="actions.submitDialog.value"
-      :submit-state="actions.submitState.value"
-    />
+
   </section>
 </template>
 
@@ -42,8 +35,7 @@ import { useDashboardNavigation } from "@/composables/useDashboardNavigation";
 import { useAssayActions } from "@/composables/useAssayActions";
 import DashboardHeader from "./components/DashboardHeader.vue";
 import LevelGrid from "./components/LevelGrid.vue";
-import DownloadSheet from "@/components/domain/DownloadSheet.vue";
-import SubmitSheet from "@/components/domain/SubmitSheet.vue";
+
 
 const route = useRoute();
 const data = useDashboardData();

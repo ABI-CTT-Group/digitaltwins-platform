@@ -18,10 +18,8 @@ import { getApiErrorMessage } from "@/utils/common";
 // Sheet UI state is shared across every component that drives the assay
 // actions (each AssayCard + the host DashboardView that renders the sheets),
 // so it lives at module scope as a single source of truth.
-const downloadDialog = ref(false);
-const submitDialog = ref(false);
-const submitState = ref<"waiting" | "true" | "false" | "unavailable">("waiting");
-const downloadZipProgressValue = ref(0);
+const downloadingMap = ref<Record<string, boolean>>({});
+const submittingMap = ref<Record<string, boolean>>({});
 
 /**
  * All assay-level actions (launch / monitor / verify / download / submit /
@@ -130,8 +128,7 @@ export function useAssayActions() {
   };
 
   const download = async (seekId: string) => {
-    downloadDialog.value = true;
-    downloadZipProgressValue.value = 0;
+    downloadingMap.value[seekId] = true;
     toast.info("Preparing download...");
     try {
       const response = await useDashboardDownloadAssayWorkspace(seekId);
@@ -149,24 +146,24 @@ export function useAssayActions() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      downloadZipProgressValue.value = 100;
       toast.success("Download ready.");
     } catch (e: any) {
-      downloadDialog.value = false;
       toast.error(getApiErrorMessage(e, "Download"));
+    } finally {
+      downloadingMap.value[seekId] = false;
     }
   };
 
   const submit = async (seekId: string) => {
-    submitDialog.value = true;
-    submitState.value = "waiting";
+    submittingMap.value[seekId] = true;
+    toast.info("Submitting assay results...");
     try {
       await useDashboardSubmitAssayResults(seekId);
-      submitState.value = "true";
       toast.success("Successfully submitted assay results.");
     } catch (e: any) {
-      submitState.value = "false";
       toast.error(getApiErrorMessage(e, "Submit"));
+    } finally {
+      submittingMap.value[seekId] = false;
     }
   };
 
@@ -179,10 +176,8 @@ export function useAssayActions() {
     assayDetails,
     assayExecute,
     currentAssayDetails,
-    downloadDialog,
-    submitDialog,
-    submitState,
-    downloadZipProgressValue,
+    downloadingMap,
+    submittingMap,
     // actions
     loadAssayList,
     openEdit,
