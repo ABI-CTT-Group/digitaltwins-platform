@@ -588,6 +588,7 @@ async def download_dashboard_assay_workspace(seek_id: str = Query(None), client:
     try:
         response = await client.get_stream(f"/assays/{seek_id}/workspace/dataset/download")
     except HTTPStatusError as e:
+        await e.response.aread()
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
     except RequestError as e:
         raise HTTPException(status_code=500, detail=str(e))
