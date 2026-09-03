@@ -63,7 +63,8 @@ bridge network, and `ufw default deny`.
 
 Make the public hostname resolve — *inside the platform network* — to the **gateway
 container** (which serves `/auth` → Keycloak with a trusted cert). **Both** edits are
-required, because an `/etc/hosts` entry always shadows Docker DNS:
+required, because an `/etc/hosts` entry always shadows Docker DNS. Both are in the **main
+repo** — no submodule change:
 
 1. Add a network alias for the public hostname to the `gateway` service on the
    `digitaltwins-platform` network (`services/nginx/docker-compose.yml`):
@@ -74,16 +75,30 @@ required, because an `/etc/hosts` entry always shadows Docker DNS:
        networks:
          digitaltwins-platform:
            aliases:
-             - ${PLATFORM_DOMAIN}
+             - ${PLATFORM_DOMAIN:-localhost}
    ```
 
-2. **Remove** the `extra_hosts: "${PLATFORM_DOMAIN}:host-gateway"` lines from SEEK's two
-   services (`ldh-deployment/docker-compose.yml`).
+2. Clear the submodule's `extra_hosts` from the **already-merged** SEEK override
+   (`services/seek/network-override.yml`) — no need to edit the `ldh-deployment` submodule.
+   The override rides the always-on `include:` block, so it applies to **both local and
+   remote compute**:
+
+   ```yaml
+   services:
+     seek:
+       extra_hosts: !reset null
+     workers:
+       extra_hosts: !reset null
+   ```
+
+   (`!reset` requires Docker Compose ≥ 2.24. A plain override would *append* a second host
+   entry and the bad one would still win — `!reset` is what actually clears it.)
 
 Then recreate `gateway` and the SEEK services (SEEK takes a few minutes to boot and 502s
 transiently while it does).
 
-**This belongs upstream in the `ldh-deployment` submodule** — the hairpin is part of the
-OIDC integration there, so fixing it upstream fixes every real deployment, not just this
-runtime. (Alternatively, eliminate the residual public-host call at the app layer so no
-hairpin is needed at all.)
+**A cleaner upstream fix belongs in the `ldh-deployment` submodule** — dropping the
+`extra_hosts: "${PLATFORM_DOMAIN}:host-gateway"` lines there fixes every real deployment
+directly (the `!reset` above is the platform-side neutralization until then). Or eliminate
+the residual public-host call at the app layer so no hairpin is needed at all. See
+`docs/seek-oidc-login-504-issue-draft.md`.
