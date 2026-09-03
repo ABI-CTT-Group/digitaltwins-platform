@@ -179,8 +179,16 @@ if [ -f "$ENV_FILE" ]; then
 else
   echo "  WARN: $ENV_FILE not found — cannot auto reset site_base_host/features. Run enable-features.sh (with SEEK_SITE_BASE_URL) manually."
 fi
-./util/promote-seek-admin.sh \
-  || echo "  WARN: promote-seek-admin failed — the platform admin may not be a SEEK server admin; run: ./util/promote-seek-admin.sh"
+REALM_TEMPLATE="services/keycloak/digitaltwins-realm.json.template"
+# The admin's pinned "id" is the line immediately before its
+# "username": "${PLATFORM_ADMIN_USERNAME}" placeholder in the users[] block.
+ADMIN_SUB=$(grep -A1 '"id":' "$REALM_TEMPLATE" 2>/dev/null | grep -B1 'PLATFORM_ADMIN_USERNAME' | grep '"id":' | head -1 | sed -E 's/.*"id": *"([^"]+)".*/\1/')
+if [ -n "$ADMIN_SUB" ]; then
+  ./util/promote-seek-admin.sh "$ADMIN_SUB" \
+    || echo "  WARN: promote-seek-admin failed — the platform admin may not be a SEEK server admin; run: ./util/promote-seek-admin.sh $ADMIN_SUB"
+else
+  echo "  WARN: could not find the platform admin's pinned id in $REALM_TEMPLATE — admin NOT promoted; run ./util/promote-seek-admin.sh <SUB> manually"
+fi
 
 cat <<'EOF'
 

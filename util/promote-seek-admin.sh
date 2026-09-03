@@ -20,9 +20,13 @@
 # create-admin-user.sh. Run from the repo root (or with COMPOSE_FILE set).
 #
 # Usage:
-#   ./util/promote-seek-admin.sh [SUB]
-#     SUB defaults to the platform admin's pinned Keycloak user id, read from
-#     the committed realm template.
+#   ./util/promote-seek-admin.sh <SUB>
+#     SUB must be given explicitly -- deliberately no default. The obvious
+#     "default" would be the platform admin's pinned Keycloak user id from
+#     the committed realm template, but this script would then be silently
+#     promoting whoever that template currently names, with no confirmation
+#     at the call site. Callers (e.g. portal-restore.sh) resolve the sub
+#     themselves and pass it in explicitly.
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -34,15 +38,13 @@ BASE_DIR="${BASE_DIR:-$HOME/digitaltwins-platform}"
 cd "$BASE_DIR"
 
 SEEK_SERVICE="${SEEK_SERVICE:-seek}"
-TEMPLATE="${TEMPLATE:-services/keycloak/digitaltwins-realm.json.template}"
 
 SUB="${1:-}"
 if [ -z "$SUB" ]; then
-  [ -f "$TEMPLATE" ] || { echo "promote-seek-admin: no SUB given and template '$TEMPLATE' not found" >&2; exit 1; }
-  # The admin's pinned "id" is the line immediately before its
-  # "username": "${PLATFORM_ADMIN_USERNAME}" placeholder in the users[] block.
-  SUB=$(grep -A1 '"id":' "$TEMPLATE" | grep -B1 'PLATFORM_ADMIN_USERNAME' | grep '"id":' | head -1 | sed -E 's/.*"id": *"([^"]+)".*/\1/')
-  [ -n "$SUB" ] || { echo "promote-seek-admin: could not find the platform admin's pinned id in $TEMPLATE" >&2; exit 1; }
+  echo "Usage: $0 <SUB>" >&2
+  echo "  SUB: the Keycloak user id (sub) to promote to SEEK server admin." >&2
+  echo "  e.g. the platform admin's pinned id in services/keycloak/digitaltwins-realm.json.template" >&2
+  exit 1
 fi
 
 echo "promote-seek-admin: promoting SEEK user linked to Keycloak sub '$SUB' (service: $SEEK_SERVICE)"
