@@ -1,6 +1,6 @@
-# Deploying the DigitalTWINS Platform
+# Deploying the Digital Twins Platform
 
-This document describes how to deploy the DigitalTWINS Platform from the [deployment repository](https://github.com/ABI-CTT-Group/digitaltwins-platform). It provides a concise quick-start and expanded steps for each service (Keycloak, Airflow, SEEK, etc.), configuration tips, default credentials, and common troubleshooting commands.
+This document describes how to deploy the Digital Twins Platform from the [deployment repository](https://github.com/ABI-CTT-Group/digitaltwins-platform). It provides a concise quick-start and expanded steps for each service (Keycloak, Airflow, SEEK, etc.), configuration tips, default credentials, and common troubleshooting commands.
 
 ---
 
