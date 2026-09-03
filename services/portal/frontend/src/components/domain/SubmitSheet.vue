@@ -31,9 +31,9 @@
                 icon="mdi-close-outline"
                 size="112"
                 ></v-icon>
-            <h2 v-show="submitState == 'waiting'" class="text-h5 my-6 ">Submitting dataset to DigitalTWINS Platform</h2>
-            <h2 v-show="submitState == 'true'" class="text-h5 my-6">Successfully submitted dataset to DigitalTWINS Platform</h2>
-            <h2 v-show="submitState == 'false'" class="text-h5 my-6">Failed to submit dataset to DigitalTWINS Platform</h2>
+            <h2 v-show="submitState == 'waiting'" class="text-h5 my-6 ">Submitting assay results to DigitalTWINS Platform</h2>
+            <h2 v-show="submitState == 'true'" class="text-h5 my-6">Successfully submitted assay results to DigitalTWINS Platform</h2>
+            <h2 v-show="submitState == 'false'" class="text-h5 my-6">Failed to submit assay results to DigitalTWINS Platform</h2>
             <v-divider class="mb-4"></v-divider>
 
             <div class="text-end">
@@ -43,6 +43,7 @@
                 variant="flat"
                 width="90"
                 rounded
+                @click="dialog = false"
             >
                 Done
             </v-btn>

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query, HTTPException, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from app.models import assay_model
 import json
 from pathlib import Path
@@ -370,7 +370,7 @@ async def set_dashboard_assay_details(details: assay_model.AssayDetails, client:
     }
     try:
         print("assay_data sent:", assay_data)
-        res = await client.post(f"/assay", assay_data)
+        res = await client.post(f"/assays", assay_data)
         print(res.json())
         return True
 
@@ -569,3 +569,41 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None), clie
     #             "data": "http://130.216.216.26:8008/lab/tree/ep3/statistical_analysis_of_electrode_measurements.ipynb"
     #         }
     # return None
+
+@router.post("/assay-results-submit")
+async def submit_dashboard_assay_dataset(seek_id: str = Query(None), client: DigitalTWINSAPIClient = Depends(get_client)):
+    try:
+        res = await client.post(f"/assays/{seek_id}/workspace/dataset/upload")
+        return res.json()
+    except HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except RequestError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/assay-download")
+async def download_dashboard_assay_workspace(seek_id: str = Query(None), client: DigitalTWINSAPIClient = Depends(get_client)):
+    if not seek_id:
+        raise HTTPException(status_code=400, detail="seek_id is required")
+
+    try:
+        response = await client.get_stream(f"/assays/{seek_id}/workspace/dataset/download")
+    except HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except RequestError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    content_disposition = response.headers.get("Content-Disposition", f'attachment; filename="assay_{seek_id}_results.zip"')
+
+    async def stream_generator():
+        try:
+            async for chunk in response.aiter_bytes():
+                yield chunk
+        finally:
+            await response.aclose()
+
+    return StreamingResponse(
+        stream_generator(),
+        media_type="application/zip",
+        headers={"Content-Disposition": content_disposition}
+    )
+

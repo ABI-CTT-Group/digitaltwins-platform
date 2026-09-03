@@ -1,4 +1,5 @@
 import http from "./http";
+import axios from "axios";
 import { DashboardCategory, DashboardWorkflow, AssayDetails, AssayLaunch, AssayDataset, SeekAssayDetails } from "@/models/types";
 
 export async function useDashboardProgrammes() {
@@ -46,4 +47,27 @@ export async function useDashboardGetDatasets(category: string) {
 export async function useDashboardSelectedDatasetSampleTypes(uuid: string) {
     const sampleTypes = http.get<string[]>("/dashboard/dataset-detail", { uuid });
     return sampleTypes;
+}
+
+export async function useDashboardSubmitAssayResults(seekId: string) {
+    const success = http.post<any>(`/dashboard/assay-results-submit?seek_id=${seekId}`);
+    return success;
+}
+
+export async function useDashboardDownloadAssayWorkspace(seekId: string) {
+    const res = await axios.get("/dashboard/assay-download", { 
+        params: { seek_id: seekId }, 
+        responseType: 'blob' 
+    });
+    
+    let filename = `assay_${seekId}_results.zip`;
+    const cd = res.headers["content-disposition"];
+    if (cd) {
+        const match = cd.match(/filename="?([^"]+)"?/);
+        if (match && match[1]) {
+            filename = match[1];
+        }
+    }
+    
+    return { data: res.data, filename };
 }

@@ -8,6 +8,8 @@ import {
   useDashboardGetAssayLaunch,
   useDashboardWorkflowDetail,
   useSaveAssayDetails,
+  useDashboardSubmitAssayResults,
+  useDashboardDownloadAssayWorkspace,
 } from "@/bootstrap/dashboard_api";
 import { DashboardCategory } from "@/models/types";
 import { JUPYTER_BASE_URL } from "@/config/platform-links";
@@ -127,17 +129,45 @@ export function useAssayActions() {
     );
   };
 
-  const download = (_seekId: string) => {
+  const download = async (seekId: string) => {
     downloadDialog.value = true;
     downloadZipProgressValue.value = 0;
-    toast.info("Download feature is being migrated to the portal backend; not available right now.");
+    toast.info("Preparing download...");
+    try {
+      const response = await useDashboardDownloadAssayWorkspace(seekId);
+      
+      // Extract blob and headers
+      const blob = response.data;
+      const filename = response.filename;
+      
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      downloadZipProgressValue.value = 100;
+      toast.success("Download ready.");
+    } catch (e: any) {
+      downloadDialog.value = false;
+      toast.error(getApiErrorMessage(e, "Download"));
+    }
   };
 
-  const submit = (_seekId: string) => {
+  const submit = async (seekId: string) => {
     submitDialog.value = true;
     submitState.value = "waiting";
-    toast.info("Submit feature is being migrated to the portal backend; not available right now.");
-    submitState.value = "unavailable";
+    try {
+      await useDashboardSubmitAssayResults(seekId);
+      submitState.value = "true";
+      toast.success("Successfully submitted assay results.");
+    } catch (e: any) {
+      submitState.value = "false";
+      toast.error(getApiErrorMessage(e, "Submit"));
+    }
   };
 
   const expand = (seekId: string) => {
