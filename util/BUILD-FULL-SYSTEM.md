@@ -312,6 +312,11 @@ Detail: [`README.md`](README.md) §0–6.
    observability build:
    - platform: `PLATFORM_PROTOCOL/PLATFORM_DOMAIN`, `REDIS_PASSWORD` (**required**),
      `REMOTE_COMPUTE=true`, `AIRFLOW_VAR_COMPUTE_QUEUE` (leave `default` for now — see G),
+   - **admin identity** (ONE identity for the Keycloak realm user = SEEK server admin =
+     Airflow user): `PLATFORM_ADMIN_USERNAME` + `PLATFORM_ADMIN_EMAIL` in `data/env`,
+     `PLATFORM_ADMIN_PASSWORD` in `data/secrets.env`. (These replaced the old separate
+     `KEYCLOAK_REALM_ADMIN_PASSWORD` / `SEEK_ADMIN_PASSWORD` / `AIRFLOW_PASSWORD` /
+     `SEEK_ADMIN_EMAIL` — remove those. Username defaults to `admin1`.)
    - observability: `GRAFANA_ADMIN_PASSWORD`, `GRAFANA_OAUTH_SECRET`,
      `MIMIR_MINIO_ROOT_USER`, `MIMIR_MINIO_SECRET_KEY`.
    > `GRAFANA_OAUTH_SECRET` must be **identical** on the Keycloak side (rendered by
@@ -367,7 +372,8 @@ Detail: [`README.md`](README.md) §0–6.
    util/sync-dags.sh <dag-source-box> <this-box>     # wait ~1 min for the dag-processor
    ```
 7. **Verify** the platform (README §6): the stack is up, and the Airflow API token
-   works (fresh Keycloak+Airflow creates the local `admin1` automatically). This
+   works (fresh Keycloak+Airflow creates the local admin — `PLATFORM_ADMIN_USERNAME`,
+   default `admin1` — automatically). This
    mirrors `_get_api_token()` in `assays.py` — `os.getenv(key, default)`, so it uses
    the same fallbacks the code does and never KeyErrors on an unset var:
    ```
