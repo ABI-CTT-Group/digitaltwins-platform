@@ -5,11 +5,11 @@ USER root
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     vim \
-	libpq-dev \
-	build-essential \
-	&& apt-get autoremove -yqq --purge \
-	&& apt-get clean \
-	&& rm -rf /var/lib/apt/lists/*
+    libpq-dev \
+    build-essential \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install user dependencies
 USER airflow
@@ -25,6 +25,9 @@ RUN pip uninstall -y asyncio
 USER root
 RUN python3 -m venv /opt/airflow/venvs/cwl_venv \
     && /opt/airflow/venvs/cwl_venv/bin/pip install --no-cache-dir \
-        boto3 \
+    boto3 \
+    dicom2nifti \
+    pydicom \
+    SimpleITK \
     && chown -R airflow: /opt/airflow/venvs
 USER airflow
