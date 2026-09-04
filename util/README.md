@@ -637,12 +637,23 @@ and all read-only/dry-run by default where they mutate anything.
 | `util/add-seek-project-member.sh <PERSON> <PROJECT_ID> [INSTITUTION]` | Add a person directly to a project (same end state as an approved join request). |
 | `util/rm-seek-project-member.sh <PERSON> <PROJECT_ID>` | Remove a person from a project; also cleans up any now-dangling project-scoped role they held there. |
 | `util/set-seek-programme-activation.sh <PROGRAMME> <true\|false>` | Activate/deactivate a programme. Programme listings are public regardless of membership (Project has no such control at all) — deactivating is the non-destructive alternative to deleting one you don't want ordinary users to see; SEEK refuses to delete a non-empty programme anyway. |
+| `util/rm-seek-tree.sh <programme\|project> <ID> [-y]` | Delete a Programme or Project and everything under it (Project → Investigation → Study → Assay), bottom-up. Admin cleanup tool — deletes unconditionally regardless of who owns the content, unlike the normal SEEK UI/API. |
 
 `FROM`/`TO`/`PERSON` accept a SEEK login, `email:<address>`, or
 `sub:<keycloak-uuid>` — the last one is how you address the platform admin
 reliably, since `${PLATFORM_ADMIN_USERNAME}`'s pinned Keycloak id (in
 `services/keycloak/digitaltwins-realm.json.template`) is stable across a
 restore even though the SEEK login it resolves to is not.
+
+**The person must already exist as a SEEK Person** for any of these to find
+them — SEEK only creates one on someone's first interactive Keycloak login
+(see `docs/seek-oidc-login-504-hairpin.md` and the auto-provisioning behaviour
+in `SessionsController#omniauth_authentication`), not from the Keycloak realm
+alone. Confirmed live: a Keycloak user who exists fine in the realm but has
+never logged into `/seek` resolves by **no** method — login, email, or
+`sub:` — because there is genuinely no Person row yet, not because the
+lookup is broken. Have them log into the portal (or `/seek` directly) once
+first, completing the "create a profile" step if it appears, then retry.
 
 ### How it works & gotchas (for maintainers)
 
