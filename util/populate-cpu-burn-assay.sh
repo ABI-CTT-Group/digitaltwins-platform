@@ -102,13 +102,13 @@ ADMIN_SUB=$(grep -A1 '"id":' "$REALM_TEMPLATE" | grep -B1 'PLATFORM_ADMIN_USERNA
 [ -n "$ADMIN_SUB" ] || { echo "populate-cpu-burn-assay: could not find the platform admin's pinned id in $REALM_TEMPLATE" >&2; exit 1; }
 ./util/add-seek-project-member.sh "sub:$ADMIN_SUB" "$PROJ_ID" "Default Institution" -y
 
-INV_ID=$(seek_post investigations "$(jq -n --arg proj "$PROJ_ID" '{data:{type:"investigations",attributes:{title:"CPU Burn Investigation"},relationships:{projects:{data:[{type:"projects",id:$proj}]}}}}}')")
+INV_ID=$(seek_post investigations "$(jq -n --arg proj "$PROJ_ID" '{data:{type:"investigations",attributes:{title:"CPU Burn Investigation"},relationships:{projects:{data:[{type:"projects",id:$proj}]}}}}')")
 echo "  Investigation #$INV_ID"
 
-STUDY_ID=$(seek_post studies "$(jq -n --arg inv "$INV_ID" '{data:{type:"studies",attributes:{title:"CPU Burn Study"},relationships:{investigation:{data:{type:"investigations",id:$inv}}}}}}')")
+STUDY_ID=$(seek_post studies "$(jq -n --arg inv "$INV_ID" '{data:{type:"studies",attributes:{title:"CPU Burn Study"},relationships:{investigation:{data:{type:"investigations",id:$inv}}}}}')")
 echo "  Study #$STUDY_ID"
 
-ASSAY_ID=$(seek_post assays "$(jq -n --arg study "$STUDY_ID" '{data:{type:"assays",attributes:{title:"CPU Burn Assay",tags:["script"],assay_class:{key:"EXP"},assay_type:{uri:"http://jermontology.org/ontology/JERMOntology#Experimental_assay_type"},technology_type:{uri:"http://jermontology.org/ontology/JERMOntology#Technology_type"}},relationships:{study:{data:{type:"studies",id:$study}}}}}}')")
+ASSAY_ID=$(seek_post assays "$(jq -n --arg study "$STUDY_ID" '{data:{type:"assays",attributes:{title:"CPU Burn Assay",tags:["script"],assay_class:{key:"EXP"},assay_type:{uri:"http://jermontology.org/ontology/JERMOntology#Experimental_assay_type"},technology_type:{uri:"http://jermontology.org/ontology/JERMOntology#Technology_type"}},relationships:{study:{data:{type:"studies",id:$study}}}}}')")
 echo "  Assay #$ASSAY_ID"
 
 echo "== registering the example SDS dataset fixture =="
