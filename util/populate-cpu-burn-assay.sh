@@ -75,7 +75,10 @@ TOKEN=$(curl -s "${CURL_OPTS[@]}" -X POST "$BASE/auth/realms/digitaltwins/protoc
 
 seek_post() {  # $1 = resource type (programmes/projects/...), $2 = JSON:API body -> prints the new id
   local resp id
-  resp=$(curl -s "${CURL_OPTS[@]}" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/vnd.api+json" \
+  # Accept must be set explicitly -- without it SEEK renders its normal HTML
+  # page (still creates the object, but jq then fails on non-JSON output).
+  resp=$(curl -s "${CURL_OPTS[@]}" -H "Authorization: Bearer $TOKEN" \
+    -H "Accept: application/vnd.api+json" -H "Content-Type: application/vnd.api+json" \
     -X POST "$SEEK_BASE/$1" -d "$2")
   id=$(echo "$resp" | jq -r '.data.id // empty')
   if [ -z "$id" ]; then
