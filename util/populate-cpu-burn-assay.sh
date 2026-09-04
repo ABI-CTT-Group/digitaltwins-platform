@@ -100,7 +100,7 @@ echo "== adding platform admin as a member of the new project (required before c
 REALM_TEMPLATE="services/keycloak/digitaltwins-realm.json.template"
 ADMIN_SUB=$(grep -A1 '"id":' "$REALM_TEMPLATE" | grep -B1 'PLATFORM_ADMIN_USERNAME' | grep '"id":' | head -1 | sed -E 's/.*"id": *"([^"]+)".*/\1/')
 [ -n "$ADMIN_SUB" ] || { echo "populate-cpu-burn-assay: could not find the platform admin's pinned id in $REALM_TEMPLATE" >&2; exit 1; }
-./util/add-seek-project-member.sh "sub:$ADMIN_SUB" "$PROJ_ID" -y
+./util/add-seek-project-member.sh "sub:$ADMIN_SUB" "$PROJ_ID" "Default Institution" -y
 
 INV_ID=$(seek_post investigations "$(jq -n --arg proj "$PROJ_ID" '{data:{type:"investigations",attributes:{title:"CPU Burn Investigation"},relationships:{projects:{data:[{type:"projects",id:$proj}]}}}}}')")
 echo "  Investigation #$INV_ID"
