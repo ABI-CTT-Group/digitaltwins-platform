@@ -29,7 +29,7 @@ After deploying this change to the remote server, you still need the **one-time 
 ```bash
 docker compose exec airflow-apiserver airflow users delete -u admin1
 docker compose exec airflow-apiserver airflow users create \
-  --username admin1 --password 'BXfeeHe5c4694t6xVMuV' --role Admin \
+  --username admin1 --password '<REDACTED>' --role Admin \
   --firstname DigitalTwins --lastname Admin --email admin@digitaltwins.com
 ```
 

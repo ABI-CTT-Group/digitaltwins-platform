@@ -1,6 +1,6 @@
 # MinIO Credentials Update (Keycloak Integration)
 
-This plan outlines the changes required to update the default/hardcoded MinIO credentials from `minioadmin` to the new Keycloak credentials (`admin1` / `BXfeeHe5c4694t6xVMuV`) across the platform's workflows and notebooks.
+This plan outlines the changes required to update the default/hardcoded MinIO credentials from `minioadmin` to the new Keycloak credentials (`admin1` / `<REDACTED>`) across the platform's workflows and notebooks.
 
 ## Open Questions
 
@@ -14,7 +14,7 @@ This plan outlines the changes required to update the default/hardcoded MinIO cr
 
 ### Airflow Workflows (`services/airflow/dags/`)
 
-These DAG files currently default to `"minioadmin"` if the environment variables aren't found. We will update the fallback to `"admin1"` and `"BXfeeHe5c4694t6xVMuV"`.
+These DAG files currently default to `"minioadmin"` if the environment variables aren't found. We will update the fallback to `"admin1"` and `<REDACTED>`.
 
 #### [MODIFY] [workflow_image_conversion.py](file:///home/clin864/Projects/digitaltwins-platform/services/airflow/dags/workflow_image_conversion.py)
 - Change `DEFAULT_MINIO_ACCESS_KEY` default from `"minioadmin"` to `"admin1"`
