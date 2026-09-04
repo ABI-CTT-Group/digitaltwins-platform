@@ -39,7 +39,7 @@ change via the admin console on a running system).
   passwords**: `clinician/clinician`, `researcher/researcher`, `test1/test1`,
   `test2/test2`. Disable in the admin console, or remove them from the template
   before the realm is imported.
-- [ ] **Realm admin (`admin`)** uses `KEYCLOAK_REALM_ADMIN_PASSWORD` — ensure it's
+- [ ] **Realm admin (`admin`)** uses `PLATFORM_ADMIN_PASSWORD` — ensure it's
   a strong, unique secret (not a placeholder).
 - [ ] **Keycloak bootstrap admin** `KC_BOOTSTRAP_ADMIN_PASSWORD` — strong secret.
 - [ ] SEEK is **not** on Keycloak SSO (local-admin login only) — known/accepted;

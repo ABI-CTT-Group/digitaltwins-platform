@@ -5,7 +5,7 @@
 # Companion to create-admin-user.sh, which SKIPS a user that already exists.
 # After portal-restore.sh replaces SEEK's user DB with the source system's, the
 # local `admin` password is the source's (a hash you can't read) — use this to
-# set it back to your own SEEK_ADMIN_PASSWORD.
+# set it back to your own PLATFORM_ADMIN_PASSWORD.
 #
 # Addresses SEEK by COMPOSE SERVICE name (docker compose exec seek), so it works
 # under the platform project. Run from the repo root (or with COMPOSE_FILE set).
@@ -14,7 +14,7 @@
 #   ./util/set-seek-password.sh <username> <password>       # both required
 #
 #   # e.g. set the admin's password to your secrets.env value:
-#   ./util/set-seek-password.sh admin "$SEEK_ADMIN_PASSWORD"
+#   ./util/set-seek-password.sh admin "$PLATFORM_ADMIN_PASSWORD"
 #
 # The username/password are handed to the container via the ENVIRONMENT and read
 # with ENV.fetch in the Ruby runner (not string-interpolated), so passwords with
@@ -28,7 +28,7 @@ PASSWORD="${2:-}"
 
 if [ -z "$LOGIN" ] || [ -z "$PASSWORD" ]; then
   echo "Usage: $0 <username> <password>" >&2
-  echo "  e.g.  $0 admin \"\$SEEK_ADMIN_PASSWORD\"" >&2
+  echo "  e.g.  $0 admin \"\$PLATFORM_ADMIN_PASSWORD\"" >&2
   exit 1
 fi
 

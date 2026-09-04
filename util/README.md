@@ -382,7 +382,7 @@ the localhost/http build). Every route below is served by the edge **gateway**
 Quick smoke test: `/` (portal), `/seek`, `/jupyter`, `/auth`, `/airflow`.
 
 **Pre-canned realm users** (from the realm template — change/remove for
-production): `admin` (password = your `KEYCLOAK_REALM_ADMIN_PASSWORD`), and the
+production): `admin` (password = your `PLATFORM_ADMIN_PASSWORD`), and the
 plaintext test users `clinician`/`clinician`, `researcher`/`researcher`,
 `test1`/`test1`, `test2`/`test2`.
 
@@ -402,7 +402,7 @@ instead of stopping nginx from starting. Routes are defined in
 | Path | Upstream (service:port) | Keycloak auth | Prefix handling |
 |---|---|:---:|---|
 | `/`                 | `portal-frontend`         | **Yes** — OIDC login (frontend `VITE_KEYCLOAK_*`; backend validates the `api` client). Also carries `/api/`, `/tools/`, `/plugin/<expose>/`. | passthrough |
-| `/seek/`            | `seek:3000`               | **No** — local admin login (`SEEK_ADMIN_PASSWORD`). `omniauth_enabled` is on but no provider is wired; the realm ships a `seek` client for future SSO. | passthrough (`RAILS_RELATIVE_URL_ROOT=/seek`) |
+| `/seek/`            | `seek:3000`               | **No** — local admin login (`PLATFORM_ADMIN_PASSWORD`). `omniauth_enabled` is on but no provider is wired; the realm ships a `seek` client for future SSO. | passthrough (`RAILS_RELATIVE_URL_ROOT=/seek`) |
 | `/airflow/`         | `airflow-apiserver:8080`  | **Yes** — OIDC (`airflow` client in `digitaltwins` realm). | passthrough (`AIRFLOW__API__BASE_URL`) |
 | `/jupyter/`         | `jupyterhub:8000`         | **Yes** — OIDC (GenericOAuthenticator → Keycloak). | passthrough (`c.JupyterHub.base_url=/jupyter/`) |
 | `/auth/`            | `keycloak:8080`           | *is Keycloak* | passthrough (`KC_HTTP_RELATIVE_PATH=/auth`) |
@@ -582,18 +582,23 @@ ssh <target>
 cd ~/digitaltwins-platform
 util/portal-restore.sh                  # <- /tmp/dtwins-migrate on the target
 
-# 4. (No SEEK API-token re-mint — that step is obsolete.) Platform->SEEK auth is now
+# 4. (No SEEK API-token re-mint needed.) Platform->SEEK auth is
 #    per-request Keycloak JWT forwarding; the global SEEK_API_TOKEN was removed
 #    (see docs/seek-integration.md), and util/generate-token.sh no longer exists.
 #    What the restore DOES bring: the dump's SEEK users + the `identities` table
 #    (Keycloak sub-UUID -> SEEK user maps), so users resolve only if the dump came
-#    from a system sharing your Keycloak realm/users.
+#    from a system sharing your Keycloak realm/users. portal-restore.sh's own
+#    step 10 already re-stamps site_base_host/features and promotes the platform
+#    admin back to SEEK server-admin (by Keycloak sub, via
+#    util/promote-seek-admin.sh) -- no manual password reset needed.
 
-# 4b. Reset the local SEEK admin password — the restore also brought the source's
-#     user DB (password hashes you can't read), so your SEEK_ADMIN_PASSWORD no
-#     longer applies. (The admin login may differ from 'admin' after a restore.)
-set -a; . /mnt/install_src/data/secrets.env; set +a
-util/set-seek-password.sh admin "$SEEK_ADMIN_PASSWORD"
+# 4b. (Optional) If the dump's content was owned by an account that doesn't
+#     exist as a real Keycloak identity on the target (e.g. a developer's local
+#     SEEK login rather than an SSO account), move ownership onto a real
+#     target-side person, and rebuild any project memberships you need:
+util/seek-user-report.sh                          # see who owns what first
+util/transfer-seek-ownership.sh <FROM> <TO>        # dry-run by default, -y to apply
+util/add-seek-project-member.sh <PERSON> <PROJECT_ID>
 
 # 5. DAGs — separate, run from a machine that can ssh to both:
 util/sync-dags.sh <source> <target>
@@ -609,12 +614,35 @@ util/sync-dags.sh <source> <target>
 - **Plugin images:** the plugin *registry* comes across, but a registered
   plugin only runs if its image/source is also present on the target. If a
   migrated plugin fails to start, its build context/image still needs providing.
-- **SEEK API token** must be re-minted (step 4) or the portal's API can't talk
-  to SEEK after the restore.
-- **SEEK local login:** the restore replaces SEEK's users, so the local admin
-  password becomes the source's (an unreadable hash). Reset it with
-  `util/set-seek-password.sh admin "$SEEK_ADMIN_PASSWORD"` (step 4b; login may
-  differ from `admin`).
+- **SEEK server admin:** the restore replaces SEEK's whole user set, so
+  whichever account was server admin before is gone. `portal-restore.sh` step 10
+  re-promotes the platform admin automatically (by Keycloak sub — SEEK derives
+  its own login on first OIDC login, e.g. `admin1` -> `admin1186`, so it can't be
+  addressed by a guessed username). See `util/promote-seek-admin.sh` /
+  `util/demote-seek-admin.sh` for manual use, and step 4b above for real content
+  ownership, which is a separate thing from server-admin rights.
+
+### SEEK admin & ownership scripts
+
+All addressed by Keycloak `sub`/login/email rather than a guessed username
+(SEEK derives its own login on first OIDC login, e.g. `admin1` -> `admin1186`),
+and all read-only/dry-run by default where they mutate anything.
+
+| Script | What it does |
+|---|---|
+| `util/seek-user-report.sh` | Read-only: every SEEK Person — login, name, email, linked Keycloak sub, admin status, project/programme membership. |
+| `util/promote-seek-admin.sh <SUB>` | Make the Person linked to `SUB` a SEEK server admin. |
+| `util/demote-seek-admin.sh <SUB> [-f]` | Remove server-admin rights; refuses to demote the last remaining admin without `-f`. |
+| `util/transfer-seek-ownership.sh <FROM> <TO> [-y]` | Move item ownership (`contributor_id`, every table that has one) and Project/Programme-scoped roles (`project_administrator`, etc. — separate from ownership) from one Person to another. Does not rewrite version-history tables. Rebuilds SEEK's auth-lookup cache and reindexes search after a real run. |
+| `util/add-seek-project-member.sh <PERSON> <PROJECT_ID> [INSTITUTION]` | Add a person directly to a project (same end state as an approved join request). |
+| `util/rm-seek-project-member.sh <PERSON> <PROJECT_ID>` | Remove a person from a project; also cleans up any now-dangling project-scoped role they held there. |
+| `util/set-seek-programme-activation.sh <PROGRAMME> <true\|false>` | Activate/deactivate a programme. Programme listings are public regardless of membership (Project has no such control at all) — deactivating is the non-destructive alternative to deleting one you don't want ordinary users to see; SEEK refuses to delete a non-empty programme anyway. |
+
+`FROM`/`TO`/`PERSON` accept a SEEK login, `email:<address>`, or
+`sub:<keycloak-uuid>` — the last one is how you address the platform admin
+reliably, since `${PLATFORM_ADMIN_USERNAME}`'s pinned Keycloak id (in
+`services/keycloak/digitaltwins-realm.json.template`) is stable across a
+restore even though the SEEK login it resolves to is not.
 
 ### How it works & gotchas (for maintainers)
 

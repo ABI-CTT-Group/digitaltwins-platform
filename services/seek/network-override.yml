@@ -6,11 +6,20 @@ services:
     # ldh (SEEK) publishes amd64 only — pin so it emulates on arm64
     # (Apple Silicon) and is a no-op on amd64 hosts/servers.
     platform: linux/amd64
+    # Drop the submodule's `extra_hosts: ${PLATFORM_DOMAIN}:host-gateway`. That hairpin
+    # resolves the public host to docker0 (172.17.0.1), unreachable from this bridge
+    # under ufw deny, so SEEK's interactive OIDC back-channel 504s. Cleared here so the
+    # public host resolves via Docker DNS to the gateway's network alias instead.
+    # (!reset needs Compose >= 2.24; applied via the always-on include, so it holds for
+    # both local and remote compute.)
+    extra_hosts: !reset null
     networks:
       - digitaltwins-platform
   workers:
     # same ldh image as seek — amd64 only.
     platform: linux/amd64
+    # Same host-gateway hairpin removal as `seek` above.
+    extra_hosts: !reset null
     networks:
       - digitaltwins-platform
   solr:
