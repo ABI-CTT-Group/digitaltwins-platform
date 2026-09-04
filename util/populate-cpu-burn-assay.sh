@@ -43,6 +43,8 @@ set -euo pipefail
 BASE_DIR="${BASE_DIR:-$HOME/digitaltwins-platform}"
 cd "$BASE_DIR"
 
+SEEK_SERVICE="${SEEK_SERVICE:-seek}"
+
 : "${PLATFORM_ADMIN_PASSWORD:?set PLATFORM_ADMIN_PASSWORD (source secrets.env first)}"
 : "${KEYCLOAK_CLIENT_SECRET:?set KEYCLOAK_CLIENT_SECRET (source secrets.env first)}"
 
@@ -110,6 +112,27 @@ echo "  Study #$STUDY_ID"
 
 ASSAY_ID=$(seek_post assays "$(jq -n --arg study "$STUDY_ID" '{data:{type:"assays",attributes:{title:"CPU Burn Assay",tags:["script"],assay_class:{key:"EXP"},assay_type:{uri:"http://jermontology.org/ontology/JERMOntology#Experimental_assay_type"},technology_type:{uri:"http://jermontology.org/ontology/JERMOntology#Technology_type"}},relationships:{study:{data:{type:"studies",id:$study}}}}}')")
 echo "  Assay #$ASSAY_ID"
+
+# The JSON:API calls above never set a policy, so SEEK defaulted all three to
+# NO_ACCESS/private (before_validation :policy_or_default_if_new) -- only the
+# contributor themselves could see them, not other project members. Confirmed
+# live: a project member added afterward saw nothing. Set the same "visible
+# to my project" policy the SEEK UI applies by default (Policy.projects_policy)
+# directly via Rails rather than guess the JSON:API policy/permissions body
+# shape -- this is SEEK's own canonical method for it, not a workaround.
+echo "== setting investigation/study/assay policy to visible-to-project =="
+docker compose exec -T -e "PROJ_ID=$PROJ_ID" -e "INV_ID=$INV_ID" -e "STUDY_ID=$STUDY_ID" -e "ASSAY_ID=$ASSAY_ID" \
+  "$SEEK_SERVICE" bash -c 'cd /seek && RAILS_ENV=production bundle exec rails runner -' <<'RUBY'
+proj = Project.find(ENV.fetch('PROJ_ID'))
+items = [Investigation.find(ENV.fetch('INV_ID')), Study.find(ENV.fetch('STUDY_ID')), Assay.find(ENV.fetch('ASSAY_ID'))]
+items.each do |item|
+  Seek::Permissions::Authorization.disable_authorization_checks do
+    item.policy = Policy.projects_policy([proj])
+    item.save!(validate: false)
+  end
+  puts "  #{item.class.name} ##{item.id}: now visible to project ##{proj.id}"
+end
+RUBY
 
 echo "== registering the example SDS dataset fixture =="
 FIXTURE_ZIP="services/api/digitaltwins-api/tests/data/example_sds_dataset.zip"
