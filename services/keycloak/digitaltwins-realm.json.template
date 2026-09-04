@@ -657,10 +657,10 @@
   "users": [
     {
       "id": "1afb2774-0277-494f-a976-34a72683d972",
-      "username": "admin1",
-      "firstName": "admin1",
-      "lastName": "admin1",
-      "email": "admin@example",
+      "username": "${PLATFORM_ADMIN_USERNAME}",
+      "firstName": "${PLATFORM_ADMIN_USERNAME}",
+      "lastName": "${PLATFORM_ADMIN_USERNAME}",
+      "email": "${PLATFORM_ADMIN_EMAIL}",
       "emailVerified": false,
       "enabled": true,
       "createdTimestamp": 1777505368388,
@@ -668,7 +668,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "${KEYCLOAK_REALM_ADMIN_PASSWORD}",
+          "value": "${PLATFORM_ADMIN_PASSWORD}",
           "temporary": false
         }
       ],
@@ -691,9 +691,9 @@
     },
     {
       "id": "e297097d-b2c4-4e95-81e3-135f525d37c4",
-      "username": "clinician1",
-      "firstName": "clinician1",
-      "lastName": "clinician1",
+      "username": "clinician",
+      "firstName": "clinician",
+      "lastName": "user",
       "email": "clinician@example",
       "emailVerified": true,
       "enabled": true,
@@ -701,7 +701,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "BXfeeHe5c4694t6xVMuV",
+          "value": "clinician",
           "temporary": false
         }
       ],
@@ -715,9 +715,9 @@
     {
       "id": "ca55bfd3-8e3c-4535-8089-7c6ac8169dc6",
       "username": "test1",
-      "firstName": "Matt",
-      "lastName": "Pestle",
-      "email": "mpes457@aucklanduni.ac.nz",
+      "firstName": "test1",
+      "lastName": "user",
+      "email": "test1@test1.org",
       "emailVerified": false,
       "enabled": true,
       "createdTimestamp": 1772560650398,
@@ -751,9 +751,9 @@
     {
       "id": "c08ec95f-0612-48a4-9e16-928fbaf064c2",
       "username": "test2",
-      "firstName": "Matt",
-      "lastName": "Pestle",
-      "email": "matt.pestle@nesi.org.nz",
+      "firstName": "test2",
+      "lastName": "user",
+      "email": "test2@test2.org",
       "emailVerified": false,
       "enabled": true,
       "createdTimestamp": 1772661014488,
@@ -777,9 +777,9 @@
     },
     {
       "id": "9043f815-8e6d-4a4f-911f-dd8a767d29cd",
-      "username": "researcher1",
-      "firstName": "researcher1",
-      "lastName": "researcher1",
+      "username": "researcher",
+      "firstName": "researcher",
+      "lastName": "user",
       "email": "researcher@example",
       "emailVerified": true,
       "enabled": true,
@@ -787,7 +787,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "BXfeeHe5c4694t6xVMuV",
+          "value": "researcher",
           "temporary": false
         }
       ],

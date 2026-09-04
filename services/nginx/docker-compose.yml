@@ -33,4 +33,13 @@ services:
       # rendered into .env by gen-env.sh (defaults to 127.0.0.1 when unset).
       - "k3s-node:${NODE_IP}"
     networks:
-      - digitaltwins-platform
+      digitaltwins-platform:
+        aliases:
+          # Let platform containers reach the public hostname internally (they
+          # resolve it to THIS gateway container, which serves /auth -> Keycloak
+          # with the trusted cert). Fixes SEEK's interactive OIDC login, whose
+          # back-channel would otherwise hairpin to an unreachable host-gateway
+          # (docker0 172.17.0.1) from the 172.18.x bridge under ufw deny.
+          # NOTE: also requires dropping SEEK's `extra_hosts: <domain>:host-gateway`
+          # in the ldh-deployment submodule — an /etc/hosts entry shadows this alias.
+          - "${PLATFORM_DOMAIN:-localhost}"

@@ -11,6 +11,12 @@
 # Credentials come from the target containers' own env, so the source and
 # target need not share passwords.
 #
+# After the data is restored it RE-STAMPS the SEEK config the restore clobbers
+# (step 10): site_base_host + feature flags (enable-features.sh, read from THIS
+# host's rendered .env) and SEEK server-admin access for the platform admin
+# (promote-seek-admin.sh, by Keycloak sub) — so you don't have to remember to
+# re-run them by hand.
+#
 #   util/portal-restore.sh [IN_DIR]        (default /tmp/dtwins-migrate)
 #
 # ---------------------------------------------------------------------------
@@ -139,6 +145,50 @@ fi
 # 9. Restart SEEK so Solr rebuilds its index from the restored DB -------------
 echo "== restart seek/workers (Solr reindex) =="
 docker compose restart seek workers >/dev/null 2>&1 || docker restart "$SEEK_C" >/dev/null
+
+# 10. Re-stamp the SEEK config the restore clobbered --------------------------
+# The SEEK MySQL restore (step 3) overwrote the `settings` and `users` tables with
+# the SOURCE's, which reverts two TARGET-specific things:
+#   - site_base_host  -> the source's (e.g. http://localhost:8001) — breaks every
+#     "SEEK ID" URL on this host until reset;
+#   - the feature flags (omniauth/programmes/workflows/GA4GH/git) -> the source's.
+# enable-features.sh re-applies both, using PLATFORM_PROTOCOL/PLATFORM_DOMAIN from
+# THIS host's rendered .env. The restore also replaces SEEK's whole user set, so
+# whichever user was a server admin before is gone; promote-seek-admin.sh restores
+# admin access by the platform admin's Keycloak `sub` (pinned in the realm
+# template), NOT by guessing the SEEK login — SEEK derives that login itself
+# (e.g. Keycloak "admin1" -> SEEK "admin1186") and it doesn't match any .env var.
+# Non-fatal: a failure here warns and points at the manual fix rather than
+# aborting the restore.
+echo "== re-stamp SEEK site_base_host + features + admin =="
+ENV_FILE="$BASE_DIR/.env"
+if [ -f "$ENV_FILE" ]; then
+  PROT=$(grep -E '^PLATFORM_PROTOCOL=' "$ENV_FILE" | cut -d= -f2-)
+  DOM=$(grep  -E '^PLATFORM_DOMAIN='   "$ENV_FILE" | cut -d= -f2-)
+  # SEEK was just restarted — wait until Rails answers before poking it.
+  for _ in $(seq 1 30); do
+    docker exec "$SEEK_C" sh -c 'cd /seek && RAILS_ENV=production bundle exec rails runner "exit 0"' >/dev/null 2>&1 && break
+    sleep 5
+  done
+  if [ -n "$PROT" ] && [ -n "$DOM" ]; then
+    SEEK_SITE_BASE_URL="$PROT://$DOM/seek" ./util/enable-features.sh \
+      || echo "  WARN: enable-features failed — site_base_host/features NOT reset; run: SEEK_SITE_BASE_URL=$PROT://$DOM/seek ./util/enable-features.sh"
+  else
+    echo "  WARN: PLATFORM_PROTOCOL/DOMAIN missing from $ENV_FILE — site_base_host NOT reset"
+  fi
+else
+  echo "  WARN: $ENV_FILE not found — cannot auto reset site_base_host/features. Run enable-features.sh (with SEEK_SITE_BASE_URL) manually."
+fi
+REALM_TEMPLATE="services/keycloak/digitaltwins-realm.json.template"
+# The admin's pinned "id" is the line immediately before its
+# "username": "${PLATFORM_ADMIN_USERNAME}" placeholder in the users[] block.
+ADMIN_SUB=$(grep -A1 '"id":' "$REALM_TEMPLATE" 2>/dev/null | grep -B1 'PLATFORM_ADMIN_USERNAME' | grep '"id":' | head -1 | sed -E 's/.*"id": *"([^"]+)".*/\1/')
+if [ -n "$ADMIN_SUB" ]; then
+  ./util/promote-seek-admin.sh "$ADMIN_SUB" \
+    || echo "  WARN: promote-seek-admin failed — the platform admin may not be a SEEK server admin; run: ./util/promote-seek-admin.sh $ADMIN_SUB"
+else
+  echo "  WARN: could not find the platform admin's pinned id in $REALM_TEMPLATE — admin NOT promoted; run ./util/promote-seek-admin.sh <SUB> manually"
+fi
 
 cat <<'EOF'
 

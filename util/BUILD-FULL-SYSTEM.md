@@ -312,6 +312,11 @@ Detail: [`README.md`](README.md) §0–6.
    observability build:
    - platform: `PLATFORM_PROTOCOL/PLATFORM_DOMAIN`, `REDIS_PASSWORD` (**required**),
      `REMOTE_COMPUTE=true`, `AIRFLOW_VAR_COMPUTE_QUEUE` (leave `default` for now — see G),
+   - **admin identity** (ONE identity for the Keycloak realm user = SEEK server admin =
+     Airflow user): `PLATFORM_ADMIN_USERNAME` + `PLATFORM_ADMIN_EMAIL` in `data/env`,
+     `PLATFORM_ADMIN_PASSWORD` in `data/secrets.env`. (These replaced the old separate
+     `KEYCLOAK_REALM_ADMIN_PASSWORD` / `SEEK_ADMIN_PASSWORD` / `AIRFLOW_PASSWORD` /
+     `SEEK_ADMIN_EMAIL` — remove those. Username defaults to `admin1`.)
    - observability: `GRAFANA_ADMIN_PASSWORD`, `GRAFANA_OAUTH_SECRET`,
      `MIMIR_MINIO_ROOT_USER`, `MIMIR_MINIO_SECRET_KEY`.
    > `GRAFANA_OAUTH_SECRET` must be **identical** on the Keycloak side (rendered by
@@ -352,16 +357,27 @@ Detail: [`README.md`](README.md) §0–6.
    > removed (see `seek-integration.md`), so there's no static token to go stale. What
    > *does* change: the restore brings the **dump's** SEEK user DB, incl. the `identities`
    > table that maps Keycloak `sub` UUIDs → SEEK users — so users resolve correctly only
-   > if the dump came from a system sharing **your Keycloak realm/users**. And the SEEK
-   > **admin login/password become the dump's** (unreadable hashes), not your
-   > `SEEK_ADMIN_PASSWORD`.
+   > if the dump came from a system sharing **your Keycloak realm/users** (the realm
+   > template pins the admin's `sub`, so the admin link survives).
+   >
+   > **Auto re-stamped (step 10 of the script):** the restore also clobbers SEEK's
+   > `settings`/`users` with the dump's — reverting **`site_base_host`** (to the dump's
+   > `localhost:…`, which breaks every "SEEK ID" URL) and the **feature flags**, and
+   > replacing SEEK's whole user set (so whichever user was server admin before is
+   > gone). `portal-restore.sh` now re-applies the first two at the end
+   > (`enable-features.sh`, reading this host's `.env`) and restores admin access via
+   > `promote-seek-admin.sh`, which promotes the SEEK user linked to the platform
+   > admin's Keycloak `sub` (**not** a guessed SEEK login — SEEK derives its own,
+   > e.g. Keycloak `admin1` → SEEK `admin1186`). So you no longer re-run any of this
+   > by hand. Watch for a `WARN:` line if any step couldn't.
 6. **DAGs** (not in the bundle): sync from your DAG source, then **un-pause**. If
    you seeded in step 5, sync the DAGs that go with that data:
    ```
    util/sync-dags.sh <dag-source-box> <this-box>     # wait ~1 min for the dag-processor
    ```
 7. **Verify** the platform (README §6): the stack is up, and the Airflow API token
-   works (fresh Keycloak+Airflow creates the local `admin1` automatically). This
+   works (fresh Keycloak+Airflow creates the local admin — `PLATFORM_ADMIN_USERNAME`,
+   default `admin1` — automatically). This
    mirrors `_get_api_token()` in `assays.py` — `os.getenv(key, default)`, so it uses
    the same fallbacks the code does and never KeyErrors on an unset var:
    ```
