@@ -153,11 +153,23 @@ async def get_dashboard_category_children_by_uuid(
             print(send_category)
 
             if send_category == "assays":
+                # tags/workflows are often present but EMPTY (e.g. an assay with no
+                # linked SEEK Workflow object -- confirmed live: relationships.workflows
+                # is `[]`, not null, for a script-tagged assay driven purely by
+                # workflow_seek_id). The old `is not None` checks let an empty list
+                # through to unconditional [0] indexing, raising an uncaught IndexError
+                # that 500'd this whole endpoint and bounced the portal dashboard back
+                # to Programmes on any assay without a linked Workflow.
+                tags_list = child.get("attributes", {}).get("tags") or []
+                workflows_rel = child.get("relationships", {}).get("workflows") or []
+                workflow_seek_id = None
+                if workflows_rel and isinstance(workflows_rel[0], list) and workflows_rel[0]:
+                    workflow_seek_id = workflows_rel[0][0].get('id')
                 temp = {
                     "seek_id": child.get("id", None),
                     "name": child.get("attributes").get("title", None),
-                    "tag": child.get("attributes").get("tags")[0] if child.get("attributes").get("tags", None) is not None else None,
-                    "workflow_seek_id": child.get("relationships").get("workflows")[0][0].get('id') if child.get("relationships").get("workflows", None) is not None else None,
+                    "tag": tags_list[0] if tags_list else None,
+                    "workflow_seek_id": workflow_seek_id,
                     "category": send_category.capitalize() if send_category else None,
                     "description": child.get("attributes").get("description", None),
                 }
