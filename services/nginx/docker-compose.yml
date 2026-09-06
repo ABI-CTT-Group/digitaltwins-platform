@@ -20,7 +20,16 @@ services:
       # container — only certbot on the host writes.
       - ./acme:/var/www/certbot:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
+      # `/` 301-redirects to https://127.0.0.1/ (the http shell always redirects to
+      # https), and wget --spider FOLLOWS redirects by default -- so without
+      # --no-check-certificate this always fails: the gateway's cert is issued for
+      # the real public domain, not the literal string "127.0.0.1", so TLS
+      # verification rejects it and wget exits 1. That made this container report
+      # unhealthy on every single boot regardless of whether it actually worked
+      # (confirmed live: nginx served real, correctly-Host-headed requests fine the
+      # whole time). This is a loopback self-check, not a real client connection --
+      # skipping cert verification here doesn't weaken anything external.
+      test: ["CMD-SHELL", "wget -q --no-check-certificate --spider http://127.0.0.1/ || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
