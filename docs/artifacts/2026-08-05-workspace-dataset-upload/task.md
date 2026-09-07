@@ -4,6 +4,6 @@
   - `[x]` Download timestamp folder to temporary directory
   - `[x]` Iterate through subdirectories and call `uploader.upload_dataset`
   - `[x]` Return list of dataset UUIDs
-- `[ ]` Sync artifacts to docs/features/
+- `[ ]` Sync artifacts to docs/artifacts/
 - `[x]` Test syntax of `upload.py`
 - `[/]` Write walkthrough.md

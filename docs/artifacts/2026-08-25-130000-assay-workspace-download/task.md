@@ -1,6 +1,6 @@
 # Assay Workspace Download Tasks
 
-- [x] Sync artifacts to docs/features/
+- [x] Sync artifacts to docs/artifacts/
 - [x] **digitaltwins-api: `assays.py`**
   - [x] Update `download_workspace_dataset` with `querier` and `credentials` dependencies
   - [x] Read `tags` from the assay configs

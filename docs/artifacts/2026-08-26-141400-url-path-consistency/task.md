@@ -13,4 +13,4 @@
 - [x] Run `pytest` on `digitaltwins-api`
 - [x] Run `pytest` on `portal/backend` (Skipped due to broken local venv deps)
 - [x] Create `walkthrough.md`
-- [x] Sync artifacts to `docs/features/2026-08-26-141400-url-path-consistency/`
+- [x] Sync artifacts to `docs/artifacts/2026-08-26-141400-url-path-consistency/`

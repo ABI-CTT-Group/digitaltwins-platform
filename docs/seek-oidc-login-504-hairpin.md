@@ -54,7 +54,7 @@ it is the first thing to trip the hairpin on a real deployment.
 The hairpin was introduced with the SEEK↔Keycloak OIDC integration
 (`ldh-deployment` commit `4ed7ff5`, 2026-08-19), which was verified only on a
 `http://localhost` single-host dev box (see
-`docs/features/2026-08-20-per-user-seek-auth/walkthrough.md`). A `host-gateway` hairpin
+`docs/artifacts/2026-08-20-per-user-seek-auth/walkthrough.md`). A `host-gateway` hairpin
 works there — no ufw, and `container → host-gateway → published port` succeeds. It does
 not survive the three things a real portal adds at once: HTTPS + a custom domain, a custom
 bridge network, and `ufw default deny`.

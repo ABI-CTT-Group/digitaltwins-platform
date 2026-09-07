@@ -11,4 +11,4 @@
 - [x] Live Jupyter Container (`jupyter-admin1`)
   - [x] `clinical_report_curation.ipynb`
 - [x] Create `walkthrough.md`
-- [x] Sync artifacts to `docs/features/2026-08-26-144900-minio-credentials/`
+- [x] Sync artifacts to `docs/artifacts/2026-08-26-144900-minio-credentials/`

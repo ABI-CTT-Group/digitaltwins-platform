@@ -3,4 +3,4 @@
 - [x] Add `useDashboardSubmitAssayResults` in `portal/DigitalTWINS-Portal/frontend/src/bootstrap/dashboard_api.ts`.
 - [x] Implement `submit` function in `portal/DigitalTWINS-Portal/frontend/src/composables/useAssayActions.ts`.
 - [x] Update `portal/DigitalTWINS-Portal/frontend/src/components/domain/SubmitSheet.vue` to allow closing the dialog and updating text.
-- [x] Sync artifacts to `docs/features/`.
+- [x] Sync artifacts to `docs/artifacts/`.

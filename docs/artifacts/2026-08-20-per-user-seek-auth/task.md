@@ -4,7 +4,7 @@
 - [ ] Create `keycloak_jwt_auth.rb` initializer
 - [ ] Mount it in SEEK's `docker-compose.yml`
 - [ ] Restart SEEK and verify JWT auth works directly
-- [ ] Sync artifacts to docs/features/
+- [ ] Sync artifacts to docs/artifacts/
 
 ## Part 2: API-side — Pass user's token to SEEK
 - [x] Modify `auth.py` to return `{username, token}` dict

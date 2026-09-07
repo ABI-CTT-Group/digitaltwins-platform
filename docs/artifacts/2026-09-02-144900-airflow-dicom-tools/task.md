@@ -1,0 +1,3 @@
+- `[x]` Implement dynamic filename extraction in tool_dicom_to_nifti.py
+- `[x]` Implement dynamic filename extraction in tool_dicom_to_nrrd.py
+- `[ ]` Sync artifacts to docs/artifacts/
