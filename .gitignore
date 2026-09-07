@@ -203,3 +203,6 @@ services/airflow/logs/*
 # contain client secrets and user data)
 /tmp/
 /*_realm_*.json
+
+# Agent artifacts
+docs/artifacts/

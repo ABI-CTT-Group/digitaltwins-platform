@@ -1,4 +1,0 @@
-- [ ] Sync artifacts to docs/artifacts/
-- [ ] Run `util/gen-realm.sh`
-- [ ] Run `util/promote-seek-admin.sh` for SEEK
-- [ ] Run `airflow users create` for Airflow

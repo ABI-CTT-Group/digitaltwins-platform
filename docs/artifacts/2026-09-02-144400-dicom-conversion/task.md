@@ -1,5 +1,0 @@
-- `[x]` Implement dicom_to_nifti.py (using dicom2nifti, dynamic filename)
-- `[x]` Implement dicom_to_nrrd.py (using SimpleITK, dynamic filename)
-- `[x]` Update tool_dicom_to_nifti.cwl (InitialWorkDirRequirement, bash wrapper, python:3.12.3)
-- `[x]` Update tool_dicom_to_nrrd.cwl (InitialWorkDirRequirement, bash wrapper, python:3.12.3)
-- `[ ]` Sync artifacts to docs/artifacts/

@@ -66,7 +66,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - Use Conventional Commits format
 - Do NOT commit changes to Git unless explicitly requested by the user.
 - **Atomic Commits:** Every commit should represent one—and only one—logical unit of work. Ensure that if a change breaks, you can revert that single commit without undoing unrelated work.
-- **Pre-Commit Secret Check:** Before staging or committing any files (especially agent artifacts in `docs/artifacts/`), you MUST actively check for and redact any accidental secrets (passwords, tokens, keys).
+- **Pre-Commit Secret Check:** Before staging or committing any files, you MUST actively check for and redact any accidental secrets (passwords, tokens, keys).
 
 
 ## Agent Artifacts
