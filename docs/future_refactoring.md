@@ -4,7 +4,7 @@ This document tracks technical debt, refactoring tasks, and improvements that we
 
 ## REST API (`digitaltwins-api`)
 
-The following items were identified during the REST API restructuring (`docs/features/2026-08-21-140800-rest-api-refactor`):
+The following items were identified during the REST API restructuring (`docs/artifacts/2026-08-21-140800-rest-api-refactor`):
 
 ### [x] 1. URL Path Consistency
 * **Description**: The API paths currently use a mix of singular nouns and actions (e.g., `POST /assay`, `POST /dataset`). These should be updated to standard RESTful resource paths (e.g., `POST /assays`, `POST /datasets`).

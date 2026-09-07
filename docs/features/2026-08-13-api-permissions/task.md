@@ -1,3 +1,0 @@
-- `[x]` Create `util/grant_api_permissions.rb` script
-- `[x]` Run the script locally to verify
-- `[x]` Create `walkthrough.md`
