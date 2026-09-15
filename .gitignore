@@ -204,5 +204,3 @@ services/airflow/logs/*
 /tmp/
 /*_realm_*.json
 
-# Agent artifacts
-docs/artifacts/
