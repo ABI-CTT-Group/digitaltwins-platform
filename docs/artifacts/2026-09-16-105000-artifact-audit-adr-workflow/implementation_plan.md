@@ -71,9 +71,8 @@ repos:
 > [!IMPORTANT]
 > This requires `pre-commit` to be installed (`pip install pre-commit`) and initialized (`pre-commit install`). The plan includes running these commands.
 
-#### [NEW] `.github/workflows/secret-scan.yml`
-
-GitHub Actions CI workflow that runs gitleaks on every PR and push to `main`. This is the enforcement backstop — if a teammate forgets to run `pre-commit install`, the CI gate still catches secrets before merge.
+> [!NOTE]
+> We rely on GitHub's native secret scanning for the CI-level checks (to be enabled via GitHub's Security settings), rather than a separate Gitleaks GitHub Action, to avoid potential organizational costs.
 
 ---
 

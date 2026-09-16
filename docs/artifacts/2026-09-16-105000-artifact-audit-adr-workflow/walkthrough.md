@@ -27,11 +27,7 @@ Gitleaks v8.30.1 pre-commit hook. Blocks commits containing secrets automaticall
 
 Removed `docs/artifacts/` exclusion (line 208). Agent artifacts are now tracked by git for audit trail compliance.
 
-### 5. [secret-scan.yml](file:///home/clin864/Projects/digitaltwins-platform/.github/workflows/secret-scan.yml) (new)
-
-GitHub Actions workflow running gitleaks on every PR and push to `main`. CI backstop that catches secrets even when the local pre-commit hook isn't installed.
-
-### 6. Secret Redaction in Existing Artifacts
+### 5. Secret Redaction in Existing Artifacts
 
 - Scanned all 29 artifact folders with `gitleaks detect --source docs/artifacts/ --no-git`
 - Found 1 issue: `admin:admin` credentials in [implementation_plan.md](file:///home/clin864/Projects/digitaltwins-platform/docs/artifacts/2026-08-20-per-user-seek-auth/implementation_plan.md#L160) → replaced with `<USERNAME>:<PASSWORD>`
