@@ -1,0 +1,8 @@
+- `[x]` Update environment and secret templates
+  - `[x]` Update `.env.template`
+  - `[x]` Update `secrets.env.template` (already existed)
+  - `[x]` Update active `.env` and `secrets.env`
+- `[x]` Update Keycloak realm template `digitaltwins-realm.json.template`
+- `[x]` Create SEEK OmniAuth configuration `omniauth_providers.yml`
+- `[x]` Update SEEK `docker-compose.yml`
+- `[x]` Verify changes and create walkthrough

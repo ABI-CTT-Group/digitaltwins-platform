@@ -1,0 +1,9 @@
+- `[x]` Update `upload_workspace_datasets` handler in `assays.py` to support Jupyter notebook assays
+  - `[x]` Read username and token from `credentials` dependency
+  - `[x]` Detect if assay is a notebook assay (check tags in `assay_data`)
+  - `[x]` Implement Jupyter API folder recursive download
+  - `[x]` Save Jupyter outputs into the shared `tmp_dir`
+- `[x]` Add testing for Jupyter flow in `test_upload_workspace_dataset_api.py`
+  - `[x]` Add `credentials` mock
+  - `[x]` Mock Jupyter API requests and test success
+- `[ ]` Sync artifacts to docs folder
