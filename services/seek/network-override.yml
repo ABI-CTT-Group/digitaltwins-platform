@@ -6,20 +6,30 @@ services:
     # ldh (SEEK) publishes amd64 only — pin so it emulates on arm64
     # (Apple Silicon) and is a no-op on amd64 hosts/servers.
     platform: linux/amd64
-    # Drop the submodule's `extra_hosts: ${PLATFORM_DOMAIN}:host-gateway`. That hairpin
-    # resolves the public host to docker0 (172.17.0.1), unreachable from this bridge
-    # under ufw deny, so SEEK's interactive OIDC back-channel 504s. Cleared here so the
-    # public host resolves via Docker DNS to the gateway's network alias instead.
-    # (!reset needs Compose >= 2.24; applied via the always-on include, so it holds for
-    # both local and remote compute.)
-    extra_hosts: !reset null
+    # Replace the submodule's `extra_hosts: ${PLATFORM_DOMAIN}:host-gateway` with a
+    # *static* `localhost:host-gateway` entry (not driven by PLATFORM_DOMAIN). That
+    # hairpin resolves to docker0, unreachable from this bridge under ufw deny on a
+    # real deployment (custom PLATFORM_DOMAIN) — where the public host instead
+    # resolves via Docker DNS to the gateway's network alias. But when
+    # PLATFORM_DOMAIN=localhost (plain dev), the gateway's alias for "localhost" is
+    # always shadowed by Docker's own built-in /etc/hosts entry (127.0.0.1 localhost),
+    # so DNS-alias resolution never kicks in for that literal hostname — the
+    # host-gateway hairpin is the only thing that makes SEEK's residual public-host
+    # OIDC call work there. Keeping it pinned to the literal string "localhost" (vs.
+    # the submodule's ${PLATFORM_DOMAIN}) means it's a no-op on real deployments,
+    # where the app never looks up "localhost".
+    # (!override needs Compose >= 2.24; applied via the always-on include, so it holds
+    # for both local and remote compute.)
+    extra_hosts: !override
+      - "localhost:host-gateway"
     networks:
       - digitaltwins-platform
   workers:
     # same ldh image as seek — amd64 only.
     platform: linux/amd64
-    # Same host-gateway hairpin removal as `seek` above.
-    extra_hosts: !reset null
+    # Same host-gateway hairpin fix as `seek` above.
+    extra_hosts: !override
+      - "localhost:host-gateway"
     networks:
       - digitaltwins-platform
   solr:
