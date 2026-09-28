@@ -1,0 +1,29 @@
+{
+  "assay_uuid": "",
+  "assay_seek_id": 1,
+  "workflow_seek_id": 1,
+  "cohort": ["1", "2"],
+  "ready": true,
+  "inputs": [
+    {
+      "name": "dicom_input",
+      "category": "measurements",
+      "dataset_uuid": "cd77671c-33f7-11f1-b0c1-ce8482733eb4",
+      "sample_type": "ax dyn pre"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "nifti_output",
+      "category": "measurements",
+      "dataset_name": "example_duke_sds_nifti",
+      "sample_name": "nifti"
+    },
+    {
+      "name": "nrrd_output",
+      "category": "measurements",
+      "dataset_name": "example_duke_sds_nrrd",
+      "sample_name": "nrrd"
+    }
+  ]
+}

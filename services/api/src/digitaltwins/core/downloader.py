@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from ..utils.config_loader import is_truthy
-from ..irods.downloader import Downloader as IRODSDownloader
 
 from digitaltwins import Querier
 
@@ -13,17 +12,34 @@ from digitaltwins import Querier
 class Downloader(object):
     def __init__(self):
         self._irods_downloader = None
+        self._minio_downloader = None
 
         if is_truthy(os.getenv("IRODS_ENABLED")):
+            from ..irods.downloader import Downloader as IRODSDownloader
             self._irods_downloader = IRODSDownloader()
+        if is_truthy(os.getenv("MINIO_ENABLED")):
+            from ..minio.downloader import Downloader as MinioDownloader
+            self._minio_downloader = MinioDownloader()
+            
+        if not (self._minio_downloader or self._irods_downloader):
+            raise EnvironmentError("Missing Downloader. Please check your configurations for data storage.")
 
-    def download_dataset(self, dataset_id, save_dir="./tmp"):
+
+    def download_dataset(self, dataset_uuid, save_dir="./tmp"):
         if self._irods_downloader:
             os.makedirs(str(save_dir), exist_ok=True)
 
-            print("Downloading dataset " + dataset_id)
+            print("Downloading dataset " + dataset_uuid)
 
-            self._irods_downloader.download(dataset_id, save_dir)
+            self._irods_downloader.download(dataset_uuid, save_dir)
+
+            print("Dataset successfully downloaded")
+        elif self._minio_downloader:
+            os.makedirs(str(save_dir), exist_ok=True)
+
+            print("Downloading dataset " + dataset_uuid)
+
+            self._minio_downloader.download_dataset(dataset_uuid, save_dir)
 
             print("Dataset successfully downloaded")
         else:
@@ -31,7 +47,7 @@ class Downloader(object):
 
     def download_assay_inputs(self, assay_id, save_dir="./tmp"):
         querier = Querier()
-        assay = querier.get_assay(assay_id, get_params=True)
+        assay = querier.get_assay(assay_id, get_configs=True)
 
         params = assay.get("params")
         assay_uuid = params.get("assay_uuid")

@@ -3,45 +3,70 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    command: [ "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/digitaltwins-api" ]
     ports:
       - "8010:8000"
     environment:
+      HOSTNAME: ${PORTAL_BACKEND_HOST:-localhost}
       # keycloak
-      KEYCLOAK_BASE_URL: ${KEYCLOAK_BASE_URL:-http://localhost:8080}
+      KEYCLOAK_BASE_URL: ${KEYCLOAK_BASE_URL:-http://keycloak:8080/auth}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-digitaltwins}
       KEYCLOAK_ALGORITHM: ${KEYCLOAK_ALGORITHM:-RS256}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-api}
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-}
       # seek
       SEEK_ENABLED: ${SEEK_ENABLED:-true}
-      SEEK_BASE_URL: ${SEEK_BASE_URL:-http://localhost:3000}
-      SEEK_API_TOKEN: ${SEEK_API_TOKEN:-}
+      SEEK_BASE_URL: ${SEEK_BASE_URL:-http://seek:3000/seek}
       # postgres
       POSTGRES_ENABLED: ${POSTGRES_ENABLED:-true}
-      POSTGRES_HOST: ${POSTGRES_HOST:-localhost}
+      POSTGRES_HOST: ${POSTGRES_HOST:-database}
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: ${POSTGRES_DB:-digitaltwins}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       # minio
       MINIO_ENABLED: ${MINIO_ENABLED:-true}
-      MINIO_HOST: ${MINIO_HOST:-localhost}
-      MINIO_PORT: ${MINIO_PORT:-9000}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://localhost:9000}
       MINIO_SERVER_ACCESS_KEY: ${MINIO_SERVER_ACCESS_KEY:-minioadmin}
       MINIO_SERVER_SECRET_KEY: ${MINIO_SERVER_SECRET_KEY:-minioadmin}
       # airflow
       AIRFLOW_ENABLED: ${AIRFLOW_ENABLED:-true}
       AIRFLOW_VERSION: ${AIRFLOW_VERSION:-3}
-      AIRFLOW_ENDPOINT: ${AIRFLOW_ENDPOINT:-http://localhost:8080}
-      AIRFLOW_API_URL: ${AIRFLOW_API_URL:-http://localhost:8080/api/v2}
+      AIRFLOW_ENDPOINT: ${AIRFLOW_ENDPOINT:-http://airflow-apiserver:8080/airflow}
+      AIRFLOW_API_URL: ${AIRFLOW_API_URL:-http://airflow-apiserver:8080/airflow/api/v2}
       AIRFLOW_USERNAME: ${AIRFLOW_USERNAME:-admin}
       AIRFLOW_PASSWORD: ${AIRFLOW_PASSWORD:-admin}
-#      AIRFLOW_WORKSPACE: ${AIRFLOW_WORKSPACE:-}
+      AIRFLOW_PORT: ${AIRFLOW_PORT:-8080}
+      AIRFLOW_BASE_URL: ${AIRFLOW__API__BASE_URL:-http://localhost/airflow}
+      # JupyterHub
+      JUPYTERHUB_PUBLIC_URL: ${JUPYTERHUB_PUBLIC_URL:-http://localhost/jupyter}
+      # dataset upload sessions (chunked parts, staged datasets, FHIR build cache)
+      DATASET_STAGING_DIR: /dataset_staging
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-20480}
+      # FHIR annotation push (HAPI FHIR on the platform network) and the public
+      # base of this API, used for the FHIR endpoint URLs of dataset files
+      FHIR_ENDPOINT: ${FHIR_ENDPOINT:-http://hapi-fhir:8080/fhir}
+      DIGITALTWINS_API_PUBLIC_URL: ${DIGITALTWINS_API_PUBLIC_URL:-http://localhost/digitaltwins-api}
+    networks:
+      - digitaltwins-platform
     volumes:
       - ./configs.ini:/digitaltwins-api/configs.ini
+      - dataset_staging:/dataset_staging
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
 networks:
-  digitaltwins:
+  digitaltwins-platform:
     driver: bridge
+    name: ${PROJECT_NAME}
+
+volumes:
+  dataset_staging:
+    name: ${PROJECT_NAME}_dataset_staging
+    driver: local
 
 # access api docs: http:localhost:8010/docs

@@ -1,9 +1,5 @@
 """
 IAM by Keycloak
-
-This module handles identity and access management using Keycloak. It provides functions
-and endpoints for user authentication, token retrieval, and token validation using both
-Basic and Bearer authentication schemes.
 """
 import requests
 import os
@@ -12,6 +8,7 @@ from fastapi import APIRouter
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from jose import jwt as jose_jwt, JWTError
 
 from dotenv import load_dotenv
 
@@ -27,88 +24,114 @@ KEYCLOAK_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET")
 
 keycloak_realm_url = f"{KEYCLOAK_BASE_URL}/realms/{KEYCLOAK_REALM}"
 keycloak_token_url = f"{keycloak_realm_url}/protocol/openid-connect/token"
-keycloak_introspect_url = f"{keycloak_token_url}/introspect"
+# keycloak_introspect_url = f"{keycloak_token_url}/introspect"
+
+# Cache the public key to avoid fetching it on every request
+_cached_public_key: str | None = None
+
+
+def get_keycloak_public_key() -> str:
+    """Fetch and cache the Keycloak realm public key."""
+    global _cached_public_key
+    if _cached_public_key is None:
+        try:
+            r = requests.get(keycloak_realm_url, verify=False, timeout=10)
+            r.raise_for_status()
+            raw_key = r.json().get("public_key")
+            _cached_public_key = f"-----BEGIN PUBLIC KEY-----\n{raw_key}\n-----END PUBLIC KEY-----"
+        except requests.RequestException as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Unable to reach Keycloak realm: {exc}",
+            ) from exc
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Keycloak returned a non-JSON realm document.",
+            ) from exc
+    return _cached_public_key
 
 
 def auth_basic(credentials: HTTPBasicCredentials = Depends(HTTPBasic())):
-    """
-    Authenticate a user using Basic Authentication.
-
-    Args:
-        credentials (HTTPBasicCredentials, optional): The base64 encoded username and password.
-
-    Returns:
-        bool: True if authentication is successful.
-
-    Raises:
-        HTTPException: If the username or password is invalid (Status 401).
-    """
     result = get_token(credentials)
     if not result.get("access_token"):
+        print(f"[auth] Basic auth failed, Keycloak response: {result}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password"
+            detail=result
         )
     else:
-        return True
+        claims = jose_jwt.decode(
+            result["access_token"],
+            get_keycloak_public_key(),
+            algorithms=[KEYCLOAK_ALGORITHM],
+            options={"verify_aud": False},
+        )
+        return {"username": credentials.username, "token": result["access_token"], "claims": claims}
 
 
 def auth_bearer(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
-    """
-    Authenticate a user using Bearer Token Authentication.
-
-    Validates the bearer token by introspecting it against Keycloak.
-
-    Args:
-        credentials (HTTPAuthorizationCredentials, optional): The bearer token provided in the Authorization header.
-
-    Returns:
-        bool: True if the token is active and valid.
-
-    Raises:
-        HTTPException: If the token is invalid or inactive (Status 401).
-    """
     token = credentials.credentials
-    data = {
-        "token": token,
-        "client_id": KEYCLOAK_CLIENT_ID,
-        "client_secret": KEYCLOAK_CLIENT_SECRET
-    }
-    # verify token by introspection
-    r = requests.post(keycloak_introspect_url, data=data)
-    result = r.json()
-    if not result.get("active", False):
+    # Verify the JWT locally using the Keycloak realm public key.
+    # Introspection is intentionally avoided here: the frontend issues tokens via the
+    # public client "portal-frontend", whose tokens don't include the "api" client in
+    # their audience.  Keycloak therefore rejects introspection requests from the "api"
+    # confidential client with INTROSPECT_TOKEN_ERROR / invalid_token.
+    # Local verification works for any token issued by this Keycloak realm, regardless
+    # of which client originally issued it.
+    try:
+        public_key_pem = get_keycloak_public_key()
+        payload = jose_jwt.decode(
+            token,
+            public_key_pem,
+            algorithms=[KEYCLOAK_ALGORITHM],
+            options={"verify_aud": False},
+        )
+        username = payload.get("preferred_username") or payload.get("username") or "unknown"
+        return {"username": username, "token": token, "claims": payload}
+    except JWTError as e:
+        # Public key may have rotated — clear cache and retry once
+        global _cached_public_key
+        _cached_public_key = None
+        print(f"[auth] Bearer token verification failed (will retry with fresh key): {e}")
+        try:
+            public_key_pem = get_keycloak_public_key()
+            payload = jose_jwt.decode(
+                token,
+                public_key_pem,
+                algorithms=[KEYCLOAK_ALGORITHM],
+                options={"verify_aud": False},
+            )
+            username = payload.get("preferred_username") or payload.get("username") or "unknown"
+            return {"username": username, "token": token, "claims": payload}
+        except JWTError as e2:
+            print(f"[auth] Bearer token verification failed: {e2}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=str(e2),
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[auth] Bearer token verification error: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials"
+            detail=str(e),
         )
-    else:
-        return True
 
 
 def validate_credentials(
         basic_credentials: HTTPBasicCredentials = Depends(HTTPBasic(auto_error=False)),
         bearer_credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False))
 ):
-    """
-    Validate incoming credentials, allowing either Basic or Bearer schemes.
-
-    Args:
-        basic_credentials (HTTPBasicCredentials, optional): The Basic auth credentials.
-        bearer_credentials (HTTPAuthorizationCredentials, optional): The Bearer auth credentials.
-
-    Returns:
-        bool: True if either of the provided credentials is valid.
-
-    Raises:
-        HTTPException: If no valid authentication method is provided (Status 401).
-    """
+    print(f"basic_credentials: {basic_credentials}")
+    print(f"bearer_credentials: {bearer_credentials}")
     if basic_credentials:
-        valid = auth_basic(basic_credentials)
-        return valid
+        username = auth_basic(basic_credentials)
+        return username
     elif bearer_credentials:
-        valid = auth_bearer(bearer_credentials)
-        return valid
+        username = auth_bearer(bearer_credentials)
+        return username
     else:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -117,17 +140,23 @@ def validate_credentials(
         )
 
 
+# Keycloak realm roles allowed to upload, approve, delete and write FHIR annotations.
+UPLOAD_ROLES = {"admin", "researcher"}
+
+
+def require_upload_role(credentials: dict = Depends(validate_credentials)) -> dict:
+    """Authenticated caller whose token carries an upload realm role, else 403."""
+    roles = set(credentials.get("claims", {}).get("realm_access", {}).get("roles", []))
+    if not roles & UPLOAD_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Requires one of the realm roles: {', '.join(sorted(UPLOAD_ROLES))}",
+        )
+    return credentials
+
+
 @router.post("/login", tags=["auth"])
 def login(credentials: HTTPBasicCredentials = Depends(HTTPBasic())):
-    """
-    Log in a user to retrieve an access token.
-
-    Args:
-        credentials (HTTPBasicCredentials, optional): Basic auth containing username and password.
-
-    Returns:
-        dict: The Keycloak token response, usually containing an access_token.
-    """
     # validate_credentials(credentials)
     result = get_token(basic_credentials=credentials)
     return result
@@ -138,19 +167,6 @@ def get_token(
         basic_credentials: HTTPBasicCredentials = Depends(HTTPBasic(auto_error=False)),
         bearer_credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False))
 ):
-    """
-    Retrieve or refresh an access token from Keycloak.
-
-    Args:
-        basic_credentials (HTTPBasicCredentials, optional): Provided to retrieve a token via password grant.
-        bearer_credentials (HTTPAuthorizationCredentials, optional): Provided to refresh a token via refresh_token grant.
-
-    Returns:
-        dict: The JSON representation of the token response.
-
-    Raises:
-        HTTPException: If no valid authentication method is provided or if credential validation fails (Status 401).
-    """
     if basic_credentials:
         payload = {
             "client_id": KEYCLOAK_CLIENT_ID,
@@ -173,26 +189,32 @@ def get_token(
             headers={"WWW-Authenticate": "Basic, Bearer"},
         )
 
-    response = requests.post(keycloak_token_url, data=payload)
+    try:
+        response = requests.post(keycloak_token_url, data=payload, timeout=10)
+    except requests.RequestException as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Unable to reach Keycloak token endpoint: {exc}",
+        ) from exc
 
     if response.status_code != 200:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        try:
+            error_detail = response.json()
+        except ValueError:
+            error_detail = response.text
+        print(f"[auth] Keycloak token error ({response.status_code}): {error_detail}")
+        raise HTTPException(status_code=response.status_code, detail=error_detail)
 
-    response_json = response.json()
-    # token = response_json.get("access_token")
-
-    return response.json()
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Keycloak returned a non-JSON token response.",
+        ) from exc
 
 
 @router.get("/verify_token", tags=["auth"])
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
-    """
-    Verify the validity of a Bearer token.
-
-    Args:
-        credentials (HTTPAuthorizationCredentials, optional): Bearer token from the Authorization header.
-
-    Returns:
-        dict: A dictionary containing an 'active' key that is True if the token is valid.
-    """
-    return {"active": auth_bearer(credentials)}
+    result = auth_bearer(credentials)
+    return {"active": bool(result.get("username"))}

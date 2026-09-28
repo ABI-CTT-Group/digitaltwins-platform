@@ -8,7 +8,7 @@ from ..utils.config_loader import is_truthy
 
 class Querier(object):
 
-    def __init__(self):
+    def __init__(self, api_token: str | None = None):
         self._postgres_enabled = is_truthy(os.getenv("POSTGRES_ENABLED"))
         self._seek_enabled = is_truthy(os.getenv("SEEK_ENABLED"))
         self._gen3_enabled = is_truthy(os.getenv("GEN3_ENABLED"))
@@ -31,8 +31,10 @@ class Querier(object):
             self._gen3_querier = None
 
         if self._seek_enabled:
+            if not api_token:
+                raise ValueError("SEEK is enabled but no api_token was provided. Pass the user's Keycloak token.")
             from ..seek.querier import Querier as SeekQuerier
-            self._seek_querier = SeekQuerier()
+            self._seek_querier = SeekQuerier(api_token=api_token)
         else:
             self._seek_querier = None
 
@@ -49,7 +51,14 @@ class Querier(object):
 
     def get_programs(self, get_details=False):
         if self._seek_enabled:
-            results = self._seek_querier.get_programs(get_details)
+            try:
+                results = self._seek_querier.get_programs(get_details)
+            except RuntimeError as exc:
+                if self._postgres_enabled and not get_details:
+                    print(f"[query] SEEK programs failed, falling back to Postgres: {exc}")
+                    results = self._postgre_querier.get_programs()
+                else:
+                    raise
         elif self._postgres_enabled:
             results = self._postgre_querier.get_programs()
         elif self._gen3_enabled:
@@ -69,7 +78,14 @@ class Querier(object):
 
     def get_projects(self, get_details=False):
         if self._seek_enabled:
-            results = self._seek_querier.get_projects(get_details)
+            try:
+                results = self._seek_querier.get_projects(get_details)
+            except RuntimeError as exc:
+                if self._postgres_enabled and not get_details:
+                    print(f"[query] SEEK projects failed, falling back to Postgres: {exc}")
+                    results = self._postgre_querier.get_projects()
+                else:
+                    raise
         elif self._postgres_enabled:
             results = self._postgre_querier.get_projects()
         elif self._gen3_enabled:
@@ -127,16 +143,24 @@ class Querier(object):
 
         return results
 
-    def get_assay(self, assay_id, get_params=False):
+    def get_assay(self, assay_id, get_configs=False):
         if self._seek_enabled:
             results = self._seek_querier.get_assay(assay_id)
+            workflows = list()
+            # get workflows
+            sops = results.get("relationships").get("sops").get("data")
+            for sop in sops:
+                sop_id = sop.get("id")
+                sop = self._seek_querier.get_sop(sop_id)
+                workflows.append(sop.get("relationships").get("workflows").get("data"))
+            results["relationships"]["workflows"] = workflows
         else:
             raise ValueError("Missing metadata service: SEEK")
 
-        if get_params:
+        if get_configs:
             #  "created" means the actual assay has been created in the platform/postgres
             results_created_assay = self._postgre_querier.get_assay(seek_id=assay_id)
-            results["params"] = results_created_assay
+            results["configs"] = results_created_assay
 
         return results
 
