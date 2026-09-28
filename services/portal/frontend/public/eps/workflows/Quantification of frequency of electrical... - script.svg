@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="718pt" height="399pt" viewBox="0.00 0.00 717.87 398.60">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 394.6)">
+<title>G</title>
+<polygon fill="#fdf1e4" stroke="none" points="-4,4 -4,-394.6 713.87,-394.6 713.87,4 -4,4"/>
+<g id="clust1" class="cluster">
+<title>cluster_inputs</title>
+<polygon fill="#fdf1e4" stroke="black" stroke-dasharray="5,2" points="8,-304.8 8,-382.6 643,-382.6 643,-304.8 8,-304.8"/>
+<text text-anchor="middle" x="586.98" y="-313" font-family="Times,serif" font-size="14.00">Workflow Inputs</text>
+</g>
+<g id="clust2" class="cluster">
+<title>cluster_outputs</title>
+<polygon fill="#fdf1e4" stroke="black" stroke-dasharray="5,2" points="201,-8 201,-85.8 535,-85.8 535,-8 201,-8"/>
+<text text-anchor="middle" x="474.31" y="-16.2" font-family="Times,serif" font-size="14.00">Workflow Outputs</text>
+</g>
+<!-- respiration_filtering -->
+<g id="node1" class="node">
+<title>respiration_filtering</title>
+<polygon fill="#4bccff" stroke="black" stroke-dasharray="5,2" points="315.02,-187.3 315.02,-223.3 442.98,-223.3 442.98,-187.3 315.02,-187.3"/>
+<text text-anchor="middle" x="379" y="-201.1" font-family="Times,serif" font-size="14.00">respiration_filtering</text>
+</g>
+<!-- burst_duration -->
+<g id="node2" class="node">
+<title>burst_duration</title>
+<polygon fill="#4bccff" stroke="black" stroke-dasharray="5,2" points="8.17,-114.3 8.17,-150.3 105.83,-150.3 105.83,-114.3 8.17,-114.3"/>
+<text text-anchor="middle" x="57" y="-128.1" font-family="Times,serif" font-size="14.00">burst_duration</text>
+</g>
+<!-- respiration_filtering&#45;&gt;burst_duration -->
+<g id="edge1" class="edge">
+<title>respiration_filtering-&gt;burst_duration</title>
+<path fill="none" stroke="black" d="M314.61,-192.98C263.44,-183.6 189.86,-169.23 117.01,-151.19"/>
+<polygon fill="black" stroke="black" points="118.29,-147.91 107.74,-148.88 116.59,-154.7 118.29,-147.91"/>
+</g>
+<!-- frequency_analysis -->
+<g id="node3" class="node">
+<title>frequency_analysis</title>
+<polygon fill="#4bccff" stroke="black" stroke-dasharray="5,2" points="123.97,-114.3 123.97,-150.3 248.03,-150.3 248.03,-114.3 123.97,-114.3"/>
+<text text-anchor="middle" x="186" y="-128.1" font-family="Times,serif" font-size="14.00">frequency_analysis</text>
+</g>
+<!-- respiration_filtering&#45;&gt;frequency_analysis -->
+<g id="edge2" class="edge">
+<title>respiration_filtering-&gt;frequency_analysis</title>
+<path fill="none" stroke="black" d="M331.79,-186.93C305.27,-177.18 271.96,-164.92 243.88,-154.59"/>
+<polygon fill="black" stroke="black" points="245.41,-151.43 234.82,-151.26 242.99,-158 245.41,-151.43"/>
+</g>
+<!-- paper_figure -->
+<g id="node4" class="node">
+<title>paper_figure</title>
+<polygon fill="#4bccff" stroke="black" stroke-dasharray="5,2" points="266.24,-114.3 266.24,-150.3 353.76,-150.3 353.76,-114.3 266.24,-114.3"/>
+<text text-anchor="middle" x="310" y="-128.1" font-family="Times,serif" font-size="14.00">paper_figure</text>
+</g>
+<!-- respiration_filtering&#45;&gt;paper_figure -->
+<g id="edge3" class="edge">
+<title>respiration_filtering-&gt;paper_figure</title>
+<path fill="none" stroke="black" d="M362.3,-187.11C353.91,-178.48 343.58,-167.86 334.33,-158.33"/>
+<polygon fill="black" stroke="black" points="337.08,-156.15 327.6,-151.41 332.06,-161.02 337.08,-156.15"/>
+</g>
+<!-- plotting_figures_for_publication -->
+<g id="node6" class="node">
+<title>plotting_figures_for_publication</title>
+<polygon fill="#4bccff" stroke="black" stroke-dasharray="5,2" points="371.63,-114.3 371.63,-150.3 570.37,-150.3 570.37,-114.3 371.63,-114.3"/>
+<text text-anchor="middle" x="471" y="-128.1" font-family="Times,serif" font-size="14.00">plotting_figures_for_publication</text>
+</g>
+<!-- respiration_filtering&#45;&gt;plotting_figures_for_publication -->
+<g id="edge5" class="edge">
+<title>respiration_filtering-&gt;plotting_figures_for_publication</title>
+<path fill="none" stroke="black" d="M401.27,-187.11C412.82,-178.2 427.13,-167.16 439.77,-157.4"/>
+<polygon fill="black" stroke="black" points="441.64,-160.38 447.42,-151.5 437.36,-154.84 441.64,-160.38"/>
+</g>
+<!-- propagation_speed -->
+<g id="node7" class="node">
+<title>propagation_speed</title>
+<polygon fill="#4bccff" stroke="black" stroke-dasharray="5,2" points="588.13,-114.3 588.13,-150.3 709.87,-150.3 709.87,-114.3 588.13,-114.3"/>
+<text text-anchor="middle" x="649" y="-128.1" font-family="Times,serif" font-size="14.00">propagation_speed</text>
+</g>
+<!-- respiration_filtering&#45;&gt;propagation_speed -->
+<g id="edge6" class="edge">
+<title>respiration_filtering-&gt;propagation_speed</title>
+<path fill="none" stroke="black" d="M443.33,-187.38C483.56,-176.8 535.46,-163.16 577.06,-152.22"/>
+<polygon fill="black" stroke="black" points="577.7,-155.67 586.48,-149.74 575.92,-148.9 577.7,-155.67"/>
+</g>
+<!-- filtered_electrode_channels_fig -->
+<g id="node12" class="node">
+<title>filtered_electrode_channels_fig</title>
+<polygon fill="#c30000" stroke="black" points="209.38,-41.3 209.38,-77.3 402.62,-77.3 402.62,-41.3 209.38,-41.3"/>
+<text text-anchor="middle" x="306" y="-55.1" font-family="Times,serif" font-size="14.00">filtered_electrode_channels_fig</text>
+</g>
+<!-- paper_figure&#45;&gt;filtered_electrode_channels_fig -->
+<g id="edge14" class="edge">
+<title>paper_figure-&gt;filtered_electrode_channels_fig</title>
+<path fill="none" stroke="black" d="M309.03,-114.11C308.6,-106.44 308.08,-97.19 307.59,-88.54"/>
+<polygon fill="black" stroke="black" points="311.1,-88.63 307.04,-78.84 304.11,-89.02 311.1,-88.63"/>
+</g>
+<!-- load_file_into_matlab_script -->
+<g id="node5" class="node">
+<title>load_file_into_matlab_script</title>
+<polygon fill="#4bccff" stroke="black" stroke-dasharray="5,2" points="290.13,-260.3 290.13,-296.3 467.87,-296.3 467.87,-260.3 290.13,-260.3"/>
+<text text-anchor="middle" x="379" y="-274.1" font-family="Times,serif" font-size="14.00">load_file_into_matlab_script</text>
+</g>
+<!-- load_file_into_matlab_script&#45;&gt;respiration_filtering -->
+<g id="edge7" class="edge">
+<title>load_file_into_matlab_script-&gt;respiration_filtering</title>
+<path fill="none" stroke="black" d="M367.24,-260.11C365.64,-252.44 365.14,-243.19 365.75,-234.54"/>
+<polygon fill="black" stroke="black" points="369.2,-235.21 367.07,-224.83 362.26,-234.27 369.2,-235.21"/>
+</g>
+<!-- load_file_into_matlab_script&#45;&gt;respiration_filtering -->
+<g id="edge8" class="edge">
+<title>load_file_into_matlab_script-&gt;respiration_filtering</title>
+<path fill="none" stroke="black" d="M379,-260.11C379,-252.53 379,-243.4 379,-234.84"/>
+<polygon fill="black" stroke="black" points="382.5,-234.84 379,-224.84 375.5,-234.84 382.5,-234.84"/>
+</g>
+<!-- load_file_into_matlab_script&#45;&gt;respiration_filtering -->
+<g id="edge9" class="edge">
+<title>load_file_into_matlab_script-&gt;respiration_filtering</title>
+<path fill="none" stroke="black" d="M390.76,-260.11C392.36,-252.44 392.86,-243.19 392.25,-234.54"/>
+<polygon fill="black" stroke="black" points="395.74,-234.27 390.93,-224.83 388.8,-235.21 395.74,-234.27"/>
+</g>
+<!-- load_file_into_matlab_script&#45;&gt;plotting_figures_for_publication -->
+<g id="edge4" class="edge">
+<title>load_file_into_matlab_script-&gt;plotting_figures_for_publication</title>
+<path fill="none" stroke="black" d="M412.88,-259.84C427.03,-250.9 442.38,-238.72 452,-223.8 463.85,-205.43 468.47,-180.99 470.19,-162.15"/>
+<polygon fill="black" stroke="black" points="473.68,-162.41 470.86,-152.2 466.7,-161.94 473.68,-162.41"/>
+</g>
+<!-- publication_figs -->
+<g id="node13" class="node">
+<title>publication_figs</title>
+<polygon fill="#c30000" stroke="black" points="420.51,-41.3 420.51,-77.3 527.49,-77.3 527.49,-41.3 420.51,-41.3"/>
+<text text-anchor="middle" x="474" y="-55.1" font-family="Times,serif" font-size="14.00">publication_figs</text>
+</g>
+<!-- plotting_figures_for_publication&#45;&gt;publication_figs -->
+<g id="edge15" class="edge">
+<title>plotting_figures_for_publication-&gt;publication_figs</title>
+<path fill="none" stroke="black" d="M471.73,-114.11C472.05,-106.44 472.44,-97.19 472.81,-88.54"/>
+<polygon fill="black" stroke="black" points="476.29,-88.98 473.22,-78.84 469.3,-88.68 476.29,-88.98"/>
+</g>
+<!-- approximate_burst_locations -->
+<g id="node8" class="node">
+<title>approximate_burst_locations</title>
+<polygon fill="#c30000" stroke="black" points="101.74,-338.1 101.74,-374.1 280.26,-374.1 280.26,-338.1 101.74,-338.1"/>
+<text text-anchor="middle" x="191" y="-351.9" font-family="Times,serif" font-size="14.00">approximate_burst_locations</text>
+</g>
+<!-- approximate_burst_locations&#45;&gt;burst_duration -->
+<g id="edge10" class="edge">
+<title>approximate_burst_locations-&gt;burst_duration</title>
+<path fill="none" stroke="black" d="M180.49,-337.7C157.2,-299.15 101.13,-206.35 73.28,-160.24"/>
+<polygon fill="black" stroke="black" points="76.42,-158.67 68.25,-151.92 70.42,-162.29 76.42,-158.67"/>
+</g>
+<!-- threshold -->
+<g id="node9" class="node">
+<title>threshold</title>
+<polygon fill="#c30000" stroke="black" points="15.95,-338.1 15.95,-374.1 84.05,-374.1 84.05,-338.1 15.95,-338.1"/>
+<text text-anchor="middle" x="50" y="-351.9" font-family="Times,serif" font-size="14.00">threshold</text>
+</g>
+<!-- threshold&#45;&gt;burst_duration -->
+<g id="edge11" class="edge">
+<title>threshold-&gt;burst_duration</title>
+<path fill="none" stroke="black" d="M50.55,-337.7C51.75,-299.63 54.62,-208.68 56.09,-162.01"/>
+<polygon fill="black" stroke="black" points="59.59,-162.24 56.41,-152.14 52.59,-162.02 59.59,-162.24"/>
+</g>
+<!-- selected_electrode_channels -->
+<g id="node10" class="node">
+<title>selected_electrode_channels</title>
+<polygon fill="#c30000" stroke="black" points="298.32,-338.1 298.32,-374.1 473.68,-374.1 473.68,-338.1 298.32,-338.1"/>
+<text text-anchor="middle" x="386" y="-351.9" font-family="Times,serif" font-size="14.00">selected_electrode_channels</text>
+</g>
+<!-- selected_electrode_channels&#45;&gt;load_file_into_matlab_script -->
+<g id="edge12" class="edge">
+<title>selected_electrode_channels-&gt;load_file_into_matlab_script</title>
+<path fill="none" stroke="black" d="M384.41,-337.9C383.59,-329.05 382.58,-318.02 381.64,-307.93"/>
+<polygon fill="black" stroke="black" points="385.15,-307.84 380.75,-298.2 378.18,-308.48 385.15,-307.84"/>
+</g>
+<!-- position_of_electrodes -->
+<g id="node11" class="node">
+<title>position_of_electrodes</title>
+<polygon fill="#c30000" stroke="black" points="491.24,-338.1 491.24,-374.1 634.76,-374.1 634.76,-338.1 491.24,-338.1"/>
+<text text-anchor="middle" x="563" y="-351.9" font-family="Times,serif" font-size="14.00">position_of_electrodes</text>
+</g>
+<!-- position_of_electrodes&#45;&gt;propagation_speed -->
+<g id="edge13" class="edge">
+<title>position_of_electrodes-&gt;propagation_speed</title>
+<path fill="none" stroke="black" d="M569.75,-337.7C584.6,-299.39 620.22,-207.52 638.21,-161.12"/>
+<polygon fill="black" stroke="black" points="641.38,-162.62 641.74,-152.03 634.86,-160.09 641.38,-162.62"/>
+</g>
+</g>
+</svg>

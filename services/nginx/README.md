@@ -123,10 +123,9 @@ the limit means and can return a coherent error.
 - **Never hand-write a `/plugin/...` route.** portal-backend generates those into a
   shared volume and reloads portal-frontend's nginx. Writing one here means something
   else is broken.
-- **Never edit `services/portal/DigitalTWINS-Portal/` to change portal routing.** It
-  is a git submodule; editing it dirties the working tree and the next
-  `git submodule update` conflicts. Portal changes are made in the portal repo,
-  pushed, and picked up by bumping the submodule SHA.
+- **Never edit `services/portal/` to change portal routing.** Portal routing is
+  managed by portal-backend at runtime; changes belong in `services/portal/backend/`
+  and should go through a PR on this repo.
 
 ---
 

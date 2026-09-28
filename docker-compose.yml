@@ -17,7 +17,7 @@ services:
 
   portal-backend:
     extends:
-      file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
+      file: ./services/portal/docker-compose.yml
       service: portal-backend
     # Under the platform the portal keeps its tables in the `portal` schema of the
     # shared Postgres (see docs/decisions/2026-09-28-portal-database-in-platform-postgres.md).
@@ -38,7 +38,7 @@ services:
   # The gateway reaches this container by service name on the shared network.
   portal-frontend:
     extends:
-      file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
+      file: ./services/portal/docker-compose.yml
       service: portal-frontend
   hapi-fhir:
     extends:

@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="763pt" height="252pt" viewBox="0.00 0.00 763.00 251.60">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 247.6)">
+<title>G</title>
+<polygon fill="#fdf1e4" stroke="none" points="-4,4 -4,-247.6 759,-247.6 759,4 -4,4"/>
+<g id="clust1" class="cluster">
+<title>cluster_inputs</title>
+<polygon fill="#fdf1e4" stroke="black" stroke-dasharray="5,2" points="8,-157.8 8,-235.6 747,-235.6 747,-157.8 8,-157.8"/>
+<text text-anchor="middle" x="690.98" y="-166" font-family="Times,serif" font-size="14.00">Workflow Inputs</text>
+</g>
+<g id="clust2" class="cluster">
+<title>cluster_outputs</title>
+<polygon fill="#fdf1e4" stroke="black" stroke-dasharray="5,2" points="290,-8 290,-85.8 476,-85.8 476,-8 290,-8"/>
+<text text-anchor="middle" x="415.31" y="-16.2" font-family="Times,serif" font-size="14.00">Workflow Outputs</text>
+</g>
+<!-- surface_mesh_ply_clavicle -->
+<g id="node1" class="node">
+<title>surface_mesh_ply_clavicle</title>
+<polygon fill="#c30000" stroke="black" points="15.81,-191.1 15.81,-227.1 184.19,-227.1 184.19,-191.1 15.81,-191.1"/>
+<text text-anchor="middle" x="100" y="-204.9" font-family="Times,serif" font-size="14.00">surface_mesh_ply_clavicle</text>
+</g>
+<!-- extract_clinical_measurements -->
+<g id="node5" class="node">
+<title>extract_clinical_measurements</title>
+<ellipse fill="none" stroke="black" cx="383" cy="-131.8" rx="130.62" ry="18"/>
+<text text-anchor="middle" x="383" y="-127.6" font-family="Times,serif" font-size="14.00">extract_clinical_measurements</text>
+</g>
+<!-- surface_mesh_ply_clavicle&#45;&gt;extract_clinical_measurements -->
+<g id="edge1" class="edge">
+<title>surface_mesh_ply_clavicle-&gt;extract_clinical_measurements</title>
+<path fill="none" stroke="black" d="M126.1,-190.62C144.12,-179.41 169.08,-165.55 193,-157.8 213.65,-151.11 236.11,-146.21 258.12,-142.61"/>
+<polygon fill="black" stroke="black" points="258.38,-146.12 267.73,-141.13 257.31,-139.2 258.38,-146.12"/>
+</g>
+<!-- surface_mesh_ply_humerus -->
+<g id="node2" class="node">
+<title>surface_mesh_ply_humerus</title>
+<polygon fill="#c30000" stroke="black" points="202.47,-191.1 202.47,-227.1 375.53,-227.1 375.53,-191.1 202.47,-191.1"/>
+<text text-anchor="middle" x="289" y="-204.9" font-family="Times,serif" font-size="14.00">surface_mesh_ply_humerus</text>
+</g>
+<!-- surface_mesh_ply_humerus&#45;&gt;extract_clinical_measurements -->
+<g id="edge2" class="edge">
+<title>surface_mesh_ply_humerus-&gt;extract_clinical_measurements</title>
+<path fill="none" stroke="black" d="M310.8,-190.64C323.35,-180.59 339.3,-167.81 353.01,-156.82"/>
+<polygon fill="black" stroke="black" points="354.84,-159.84 360.46,-150.86 350.47,-154.38 354.84,-159.84"/>
+</g>
+<!-- surface_mesh_ply_scapula -->
+<g id="node3" class="node">
+<title>surface_mesh_ply_scapula</title>
+<polygon fill="#c30000" stroke="black" points="393.58,-191.1 393.58,-227.1 560.42,-227.1 560.42,-191.1 393.58,-191.1"/>
+<text text-anchor="middle" x="477" y="-204.9" font-family="Times,serif" font-size="14.00">surface_mesh_ply_scapula</text>
+</g>
+<!-- surface_mesh_ply_scapula&#45;&gt;extract_clinical_measurements -->
+<g id="edge3" class="edge">
+<title>surface_mesh_ply_scapula-&gt;extract_clinical_measurements</title>
+<path fill="none" stroke="black" d="M455.2,-190.64C442.65,-180.59 426.7,-167.81 412.99,-156.82"/>
+<polygon fill="black" stroke="black" points="415.53,-154.38 405.54,-150.86 411.16,-159.84 415.53,-154.38"/>
+</g>
+<!-- surface_mesh_ply_thorax -->
+<g id="node4" class="node">
+<title>surface_mesh_ply_thorax</title>
+<polygon fill="#c30000" stroke="black" points="578.69,-191.1 578.69,-227.1 739.31,-227.1 739.31,-191.1 578.69,-191.1"/>
+<text text-anchor="middle" x="659" y="-204.9" font-family="Times,serif" font-size="14.00">surface_mesh_ply_thorax</text>
+</g>
+<!-- surface_mesh_ply_thorax&#45;&gt;extract_clinical_measurements -->
+<g id="edge4" class="edge">
+<title>surface_mesh_ply_thorax-&gt;extract_clinical_measurements</title>
+<path fill="none" stroke="black" d="M633.82,-190.62C616.4,-179.41 592.27,-165.55 569,-157.8 549.48,-151.3 528.27,-146.48 507.4,-142.91"/>
+<polygon fill="black" stroke="black" points="508.11,-139.48 497.68,-141.35 507,-146.39 508.11,-139.48"/>
+</g>
+<!-- clinical_measurements_csv -->
+<g id="node6" class="node">
+<title>clinical_measurements_csv</title>
+<polygon fill="#c30000" stroke="black" points="298.03,-41.3 298.03,-77.3 467.97,-77.3 467.97,-41.3 298.03,-41.3"/>
+<text text-anchor="middle" x="383" y="-55.1" font-family="Times,serif" font-size="14.00">clinical_measurements_csv</text>
+</g>
+<!-- extract_clinical_measurements&#45;&gt;clinical_measurements_csv -->
+<g id="edge5" class="edge">
+<title>extract_clinical_measurements-&gt;clinical_measurements_csv</title>
+<path fill="none" stroke="black" d="M383,-113.37C383,-106.03 383,-97.29 383,-89.04"/>
+<polygon fill="black" stroke="black" points="386.5,-89.04 383,-79.04 379.5,-89.04 386.5,-89.04"/>
+</g>
+</g>
+</svg>

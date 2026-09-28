@@ -1,0 +1,25 @@
+/**
+ * src/styles/settings.scss
+ *
+ * Configures SASS variables and Vuetify overwrites
+ */
+
+// https://vuetifyjs.com/features/sass-variables/`
+// @use 'vuetify/settings' with (
+//   $color-pack: false
+// );
+
+.v-list-group__items .v-list-item {
+  padding-inline-start: calc(1px + var(--indent-padding) / 2) !important;
+}
+
+.v-selection-control__wrapper,
+.v-switch__thumb {
+  color: #009688;
+}
+.v-switch__thumb {
+  background-color: #00838f !important;
+}
+::-webkit-scrollbar {
+  width: 0; /* set width to 0 to hidden the scrollbar */
+}
