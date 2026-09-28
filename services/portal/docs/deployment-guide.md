@@ -89,14 +89,10 @@ SSL=false
 # portal-backend's port. Rendered into the nginx proxy_pass targets.
 BACKEND_PORT=8000
 
-# Upload ceiling, in MB. Rendered into client_max_body_size on the upload-source
-# location, enforced by portal-backend, and surfaced to the frontend dropzone via
-# GET /api/measurement/config — so all three layers move together.
+# Upload ceiling, in MB. Rendered into client_max_body_size on the tools / workflow
+# upload-source location. (Measurement uploads go to digitaltwins-api, which has
+# its own MAX_UPLOAD_MB.)
 MAX_UPLOAD_MB=20480
-
-# Per-chunk body cap for measurement chunked-upload PUTs. Must stay >= the backend's
-# MEASUREMENT_PART_SIZE_BYTES (default 8 MiB).
-MAX_PART_SIZE_MB=16
 ```
 
 > `SSL` used to be read as `USE_SSL` by the backend while every `.env` shipped `SSL` — so the flag was permanently `false` and HTTPS deployments silently emitted `http://` URLs. The key is now `SSL` everywhere. If you have `USE_SSL` in an old `.env`, it does nothing; rename it.
@@ -112,7 +108,7 @@ The official `nginx` image's entrypoint runs `envsubst` over `/etc/nginx/templat
 By default that entrypoint treats **every defined environment variable** as substitutable, which would happily replace nginx's own `$host` / `$scheme` / `$connection_upgrade` with empty strings. `docker-compose.yml` narrows it:
 
 ```yaml
-- NGINX_ENVSUBST_FILTER=^(BACKEND_PORT|MAX_UPLOAD_MB|MAX_PART_SIZE_MB)$$
+- NGINX_ENVSUBST_FILTER=^(BACKEND_PORT|MAX_UPLOAD_MB)$$
 ```
 
 (`$$` escapes compose interpolation, so the container sees a single `$`.)

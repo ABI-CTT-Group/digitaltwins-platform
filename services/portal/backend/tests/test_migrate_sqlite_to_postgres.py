@@ -25,7 +25,7 @@ from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 from app.cli.migrate_sqlite_to_postgres import MigrationError, migrate  # noqa: E402
 from app.models.db_model import (  # noqa: E402
-    Base, Measurement, MeasurementAnnotation, Plugin, PluginAnnotation, PluginBuild,
+    Base, Plugin, PluginAnnotation, PluginBuild,
     PluginDeployment, Workflow, WorkflowAnnotation, WorkflowBuild,
 )
 
@@ -51,9 +51,6 @@ def make_source(path: Path):
         PluginAnnotation(id="pa1", plugin_id="p1", annotation_id="a1", fhir_note="f", **common),
         WorkflowBuild(id="wb1", workflow_id="w1", build_id="wbk1", **common),
         WorkflowAnnotation(id="wa1", workflow_id="w1", annotation_id="a2", **common),
-        Measurement(id="m1", name="m1", status="completed", expose_name="e1", **common),
-        MeasurementAnnotation(id="ma1", measurement_id="m1", annotation_id="a3",
-                              descriptions={"dataset": {"name": "x"}, "patients": []}, **common),
     ])
     s.commit()
     s.close()
