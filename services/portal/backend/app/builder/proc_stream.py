@@ -24,7 +24,8 @@ def _emit(on_line: OnLine, raw: str) -> None:
     """Deliver one logical line. `raw` has no trailing newline but may carry a
     trailing CR (from \\r\\n translation) and/or in-place progress frames
     separated by CR — collapse to the final frame."""
-    line = raw.rstrip("\r")
+    # NUL is dropped: lines are persisted as build logs and Postgres text cannot hold it.
+    line = raw.rstrip("\r").replace("\x00", "")
     if "\r" in line:
         line = line.split("\r")[-1]
     if on_line:
@@ -33,6 +34,15 @@ def _emit(on_line: OnLine, raw: str) -> None:
         except Exception:
             # Never let a logging/sink callback abort the read loop.
             pass
+
+
+def plugin_subprocess_env(extra_env: Optional[dict] = None) -> dict:
+    """os.environ for third-party plugin build/deploy commands, minus the
+    portal's own database credentials (PORTAL_DB_*)."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("PORTAL_DB_")}
+    if extra_env:
+        env.update(extra_env)
+    return env
 
 
 def stream_process(
