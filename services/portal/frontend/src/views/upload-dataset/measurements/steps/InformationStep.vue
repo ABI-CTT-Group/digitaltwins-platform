@@ -62,14 +62,12 @@
       <v-text-field
         v-model="formData.name"
         :rules="nameRules"
-        :error-messages="nameErrorMessages"
         :readonly="!!resumeTarget"
         :hint="resumeTarget ? 'Locked while resuming this upload' : undefined"
         :persistent-hint="!!resumeTarget"
         label="Dataset name"
         required
         clearable
-        @blur="onNameBlur"
       />
 
       <h4 class="mb-1 mt-3">Description</h4>
@@ -137,7 +135,6 @@ import {
   serverManifestKey,
   type UploaderPhase,
 } from '@/bootstrap/measurement_upload';
-import { useCheckName } from '@/bootstrap/api_helpers';
 import {
   useMeasurementConfig,
   useUploadStatus,
@@ -145,7 +142,7 @@ import {
   useGetMeasurement,
 } from '@/bootstrap/measurement_api';
 import { readSampleTypesFromFiles, buildSampleTypeDescription } from '../components/sampleTypes';
-import type { CheckNameResponse, MeasurementResponse } from '@/models/types';
+import type { MeasurementResponse } from '@/models/types';
 
 // Operator-tunable upload ceiling (MAX_UPLOAD_MB, default 20 GiB), fetched on
 // mount; the local fallback keeps the dropzone usable if config is unreachable.
@@ -154,7 +151,7 @@ const measurementUploadMaxBytes = ref<number>(DEFAULT_MAX_UPLOAD_BYTES);
 
 const props = defineProps<{
   // When set, the step opens in resume mode bound to this unfinished upload:
-  // name locked, no uniqueness check, dropped folder validated against the
+  // name locked, dropped folder validated against the
   // server's authoritative manifest.
   resumeMeasurementId?: string;
 }>();
@@ -189,12 +186,8 @@ const sourceMismatch = ref(false);
 const autoFilledName = ref('');
 const autoFilledDescription = ref('');
 
-const nameErr = ref<CheckNameResponse | undefined>(undefined);
+// Names need not be unique: platform datasets are identified by UUID.
 const nameRules = [(v: string) => !!v?.trim() || 'Dataset name is required'];
-const nameErrorMessages = computed<string[]>(() => {
-  if (!nameErr.value) return [];
-  return nameErr.value.available ? [] : [nameErr.value.message || 'Name already exists'];
-});
 
 const showAlert = ref(false);
 const alertText = ref('');
@@ -205,7 +198,7 @@ const canContinue = computed(() => {
   if (resumeTarget.value) return !!resumeId.value;
   // Legacy auto-match resume (new-upload form): name matches the existing row.
   if (resumeId.value) return true;
-  return !!formData.name.trim() && nameErr.value?.available !== false;
+  return !!formData.name.trim();
 });
 
 onMounted(async () => {
@@ -296,7 +289,6 @@ const onSourceSelected = (selected: LocalSource) => {
   if (derived && nameIsUntouched) {
     formData.name = derived;
     autoFilledName.value = derived;
-    onNameBlur();
   }
 
   if (selected.kind === 'folder') {
@@ -344,28 +336,8 @@ const onUploadCancel = () => {
   autoFilledName.value = '';
   formData.description = '';
   autoFilledDescription.value = '';
-  nameErr.value = undefined;
   showAlert.value = false;
   dropzone.value?.setProgress({ phase: 'reset' });
-};
-
-const onNameBlur = async () => {
-  // Resuming (either mode) targets an existing row — its name matching itself
-  // is not a conflict, and the name isn't sent on resume anyway.
-  if (resumeTarget.value || resumeId.value) {
-    nameErr.value = undefined;
-    return;
-  }
-  if (!formData.name?.trim()) {
-    nameErr.value = undefined;
-    return;
-  }
-  try {
-    nameErr.value = await useCheckName('measurement', formData.name.trim());
-  } catch (e: any) {
-    const msg = e?.response?.data?.detail || 'Name already exists';
-    nameErr.value = { available: false, message: msg } as CheckNameResponse;
-  }
 };
 
 async function handleSubmit() {
@@ -381,13 +353,12 @@ async function handleSubmit() {
   }
 
   const { valid } = await form.value.validate();
-  await onNameBlur();
-  const validName = !!resumeTarget.value || !!resumeId.value || (valid && nameErr.value?.available !== false);
+  const validName = !!resumeTarget.value || !!resumeId.value || valid;
   if (!validName || !source.value) {
     showAlert.value = true;
     alertText.value = !source.value
       ? 'Drop a SPARC measurements folder or .zip before continuing.'
-      : 'Pick a unique dataset name before continuing.';
+      : 'Enter a dataset name before continuing.';
     return;
   }
 

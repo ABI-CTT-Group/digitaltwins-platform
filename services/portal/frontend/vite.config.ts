@@ -141,7 +141,14 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-      }
+      },
+      // Platform REST API (digitaltwins-api, published on 8010); the gateway
+      // strips the prefix the same way.
+      '/digitaltwins-api': {
+        target: 'http://localhost:8010',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/digitaltwins-api/, ''),
+      },
     }
   },
   preview: {

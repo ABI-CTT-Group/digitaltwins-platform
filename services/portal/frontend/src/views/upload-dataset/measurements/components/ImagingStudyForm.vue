@@ -55,8 +55,8 @@
         />
 
         <v-text-field
-          :model-value="study.uuid"
-          label="UUID (mocked)"
+          :model-value="study.uuid || 'Assigned on approval'"
+          label="UUID"
           density="compact"
           variant="solo"
           readonly
