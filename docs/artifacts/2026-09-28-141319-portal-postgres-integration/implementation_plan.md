@@ -182,7 +182,7 @@ The portal submodule is on branch `feat/portal-postgres` (base `cc77c73`). Every
   - `4adf5b4` fix(builder): drop NUL bytes from captured process output
   - `e1b11bf` feat(cli): add SQLite-to-Postgres migration command
 
-The platform commits are on `dev_chinchien`: the setup script and its wiring, the portal-backend compose override, these docs, and the `/backup/` ignore rule. The submodule bump (B4) follows once the portal PR is merged.
+The platform commits are on `dev_chinchien`: the setup script and its wiring, the portal-backend compose override, these docs, and the `/backup/` ignore rule. The submodule pointer is bumped to the branch commit `e1b11bf` for now (`027925e`). Re-point it to the portal `main` merge commit once the PR is merged.
 
 ## Out of scope (follow-ups)
 
@@ -203,6 +203,6 @@ The platform commits are on `dev_chinchien`: the setup script and its wiring, th
 - [x] B1 `portal_init.sh` + database env
 - [x] B2 root compose overrides
 - [x] B3 secrets template
-- [ ] B4 submodule bump (blocked: needs the portal branch committed and merged)
+- [x] B4 submodule bump, temporary: points at `e1b11bf` on `feat/portal-postgres` (platform `027925e`). The portal branch must be pushed before the platform is. After the portal PR is merged, re-point to the merge commit on portal `main`.
 - [x] C cut-over on this deployment (2026-09-28 14:57)
 - [ ] Update the ADR if anything diverged; sync artifacts to `docs/artifacts/`
