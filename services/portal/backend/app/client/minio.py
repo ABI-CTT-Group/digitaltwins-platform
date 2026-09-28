@@ -1,6 +1,5 @@
 import os
 import logging
-import json
 import mimetypes
 import boto3
 from botocore.exceptions import ClientError
@@ -15,99 +14,40 @@ class MinioClient:
     """Minio client for storing plugin frontend build artfacts and backend origin codes using boto3"""
 
     def __init__(self, bucket_name):
-        self.endpoint = os.getenv('MINIO_ENDPOINT', "localhost:9000")
+        # MINIO_ENDPOINT may or may not carry a scheme: the portal's compose sets
+        # `minio:9000`, while the shared platform .env sets `http://minio:9000` for
+        # other services. Split the two halves apart and keep both.
+        raw_endpoint = os.getenv('MINIO_ENDPOINT', "localhost:9000").strip()
+        internal_scheme = "http"
+        for _scheme in ("https://", "http://"):
+            if raw_endpoint.startswith(_scheme):
+                internal_scheme = _scheme[:-3]
+                raw_endpoint = raw_endpoint[len(_scheme):]
+                break
+        self.endpoint = raw_endpoint
+
+        # Scheme boto3 uses to reach MinIO. This client only ever talks to MinIO
+        # container-to-container on the docker network, so it must NOT follow the SSL
+        # env var — that one describes the scheme *browsers* reach the portal on.
+        # MinIO serves plain HTTP on 9000 (its command line configures no TLS), so
+        # deriving this from SSL meant switching the portal to HTTPS made every bucket
+        # call attempt a TLS handshake against a plaintext port, and all of them failed.
+        self.internal_scheme = internal_scheme
+
         self.access_key = os.getenv('MINIO_ACCESS_KEY', "minioadmin")
         self.secret_key = os.getenv('MINIO_SECRET_KEY', "minioadmin")
         self.bucket_name = bucket_name
-        self.use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
 
         self.client = boto3.client(
             's3',
-            endpoint_url=f"http{'s' if self.use_ssl else ''}://{self.endpoint}",
+            endpoint_url=f"{self.internal_scheme}://{self.endpoint}",
             aws_access_key_id=self.access_key,
             aws_secret_access_key=self.secret_key,
             region_name='us-east-1'  # MinIO doesn't require specific region
         )
 
-        self._ensure_bucket_exists()
-        self.ensure_public_access()
-        self.metadata = self._ensure_metadata()
-
-    def _ensure_bucket_exists(self):
-        """Ensure the MinIO bucket exists"""
-        try:
-            self.client.head_bucket(Bucket=self.bucket_name)
-            logger.info(f"Bucket {self.bucket_name} already exists")
-        except ClientError as e:
-            error_code = e.response['Error']['Code']
-            if error_code == '404':
-                self.client.create_bucket(Bucket=self.bucket_name)
-                logger.info(f"Bucket {self.bucket_name} created")
-                self._set_public_read_policy()
-            else:
-                logger.error(f"Failed to create bucket {self.bucket_name}:{e}")
-                raise
-
-    def _set_public_read_policy(self):
-        """Set public read policy for minio bucket"""
-        try:
-            public_read_policy = {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Principal": "*",
-                        "Action": [
-                            "s3:GetObject",
-                            "s3:GetObjectVersion",
-                            "s3:PutObject"
-                        ],
-                        "Resource": f"arn:aws:s3:::{self.bucket_name}/*"
-                    }
-                ]
-            }
-
-            policy_json = json.dumps(public_read_policy)
-            self.client.put_bucket_policy(Bucket=self.bucket_name, Policy=policy_json)
-            logger.info(f"Set public read policy for bucket: {self.bucket_name}")
-        except Exception as e:
-            logger.error(f"Failed to set public read policy for bucket {self.bucket_name}: {e}")
-            raise
-
-    def _ensure_metadata(self):
-        try:
-            self.client.head_object(Bucket=self.bucket_name, Key="metadata.json")
-            exists = True
-        except ClientError as e:
-            if e.response["Error"]["Code"] == "404":
-                exists = False
-            else:
-                raise
-
-        if exists:
-            obj = self.client.get_object(Bucket=self.bucket_name, Key="metadata.json")
-            self.metadata = json.loads(obj["Body"].read().decode("utf-8"))
-        else:
-            self.metadata = {
-                "components": []
-            }
-            self.update_metadata(self.metadata)
-
-        return self.metadata
-
     def set_bucket_name(self, bucket_name):
         self.bucket_name = bucket_name
-
-    def update_metadata(self, metadata):
-        try:
-            self.client.put_object(
-                Bucket=self.bucket_name,
-                Key="metadata.json",
-                Body=json.dumps(metadata, indent=2),
-                ContentType="application/json")
-            logger.info("Updated metadata.json to MinIO successfully")
-        except Exception as e:
-            logger.error(f"Failed to update metadata for minio bucket: {e}")
 
     # def upload_directory(self, local_path: str, remote_prefix: str) -> str:
     #     """Upload a directory to minio bucket"""
@@ -263,11 +203,6 @@ class MinioClient:
             logger.error(f"Failed to get presigned URL for object: {object_name}: {e}")
             raise
 
-    def get_public_url(self, object_name: str) -> str:
-        """Get a public URL for an object (no expiration)"""
-        protocol = "https" if self.use_ssl else "http"
-        return f"{protocol}://{self.endpoint}/{self.bucket_name}/{object_name}"
-
     def object_exists(self, object_name: str) -> bool:
         """Check if an object exists"""
         try:
@@ -279,36 +214,6 @@ class MinioClient:
             raise
         except Exception as e:
             logger.error(f"Failed to check if object exists: {object_name}: {e}")
-            raise
-
-    def ensure_public_access(self):
-        """Ensure the bucket has public read access enable"""
-        try:
-            # Check current policy
-            try:
-                response = self.client.get_bucket_policy(Bucket=self.bucket_name)
-                current_policy = json.loads(response['Policy'])
-
-                # Check if public read is already enabled
-                has_public_read = False
-                for statement in current_policy.get('Statement', []):
-                    if (statement.get('Effect') == 'Allow') and (
-                            statement.get('Principal') == '*' and
-                            's3:GetObject' in statement.get('Action', [])):
-                        has_public_read = True
-                        break
-                if not has_public_read:
-                    self._set_public_read_policy()
-                    logger.info("Updated bucket policy to enable public read access")
-                else:
-                    logger.info("Public read access already enabled")
-            except ClientError as e:
-                if e.response['Error']['Code'] == 'NoSuchBucketPolicy':
-                    # No policy exists, create one
-                    self._set_public_read_policy()
-                    logger.info("Created bucket policy to enable public read access")
-        except Exception as e:
-            logger.error(f"Failed to ensure public access: {e}")
             raise
 
     def get_object(self, key: str):
@@ -335,7 +240,7 @@ _clients: dict[str, MinioClient] = {}
 
 
 def get_minio_client(bucket_name: str = None) -> MinioClient:
-    bucket = bucket_name or "workflow-tools"
+    bucket = bucket_name or "tools"
     if bucket not in _clients:
         client = MinioClient(bucket)
         _clients[bucket] = client

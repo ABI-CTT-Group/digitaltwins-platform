@@ -4,38 +4,44 @@
             v-model="search"
             :label="label"
             variant="outlined"
+            :base-color="accent"
+            :color="accent"
             prepend-inner-icon="mdi-magnify"
             clearable
             hide-details
         />
         <v-btn
-            :text="'search'"
+            text="search"
+            :color="accent"
             variant="tonal"
             :width="150"
-            rounded="md"
-            class="hover-animate ma-2"
+            rounded="lg"
+            class="text-none ma-2"
             @click="handleSearch"
         ></v-btn>
     </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{
+withDefaults(defineProps<{
     label: string
-}>()
+    accent?: string
+}>(), { accent: '#5fd6e8' })
 
 const search = defineModel('search', {
     type: String,
     required: true
 })
-const emit = defineEmits(["on:search"])
+const emit = defineEmits(["search"])
 
 function handleSearch() {
-    emit('on:search')
+    emit('search')
 }
 
 </script>
 
 <style scoped>
-
+/* Typed text is otherwise rendered in a near-invisible color against the dark
+   panel; force a legible light fill for the input and its caret. */
+:deep(.v-field__input) { color: #c3d2d8; caret-color: #c3d2d8; }
 </style>

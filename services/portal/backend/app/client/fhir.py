@@ -11,10 +11,15 @@ def get_fhir_adapter() -> Adapter:
     """Get the global FHIR Adapter instance"""
     global adapter
     if adapter is None:
-        endpoint = os.getenv('FHIR_ENDPOINT', "localhost:8080/fhir")
-        use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
-        endpoint_url = f"http{'s' if use_ssl else ''}://{endpoint}"
-        adapter = Adapter(endpoint_url)
+        endpoint = os.getenv('FHIR_ENDPOINT', "localhost:8080/fhir").strip()
+        # Container-to-container hop on the docker network. hapi-fhir serves plain
+        # HTTP, so this must NOT follow SSL — that variable describes the scheme
+        # *browsers* reach the portal on. Deriving it from SSL meant that switching
+        # the portal to HTTPS pointed this at https://hapi-fhir:8080 and every FHIR
+        # call failed. Honour an explicit scheme if FHIR_ENDPOINT carries one.
+        if not endpoint.startswith(("http://", "https://")):
+            endpoint = f"http://{endpoint}"
+        adapter = Adapter(endpoint)
     return adapter
 
 

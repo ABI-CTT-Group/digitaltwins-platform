@@ -1,14 +1,13 @@
 from fastapi import APIRouter, Query, HTTPException, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from app.models import assay_model
 import json
 from pathlib import Path
 # from sparc_me import Dataset, Sample, Subject
 # from app.utils import digitaltwins_configs
-import shutil
 from pprint import pprint
 import os
-from app.utils.utils import force_rmtree, get_workflow_type
+from app.utils.utils import get_workflow_type
 from app.client.digitaltwins_api import DigitalTWINSAPIClient
 from fastapi import Header, HTTPException
 from httpx import HTTPStatusError, RequestError
@@ -28,7 +27,6 @@ async def get_token(authorization: str = Header(None)):
 
     if scheme.lower() != "bearer" or not token:
         raise HTTPException(status_code=401, detail="Invalid Authorization header")
-
     return token
 
 
@@ -62,26 +60,32 @@ async def proxy_request(client: DigitalTWINSAPIClient = Depends(get_client)):
 async def get_programmes(client: DigitalTWINSAPIClient = Depends(get_client)):
     try:
         response = await client.get("/programs", {"get_details": False})
-        print(response)
     except HTTPStatusError as e:
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
-
     programmes = []
     for data in response.json().get('programs'):
-        try:
-            program_res = await client.get(f"/programs/{data['id']}")
-        except HTTPStatusError as e:
-            continue
-        if program_res.status_code == 200:
-            program = program_res.json().get('program')
-            category = program.get("type", None)
-            temp = {
-                "seekId": program.get("id", None),
-                "name": program.get("attributes").get("title", None),
-                "category": category.capitalize() if category is not None else None,
-                "description": program.get("attributes").get("description", None),
-            }
-            programmes.append(temp)
+        # try:
+        #     program_res = await client.get(f"/programs/{data['id']}")
+        # except HTTPStatusError as e:
+        #     continue
+        # if program_res.status_code == 200:
+        #     program = program_res.json().get('program')
+        #     category = program.get("type", None)
+        #     temp = {
+        #         "seekId": program.get("id", None),
+        #         "name": program.get("attributes").get("title", None),
+        #         "category": category.capitalize() if category is not None else None,
+        #         "description": program.get("attributes").get("description", None),
+        #     }
+        #     programmes.append(temp)
+        category = data.get("type", None)
+        temp = {
+            "seek_id": data.get("id", None),
+            "name": data.get("attributes").get("title", None),
+            "category": category.capitalize() if category is not None else None,
+            "description": data.get("attributes").get("description", None),
+        }
+        programmes.append(temp)
     return programmes
 
 
@@ -102,9 +106,7 @@ async def get_dashboard_category_children_by_uuid(
     try:
         if category == "programmes":
             res = await client.get(f"/programs/{seek_id}")
-            print(res)
             root_obj = res.json().get('program')
-            print(root_obj)
             dependencies = root_obj.get("relationships").get("projects").get("data")
         elif category == "projects":
             res = await client.get(f"/projects/{seek_id}")
@@ -148,19 +150,42 @@ async def get_dashboard_category_children_by_uuid(
                 continue
 
             send_category = child.get("type", None)
-            temp = {
-                "seekId": child.get("id", None),
-                "name": child.get("attributes").get("title", None),
-                "category": send_category.capitalize() if send_category else None,
-                "description": child.get("attributes").get("description", None),
-            }
+            print(send_category)
+
+            if send_category == "assays":
+                # tags/workflows are often present but EMPTY (e.g. an assay with no
+                # linked SEEK Workflow object -- confirmed live: relationships.workflows
+                # is `[]`, not null, for a script-tagged assay driven purely by
+                # workflow_seek_id). The old `is not None` checks let an empty list
+                # through to unconditional [0] indexing, raising an uncaught IndexError
+                # that 500'd this whole endpoint and bounced the portal dashboard back
+                # to Programmes on any assay without a linked Workflow.
+                tags_list = child.get("attributes", {}).get("tags") or []
+                workflows_rel = child.get("relationships", {}).get("workflows") or []
+                workflow_seek_id = None
+                if workflows_rel and isinstance(workflows_rel[0], list) and workflows_rel[0]:
+                    workflow_seek_id = workflows_rel[0][0].get('id')
+                temp = {
+                    "seek_id": child.get("id", None),
+                    "name": child.get("attributes").get("title", None),
+                    "tag": tags_list[0] if tags_list else None,
+                    "workflow_seek_id": workflow_seek_id,
+                    "category": send_category.capitalize() if send_category else None,
+                    "description": child.get("attributes").get("description", None),
+                }
+            else:
+                temp = {
+                    "seek_id": child.get("id", None),
+                    "name": child.get("attributes").get("title", None),
+                    "category": send_category.capitalize() if send_category else None,
+                    "description": child.get("attributes").get("description", None),
+                }
             children.append(temp)
 
         except HTTPStatusError as e:
             raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
         except RequestError as e:
             raise HTTPException(status_code=500, detail=str(e))
-
     return children
 
 
@@ -180,11 +205,11 @@ async def get_seek_assay_by_id(
         investigation_data = relationships.get("investigation", {}).get("data")
 
         return {
-            "seekId": assay_res.get("id", None),
+            "seek_id": assay_res.get("id", None),
             "name": assay_res.get("attributes", {}).get("title", None),
             "relationships": {
-                "studySeekId": study_data.get("id") if study_data else None,
-                "investigationSeekId": investigation_data.get("id") if investigation_data else None,
+                "study_seek_id": study_data.get("id") if study_data else None,
+                "investigation_seek_id": investigation_data.get("id") if investigation_data else None,
             }
         }
 
@@ -219,7 +244,7 @@ async def get_dashboard_workflows(client: DigitalTWINSAPIClient = Depends(get_cl
             workflow_type = get_workflow_type(tags)
 
             temp = {
-                "seekId": w_seek_id,
+                "seek_id": w_seek_id,
                 "uuid": "",
                 "name": title,
                 "type": workflow_type,
@@ -241,7 +266,6 @@ async def get_dashboard_workflow_detail_by_uuid(
 ):
     if seek_id is None:
         return None
-
     try:
         w_res = await client.get(f"/workflows/{seek_id}")
         workflow_detail = w_res.json().get('workflow')
@@ -250,24 +274,21 @@ async def get_dashboard_workflow_detail_by_uuid(
 
         attributes = workflow_detail.get('attributes', {})
         title = attributes.get('title', '')
-        tags = attributes.get('tags', [])
-        workflow_type = get_workflow_type(tags)
 
         internals = attributes.get('internals', {})
         inputs = [
-            {"name": i.get('name', ''), "category": i.get('description', '')}
+            {"input":{"name": i.get('name', '') if i.get('name') is not None else i.get('id', ''), "category": i.get('description', '')}, "dataset_selected_uuid":"", "sample_selected_type":""}
             for i in internals.get('inputs', [])
         ]
         outputs = [
-            {"name": i.get('name', ''), "category": i.get('description', '')}
+            {"output":{"name": i.get('name', '') if i.get('name') is not None else i.get('id', ''), "category": i.get('description', '')}, "dataset_name": "New dataset", "sample_name":i.get('name', '') if i.get('name') is not None else i.get('id', '')}
             for i in internals.get('outputs', [])
         ]
 
         return {
-            "seekId": seek_id,
+            "seek_id": seek_id,
             "uuid": "",
             "name": title,
-            "type": workflow_type,
             "inputs": inputs,
             "outputs": outputs,
         }
@@ -295,98 +316,128 @@ async def get_dashboard_workflow(seek_id: str = Query(None)):
 
 
 @router.get("/datasets")
-async def get_dashboard_datasets(category: str = Query(None)):
-    # if category is None:
-    #     return None
-    # dtp_datasets = digitaltwins_configs.querier.get_datasets(categories=[category])
-    # datasets = []
-    # for data in dtp_datasets:
-    #     temp = {
-    #         "uuid": data.get("dataset_uuid", None),
-    #         "name": data.get("dataset_name", None),
-    #     }
-    #     datasets.append(temp)
-    # return datasets
-    return {"message": "Functionality currently disabled."}
+async def get_dashboard_datasets(category: str = Query(None), client: DigitalTWINSAPIClient = Depends(get_client)):
+    if category is None:
+        return None
+
+    try:
+        res = await client.get("/datasets", {"descriptions": False, "categories": category})
+        dtp_datasets = res.json().get("datasets", [])
+        datasets = []
+        for data in dtp_datasets:
+            temp = {
+                "uuid": data.get("dataset_uuid", None),
+                "name": data.get("dataset_name", None),
+            }
+            datasets.append(temp)
+        return datasets
+
+    except HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except RequestError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except KeyError:
+        return None
+
 
 
 @router.get("/dataset-detail")
-async def get_dashboard_dataset_detail_by_uuid(uuid: str = Query(None)):
-    # if uuid is None:
-    #     return None
-    # sample_types = digitaltwins_configs.querier.get_dataset_sample_types(dataset_uuid=uuid)
-    # return sample_types
-    return {"message": "Functionality currently disabled."}
+async def get_dashboard_dataset_detail_by_uuid(uuid: str = Query(None), client: DigitalTWINSAPIClient = Depends(get_client)):
+    if uuid is None:
+        return None
+    try:
+        res = await client.get(f"/datasets/{uuid}/sample-types")
+        sample_types = res.json().get("sample_types", [])
+        return sample_types
+
+    except HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except RequestError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except KeyError:
+        return None
+
 
 
 @router.post("/assay-details")
-async def set_dashboard_assay_details(details: assay_model.AssayDetails):
+async def set_dashboard_assay_details(details: assay_model.AssayDetails, client: DigitalTWINSAPIClient = Depends(get_client)):
     assay_data = {
         "assay_uuid": details.uuid,
-        "assay_seek_id": int(details.seekId),
-        "workflow_seek_id": int(details.workflow.seekId),
-        "cohort": details.numberOfParticipants,
-        "ready": details.isAssayReadyToLaunch,
+        "assay_seek_id": int(details.seek_id),
+        "workflow_seek_id": int(details.workflow.seek_id),
+        "cohort": [str(n) for n in details.number_of_participants],
+        "ready": details.is_assay_ready_to_launch,
         "inputs": [
             {"name": i.get("input").get("name"),
              "category": i.get("input").get("category"),
-             "dataset_uuid": i.get("datasetSelectedUUID"),
-             "sample_type": i.get("sampleSelectedType")} for i in details.workflow.inputs
+             "dataset_uuid": i.get("dataset_selected_uuid"),
+             "sample_type": i.get("sample_selected_type")} for i in details.workflow.inputs
         ],
         "outputs": [
             {"name": o.get("output").get("name"),
              "category": o.get("output").get("category"),
-             "dataset_name": o.get("datasetName"),
-             "sample_name": o.get("sampleName")} for o in details.workflow.outputs
+             "dataset_name": o.get("dataset_name"),
+             "sample_name": o.get("sample_name")} for o in details.workflow.outputs
         ]
     }
-    # digitaltwins_configs.uploader.upload_assay(assay_data)
-    # return True
-    return {"message": "Functionality currently disabled."}
+    try:
+        print("assay_data sent:", assay_data)
+        res = await client.post(f"/assays", assay_data)
+        print(res.json())
+        return True
+
+    except HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except RequestError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except KeyError:
+        return None
+
 
 
 @router.get("/assay-details")
 async def get_dashboard_assay_detail_by_uuid(seek_id: str = Query(None),
                                              client: DigitalTWINSAPIClient = Depends(get_client)):
     try:
-        # w_res = await client.get(f"/assay_detail/{seek_id}")
-        # workflow_detail = w_res.json().get('workflow')
-        # assay_detail = digitaltwins_configs.querier.get_assay(seek_id, get_params=True)
-        assay_detail = {}
-        params = assay_detail.get("params", None)
-        if params is None:
+        a_res = await client.get(f"/assays/{seek_id}", {"get_configs": True})
+        assay_detail = a_res.json().get('assay', {})
+        configs = assay_detail.get("configs", None)
+        if configs is None:
             return None
         details = {
-            "seekId": str(params.get("assay_seek_id", None)),
-            "uuid": str(params.get("assay_uuid", "")),
+            "seek_id": str(configs.get("assay_seek_id", None)),
+            "uuid": str(configs.get("assay_uuid", "")),
             "workflow": {
-                "seekId": str(params.get("workflow_seek_id", None)),
-                "uuid": str(params.get("workflow_uuid", "")),
+                "seek_id": str(configs.get("workflow_seek_id", None)),
+                "uuid": str(configs.get("workflow_uuid", "")),
                 "inputs": [{
                     "input": {
                         "name": i.get("name", None),
                         "category": i.get("category", None),
                     },
-                    "datasetSelectedUUID": i.get("dataset_uuid", None),
-                    "sampleSelectedType": i.get("sample_type", None),
-                } for i in params.get("inputs", [])],
+                    "dataset_selected_uuid": i.get("dataset_uuid", None),
+                    "sample_selected_type": i.get("sample_type", None),
+                } for i in configs.get("inputs", [])],
                 "outputs": [{
                     "output": {
                         "name": o.get("name", None),
                         "category": o.get("category", None),
                     },
-                    "datasetName": o.get("dataset_name", None),
-                    "sampleName": o.get("sample_name", None),
-                } for o in params.get("outputs", [])],
+                    "dataset_name": o.get("dataset_name", None),
+                    "sample_name": o.get("sample_name", None),
+                } for o in configs.get("outputs", [])],
             },
-            "numberOfParticipants": params.get("cohort", None),
-            "isAssayReadyToLaunch": params.get("ready", None)
+            "number_of_participants": [int(n) for n in (configs.get("cohort") or []) if str(n).isdigit()],
+            "is_assay_ready_to_launch": configs.get("ready", None)
         }
         return details
-    except (TypeError, IndexError):
-        print("TypeError|IndexError")
-        return None
 
+    except HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except RequestError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except KeyError:
+        return None
 
 @router.get("/assay-project")
 async def get_project_by_assay_id(seek_id: str = Query(None)):
@@ -401,12 +452,45 @@ async def get_project_by_assay_id(seek_id: str = Query(None)):
 
 
 @router.get("/assay-launch")
-async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
+async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None), client: DigitalTWINSAPIClient = Depends(get_client)):
     """
         When user click launch in assay, what should we do?
     """
     # # Step1: base on assay seek id to get the assay details.
-    # assay_detail = digitaltwins_configs.querier.get_assay(seek_id, get_params=True)
+    try:
+        a_res = await client.get(f"/assays/{seek_id}", {"get_configs": True})
+        assay_detail = a_res.json().get('assay', {})
+        configs = assay_detail.get("configs", None)
+        if configs is None:
+            return None
+        workflow_type = assay_detail.get("attributes").get("tags", [])[0] if assay_detail.get("attributes").get("tags", None) is not None else None
+        if workflow_type is None:
+            return None
+        if workflow_type == "script":
+            res = await client.post(f"/assays/{seek_id}/run", {})
+            workflow_monitor_url = res.json().get("monitor_url", "")
+            return {
+                "type": "airflow",
+                "data": workflow_monitor_url
+            }
+        if workflow_type == "notebook":
+            res = await client.post(f"/assays/{seek_id}/run", {})
+            jupyter_hub_url = res.json().get("url", "")
+            return {
+                "type": "notebook",
+                "data": jupyter_hub_url
+            }
+        else:
+            return {
+                "message": "Currently only script based workflow launch is supported. GUI based workflow launch is under development.",
+            }
+
+    except HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except RequestError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except KeyError:
+        return None
     # # Step2: check the workflow type
     # # Step2.1: cwl script based, return the airflow url
     # # Step2.2: GUI based, execute Step 2
@@ -497,74 +581,42 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None)):
     #             "data": "http://130.216.216.26:8008/lab/tree/ep3/statistical_analysis_of_electrode_measurements.ipynb"
     #         }
     # return None
-    return {"message": "Functionality currently disabled."}
 
+@router.post("/assay-results-submit")
+async def submit_dashboard_assay_dataset(seek_id: str = Query(None), client: DigitalTWINSAPIClient = Depends(get_client)):
+    try:
+        res = await client.post(f"/assays/{seek_id}/workspace/dataset/upload")
+        return res.json()
+    except HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except RequestError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/copy_dataset/{name}")
-def copy_dataset(name: str):
-    measurements_path = os.environ.get("DATASET_DIR_MEASUREMENT", "./datasets_measurement")
-    src = Path(measurements_path) / name
-    dst = Path("./data")
-    dst.mkdir(parents=True, exist_ok=True)
-    if not src.exists():
-        raise HTTPException(status_code=404, detail=f"dataset directory {src} does not exist")
+@router.get("/assay-download")
+async def download_dashboard_assay_workspace(seek_id: str = Query(None), client: DigitalTWINSAPIClient = Depends(get_client)):
+    if not seek_id:
+        raise HTTPException(status_code=400, detail="seek_id is required")
 
-    for item in src.iterdir():
-        target = dst / item.name
+    try:
+        response = await client.get_stream(f"/assays/{seek_id}/workspace/dataset/download")
+    except HTTPStatusError as e:
+        await e.response.aread()
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except RequestError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-        if target.exists():
-            if target.is_file():
-                target.unlink()
-            else:
-                shutil.rmtree(target)
+    content_disposition = response.headers.get("Content-Disposition", f'attachment; filename="assay_{seek_id}_results.zip"')
 
-        if item.is_dir():
-            shutil.copytree(item, target)
-        else:
-            shutil.copy2(item, target)
+    async def stream_generator():
+        try:
+            async for chunk in response.aiter_bytes():
+                yield chunk
+        finally:
+            await response.aclose()
 
-    return {
-        "status": "200",
-        "message": "dataset moved successfully"
-    }
+    return StreamingResponse(
+        stream_generator(),
+        media_type="application/zip",
+        headers={"Content-Disposition": content_disposition}
+    )
 
-
-@router.get("/clear_data")
-def clear_data():
-    dst = Path("./data")
-    force_rmtree(dst, True)
-
-    return {
-        "status": "200",
-        "message": "dataset moved successfully"
-    }
-
-
-def generate_outputs_datasets(target_dataset_path, outputs):
-    if not target_dataset_path.exists():
-        target_dataset_path.mkdir(exist_ok=True, parents=True)
-    for output in outputs:
-        output_dataset_path = target_dataset_path / output.get("dataset_name")
-        if output_dataset_path.exists():
-            continue
-        # dataset.create_empty_dataset(version="2.0.0")
-        # # Save the template dataset.
-        # dataset.save(save_dir=output_dataset_path)
-
-
-def download_inputs_datasets(target_dataset_path):
-    shutil.copytree(root_dir / "data" / "duke_test_data", target_dataset_path)
-
-
-def clear_folder(folder_path):
-    folder = Path(folder_path)
-
-    if folder.exists() and folder.is_dir():
-        for item in folder.iterdir():
-            if item.is_file() or item.is_symlink():
-                item.unlink()
-            elif item.is_dir():
-                clear_folder(item)
-                item.rmdir()
-    else:
-        print(f"path not found: {folder}")

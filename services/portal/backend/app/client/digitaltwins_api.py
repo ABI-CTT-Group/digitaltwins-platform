@@ -18,10 +18,15 @@ class DigitalTWINSAPIClient:
         _url = os.getenv('DIGITALTWINS_API_BASE_URL', "http://localhost").rstrip('/')
         _port = os.getenv('DIGITALTWINS_API_PORT', '8000')
         self.base_url = f"{_url}:{_port}"
+        # self.base_url = "https://dev-digitaltwins.abi-ctt-ctp.cloud.edu.au/digitaltwins-api"
         self.username = username
         self.password = password
         self.token = token
-        self.client = httpx.AsyncClient()
+        # Local testing against the nectar dev endpoint hits a self-signed cert;
+        # allow disabling TLS verification via env (defaults to verifying in prod).
+
+        verify = True # True for production, False for local testing with self-signed certs
+        self.client = httpx.AsyncClient(verify=verify, timeout=600.0)
 
     def _get_auth_headers(self) -> Dict[str, str]:
         headers = {}
@@ -57,6 +62,19 @@ class DigitalTWINSAPIClient:
 
     async def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None):
         return await self.request("GET", endpoint, params=params)
+
+    async def get_stream(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> httpx.Response:
+        url = f"{self.base_url}/{endpoint.lstrip('/')}"
+        headers = self._get_auth_headers()
+
+        auth = None
+        if self.username and self.password and not self.token:
+            auth = (self.username, self.password)
+
+        request = self.client.build_request("GET", url=url, params=params, headers=headers)
+        response = await self.client.send(request, auth=auth, stream=True)
+        response.raise_for_status()
+        return response
 
     async def post(self, endpoint: str, json: Optional[Dict[str, Any]] = None):
         return await self.request("POST", endpoint, json=json)

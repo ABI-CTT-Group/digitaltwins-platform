@@ -1,8 +1,11 @@
 fastapi[all]
+boto3>=1.40.25
+digitaltwins-on-fhir>=1.4.0
+fhir-cda>=1.2.5
 Pillow==11.1.0
 numpy==2.0.2
 SimpleITK==2.4.1
-pandas==2.2.3
+pandas>=2.3.3
 openpyxl==3.1.5
 pathlib==1.0.1
 python-dotenv==1.1.1
@@ -12,3 +15,11 @@ scikit-image==0.24.0
 psycopg2==2.9.10
 requests==2.32.4
 python-irodsclient==3.0.0
+python-keycloak==3.9.0
+python-jose==3.3.0
+python-multipart>=0.0.18
+cryptography==42.0.2
+httpx==0.24.1
+sqlalchemy==2.0.23
+sparc-me>=3.0.2
+setuptools>=69.0.0

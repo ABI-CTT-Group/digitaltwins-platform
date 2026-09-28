@@ -1,6 +1,7 @@
 import os
 import uuid
 from sqlalchemy import create_engine, Column, String, DateTime, ForeignKey, Text, JSON, Boolean, Enum, Table
+from sqlalchemy.engine import URL
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from pydantic import BaseModel
@@ -8,9 +9,33 @@ from enum import Enum as PyEnum
 from datetime import datetime
 from typing import Optional, Literal, List, Any
 
-DATABASE_PATH = os.getenv("DATABASE_PATH", "./plugin_registry.db")
-DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
-engine = create_engine(DATABASE_URL, connect_args={'check_same_thread': False})
+# Under the platform the tables live in this schema of the shared Postgres; it is
+# selected via search_path so the models stay schema-agnostic (and SQLite-compatible).
+PORTAL_DB_SCHEMA = "portal"
+
+
+def database_url() -> URL:
+    """Postgres from the PORTAL_DB_* variables when PORTAL_DB_HOST is set, else SQLite at DATABASE_PATH."""
+    if not os.getenv("PORTAL_DB_HOST"):
+        return URL.create("sqlite", database=os.getenv("DATABASE_PATH", "./plugin_registry.db"))
+    return URL.create(
+        "postgresql+psycopg2",
+        host=os.environ["PORTAL_DB_HOST"],
+        port=int(os.getenv("PORTAL_DB_PORT", "5432")),
+        database=os.getenv("PORTAL_DB_NAME", "digitaltwins"),
+        username=os.getenv("PORTAL_DB_USER", "portal"),
+        password=os.getenv("PORTAL_DB_PASSWORD"),
+    )
+
+
+def _build_engine():
+    url = database_url()
+    if url.drivername == "sqlite":
+        return create_engine(url, connect_args={'check_same_thread': False})
+    return create_engine(url, pool_pre_ping=True, connect_args={"options": f"-csearch_path={PORTAL_DB_SCHEMA}"})
+
+
+engine = _build_engine()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
@@ -46,6 +71,8 @@ class Plugin(Base):
     description = Column(Text, nullable=True)
     author = Column(String, nullable=True)
     repository_url = Column(String, nullable=False)
+    source_type = Column(String, nullable=False, default="github")
+    local_archive_path = Column(String, nullable=True)
     plugin_metadata = Column(JSON, nullable=True)
     label = Column(Enum("GUI", "Script", name="plugin_label"), nullable=False)
     has_backend = Column(Boolean, nullable=False, default=True)
@@ -89,11 +116,17 @@ class PluginDeployment(Base):
     __tablename__ = "plugin_deployments"
     id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
     plugin_id = Column(String, ForeignKey("plugins.id"), nullable=False)
-    build_id = Column(String, ForeignKey("plugin_builds.id"), nullable=False)
+    # References the build's business key (what the deploy endpoint stores), not plugin_builds.id.
+    build_id = Column(String, ForeignKey("plugin_builds.build_id"), nullable=False)
     deploy_id = Column(String, unique=True, index=True, nullable=False)
     status = Column(String, default=DeployStatus.PENDING.value, nullable=False)
     source_path = Column(String, nullable=True)
     up = Column(Boolean, default=False, nullable=True)
+    # Nginx routing metadata
+    route_prefix = Column(String, nullable=True)       # e.g. /plugin/annotator
+    internal_host = Column(String, nullable=True)       # Docker container name, e.g. annotator-backend
+    internal_port = Column(String, nullable=True)       # Container internal port, e.g. 8082
+    has_websocket = Column(Boolean, default=False, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -123,6 +156,8 @@ class Workflow(Base):
     description = Column(Text, nullable=True)
     author = Column(String, nullable=True)
     repository_url = Column(String, nullable=False)
+    source_type = Column(String, nullable=False, default="github")
+    local_archive_path = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -170,7 +205,8 @@ class WorkflowAnnotation(Base):
 class PluginBase(BaseModel):
     name: str
     version: str
-    repository_url: str
+    repository_url: Optional[str] = None
+    source_type: Literal["github", "gitlab", "bitbucket", "git_generic", "local"] = "github"
     frontend_folder: str
     frontend_build_command: str
     label: Literal["GUI", "Script"]
@@ -183,7 +219,7 @@ class PluginBase(BaseModel):
 
 
 class PluginCreate(PluginBase):
-    pass
+    upload_id: Optional[str] = None  # client-supplied at create-time only; resolved to local_archive_path server-side
 
 
 class PluginUpdate(PluginBase):
@@ -197,6 +233,7 @@ class PluginResponse(PluginBase):
     uuid: Optional[str] = None
     plugin_metadata: Optional[dict] = None
     workflow_ids: Optional[List[str]] = None
+    local_archive_path: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -245,6 +282,10 @@ class PluginDeployResponse(PluginDeployBase):
     deploy_id: str
     status: str
     up: bool
+    route_prefix: Optional[str] = None
+    internal_host: Optional[str] = None
+    internal_port: Optional[str] = None
+    has_websocket: Optional[bool] = None
     created_at: datetime
     updated_at: datetime
 
@@ -276,18 +317,63 @@ class PluginAnnotationResponse(AnnotationBase):
 class WorkflowBase(BaseModel):
     name: str
     version: str
-    repository_url: str
+    repository_url: Optional[str] = None
+    source_type: Literal["github", "gitlab", "bitbucket", "git_generic", "local"] = "github"
     description: Optional[str] = None
     author: Optional[str] = None
 
 
+# --- Source-acquisition request bodies (phase 5: multi-git-provider) ---
+#
+# Token / auth_username / verify_ssl are TRANSIENT — accepted at request
+# boundary and passed through to the acquirer in-process. Never persisted.
+
+class ProbeSourceRequest(BaseModel):
+    """POST body for `/probe-source`. Local-upload sources have their own
+    `/upload-source` endpoint, so this Literal deliberately excludes ``local``.
+    """
+    source_type: Literal["github", "gitlab", "bitbucket", "git_generic"]
+    url: str
+    branch: str = "main"
+    token: Optional[str] = None
+    auth_username: Optional[str] = None
+    verify_ssl: bool = True
+
+
+class BuildTriggerRequest(BaseModel):
+    """Optional transient secrets for triggering a build.
+
+    All fields optional — public-source plugins/workflows just POST ``{}``.
+    Private-source builds supply the token (and ``auth_username`` for
+    generic git, ``verify_ssl=false`` for self-signed certs). NEVER stored;
+    user must re-supply for every rebuild.
+    """
+    token: Optional[str] = None
+    auth_username: Optional[str] = None
+    verify_ssl: bool = True
+
+
+class ProbeSourceFailure(BaseModel):
+    """Structured failure response shape — frontend dispatches off ``reason``
+    to decide which UI fields to expand (token / auth_username / SSL toggle).
+
+    HTTP status is 200 even on failure: the probe operation completed, the
+    structured payload is the answer. Frontend reads ``ok`` to branch.
+    """
+    ok: bool = False
+    reason: str
+    message: str
+    provider_hint: Optional[str] = None
+
+
 class WorkflowCreate(WorkflowBase):
-    pass
+    upload_id: Optional[str] = None  # client-supplied at create-time only; resolved to local_archive_path server-side
 
 
 class WorkflowResponse(WorkflowBase):
     id: str
     uuid: Optional[str] = None
+    local_archive_path: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

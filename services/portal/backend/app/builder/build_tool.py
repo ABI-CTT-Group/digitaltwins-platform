@@ -6,7 +6,7 @@ import platform
 import uuid
 import json
 from pathlib import Path
-from typing import Optional, Dict, Any, Literal
+from typing import Optional, Dict, Any
 from urllib.parse import quote
 from dotenv import dotenv_values
 
@@ -17,13 +17,12 @@ from .logger import get_logger
 from app.client.minio import get_minio_client
 from sqlalchemy.orm import Session
 from app.models.db_model import Plugin, SessionLocal
+from app.builder.source_acquirer import SourceAcquirer, SourceSpec
+from app.builder.proc_stream import stream_process, plugin_subprocess_env
 from app.utils.builder_utils import (
-    clone_repository,
     copy_item,
-    is_git_url,
     remove_tmp_folder,
-    unique_name,
-    update_minio_bucket_metadata)
+    unique_name)
 
 logger = get_logger(__name__)
 
@@ -39,8 +38,6 @@ class PluginBuilder:
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
         self.dataset_dir = Path(dataset_dir)
         self.dataset_dir.mkdir(parents=True, exist_ok=True)
-        self.use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
-        self._http_protocol: Literal['http', 'https'] = 'https' if self.use_ssl else 'http'
 
     @staticmethod
     def check_npm_project(project_dir: Path) -> bool:
@@ -48,62 +45,41 @@ class PluginBuilder:
         package_json = project_dir / "package.json"
         return package_json.exists()
 
-    def frontend_install(self, project_dir: Path) -> Dict[str, Any]:
+    def _run_streaming(self, args, cwd, sink=None) -> Dict[str, Any]:
+        """Run a child process under a PTY (POSIX) so npm/vite stream live,
+        forwarding each line to the logger (captured by the live-log registry).
+        Returns the same shape as the old subprocess.run path."""
+        captured: list[str] = []
+
+        def on_line(line: str) -> None:
+            captured.append(line)
+            logger.info(line)
+            if sink:
+                try:
+                    sink(line)
+                except Exception:
+                    pass
+
+        try:
+            rc = stream_process(args, cwd=cwd, env=plugin_subprocess_env(), on_line=on_line)
+        except FileNotFoundError as e:
+            logger.error(f"executable not found: {e}")
+            return {"success": False, "stdout": "", "stderr": str(e), "error": str(e)}
+        out = "\n".join(captured)
+        if rc == 0:
+            return {"success": True, "stdout": out, "stderr": ""}
+        return {"success": False, "stdout": out, "stderr": out,
+                "error": f"exited with code {rc}"}
+
+    def frontend_install(self, project_dir: Path, sink=None) -> Dict[str, Any]:
         """Run npm install in the project directory"""
-        try:
-            logger.info(f"Running npm install in {project_dir}")
+        logger.info(f"Running npm install in {project_dir}")
+        return self._run_streaming(self._convert_command("npm install --force"), project_dir, sink)
 
-            result = subprocess.run(
-                self._convert_command("npm install --force"),
-                cwd=project_dir,
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            logger.info("npm installation completed successfully")
-            return {
-                "success": True,
-                "stdout": result.stdout,
-                "stderr": result.stderr
-            }
-        except subprocess.CalledProcessError as e:
-            logger.error(f"npm install failed: {e}")
-            logger.error(f"stdout: {e.stdout}")
-            logger.error(f"stderr: {e.stderr}")
-            return {
-                "success": False,
-                "stdout": e.stdout,
-                "stderr": e.stderr,
-                "error": str(e)
-            }
-
-    def frontend_build(self, project_dir: Path, build_cmd: str) -> Dict[str, Any]:
+    def frontend_build(self, project_dir: Path, build_cmd: str, sink=None) -> Dict[str, Any]:
         """Run npm build in the project directory"""
-        try:
-            logger.info(f"Running {build_cmd} in {project_dir}")
-            result = subprocess.run(
-                self._convert_command(cmd=build_cmd),
-                cwd=project_dir,
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            logger.info("npm build completed successfully")
-            return {
-                "success": True,
-                "stdout": result.stdout,
-                "stderr": result.stderr
-            }
-        except subprocess.CalledProcessError as e:
-            logger.error(f"npm build failed: {e}")
-            logger.error(f"stdout: {e.stdout}")
-            logger.error(f"stderr: {e.stderr}")
-            return {
-                "success": False,
-                "stdout": e.stdout,
-                "stderr": e.stderr,
-                "error": str(e)
-            }
+        logger.info(f"Running {build_cmd} in {project_dir}")
+        return self._run_streaming(self._convert_command(cmd=build_cmd), project_dir, sink)
 
     @staticmethod
     def _convert_command(cmd: str) -> list:
@@ -233,87 +209,230 @@ class PluginBuilder:
             logger.error(f"Failed to create SPARC dataset: {e}")
             raise RuntimeError(f"Failed to create SPARC dataset: {e}")
 
-    def _replace_path_in_umd_js(self, project_dir: Path, has_backend: bool, expose_name: str,
-                                frontend_folder: Optional[str] = None):
-        """Replace the path in file ends with .umd.js file for other files in the dist directory to the new path with the minio path"""
-        other_files = []
-        umd_js_file_path = None
-        if has_backend:
-            if frontend_folder is None:
-                logger.error("Must provide frontend_folder with has_backend=True")
-                raise
-            dist_dir = project_dir / frontend_folder / "dist"
-        else:
-            dist_dir = project_dir / "dist"
-        for file in dist_dir.iterdir():
-            if file.is_file() and not file.name.endswith(".umd.js"):
-                other_files.append(file)
-            elif file.is_file() and file.name.endswith(".umd.js"):
-                umd_js_file_path = file
-            else:
-                logger.warning(f"File {file} is not a file")
-
-        if umd_js_file_path is None:
-            raise RuntimeError("umd.js file not found")
-
-        with open(umd_js_file_path, "r") as f:
-            umd_js_content = f.read()
-
-        new_path_prefix = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{expose_name}/primary/"
-        umd_js_content = umd_js_content.replace(new_path_prefix, expose_name)
-
-        with open(umd_js_file_path, "w") as f:
-            f.write(umd_js_content)
-
     @staticmethod
     def _replace_vite_build_config(file_path: Path, new_name: str) -> bool:
         """
         Replace `name`, `formats`, and `fileName` fields in a Vite config file.
+        Only replaces 'name' inside the lib: { ... } block to avoid corrupting
+        other 'name' fields (e.g. globalName in replaceNamedImportsFromGlobals).
 
-        Returns a dict indicating which fields were replaced.
+        Returns True if successful, False otherwise.
         """
-        patterns = {
-            "name": re.compile(r'name:\s*["\']([^"\']*)["\']', re.IGNORECASE),
-            "formats": re.compile(r'formats:\s*\[.*?]', re.IGNORECASE | re.DOTALL),
-            "fileName": re.compile(r'fileName\s*:\s*.*', re.IGNORECASE)
-        }
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             replaced = {"name": False, "formats": False, "fileName": False}
 
-            # replace name
-            def name_replacer(match):
-                replaced["name"] = True
-                quote = '"' if '"' in match.group(0) else "'"
-                return f'name: {quote}{new_name}{quote}'
+            # Replace 'name' ONLY inside the lib: { ... } block.
+            # Pattern: find `lib: {` then the first `name: 'xxx'` inside it.
+            # We use a multi-step approach: locate the lib block, replace name inside it only.
+            def replace_lib_name(text: str) -> str:
+                # Match lib: { ... } block (non-greedy, handles multi-line)
+                lib_block_pattern = re.compile(
+                    r'(lib\s*:\s*\{)(.*?)((?=\}[\s\r\n]*,)|\})',
+                    re.DOTALL
+                )
+                name_in_lib_pattern = re.compile(r'(name\s*:\s*)["\']([^"\']*)["\']')
 
-            content = patterns["name"].sub(name_replacer, content)
+                def lib_replacer(m):
+                    replaced["name"] = True
+                    prefix = m.group(1)
+                    body = m.group(2)
+                    suffix = m.group(3)
+                    # Replace name inside the lib block
+                    new_body = name_in_lib_pattern.sub(
+                        lambda nm: f"{nm.group(1)}'{new_name}'",
+                        body,
+                        count=1
+                    )
+                    return prefix + new_body + suffix
 
-            # replace formats
+                return lib_block_pattern.sub(lib_replacer, text, count=1)
+
+            content = replace_lib_name(content)
+
+            # Replace formats (safe — unique enough in context)
+            formats_pattern = re.compile(r'formats:\s*\[.*?]', re.IGNORECASE | re.DOTALL)
+
             def formats_replacer(match):
                 replaced["formats"] = True
                 return "formats: ['umd']"
 
-            content = patterns["formats"].sub(formats_replacer, content)
+            content = formats_pattern.sub(formats_replacer, content)
 
-            # replace fileName
+            # Replace fileName (safe — unique enough in context)
+            filename_pattern = re.compile(r'fileName\s*:\s*\(format\)\s*=>\s*`[^`]*`', re.IGNORECASE)
+
             def filename_replacer(match):
                 replaced["fileName"] = True
                 return "fileName: (format) => `my-app.${format}.js`"
 
-            content = patterns["fileName"].sub(filename_replacer, content)
+            content = filename_pattern.sub(filename_replacer, content)
 
             # Write back to file
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
-            logger.info(f"Updated name in {file_path}")
+            logger.info(f"Updated vite build config in {file_path}: {replaced}")
             return True
         except Exception as e:
             logger.error(f"Error processing {file_path}: {e}")
             return False
+
+
+    # Required externalized deps for the portal's per-app Pinia isolation contract.
+    # If a plugin bundles its own copy of `pinia`, the per-app `createPinia()` instance
+    # in RemoteComponentApp.vue will NOT be the same library instance the plugin uses,
+    # so `defineStore` lookups fall back to a stray module-scope instance and isolation
+    # silently breaks. Same reasoning for `vue` (provide/inject + reactivity identity)
+    # and `vuetify` / `vue-toastification` (singleton plugins shared with the host).
+    _REQUIRED_EXTERNALIZED_DEPS = ("vue", "pinia", "vuetify", "vue-toastification")
+
+    @staticmethod
+    def _build_store_namespace_plugin_snippet(expose_name: str) -> str:
+        """
+        Build the inline Vite plugin source that rewrites `defineStore('foo', ...)`
+        into `defineStore('<expose>__foo', ...)` at transform time.
+
+        We deliberately keep this plugin string-injected (not a separate npm package)
+        so plugin authors don't need to add a dev-dependency.
+
+        Limitations:
+        - Only literal-string IDs are rewritten (single or double quotes).
+          `defineStore(useFooId, ...)` and template-literal IDs are left untouched —
+          per-app Pinia in the portal is the primary isolation; this rewrite is just
+          a secondary safety net.
+        - Skips files inside `node_modules`.
+        - Idempotent: store IDs that already start with the expose prefix are kept as-is.
+        """
+        # Sanitize: expose_name is already produced by `unique_name(plugin_name)` and
+        # safe for JS identifiers, but defend against quote injection regardless.
+        safe_expose = re.sub(r"[^A-Za-z0-9_\-]", "", expose_name)
+        return (
+            "    {\n"
+            "      name: 'portal-plugin-store-namespace',\n"
+            "      enforce: 'pre',\n"
+            "      transform(code, id) {\n"
+            "        if (!/\\.(ts|tsx|js|jsx|mjs|cjs|vue)(\\?.*)?$/.test(id)) return null;\n"
+            "        if (id.indexOf('node_modules') !== -1) return null;\n"
+            "        if (code.indexOf('defineStore(') === -1) return null;\n"
+            f"        var __ns = '{safe_expose}__';\n"
+            "        var changed = false;\n"
+            "        var out = code.replace(\n"
+            "          /defineStore\\(\\s*(['\"])([^'\"]+?)\\1/g,\n"
+            "          function (m, q, sid) {\n"
+            "            if (sid.indexOf(__ns) === 0) return m;\n"
+            "            changed = true;\n"
+            "            return 'defineStore(' + q + __ns + sid + q;\n"
+            "          }\n"
+            "        );\n"
+            "        if (!changed) return null;\n"
+            "        return { code: out, map: null };\n"
+            "      }\n"
+            "    },\n"
+        )
+
+    @classmethod
+    def _inject_store_namespace_plugin(cls, vite_config_file: Path, expose_name: str) -> bool:
+        """
+        Inject the per-expose store-namespacing Vite plugin at the head of the
+        first `plugins: [` array in the plugin's vite.config.
+
+        Returns True if injected (or already present), False if no `plugins: [`
+        array could be located. Failure is non-fatal — the portal's per-app
+        Pinia isolation still applies, just without the secondary expose-prefix
+        safety net.
+        """
+        try:
+            content = vite_config_file.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.error(f"Failed to read {vite_config_file} for store namespace injection: {e}")
+            return False
+
+        if "portal-plugin-store-namespace" in content:
+            logger.info(f"Store namespace plugin already present in {vite_config_file}; skipping")
+            return True
+
+        snippet = cls._build_store_namespace_plugin_snippet(expose_name)
+        plugins_pattern = re.compile(r"plugins\s*:\s*\[")
+        match = plugins_pattern.search(content)
+        if not match:
+            logger.warning(
+                f"Could not locate `plugins: [...]` array in {vite_config_file}; "
+                f"skipping store-id namespace injection. Per-app Pinia isolation in "
+                f"the portal still applies — this only loses the secondary expose-prefix safety net."
+            )
+            return False
+
+        insertion_pos = match.end()
+        new_content = content[:insertion_pos] + "\n" + snippet + content[insertion_pos:]
+
+        try:
+            vite_config_file.write_text(new_content, encoding="utf-8")
+        except Exception as e:
+            logger.error(f"Failed to write {vite_config_file} after store namespace injection: {e}")
+            return False
+
+        logger.info(
+            f"Injected store-id namespace Vite plugin into {vite_config_file} "
+            f"with prefix `{expose_name}__`"
+        )
+        return True
+
+    @classmethod
+    def _validate_externalize(cls, vite_config_file: Path) -> None:
+        """
+        Verify the plugin externalizes vue / pinia / vuetify / vue-toastification.
+
+        Without this, the plugin would bundle its own copy of pinia and the
+        per-app Pinia instance the portal creates in RemoteComponentApp.vue
+        wouldn't be the instance the plugin's `defineStore` calls bind to —
+        cross-plugin state isolation would silently break.
+
+        Heuristic: pool every `external: [...]` array in the file (the plugin
+        config commonly has conditional branches — plugin build vs app build),
+        then check each required dep appears as a quoted string somewhere in the
+        pooled content. Raises RuntimeError on missing deps.
+        """
+        try:
+            content = vite_config_file.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.error(f"Failed to read {vite_config_file} for externalize validation: {e}")
+            raise RuntimeError(f"Cannot validate vite config: {e}")
+
+        external_pattern = re.compile(r"external\s*:\s*\[([^\]]*)\]", re.DOTALL)
+        external_blocks = external_pattern.findall(content)
+
+        if not external_blocks:
+            raise RuntimeError(
+                "Plugin vite.config has no `external: [...]` array under rollupOptions. "
+                "For the portal's per-app Pinia isolation to work, the plugin must "
+                "externalize vue, pinia, vuetify, and vue-toastification so that the "
+                "plugin and portal share the same library code while each plugin instance "
+                "gets its own Pinia store registry. "
+                "Add `rollupOptions: { external: ['vue', 'vuetify', 'pinia', 'vue-toastification'], "
+                "output: { globals: { vue: 'Vue', vuetify: 'Vuetify', pinia: 'Pinia', "
+                "'vue-toastification': 'VueToastification' } } }` to the lib build config."
+            )
+
+        pooled = " ".join(external_blocks)
+        missing = [
+            dep for dep in cls._REQUIRED_EXTERNALIZED_DEPS
+            if not re.search(rf"['\"]{re.escape(dep)}['\"]", pooled)
+        ]
+        if missing:
+            raise RuntimeError(
+                f"Plugin vite.config does not externalize required dependencies: {missing}. "
+                f"Without this, the portal's per-app Pinia isolation will fail — the plugin "
+                f"would bundle its own copy of pinia and the per-app `createPinia()` instance "
+                f"in RemoteComponentApp.vue would not be the instance the plugin's "
+                f"`defineStore` calls bind to. "
+                f"Add these names as quoted strings to `rollupOptions.external`: "
+                f"{list(cls._REQUIRED_EXTERNALIZED_DEPS)}."
+            )
+
+        logger.info(f"Externalize validation passed for {vite_config_file}")
 
     def _update_vite_config(self, project_dir: Path, plugin_expose_name: str):
         """Update the vite.config.js file to use the unique name"""
@@ -328,6 +447,8 @@ class PluginBuilder:
             raise RuntimeError("vite.config.js or vite.config.ts not found")
 
         self._replace_vite_build_config(vite_config_file, plugin_expose_name)
+        self._inject_store_namespace_plugin(vite_config_file, plugin_expose_name)
+        self._validate_externalize(vite_config_file)
 
     @staticmethod
     def _update_plugin_version(project_dir: Path, plugin_id: str):
@@ -343,28 +464,25 @@ class PluginBuilder:
         return version
 
     @staticmethod
-    def _create_env_file(project_dir: Path):
-        host = os.environ.get('PORTAL_BACKEND_HOST_IP', None)
-        if host is None:
-            raise RuntimeError("HOST environment variable not set")
-        port = os.environ.get('PLUGIN_PORT', 8082)
-        use_ssl = os.getenv('USE_SSL', "false").lower() == 'true'
+    def _create_env_file(project_dir: Path, expose_name: str):
         config = {
-            "VITE_PLUGIN_API_URL": f"http{'s' if use_ssl else ''}://{host}",
-            "VITE_PLUGIN_API_PORT": port
+            "VITE_PLUGIN_ROUTE_PREFIX": f"/plugin/{expose_name}"
         }
         env_path = project_dir / ".env"
         if env_path.exists():
             env = dotenv_values(env_path)
+            # Remove legacy env vars that are no longer needed in production builds
+            env.pop("VITE_PLUGIN_API_URL", None)
+            env.pop("VITE_PLUGIN_API_PORT", None)
             config.update(env)
         else:
             env_path.touch(exist_ok=True)
         with open(env_path, "w", encoding="utf-8") as f:
             for key, val in config.items():
                 f.write(f"{key}={val}\n")
-        logger.info(f"Updated env file in {env_path}")
+        logger.info(f"Updated env file in {env_path} with route prefix /plugin/{expose_name}")
 
-    def build(self, plugin: Dict[str, Any]) -> Dict[str, Any]:
+    def build(self, plugin: Dict[str, Any], sink=None) -> Dict[str, Any]:
         """Complete plugin build process"""
         build_logs = []
         error_message = None
@@ -383,7 +501,17 @@ class PluginBuilder:
         frontend_build_command = plugin.get("frontend_build_command", "npm run build")
         backend_folder = plugin.get("backend_folder", "unknown")
         backend_deploy_command = plugin.get("backend_deploy_command")
-        cloned_dir = None
+        source_type = plugin.get("source_type", "github")
+        local_archive_path = plugin.get("local_archive_path")
+        # Transient secrets supplied per-build (NEVER persisted to DB per
+        # phase-0.2 decision). The build endpoint reads these from the
+        # request body and passes them through plugin_dict here. Acquirers
+        # that don't need them (LocalAcquirer, public GithubAcquirer) just
+        # ignore them via SourceSpec dataclass defaults.
+        token = plugin.get("token")
+        auth_username = plugin.get("auth_username")
+        verify_ssl = plugin.get("verify_ssl", True)
+        tmp_source_dir = None
         config = {}
 
         try:
@@ -393,43 +521,23 @@ class PluginBuilder:
             # Step 0: Check for existing metadata
             logger.info("Step 0: Checking for existing plugin metadata...")
 
-            # Step 1: Clone the repository or use local path
-            if is_git_url(repo_url):
-                logger.info("Step 1: Cloning repository...")
-                project_dir = clone_repository(self.tmp_dir, repo_url, logger, branch)
-                cloned_dir = project_dir  # Mark for cleanup
-                logger.info(f"Repository cloned to: {cloned_dir}")
-            else:
-                logger.info("Step 1: Cloning repository...")
-                logger.info(f"DEBUG: repo_url = '{repo_url}' (type: {type(repo_url)}, length: {len(repo_url)})")
-                logger.info(f"DEBUG: repo_url.startswith('./plugins/') = {repo_url.startswith('./plugins/')}")
-                logger.info(f"DEBUG: repo_url.startswith('/plugins/') = {repo_url.startswith('/plugins/')}")
-
-                # For local paths, map them to the mounted volume
-                # If the path starts with ./plugins or /plugins, use it as-is
-                # Otherwise, assume it's a relative path under /plugins
-                if repo_url.startswith("./plugins/"):
-                    logger.info("DEBUG: Taking ./plugins/ branch")
-                    # Convert relative path to absolute within container
-                    plugin_name = repo_url.replace("./plugins/", "")
-                    project_dir = Path(f'/plugins/{plugin_name}')
-                elif repo_url.startswith('/plugins/'):
-                    logger.info("DEBUG: Taking /plugins/ branch")
-                    # Already an absolute path in the container
-                    project_dir = Path(repo_url)
-                else:
-                    logger.info("DEBUG: Taking else branch")
-                    # Assume it's a plugin name/path under /plugins
-                    # Remove leading ./ if present
-                    clean_path = repo_url.lstrip('./')
-                    logger.info(f"DEBUG: clean_path = '{clean_path}'")
-                    project_dir = Path(f'/plugins/{clean_path}')
-
-                if not project_dir.exists():
-                    raise RuntimeError(f"Local path does not exist: {project_dir}")
-                if not project_dir.is_dir():
-                    raise RuntimeError(f"Local path does not a directory: {project_dir}")
-                logger.info(f"Using local project dictory: {project_dir}")
+            # Step 1: Acquire project_dir via the registered SourceAcquirer.
+            # Each acquirer owns its source-materialization details (clone /
+            # staging dir / etc.); from step 2 onward the pipeline operates
+            # on project_dir uniformly. tmp_source_dir is set so steps 5/6/7
+            # (SPARC + MinIO upload + cleanup) trigger the same way.
+            spec = SourceSpec(
+                source_type=source_type,
+                url=repo_url,
+                branch=branch,
+                local_archive_path=local_archive_path,
+                token=token,
+                auth_username=auth_username,
+                verify_ssl=verify_ssl,
+            )
+            acquirer = SourceAcquirer.for_type(source_type, self.tmp_dir)
+            project_dir = acquirer.acquire(spec)
+            tmp_source_dir = project_dir  # Mark for cleanup
 
             # If the tool is a script, skip some of the steps below.
             if label == "GUI":
@@ -453,32 +561,24 @@ class PluginBuilder:
                 new_version = self._update_plugin_version(frontend_path, plugin_id)
                 version = new_version if new_version is not None else version
 
-                # Step 2.3: update plugin backend endpoint by create .env in frontend folder, if the plugin has backend
+                # Step 2.3: create .env file with route prefix for nginx proxy
                 if has_backend:
                     logger.info("Step 2.3: Create .env file for frontend...")
-                    self._create_env_file(frontend_path)
+                    self._create_env_file(frontend_path, plugin_unique_expose_name)
 
                 # Step 3: npm install
                 logger.info("Step 3: Running npm install")
-                install_result = self.frontend_install(frontend_path)
+                install_result = self.frontend_install(frontend_path, sink=sink)
                 if not install_result["success"]:
                     raise RuntimeError(f"npm install failed: {install_result.get('error', 'Unknown error')}")
                 logger.info("npm install completed successfully")
 
                 # Step 4: npm build
                 logger.info("Step 4: Running npm build...")
-                build_result = self.frontend_build(frontend_path, frontend_build_command)
+                build_result = self.frontend_build(frontend_path, frontend_build_command, sink=sink)
                 if not build_result["success"]:
                     raise RuntimeError(f"npm build failed: {build_result.get('error', 'Unknown error')}")
                 logger.info("npm build completed successfully")
-
-                # Step 5: replace the path in the umd.js file (only for remote repos, not local)
-                if cloned_dir:
-                    logger.info("Step 5: Replacing path in umd.js file...")
-                    self._replace_path_in_umd_js(project_dir, has_backend, metadata["expose"], frontend_folder)
-                    logger.info("Path in umd.js file replaced successfully")
-                else:
-                    logger.info("Step 5: Skipping path replacement for local plugin...")
 
                 # read config file in the cloned directory
                 config_file = project_dir / "config.portal.json"
@@ -490,117 +590,79 @@ class PluginBuilder:
                 else:
                     logger.warning(f"No config.portal.json found in {project_dir}")
 
-                # Step 5: Create SPARC dataset (only for remote repos)
-                dataset_dir = None
-                if cloned_dir:
-                    logger.info("Step 5: Creating SPARC dataset by sparc-me")
+                # Step 5: Create SPARC dataset
+                logger.info("Step 5: Creating SPARC dataset by sparc-me")
 
-                    # Look for common build output directories
-                    build_output_dir = None
-                    possible_build_dir = ["dist", "build"]
-                    for dir_name in possible_build_dir:
-                        potential_dir = frontend_path / dir_name
-                        if potential_dir.exists():
-                            build_output_dir = potential_dir
-                            logger.info(f"Found build output directory: {build_output_dir}")
-                            break
+                # Look for common build output directories
+                build_output_dir = None
+                possible_build_dir = ["dist", "build"]
+                for dir_name in possible_build_dir:
+                    potential_dir = frontend_path / dir_name
+                    if potential_dir.exists():
+                        build_output_dir = potential_dir
+                        logger.info(f"Found build output directory: {build_output_dir}")
+                        break
 
-                    dataset_dir = self.create_sparc_dataset(project_dir, label, has_backend, build_output_dir,
-                                                            f"{plugin_unique_expose_name}")
-                    logger.info(f"SPARC dataset created in {dataset_dir}")
-                else:
-                    logger.info("Step 5: Skipping SPARC dataset creation for local plugin...")
+                dataset_dir = self.create_sparc_dataset(project_dir, label, has_backend, build_output_dir,
+                                                        f"{plugin_unique_expose_name}")
+                logger.info(f"SPARC dataset created in {dataset_dir}")
             else:
-                # Step 5: Create SPARC dataset (only for remote repos) for cwl plugin script
-                dataset_dir = None
-                if cloned_dir:
-                    logger.info("Step 5: Creating SPARC dataset by sparc-me")
-                    dataset_dir = self.create_sparc_dataset(project_dir, label, has_backend, None,
-                                                            f"{plugin_unique_expose_name}")
-                    logger.info(f"SPARC dataset created in {dataset_dir}")
-                else:
-                    logger.info("Step 5: Skipping SPARC dataset creation for local plugin...")
+                # Step 5: Create SPARC dataset for cwl plugin script
+                logger.info("Step 5: Creating SPARC dataset by sparc-me")
+                dataset_dir = self.create_sparc_dataset(project_dir, label, has_backend, None,
+                                                        f"{plugin_unique_expose_name}")
+                logger.info(f"SPARC dataset created in {dataset_dir}")
 
-            # Step 6: Upload dataset to MinIO or copy to public folder
+            # Step 6: Upload dataset to MinIO
             s3_path = None
             minio_client = get_minio_client()
-            if cloned_dir:
-                logger.info("Step 6: Uploading dataset to MinIO...")
-                try:
-                    logger.info(f"Uploading dataset to MinIO: {metadata}")
-                    dataset_name = metadata.get("expose", '')
-                    logger.info(f"Uploading dataset to S3: {dataset_name}")
-                    s3_path = minio_client.upload_directory(str(dataset_dir), dataset_name)
-                    logger.info(f"Dataset uploaded to MinIO: {s3_path}")
-                except Exception as e:
-                    logger.error(f"Failed to upload dataset to S3: {e}")
-                    s3_path = None
-            else:
-                logger.info("Step 6: Copying local tool plugin to public directory")
-                # For local tool plugins, copy dist files to public directory using the path from metadata
-                pass
+            logger.info("Step 6: Uploading dataset to MinIO...")
+            try:
+                logger.info(f"Uploading dataset to MinIO: {metadata}")
+                dataset_name = metadata.get("expose", '')
+                logger.info(f"Uploading dataset to S3: {dataset_name}")
+                s3_path = minio_client.upload_directory(str(dataset_dir), dataset_name)
+                logger.info(f"Dataset uploaded to MinIO: {s3_path}")
+            except Exception as e:
+                logger.error(f"Failed to upload dataset to S3: {e}")
+                s3_path = None
 
-            # Step 7: Clean up temporary files (only for cloned repos, not local paths)
+            # Step 7: Clean up temporary source directory.
+            # For `local` source the staging dir is the canonical source code
+            # (created at upload time, referenced by `Plugin.local_archive_path`
+            # in the DB) and lives for the plugin's full lifetime — removing
+            # it here would break every subsequent rebuild. For git sources
+            # the clone is one-shot per build and safe to reap.
             logger.info("Step 7: Cleaning up temporary files")
-            if cloned_dir:
+            if source_type == "local":
+                logger.info(
+                    f"Step 7: Skipping cleanup for local source — staging dir "
+                    f"{tmp_source_dir} preserved for rebuild"
+                )
+            else:
                 try:
-                    remove_tmp_folder(cloned_dir, logger)
+                    remove_tmp_folder(tmp_source_dir, logger)
                 except Exception as e:
-                    logger.error(f"Failed to remove cloned repository: {e}")
-            else:
-                logger.info("Skiping cleanup for local path")
+                    logger.error(f"Failed to remove temporary source directory: {e}")
 
-            # Step 8: update metadata.json in MinIO
-            # Determine the path based on whether it's a local plugin or remote
-            if cloned_dir:
-                # Remote plugin - use public directory path with metadata path
-                if label == "GUI":
-                    plugin_path = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{metadata['expose']}/primary/my-app.umd.js"
-                    if has_backend:
-                        backend_path = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{metadata['expose']}/code/{backend_folder}"
-                else:
-                    plugin_path = f"{self._http_protocol}://{os.environ.get('PORTAL_BACKEND_HOST_IP', 'localhost')}:{os.environ.get('MINIO_PORT', 9000)}/workflow-tools/{metadata['expose']}/primary"
-            else:
-                # Local plugin - use public directory path with metadata expose folder name
-                plugin_path = f"/{metadata['expose']}/my-app.umd.js"
-
-            component_entry = {
-                "uuid": "",
-                "id": plugin_id,
-                "name": plugin_name,
-                "path": plugin_path,
-                "expose": metadata.get("expose", "MyApp") if label == "GUI" else None,
-                "label": label,
-                "description": description,
-                "version": version,
-                "created_at": created_at,
-                "author": author,
-                "repository_url": repo_url,
-                "is_local": not bool(cloned_dir),
-                "frontend_folder": frontend_folder if label == "GUI" else None,
-                "has_backend": has_backend if label == "GUI" else False,
-                "backend_folder": backend_folder if has_backend else None,
-                "backend_deploy_command": backend_deploy_command if (has_backend and label == "GUI") else None,
-                "config": config
-            }
-
-            update_minio_bucket_metadata(minio_client, component_entry, logger)
             logger.info("Build process completed successfully")
 
             return {
                 "success": True,
-                "dataset_path": str(dataset_dir) if dataset_dir else None,
+                "dataset_path": str(dataset_dir),
                 "expose_name": plugin_unique_expose_name,
                 "s3_path": s3_path,
                 "build_logs": "\n".join(build_logs),
                 "error_message": None,
-                "is_local": not bool(cloned_dir)
             }
         except Exception as e:
             error_message = str(e)
             logger.info(f"Build failed: {error_message}")
             logger.error(f"Build process failed: {e}")
-            remove_tmp_folder(cloned_dir, logger)
+            # Same conditional as success path — never reap the local staging
+            # dir or rebuild becomes impossible.
+            if source_type != "local":
+                remove_tmp_folder(tmp_source_dir, logger)
             return {
                 "success": False,
                 "dataset_path": None,

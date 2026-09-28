@@ -1,13 +1,16 @@
+import asyncio
 import os
 import json
+import yaml
 import uvicorn
-from fastapi import APIRouter, FastAPI, Depends, HTTPException, BackgroundTasks, Request, Query
-from fastapi.responses import StreamingResponse
+import zipfile
+from fastapi import APIRouter, FastAPI, Depends, HTTPException, BackgroundTasks, Request, Query, UploadFile, File
+from fastapi.responses import StreamingResponse, JSONResponse, PlainTextResponse
 from app.database.database import get_db
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from datetime import datetime
-from typing import List, Dict, Any, Literal
+from typing import List, Dict, Any, Literal, Optional
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import uuid
@@ -19,11 +22,14 @@ from app.models.db_model import (
     PluginBuildResponse, BuildStatus, SessionLocal,
     DeployStatus, PluginDeployment, PluginDeployResponse,
     PluginAnnotationResponse, PluginAnnotationCreate,
-    PluginAnnotation
+    PluginAnnotation,
+    ProbeSourceRequest, BuildTriggerRequest,
 )
-from app.builder.logger import get_logger, configure_logging
+from fastapi import Body
+from app.builder.logger import get_logger, configure_logging, safe_dump
 from app.builder.build_tool import PluginBuilder
 from app.builder.deploy_tool import PluginDeployer
+from app.builder.source_acquirer import SourceAcquirer, SourceSpec, CloneError
 from app.client.minio import get_minio_client
 from app.client.fhir import get_fhir_adapter, get_fhir_async_client
 
@@ -31,22 +37,121 @@ from pathlib import Path
 from botocore.exceptions import ClientError
 from app.utils.workflow_tool_utils import (
     get_build_record_or_404,
-    get_public_url_for_build,
     get_latest_build_record,
     shuttle_down_deployed_backend)
-from app.utils.builder_utils import execute_build_in_background
+from app.utils.builder_utils import (
+    execute_build_in_background,
+    extract_uploaded_archive,
+    inspect_uploaded_source,
+    read_root_cwl,
+    resolve_project_root,
+)
+from app.builder.log_stream import log_registry, bind_thread_job, unbind_thread_job
 from uuid import UUID
 from app.utils.utils import force_rmtree, is_empty
 from fhir_cda import Annotator
 
 configure_logging()
 logger = get_logger(__name__)
-router = APIRouter(prefix="/api/workflow-tools")
+router = APIRouter(prefix="/api/tools")
 builder = PluginBuilder()
 deployer = PluginDeployer()
 minio = get_minio_client()
 adapter = get_fhir_adapter()
 fhir_async_client = get_fhir_async_client()
+
+
+def _parse_docker_compose_routing(backend_dir: Path, expose_name: str = "") -> dict:
+    """Extract container_name and internal port from docker-compose.yml for nginx routing."""
+    for fname in ("docker-compose.yml", "docker-compose.yaml"):
+        compose_path = backend_dir / fname
+        if compose_path.exists():
+            break
+    else:
+        return {}
+
+    try:
+        with open(compose_path, "r", encoding="utf-8") as f:
+            compose = yaml.safe_load(f)
+        services = compose.get("services", {})
+        if not services:
+            return {}
+        # Use the first service
+        service_name, service_conf = next(iter(services.items()))
+        # Try explicit container_name, otherwise use project-based name
+        container_name = service_conf.get("container_name")
+        if not container_name:
+            # With -p flag: <expose_name>-<service>-1, fallback to directory name
+            project = expose_name if expose_name else backend_dir.name
+            container_name = f"{project}-{service_name}-1"
+        # Extract internal port from ports mapping (e.g. "8002:8082" → "8082")
+        internal_port = "8082"  # default
+        ports = service_conf.get("ports", [])
+        if ports:
+            port_str = str(ports[0])
+            if ":" in port_str:
+                internal_port = port_str.split(":")[-1]
+            else:
+                internal_port = port_str
+        # Check if websocket is likely (default True for plugins with backend)
+        has_websocket = True
+        return {
+            "internal_host": container_name,
+            "internal_port": internal_port,
+            "has_websocket": has_websocket,
+        }
+    except Exception as e:
+        logger.error(f"Failed to parse docker-compose for routing: {e}")
+        return {}
+
+
+@router.get("/debug/nginx-config")
+async def get_nginx_config():
+    """Debug endpoint: show current nginx plugin configs and main nginx.conf."""
+    import subprocess as _sp
+    result = {"plugin_configs": {}, "nginx_main_conf": None, "nginx_test": None}
+
+    # 1. Read all plugin config files from shared volume
+    conf_dir = Path(os.environ.get("NGINX_PLUGINS_CONF_DIR", "/nginx-plugins-conf"))
+    if conf_dir.exists():
+        for f in sorted(conf_dir.iterdir()):
+            if f.suffix == ".conf":
+                result["plugin_configs"][f.name] = f.read_text(encoding="utf-8")
+    else:
+        result["plugin_configs"] = f"Directory {conf_dir} does not exist"
+
+    # 2. Read main nginx.conf from portal-frontend container
+    container = os.environ.get("NGINX_CONTAINER_NAME", "portal-frontend")
+    try:
+        r = _sp.run(
+            ["docker", "exec", container, "cat", "/etc/nginx/nginx.conf"],
+            capture_output=True, text=True, timeout=5,
+        )
+        result["nginx_main_conf"] = r.stdout if r.returncode == 0 else r.stderr
+    except Exception as e:
+        result["nginx_main_conf"] = f"Error: {e}"
+
+    # 3. Read plugin configs as seen by nginx container
+    try:
+        r = _sp.run(
+            ["docker", "exec", container, "ls", "-la", "/etc/nginx/conf.d/plugins/"],
+            capture_output=True, text=True, timeout=5,
+        )
+        result["nginx_plugins_in_container"] = r.stdout if r.returncode == 0 else r.stderr
+    except Exception as e:
+        result["nginx_plugins_in_container"] = f"Error: {e}"
+
+    # 4. Test nginx config validity
+    try:
+        r = _sp.run(
+            ["docker", "exec", container, "nginx", "-t"],
+            capture_output=True, text=True, timeout=5,
+        )
+        result["nginx_test"] = r.stderr.strip() if r.returncode == 0 else f"FAILED: {r.stderr}"
+    except Exception as e:
+        result["nginx_test"] = f"Error: {e}"
+
+    return result
 
 
 @router.get("/", response_model=List[PluginResponse])
@@ -68,10 +173,77 @@ async def check_name(name: str, db: Session = Depends(get_db)):
     return {"available": True, "message": "Name is available"}
 
 
+@router.post("/upload-source")
+async def upload_tool_source(file: UploadFile = File(...)):
+    """Receive a zip archive of a plugin source folder, extract to staging, and return metadata.
+
+    The returned `upload_id` is later passed to /create as `upload_id` to register a
+    local-source plugin. The staging dir lives under the builder's tmp_dir.
+    """
+    tmp_zip = builder.tmp_dir / f"upload_archive_{uuid.uuid4().hex[:8]}.zip"
+    try:
+        with open(tmp_zip, "wb") as out:
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                out.write(chunk)
+
+        try:
+            staging = extract_uploaded_archive(builder.tmp_dir, tmp_zip)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except zipfile.BadZipFile:
+            raise HTTPException(status_code=400, detail="Uploaded file is not a valid zip archive")
+
+        meta = inspect_uploaded_source(staging, want_npm=True, want_cwl=False)
+        logger.info(f"Tool source uploaded: upload_id={staging.name}, meta={meta}")
+
+        return {
+            "upload_id": staging.name,
+            "folders_in_root": meta["folders_in_root"],
+            "package_version": meta["package_version"],
+            "package_author": meta["package_author"],
+            "has_cwl": meta["has_cwl"],
+        }
+    finally:
+        if tmp_zip.exists():
+            try:
+                tmp_zip.unlink()
+            except Exception as e:
+                logger.warning(f"Failed to remove temp zip {tmp_zip}: {e}")
+
+
 @router.post("/create", response_model=PluginResponse)
 async def create_tool_plugin(plugin: PluginCreate, db: Session = Depends(get_db)):
+    data = plugin.model_dump()
+    upload_id = data.pop("upload_id", None)
+    local_archive_path = None
 
-    db_plugin = Plugin(**plugin.model_dump())
+    if plugin.source_type == "local":
+        if not upload_id:
+            raise HTTPException(
+                status_code=400,
+                detail="upload_id is required when source_type='local'",
+            )
+        staging = (builder.tmp_dir / upload_id).resolve()
+        if not staging.exists() or not staging.is_dir():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Staging directory not found for upload_id={upload_id}. The upload may have expired or already been built.",
+            )
+        # Strip a single wrapper directory if the zip was packaged that way
+        local_archive_path = str(resolve_project_root(staging))
+        # Placeholder so the NOT NULL repository_url column is satisfied and logs stay readable
+        data["repository_url"] = f"local://{upload_id}"
+    else:
+        if not data.get("repository_url"):
+            raise HTTPException(
+                status_code=400,
+                detail="repository_url is required when source_type='github'",
+            )
+
+    db_plugin = Plugin(**data, local_archive_path=local_archive_path)
     db.add(db_plugin)
     db.commit()
     db.refresh(db_plugin)
@@ -136,6 +308,17 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
             builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).all()
             if plugin.has_backend:
                 logger.info(f"Shuttle down backend for plugin {plugin_id}")
+                # Remove nginx configs for all deployments of this plugin
+                deployments = db.query(PluginDeployment).filter(
+                    PluginDeployment.plugin_id == plugin.id).all()
+                nginx_changed = False
+                for dep in deployments:
+                    if dep.route_prefix:
+                        expose_name = dep.route_prefix.replace("/plugin/", "")
+                        deployer.remove_nginx_conf(expose_name)
+                        nginx_changed = True
+                if nginx_changed:
+                    deployer.reload_nginx()
                 shuttle_down_deployed_backend(plugin.id, deployer)
             for build in builds:
                 logger.info("Deleting build {}".format(build.id))
@@ -150,49 +333,47 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
                     dataset_path = builder.dataset_dir / prefix
                     force_rmtree(dataset_path)
                 # db.delete(build)
+            # For `local` source, the build pipeline preserves the staging dir
+            # across rebuilds (see build_tool.py step 7). Plugin deletion is
+            # the canonical place to reap it — otherwise staging dirs leak
+            # forever under tmp/.
+            if plugin.source_type == "local" and plugin.local_archive_path:
+                staging = Path(plugin.local_archive_path)
+                if staging.exists():
+                    logger.info(f"Deleting local staging dir {staging}")
+                    try:
+                        force_rmtree(staging)
+                    except Exception as e:
+                        logger.error(f"Failed to remove local staging dir {staging}: {e}")
             db.delete(plugin)
             db.commit()
 
-        try:
-            logger.info(f"Deleting plugin {plugin_id}: modify the minio metadata.json")
-            # delete the record form the metadata.json file in MinIO
-            metadata_file = await get_metadata_json()
-            delete_plugin_component = next((c for c in metadata_file["components"] if c['id'] == plugin_id), None)
-            if delete_plugin_component is not None:
-                object_keys = minio.list_objects(prefix=delete_plugin_component.get("expose"))
-                if len(object_keys) > 0:
-                    minio.delete_objects(delete_keys=object_keys)
-                # Update metadata.json file in minio
-                metadata_file["components"] = [component for component in metadata_file["components"] if
-                                               component['id'] != plugin_id]
-                minio.update_metadata(metadata_file)
-                logger.info(f"Deleting plugin {plugin_id} successfully, and metadata updated successfully.")
-                return {"status": True, "message": "Plugin deleted successfully, and metadata updated successfully."}
-            else:
-                logger.info(
-                    f"Deleting plugin {plugin_id} successfully. and there is no tool component information in metadata.json")
-                return {"status": True,
-                        "message": "Plugin deleted successfully and no longer found in the metadata file."}
-        except Exception as e:
-            logger.info(
-                f"Deleting plugin {plugin_id} successfully, but not find the metadata.json file in Minio, failed due to {e}")
-            return {"status": True, "message": str(e)}
+        logger.info(f"Deleting plugin {plugin_id} successfully.")
+        return {"status": True, "message": "Plugin deleted successfully."}
     except Exception as e:
         logger.info("Deleting plugin failed due to exception {}".format(e))
         return {"status": False, "message": str(e)}
 
 
-@router.get("/plugin/{plugin_id}/build")
-async def execute_build(
-        plugin_id: str,
-        background_tasks: BackgroundTasks = None,
-        db: Session = Depends(get_db)):
-    """Execute a plugin build using git CLI and npm or yarn"""
+def _trigger_plugin_build(
+    plugin_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session,
+    *,
+    transient: Optional[BuildTriggerRequest] = None,
+) -> dict:
+    """Shared build-trigger logic used by both GET (legacy public-only)
+    and POST (token-aware) build endpoints.
+
+    ``transient`` carries optional per-build secrets (token, auth_username,
+    verify_ssl). They flow into ``plugin_dict`` and onward to the acquirer
+    via ``SourceSpec`` — never touch the DB. ``safe_dump`` masks any token
+    field when the dict is logged.
+    """
     plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
     if plugin is None:
         raise HTTPException(status_code=404, detail="Plugin not found")
 
-    # Covert Plugin object to dict for JSON serialization
     plugin_dict = {
         "id": plugin.id,
         "name": plugin.name,
@@ -202,6 +383,8 @@ async def execute_build(
         "label": plugin.label,
         "has_backend": plugin.has_backend,
         "repo_url": plugin.repository_url,
+        "source_type": plugin.source_type,
+        "local_archive_path": plugin.local_archive_path,
         "frontend_folder": plugin.frontend_folder,
         "frontend_build_command": plugin.frontend_build_command,
         "backend_folder": plugin.backend_folder,
@@ -210,16 +393,21 @@ async def execute_build(
         "created_at": plugin.created_at.isoformat() if plugin.created_at else None,
         "updated_at": plugin.updated_at.isoformat() if plugin.updated_at else None,
     }
-    logger.info(f"Building GUI plugin: {json.dumps(plugin_dict, indent=4)}")
+    if transient is not None:
+        if transient.token:
+            plugin_dict["token"] = transient.token
+        if transient.auth_username:
+            plugin_dict["auth_username"] = transient.auth_username
+        plugin_dict["verify_ssl"] = transient.verify_ssl
+
+    logger.info(f"Building GUI plugin: {safe_dump(plugin_dict, indent=4)}")
 
     build_id = str(uuid.uuid4())
-
     db_build = PluginBuild(
         plugin_id=plugin.id,
         build_id=build_id,
         status=BuildStatus.PENDING.value,
     )
-
     db.add(db_build)
     db.commit()
     db.refresh(db_build)
@@ -228,7 +416,6 @@ async def execute_build(
     if plugin.has_backend:
         shuttle_down_deployed_backend(plugin.id, deployer)
 
-    # executing build in backend
     execute_build_in_background(
         build_id=build_id,
         data=plugin_dict,
@@ -241,8 +428,89 @@ async def execute_build(
         "build_id": build_id,
         "status": BuildStatus.PENDING.value,
         "message": "Build started in background",
-        "repo_url": plugin.repository_url
+        "repo_url": plugin.repository_url,
     }
+
+
+@router.get("/plugin/{plugin_id}/build", deprecated=True)
+async def execute_build(
+        plugin_id: str,
+        background_tasks: BackgroundTasks = None,
+        db: Session = Depends(get_db)):
+    """Legacy public-source build trigger.
+
+    Deprecated: use ``POST /plugin/{plugin_id}/build`` which accepts a body
+    for transient token / auth_username / verify_ssl. This GET only works
+    for public-source plugins (no token plumbing). Will be removed once
+    frontend phase 6 finishes migrating.
+    """
+    return _trigger_plugin_build(plugin_id, background_tasks, db, transient=None)
+
+
+@router.post("/plugin/{plugin_id}/build")
+async def execute_build_post(
+        plugin_id: str,
+        req: BuildTriggerRequest = Body(default_factory=BuildTriggerRequest),
+        background_tasks: BackgroundTasks = None,
+        db: Session = Depends(get_db)):
+    """Trigger a plugin build, optionally with transient secrets in the body.
+
+    Public-source plugins: POST ``{}`` (or any subset). Private git
+    plugins: include ``token`` (and ``auth_username`` for generic git,
+    ``verify_ssl: false`` for self-signed certs). Token / auth_username /
+    verify_ssl are NEVER persisted — every rebuild requires re-supply.
+    """
+    return _trigger_plugin_build(plugin_id, background_tasks, db, transient=req)
+
+
+@router.post("/probe-source")
+async def probe_source(req: ProbeSourceRequest):
+    """Probe a git URL and return inspect metadata (folders, package.json
+    version/author, .cwl presence) for autofilling the registration form.
+
+    Token (if provided) is used once and discarded — never written to disk
+    persistently, never logged (logger has PAT mask filter), never stored
+    in the DB. The ``ok=false`` failure shape carries a structured
+    ``reason`` so the frontend can decide which UI fields to expand
+    (per phase 0.4 P-scheme):
+        - ``auth_required`` / ``not_found`` → expand token field
+        - ``tls_error`` → expand "Trust self-signed cert" toggle
+        - ``network`` / ``unknown`` → show error, no field expansion
+    """
+    spec = SourceSpec(
+        source_type=req.source_type,
+        url=req.url,
+        branch=req.branch,
+        token=req.token,
+        auth_username=req.auth_username,
+        verify_ssl=req.verify_ssl,
+    )
+    try:
+        acquirer = SourceAcquirer.for_type(req.source_type, builder.tmp_dir)
+    except ValueError as e:
+        # Unknown source_type — Pydantic Literal should already reject this
+        # at the boundary, but keep defense-in-depth.
+        return JSONResponse(status_code=400, content={
+            "ok": False, "reason": "validation",
+            "message": str(e), "provider_hint": req.source_type,
+        })
+    try:
+        data = acquirer.probe_metadata(spec)
+        return {"ok": True, "data": data}
+    except CloneError as e:
+        return {
+            "ok": False,
+            "reason": e.reason,
+            "message": e.message,
+            "provider_hint": req.source_type,
+        }
+    except RuntimeError as e:
+        # Validation-class failures (missing url, missing auth_username for
+        # generic+token, invalid token chars, etc.).
+        return JSONResponse(status_code=400, content={
+            "ok": False, "reason": "validation",
+            "message": str(e), "provider_hint": req.source_type,
+        })
 
 
 @router.get("/plugin/{plugin_id}/builds", response_model=List[PluginBuildResponse])
@@ -254,6 +522,32 @@ async def get_plugin_builds(plugin_id: str, skip: int = 0, limit: int = 100, db:
 
     builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).offset(skip).limit(limit).all()
     return builds
+
+@router.get("/plugin/{plugin_id}/cwl")
+async def get_plugin_cwl(plugin_id: str, db: Session = Depends(get_db)):
+    """Read the root .cwl file for a local-source plugin from its staging dir.
+    Used by the annotation step in local mode (github mode still hits GitHub directly)."""
+    plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
+    if plugin is None:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    if plugin.source_type != "local" or not plugin.local_archive_path:
+        raise HTTPException(
+            status_code=400,
+            detail="Plugin is not a local-source plugin; use GitHub API for github plugins",
+        )
+
+    staging = Path(plugin.local_archive_path)
+    if not staging.exists() or not staging.is_dir():
+        raise HTTPException(
+            status_code=410,
+            detail="Staging directory has been removed (build already completed?)",
+        )
+
+    result = read_root_cwl(staging)
+    if result is None:
+        raise HTTPException(status_code=404, detail="No .cwl file found at the root of the uploaded folder")
+    return result
+
 
 @router.get("/plugin/{plugin_id}/annotation", response_model=PluginAnnotationResponse)
 async def get_plugin_annotations(plugin_id: str, db: Session = Depends(get_db)):
@@ -275,7 +569,7 @@ async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = 
         "backend_folder": plugin.backend_folder,
         "backend_deploy_command": plugin.backend_deploy_command,
     }
-    logger.info(f"Building plugin: {json.dumps(plugin_dict, indent=4)}")
+    logger.info(f"Building plugin: {safe_dump(plugin_dict, indent=4)}")
     deploy_id = str(uuid.uuid4())
     db_deploy = PluginDeployment(
         plugin_id=plugin.id,
@@ -289,6 +583,7 @@ async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = 
     db.refresh(db_deploy)
 
     def run_deploy():
+        job_key = f"deploy:{deploy_id}"
         try:
             with SessionLocal() as session:
                 deploy_record = session.query(PluginDeployment).filter(
@@ -296,22 +591,51 @@ async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = 
                 if deploy_record:
                     deploy_record.status = DeployStatus.DEPLOYING.value
                     session.commit()
+            log_registry.open(job_key)
+            # Bind this thread so every deploy log record (compose up output AND
+            # the surrounding orchestration steps) streams into the console.
+            bind_thread_job(job_key)
             logger.info("Starting plugin deployment...")
-            result = deployer.deploy(plugin_dict)
+            try:
+                result = deployer.deploy(plugin_dict)
+            finally:
+                unbind_thread_job()
             with SessionLocal() as session:
                 deploy_record = session.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()
                 if deploy_record:
                     if result["success"]:
+                        log_registry.finish(job_key, "completed")
                         deploy_record.status = DeployStatus.COMPLETED.value
                         deploy_record.source_path = result["backend_dir"]
                         deploy_record.up = True
+
+                        # Generate nginx config for this plugin
+                        expose_name = latest_build.expose_name
+                        backend_dir = Path(result["backend_dir"])
+                        routing = _parse_docker_compose_routing(backend_dir, expose_name)
+                        if routing and expose_name:
+                            route_prefix = f"/plugin/{expose_name}"
+                            deploy_record.route_prefix = route_prefix
+                            deploy_record.internal_host = routing["internal_host"]
+                            deploy_record.internal_port = routing["internal_port"]
+                            deploy_record.has_websocket = routing.get("has_websocket", True)
+                            deployer.generate_nginx_conf(
+                                expose_name=expose_name,
+                                internal_host=routing["internal_host"],
+                                internal_port=routing["internal_port"],
+                                has_websocket=routing.get("has_websocket", True),
+                            )
+                            deployer.reload_nginx()
+                            logger.info(f"Nginx config generated for plugin {expose_name}")
                     else:
+                        log_registry.finish(job_key, "failed")
                         deploy_record.status = BuildStatus.FAILED.value
                         deploy_record.error = result["error_message"]
 
                     deploy_record.updated_at = datetime.now()
                     session.commit()
         except Exception as e:
+            log_registry.finish(job_key, "failed")
             logger.error(f"Deploy failed: {e}")
             with SessionLocal() as session:
                 deploy_record = session.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()
@@ -355,18 +679,37 @@ async def execute_plugin_backend_by_docker(deploy_id: str, command: Literal["up"
         raise HTTPException(status_code=404, detail="Plugin Deploy record not found")
     if deploy_record.status == DeployStatus.COMPLETED.value:
         if command == "up":
+            expose_name = deploy_record.route_prefix.replace("/plugin/", "") if deploy_record.route_prefix else ""
             result = deployer.compose_up({
-                "backend_dir": deploy_record.source_path
+                "backend_dir": deploy_record.source_path,
+                "expose_name": expose_name,
             })
             if result["success"]:
                 deploy_record.up = True
+                # Ensure nginx config exists and reload
+                if deploy_record.route_prefix and deploy_record.internal_host:
+                    expose_name = deploy_record.route_prefix.replace("/plugin/", "")
+                    deployer.generate_nginx_conf(
+                        expose_name=expose_name,
+                        internal_host=deploy_record.internal_host,
+                        internal_port=deploy_record.internal_port or "8082",
+                        has_websocket=deploy_record.has_websocket or False,
+                    )
+                    deployer.reload_nginx()
                 logger.info("Successfully executed docker compose up for plugin deployment")
         elif command == "down":
+            expose_name = deploy_record.route_prefix.replace("/plugin/", "") if deploy_record.route_prefix else ""
             result = deployer.compose_down({
-                "backend_dir": deploy_record.source_path
+                "backend_dir": deploy_record.source_path,
+                "expose_name": expose_name,
             })
             if result["success"]:
                 deploy_record.up = False
+                # Optionally remove nginx config when container is down
+                if deploy_record.route_prefix:
+                    expose_name = deploy_record.route_prefix.replace("/plugin/", "")
+                    deployer.remove_nginx_conf(expose_name)
+                    deployer.reload_nginx()
                 logger.info("Successfully executed docker compose down for plugin deployment")
         db.commit()
         return {
@@ -430,39 +773,68 @@ async def get_all_builds(skip: int = 0, limit: int = 100, status: BuildStatus = 
     return builds
 
 
-@router.get("/builds/{build_id}/download-url")
-async def get_build_download_url(build_id: str, db: Session = Depends(get_db)):
-    """Get a presigned download URL for a build's artifacts"""
+async def _sse_log_generator(job_key: str):
+    """Async generator that yields SSE-formatted log lines for the given job key."""
+    offset = 0
+    # First frame: if job doesn't exist (restart/evicted), close immediately
+    # so the frontend falls back to the history endpoint.
+    if not log_registry.exists(job_key):
+        yield "event: end\ndata: gone\n\n"
+        return
+    while True:
+        new_lines, offset, done, status = log_registry.snapshot(job_key, offset)
+        for ln in new_lines:
+            # One SSE data field per log line; strip carriage returns.
+            yield "data: " + ln.replace("\r", "") + "\n\n"
+        if done:
+            yield f"event: end\ndata: {status or 'completed'}\n\n"
+            return
+        await asyncio.sleep(0.25)
 
-    try:
-        build_record = get_build_record_or_404(build_id, db, PluginBuild)
-        url, s3_path = get_public_url_for_build(build_record, "workflow-tools")
 
-        return {
-            "build_id": build_id,
-            "download_url": url,
-            "expires_in": None,  # No expiration for public URLs
-            "s3_path": s3_path
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate download url for build {build_id}: {e}")
+def _sse_response(job_key: str) -> StreamingResponse:
+    return StreamingResponse(
+        _sse_log_generator(job_key),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",   # belt-and-suspenders even if nginx is misconfigured
+            "Connection": "keep-alive",
+        },
+    )
 
 
-@router.get("/builds/{build_id}/direct-url")
-async def get_build_direct_url(build_id: str, db: Session = Depends(get_db)):
-    """Get a direct public URL for a build's artifacts (no expiration)"""
-    try:
-        build_record = get_build_record_or_404(build_id, db, PluginBuild)
-        url, s3_path = get_public_url_for_build(build_record, "workflow-tools")
+@router.get("/builds/{build_id}/logs/stream")
+async def stream_build_logs(build_id: str):
+    """SSE endpoint: stream live build logs for a running or recently finished build."""
+    return _sse_response(f"build:{build_id}")
 
-        return {
-            "build_id": build_id,
-            "direct_url": url,
-            "s3_path": s3_path,
-            "note": "This URL has no expiration and is publicly accessible"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate direct url for build {build_id}: {e}")
+
+@router.get("/deploy/{deploy_id}/logs/stream")
+async def stream_deploy_logs(deploy_id: str):
+    """SSE endpoint: stream live deploy logs for a running or recently finished deploy."""
+    return _sse_response(f"deploy:{deploy_id}")
+
+
+@router.get("/builds/{build_id}/logs", response_class=PlainTextResponse)
+async def get_build_logs(build_id: str, db: Session = Depends(get_db)):
+    """Return full build log text. In-memory first (live/recent), DB fallback (completed)."""
+    key = f"build:{build_id}"
+    if log_registry.exists(key):
+        return log_registry.full_text(key)
+    rec = db.query(PluginBuild).filter(PluginBuild.build_id == build_id).first()
+    if rec is None:
+        raise HTTPException(status_code=404, detail="Build not found")
+    return rec.build_logs or ""
+
+
+@router.get("/deploy/{deploy_id}/logs", response_class=PlainTextResponse)
+async def get_deploy_logs(deploy_id: str):
+    """Return full deploy log text (in-memory only — no DB column for deploy logs)."""
+    key = f"deploy:{deploy_id}"
+    if log_registry.exists(key):
+        return log_registry.full_text(key)
+    raise HTTPException(status_code=410, detail="Deploy logs expired (in-memory only)")
 
 
 @router.get("/test-build")
@@ -485,15 +857,56 @@ async def get_test_build_info():
 
 
 @router.get("/metadata")
-async def get_metadata_json():
-    try:
-        obj = minio.get_object("metadata.json")
-        data = obj['Body'].read().decode('utf-8')
-        return json.loads(data)
-    except ClientError as e:
-        raise HTTPException(status_code=404, detail=f"File not found: metadata.json")
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail=f"File is not valid JSON: metadata.json")
+async def get_metadata_json(db: Session = Depends(get_db)):
+    plugins = db.query(Plugin).all()
+    components = []
+    for plugin in plugins:
+        latest_build = (db.query(PluginBuild)
+            .filter(PluginBuild.plugin_id == plugin.id,
+                    PluginBuild.status == BuildStatus.COMPLETED.value)
+            .order_by(PluginBuild.created_at.desc())
+            .first())
+        if not latest_build or not latest_build.expose_name:
+            continue
+
+        build_ts = int(latest_build.created_at.timestamp()) if latest_build.created_at else 0
+        is_local = latest_build.s3_path is None
+
+        if plugin.label == "GUI":
+            if is_local:
+                path = f"/{latest_build.expose_name}/my-app.umd.js?v={build_ts}"
+            else:
+                path = f"/tools/{latest_build.expose_name}/primary/my-app.umd.js?v={build_ts}"
+        else:
+            if is_local:
+                path = f"/{latest_build.expose_name}"
+            else:
+                path = f"/tools/{latest_build.expose_name}/primary"
+
+        components.append({
+            "uuid": plugin.uuid or "",
+            "id": plugin.id,
+            "name": plugin.name,
+            "path": path,
+            "expose": latest_build.expose_name if plugin.label == "GUI" else None,
+            "label": plugin.label,
+            "description": plugin.description or "",
+            "version": plugin.version,
+            "created_at": plugin.created_at.isoformat() if plugin.created_at else "",
+            "author": plugin.author or "",
+            "repository_url": plugin.repository_url,
+            "is_local": is_local,
+            "frontend_folder": plugin.frontend_folder if plugin.label == "GUI" else None,
+            "has_backend": plugin.has_backend if plugin.label == "GUI" else False,
+            "backend_folder": plugin.backend_folder if plugin.has_backend else None,
+            "backend_deploy_command": plugin.backend_deploy_command if (plugin.has_backend and plugin.label == "GUI") else None,
+            "config": plugin.plugin_metadata or {},
+        })
+
+    return JSONResponse(
+        content={"components": components},
+        headers={"Cache-Control": "no-cache, no-store"}
+    )
 
 
 @router.get("/get-file/{object_key:path}")

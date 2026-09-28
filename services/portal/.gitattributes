@@ -1,0 +1,9 @@
+# Shell scripts may run as entrypoints INSIDE Linux containers. If they get
+# checked out with CRLF (which git does on Windows when core.autocrlf=true),
+# the shebang becomes `#!/bin/sh\r`, the kernel can't find the interpreter,
+# and docker fails with:  exec /<script>.sh: no such file or directory
+#
+# Forcing eol=lf here overrides every contributor's autocrlf setting, so these
+# files are ALWAYS checked out with LF regardless of OS or local git config.
+*.sh text eol=lf
+Dockerfile text eol=lf

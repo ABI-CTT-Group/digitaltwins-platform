@@ -1,0 +1,18 @@
+# Dev-only override for the standalone inner loop.
+#
+# `docker compose up` (with no -f) auto-merges this file, so running the portal on
+# its own publishes port 80 and everything behaves as it always has.
+#
+# The platform consumes this repo through
+#   extends: { file: docker-compose.yml, service: portal-frontend }
+# which reads only the file it names — so the platform never picks this up. That
+# is the point: under the platform, 80/443 belong to the edge gateway
+# (digitaltwins-platform/services/nginx), and portal-frontend is reached by
+# service name on the shared network.
+#
+# Caveat: `docker compose -f docker-compose.yml up` (explicit -f) skips override
+# files by design, so it will start the portal with no published ports.
+services:
+  portal-frontend:
+    ports:
+      - "80:80"

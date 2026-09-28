@@ -1,7 +1,8 @@
 <template>
-    <div class="container overflow-hidden d-flex justify-center">
-        <div class="overflow-y-auto sub-container">
-            <Hero 
+    <div class="container d-flex justify-center" style="padding-top: 16px;">
+        <div class="w-100">
+            <BackLink to="CatalogueDashboardView" label="Catalogue" sticky class="mb-4" />
+            <Hero
                 :title="heroDetail.title"
                 :subtitle="heroDetail.subtitle"/>
 
@@ -13,7 +14,8 @@
 </template>
 
 <script setup lang="ts">
-import Hero from '@/components/dt-components/Hero.vue';
+import Hero from '@/components/domain/Hero.vue';
+import BackLink from '@/components/common/BackLink.vue';
 import UploadWorkflowForm from './UploadWorkflowForm.vue';
 import WorkflowsOverallView from './WorkflowsOverallView.vue';
 import { ref, computed } from 'vue';
@@ -37,9 +39,5 @@ const handleUploadFinished = () => {
 </script>
 
 <style scoped>
-.sub-container{
-    width: 100%;
-    margin-top: 70px;
-}
 
 </style>

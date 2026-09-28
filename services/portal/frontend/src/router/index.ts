@@ -3,98 +3,110 @@ import {
   createRouter,
   createWebHistory,
   createWebHashHistory,
+  RouteRecordRaw,
 } from "vue-router";
-import Login from "@/views/index.vue";
-import Home from "@/views/dashboard/index.vue";
-import Dashboard from "@/views/dashboard/study-dashboard/index.vue";
-import TutorialDashboard from "@/views/dashboard/tutorial-dashboard/index.vue";
-import CatalogueDashboard from "@/views/dashboard/catalogue-dashboard/index.vue";
-import CatalogueDashboardView from "@/views/dashboard/catalogue-dashboard/catalogue-dashboard-view.vue";
-import WorkflowToolsViewer from "@/views/dashboard/catalogue-dashboard/workflow-tools-viewer.vue";
+import { useAuthStore } from "@/store/auth_store";
+import { isAuthenticated } from "@/bootstrap/keycloak";
+import Home from "@/views/home/index.vue";
+import DashboardView from "@/views/dashboard/DashboardView.vue";
+import TutorialDashboard from "@/views/tutorial/index.vue";
+import CatalogueDashboardView from "@/views/catalogue/catalogue-dashboard-view.vue";
+import ToolsViewer from "@/views/catalogue/tools-viewer.vue";
 import Layout from "@/layouts/Default.vue";
-import LaunchedAssayOverview from "@/views/dashboard/study-dashboard/assay-overview.vue";
+import LaunchedAssayOverview from "@/views/dashboard/report/AssayReportView.vue";
 import UploadDataset from "@/views/upload-dataset/index.vue";
 import UploadToolDataset from "@/views/upload-dataset/workflow-tool/index.vue";
 import UploadWorkflowDataset from "@/views/upload-dataset/workflow/index.vue";
-import PluginHome from "@/views/toolPlugin/index.vue";
-import ToolPluginView from "@/views/toolPlugin/tool-plugin-view.vue";
+import UploadMeasurementsDataset from "@/views/upload-dataset/measurements/index.vue";
+import MeasurementFhirPreview from "@/views/upload-dataset/measurements/MeasurementFhirPreview.vue";
+
+import ToolPluginView from "@/views/tool-plugin/tool-plugin-view.vue";
 
 
 const routes = [
   {
-    path: "/",
-    name: "Login",
-    component: Login,
-  },
-  {
-    path:"/home",
+    path:"/",
     component: Layout,
     children:[
           {
-            path: "/home",
+            path: "",
             name: "Home",
             component: Home,
           },
           {
-            path: "/dashboard:dashboardType",
-            name: "Dashboard",
-            component: Dashboard,
-            // props: (route:any) => ({ dashboardType: route.params.dashboardType })
+            path: "/study-dashboard",
+            name: "StudyDashboard",
+            component: DashboardView,
+            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'], type: 'study' },
+          },
+          {
+            path: "/clinician-dashboard",
+            name: "ClinicianDashboard",
+            component: DashboardView,
+            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher', 'clinician'], type: 'clinician' },
           },
           {
             path: "/how-it-works",
             name: "TutorialDashboard",
-            component:TutorialDashboard
+            component: TutorialDashboard,
           },
           {
             path: "/catalogue-dashboard",
-            component:CatalogueDashboard,
-            children:[
-              {
-                path: "/catalogue-dashboard",
-                name: "CatalogueDashboardView",
-                component: CatalogueDashboardView,
-              },
-              {
-                path: "/catalogue-dashboard-workflow-tools",
-                name: "WorkflowToolsViewer",
-                component: WorkflowToolsViewer,
-              }
-            ]
+            name: "CatalogueDashboardView",
+            component: CatalogueDashboardView,
+          },
+          {
+            path: "/catalogue-dashboard-tools",
+            name: "ToolsViewer",
+            component: ToolsViewer,
+            meta: { requiresAuth: true },
           },
           {
             path: "/launched-assay",
             name: "LaunchedAssayOverview",
             component: LaunchedAssayOverview,
+            meta: { requiresAuth: true },
           },
           {
             path: "/upload-dataset",
             name: "UploadDataset",
             component: UploadDataset,
+            meta: { requiresAuth: true },
             children:[
               {
                 path: "/upload-tool-dataset",
                 name: "UploadToolDataset",
                 component: UploadToolDataset,
+                meta: { requiresAuth: true, requiresRoles: ['admin'] },
               },
               {
                 path: "/upload-workflow-dataset",
                 name: "UploadWorkflowDataset",
                 component: UploadWorkflowDataset,
+                meta: { requiresAuth: true, requiresRoles: ['admin'] },
+              },
+              {
+                path: "/upload-dataset/measurements",
+                name: "UploadMeasurementsDataset",
+                component: UploadMeasurementsDataset,
+                meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'] },
+              },
+              {
+                path: "/upload-dataset/measurements/:id/preview",
+                name: "MeasurementFhirPreview",
+                component: MeasurementFhirPreview,
+                meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'] },
               },
             ]
           },
-          {
-            path: "/plugin-home",
-            name: "PluginHome",
-            component: PluginHome,
-          },
+
     ]
   },
   {
     path: "/tool-view",
     name: "ToolPluginView",
     component: ToolPluginView,
+    meta: { requiresAuth: true },
   }
 ];
 
@@ -106,20 +118,34 @@ const router = createRouter({
   routes,
 });
 
-// export default router;
+// Navigation guard for authentication
+router.beforeEach(async (to, from, next) => {
+  const authStore = useAuthStore();
+  const requiresAuth = to.matched.some(r => r.meta?.requiresAuth);
+  const requiresRoles = (to.meta?.requiresRoles ?? []) as string[];
+  authStore.updateAuthState();
 
-// const router = createRouter({
-//   history: createWebHashHistory(),
-//   linkActiveClass: "active",
-//   routes,
-// });
-// export default router;
+  if (requiresAuth) {
+    // Keycloak is the only source of truth. (There used to be a sessionStorage
+    // `access_token` fallback here, but nothing ever wrote that key.)
+    if (!isAuthenticated()) {
+      next({ name: 'Home' });
+      return;
+    }
 
-// console.log(process.env.BASE_URL);
+    // Role guard — hard block for routes that require a specific role
+    if (requiresRoles.length > 0) {
+      const hasRequiredRole = requiresRoles.some(r => authStore.userRoles.includes(r));
+      if (!hasRequiredRole) {
+        next({ name: 'Home' });
+        return;
+      }
+    }
 
-// const router = createRouter({
-//   history: createWebHistory(),
-//   routes,
-// });
+    next();
+  } else {
+    next();
+  }
+});
 
 export default router;
