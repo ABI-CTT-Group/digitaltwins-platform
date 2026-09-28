@@ -1,0 +1,112 @@
+services:
+  portal-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - DATABASE_PATH=/data/plugin_registry.db
+      - DATASET_DIR_TOOL=/datasets_tool
+      - DATASET_DIR_MEASUREMENT=/datasets_measurement
+      - DATASET_DIR_WORKFLOW=/datasets_workflow
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio:9000}
+      - MINIO_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
+      - MINIO_PORT=${MINIO_PORT:-8004}
+      - USE_SSL=${USE_SSL:-false}
+      - FHIR_ENDPOINT=${FHIR_ENDPOINT:-hapi-fhir:8080/fhir}
+      - DIGITALTWINS_API_BASE_URL=${DIGITALTWINS_API_BASE_URL:-http://digitaltwins-api}
+      - DIGITALTWINS_API_PORT=${DIGITALTWINS_API_PORT:-8000}
+      - PORTAL_BACKEND_HOST_IP=${PORTAL_BACKEND_HOST_IP:-localhost}
+      - PLUGIN_PORT=8002
+    volumes:
+      - portal_datasets:/app/data
+      - ./backend/datasets_tool:/datasets_tool
+      - ./backend/datasets_measurement:/datasets_measurement
+      - ./backend/datasets_workflow:/datasets_workflow
+      - ./backend/configs.ini:/app/configs.ini
+      - plugin_database:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    networks:
+      - digitaltwins
+    depends_on:
+      - minio
+
+  portal-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    environment:
+      - PORTAL_BACKEND_HOST_IP=${PORTAL_BACKEND_HOST_IP:-localhost}
+      - BACKEND_PORT=${BACKEND_PORT:-8000}
+      - SSL=${SSL:-false}
+    restart: unless-stopped
+    networks:
+      - digitaltwins
+    depends_on:
+      - portal-backend
+  
+  minio:
+    image: quay.io/minio/minio:latest
+    ports:
+      - '8004:9000' #backend
+      - '8005:9001' #frontend
+    networks:
+      - digitaltwins
+    volumes:
+      - 'minio_data:/data'
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+      - MINIO_SERVER_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
+      - MINIO_SERVER_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
+    command: server /data --console-address ":9001" --address ":9000"
+  
+  hapi-fhir:
+    image: hapiproject/hapi:latest
+    restart: on-failure
+    ports:
+      - "8006:8080"
+    networks:
+      - digitaltwins
+    volumes:
+      - ./hapi/application.yaml:/app/config/application.yaml
+    environment:
+      - SPRING_CONFIG_LOCATION=/app/config/application.yaml
+    depends_on:
+      - hapi-fhir-postgres
+
+  hapi-fhir-postgres:
+    image: postgres:13-alpine
+    restart: always
+    networks:
+      - digitaltwins
+    environment:
+      POSTGRES_DB: "hapi"
+      POSTGRES_USER: "admin"
+      POSTGRES_PASSWORD: "admin"
+    volumes:
+      - hapi_fhir_postgres:/var/lib/postgresql/data
+
+networks:
+  digitaltwins:
+    driver: bridge
+
+volumes:
+  portal_datasets:
+    name: digitaltwins_portal_datasets
+    driver: local
+  hapi_fhir_postgres:
+    name: digitaltwins_hapi_fhir_postgres
+    driver: local
+  plugin_database:
+    name: digitaltwins_plugin_database
+    driver: local
+  minio_data:
+    name: digitaltwins_minio_data
+    driver: local

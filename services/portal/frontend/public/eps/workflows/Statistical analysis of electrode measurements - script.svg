@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="188pt" height="326pt" viewBox="0.00 0.00 188.06 325.60">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 321.6)">
+<title>G</title>
+<polygon fill="#fdf1e4" stroke="none" points="-4,4 -4,-321.6 184.06,-321.6 184.06,4 -4,4"/>
+<g id="clust1" class="cluster">
+<title>cluster_inputs</title>
+<polygon fill="#fdf1e4" stroke="black" stroke-dasharray="5,2" points="34.03,-231.8 34.03,-309.6 146.03,-309.6 146.03,-231.8 34.03,-231.8"/>
+<text text-anchor="middle" x="90.01" y="-240" font-family="Times,serif" font-size="14.00">Workflow Inputs</text>
+</g>
+<g id="clust2" class="cluster">
+<title>cluster_outputs</title>
+<polygon fill="#fdf1e4" stroke="black" stroke-dasharray="5,2" points="12.03,-8 12.03,-85.8 168.03,-85.8 168.03,-8 12.03,-8"/>
+<text text-anchor="middle" x="107.34" y="-16.2" font-family="Times,serif" font-size="14.00">Workflow Outputs</text>
+</g>
+<!-- Load_dataset_summary_data -->
+<g id="node1" class="node">
+<title>Load_dataset_summary_data</title>
+<polygon fill="#4bccff" stroke="black" stroke-dasharray="5,2" points="0,-187.3 0,-223.3 180.06,-223.3 180.06,-187.3 0,-187.3"/>
+<text text-anchor="middle" x="90.03" y="-201.1" font-family="Times,serif" font-size="14.00">Load_dataset_summary_data</text>
+</g>
+<!-- plot_summary_statistics -->
+<g id="node2" class="node">
+<title>plot_summary_statistics</title>
+<polygon fill="#4bccff" stroke="black" stroke-dasharray="5,2" points="13.98,-114.3 13.98,-150.3 166.08,-150.3 166.08,-114.3 13.98,-114.3"/>
+<text text-anchor="middle" x="90.03" y="-128.1" font-family="Times,serif" font-size="14.00">plot_summary_statistics</text>
+</g>
+<!-- Load_dataset_summary_data&#45;&gt;plot_summary_statistics -->
+<g id="edge1" class="edge">
+<title>Load_dataset_summary_data-&gt;plot_summary_statistics</title>
+<path fill="none" stroke="black" d="M90.03,-187.11C90.03,-179.53 90.03,-170.4 90.03,-161.84"/>
+<polygon fill="black" stroke="black" points="93.53,-161.84 90.03,-151.84 86.53,-161.84 93.53,-161.84"/>
+</g>
+<!-- summary_stats_figure -->
+<g id="node4" class="node">
+<title>summary_stats_figure</title>
+<polygon fill="#c30000" stroke="black" points="19.82,-41.3 19.82,-77.3 160.24,-77.3 160.24,-41.3 19.82,-41.3"/>
+<text text-anchor="middle" x="90.03" y="-55.1" font-family="Times,serif" font-size="14.00">summary_stats_figure</text>
+</g>
+<!-- plot_summary_statistics&#45;&gt;summary_stats_figure -->
+<g id="edge3" class="edge">
+<title>plot_summary_statistics-&gt;summary_stats_figure</title>
+<path fill="none" stroke="black" d="M90.03,-114.11C90.03,-106.53 90.03,-97.4 90.03,-88.84"/>
+<polygon fill="black" stroke="black" points="93.53,-88.84 90.03,-78.84 86.53,-88.84 93.53,-88.84"/>
+</g>
+<!-- excel_file -->
+<g id="node3" class="node">
+<title>excel_file</title>
+<polygon fill="#c30000" stroke="black" points="54.43,-265.1 54.43,-301.1 125.62,-301.1 125.62,-265.1 54.43,-265.1"/>
+<text text-anchor="middle" x="90.03" y="-278.9" font-family="Times,serif" font-size="14.00">excel_file</text>
+</g>
+<!-- excel_file&#45;&gt;Load_dataset_summary_data -->
+<g id="edge2" class="edge">
+<title>excel_file-&gt;Load_dataset_summary_data</title>
+<path fill="none" stroke="black" d="M90.03,-264.9C90.03,-256.05 90.03,-245.02 90.03,-234.93"/>
+<polygon fill="black" stroke="black" points="93.53,-235.21 90.03,-225.21 86.53,-235.21 93.53,-235.21"/>
+</g>
+</g>
+</svg>
