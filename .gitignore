@@ -204,3 +204,7 @@ services/airflow/logs/*
 /tmp/
 /*_realm_*.json
 
+
+# Local database backups (SQLite snapshots, pg_dump files, role dumps with password
+# hashes) — never commit
+/backup/
