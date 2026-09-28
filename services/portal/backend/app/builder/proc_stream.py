@@ -35,6 +35,15 @@ def _emit(on_line: OnLine, raw: str) -> None:
             pass
 
 
+def plugin_subprocess_env(extra_env: Optional[dict] = None) -> dict:
+    """os.environ for third-party plugin build/deploy commands, minus the
+    portal's own database credentials (PORTAL_DB_*)."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("PORTAL_DB_")}
+    if extra_env:
+        env.update(extra_env)
+    return env
+
+
 def stream_process(
     args: Union[str, Sequence[str]],
     cwd=None,

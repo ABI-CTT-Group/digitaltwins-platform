@@ -6,7 +6,7 @@ from .logger import get_logger
 import subprocess
 import shlex
 from app.client.minio import get_minio_client
-from app.builder.proc_stream import stream_process
+from app.builder.proc_stream import stream_process, plugin_subprocess_env
 from sqlalchemy.orm import Session
 from app.models.db_model import Plugin, SessionLocal
 
@@ -154,9 +154,7 @@ location {route_prefix}/ {{
         output streams live. Returns the process exit code (0 = success)."""
         try:
             logger.info(f"Running command {command} for deployment of {backend_dir}")
-            env = os.environ.copy()
-            if extra_env:
-                env.update(extra_env)
+            env = plugin_subprocess_env(extra_env)
 
             def on_line(line: str) -> None:
                 logger.info(line)

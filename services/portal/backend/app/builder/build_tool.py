@@ -18,7 +18,7 @@ from app.client.minio import get_minio_client
 from sqlalchemy.orm import Session
 from app.models.db_model import Plugin, SessionLocal
 from app.builder.source_acquirer import SourceAcquirer, SourceSpec
-from app.builder.proc_stream import stream_process
+from app.builder.proc_stream import stream_process, plugin_subprocess_env
 from app.utils.builder_utils import (
     copy_item,
     remove_tmp_folder,
@@ -61,7 +61,7 @@ class PluginBuilder:
                     pass
 
         try:
-            rc = stream_process(args, cwd=cwd, on_line=on_line)
+            rc = stream_process(args, cwd=cwd, env=plugin_subprocess_env(), on_line=on_line)
         except FileNotFoundError as e:
             logger.error(f"executable not found: {e}")
             return {"success": False, "stdout": "", "stderr": str(e), "error": str(e)}
