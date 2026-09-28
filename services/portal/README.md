@@ -1,9 +1,3 @@
-⚠️ This repository has been archived.
-
-This codebase has been absorbed into the [digitaltwins-platform](https://github.com/ABI-CTT-Group/digitaltwins-platform) monorepo under services/portal/, with full commit history preserved.
-
-All future development happens in the monorepo. This repository is kept for historical reference only and is no longer accepting issues or pull requests.
-
 # DigitalTWINS Portal
 
 ## Deploy locally
