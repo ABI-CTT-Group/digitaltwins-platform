@@ -714,36 +714,28 @@ non-obvious and was learned the hard way.
 re-creates its user record on next Keycloak login), and **docker images** (plugin
 images must be `docker save`/`load`ed separately).
 
-## Working with the submodules (portal / api / seek)
+## Working with the submodule (seek)
 
-`services/portal/DigitalTWINS-Portal`, `services/api/digitaltwins-api`, and
-`services/seek/ldh-deployment` are **git submodules**: this platform repo does
-**not** contain their code — it stores a *bookmark* (an exact commit hash) saying
-"use this submodule at this commit". Each submodule is its own repo with its own
-`main` and PRs. So changing submodule code is always **two repos, two commits**:
+`services/seek/ldh-deployment` is a **git submodule**: this platform repo stores a
+*bookmark* (an exact commit hash) pointing to a specific SEEK commit. SEEK is an
+external fork, so it stays as a submodule. The portal and API code have been absorbed
+directly into this repo (under `services/portal/` and `services/api/`).
+
+To work on SEEK:
 
 ```bash
-# 1. Change the code IN THE SUBMODULE'S OWN REPO (branch -> commit -> push -> PR)
-cd services/portal/DigitalTWINS-Portal
+# Changes go in the submodule's own repo, then bump the pointer here
+cd services/seek/ldh-deployment
 git checkout -b feat/my-change
 # ...edit...
 git commit -am "..."
 git push -u origin feat/my-change
-gh pr create --base main               # open the PR in the submodule's repo
+gh pr create --base main
 
-# 2. Point the PLATFORM's bookmark at that commit (pin) and commit it here
-cd -                                   # back to the platform repo root
-git add services/portal/DigitalTWINS-Portal
-git commit -m "chore(portal): pin submodule to <commit>"
-```
-
-**Re-pin after the submodule PR merges.** Pinning to a feature-branch commit is
-fine short-term, but once the submodule PR lands on its `main` (especially with a
-squash-merge, which makes a *new* hash), bump the pointer again:
-
-```bash
-cd services/portal/DigitalTWINS-Portal && git fetch origin && git checkout origin/main
-cd - && git add services/portal/DigitalTWINS-Portal && git commit -m "chore(portal): re-pin to main"
+# After the PR merges, re-pin the platform pointer
+cd -
+git add services/seek/ldh-deployment
+git commit -m "chore(seek): re-pin to main"
 ```
 
 > The pin only works if the commit is **pushed** to the submodule's remote — a
