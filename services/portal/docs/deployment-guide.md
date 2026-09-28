@@ -140,6 +140,22 @@ browser → gateway (digitaltwins-platform/services/nginx, owns 80/443 + TLS)
 
 Gateway config is bind-mounted, so operators change a route and `nginx -s reload` — no image rebuild. See `digitaltwins-platform/services/nginx/README.md`.
 
+### Database
+
+portal-backend picks its database at startup:
+
+- **`PORTAL_DB_HOST` unset (standalone):** SQLite at `DATABASE_PATH` (`/data/plugin_registry.db` on the `plugin_database` volume).
+- **`PORTAL_DB_HOST` set (the platform sets it):** the platform Postgres, in the `portal` schema of the `PORTAL_DB_NAME` database, as `PORTAL_DB_USER`/`PORTAL_DB_PASSWORD`. The schema and tables are created at startup. `PORTAL_DB_*` variables are stripped from the environment of plugin build and deploy commands.
+
+To move an existing SQLite database into Postgres, run this once, with portal-backend stopped (the dry run changes nothing):
+
+```bash
+docker compose run --rm portal-backend uv run python -m app.cli.migrate_sqlite_to_postgres --dry-run
+docker compose run --rm portal-backend uv run python -m app.cli.migrate_sqlite_to_postgres
+```
+
+It refuses to run if the target already has portal rows, and it copies everything in a single transaction.
+
 **Never edit `services/portal/DigitalTWINS-Portal/` from the platform side.** It is a git submodule; editing it dirties the working tree and the next `git submodule update` will conflict. Portal changes are made here, pushed, and picked up by bumping the submodule SHA.
 
 ---

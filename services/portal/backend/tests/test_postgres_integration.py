@@ -135,5 +135,23 @@ class ForeignKeyTest(PostgresTestCase):
         session.close()
 
 
+class MigrateToPostgresTest(PostgresTestCase):
+    def test_sqlite_to_postgres_end_to_end(self):
+        import tempfile
+        from app.cli.migrate_sqlite_to_postgres import migrate
+        from tests.test_migrate_sqlite_to_postgres import make_source, rows
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source = make_source(Path(tmp) / "plugin_registry.db")
+            counts, _ = migrate(source, self.engine)
+            for table in Base.metadata.sorted_tables:
+                self.assertEqual(rows(self.engine, table), rows(source, table), table.name)
+            self.assertEqual(sum(counts.values()), sum(len(rows(source, t)) for t in Base.metadata.sorted_tables))
+            source.dispose()
+        with self.engine.connect() as conn:
+            self.assertTrue(conn.execute(text("SELECT plugin_metadata IS NULL FROM plugins WHERE id = 'p2'")).scalar_one())
+            self.assertEqual(conn.execute(text("SELECT plugin_metadata->'k'->>1 FROM plugins WHERE id = 'p1'")).scalar_one(), "two")
+
+
 if __name__ == "__main__":
     unittest.main()
