@@ -1,6 +1,7 @@
 import os
 import uuid
 from sqlalchemy import create_engine, Column, String, DateTime, ForeignKey, Text, JSON, Boolean, Enum, Table
+from sqlalchemy.engine import URL
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from pydantic import BaseModel
@@ -8,9 +9,33 @@ from enum import Enum as PyEnum
 from datetime import datetime
 from typing import Optional, Literal, List, Any
 
-DATABASE_PATH = os.getenv("DATABASE_PATH", "./plugin_registry.db")
-DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
-engine = create_engine(DATABASE_URL, connect_args={'check_same_thread': False})
+# Under the platform the tables live in this schema of the shared Postgres; it is
+# selected via search_path so the models stay schema-agnostic (and SQLite-compatible).
+PORTAL_DB_SCHEMA = "portal"
+
+
+def database_url() -> URL:
+    """Postgres from the PORTAL_DB_* variables when PORTAL_DB_HOST is set, else SQLite at DATABASE_PATH."""
+    if not os.getenv("PORTAL_DB_HOST"):
+        return URL.create("sqlite", database=os.getenv("DATABASE_PATH", "./plugin_registry.db"))
+    return URL.create(
+        "postgresql+psycopg2",
+        host=os.environ["PORTAL_DB_HOST"],
+        port=int(os.getenv("PORTAL_DB_PORT", "5432")),
+        database=os.getenv("PORTAL_DB_NAME", "digitaltwins"),
+        username=os.getenv("PORTAL_DB_USER", "portal"),
+        password=os.getenv("PORTAL_DB_PASSWORD"),
+    )
+
+
+def _build_engine():
+    url = database_url()
+    if url.drivername == "sqlite":
+        return create_engine(url, connect_args={'check_same_thread': False})
+    return create_engine(url, pool_pre_ping=True, connect_args={"options": f"-csearch_path={PORTAL_DB_SCHEMA}"})
+
+
+engine = _build_engine()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
