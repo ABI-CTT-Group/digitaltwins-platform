@@ -24,7 +24,8 @@ def _emit(on_line: OnLine, raw: str) -> None:
     """Deliver one logical line. `raw` has no trailing newline but may carry a
     trailing CR (from \\r\\n translation) and/or in-place progress frames
     separated by CR — collapse to the final frame."""
-    line = raw.rstrip("\r")
+    # NUL is dropped: lines are persisted as build logs and Postgres text cannot hold it.
+    line = raw.rstrip("\r").replace("\x00", "")
     if "\r" in line:
         line = line.split("\r")[-1]
     if on_line:
