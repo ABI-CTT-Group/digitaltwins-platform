@@ -1,0 +1,220 @@
+import yaml
+import os
+
+from dotenv import load_dotenv
+load_dotenv()
+
+from ..utils.config_loader import is_truthy
+
+class Querier(object):
+
+    def __init__(self):
+        self._postgres_enabled = is_truthy(os.getenv("POSTGRES_ENABLED"))
+        self._seek_enabled = is_truthy(os.getenv("SEEK_ENABLED"))
+        self._gen3_enabled = is_truthy(os.getenv("GEN3_ENABLED"))
+        self._irods_enabled = is_truthy(os.getenv("IRODS_ENABLED"))
+        self._minio_enabled = is_truthy(os.getenv("MINIO_ENABLED"))
+
+        if self._postgres_enabled and self._gen3_enabled:
+            raise ValueError("Metadata service conflict. Only one of 'postgres' or 'gen3' can be enabled")
+
+        if self._postgres_enabled:
+            from ..postgres.querier import Querier as PostgresQuerier
+            self._postgre_querier = PostgresQuerier()
+        else:
+            self._postgre_querier = None
+
+        if self._gen3_enabled:
+            from ..gen3.querier import Querier as Gen3Querier
+            self._gen3_querier = Gen3Querier()
+        else:
+            self._gen3_querier = None
+
+        if self._seek_enabled:
+            from ..seek.querier import Querier as SeekQuerier
+            self._seek_querier = SeekQuerier()
+        else:
+            self._seek_querier = None
+
+        if self._irods_enabled:
+            from ..irods.querier import Querier as IRODSQuerier
+            self._irods_querier = IRODSQuerier()
+        else:
+            self._irods_querier = None
+
+    def get_dependencies(self, data, target):
+        relationships = self._seek_querier.get_dependencies(data, target)
+
+        return relationships
+
+    def get_programs(self, get_details=False):
+        if self._seek_enabled:
+            results = self._seek_querier.get_programs(get_details)
+        elif self._postgres_enabled:
+            results = self._postgre_querier.get_programs()
+        elif self._gen3_enabled:
+            results = self._gen3_querier.get_programs()
+        else:
+            raise ValueError("Missing metadata service")
+
+        return results
+
+    def get_program(self, program_id):
+        if self._seek_enabled:
+            results = self._seek_querier.get_program(program_id)
+        else:
+            raise ValueError("Missing metadata service: SEEK")
+
+        return results
+
+    def get_projects(self, get_details=False):
+        if self._seek_enabled:
+            results = self._seek_querier.get_projects(get_details)
+        elif self._postgres_enabled:
+            results = self._postgre_querier.get_projects()
+        elif self._gen3_enabled:
+            results = self._gen3_querier.get_projects()
+        else:
+            raise ValueError("Missing metadata service")
+
+        return results
+
+    def get_project(self, project_id):
+        if self._seek_enabled:
+            results = self._seek_querier.get_project(project_id)
+        else:
+            raise ValueError("Missing metadata service: SEEK")
+
+        return results
+
+    def get_investigations(self, get_details=False):
+        if self._seek_enabled:
+            results = self._seek_querier.get_investigations(get_details)
+        else:
+            raise ValueError("Missing metadata service: SEEK")
+
+        return results
+
+    def get_investigation(self, investigation_id):
+        if self._seek_enabled:
+            results = self._seek_querier.get_investigation(investigation_id)
+        else:
+            raise ValueError("Missing metadata service: SEEK")
+
+        return results
+
+    def get_studies(self, get_details=False):
+        if self._seek_enabled:
+            results = self._seek_querier.get_studies(get_details)
+        else:
+            raise ValueError("Missing metadata service: SEEK")
+
+        return results
+
+    def get_study(self, study_id):
+        if self._seek_enabled:
+            results = self._seek_querier.get_study(study_id)
+        else:
+            raise ValueError("Missing metadata service: SEEK")
+
+        return results
+
+    def get_assays(self, get_details=False):
+        if self._seek_enabled:
+            results = self._seek_querier.get_assays(get_details)
+        else:
+            raise ValueError("Missing metadata service: SEEK")
+
+        return results
+
+    def get_assay(self, assay_id, get_params=False):
+        if self._seek_enabled:
+            results = self._seek_querier.get_assay(assay_id)
+        else:
+            raise ValueError("Missing metadata service: SEEK")
+
+        if get_params:
+            #  "created" means the actual assay has been created in the platform/postgres
+            results_created_assay = self._postgre_querier.get_assay(seek_id=assay_id)
+            results["params"] = results_created_assay
+
+        return results
+
+    def get_sops(self, get_details=False):
+        if self._seek_enabled:
+            results = self._seek_querier.get_sops(get_details)
+        else:
+            raise ValueError("Missing metadata service: SEEK")
+
+        return results
+
+    def get_sop(self, sop_id):
+        if self._seek_enabled:
+            results = self._seek_querier.get_sop(sop_id)
+        else:
+            raise ValueError("Missing metadata service: SEEK")
+
+        return results
+
+
+    def get_workflows(self):
+        if self._seek_enabled:
+            results = self._seek_querier.get_workflows()
+        else:
+            raise ValueError("Missing metadata service: SEEK")
+
+        return results
+
+    def get_workflow(self, workflow_id):
+        if self._seek_enabled:
+            results = self._seek_querier.get_workflow(workflow_id)
+        else:
+            raise ValueError("Missing metadata service: SEEK")
+
+        return results
+
+    def get_tools(self):
+        if self._seek_enabled:
+            results = self._seek_querier.get_tools()
+        else:
+            raise ValueError("Missing metadata service: SEEK")
+
+        return results
+
+    def get_tool(self, tool_id):
+        if self._seek_enabled:
+            results = self._seek_querier.get_tool(tool_id)
+        else:
+            raise ValueError("Missing metadata service: SEEK")
+
+        return results
+
+    def get_datasets(self, descriptions=False, categories=None, keywords=None):
+        categories = list(categories) if categories is not None else []
+        keywords = dict(keywords) if keywords is not None else {}
+
+        results = self._postgre_querier.get_datasets(descriptions=descriptions, categories=categories,
+                                                     keywords=keywords)
+
+        return results
+
+    def get_dataset(self, dataset_uuid, get_cwl=False):
+        results = self._postgre_querier.get_dataset(dataset_uuid=dataset_uuid)
+
+        if get_cwl:
+            if results.get("category") == "tool":
+                file_path = "./" + dataset_uuid + "/primary/" + results.get("dataset_name") + ".cwl"
+                contents = self._irods_querier.load_file(file_path)
+                contents = yaml.safe_load(contents)
+                results["cwl"] = contents
+
+        return results
+
+    def get_dataset_sample_types(self, dataset_uuid):
+        results = self._postgre_querier.get_dataset_sample_types(dataset_uuid)
+
+        return results
+
+    def get_dataset_samples(self, dataset_uuid, sample_type=None):
+        results = self._postgre_querier.get_dataset_samples(dataset_uuid=dataset_uuid, sample_type=sample_type)
+        return results

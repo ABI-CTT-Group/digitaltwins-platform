@@ -80,8 +80,8 @@ include:
   #    project_directory: services/pacs_pretend_external
   # digitaltwins-api
   - path:
-      - services/api/digitaltwins-api/docker-compose.yml
-    project_directory: services/api/digitaltwins-api
+      - services/api/docker-compose.yml
+    project_directory: services/api
   #  # JupyterLab
   #  - path:
   #      - services/jupyterlab/docker-compose.yml

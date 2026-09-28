@@ -17,7 +17,7 @@
 # sub) immediately after creating the project, before creating anything else.
 #
 # The dataset is the repo's own SPARC SDS fixture
-# (services/api/digitaltwins-api/tests/data/example_sds_dataset.zip) --
+# (services/api/tests/data/example_sds_dataset.zip) --
 # its samples.xlsx has sample_type "DCE-MRI Contrast Image sam-1" for
 # sub-1/sub-2's sam-1 rows (exact string match in Postgres; see
 # src/digitaltwins/postgres/querier.py get_dataset_samples), which is what
@@ -135,7 +135,7 @@ end
 RUBY
 
 echo "== registering the example SDS dataset fixture =="
-FIXTURE_ZIP="services/api/digitaltwins-api/tests/data/example_sds_dataset.zip"
+FIXTURE_ZIP="services/api/tests/data/example_sds_dataset.zip"
 [ -f "$FIXTURE_ZIP" ] || { echo "populate-cpu-burn-assay: fixture not found: $FIXTURE_ZIP" >&2; exit 1; }
 DATASET_UUID=$(curl -s "${CURL_OPTS[@]}" -H "Authorization: Bearer $TOKEN" \
   -X POST "$DTAPI_BASE/datasets?category=measurements" \
