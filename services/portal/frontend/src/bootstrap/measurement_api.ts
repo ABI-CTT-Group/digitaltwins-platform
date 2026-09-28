@@ -1,18 +1,24 @@
 /**
- * Measurement API client.
+ * Measurement API client — backed by the platform REST API (digitaltwins-api).
  *
- * Mirrors the workflow client shape (one function per endpoint), but:
- *  - No `latestBuild` enrichment — measurements have no builds table.
- *    `useMeasurement()` is a plain list fetch; status lives on the row.
- *  - `_auto` markers in the descriptions tree are UI hints. They are persisted
- *    with the draft (so reopening a saved annotation keeps the auto-classified
- *    count + chips) and are inert downstream — `apply_descriptions` builds
- *    fhir.json from named fields only and never serialises `_auto`.
- *  - upsertAnnotation behaviour: server is expected to update if the
- *    annotation row already exists for this measurement (retry-friendly).
+ * Measurement ingest lives in digitaltwins-api (`/digitaltwins-api/datasets/...`).
+ * This module adapts it to the `MeasurementResponse` shape the views already use,
+ * so a measurement is one of:
+ *
+ *  - an upload session (`upload:<upload_id>`): receiving parts, staged for
+ *    annotation, being committed, or failed to commit. Nothing is in MinIO /
+ *    platform Postgres yet; `/approve` commits it (the "Approval" step).
+ *  - a committed dataset (`dataset:<dataset_uuid>`): stored in MinIO + Postgres;
+ *    its status follows the FHIR push (`fhir_status`).
+ *
+ * Views treat `id` as opaque; each function routes by its prefix. Polling an
+ * `upload:` id after approval follows the session into its dataset.
+ *
+ * UUIDs in descriptions are assigned by the server when the dataset is
+ * committed; the draft of a staged upload carries empty UUIDs.
  */
 
-import http from "./http";
+import { dtApi } from "./http";
 import type {
   MeasurementResponse,
   MeasurementTreeResponse,
@@ -21,90 +27,194 @@ import type {
   FhirCdaDescriptions,
 } from "@/models/types";
 
-/**
- * Runtime config surfaced by the backend so the Information step's dropzone
- * picks up the operator-configured upload ceiling without a frontend
- * rebuild. Driven by MAX_UPLOAD_MB in .env.
- */
+// ---------------------------------------------------------------------------
+// Server shapes (camelized by the dtApi interceptor) + adapters
+// ---------------------------------------------------------------------------
+
+interface UploadSession {
+  uploadId: string;
+  name: string;
+  description?: string;
+  status: "receiving" | "staged" | "processing" | "completed" | "failed";
+  failureStage?: string;
+  failureMessage?: string;
+  fhirMode: "none" | "auto" | "descriptions";
+  datasetUuid?: string;
+  createdAt: string;
+  updatedAt: string;
+  upload: UploadStatusResponse | null;
+}
+
+interface PlatformDataset {
+  datasetUuid: string;
+  datasetName?: string;
+  fhirStatus: "none" | "pending" | "pushing" | "completed" | "failed";
+  fhirFailureMessage?: string;
+  createdAt?: string;
+}
+
+type MeasurementKind = "upload" | "dataset";
+
+/** Split a measurement id into its kind and server id (unprefixed ids are uploads). */
+export function splitMeasurementId(id: string): { kind: MeasurementKind; rawId: string } {
+  const [prefix, rest] = id.includes(":") ? id.split(/:(.*)/s) : ["upload", id];
+  return { kind: prefix === "dataset" ? "dataset" : "upload", rawId: rest };
+}
+
+const SESSION_STATUS: Record<string, string> = {
+  receiving: "pending_upload",
+  staged: "pending",
+  processing: "uploading",
+  failed: "submit_failed",
+};
+
+const FHIR_STATUS: Record<string, string> = {
+  none: "completed",
+  pending: "uploading",
+  pushing: "uploading",
+  completed: "completed",
+  failed: "fhir_failed",
+};
+
+function sessionToMeasurement(s: UploadSession): MeasurementResponse {
+  return {
+    id: `upload:${s.uploadId}`,
+    name: s.name,
+    description: s.description,
+    status: SESSION_STATUS[s.status] ?? s.status,
+    // A failed commit happens while storing the dataset (Postgres + MinIO).
+    failureStage: s.status === "failed" ? "upload" : undefined,
+    failureMessage: s.failureMessage,
+    hasAnnotation: s.fhirMode === "descriptions",
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt,
+  };
+}
+
+function datasetToMeasurement(d: PlatformDataset): MeasurementResponse {
+  return {
+    id: `dataset:${d.datasetUuid}`,
+    uuid: d.datasetUuid,
+    name: d.datasetName ?? d.datasetUuid,
+    status: FHIR_STATUS[d.fhirStatus] ?? d.fhirStatus,
+    failureStage: d.fhirStatus === "failed" ? "fhir_push" : undefined,
+    failureMessage: d.fhirFailureMessage,
+    // A dataset only reaches FHIR with an annotation.
+    hasAnnotation: d.fhirStatus !== "none",
+    createdAt: d.createdAt ?? "",
+    updatedAt: d.createdAt ?? "",
+  };
+}
+
+async function getDataset(uuid: string): Promise<PlatformDataset> {
+  return (await dtApi.get<{ dataset: PlatformDataset }>(`/datasets/${uuid}`)).dataset;
+}
+
+/** Base path of a measurement's FHIR endpoints. */
+function fhirBase(id: string): string {
+  const { kind, rawId } = splitMeasurementId(id);
+  return kind === "dataset" ? `/datasets/${rawId}/fhir` : `/datasets/uploads/${rawId}/fhir`;
+}
+
+// ---------------------------------------------------------------------------
+// Queries
+// ---------------------------------------------------------------------------
+
+/** Upload ceiling for the Information step's dropzone (MAX_UPLOAD_MB on the API). */
 export interface MeasurementConfig {
   maxUploadBytes: number;
   maxUploadMb: number;
 }
 
 export async function useMeasurementConfig(): Promise<MeasurementConfig> {
-  return http.get<MeasurementConfig>(`/measurement/config`);
+  const cfg = await dtApi.get<{ maxUploadBytes: number }>(`/datasets/uploads/config`);
+  return { maxUploadBytes: cfg.maxUploadBytes, maxUploadMb: Math.round(cfg.maxUploadBytes / (1024 * 1024)) };
 }
 
-/** GET /api/measurement — list all measurements. */
+/** Every measurement: uploads not yet committed + committed measurement datasets. */
 export async function useMeasurement(): Promise<MeasurementResponse[]> {
-  return http.get<MeasurementResponse[]>(`/measurement/`);
+  const [uploads, datasets] = await Promise.all([
+    dtApi.get<{ uploads: UploadSession[] }>(`/datasets/uploads`),
+    dtApi.get<{ datasets: PlatformDataset[] }>(`/datasets`, { categories: "measurements" }),
+  ]);
+  return [
+    ...uploads.uploads.map(sessionToMeasurement),
+    ...datasets.datasets.map(datasetToMeasurement),
+  ].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
 
-/** GET /api/measurement/{id} — fetch a single measurement row (status polling). */
+/** One measurement (status polling). A committed upload resolves to its dataset. */
 export async function useGetMeasurement(id: string): Promise<MeasurementResponse> {
-  return http.get<MeasurementResponse>(`/measurement/${id}`);
+  const { kind, rawId } = splitMeasurementId(id);
+  if (kind === "dataset") return datasetToMeasurement(await getDataset(rawId));
+  const session = await dtApi.get<UploadSession>(`/datasets/uploads/${rawId}`);
+  if (session.status === "completed" && session.datasetUuid) {
+    return { ...datasetToMeasurement(await getDataset(session.datasetUuid)), name: session.name };
+  }
+  return sessionToMeasurement(session);
 }
 
-/** GET /api/measurement/{id}/tree — server-classified prefilled descriptions. */
+/** Server-classified prefilled descriptions (real UUIDs once committed). */
 export async function useGetMeasurementTree(id: string): Promise<MeasurementTreeResponse> {
-  return http.get<MeasurementTreeResponse>(`/measurement/${id}/tree`);
+  return dtApi.get<MeasurementTreeResponse>(`${fhirBase(id)}/tree`);
 }
 
-/** GET /api/measurement/{id}/annotation — fetch existing annotation (rehydrate). */
-export async function useGetMeasurementAnnotation(
-  id: string,
-): Promise<MeasurementAnnotationResponse> {
-  return http.get<MeasurementAnnotationResponse>(`/measurement/${id}/annotation`);
+/** Existing annotation (rehydrate); rejects with 404 when there is none. */
+export async function useGetMeasurementAnnotation(id: string): Promise<MeasurementAnnotationResponse> {
+  const res = await dtApi.get<{ descriptions: FhirCdaDescriptions }>(`${fhirBase(id)}/annotation`);
+  return { id, measurementId: id, annotationId: "", descriptions: res.descriptions, createdAt: "", updatedAt: "" };
 }
 
-/**
- * POST /api/measurement/{id}/annotation — create-or-update the descriptions.
- *
- * The `_auto` UI markers are persisted as-is (they round-trip through the
- * lenient `descriptions: dict` schema) so a reopened draft keeps its
- * auto-classified count + chips. They are ignored when fhir.json is built.
- */
+/** Create-or-replace the annotation. `_auto` UI markers round-trip as-is. */
 export async function useUpsertMeasurementAnnotation(
   id: string,
   descriptions: FhirCdaDescriptions,
 ): Promise<MeasurementAnnotationResponse> {
-  return http.post<MeasurementAnnotationResponse>(
-    `/measurement/${id}/annotation`,
-    { descriptions },
-  );
-}
-
-/** POST /api/measurement/{id}/submit — synchronously kicks off the 6-stage pipeline. */
-export async function useMeasurementSubmit(id: string): Promise<MeasurementResponse> {
-  return http.post<MeasurementResponse>(`/measurement/${id}/submit`, {});
-}
-
-/** POST /api/measurement/{id}/retry-fhir — idempotent retry of stages 4-6. */
-export async function useMeasurementRetryFhir(id: string): Promise<MeasurementResponse> {
-  return http.post<MeasurementResponse>(`/measurement/${id}/retry-fhir`, {});
+  const res = await dtApi.put<{ descriptions: FhirCdaDescriptions }>(`${fhirBase(id)}/annotation`, { descriptions });
+  return { id, measurementId: id, annotationId: "", descriptions: res.descriptions, createdAt: "", updatedAt: "" };
 }
 
 /**
- * GET /api/measurement/{id}/fhir-preview — dry-run build of the real fhir.json
- * (no upload). Backs the Preview page and the Export action. Endpoint URLs are
- * placeholders until the dataset is approved/uploaded (finalize rewrites them).
+ * Approval: commit a staged (or failed) upload to MinIO + Postgres, then push
+ * its annotation to FHIR. Returns immediately (the server works in the
+ * background); poll `useGetMeasurement` for the outcome.
  */
-export async function useMeasurementFhirPreview(id: string): Promise<Record<string, any>> {
-  return http.get<Record<string, any>>(`/measurement/${id}/fhir-preview`);
+export async function useMeasurementSubmit(id: string): Promise<MeasurementResponse> {
+  const { kind, rawId } = splitMeasurementId(id);
+  if (kind === "dataset") await dtApi.post(`/datasets/${rawId}/fhir/push`, {});
+  else await dtApi.post(`/datasets/uploads/${rawId}/approve`, {});
+  return useGetMeasurement(id);
 }
 
-/** DELETE /api/measurement/{id}. */
+/** Re-push a committed dataset's annotation to FHIR (idempotent). */
+export async function useMeasurementRetryFhir(id: string): Promise<MeasurementResponse> {
+  const { rawId } = splitMeasurementId(id);
+  await dtApi.post(`/datasets/${rawId}/fhir/push`, {});
+  return useGetMeasurement(id);
+}
+
+/**
+ * fhir.json for the Preview page / Export: the pushed bundle once completed,
+ * otherwise a dry-run build (UUIDs are placeholders until approval).
+ */
+export async function useMeasurementFhirPreview(id: string): Promise<Record<string, any>> {
+  return dtApi.get<Record<string, any>>(`${fhirBase(id)}/preview`);
+}
+
+/** Delete an upload (not yet committed) or a committed dataset (MinIO, Postgres, FHIR). */
 export async function useDeleteMeasurement(id: string): Promise<MeasurementDeleteResponse> {
-  return http.delete<MeasurementDeleteResponse>(`/measurement/${id}`);
+  const { kind, rawId } = splitMeasurementId(id);
+  if (kind === "dataset") await dtApi.delete(`/datasets/${rawId}`);
+  else await dtApi.delete(`/datasets/uploads/${rawId}`);
+  return { status: true, message: "Measurement deleted." };
 }
 
 // ---------------------------------------------------------------------------
-// Chunked upload (Approach A) — control-plane endpoints.
+// Chunked upload — control-plane endpoints.
 //
 // The part PUTs are NOT here: they send raw octet-stream bytes and live in
-// `measurement_upload.ts`, which calls the interceptor-bearing axios instance
-// directly so a mid-upload 401 still triggers the keycloak refresh+retry.
-// init / status / finalize / cancel are ordinary JSON and use the http wrapper.
+// `measurement_upload.ts`, which calls the interceptor-bearing dtApiAxios
+// instance directly so a mid-upload 401 still triggers the keycloak refresh.
 // ---------------------------------------------------------------------------
 
 export interface UploadManifestEntry {
@@ -140,22 +250,33 @@ export interface UploadStatusResponse {
   complete: boolean;
 }
 
-/** POST /api/measurement/upload/init — pre-create row + chunk store. */
+/** Create an upload session, staged for annotation + Approval before commit. */
 export async function useUploadInit(payload: UploadInitPayload): Promise<UploadInitResponse> {
-  return http.post<UploadInitResponse>(`/measurement/upload/init`, payload);
+  const res = await dtApi.post<{ uploadId: string; maxPartSize: number }>(`/datasets/uploads`, {
+    ...payload,
+    category: "measurements",
+    commitMode: "on_approve",
+  });
+  return { measurementId: `upload:${res.uploadId}`, maxPartSize: res.maxPartSize };
 }
 
-/** GET /api/measurement/upload/{id}/status — received parts, for resume. */
+/** Received parts, for resume. Rejects with 404 once the session stopped receiving. */
 export async function useUploadStatus(id: string): Promise<UploadStatusResponse> {
-  return http.get<UploadStatusResponse>(`/measurement/upload/${id}/status`);
+  const session = await dtApi.get<UploadSession>(`/datasets/uploads/${splitMeasurementId(id).rawId}`);
+  if (!session.upload) {
+    throw Object.assign(new Error("Upload is no longer receiving parts"), { response: { status: 404 } });
+  }
+  return session.upload;
 }
 
-/** POST /api/measurement/upload/{id}/finalize — assemble + validate + move. */
+/** Assemble + validate + stage the upload; returns it as a `pending` measurement. */
 export async function useUploadFinalize(id: string): Promise<MeasurementResponse> {
-  return http.post<MeasurementResponse>(`/measurement/upload/${id}/finalize`, {});
+  await dtApi.post(`/datasets/uploads/${splitMeasurementId(id).rawId}/finalize`, {});
+  return useGetMeasurement(id);
 }
 
-/** POST /api/measurement/upload/{id}/cancel — drop tmp parts + delete row. */
+/** Abort an upload: drop its parts / staged files and the session. */
 export async function useUploadCancel(id: string): Promise<{ success: boolean; id: string }> {
-  return http.post<{ success: boolean; id: string }>(`/measurement/upload/${id}/cancel`, {});
+  await dtApi.delete(`/datasets/uploads/${splitMeasurementId(id).rawId}`);
+  return { success: true, id };
 }

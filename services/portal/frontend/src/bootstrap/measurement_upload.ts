@@ -1,20 +1,20 @@
 /**
  * Chunked-upload orchestrator for measurement datasets.
  *
- * Drives the Approach-A pipeline from the browser: init (pre-create row) ->
- * fan out part PUTs with bounded concurrency -> finalize. Supports pause/resume
+ * Drives the digitaltwins-api upload session from the browser: create session ->
+ * fan out part PUTs with bounded concurrency -> finalize (stages the dataset for
+ * annotation + Approval). Supports pause/resume
  * and cancel, and persists a small index to localStorage so an unfinished
  * upload is discoverable after a reload (the user re-selects the same source to
  * resume; already-received parts are skipped via the server's status).
  *
- * Part PUTs go through the interceptor-bearing global axios instance directly
+ * Part PUTs go through the interceptor-bearing dtApiAxios instance directly
  * (raw octet-stream body) so a mid-upload 401 still triggers the keycloak
  * refresh+retry in ./http. The Blob body bypasses the snake_case converter.
  */
-import axios from 'axios';
-// Side-effect import: configures axios.defaults.baseURL + interceptors.
-import './http';
+import { dtApiAxios } from './http';
 import {
+  splitMeasurementId,
   useUploadCancel,
   useUploadFinalize,
   useUploadInit,
@@ -25,10 +25,9 @@ import type { LocalSource } from './upload_source';
 import type { MeasurementResponse } from '@/models/types';
 
 /**
- * Client-side part size. MUST match the backend's MEASUREMENT_PART_SIZE_BYTES
- * (default 8 MiB) and stay <= the nginx MAX_PART_SIZE_MB cap, exactly like the
- * existing MAX_UPLOAD_MB sync between layers. Manifest `parts` counts are
- * derived from this, so it has to agree with the server.
+ * Client-side part size. MUST match digitaltwins-api's UPLOAD_PART_SIZE_BYTES
+ * (default 8 MiB). Manifest `parts` counts are derived from this, so it has to
+ * agree with the server.
  */
 export const PART_SIZE = 8 * 1024 * 1024;
 const CONCURRENCY = 4;
@@ -175,7 +174,8 @@ async function putPart(
 ): Promise<void> {
   // Preserve slashes (backend route is {rel_path:path}); encode each segment.
   const encRel = rel.split('/').map(encodeURIComponent).join('/');
-  await axios.put(`/measurement/upload/${measurementId}/parts/${encRel}`, blob, {
+  const { rawId } = splitMeasurementId(measurementId);
+  await dtApiAxios.put(`/datasets/uploads/${rawId}/parts/${encRel}`, blob, {
     params: { n: partNo, of },
     headers: { 'Content-Type': 'application/octet-stream' },
     signal,

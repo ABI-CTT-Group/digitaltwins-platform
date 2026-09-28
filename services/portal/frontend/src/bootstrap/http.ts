@@ -1,10 +1,11 @@
-import axios, { AxiosRequestConfig } from "axios";
+import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
 import { getAccessToken, getKeycloak } from "./keycloak";
 import { emitSessionExpired } from "./session_events";
 
 export interface IHttp {
   get<T>(url: string, params?: unknown): Promise<T>;
   post<T>(url: string, body?: unknown): Promise<T>;
+  put<T>(url: string, body?: unknown): Promise<T>;
   getBlob<T>(url: string, params?: unknown): Promise<T>;
   delete<T>(url: string, params?: unknown): Promise<T>;
 }
@@ -46,44 +47,110 @@ function toSnake(str: string): string {
   return str.replace(/[A-Z]/g, (c) => '_' + c.toLowerCase());
 }
 
-function deepConvertKeys(obj: unknown, fn: (s: string) => string): unknown {
-  if (Array.isArray(obj)) return obj.map((v) => deepConvertKeys(v, fn));
+// Values under these keys pass through unconverted (see `dtApiAxios` below).
+const NO_PRESERVED_KEYS: ReadonlySet<string> = new Set();
+
+function deepConvertKeys(
+  obj: unknown,
+  fn: (s: string) => string,
+  preserve: ReadonlySet<string> = NO_PRESERVED_KEYS,
+): unknown {
+  if (Array.isArray(obj)) return obj.map((v) => deepConvertKeys(v, fn, preserve));
   if (obj !== null && typeof obj === 'object' && (obj as object).constructor === Object) {
     return Object.fromEntries(
       Object.entries(obj as Record<string, unknown>).map(([k, v]) => [
         fn(k),
-        deepConvertKeys(v, fn),
+        preserve.has(k) ? v : deepConvertKeys(v, fn, preserve),
       ])
     );
   }
   return obj;
 }
 
-const deepCamelize = (obj: unknown) => deepConvertKeys(obj, toCamel);
-const deepSnakeize = (obj: unknown) => deepConvertKeys(obj, toSnake);
+function attachInterceptors(instance: AxiosInstance, preserve: ReadonlySet<string> = NO_PRESERVED_KEYS) {
+  const deepCamelize = (obj: unknown) => deepConvertKeys(obj, toCamel, preserve);
+  const deepSnakeize = (obj: unknown) => deepConvertKeys(obj, toSnake, preserve);
 
-// ============== request interceptors: automatically add access_token ==============
-axios.interceptors.request.use((config: AxiosRequestConfig | any) => {
-  // Get token from Keycloak (sole source of truth)
-  const token = getAccessToken();
-  if (token) {
-    config.headers = config.headers || {};
-    config.headers.Authorization = `Bearer ${token}`;
-  } else {
-    console.warn('[HTTP Interceptor] ⚠️ No token found from getAccessToken()! Request will be sent WITHOUT Authorization header.');
-  }
-  // Convert outgoing JSON body & query params from camelCase → snake_case so the
-  // backend Pydantic schemas (snake_case) accept them. Skip FormData/Blob/etc.
-  if (config.data && !(config.data instanceof FormData) && !(config.data instanceof Blob) && !(config.data instanceof ArrayBuffer)) {
-    config.data = deepSnakeize(config.data);
-  }
-  if (config.params) {
-    config.params = deepSnakeize(config.params);
-  }
-  return config;
-});
+  // ============== request interceptors: automatically add access_token ==============
+  instance.interceptors.request.use((config: AxiosRequestConfig | any) => {
+    // Get token from Keycloak (sole source of truth)
+    const token = getAccessToken();
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.warn('[HTTP Interceptor] ⚠️ No token found from getAccessToken()! Request will be sent WITHOUT Authorization header.');
+    }
+    // Convert outgoing JSON body & query params from camelCase → snake_case so the
+    // backend Pydantic schemas (snake_case) accept them. Skip FormData/Blob/etc.
+    if (config.data && !(config.data instanceof FormData) && !(config.data instanceof Blob) && !(config.data instanceof ArrayBuffer)) {
+      config.data = deepSnakeize(config.data);
+    }
+    if (config.params) {
+      config.params = deepSnakeize(config.params);
+    }
+    return config;
+  });
 
-// ============== response interceptors：handle 401 ==============
+  // ============== response interceptors：handle 401 ==============
+  instance.interceptors.response.use(
+    (res) => { res.data = deepCamelize(res.data); return res; },
+    async (err) => {
+      // not 401 -> reject
+      if (err.response?.status !== 401) return Promise.reject(err);
+
+      const originalRequest = err.config;
+
+      // Prevent infinite retry loops
+      if (originalRequest._retry) {
+        handleSessionLost("Still 401 after a token refresh → session lost");
+        return Promise.reject(err);
+      }
+
+      // Try to refresh the token before giving up
+      if (!isRefreshing) {
+        isRefreshing = true;
+        const keycloak = getKeycloak();
+
+        try {
+          if (keycloak) {
+            await keycloak.updateToken(5);
+            const newToken = keycloak.token;
+            if (newToken) {
+              isRefreshing = false;
+              onTokenRefreshed(newToken);
+
+              // Retry original request with new token
+              originalRequest._retry = true;
+              originalRequest.headers.Authorization = `Bearer ${newToken}`;
+              return instance(originalRequest);
+            }
+          }
+          // No keycloak, or no token after refresh
+          isRefreshing = false;
+          handleSessionLost("Token expired or invalid and could not be renewed");
+          return Promise.reject(err);
+        } catch (refreshErr) {
+          isRefreshing = false;
+          refreshSubscribers = [];
+          handleSessionLost("Token refresh was rejected → session lost");
+          return Promise.reject(err);
+        }
+      }
+
+      // Another request is already refreshing — queue this one
+      return new Promise((resolve) => {
+        addRefreshSubscriber((newToken: string) => {
+          originalRequest._retry = true;
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          resolve(instance(originalRequest));
+        });
+      });
+    }
+  );
+}
+
+// Shared across instances: one token refresh at a time, whichever instance hit the 401.
 let isRefreshing = false;
 let refreshSubscribers: Array<(token: string) => void> = [];
 
@@ -96,86 +163,49 @@ function addRefreshSubscriber(cb: (token: string) => void) {
   refreshSubscribers.push(cb);
 }
 
-axios.interceptors.response.use(
-  (res) => { res.data = deepCamelize(res.data); return res; },
-  async (err) => {
-    // not 401 -> reject
-    if (err.response?.status !== 401) return Promise.reject(err);
+attachInterceptors(axios);
 
-    const originalRequest = err.config;
+/**
+ * The platform REST API (digitaltwins-api), reached at /digitaltwins-api with
+ * the same Keycloak token. Same case conversion as /api, except that FHIR
+ * `descriptions` trees pass through untouched: they are fhir-cda's own
+ * camelCase shape (including `_auto` markers) end to end.
+ */
+export const dtApiAxios = axios.create({ baseURL: "/digitaltwins-api" });
+attachInterceptors(dtApiAxios, new Set(["descriptions"]));
 
-    // Prevent infinite retry loops
-    if (originalRequest._retry) {
-      handleSessionLost("Still 401 after a token refresh → session lost");
-      return Promise.reject(err);
-    }
+function makeHttp(instance: AxiosInstance): IHttp {
+  return {
+    get(url, params) {
+      return instance.get(url, { params }).then((res) => res.data);
+    },
+    getBlob(url, params) {
+      return instance
+        .get(url, { params, responseType: "blob" })
+        .then((res) => {
+          const xVolumeHeader = res.headers["x-volume"];
+          if (xVolumeHeader)
+            return { data: res.data, xHeaderObj: JSON.parse(xVolumeHeader) };
+          return res.data;
+        })
+        .catch((err) => {
+          if (err.response?.status === 404) return 404;
+          throw err;
+        });
+    },
+    post(url, body) {
+      return instance.post(url, body).then((res) => res.data);
+    },
+    put(url, body) {
+      return instance.put(url, body).then((res) => res.data);
+    },
+    delete(url, params) {
+      return instance.delete(url, { params }).then((res) => res.data);
+    },
+  };
+}
 
-    // Try to refresh the token before giving up
-    if (!isRefreshing) {
-      isRefreshing = true;
-      const keycloak = getKeycloak();
-
-      try {
-        if (keycloak) {
-          await keycloak.updateToken(5);
-          const newToken = keycloak.token;
-          if (newToken) {
-            isRefreshing = false;
-            onTokenRefreshed(newToken);
-
-            // Retry original request with new token
-            originalRequest._retry = true;
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            return axios(originalRequest);
-          }
-        }
-        // No keycloak, or no token after refresh
-        isRefreshing = false;
-        handleSessionLost("Token expired or invalid and could not be renewed");
-        return Promise.reject(err);
-      } catch (refreshErr) {
-        isRefreshing = false;
-        refreshSubscribers = [];
-        handleSessionLost("Token refresh was rejected → session lost");
-        return Promise.reject(err);
-      }
-    }
-
-    // Another request is already refreshing — queue this one
-    return new Promise((resolve) => {
-      addRefreshSubscriber((newToken: string) => {
-        originalRequest._retry = true;
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        resolve(axios(originalRequest));
-      });
-    });
-  }
-);
-
-const http: IHttp = {
-  get(url, params) {
-    return axios.get(url, { params }).then((res) => res.data);
-  },
-  getBlob(url, params) {
-    return axios
-      .get(url, { params, responseType: "blob" })
-      .then((res) => {
-        const xVolumeHeader = res.headers["x-volume"];
-        if (xVolumeHeader)
-          return { data: res.data, xHeaderObj: JSON.parse(xVolumeHeader) };
-        return res.data;
-      })
-      .catch((err) => {
-        if (err.response?.status === 404) return 404;
-        throw err;
-      });
-  },
-  post(url, body) {
-    return axios.post(url, body).then((res) => res.data);
-  },
-  delete(url, params) {
-    return axios.delete(url, { params }).then((res) => res.data);
-  },
-};
+const http: IHttp = makeHttp(axios);
+export const dtApi: IHttp = makeHttp(dtApiAxios);
 
 export default http;

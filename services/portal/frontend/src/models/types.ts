@@ -317,8 +317,9 @@ export type BaseInformationStep = ToolInformationStep | WorkflowInformationStep;
 // (`views/upload-dataset/measurements/components/`) is used only to render the
 // clean "Preview descriptions" panel, not before POST.
 //
-// uuid / endpointUrl / endpointUuid fields are MOCK values (prefix `MOCK-`)
-// until digitaltwins-api integration lands. Treat them as read-only in the UI.
+// uuid / endpointUrl / endpointUuid fields are assigned by digitaltwins-api when
+// the dataset is approved (platform dataset / subject / sample UUIDs); whatever
+// the UI sends is overwritten. Treat them as read-only in the UI.
 
 export type MeasurementStatus =
   | "pending"
@@ -375,7 +376,7 @@ export type MeasurementTreeNode = {
   [k: string]: any;
 };
 
-/** Response from `GET /api/measurement/{id}/tree`. */
+/** Response from digitaltwins-api `GET .../fhir/tree` (see bootstrap/measurement_api.ts). */
 export interface MeasurementTreeResponse {
   tree: MeasurementTreeNode;
   descriptions: FhirCdaDescriptions;
