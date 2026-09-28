@@ -91,7 +91,8 @@ class PluginDeployment(Base):
     __tablename__ = "plugin_deployments"
     id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
     plugin_id = Column(String, ForeignKey("plugins.id"), nullable=False)
-    build_id = Column(String, ForeignKey("plugin_builds.id"), nullable=False)
+    # References the build's business key (what the deploy endpoint stores), not plugin_builds.id.
+    build_id = Column(String, ForeignKey("plugin_builds.build_id"), nullable=False)
     deploy_id = Column(String, unique=True, index=True, nullable=False)
     status = Column(String, default=DeployStatus.PENDING.value, nullable=False)
     source_path = Column(String, nullable=True)
