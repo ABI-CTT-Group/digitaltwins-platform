@@ -19,6 +19,19 @@ services:
     extends:
       file: ./services/portal/DigitalTWINS-Portal/docker-compose.yml
       service: portal-backend
+    # Under the platform the portal keeps its tables in the `portal` schema of the
+    # shared Postgres (see docs/decisions/2026-09-28-portal-database-in-platform-postgres.md).
+    # Standalone, these are unset and it falls back to SQLite on the plugin_database
+    # volume, which stays mounted as the migration source and rollback path.
+    environment:
+      - PORTAL_DB_HOST=database
+      - PORTAL_DB_PORT=5432
+      - PORTAL_DB_NAME=${POSTGRES_DB:-digitaltwins}
+      - PORTAL_DB_USER=portal
+      - PORTAL_DB_PASSWORD=${PORTAL_DB_PASSWORD:?PORTAL_DB_PASSWORD must be set}
+    depends_on:
+      database:
+        condition: service_healthy
   # No host ports: the portal's base compose deliberately publishes none, so 80/443
   # stay free for the gateway above. (Its docker-compose.override.yml publishes 80 for
   # standalone dev, and `extends` reads only the file it names — so we never see it.)
