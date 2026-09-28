@@ -45,14 +45,16 @@
 # Feel free to modify this file to suit your needs.
 ---
 x-airflow-common:
-  &airflow-common
   # In order to add custom dependencies or upgrade provider distributions you can use your extended image.
   # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
   # image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.0.6}
-  build: .
-  environment:
-    &airflow-common-env
+  &airflow-common
+  build:
+    context: .
+    secrets:
+      - github_token
+  environment: &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@database:5432/${AIRFLOW_DB_NAME:-airflow}
@@ -241,6 +243,22 @@ services:
   airflow-worker:
     <<: *airflow-common
     command: celery worker
+    # nnUNet's multiprocessing (via torch) shares tensors between the
+    # preprocessing/segmentation-export pool and the main process through
+    # /dev/shm. Docker's 64MB default is far too small for 3D medical image
+    # tensors and fails with "unable to allocate shared memory ... No space
+    # left on device".
+    shm_size: '16gb'
+    # Expose the host GPU to nnUNet inference tasks. Only the worker executes
+    # task code, so this stays off the x-airflow-common anchor — the scheduler,
+    # apiserver, triggerer and dag-processor have no use for a GPU.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]
     healthcheck:
       # yamllint disable rule:line-length
       test:
@@ -413,3 +431,7 @@ services:
 # volumes:
 #   postgres-db-volume:
 #     name: digitaltwins-platform_airflow_postgres-db-volume
+
+secrets:
+  github_token:
+    environment: "GITHUB_TOKEN"
