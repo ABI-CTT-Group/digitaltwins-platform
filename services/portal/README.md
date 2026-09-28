@@ -1,6 +1,6 @@
 ⚠️ This repository has been archived.
 
-The digitaltwins-api codebase has been absorbed into the [digitaltwins-platform](https://github.com/ABI-CTT-Group/digitaltwins-platform) monorepo under services/api/, with full commit history preserved.
+This codebase has been absorbed into the [digitaltwins-platform](https://github.com/ABI-CTT-Group/digitaltwins-platform) monorepo under services/api/, with full commit history preserved.
 
 All future development happens in the monorepo. This repository is kept for historical reference only and is no longer accepting issues or pull requests.
 
