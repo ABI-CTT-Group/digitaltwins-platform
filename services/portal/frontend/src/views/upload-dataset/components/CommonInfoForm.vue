@@ -126,7 +126,7 @@
                 <h4 class="my-2">Workflow Name *</h4>
                 <v-text-field
                     v-model="name"
-                    label="My Workflow Tool Name"
+                    label="My Tool Name"
                     clearable
                     @blur="onNameBlur"
                     :rules="pluginNameRules"
@@ -157,7 +157,7 @@
             <h4 class="my-2">Description</h4>
             <v-textarea
                 v-model="description"
-                placeholder="Brief description of your workflow tool..."
+                placeholder="Brief description of your tool..."
                 rows="2"
                 counter
                 clearable
@@ -344,7 +344,7 @@ const sourceUrlRules = computed(() => {
     ]
 })
 const pluginNameRules = [
-    (v: string) => !!v || 'Workflow tool name is required',
+    (v: string) => !!v || 'Tool name is required',
 ]
 const semverRegex = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
 const versionRules = [

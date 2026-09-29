@@ -4,7 +4,7 @@
             class="pa-6 responsive-box d-flex flex-column align-center justify-center aurora-panel"
             flat
         >
-        <h2 class="w-100 text-center my-3 wizard-title">New Workflow Tool</h2>
+        <h2 class="w-100 text-center my-3 wizard-title">New Tool</h2>
         <v-stepper v-model="step" alt-labels editable class="sheet-stepper" >
             <!-- Step Headers -->
             <v-stepper-header>

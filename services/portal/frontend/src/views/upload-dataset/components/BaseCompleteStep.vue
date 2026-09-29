@@ -4,11 +4,11 @@
       <v-icon size="64" color="#5fd6e8">mdi-cog-sync</v-icon>
 
       <h2 class="mt-4 step-title">
-        {{ type === 'workflow' ? 'Workflow Build in Progress' : 'Workflow Tool Build in Progress' }}
+        {{ type === 'workflow' ? 'Workflow Build in Progress' : 'Tool Build in Progress' }}
       </h2>
 
       <p class="step-sub">
-        Your {{ type === 'workflow' ? 'workflow' : 'workflow tool' }} "{{ data?.name }}" is currently being built. Once the build is completed,
+        Your {{ type === 'workflow' ? 'workflow' : 'tool' }} "{{ data?.name }}" is currently being built. Once the build is completed,
         you will be able to upload its dataset to the <strong>DigitalTWINS</strong> platform.
       </p>
     </div>

@@ -20,13 +20,13 @@
             <h3 class="step-heading">Step {{ index + 1 }}: {{ s.name }}</h3>
             <v-divider class="my-2 mb-3" :thickness="2" />
 
-            <h4 class="my-2">Workflow Tool *</h4>
+            <h4 class="my-2">Tool *</h4>
             <v-autocomplete
               :custom-filter="toolFilter"
               :items="toolItems"
               item-title="name"
               item-value="id"
-              :label="'Select Workflow Tool for Step ' + (index + 1)"
+              :label="'Select Tool for Step ' + (index + 1)"
               @update:model-value="(val) => handleToolSelect(val, s)"
               :rules="notEmptyRules"
               clearable
@@ -88,7 +88,7 @@
        ────────────────────────────────────────────────── -->
   <template v-else>
     <div>
-      <h3 class="step-heading">Workflow Tool FHIR Annotation</h3>
+      <h3 class="step-heading">Tool FHIR Annotation</h3>
       <v-divider class="my-2 mb-5" :thickness="3" />
 
       <div v-if="cwlObj">
@@ -269,7 +269,7 @@ onMounted(async () => {
     cwlObj.value = content;
   } else {
     const tool = props.data as ToolResponse | undefined;
-    if (!tool) { console.warn('No workflow tool info in annotation stepper.'); return; }
+    if (!tool) { console.warn('No tool info in annotation stepper.'); return; }
     const { cwlFile, content } = await loadToolCwl(tool);
     annotateTool.value.name = cwlFile.replace(/\.cwl$/, '');
     cwlObj.value = content;

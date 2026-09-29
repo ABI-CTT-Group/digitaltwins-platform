@@ -39,12 +39,12 @@ const showOverall = ref(true);
 const heroDetail = computed(()=>{
     if(showOverall.value){
         return {
-            title:'Workflow Tool Hub',
+            title:'Tool Hub',
             subtitle:'Browse all tools — create, upload, and build Web GUI or CWL Script tools effortlessly, and preview results seamlessly.'
         }
     }else{
         return {
-            title:'Upload & Configure Workflow Tool',
+            title:'Upload & Configure Tool',
             subtitle:'From basic setup to build & preview — all in one simple interface.'
         }
     }

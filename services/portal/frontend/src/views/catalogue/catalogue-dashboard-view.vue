@@ -110,8 +110,8 @@ const hero: CatalogueCard = {
 
 const actions: CatalogueCard[] = [
   {
-    title: 'Upload workflow tool',
-    description: 'Register a new workflow tool and make it available across the platform.',
+    title: 'Upload tool',
+    description: 'Register a new tool and make it available across the platform.',
     herf: 'UploadToolDataset',
     icon: 'mdi-wrench-outline',
     cta: 'Upload',
