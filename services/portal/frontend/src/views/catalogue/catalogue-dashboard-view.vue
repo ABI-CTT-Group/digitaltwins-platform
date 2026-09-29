@@ -7,7 +7,7 @@
         <p class="masthead__eyebrow">DigitalTWINS · AI Platform</p>
         <h1 class="masthead__title">Catalogue</h1>
         <p class="masthead__sub">
-          Your gateway to descriptions, datasets and workflow tooling across the platform.
+          Your gateway to descriptions, datasets, workflows and tools across the platform.
         </p>
       </header>
 
