@@ -24,6 +24,14 @@ server {
     root   /usr/share/nginx/html;
     index  index.html index.htm;
 
+    # Every proxy_pass goes through a `set` variable so the upstream name is
+    # resolved per request via Docker's DNS, not once at startup. A literal
+    # host is pinned to its startup IP: recreate portal-backend and /api/ keeps
+    # hitting the old address, which Docker may have reassigned to another
+    # container. Caveat: with a variable, nginx no longer rewrites the location
+    # prefix for you — see the explicit `rewrite` in /minio/.
+    resolver 127.0.0.11 valid=10s ipv6=off;
+
     # SPA Routing Fallback. The HTML entry point must never be cached so a
     # plain browser refresh always picks up the newest content-hashed bundles
     # after a redeploy (the hashed files under /assets/ keep their long-lived
@@ -44,7 +52,8 @@ server {
     # it up/down without touching code. (Measurement uploads go to
     # /digitaltwins-api, routed by the platform gateway, not through here.)
     location ~ ^/api/(tools|workflow)/upload-source$ {
-        proxy_pass http://portal-backend:${BACKEND_PORT};
+        set $up_backend portal-backend;
+        proxy_pass http://$up_backend:${BACKEND_PORT};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -59,7 +68,8 @@ server {
     # SSE live build/deploy logs — must NOT be buffered or the terminal
     # output arrives in one delayed burst instead of streaming.
     location ~ ^/api/tools/(builds|deploy)/[^/]+/logs/stream$ {
-        proxy_pass http://portal-backend:${BACKEND_PORT};
+        set $up_backend portal-backend;
+        proxy_pass http://$up_backend:${BACKEND_PORT};
         proxy_http_version 1.1;
         proxy_set_header Connection '';
         proxy_set_header Host $host;
@@ -72,7 +82,8 @@ server {
 
     # Proxy API requests to portal-backend
     location /api/ {
-        proxy_pass http://portal-backend:${BACKEND_PORT}/api/;
+        set $up_backend portal-backend;
+        proxy_pass http://$up_backend:${BACKEND_PORT};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -81,7 +92,8 @@ server {
 
     # Proxy public 'tools' bucket (plugin UMD bundles + assets) through MinIO
     location /tools/ {
-        proxy_pass http://minio:9000/tools/;
+        set $up_minio minio;
+        proxy_pass http://$up_minio:9000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -110,7 +122,9 @@ server {
     #
     # Console learns its public base from MINIO_BROWSER_REDIRECT_URL.
     location /minio/ {
-        proxy_pass http://minio:9001/;
+        set $up_minio minio;
+        rewrite ^/minio/(.*)$ /$1 break;
+        proxy_pass http://$up_minio:9001;
         proxy_http_version 1.1;
 
         proxy_set_header Host $host;
