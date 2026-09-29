@@ -7,7 +7,7 @@
         <p class="masthead__eyebrow">DigitalTWINS · AI Platform</p>
         <h1 class="masthead__title">Catalogue</h1>
         <p class="masthead__sub">
-          Your gateway to descriptions, datasets and workflow tooling across the platform.
+          Your gateway to descriptions, datasets, workflows and tools across the platform.
         </p>
       </header>
 
@@ -110,8 +110,8 @@ const hero: CatalogueCard = {
 
 const actions: CatalogueCard[] = [
   {
-    title: 'Upload workflow tool',
-    description: 'Register a new workflow tool and make it available across the platform.',
+    title: 'Upload tool',
+    description: 'Register a new tool and make it available across the platform.',
     herf: 'UploadToolDataset',
     icon: 'mdi-wrench-outline',
     cta: 'Upload',

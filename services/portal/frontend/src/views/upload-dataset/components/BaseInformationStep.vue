@@ -7,14 +7,14 @@
   />
   <div>
     <h3 class="step-heading">
-      {{ type === 'tool' ? 'Workflow Tool Information' : 'Workflow Information' }}
+      {{ type === 'tool' ? 'Tool Information' : 'Workflow Information' }}
     </h3>
     <v-divider class="my-2 mb-5" :thickness="3" />
 
     <v-form ref="form" class="px-5">
       <!-- Tool-only: type selector -->
       <template v-if="type === 'tool'">
-        <h4 class="my-2">Choose the workflow tool type *</h4>
+        <h4 class="my-2">Choose the tool type *</h4>
         <v-radio-group
           v-model="formData.label"
           inline
@@ -423,7 +423,7 @@ async function handleSubmit() {
     showAlert.value = true;
     alertText.value =
       props.type === 'tool'
-        ? 'Some required fields are missing. Please provide your source (GitHub URL or local folder), workflow tool name, build command, and, if the tool includes a backend, fill in the frontend and backend folder details.'
+        ? 'Some required fields are missing. Please provide your source (GitHub URL or local folder), tool name, build command, and, if the tool includes a backend, fill in the frontend and backend folder details.'
         : 'Some required fields are missing. Please provide your source (GitHub URL or local folder), workflow name, and annotating information.';
     return;
   }
