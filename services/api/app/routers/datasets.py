@@ -40,6 +40,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Categories POST /datasets accepts. Each is a MinIO bucket created by
+# services/minio/init-minio.sh; anything else (e.g. a typo) would otherwise
+# create a new bucket on the fly.
+DATASET_CATEGORIES = {"measurements", "models", "tools", "workflows"}
+
 
 # ── Query endpoints ───────────────────────────────────────────────────
 
@@ -238,7 +243,7 @@ async def upload_dataset(
     ),
     category: str = Query(
         ...,
-        description="Dataset category including measurements, models, tools & workflows",
+        description="Dataset category: measurements, models, tools or workflows",
     ),
     fhir: Literal["none", "auto"] = Query(
         "none", description="measurements only: 'auto' annotates and pushes FHIR after the commit",
@@ -267,6 +272,11 @@ async def upload_dataset(
     (all-or-nothing: 502 if SEEK fails). Other categories go straight to
     ``Uploader.upload_dataset``.
     """
+    if category not in DATASET_CATEGORIES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unknown category {category!r}; use one of: {', '.join(sorted(DATASET_CATEGORIES))}",
+        )
     measurements = category in dataset_uploads.INGEST_CATEGORIES
     tool = category == tools.CATEGORY
     if tool:

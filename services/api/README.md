@@ -148,7 +148,7 @@ print(session["dataset_uuid"], session.get("fhir_status"))
 - `fhir="auto"` annotates every sample automatically. Alternatively, pass `fhir_descriptions=` with your own annotation. Refer to subjects and samples by folder name (`primary/<subject>/<sample>`); the server assigns the dataset, subject and sample UUIDs.
 - If the upload is interrupted, call `client.resume(upload_id, "path/to/my_dataset")`. Only the missing parts are sent.
 - A ready-to-run command-line version is at [`examples/upload_measurement_dataset.py`](examples/upload_measurement_dataset.py). It prompts for the password (or reads `DIGITALTWINS_PASSWORD`) and prints a `--resume` command if the upload is interrupted.
-- For small datasets, the one-shot `POST /datasets?category=measurements` (multipart) remains available.
+- For small datasets, the one-shot `POST /datasets?category=measurements` (multipart) remains available. It accepts the categories `measurements`, `models`, `tools` and `workflows`; any other value returns `400`.
 
 ### Uploading a tool dataset
 

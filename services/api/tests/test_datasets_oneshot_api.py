@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.main import create_app
-from app.routers import auth, dataset_uploads
+from app.routers import auth, dataset_uploads, datasets
 
 FIXTURE = Path(__file__).parent / "data" / "example_sds_dataset"
 FIXTURE_ZIP = Path(__file__).parent / "data" / "example_sds_dataset.zip"
@@ -20,14 +20,17 @@ VIEWER = {"username": "bob", "token": "t", "claims": {"realm_access": {"roles": 
 
 
 @pytest.fixture
-def client(platform_db, minio_bucket, tmp_path, monkeypatch):
+def client(platform_db, minio_bucket, s3, tmp_path, monkeypatch):
     monkeypatch.setenv("DATASET_STAGING_DIR", str(tmp_path / "staging"))
+    # Uploads go to the throwaway bucket, so it must be an accepted category.
+    monkeypatch.setattr(datasets, "DATASET_CATEGORIES", {minio_bucket})
     app = create_app()
     app.dependency_overrides[auth.validate_credentials] = lambda: UPLOADER
     c = TestClient(app)
     c.bucket = minio_bucket
     c.db = platform_db
     c.monkeypatch = monkeypatch
+    c.s3 = s3
     return c
 
 
@@ -153,3 +156,16 @@ def test_upload_requires_an_upload_role(client):
     client.app.dependency_overrides[auth.validate_credentials] = lambda: VIEWER
 
     assert _post(client, _folder_parts()).status_code == 403
+
+
+@pytest.mark.integration
+def test_unknown_category_is_rejected_before_anything_is_stored(client):
+    # A typo such as "tool" for "tools" must not create a new bucket or dataset.
+    typo = client.bucket + "-typo"
+
+    r = client.post("/datasets", params={"category": typo}, files=_folder_parts())
+
+    assert r.status_code == 400
+    assert typo in r.json()["detail"] and client.bucket in r.json()["detail"]
+    assert _db_one(client, "SELECT count(*) FROM dataset", None) == (0,)
+    assert typo not in [b["Name"] for b in client.s3.list_buckets()["Buckets"]]

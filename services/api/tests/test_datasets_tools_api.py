@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.main import create_app
-from app.routers import auth
+from app.routers import auth, datasets
 from digitaltwins import tools
 
 DESCRIPTION = Path(__file__).parent / "data" / "example_sds_dataset" / "dataset_description.xlsx"
@@ -32,6 +32,7 @@ def client(platform_db, minio_bucket, seek, s3, tmp_path, monkeypatch):
     monkeypatch.setenv("DATASET_STAGING_DIR", str(tmp_path / "staging"))
     # Tool uploads go to the throwaway bucket instead of the real ``tools`` one.
     monkeypatch.setattr(tools, "CATEGORY", minio_bucket)
+    monkeypatch.setattr(datasets, "DATASET_CATEGORIES", {minio_bucket})
     app = create_app()
     app.dependency_overrides[auth.validate_credentials] = lambda: UPLOADER
     c = TestClient(app)
