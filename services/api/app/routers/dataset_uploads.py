@@ -109,7 +109,7 @@ class SessionCreate(BaseModel):
     commit_mode: Literal["on_finalize", "on_approve"] = "on_finalize"
     fhir: Literal["none", "auto"] = "none"
     fhir_descriptions: Optional[Dict[str, Any]] = None
-    tool_type: Optional[Literal["script"]] = None
+    tool_type: Optional[Literal["script", "notebook"]] = None
     seek_project_id: Optional[int] = None
 
 

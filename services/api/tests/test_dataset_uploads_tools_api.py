@@ -127,3 +127,14 @@ def test_seek_failure_fails_the_session_and_approve_retries(client):
     client.seek.fail_register = False
     assert client.post(f"/datasets/uploads/{upload_id}/approve").status_code == 202
     assert client.get(f"/datasets/uploads/{upload_id}").json()["status"] == "completed"
+
+
+@pytest.mark.integration
+def test_notebook_tool_session_is_registered_with_the_notebook_type(client):
+    upload_id = _upload(client, _files(), tool_type="notebook")
+
+    assert client.post(f"/datasets/uploads/{upload_id}/finalize").status_code == 202
+
+    session = client.get(f"/datasets/uploads/{upload_id}").json()
+    assert (session["status"], session["tool_type"]) == ("completed", "notebook")
+    assert [w["tool_type"] for w in client.seek.workflows.values()] == ["notebook"]

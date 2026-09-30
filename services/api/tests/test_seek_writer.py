@@ -139,3 +139,8 @@ def test_delete_workflow_raises_on_seek_error(seek_env, monkeypatch):
     monkeypatch.setattr(writer.requests, "delete", lambda url, **kw: FakeResponse(403, {"errors": [{"title": "Forbidden"}]}))
     with pytest.raises(RuntimeError, match="Forbidden"):
         Writer(api_token="tok").delete_workflow(42)
+
+
+def test_crate_tags_the_notebook_type(cwl_path):
+    graph, _, _ = _crate(build_tool_crate(cwl_path, "notebook"))
+    assert graph["./"]["keywords"] == ["tool", "notebook"]

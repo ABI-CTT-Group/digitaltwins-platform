@@ -152,13 +152,14 @@ print(session["dataset_uuid"], session.get("fhir_status"))
 
 ### Uploading a tool dataset
 
-A tool dataset is an SDS folder with no subject or sample folders. `primary/` holds exactly one `tool_<name>.cwl`, and the tool itself is in `code/`. Only `tool_type=script` is supported for now. The upload is stored in the MinIO `tools` bucket and in Postgres. It is also registered in SEEK as a Workflow tagged `tool` + `<tool_type>`, in the SEEK project you name, as you. You must be a member of that project. SEEK takes the Workflow's title from the CWL `label` and parses its inputs and outputs. The dataset's `seek_id` links it to that Workflow.
+A tool dataset is an SDS folder with no subject or sample folders. `primary/` holds exactly one `tool_<name>.cwl`, and the tool itself is in `code/`: a Python script for `tool_type=script`, or a Jupyter notebook for `tool_type=notebook`. `gui` tools are not supported yet. The upload is stored in the MinIO `tools` bucket and in Postgres. It is also registered in SEEK as a Workflow tagged `tool` + `<tool_type>`, in the SEEK project you name, as you. You must be a member of that project. SEEK takes the Workflow's title from the CWL `label` and parses its inputs and outputs. The dataset's `seek_id` links it to that Workflow.
 
 ```bash
 curl -H "Authorization: Bearer <token>" \
-  -F "files=@sds_tool_dicom_to_nifti.zip" \
+  -F "files=@tool_dicom_to_nifti.zip" \
   "https://<platform-host>/digitaltwins-api/datasets?category=tools&tool_type=script&seek_project_id=<id>"
 # -> {"message": "...", "dataset_uuid": "...", "seek_id": 42}
+# A notebook tool: the same call with tool_type=notebook.
 ```
 
 - The upload is all-or-nothing. If SEEK registration fails, nothing is stored and the API returns `502`.

@@ -143,3 +143,15 @@ def test_get_dataset_returns_the_tools_cwl(client):
     cwl = r.json()["dataset"]["cwl"]
     assert cwl["label"] == "Tool - convert"
     assert cwl["inputs"]["src"]["doc"] == "measurements"
+
+
+@pytest.mark.integration
+def test_notebook_tool_is_registered_with_the_notebook_type(client):
+    files = {**_tool_files(), "code/tool_convert.ipynb": b'{"cells": [], "nbformat": 4, "nbformat_minor": 5}'}
+    del files["code/tool_convert.py"]
+
+    r = _post(client, _folder_parts(files), tool_type="notebook")
+
+    assert r.status_code == 200, r.text
+    assert client.seek.workflows[r.json()["seek_id"]]["tool_type"] == "notebook"
+    assert f"{r.json()['dataset_uuid']}/code/tool_convert.ipynb" in _keys(client)
