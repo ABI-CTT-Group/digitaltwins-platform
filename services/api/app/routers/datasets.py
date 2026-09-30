@@ -253,7 +253,7 @@ async def upload_dataset(
     fhir_descriptions: Optional[str] = Form(
         None, description="measurements only: FHIR descriptions JSON, keyed by folder name (UUIDs are assigned)",
     ),
-    tool_type: Optional[Literal["script", "notebook"]] = Query(
+    tool_type: Optional[Literal["script", "notebook", "gui"]] = Query(
         None, description="tools only (required): the tool type, tagged on its SEEK Workflow",
     ),
     seek_project_id: Optional[int] = Query(

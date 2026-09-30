@@ -138,3 +138,14 @@ def test_notebook_tool_session_is_registered_with_the_notebook_type(client):
     session = client.get(f"/datasets/uploads/{upload_id}").json()
     assert (session["status"], session["tool_type"]) == ("completed", "notebook")
     assert [w["tool_type"] for w in client.seek.workflows.values()] == ["notebook"]
+
+
+@pytest.mark.integration
+def test_gui_tool_session_is_registered_with_the_gui_type(client):
+    upload_id = _upload(client, _files(), tool_type="gui")
+
+    assert client.post(f"/datasets/uploads/{upload_id}/finalize").status_code == 202
+
+    session = client.get(f"/datasets/uploads/{upload_id}").json()
+    assert (session["status"], session["tool_type"]) == ("completed", "gui")
+    assert [w["tool_type"] for w in client.seek.workflows.values()] == ["gui"]

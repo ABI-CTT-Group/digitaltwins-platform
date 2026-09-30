@@ -156,3 +156,15 @@ def test_notebook_tool_is_registered_with_the_notebook_type(client):
     assert r.status_code == 200, r.text
     assert client.seek.workflows[r.json()["seek_id"]]["tool_type"] == "notebook"
     assert f"{r.json()['dataset_uuid']}/code/tool_convert.ipynb" in _keys(client)
+
+
+@pytest.mark.integration
+def test_gui_tool_is_registered_with_the_gui_type(client):
+    files = {**_tool_files(), "code/index.html": b"<html></html>", "code/src/main.ts": b"export {}\n"}
+    del files["code/tool_convert.py"]
+
+    r = _post(client, _folder_parts(files), tool_type="gui")
+
+    assert r.status_code == 200, r.text
+    assert client.seek.workflows[r.json()["seek_id"]]["tool_type"] == "gui"
+    assert f"{r.json()['dataset_uuid']}/code/src/main.ts" in _keys(client)

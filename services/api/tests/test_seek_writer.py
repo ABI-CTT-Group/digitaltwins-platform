@@ -144,3 +144,8 @@ def test_delete_workflow_raises_on_seek_error(seek_env, monkeypatch):
 def test_crate_tags_the_notebook_type(cwl_path):
     graph, _, _ = _crate(build_tool_crate(cwl_path, "notebook"))
     assert graph["./"]["keywords"] == ["tool", "notebook"]
+
+
+def test_crate_tags_the_gui_type(cwl_path):
+    graph, _, _ = _crate(build_tool_crate(cwl_path, "gui"))
+    assert graph["./"]["keywords"] == ["tool", "gui"]
