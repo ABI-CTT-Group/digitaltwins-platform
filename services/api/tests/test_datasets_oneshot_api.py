@@ -169,3 +169,10 @@ def test_unknown_category_is_rejected_before_anything_is_stored(client):
     assert typo in r.json()["detail"] and client.bucket in r.json()["detail"]
     assert _db_one(client, "SELECT count(*) FROM dataset", None) == (0,)
     assert typo not in [b["Name"] for b in client.s3.list_buckets()["Buckets"]]
+
+
+def test_category_is_offered_as_a_dropdown_in_the_api_docs():
+    upload = create_app().openapi()["paths"]["/datasets"]["post"]
+    [category] = [p for p in upload["parameters"] if p["name"] == "category"]
+
+    assert category["schema"]["enum"] == ["measurements", "models", "tools", "workflows"]

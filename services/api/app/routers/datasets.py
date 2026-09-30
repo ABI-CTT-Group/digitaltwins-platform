@@ -244,6 +244,8 @@ async def upload_dataset(
     category: str = Query(
         ...,
         description="Dataset category: measurements, models, tools or workflows",
+        # A dropdown in /docs; the value is still checked against DATASET_CATEGORIES (400).
+        json_schema_extra={"enum": sorted(DATASET_CATEGORIES)},
     ),
     fhir: Literal["none", "auto"] = Query(
         "none", description="measurements only: 'auto' annotates and pushes FHIR after the commit",

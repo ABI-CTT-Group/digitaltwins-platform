@@ -11,6 +11,7 @@
 ## Fix
 - `app/routers/datasets.py` adds `DATASET_CATEGORIES = {"measurements", "models", "tools", "workflows"}`, the buckets `init-minio.sh` creates. `upload_dataset` returns `400 Unknown category 'tool'; use one of: measurements, models, tools, workflows` before anything is stored.
 - Chosen over an enum-typed query parameter (a Swagger dropdown, but 422), because it keeps the existing test isolation: tests patch the set to a throwaway bucket, the same pattern as `INGEST_CATEGORIES` and `tools.CATEGORY`.
+- **Follow-up, same day:** the `category` query's OpenAPI schema now carries `enum: [measurements, models, tools, workflows]` (`json_schema_extra`), so Swagger `/docs` shows a dropdown like `tool_type`. The parameter stays a plain string checked against `DATASET_CATEGORIES`, so a typo from other clients is still a 400 listing the valid values (not a 422), and tests can still patch the set. Test: `test_datasets_oneshot_api.py::test_category_is_offered_as_a_dropdown_in_the_api_docs`.
 - Internal callers of `Uploader.upload_dataset` (for example workspace outputs in `assays.py`, which use `workflows`) are unchanged.
 - The README notes the accepted categories.
 
