@@ -148,7 +148,23 @@ print(session["dataset_uuid"], session.get("fhir_status"))
 - `fhir="auto"` annotates every sample automatically. Alternatively, pass `fhir_descriptions=` with your own annotation. Refer to subjects and samples by folder name (`primary/<subject>/<sample>`); the server assigns the dataset, subject and sample UUIDs.
 - If the upload is interrupted, call `client.resume(upload_id, "path/to/my_dataset")`. Only the missing parts are sent.
 - A ready-to-run command-line version is at [`examples/upload_measurement_dataset.py`](examples/upload_measurement_dataset.py). It prompts for the password (or reads `DIGITALTWINS_PASSWORD`) and prints a `--resume` command if the upload is interrupted.
-- For small datasets, the one-shot `POST /datasets?category=measurements` (multipart) remains available.
+- For small datasets, the one-shot `POST /datasets?category=measurements` (multipart) remains available. It accepts the categories `measurements`, `models`, `tools` and `workflows`; any other value returns `400`.
+
+### Uploading a tool dataset
+
+A tool dataset is an SDS folder with no subject or sample folders. `primary/` holds exactly one `tool_<name>.cwl`, and the tool itself is in `code/`: a Python script for `tool_type=script`, a Jupyter notebook for `tool_type=notebook`, or the source of a GUI/plugin for `tool_type=gui`. A GUI tool is stored and registered like the others; it is not built or installed as a portal plugin by this endpoint. The upload is stored in the MinIO `tools` bucket and in Postgres. It is also registered in SEEK as a Workflow tagged `tool` + `<tool_type>`, in the SEEK project you name, as you. You must be a member of that project. SEEK takes the Workflow's title from the CWL `label` and parses its inputs and outputs. The dataset's `seek_id` links it to that Workflow.
+
+```bash
+curl -H "Authorization: Bearer <token>" \
+  -F "files=@tool_dicom_to_nifti.zip" \
+  "https://<platform-host>/digitaltwins-api/datasets?category=tools&tool_type=script&seek_project_id=<id>"
+# -> {"message": "...", "dataset_uuid": "...", "seek_id": 42}
+# A notebook or GUI tool: the same call with tool_type=notebook or tool_type=gui.
+```
+
+- The upload is all-or-nothing. If SEEK registration fails, nothing is stored and the API returns `502`.
+- Resumable sessions (`POST /datasets/uploads`) also accept `category="tools"`, with `tool_type` and `seek_project_id` in the body and no FHIR options. `UploadClient` does not pass these fields yet.
+- `GET /datasets/<uuid>?get_cwl=true` returns the parsed CWL. `DELETE /datasets/<uuid>` also deletes the SEEK Workflow.
 
 ## Reporting Issues
 To report an issue or suggest a new feature, please use the [issues page](https://github.com/ABI-CTT-Group/digitaltwins-api/issues). Issue templates are provided to allow users to report bugs, and documentation or feature requests. Please check existing issues before submitting a new one.

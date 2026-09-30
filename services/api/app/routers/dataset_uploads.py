@@ -1,11 +1,15 @@
 """
-Dataset upload sessions (resumable, chunked) for measurement datasets.
+Dataset upload sessions (resumable, chunked) for measurement and tool datasets.
 
 A session is created, its files arrive as parts, and finalize validates the
 assembled dataset. With ``commit_mode=on_finalize`` (REST default) finalize
 queues the commit (Postgres + MinIO) and returns 202. With ``on_approve``
 (portal) the dataset is staged: its FHIR annotation draft can be edited, and
 ``/approve`` queues the commit. Clients poll ``GET /datasets/uploads/{id}``.
+
+Tool sessions need ``tool_type`` + ``seek_project_id``, carry no FHIR, and are
+checked for exactly one ``primary/tool_*.cwl``; their commit also registers
+the tool in SEEK as the user who finalized / approved it.
 """
 import os
 import shutil
@@ -16,6 +20,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from digitaltwins import tools
 from digitaltwins.core.connection import Connection
 from digitaltwins.measurements import jobs, sessions
 from digitaltwins.measurements.chunk_store import PART_SIZE, ChunkStore, ChunkStoreError
@@ -29,13 +34,15 @@ from digitaltwins.measurements.validation import (
     sampleless_subjects,
     validate_sparc_structure,
 )
+from digitaltwins.tools.validation import find_tool_cwl
 
 from .auth import require_upload_role, validate_credentials
 
 router = APIRouter(prefix="/datasets/uploads", tags=["dataset uploads"])
 
-# Categories ingested through sessions. Only measurements for now; other
-# categories keep using the one-shot POST /datasets.
+# Categories ingested through sessions with SPARC validation and FHIR. Tool
+# datasets (``tools.CATEGORY``) also use sessions; other categories keep using
+# the one-shot POST /datasets.
 INGEST_CATEGORIES = {"measurements"}
 
 # Sessions not yet committed, as listed for the portal overview.
@@ -79,7 +86,8 @@ def _require_status(session: Dict[str, Any], *allowed: str) -> None:
 
 def _session_view(session: Dict[str, Any]) -> Dict[str, Any]:
     keys = ("upload_id", "name", "description", "category", "source_kind", "commit_mode", "status",
-            "failure_stage", "failure_message", "fhir_mode", "dataset_uuid", "created_at", "updated_at")
+            "failure_stage", "failure_message", "fhir_mode", "dataset_uuid", "tool_type", "seek_project_id",
+            "created_at", "updated_at")
     return {k: session[k] for k in keys}
 
 
@@ -101,6 +109,8 @@ class SessionCreate(BaseModel):
     commit_mode: Literal["on_finalize", "on_approve"] = "on_finalize"
     fhir: Literal["none", "auto"] = "none"
     fhir_descriptions: Optional[Dict[str, Any]] = None
+    tool_type: Optional[Literal["script", "notebook", "gui"]] = None
+    seek_project_id: Optional[int] = None
 
 
 class AnnotationBody(BaseModel):
@@ -122,16 +132,25 @@ def list_uploads(conn=Depends(get_conn), _creds: dict = Depends(validate_credent
 
 @router.post("")
 def create_upload(body: SessionCreate, conn=Depends(get_conn), _creds: dict = Depends(require_upload_role)):
-    if body.category not in INGEST_CATEGORIES:
+    if body.category not in INGEST_CATEGORIES and body.category != tools.CATEGORY:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Upload sessions support categories: {', '.join(sorted(INGEST_CATEGORIES))}",
+            detail=f"Upload sessions support categories: {', '.join(sorted(INGEST_CATEGORIES | {tools.CATEGORY}))}",
         )
+    if body.category == tools.CATEGORY:
+        missing = [name for name in ("tool_type", "seek_project_id") if getattr(body, name) is None]
+        if missing:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail=f"Tool uploads need: {', '.join(missing)}")
+        if body.fhir != "none" or body.fhir_descriptions is not None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Tool uploads carry no FHIR annotation")
     fhir_mode = "descriptions" if body.fhir_descriptions is not None else body.fhir
     upload_id = sessions.create_session(
         conn, category=body.category, name=body.name, description=body.description,
         source_kind=body.source_kind, commit_mode=body.commit_mode,
         fhir_mode=fhir_mode, fhir_descriptions=body.fhir_descriptions,
+        tool_type=body.tool_type, seek_project_id=body.seek_project_id,
     )
     try:
         _chunk_store().init(upload_id, body.source_kind, [e.model_dump() for e in body.manifest])
@@ -189,9 +208,13 @@ def finalize_upload(
             staging = extracted
         else:
             staging = assembled
-        ok, message = validate_sparc_structure(staging)
-        if not ok:
-            raise ValueError(message)
+        tool = session["category"] == tools.CATEGORY
+        if tool:
+            find_tool_cwl(staging)
+        else:
+            ok, message = validate_sparc_structure(staging)
+            if not ok:
+                raise ValueError(message)
         root = resolve_project_root(staging)
         if session["fhir_mode"] == "descriptions":
             check_descriptions_match(session["fhir_descriptions"], root)
@@ -206,14 +229,14 @@ def finalize_upload(
             shutil.rmtree(extracted, ignore_errors=True)
 
     store.cleanup(upload_id)
-    warnings = sampleless_subjects(target)
+    warnings = [] if tool else sampleless_subjects(target)
 
     if session["commit_mode"] == "on_approve":
         sessions.update_session(conn, upload_id, status="staged")
         return {"upload_id": upload_id, "status": "staged", "warnings": warnings}
 
     sessions.update_session(conn, upload_id, status="processing")
-    background.add_task(jobs.run_commit_and_push, upload_id)
+    background.add_task(jobs.run_commit_and_push, upload_id, _creds["token"])
     return JSONResponse(
         status_code=status.HTTP_202_ACCEPTED,
         content={"upload_id": upload_id, "status": "processing", "warnings": warnings},
@@ -228,7 +251,7 @@ def approve_upload(
     """Commit a staged session (the portal's Approval), or retry a failed commit."""
     _require_status(_session_or_404(conn, upload_id), "staged", "failed")
     sessions.update_session(conn, upload_id, status="processing", failure_stage=None, failure_message=None)
-    background.add_task(jobs.run_commit_and_push, upload_id)
+    background.add_task(jobs.run_commit_and_push, upload_id, _creds["token"])
     return {"upload_id": upload_id, "status": "processing"}
 
 

@@ -14,7 +14,7 @@ import pytest
 
 from digitaltwins.postgres.migrate import apply_migrations
 
-BASELINE_SCHEMA = Path(__file__).resolve().parents[3] / "postgres" / "digitaltwins_schema.sql"
+BASELINE_SCHEMA = Path(__file__).resolve().parents[2] / "postgres" / "digitaltwins_schema.sql"
 
 
 def _pg_params(database=None):
@@ -254,4 +254,49 @@ def hapi(monkeypatch):
     fake = FakeHapi()
     monkeypatch.setattr(fhir_service, "get_fhir_adapter", lambda: fake)
     monkeypatch.setattr(fhir_service, "get_fhir_rest", lambda: fake)
+    return fake
+
+
+# ── SEEK fake ──────────────────────────────────────────────────────────
+
+
+class FakeSeek:
+    """In-memory SEEK standing in for ``digitaltwins.seek.writer.Writer``.
+
+    ``workflows`` maps each registered workflow id to what it was registered
+    with (CWL file name, tool type, project, the caller's token); ``deleted``
+    lists deleted ids. ``fail_register`` / ``fail_delete`` make the calls raise
+    like the real Writer does when SEEK refuses or is unreachable.
+    """
+
+    def __init__(self):
+        self.workflows = {}
+        self.deleted = []
+        self.fail_register = False
+        self.fail_delete = False
+        self._next = 100
+
+    def register_tool(self, writer, cwl_path, tool_type, project_id):
+        if self.fail_register:
+            raise RuntimeError("SEEK tool registration failed (422): Projects: you are not a member")
+        self._next += 1
+        self.workflows[self._next] = {"cwl": Path(cwl_path).name, "tool_type": tool_type,
+                                      "project_id": project_id, "token": writer._api_token}
+        return self._next
+
+    def delete_workflow(self, writer, workflow_id):
+        if self.fail_delete:
+            raise RuntimeError(f"SEEK workflow {workflow_id} delete failed: unreachable")
+        self.deleted.append(int(workflow_id))
+        self.workflows.pop(int(workflow_id), None)
+
+
+@pytest.fixture
+def seek(monkeypatch):
+    from digitaltwins.seek.writer import Writer
+
+    fake = FakeSeek()
+    monkeypatch.setenv("SEEK_BASE_URL", "http://seek.test/seek")
+    monkeypatch.setattr(Writer, "register_tool", lambda self, *a, **kw: fake.register_tool(self, *a, **kw))
+    monkeypatch.setattr(Writer, "delete_workflow", lambda self, *a, **kw: fake.delete_workflow(self, *a, **kw))
     return fake

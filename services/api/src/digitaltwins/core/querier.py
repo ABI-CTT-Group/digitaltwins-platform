@@ -1,9 +1,11 @@
+import re
 import yaml
 import os
 
 from dotenv import load_dotenv
 load_dotenv()
 
+from .. import tools
 from ..utils.config_loader import is_truthy
 
 class Querier(object):
@@ -226,13 +228,22 @@ class Querier(object):
         results = self._postgre_querier.get_dataset(dataset_uuid=dataset_uuid)
 
         if get_cwl:
-            if results.get("category") == "tool":
-                file_path = "./" + dataset_uuid + "/primary/" + results.get("dataset_name") + ".cwl"
-                contents = self._irods_querier.load_file(file_path)
-                contents = yaml.safe_load(contents)
-                results["cwl"] = contents
+            if results.get("category") == tools.CATEGORY:
+                results["cwl"] = self._load_tool_cwl(dataset_uuid)
 
         return results
+
+    def _load_tool_cwl(self, dataset_uuid):
+        """The tool dataset's ``primary/tool_*.cwl`` from MinIO, parsed."""
+        from ..minio.downloader import Downloader as MinioDownloader
+
+        minio = MinioDownloader()
+        keys = minio.list_dataset_objects(dataset_uuid, tools.CATEGORY)
+        cwl_keys = [k for k in keys if re.fullmatch(rf"{re.escape(dataset_uuid)}/primary/tool_[^/]*\.cwl", k)]
+        if len(cwl_keys) != 1:
+            raise FileNotFoundError(f"Expected one primary/tool_*.cwl for dataset {dataset_uuid}, found {len(cwl_keys)}")
+        body = minio.s3_client.get_object(Bucket=tools.CATEGORY, Key=cwl_keys[0])["Body"].read()
+        return yaml.safe_load(body)
 
     def get_dataset_sample_types(self, dataset_uuid):
         results = self._postgre_querier.get_dataset_sample_types(dataset_uuid)

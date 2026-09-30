@@ -15,7 +15,9 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from .. import tools
 from ..core.connection import Connection
+from ..tools.pipeline import commit_tool
 from . import fhir_service, pipeline, sessions
 from .staging import dataset_dir, staging_root
 from .tree import build_tree
@@ -48,19 +50,31 @@ def _requested_descriptions(session: Dict[str, Any], root: Path) -> Optional[Dic
     return None
 
 
-def run_commit_job(upload_id: str) -> None:
-    """Commit a ``processing`` session's staged dataset; complete or fail the session."""
+def _commit(session: Dict[str, Any], root: Path, api_token: Optional[str]) -> pipeline.CommitResult:
+    if session["category"] == tools.CATEGORY:
+        result = commit_tool(root, session["tool_type"], session["seek_project_id"], api_token,
+                             dataset_name=session["name"])
+        return pipeline.CommitResult(result["dataset_uuid"], None)
+    return pipeline.commit_dataset(
+        root,
+        category=session["category"],
+        descriptions=_requested_descriptions(session, root),
+        dataset_name=session["name"],
+    )
+
+
+def run_commit_job(upload_id: str, api_token: Optional[str] = None) -> None:
+    """Commit a ``processing`` session's staged dataset; complete or fail the session.
+
+    ``api_token`` is the caller's Keycloak token, needed by tool sessions to
+    register the tool in SEEK as that user; it is never stored.
+    """
     conn = _connect()
     try:
         session = sessions.get_session(conn, upload_id)
         root = dataset_dir(upload_id)
         try:
-            result = pipeline.commit_dataset(
-                root,
-                category=session["category"],
-                descriptions=_requested_descriptions(session, root),
-                dataset_name=session["name"],
-            )
+            result = _commit(session, root, api_token)
         except Exception as exc:
             logger.exception("Commit failed for upload %s", upload_id)
             sessions.update_session(
@@ -79,9 +93,9 @@ def run_commit_job(upload_id: str) -> None:
         conn.close()
 
 
-def run_commit_and_push(upload_id: str) -> None:
+def run_commit_and_push(upload_id: str, api_token: Optional[str] = None) -> None:
     """Commit, then push FHIR straight away when the session asked for it."""
-    run_commit_job(upload_id)
+    run_commit_job(upload_id, api_token)
     conn = _connect()
     try:
         session = sessions.get_session(conn, upload_id)
