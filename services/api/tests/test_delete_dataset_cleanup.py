@@ -99,3 +99,61 @@ def test_delete_requires_an_upload_role(env):
 @pytest.mark.integration
 def test_delete_of_an_unknown_dataset_is_404(env):
     assert env["client"].delete("/datasets/00000000-0000-0000-0000-000000000000").status_code == 404
+
+
+# ── Tool datasets: their SEEK workflow goes too ─────────────────────────
+
+
+@pytest.fixture
+def tool_env(env, seek, tmp_path, monkeypatch):
+    from digitaltwins import tools
+
+    monkeypatch.setattr(tools, "CATEGORY", env["bucket"])
+    return {**env, "seek": seek, "tmp": tmp_path}
+
+
+def _committed_tool(env):
+    from digitaltwins.tools.pipeline import commit_tool
+
+    root = env["tmp"] / "sds_tool_convert"
+    (root / "primary").mkdir(parents=True)
+    (root / "code").mkdir()
+    (root / "primary" / "tool_convert.cwl").write_text("cwlVersion: v1.2\nclass: CommandLineTool\n")
+    (root / "code" / "tool_convert.py").write_text("print('hi')\n")
+    shutil.copy(FIXTURE / "dataset_description.xlsx", root)
+    return commit_tool(root, "script", 11, "t")
+
+
+@pytest.mark.integration
+def test_delete_of_a_tool_also_deletes_its_seek_workflow(tool_env, s3):
+    tool = _committed_tool(tool_env)
+
+    r = tool_env["client"].delete(f"/datasets/{tool['dataset_uuid']}")
+
+    assert r.status_code == 200, r.text
+    assert r.json()["seek_workflow_deleted"] is True
+    assert tool_env["seek"].deleted == [tool["seek_id"]]
+    assert _count(tool_env, "dataset") == 0
+    assert _objects(s3, tool_env["bucket"], f"{tool['dataset_uuid']}/") == 0
+
+
+@pytest.mark.integration
+def test_seek_failure_does_not_fail_the_tool_delete(tool_env):
+    tool = _committed_tool(tool_env)
+    tool_env["seek"].fail_delete = True
+
+    r = tool_env["client"].delete(f"/datasets/{tool['dataset_uuid']}")
+
+    assert r.status_code == 200, r.text
+    assert r.json()["seek_workflow_deleted"] is False
+    assert _count(tool_env, "dataset") == 0
+
+
+@pytest.mark.integration
+def test_delete_of_a_non_tool_dataset_does_not_call_seek(env, seek):
+    _, dataset_uuid = _committed(env, fhir_mode="none")
+
+    r = env["client"].delete(f"/datasets/{dataset_uuid}")
+
+    assert r.status_code == 200 and r.json()["seek_workflow_deleted"] is False
+    assert seek.deleted == []

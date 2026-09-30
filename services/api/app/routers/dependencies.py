@@ -21,6 +21,6 @@ def get_downloader() -> Downloader:
     return Downloader()
 
 
-def get_deleter() -> Deleter:
-    """Build a Deleter() instance for dependency injection."""
-    return Deleter()
+def get_deleter(credentials: dict = Depends(validate_credentials)) -> Deleter:
+    """Create a per-request Deleter that removes a tool's SEEK Workflow as the calling user."""
+    return Deleter(api_token=credentials["token"])

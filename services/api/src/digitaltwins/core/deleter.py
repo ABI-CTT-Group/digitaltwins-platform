@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 
 
 class Deleter(object):
-    def __init__(self):
+    def __init__(self, api_token: Optional[str] = None):
+        # The caller's Keycloak token, used to delete a tool's SEEK Workflow as that user.
+        self._api_token = api_token
         self._postgres_enabled = is_truthy(os.getenv("POSTGRES_ENABLED"))
         self._minio_enabled = is_truthy(os.getenv("MINIO_ENABLED"))
 
@@ -43,7 +45,8 @@ class Deleter(object):
             dataset_uuid: The UUID of the dataset to delete.
 
         Returns:
-            A summary dict with keys ``dataset_uuid`` and ``minio_objects_deleted``.
+            A summary dict with keys ``dataset_uuid``, ``minio_objects_deleted``,
+            ``fhir_resources_deleted`` and ``seek_workflow_deleted``.
 
         Raises:
             ValueError: If the dataset UUID does not exist in Postgres.
@@ -57,7 +60,7 @@ class Deleter(object):
         # 2. Open a Postgres transaction
         conn: Optional[psycopg2.extensions.connection] = None
         minio_deleted = 0
-        cleanup = {"fhir_status": "none", "subject_uuids": [], "upload_ids": []}
+        cleanup = {"fhir_status": "none", "subject_uuids": [], "upload_ids": [], "category": None, "seek_id": None}
 
         try:
             if self._postgres_enabled and self._postgres_deleter:
@@ -89,15 +92,17 @@ class Deleter(object):
             if conn:
                 conn.close()
 
-        # 6. Outside Postgres, best-effort: FHIR resources and local copies.
+        # 6. Outside Postgres, best-effort: FHIR resources, a tool's SEEK Workflow, local copies.
         fhir_deleted = (_delete_fhir_resources(dataset_uuid, cleanup["subject_uuids"])
                         if cleanup["fhir_status"] != "none" else {})
+        seek_deleted = _delete_seek_workflow(dataset_uuid, cleanup["category"], cleanup["seek_id"], self._api_token)
         _remove_local_copies(dataset_uuid, cleanup["upload_ids"])
 
         return {
             "dataset_uuid": dataset_uuid,
             "minio_objects_deleted": minio_deleted,
             "fhir_resources_deleted": fhir_deleted,
+            "seek_workflow_deleted": seek_deleted,
         }
 
 
@@ -110,6 +115,26 @@ def _delete_fhir_resources(dataset_uuid: str, subject_uuids: list) -> dict:
     except Exception as exc:
         logger.warning("FHIR cleanup failed for dataset %s: %s", dataset_uuid, exc)
         return {}
+
+
+def _delete_seek_workflow(dataset_uuid: str, category: Optional[str], seek_id: Optional[str],
+                          api_token: Optional[str]) -> bool:
+    """Remove a tool dataset's SEEK Workflow; log and carry on if SEEK refuses or is unreachable."""
+    from .. import tools
+
+    if category != tools.CATEGORY or not seek_id:
+        return False
+    if not api_token:
+        logger.warning("No token to delete SEEK workflow %s of dataset %s", seek_id, dataset_uuid)
+        return False
+    from ..seek.writer import Writer
+
+    try:
+        Writer(api_token=api_token).delete_workflow(seek_id)
+    except Exception as exc:
+        logger.warning("SEEK cleanup failed for dataset %s (workflow %s): %s", dataset_uuid, seek_id, exc)
+        return False
+    return True
 
 
 def _remove_local_copies(dataset_uuid: str, upload_ids: list) -> None:

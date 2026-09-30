@@ -66,8 +66,8 @@ class Deleter(object):
 
     def get_cleanup_info(self, cur, dataset_uuid: str) -> dict:
         """What lives outside Postgres for this dataset: its FHIR status, subjects
-        (the Patients' identifiers) and upload sessions."""
-        cur.execute("SELECT fhir_status FROM dataset WHERE dataset_uuid = %s", (dataset_uuid,))
+        (the Patients' identifiers), upload sessions, and category + SEEK id."""
+        cur.execute("SELECT fhir_status, category, seek_id FROM dataset WHERE dataset_uuid = %s", (dataset_uuid,))
         row = cur.fetchone()
         cur.execute("SELECT DISTINCT subject_uuid FROM dataset_mapping WHERE dataset_uuid = %s", (dataset_uuid,))
         subject_uuids = [str(r[0]) for r in cur.fetchall()]
@@ -76,6 +76,8 @@ class Deleter(object):
             "fhir_status": row[0] if row else "none",
             "subject_uuids": subject_uuids,
             "upload_ids": [str(r[0]) for r in cur.fetchall()],
+            "category": row[1] if row else None,
+            "seek_id": row[2] if row else None,
         }
 
     def delete_dataset(self, cur, dataset_uuid: str) -> None:

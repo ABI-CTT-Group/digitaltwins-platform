@@ -20,6 +20,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 
 from digitaltwins import Querier, Uploader, Downloader, Deleter
+from digitaltwins import tools
 from digitaltwins.core.connection import Connection
 from digitaltwins.measurements import jobs, sessions
 from digitaltwins.measurements.pipeline import check_descriptions_match
@@ -29,6 +30,7 @@ from digitaltwins.measurements.validation import (
     resolve_project_root,
     validate_sparc_structure,
 )
+from digitaltwins.tools.pipeline import SeekRegistrationError, commit_tool
 from . import dataset_uploads
 from .auth import require_upload_role, validate_credentials
 from .dataset_uploads import _max_upload_bytes
@@ -244,6 +246,12 @@ async def upload_dataset(
     fhir_descriptions: Optional[str] = Form(
         None, description="measurements only: FHIR descriptions JSON, keyed by folder name (UUIDs are assigned)",
     ),
+    tool_type: Optional[Literal["script"]] = Query(
+        None, description="tools only (required): the tool type, tagged on its SEEK Workflow",
+    ),
+    seek_project_id: Optional[int] = Query(
+        None, description="tools only (required): the SEEK project to register the tool in",
+    ),
     uploader: Uploader = Depends(get_uploader),
     _creds: dict = Depends(require_upload_role),
 ) -> dict[str, Any]:
@@ -254,9 +262,21 @@ async def upload_dataset(
     ``filename`` field. Parts are streamed to disk on the staging volume.
     Measurement datasets are SPARC-validated and committed through the
     upload-session pipeline (see /datasets/uploads for large, resumable
-    uploads); other categories go straight to ``Uploader.upload_dataset``.
+    uploads). Tool datasets need exactly one ``primary/tool_*.cwl`` and are
+    also registered in SEEK as a Workflow tagged ``tool`` + ``tool_type``
+    (all-or-nothing: 502 if SEEK fails). Other categories go straight to
+    ``Uploader.upload_dataset``.
     """
     measurements = category in dataset_uploads.INGEST_CATEGORIES
+    tool = category == tools.CATEGORY
+    if tool:
+        missing = [name for name, value in (("tool_type", tool_type), ("seek_project_id", seek_project_id))
+                   if value is None]
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Tool uploads need: {', '.join(missing)}",
+            )
     try:
         staging_root().mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=staging_root()) as tmp_dir:
@@ -264,6 +284,10 @@ async def upload_dataset(
             if measurements:
                 result = await run_in_threadpool(
                     _ingest_measurements, dataset_dir_path, category, fhir, fhir_descriptions
+                )
+            elif tool:
+                result = await run_in_threadpool(
+                    commit_tool, dataset_dir_path, tool_type, seek_project_id, _creds["token"]
                 )
             else:
                 result = {"dataset_uuid": uploader.upload_dataset(dataset_path=str(dataset_dir_path), category=category)}
@@ -273,6 +297,8 @@ async def upload_dataset(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid upload payload: {exc}",
         ) from exc
+    except SeekRegistrationError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     except (RuntimeError, OSError) as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -387,7 +413,8 @@ def delete_dataset(
     _creds: dict = Depends(require_upload_role),
 ) -> dict:
     """Delete a dataset and all associated data: Postgres (incl. its subject /
-    sample rows), MinIO, HAPI FHIR resources and local copies.
+    sample rows), MinIO, HAPI FHIR resources, a tool's SEEK Workflow and local
+    copies. FHIR and SEEK cleanup are best-effort (logged, never fail the delete).
 
     Args:
         dataset_uuid: The UUID of the dataset to delete.
@@ -423,4 +450,5 @@ def delete_dataset(
         "dataset_uuid": result["dataset_uuid"],
         "minio_objects_deleted": result["minio_objects_deleted"],
         "fhir_resources_deleted": result["fhir_resources_deleted"],
+        "seek_workflow_deleted": result["seek_workflow_deleted"],
     }
