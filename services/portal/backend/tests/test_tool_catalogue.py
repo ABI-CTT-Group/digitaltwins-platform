@@ -8,7 +8,7 @@ import uuid
 
 from tests.tool_app import bearer  # noqa: I001  (sets DATABASE_PATH first)
 from tests import test_tool_handoff
-from app.models.db_model import Plugin, PluginBuild, SessionLocal
+from app.models.db_model import Plugin, PluginAnnotation, PluginBuild, SessionLocal
 from app.router import workflow_tool_plugin
 
 
@@ -107,6 +107,30 @@ class CatalogueTest(test_tool_handoff.HandoffTest):
 
         self.assertTrue(self._delete()["status"])
         self.assertFalse(self._plugin_exists())
+
+    def _annotations(self):
+        with SessionLocal() as db:
+            return [a.fhir_note for a in db.query(PluginAnnotation).filter_by(plugin_id=self.plugin_id)]
+
+    def test_resaving_the_annotation_keeps_one_row(self):
+        # The wizard re-posts the annotation when the user goes Back and Next again.
+        for note in ("first", "second"):
+            r = self.client.post(f"/api/tools/plugin/{self.plugin_id}/annotation",
+                                 json={"fhir_note": note, "sparc_note": ""}, headers=bearer("researcher"))
+            self.assertEqual(r.status_code, 200, r.text)
+
+        self.assertEqual(self._annotations(), ["second"])
+
+    def test_deleting_a_tool_removes_all_its_annotations(self):
+        # Tools annotated before re-saving was idempotent can have several rows.
+        with SessionLocal() as db:
+            db.add_all([PluginAnnotation(plugin_id=self.plugin_id, annotation_id=str(uuid.uuid4()), fhir_note=n)
+                        for n in ("a", "b")])
+            db.commit()
+
+        self.assertTrue(self._delete()["status"])
+        self.assertFalse(self._plugin_exists())
+        self.assertEqual(self._annotations(), [])
 
     def test_a_legacy_placeholder_uuid_is_not_sent_to_the_platform(self):
         with SessionLocal() as db:

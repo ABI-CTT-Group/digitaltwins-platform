@@ -257,16 +257,15 @@ async def create_tool_annotation(plugin_id: str, annotation: PluginAnnotationCre
     plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
     if plugin is None:
         raise HTTPException(status_code=404, detail="Plugin not found")
-    annotation_id = str(uuid.uuid4())
 
-    db_annotation = PluginAnnotation(
-        plugin_id=plugin.id,
-        annotation_id=annotation_id,
-        fhir_note=annotation.fhir_note,
-        sparc_note=annotation.sparc_note
-    )
+    # One annotation per tool: re-saving (wizard Back/Next) updates it in place.
+    db_annotation = db.query(PluginAnnotation).filter(PluginAnnotation.plugin_id == plugin.id).first()
+    if db_annotation is None:
+        db_annotation = PluginAnnotation(plugin_id=plugin.id, annotation_id=str(uuid.uuid4()))
+        db.add(db_annotation)
+    db_annotation.fhir_note = annotation.fhir_note
+    db_annotation.sparc_note = annotation.sparc_note
 
-    db.add(db_annotation)
     db.commit()
     db.refresh(db_annotation)
     return db_annotation
@@ -344,6 +343,8 @@ def delete_plugin(plugin_id: str, user: dict = WRITER, db: Session = Depends(get
                         force_rmtree(staging)
                     except Exception as e:
                         logger.error(f"Failed to remove local staging dir {staging}: {e}")
+            # The one-to-one cascade only reaches one row; older tools can have several.
+            db.query(PluginAnnotation).filter(PluginAnnotation.plugin_id == plugin.id).delete()
             db.delete(plugin)
             db.commit()
 
