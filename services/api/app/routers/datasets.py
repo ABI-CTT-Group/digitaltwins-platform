@@ -30,7 +30,8 @@ from digitaltwins.measurements.validation import (
     resolve_project_root,
     validate_sparc_structure,
 )
-from digitaltwins.tools.pipeline import SeekRegistrationError, commit_tool
+from digitaltwins.tools import fhir as tool_fhir
+from digitaltwins.tools.pipeline import SeekRegistrationError, annotate_tool, commit_tool
 from . import dataset_uploads
 from .auth import require_upload_role, validate_credentials
 from .dataset_uploads import _max_upload_bytes
@@ -229,6 +230,28 @@ def _ingest_measurements(dataset_root: Path, category: str, fhir: str, fhir_desc
     return {"dataset_uuid": session["dataset_uuid"], "fhir_status": fhir_status}
 
 
+def _ingest_tool(dataset_root: Path, tool_type: str, seek_project_id: int, api_token: str,
+                 fhir: str, fhir_descriptions: Optional[str]) -> dict:
+    """Validate any FHIR descriptions, commit the tool (SEEK + Postgres + MinIO), then annotate it."""
+    client = None
+    if fhir_descriptions:
+        try:
+            client = json.loads(fhir_descriptions)
+        except json.JSONDecodeError as exc:
+            raise ValueError("'fhir_descriptions' must be a JSON object") from exc
+        tool_fhir.build_descriptions(dataset_root, "", "", client)
+    result = commit_tool(dataset_root, tool_type, seek_project_id, api_token)
+    if client is None and fhir == "none":
+        return result
+    conn, _ = Connection().connect()
+    try:
+        annotate_tool(conn, dataset_root, result["dataset_uuid"], client)
+        jobs.set_fhir_status(conn, result["dataset_uuid"], "pending")
+    finally:
+        conn.close()
+    return {**result, "fhir_status": "pending"}
+
+
 @router.post("/datasets", tags=["datasets"])
 async def upload_dataset(
     background: BackgroundTasks,
@@ -248,10 +271,13 @@ async def upload_dataset(
         json_schema_extra={"enum": sorted(DATASET_CATEGORIES)},
     ),
     fhir: Literal["none", "auto"] = Query(
-        "none", description="measurements only: 'auto' annotates and pushes FHIR after the commit",
+        "none", description="measurements and tools: 'auto' annotates and pushes FHIR after the commit",
     ),
     fhir_descriptions: Optional[str] = Form(
-        None, description="measurements only: FHIR descriptions JSON, keyed by folder name (UUIDs are assigned)",
+        None, description=(
+            "FHIR descriptions JSON (UUIDs are assigned). Measurements: keyed by folder name. "
+            'Tools: {"workflow_tool": {version, description, model, software, input, output}}'
+        ),
     ),
     tool_type: Optional[Literal["script", "notebook", "gui"]] = Query(
         None, description="tools only (required): the tool type, tagged on its SEEK Workflow",
@@ -271,7 +297,10 @@ async def upload_dataset(
     upload-session pipeline (see /datasets/uploads for large, resumable
     uploads). Tool datasets need exactly one ``primary/tool_*.cwl`` and are
     also registered in SEEK as a Workflow tagged ``tool`` + ``tool_type``
-    (all-or-nothing: 502 if SEEK fails). Other categories go straight to
+    (all-or-nothing: 502 if SEEK fails); with ``fhir``/``fhir_descriptions``
+    an ActivityDefinition keyed by the dataset UUID is pushed after the
+    commit (``fhir_status``; a failed push is retried via
+    ``POST /datasets/{uuid}/fhir/push``). Other categories go straight to
     ``Uploader.upload_dataset``.
     """
     if category not in DATASET_CATEGORIES:
@@ -299,7 +328,8 @@ async def upload_dataset(
                 )
             elif tool:
                 result = await run_in_threadpool(
-                    commit_tool, dataset_dir_path, tool_type, seek_project_id, _creds["token"]
+                    _ingest_tool, dataset_dir_path, tool_type, seek_project_id, _creds["token"],
+                    fhir, fhir_descriptions,
                 )
             else:
                 result = {"dataset_uuid": uploader.upload_dataset(dataset_path=str(dataset_dir_path), category=category)}

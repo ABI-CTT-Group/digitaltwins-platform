@@ -3,7 +3,7 @@ import json
 import logging
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Iterable, Optional
 
 import psycopg2
 import openpyxl
@@ -234,6 +234,7 @@ class Uploader(object):
         save_json: bool = False,
         derive_from_primary: bool = False,
         dataset_name: Optional[str] = None,
+        skip_tables: Iterable[str] = (),
     ) -> str:
         """Upload a SPARC SDS dataset to Postgres and MinIO.
 
@@ -258,6 +259,8 @@ class Uploader(object):
                 ``dataset_mapping`` row, so every sample folder has UUIDs.
             dataset_name: Name recorded on the ``dataset`` row; defaults to the
                 folder name.
+            skip_tables: Metadata tables (e.g. ``"subject"``, ``"sample"``) not
+                to fill from their ``.xlsx``; the files are still uploaded.
 
         Returns:
             The generated ``dataset_uuid`` as a string.
@@ -329,7 +332,7 @@ class Uploader(object):
 
                 for base_name, records in parsed_metadata.items():
                     table_name = XLSX_TABLE_MAP.get(base_name)
-                    if table_name is None:
+                    if table_name is None or table_name in skip_tables:
                         logger.debug("Skipping %s.xlsx — no matching table", base_name)
                         continue
                     if not records:

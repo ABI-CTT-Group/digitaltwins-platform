@@ -1,5 +1,6 @@
 """POST /datasets for tool datasets: validated, stored in MinIO + Postgres, registered in SEEK (faked)."""
 import io
+import json
 import sys
 import zipfile
 from pathlib import Path
@@ -28,7 +29,7 @@ outputs: []
 
 
 @pytest.fixture
-def client(platform_db, minio_bucket, seek, s3, tmp_path, monkeypatch):
+def client(platform_db, minio_bucket, seek, hapi, s3, tmp_path, monkeypatch):
     monkeypatch.setenv("DATASET_STAGING_DIR", str(tmp_path / "staging"))
     # Tool uploads go to the throwaway bucket instead of the real ``tools`` one.
     monkeypatch.setattr(tools, "CATEGORY", minio_bucket)
@@ -36,7 +37,7 @@ def client(platform_db, minio_bucket, seek, s3, tmp_path, monkeypatch):
     app = create_app()
     app.dependency_overrides[auth.validate_credentials] = lambda: UPLOADER
     c = TestClient(app)
-    c.bucket, c.db, c.seek, c.s3 = minio_bucket, platform_db, seek, s3
+    c.bucket, c.db, c.seek, c.s3, c.hapi = minio_bucket, platform_db, seek, s3, hapi
     return c
 
 
@@ -50,9 +51,9 @@ def _folder_parts(files, prefix="sds_tool_convert"):
     return [("files", (f"{prefix}/{name}", content, "application/octet-stream")) for name, content in files.items()]
 
 
-def _post(client, parts, **params):
+def _post(client, parts, data=None, **params):
     params = {"category": client.bucket, "tool_type": "script", "seek_project_id": 11, **params}
-    return client.post("/datasets", params={k: v for k, v in params.items() if v is not None}, files=parts)
+    return client.post("/datasets", params={k: v for k, v in params.items() if v is not None}, files=parts, data=data)
 
 
 def _db_one(client, sql, params=None):
@@ -168,3 +169,203 @@ def test_gui_tool_is_registered_with_the_gui_type(client):
     assert r.status_code == 200, r.text
     assert client.seek.workflows[r.json()["seek_id"]]["tool_type"] == "gui"
     assert f"{r.json()['dataset_uuid']}/code/src/main.ts" in _keys(client)
+
+
+@pytest.mark.integration
+def test_seek_is_registered_before_the_dataset_is_stored(client, monkeypatch):
+    # The caller's token is only good for minutes, so SEEK must be called
+    # before the (possibly long) MinIO upload, not after it.
+    from digitaltwins.core.uploader import Uploader
+
+    events, upload = [], Uploader.upload_dataset
+    register = client.seek.register_tool
+    monkeypatch.setattr(client.seek, "register_tool", lambda *a: events.append("seek") or register(*a))
+    monkeypatch.setattr(Uploader, "upload_dataset", lambda *a, **kw: events.append("store") or upload(*a, **kw))
+
+    r = _post(client, _folder_parts(_tool_files()))
+
+    assert r.status_code == 200, r.text
+    assert events == ["seek", "store"]
+
+
+@pytest.mark.integration
+def test_storage_failure_after_seek_removes_the_seek_workflow(client, monkeypatch):
+    from digitaltwins.core.uploader import Uploader
+
+    def fail(*a, **kw):
+        raise RuntimeError("MinIO unreachable")
+
+    monkeypatch.setattr(Uploader, "upload_dataset", fail)
+
+    r = _post(client, _folder_parts(_tool_files()))
+
+    assert r.status_code == 500 and "MinIO unreachable" in r.json()["detail"]
+    assert client.seek.workflows == {} and client.seek.deleted == [101]
+    assert _db_one(client, "SELECT count(*) FROM dataset") == (0,)
+
+
+@pytest.mark.integration
+def test_a_failing_rollback_still_reports_the_seek_error(client, monkeypatch):
+    from digitaltwins.core.deleter import Deleter
+    from digitaltwins.tools import pipeline
+
+    def fail(*a, **kw):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(pipeline, "_link", fail)
+    monkeypatch.setattr(Deleter, "delete_dataset", fail)
+
+    r = _post(client, _folder_parts(_tool_files()))
+
+    assert r.status_code == 502 and "boom" in r.json()["detail"]
+    assert client.seek.deleted == [101]
+
+
+SUBJECTS = Path(__file__).parent / "data" / "example_sds_dataset" / "subjects.xlsx"
+SAMPLES = Path(__file__).parent / "data" / "example_sds_dataset" / "samples.xlsx"
+
+
+@pytest.mark.integration
+def test_tool_subjects_and_samples_are_stored_as_files_but_not_as_rows(client):
+    files = {**_tool_files(), "subjects.xlsx": SUBJECTS.read_bytes(), "samples.xlsx": SAMPLES.read_bytes()}
+
+    r = _post(client, _folder_parts(files))
+
+    assert r.status_code == 200, r.text
+    uuid = r.json()["dataset_uuid"]
+    assert _db_one(client, "SELECT count(*) FROM subject") == (0,)
+    assert _db_one(client, "SELECT count(*) FROM sample") == (0,)
+    assert _db_one(client, "SELECT count(*) FROM dataset_mapping") == (0,)
+    assert {f"{uuid}/subjects.xlsx", f"{uuid}/samples.xlsx"} <= set(_keys(client))
+
+
+@pytest.mark.integration
+def test_tool_type_is_stored_on_the_dataset(client):
+    r = _post(client, _folder_parts(_tool_files()), tool_type="notebook")
+
+    assert r.status_code == 200, r.text
+    assert _db_one(client, "SELECT tool_type FROM dataset WHERE dataset_uuid = %s",
+                   (r.json()["dataset_uuid"],)) == ("notebook",)
+
+
+def _activity_definitions(client):
+    return [r for ref, r in client.hapi.store.items() if ref.startswith("ActivityDefinition/")]
+
+
+def _fhir_status(client, uuid):
+    return _db_one(client, "SELECT fhir_status FROM dataset WHERE dataset_uuid = %s", (uuid,))[0]
+
+
+@pytest.mark.integration
+def test_tool_without_fhir_pushes_nothing(client):
+    r = _post(client, _folder_parts(_tool_files()))
+
+    assert r.status_code == 200, r.text
+    assert _fhir_status(client, r.json()["dataset_uuid"]) == "none"
+    assert _activity_definitions(client) == []
+
+
+@pytest.mark.integration
+def test_auto_fhir_pushes_an_activity_definition_keyed_by_the_dataset_uuid(client):
+    r = _post(client, _folder_parts(_tool_files()), fhir="auto")
+
+    assert r.status_code == 200, r.text
+    uuid = r.json()["dataset_uuid"]
+    assert r.json()["fhir_status"] == "pending"
+    assert _fhir_status(client, uuid) == "completed"  # TestClient ran the background push
+    [ad] = _activity_definitions(client)
+    assert ad["identifier"][0]["value"] == uuid and ad["name"] == "sds_tool_convert"
+
+
+@pytest.mark.integration
+def test_supplied_descriptions_are_stored_with_server_owned_ids(client):
+    wt = {"version": "1.0.0", "input": [{"id": "src", "resourceType": "ImagingStudy"}]}
+
+    r = _post(client, _folder_parts(_tool_files()), data={"fhir_descriptions": json.dumps({"workflow_tool": wt})})
+
+    assert r.status_code == 200, r.text
+    uuid = r.json()["dataset_uuid"]
+    stored = client.get(f"/datasets/{uuid}/fhir/annotation").json()["descriptions"]["workflow_tool"]
+    assert (stored["uuid"], stored["title"], stored["version"]) == (uuid, "Tool - convert", "1.0.0")
+    assert stored["input"] == wt["input"]
+    assert _fhir_status(client, uuid) == "completed"
+
+
+@pytest.mark.integration
+def test_descriptions_naming_an_unknown_port_are_rejected_before_anything_is_stored(client):
+    bad = {"workflow_tool": {"input": [{"id": "nope"}]}}
+
+    r = _post(client, _folder_parts(_tool_files()), data={"fhir_descriptions": json.dumps(bad)})
+
+    assert r.status_code == 400 and "nope" in r.json()["detail"]
+    assert _db_one(client, "SELECT count(*) FROM dataset") == (0,)
+    assert client.seek.workflows == {}
+
+
+@pytest.mark.integration
+def test_a_failed_tool_push_keeps_the_dataset_and_can_be_retried(client):
+    client.hapi.fail_push = True
+    uuid = _post(client, _folder_parts(_tool_files()), fhir="auto").json()["dataset_uuid"]
+    assert _fhir_status(client, uuid) == "failed"
+    assert _db_one(client, "SELECT seek_id FROM dataset WHERE dataset_uuid = %s", (uuid,))[0] is not None
+
+    client.hapi.fail_push = False
+    r = client.post(f"/datasets/{uuid}/fhir/push")
+
+    assert r.status_code == 202, r.text
+    assert _fhir_status(client, uuid) == "completed"
+    assert len(_activity_definitions(client)) == 1
+
+
+@pytest.mark.integration
+def test_an_edited_tool_annotation_replaces_the_activity_definition(client):
+    uuid = _post(client, _folder_parts(_tool_files()), fhir="auto").json()["dataset_uuid"]
+    descriptions = client.get(f"/datasets/{uuid}/fhir/annotation").json()["descriptions"]
+    descriptions["workflow_tool"]["description"] = "Edited"
+
+    assert client.put(f"/datasets/{uuid}/fhir/annotation", json={"descriptions": descriptions}).status_code == 200
+    assert client.post(f"/datasets/{uuid}/fhir/push").status_code == 202
+
+    [ad] = _activity_definitions(client)
+    assert ad["description"] == "Edited"
+
+
+@pytest.mark.integration
+def test_put_rejects_a_tool_annotation_naming_an_unknown_port(client):
+    uuid = _post(client, _folder_parts(_tool_files()), fhir="auto").json()["dataset_uuid"]
+
+    r = client.put(f"/datasets/{uuid}/fhir/annotation",
+                   json={"descriptions": {"workflow_tool": {"output": [{"id": "nope"}]}}})
+
+    assert r.status_code == 400 and "nope" in r.json()["detail"]
+
+
+@pytest.mark.integration
+def test_tool_tree_offers_prefilled_descriptions_and_the_cwl_ports(client):
+    uuid = _post(client, _folder_parts(_tool_files())).json()["dataset_uuid"]
+
+    tree = client.get(f"/datasets/{uuid}/fhir/tree").json()
+
+    assert tree["descriptions"]["workflow_tool"]["uuid"] == uuid
+    assert tree["ports"]["inputs"] == [{"id": "src", "type": "Directory", "doc": "measurements"}]
+
+
+@pytest.mark.integration
+def test_tool_preview_returns_the_descriptions(client):
+    uuid = _post(client, _folder_parts(_tool_files()), fhir="auto").json()["dataset_uuid"]
+
+    r = client.get(f"/datasets/{uuid}/fhir/preview")
+
+    assert r.status_code == 200, r.text
+    assert r.json()["workflow_tool"]["uuid"] == uuid
+
+
+@pytest.mark.integration
+def test_deleting_a_tool_removes_its_activity_definition(client):
+    uuid = _post(client, _folder_parts(_tool_files()), fhir="auto").json()["dataset_uuid"]
+
+    r = client.delete(f"/datasets/{uuid}")
+
+    assert r.status_code == 200, r.text
+    assert _activity_definitions(client) == []
+    assert r.json()["fhir_resources_deleted"] == {"ActivityDefinition": 1}
