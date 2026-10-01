@@ -22,9 +22,12 @@
           @update:modelValue="handleLabelChange"
         >
           <v-radio color="#5fd6e8" label="Web GUI" value="GUI" />
-          <v-radio color="#5fd6e8" label="CWL Script" value="Script" class="ml-2" />
+          <v-radio color="#5fd6e8" label="Script" value="Script" class="ml-2" />
           <v-radio color="#5fd6e8" label="Notebook" value="Notebook" class="ml-2" />
         </v-radio-group>
+        <p class="text-caption text-medium-emphasis mt-n4 mb-4">
+          Note: Script tools currently support Python scripts only.
+        </p>
       </template>
 
       <CommonInfoForm
