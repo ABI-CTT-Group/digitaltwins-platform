@@ -44,6 +44,7 @@
         @compose-up="(id) => handleExecuteDockerCompose(id, 'up')"
         @compose-down="(id) => handleExecuteDockerCompose(id, 'down')"
         @delete="handleDeleteTool"
+        @delete-platform="openPlatformDelete"
         @submit-approve="(id) => handleToolApproval(id)"
         @approval-done="onApprovalDone"
         @view-logs="handleViewLogs"
@@ -52,6 +53,9 @@
   </RegistryView>
 
   <ToolApprovalDialog v-model="approvalDialogOpen" :tool="approvalTool" @done="onApprovalDone" />
+
+  <DeletePlatformDatasetDialog v-model="platformDeleteOpen" kind="tool" :item="platformDeleteItem"
+                               @deleted="handleDeleteTool" />
 
   <RebuildAuthDialog
     v-model="rebuildDialogOpen"
@@ -69,6 +73,7 @@ import RegistryView from '../components/RegistryView.vue';
 import ToolCard from '../components/ToolCard.vue';
 import RebuildAuthDialog from '../components/RebuildAuthDialog.vue';
 import ToolApprovalDialog from '../components/ToolApprovalDialog.vue';
+import DeletePlatformDatasetDialog from '../components/DeletePlatformDatasetDialog.vue';
 import {
   useWorkflowTools,
   useToolHub,
@@ -268,6 +273,14 @@ const handleDeploy = async (id: string) => {
 
 const handleDeleteTool = async () => {
   await registryRef.value?.handleRefresh();
+};
+
+// A tool uploaded via the REST API is deleted from the platform after a confirmation.
+const platformDeleteOpen = ref(false);
+const platformDeleteItem = ref<{ uuid: string; name: string } | null>(null);
+const openPlatformDelete = (tool: ToolResponse) => {
+  platformDeleteItem.value = { uuid: tool.uuid ?? tool.id, name: tool.name };
+  platformDeleteOpen.value = true;
 };
 
 const handleExecuteDockerCompose = async (id: string, command: 'up' | 'down') => {

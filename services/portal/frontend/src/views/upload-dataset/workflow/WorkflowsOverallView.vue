@@ -4,7 +4,7 @@
     register-label="Register a new workflow"
     search-label="Search workflows"
     accent="#7fb2f0"
-    :fetch-list="useWorkflow"
+    :fetch-list="useWorkflowHub"
     :is-pending="(items) => items.some(w => w.status === 'building')"
     :filter-fn="registrationFilterFn"
     @register="handleRegister"
@@ -31,10 +31,14 @@
         :key="w.id"
         :workflow="w"
         @delete="handleDeleteWorkflow"
+        @delete-platform="openPlatformDelete"
         @submit-approve="(id) => handleWorkflowApproval(id)"
       />
     </template>
   </RegistryView>
+
+  <DeletePlatformDatasetDialog v-model="platformDeleteOpen" kind="workflow" :item="platformDeleteItem"
+                               @deleted="registryRef?.handleRefresh()" />
 </template>
 
 <script setup lang="ts">
@@ -43,16 +47,19 @@ import { useToast } from 'vue-toastification';
 import { computed, ref } from 'vue';
 import RegistryView from '../components/RegistryView.vue';
 import WorkflowCard from '../components/WorkflowCard.vue';
-import { useWorkflow, useDeleteWorkflow, useWorkflowApproval } from '@/bootstrap/workflow_api';
+import DeletePlatformDatasetDialog from '../components/DeletePlatformDatasetDialog.vue';
+import { useWorkflowHub, useDeleteWorkflow, useWorkflowApproval } from '@/bootstrap/workflow_api';
 import type { WorkflowResponse } from '@/models/types';
 
 const toast = useToast();
 const registryRef = ref<{ handleRefresh: () => Promise<void> }>();
 const emit = defineEmits(['register']);
 
-// Same "in platform" convention as Tools: a real platform uuid vs. the
-// `sparc-workflow-` placeholder a row gets before it's actually registered.
-const isWorkflowInPlatform = (w: WorkflowResponse) => !!w.uuid && !w.uuid.startsWith('sparc-workflow-');
+// Same "in platform" convention as Tools: uploaded straight to the platform, or a
+// real platform uuid vs. the `sparc-workflow-` placeholder a row gets before it's
+// actually registered.
+const isWorkflowInPlatform = (w: WorkflowResponse) =>
+  !!w.platformOnly || (!!w.uuid && !w.uuid.startsWith('sparc-workflow-'));
 
 const registrationFilterOptions = [
   { title: 'All', value: 'all' },
@@ -71,6 +78,15 @@ const handleRegister = () => emit('register');
 const handleDeleteWorkflow = async (id: string) => {
   await useDeleteWorkflow(id);
   await registryRef.value?.handleRefresh();
+};
+
+// A workflow uploaded via the REST API is deleted from the platform after a
+// confirmation that also asks whether its tool datasets go too.
+const platformDeleteOpen = ref(false);
+const platformDeleteItem = ref<{ uuid: string; name: string } | null>(null);
+const openPlatformDelete = (w: WorkflowResponse) => {
+  platformDeleteItem.value = { uuid: w.uuid ?? w.id, name: w.name };
+  platformDeleteOpen.value = true;
 };
 
 const handleWorkflowApproval = async (id: string) => {

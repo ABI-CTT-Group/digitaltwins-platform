@@ -14,6 +14,8 @@
       <span v-if="workflow.status" class="aurora-chip" :style="{ '--chip': auroraStatus(workflow.status) }">
         {{ workflow.status }}
       </span>
+      <span v-if="workflow.workflowType" class="aurora-chip">{{ workflow.workflowType }}</span>
+      <span v-if="workflow.platformOnly" class="aurora-chip" :style="{ '--chip': '#9fb4bf' }">platform upload</span>
       <span v-if="workflow.createdAt" class="aurora-chip ms-auto">{{ formatDate(workflow.createdAt) }}</span>
     </template>
   </CardUI>
@@ -32,7 +34,7 @@ const props = defineProps<{
 const workflow = toRef(props, "workflow")
 const isDeleting = ref(false)
 
-const emit = defineEmits(["submit-approve", "delete"])
+const emit = defineEmits(["submit-approve", "delete", "delete-platform"])
 
 // Aurora status palette — soft tonal chips keyed by lifecycle state.
 const auroraStatus = (s?: string) => {
@@ -45,10 +47,13 @@ const auroraStatus = (s?: string) => {
   }
 }
 
-const menuItems = computed<UCardMenuItem[]>(() => [
-  { label: 'Submit to approval', icon: 'mdi-send-check-outline', onClick: onSubmit },
-  { label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: onDelete },
-])
+const menuItems = computed<UCardMenuItem[]>(() => workflow.value.platformOnly
+  // Uploaded via the REST API: the hub confirms the delete (and whether its tools go too).
+  ? [{ label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: () => emit("delete-platform", workflow.value) }]
+  : [
+    { label: 'Submit to approval', icon: 'mdi-send-check-outline', onClick: onSubmit },
+    { label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: onDelete },
+  ])
 
 const onSubmit = () => emit("submit-approve", workflow.value.id)
 const onDelete = () => {

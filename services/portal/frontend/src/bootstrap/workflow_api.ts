@@ -12,6 +12,7 @@ import {
     ProbeSourceResponse,
 } from "@/models/types";
 import { useCheckName, fetchWithLatestBuild } from "./api_helpers";
+import { usePlatformWorkflows } from "./platform_api";
 
 const _toBuildBody = (auth?: TransientAuth): Record<string, unknown> => {
     if (!auth) return {};
@@ -61,6 +62,17 @@ export async function useWorkflow(): Promise<WorkflowResponse[]> {
     '/workflow/',
     (id) => `/workflow/${id}/builds`,
   ) as Promise<WorkflowResponse[]>;
+}
+
+/** The Workflow Hub: portal workflows plus platform-only ones (the platform being down hides only the latter). */
+export async function useWorkflowHub(): Promise<WorkflowResponse[]> {
+  const workflows = await useWorkflow();
+  const known = new Set(workflows.map((w) => w.uuid).filter((u): u is string => !!u));
+  const platform = await usePlatformWorkflows(known).catch((err) => {
+    console.warn("Failed to list platform workflows:", err);
+    return [] as WorkflowResponse[];
+  });
+  return [...workflows, ...platform];
 }
 
 export async function useWorkflowApproval(workflowId:string) {

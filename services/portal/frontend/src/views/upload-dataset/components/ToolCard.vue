@@ -114,14 +114,17 @@ const auroraStatus = (s?: string) => {
   }
 }
 
-const emit = defineEmits(["launch", "rebuild", "submit-approve", "deploy", "compose-up", "compose-down", "delete", "view-logs", "approval-done"])
+const emit = defineEmits(["launch", "rebuild", "submit-approve", "deploy", "compose-up", "compose-down", "delete", "delete-platform", "view-logs", "approval-done"])
 
 const hasViewLogs = computed(() =>
   !!(tool.value.latestDeployId || tool.value.latestBuildId)
 )
 
 const menuItems = computed<UCardMenuItem[]>(() => {
-  if (tool.value.platformOnly) return []  // uploaded via the REST API: manage it there
+  // Uploaded via the REST API: only a delete, which the hub confirms.
+  if (tool.value.platformOnly) {
+    return [{ label: 'Delete tool', icon: 'mdi-trash-can-outline', danger: true, onClick: () => emit("delete-platform", tool.value) }]
+  }
   const isGui = tool.value.label === 'GUI'
   const items: UCardMenuItem[] = [
     { label: 'Rebuild tool', icon: 'mdi-refresh', onClick: onRebuild },

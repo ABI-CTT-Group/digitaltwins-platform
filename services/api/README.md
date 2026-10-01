@@ -230,6 +230,7 @@ curl -H "Authorization: Bearer <token>" \
   - Inside the API container: `scripts/import-dataset.sh <folder|zip> --category workflows --workflow-type script --seek-project-id <id>`.
 - **Deleting.** `DELETE /datasets/<uuid>` on a workflow needs `delete_tools=true` or `delete_tools=false`.
   - Without it, the API returns `409` listing the workflow's tool datasets, so the client can ask the user.
+  - `GET /datasets/<uuid>/workflow-tools` lists those tool datasets (name, SEEK id, steps) without deleting anything.
   - With `true`, the tools are deleted after the workflow, together with their SEEK Workflows and ActivityDefinitions.
   - A tool dataset that a workflow still runs can't be deleted on its own (`409`).
 

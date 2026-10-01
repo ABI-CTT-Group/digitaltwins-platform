@@ -370,3 +370,32 @@ def test_annotation_with_an_unknown_step_is_rejected(client):
 
     assert r.status_code == 400 and "zzz" in r.json()["detail"]
 
+
+# ── GET /datasets/{uuid}/workflow-tools ────────────────────────────────
+
+
+@pytest.mark.integration
+def test_workflow_tools_lists_each_tool_with_its_steps(client):
+    body = _post(client, _folder_parts(script_files())).json()
+
+    r = client.get(f"/datasets/{body['dataset_uuid']}/workflow-tools")
+
+    assert r.status_code == 200, r.text
+    assert r.json()["workflow_type"] == "script"
+    assert r.json()["tools"] == [
+        {"dataset_uuid": t["dataset_uuid"], "dataset_name": f"tool_{t['step_id']}", "seek_id": str(t["seek_id"]),
+         "step_ids": [t["step_id"]]} for t in sorted(body["tools"], key=lambda t: t["step_id"])]
+
+
+@pytest.mark.integration
+def test_workflow_tools_of_a_non_workflow_is_empty(client):
+    tool = _post(client, _folder_parts(script_files())).json()["tools"][0]
+
+    r = client.get(f"/datasets/{tool['dataset_uuid']}/workflow-tools")
+
+    assert r.status_code == 200 and r.json() == {"workflow_type": None, "tools": []}
+
+
+@pytest.mark.integration
+def test_workflow_tools_of_an_unknown_dataset_is_404(client):
+    assert client.get("/datasets/00000000-0000-0000-0000-000000000000/workflow-tools").status_code == 404

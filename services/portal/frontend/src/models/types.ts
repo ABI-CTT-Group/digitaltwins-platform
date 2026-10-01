@@ -296,6 +296,17 @@ export interface WorkflowResponse {
     // Platform dataset of the approved workflow; legacy/unapproved rows hold a
     // `sparc-workflow-` placeholder instead (see ToolResponse.uuid).
     uuid?: string;
+    // Uploaded to the platform directly (REST API): listed with only a delete.
+    platformOnly?: boolean;
+    workflowType?: string;
+}
+
+/** A platform dataset linked to another: a workflow's tool, or a workflow that runs a tool. */
+export interface PlatformLink {
+    datasetUuid: string;
+    datasetName?: string;
+    seekId?: string;
+    stepIds?: string[];
 }
 
 interface AnnotateToolInput{

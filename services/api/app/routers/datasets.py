@@ -24,7 +24,7 @@ from digitaltwins import tools, workflows
 from digitaltwins.core.connection import Connection
 from digitaltwins.core.deleter import DatasetInUseError
 from digitaltwins.measurements import jobs, sessions
-from digitaltwins.measurements.pipeline import check_descriptions_match
+from digitaltwins.measurements.pipeline import check_descriptions_match, get_dataset_row
 from digitaltwins.measurements.staging import dataset_dir as staged_dataset_dir, staging_root
 from digitaltwins.measurements.validation import (
     extract_uploaded_archive,
@@ -34,11 +34,11 @@ from digitaltwins.measurements.validation import (
 from digitaltwins.tools import fhir as tool_fhir
 from digitaltwins.tools.pipeline import SeekRegistrationError, annotate_tool, commit_tool
 from digitaltwins.workflows import fhir as workflow_fhir
-from digitaltwins.workflows.pipeline import annotate_workflow, commit_workflow
+from digitaltwins.workflows.pipeline import annotate_workflow, commit_workflow, linked_tools
 from digitaltwins.workflows.validation import load_workflow
 from . import dataset_uploads
 from .auth import require_upload_role, validate_credentials
-from .dataset_uploads import _max_upload_bytes
+from .dataset_uploads import _max_upload_bytes, get_conn
 from .dependencies import get_querier, get_uploader, get_downloader, get_deleter
 
 logger = logging.getLogger(__name__)
@@ -112,6 +112,20 @@ def get_dataset(
     """
     dataset = querier.get_dataset(dataset_uuid=dataset_uuid, get_cwl=get_cwl)
     return {"dataset": dataset}
+
+
+@router.get("/datasets/{dataset_uuid}/workflow-tools", tags=["datasets"])
+def get_workflow_tools(dataset_uuid: str, conn=Depends(get_conn), _creds: dict = Depends(validate_credentials)):
+    """The tool datasets a workflow's steps run, e.g. for a client to confirm ``delete_tools``.
+
+    Returns ``{workflow_type, tools: [{dataset_uuid, dataset_name, seek_id, step_ids}]}``;
+    for a dataset that is not a workflow, ``workflow_type`` is null and ``tools`` empty.
+    """
+    dataset = get_dataset_row(conn, dataset_uuid)
+    if dataset is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found")
+    workflow_type = dataset["workflow_type"]
+    return {"workflow_type": workflow_type, "tools": linked_tools(conn, dataset_uuid) if workflow_type else []}
 
 
 @router.get("/datasets/{dataset_uuid}/sample-types", tags=["datasets"])
