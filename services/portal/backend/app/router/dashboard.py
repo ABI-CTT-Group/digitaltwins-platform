@@ -492,7 +492,7 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None), clie
     except KeyError:
         return None
     # # Step2: check the workflow type
-    # # Step2.1: cwl script based, return the airflow url
+    # # Step2.1: script based, return the airflow url
     # # Step2.2: GUI based, execute Step 2
     # workflow = digitaltwins_configs.querier.get_sop(sop_id=assay_detail.get("params").get("workflow_seek_id"))
     # workflow_name = workflow.get("attributes").get("title")

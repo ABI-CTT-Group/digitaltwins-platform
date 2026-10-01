@@ -66,10 +66,10 @@ const props = defineProps<{
 const tool = toRef(props, "tool")
 const isDeleting = ref(false)
 
-// Per-type identity colour — GUI tools aqua, CWL scripts violet — so the rail,
+// Per-type identity colour — GUI tools aqua, scripts violet — so the rail,
 // eyebrow and Launch button all carry the tool's kind at a glance.
 const accent = computed(() => ({ Script: '#c792ea', Notebook: '#ffb74d' } as Record<string, string>)[tool.value.label] ?? '#5fd6e8')
-const kind = computed(() => ({ Script: 'CWL Script', Notebook: 'Notebook' } as Record<string, string>)[tool.value.label] ?? 'Web GUI Tool')
+const kind = computed(() => ({ Script: 'Script', Notebook: 'Notebook' } as Record<string, string>)[tool.value.label] ?? 'Web GUI Tool')
 
 const inPlatform = computed(() => !!tool.value.uuid && !tool.value.uuid.startsWith('sparc-tool-'))
 const handoffActive = computed(() => ['uploading', 'awaiting_reauth', 'committing'].includes(tool.value.handoffStatus ?? ''))
@@ -174,7 +174,7 @@ const onViewLogs = () => {
 
 const onLaunch = async () => {
     if(tool.value.label === "Script" || tool.value.label === "Notebook"){
-        toast.warning(`${kind.value} tool cannot be launched. Please download it and run it locally.`);
+        toast.warning(`${tool.value.label} tool cannot be launched. Please download it and run it locally.`);
         return;
     }
     if (tool.value.hasBackend && !tool.value.latestDeployId && tool.value.deployStatus !== 'completed') {

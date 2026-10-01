@@ -49,7 +49,7 @@ Once you enter the **Assays** page, you can:
 ### Step 2: Edit an Assay
 - Click the **`EDIT`** button on the assay page.  
 - On the **Edit** page, you can configure the assay by selecting a workflow:  
-  - A **CWL script–based workflow**, or  
+  - A **script–based workflow**, or  
   - A **Web GUI–based workflow**  
 - After choosing a workflow, select the dataset and sample type for its inputs and outputs.  
 - Finally, specify how many **cohorts** you want to execute for this assay.  
@@ -60,7 +60,7 @@ Once you enter the **Assays** page, you can:
 ### Step 3: Launch an Assay
 After editing the assay, click the **`LAUNCH`** button.  
 
-- **CWL script–based workflow**  
+- **Script–based workflow**  
   The workflow will run in **Airflow**.  
 - **Web GUI–based workflow**  
   A Web GUI will be displayed in the **DigitalTWINS Portal**.  
@@ -68,23 +68,23 @@ After editing the assay, click the **`LAUNCH`** button.
 ---
 
 ### Step 4: Monitor an Assay
-If your assay uses a **CWL script–based workflow**, the **`MONITOR`** button becomes available once the workflow starts running in Airflow.  
+If your assay uses a **script–based workflow**, the **`MONITOR`** button becomes available once the workflow starts running in Airflow.  
 Click it to track the execution progress of the assay.  
 
 ---
 
 ### Step 5: Verify an Assay
-For **CWL script–based workflows**, once execution is complete in Airflow, click the **`VERIFY`** button to review the resulting dataset.  
+For **script–based workflows**, once execution is complete in Airflow, click the **`VERIFY`** button to review the resulting dataset.  
 
 ---
 
 ### Step 6: Download a Dataset
-For **CWL script–based workflows**, after the execution finishes in Airflow, you can download the resulting dataset to your local machine.  
+For **script–based workflows**, after the execution finishes in Airflow, you can download the resulting dataset to your local machine.  
 
 ---
 
 ### Step 7: Submit a Dataset
-For **CWL script–based workflows**, once you are satisfied with the result dataset, you can upload it to the **DigitalTWINS platform** by clicking the **`SUBMIT`** button.  
+For **script–based workflows**, once you are satisfied with the result dataset, you can upload it to the **DigitalTWINS platform** by clicking the **`SUBMIT`** button.  
 
 ---
 
