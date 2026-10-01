@@ -152,19 +152,32 @@ print(session["dataset_uuid"], session.get("fhir_status"))
 
 ### Uploading a tool dataset
 
-A tool dataset is an SDS folder with no subject or sample folders. `primary/` holds exactly one `tool_<name>.cwl`, and the tool itself is in `code/`: a Python script for `tool_type=script`, a Jupyter notebook for `tool_type=notebook`, or the source of a GUI/plugin for `tool_type=gui`. A GUI tool is stored and registered like the others; it is not built or installed as a portal plugin by this endpoint. The upload is stored in the MinIO `tools` bucket and in Postgres. It is also registered in SEEK as a Workflow tagged `tool` + `<tool_type>`, in the SEEK project you name, as you. You must be a member of that project. SEEK takes the Workflow's title from the CWL `label` and parses its inputs and outputs. The dataset's `seek_id` links it to that Workflow.
+A tool dataset is an SDS folder. `primary/` holds exactly one `tool_<name>.cwl`, and the tool itself is in `code/`: a Python script for `tool_type=script`, a Jupyter notebook for `tool_type=notebook`, or the source or built bundle of a GUI/plugin for `tool_type=gui`. Tools have no subjects or samples. A `subjects.xlsx` or `samples.xlsx` in the folder is stored as a file but not loaded into the subject and sample tables.
+
+The upload is registered in SEEK first, as a Workflow tagged `tool` + `<tool_type>` in the SEEK project you name, and as you. You must be a member of that project. SEEK takes the Workflow's title from the CWL `label` and parses its inputs and outputs. The dataset is then stored in the MinIO `tools` bucket and in Postgres. The dataset's `seek_id` and `tool_type` link it to that Workflow.
+
+The portal's tool wizard builds a tool from source (git or a local folder), and on Approval it hands the build to this same pipeline.
 
 ```bash
 curl -H "Authorization: Bearer <token>" \
   -F "files=@tool_dicom_to_nifti.zip" \
-  "https://<platform-host>/digitaltwins-api/datasets?category=tools&tool_type=script&seek_project_id=<id>"
-# -> {"message": "...", "dataset_uuid": "...", "seek_id": 42}
-# A notebook or GUI tool: the same call with tool_type=notebook or tool_type=gui.
+  "https://<platform-host>/digitaltwins-api/datasets?category=tools&tool_type=script&seek_project_id=<id>&fhir=auto"
+# -> {"message": "...", "dataset_uuid": "...", "seek_id": 42, "fhir_status": "pending"}
 ```
 
-- The upload is all-or-nothing. If SEEK registration fails, nothing is stored and the API returns `502`.
-- Resumable sessions (`POST /datasets/uploads`) also accept `category="tools"`, with `tool_type` and `seek_project_id` in the body and no FHIR options. `UploadClient` does not pass these fields yet.
-- `GET /datasets/<uuid>?get_cwl=true` returns the parsed CWL. `DELETE /datasets/<uuid>` also deletes the SEEK Workflow.
+- **All-or-nothing.** If SEEK registration fails, nothing is stored and the API returns `502`. If storing fails after registration, the SEEK Workflow is removed again.
+- **FHIR is optional.**
+  - `fhir=auto` pushes one `ActivityDefinition` identified by the dataset UUID.
+  - `fhir_descriptions` (form field, JSON) gives `{"workflow_tool": {"version", "description", "model", "software", "input", "output"}}`.
+    - `input` and `output` annotate the CWL ports by `id`. They are checked against the CWL and kept for annotating workflows that use the tool.
+    - `uuid`, `name` and `title` are set by the server.
+  - A failed push leaves the dataset stored with `fhir_status=failed`. Retry it with `POST /datasets/<uuid>/fhir/push`.
+  - Edit the annotation with `GET`/`PUT /datasets/<uuid>/fhir/annotation`. `GET /datasets/<uuid>/fhir/tree` also lists the CWL ports.
+- **Other clients.**
+  - Resumable sessions (`POST /datasets/uploads`) accept `category="tools"`, with `tool_type`, `seek_project_id` and the same FHIR options in the body.
+  - From Python: `UploadClient.upload_dataset(path, category="tools", tool_type="script", seek_project_id=<id>)`.
+  - Inside the API container: `scripts/import-dataset.sh <folder|zip> --category tools --tool-type script --seek-project-id <id>`.
+- `GET /datasets/<uuid>?get_cwl=true` returns the parsed CWL. `DELETE /datasets/<uuid>` also deletes the SEEK Workflow and the ActivityDefinition.
 
 ## Reporting Issues
 To report an issue or suggest a new feature, please use the [issues page](https://github.com/ABI-CTT-Group/digitaltwins-api/issues). Issue templates are provided to allow users to report bugs, and documentation or feature requests. Please check existing issues before submitting a new one.

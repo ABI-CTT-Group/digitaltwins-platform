@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.main import create_app
 from app.routers import auth, dataset_uploads
-from digitaltwins import UploadClient
+from digitaltwins import UploadClient, tools
 from digitaltwins.client import UploadError
 from digitaltwins.measurements import pipeline
 
@@ -127,3 +127,35 @@ def test_login_exchanges_credentials_once_and_uses_bearer_afterwards():
     assert url == "https://platform.example/digitaltwins-api/login"
     assert kwargs["auth"] == ("alice", "<REDACTED>")
     assert client.headers == {"Authorization": "Bearer issued-token"}
+
+
+TOOL_CWL = "cwlVersion: v1.2\nclass: CommandLineTool\nlabel: Tool - convert\ninputs: []\noutputs: []\n"
+
+
+@pytest.fixture
+def tool_http(platform_db, minio_bucket, hapi, seek, tmp_path, monkeypatch):
+    monkeypatch.setenv("DATASET_STAGING_DIR", str(tmp_path / "staging"))
+    monkeypatch.setattr(tools, "CATEGORY", minio_bucket)
+    app = create_app()
+    app.dependency_overrides[auth.validate_credentials] = lambda: UPLOADER
+    session = TestClient(app)
+    session.bucket, session.db, session.seek, session.hapi = minio_bucket, platform_db, seek, hapi
+    root = tmp_path / "sds_tool_convert"
+    (root / "primary").mkdir(parents=True)
+    (root / "primary" / "tool_convert.cwl").write_text(TOOL_CWL)
+    (root / "dataset_description.xlsx").write_bytes((FIXTURE / "dataset_description.xlsx").read_bytes())
+    session.tool_root = root
+    return session
+
+
+@pytest.mark.integration
+def test_uploads_a_tool_registers_it_in_seek_and_pushes_fhir(tool_http):
+    session = _client(tool_http).upload_dataset(
+        tool_http.tool_root, category=tool_http.bucket, tool_type="gui", seek_project_id=11,
+        fhir_descriptions={"workflow_tool": {"version": "1.0.0"}},
+    )
+
+    assert session["status"] == "completed" and session["fhir_status"] == "completed"
+    [workflow] = tool_http.seek.workflows.values()
+    assert (workflow["tool_type"], workflow["project_id"], workflow["token"]) == ("gui", 11, "t")
+    assert any(ref.startswith("ActivityDefinition/") for ref in tool_http.hapi.store)

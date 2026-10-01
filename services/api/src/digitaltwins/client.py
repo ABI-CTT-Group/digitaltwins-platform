@@ -4,6 +4,9 @@
     session = client.upload_dataset("path/to/dataset", category="measurements", fhir="auto")
     session["dataset_uuid"], session["fhir_status"]
 
+    # A tool: registered in SEEK as the signed-in user.
+    client.upload_dataset("path/to/tool", category="tools", tool_type="script", seek_project_id=10)
+
 ``login`` exchanges the credentials for a Keycloak token once; every request
 after that uses ``Authorization: Bearer`` (Basic auth would do a Keycloak
 password grant per request). If an upload is interrupted, ``resume`` sends
@@ -49,13 +52,17 @@ class UploadClient:
         fhir: Optional[str] = None,
         fhir_descriptions: Optional[Dict[str, Any]] = None,
         wait_for_fhir: bool = True,
+        tool_type: Optional[str] = None,
+        seek_project_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Upload a dataset folder or ``.zip`` and wait until it is committed.
 
         ``fhir="auto"`` auto-annotates and pushes FHIR; ``fhir_descriptions``
-        supplies the annotation (keyed by folder name; UUIDs are assigned by the
-        server). Returns the final session, plus ``fhir_status`` when FHIR was
-        requested and ``wait_for_fhir`` is set.
+        supplies the annotation (measurements: keyed by folder name; tools:
+        ``{"workflow_tool": {...}}``; UUIDs are assigned by the server). Tools
+        (``category="tools"``) need ``tool_type`` and ``seek_project_id``.
+        Returns the final session, plus ``fhir_status`` when FHIR was requested
+        and ``wait_for_fhir`` is set.
         """
         path = Path(path)
         part_size = self._request("get", "/datasets/uploads/config")["max_part_size"]
@@ -73,6 +80,8 @@ class UploadClient:
         }
         if fhir_descriptions is not None:
             body["fhir_descriptions"] = fhir_descriptions
+        if tool_type is not None:
+            body.update(tool_type=tool_type, seek_project_id=seek_project_id)
         created = self._request("post", "/datasets/uploads", json=body)
         self.last_upload_id = created["upload_id"]
         return self._send_and_finish(created["upload_id"], path, created["max_part_size"],
