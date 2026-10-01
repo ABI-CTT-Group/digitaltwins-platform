@@ -1,4 +1,4 @@
-﻿import http from "./http";
+﻿import http, { dtApi } from "./http";
 import {
   ToolInformationStep,
   IAnnotation,
@@ -12,7 +12,20 @@ import {
   TransientAuth,
   ProbeSourceRequest,
   ProbeSourceResponse,
+  ToolApprovalStatus,
+  SeekProject,
 } from "@/models/types";
+
+/** A ``tools`` row of GET /digitaltwins-api/datasets (keys camelCased by the interceptor). */
+interface PlatformToolDataset {
+  datasetUuid: string;
+  datasetName?: string;
+  toolType?: string;
+  seekId?: string;
+  fhirStatus?: string;
+  fhirFailureMessage?: string;
+  createdAt?: string;
+}
 import { useCheckName, fetchWithLatestBuild } from "./api_helpers";
 import { getAccessToken, getKeycloak } from './keycloak';
 
@@ -61,7 +74,8 @@ export async function useWorkflowTools(): Promise<ToolResponse[]> {
     (id) => `/tools/plugin/${id}/builds`,
     // Enrich with deploy status for GUI tools whose latest build completed
     async (tool, latestBuild) => {
-      if (!tool.hasBackend || latestBuild.status !== 'completed') return {};
+      const handoff = { handoffStatus: latestBuild.handoffStatus ?? null };
+      if (!tool.hasBackend || latestBuild.status !== 'completed') return handoff;
       try {
         const deploys = await http.get<ToolDeployResponse[]>(
           `/tools/plugin/build/${latestBuild.buildId}/deploys`,
@@ -71,6 +85,7 @@ export async function useWorkflowTools(): Promise<ToolResponse[]> {
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
           )[0];
           return {
+            ...handoff,
             deployStatus: latestDeploy.status,
             latestDeployId: latestDeploy.deployId,
             // start/end so the log console can show deploy DURATION on reopen
@@ -81,9 +96,36 @@ export async function useWorkflowTools(): Promise<ToolResponse[]> {
       } catch (err) {
         console.warn(`Failed to fetch deploys for tool ${tool.id}:`, err);
       }
-      return {};
+      return handoff;
     },
   ) as Promise<ToolResponse[]>;
+}
+
+const PLATFORM_LABELS: Record<string, string> = { gui: "GUI", script: "Script", notebook: "Notebook" };
+
+/** Tools in the platform that no portal plugin produced (uploaded through the REST API). */
+export async function usePlatformTools(known: Set<string>): Promise<ToolResponse[]> {
+  const res = await dtApi.get<{ datasets: PlatformToolDataset[] }>("/datasets", { categories: "tools" });
+  return (res.datasets ?? [])
+    .filter((d) => !known.has(d.datasetUuid) && PLATFORM_LABELS[d.toolType ?? ""])
+    .map((d) => ({
+      id: d.datasetUuid, uuid: d.datasetUuid, name: d.datasetName || d.datasetUuid, version: "",
+      label: PLATFORM_LABELS[d.toolType!], description: "Uploaded to the platform directly.",
+      status: "completed", platformOnly: true, hasBackend: false, toolMetadata: {}, repositoryUrl: "",
+      frontendFolder: "", frontendBuildCommand: "", backendDeployCommand: "",
+      createdAt: d.createdAt ?? "", updatedAt: d.createdAt ?? "",
+    }));
+}
+
+/** The Tool Hub: portal tools plus platform-only tools (the platform being down hides only the latter). */
+export async function useToolHub(): Promise<ToolResponse[]> {
+  const tools = await useWorkflowTools();
+  const known = new Set(tools.map((t) => t.uuid).filter((u): u is string => !!u));
+  const platform = await usePlatformTools(known).catch((err) => {
+    console.warn("Failed to list platform tools:", err);
+    return [] as ToolResponse[];
+  });
+  return [...tools, ...platform];
 }
 
 export async function useToolMetadata() {
@@ -114,9 +156,33 @@ export async function useDeleteTool(id:string) {
   return res;
 }
 
-export async function useToolApproval(id:string) {
-  const res = http.get(`/tools/plugin/${id}/approval`)
-  return res;
+/** Hand the latest build to the platform (SEEK + Postgres + MinIO, optional FHIR), as the signed-in user. */
+export async function useToolApproval(id: string, body: { seekProjectId?: number; fhir?: boolean }) {
+  return http.post<ToolApprovalStatus>(`/tools/plugin/${id}/approval`, body);
+}
+
+/** Handoff progress. Polling it also hands the backend a fresh token, which resumes a paused handoff. */
+export async function useToolApprovalStatus(id: string) {
+  return http.get<ToolApprovalStatus>(`/tools/plugin/${id}/approval/status`);
+}
+
+/** SEEK projects the signed-in user can see (digitaltwins-api). */
+export async function useSeekProjects(): Promise<SeekProject[]> {
+  const res = await dtApi.get<{ projects: Array<{ id: string | number; title?: string; attributes?: { title?: string } }> }>(
+    "/projects",
+  );
+  return (res.projects ?? []).map((p) => ({
+    id: Number(p.id), title: p.attributes?.title ?? p.title ?? `Project ${p.id}`,
+  }));
+}
+
+/** The platform dataset (fhirStatus etc.) of an approved tool. */
+export async function usePlatformDataset(uuid: string) {
+  return (await dtApi.get<{ dataset: PlatformToolDataset }>(`/datasets/${uuid}`)).dataset;
+}
+
+export async function useRetryToolFhir(uuid: string) {
+  return dtApi.post(`/datasets/${uuid}/fhir/push`, {});
 }
 
 export async function useDeployTool(id:string) {

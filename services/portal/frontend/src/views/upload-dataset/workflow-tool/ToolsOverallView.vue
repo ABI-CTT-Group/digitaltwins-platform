@@ -4,9 +4,10 @@
     register-label="Register a new tool"
     search-label="Search tools"
     accent="#5fd6e8"
-    :fetch-list="useWorkflowTools"
+    :fetch-list="useToolHub"
     :disabled="dockerComposeBusy"
-    :is-pending="(items) => items.some(t => t.status === 'building' || t.deployStatus === 'deploying')"
+    :is-pending="(items) => items.some(t => t.status === 'building' || t.deployStatus === 'deploying' ||
+      ['uploading', 'awaiting_reauth', 'committing'].includes(t.handoffStatus))"
     @register="handleRegister"
   >
     <template #default="{ items }">
@@ -27,10 +28,13 @@
         @compose-down="(id) => handleExecuteDockerCompose(id, 'down')"
         @delete="handleDeleteTool"
         @submit-approve="(id) => handleToolApproval(id)"
+        @approval-done="onApprovalDone"
         @view-logs="handleViewLogs"
       />
     </template>
   </RegistryView>
+
+  <ToolApprovalDialog v-model="approvalDialogOpen" :tool="approvalTool" @done="onApprovalDone" />
 
   <RebuildAuthDialog
     v-model="rebuildDialogOpen"
@@ -47,15 +51,16 @@ import { useToast } from 'vue-toastification';
 import RegistryView from '../components/RegistryView.vue';
 import ToolCard from '../components/ToolCard.vue';
 import RebuildAuthDialog from '../components/RebuildAuthDialog.vue';
+import ToolApprovalDialog from '../components/ToolApprovalDialog.vue';
 import {
   useWorkflowTools,
+  useToolHub,
   useToolMetadata,
   useWorkflowToolBuild,
-  useToolApproval,
   useDeployTool,
   useDockerCompose,
 } from '@/bootstrap/tool_api';
-import type { ToolMinIOToolMetadata, ToolResponse, SourceType, TransientAuth } from '@/models/types';
+import type { ToolApprovalStatus, ToolMinIOToolMetadata, ToolResponse, SourceType, TransientAuth } from '@/models/types';
 import { useRemoteAppStore } from '@/store/remote_store';
 import { useRouter } from 'vue-router';
 import { ref } from 'vue';
@@ -246,17 +251,24 @@ const handleExecuteDockerCompose = async (id: string, command: 'up' | 'down') =>
   }
 };
 
+// Approval hands the latest build to the platform (SEEK + Postgres + MinIO); the
+// dialog picks the SEEK project and follows the handoff's progress.
+const approvalDialogOpen = ref(false);
+const approvalTool = ref<ToolResponse | null>(null);
+
 const handleToolApproval = async (id: string) => {
-  try {
-    const res = await useToolApproval(id);
-    if (res) {
-      toast.success('Tool submitted for approval successfully.');
-    } else {
-      toast.error('Failed to submit tool for approval.');
-    }
-  } catch (error) {
-    console.error('Error submitting tool for approval:', error);
-    toast.error('An error occurred while submitting the tool for approval.');
+  const items = (await useWorkflowTools().catch(() => [])) as ToolResponse[];
+  approvalTool.value = items.find((t) => t.id === id) ?? null;
+  if (!approvalTool.value) {
+    toast.error('Could not find the tool to approve.');
+    return;
   }
+  approvalDialogOpen.value = true;
+};
+
+const onApprovalDone = async (status: ToolApprovalStatus | null) => {
+  if (status?.handoffStatus === 'completed') toast.success('Tool approved into the platform.');
+  else if (status?.handoffStatus === 'failed') toast.error(`Approval failed: ${status.handoffError ?? 'unknown error'}`);
+  await registryRef.value?.handleRefresh();
 };
 </script>
