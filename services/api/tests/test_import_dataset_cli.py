@@ -7,6 +7,7 @@ import pytest
 from digitaltwins import tools
 from digitaltwins.cli import import_dataset, keycloak_login
 from digitaltwins.measurements import sessions
+from test_datasets_workflows_api import tool_bucket  # noqa: F401  (fixture)
 
 FIXTURE = Path(__file__).parent / "data" / "example_sds_dataset"
 FIXTURE_ZIP = Path(__file__).parent / "data" / "example_sds_dataset.zip"
@@ -162,3 +163,43 @@ def test_tool_import_without_a_cwl_exits_2(cli_env, tool_dir, capsys):
     assert import_dataset.main([str(tool_dir), "--category", cli_env["bucket"], "--tool-type", "script",
                                 "--seek-project-id", "11"]) == 2
     assert "tool_*.cwl" in capsys.readouterr().err
+
+
+@pytest.fixture
+def workflow_dir(cli_env, seek, tool_bucket, monkeypatch):
+    from digitaltwins import workflows
+    from test_datasets_workflows_api import script_files
+
+    monkeypatch.setattr(workflows, "CATEGORY", cli_env["bucket"])
+    monkeypatch.setattr(tools, "CATEGORY", tool_bucket)
+    root = cli_env["tmp"] / "wf_convert"
+    for rel, data in script_files().items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_bytes(data)
+    cli_env["seek"] = seek
+    return root
+
+
+@pytest.mark.integration
+def test_imports_a_workflow_with_its_tools(cli_env, workflow_dir):
+    code = import_dataset.main([str(workflow_dir), "--category", cli_env["bucket"], "--workflow-type", "script",
+                                "--seek-project-id", "11"])
+
+    assert code == 0
+    session = _only_session(cli_env)
+    assert session["workflow_type"] == "script"
+    assert sorted(w.get("workflow_type", "tool") for w in cli_env["seek"].workflows.values()) == [
+        "script", "tool", "tool"]
+
+
+@pytest.mark.integration
+def test_workflow_import_needs_the_workflow_options(cli_env, workflow_dir, capsys):
+    assert import_dataset.main([str(workflow_dir), "--category", cli_env["bucket"]]) == 2
+    assert "--workflow-type" in capsys.readouterr().err
+
+
+@pytest.mark.integration
+def test_invalid_workflow_import_exits_2(cli_env, workflow_dir, capsys):
+    assert import_dataset.main([str(workflow_dir), "--category", cli_env["bucket"], "--workflow-type", "gui",
+                                "--seek-project-id", "11"]) == 2
+    assert "exactly one step" in capsys.readouterr().err

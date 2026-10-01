@@ -12,6 +12,7 @@ from app.routers import auth, dataset_uploads
 from digitaltwins import UploadClient, tools
 from digitaltwins.client import UploadError
 from digitaltwins.measurements import pipeline
+from test_datasets_workflows_api import tool_bucket  # noqa: F401  (fixture)
 
 FIXTURE = Path(__file__).parent / "data" / "example_sds_dataset"
 FIXTURE_ZIP = Path(__file__).parent / "data" / "example_sds_dataset.zip"
@@ -159,3 +160,26 @@ def test_uploads_a_tool_registers_it_in_seek_and_pushes_fhir(tool_http):
     [workflow] = tool_http.seek.workflows.values()
     assert (workflow["tool_type"], workflow["project_id"], workflow["token"]) == ("gui", 11, "t")
     assert any(ref.startswith("ActivityDefinition/") for ref in tool_http.hapi.store)
+
+
+@pytest.mark.integration
+def test_uploads_a_workflow_with_its_tools(platform_db, minio_bucket, tool_bucket, hapi, seek, tmp_path, monkeypatch):
+    from digitaltwins import workflows
+    from test_datasets_workflows_api import script_files
+
+    monkeypatch.setenv("DATASET_STAGING_DIR", str(tmp_path / "staging"))
+    monkeypatch.setattr(workflows, "CATEGORY", minio_bucket)
+    monkeypatch.setattr(tools, "CATEGORY", tool_bucket)
+    app = create_app()
+    app.dependency_overrides[auth.validate_credentials] = lambda: UPLOADER
+    root = tmp_path / "wf_convert"
+    for rel, data in script_files().items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_bytes(data)
+
+    session = UploadClient("http://testserver", token="t", session=TestClient(app), poll_interval=0).upload_dataset(
+        root, category=minio_bucket, workflow_type="script", seek_project_id=11,
+    )
+
+    assert session["status"] == "completed" and session["workflow_type"] == "script"
+    assert len(seek.workflows) == 3

@@ -156,6 +156,10 @@ class FakeHapi:
     - Tool push: ``digital_twin().workflow_tool().add_workflow_tool_description(d)``
       + ``await generate_resources()`` saves one ActivityDefinition identified
       by the tool's UUID (kept as it is if that identifier already exists).
+    - Workflow push: ``digital_twin().workflow().add_workflow_description(d)``
+      + ``await generate_resources()`` saves one PlanDefinition whose actions
+      reference the ActivityDefinition of their ``related_tool_uuid`` (``None``
+      when there is none, as the library does).
     - Cleanup (``fhir_service.HapiRest`` surface): ``search``, ``read`` and
       ``delete``. Delete refuses a resource another resource still references
       (HAPI's referential integrity on delete).
@@ -165,7 +169,7 @@ class FakeHapi:
         self.store = {}  # "Type/id" -> resource
         self.calls = []  # REST calls made through the cleanup client
         self.fail_push = False
-        self._tool = False
+        self._mode = "measurements"
         self._next = 1
 
     # -- push -------------------------------------------------------------
@@ -173,7 +177,7 @@ class FakeHapi:
         return self
 
     def measurements(self):
-        self._tool = False
+        self._mode = "measurements"
         return self
 
     def add_measurements_description(self, description):
@@ -181,10 +185,18 @@ class FakeHapi:
         return self
 
     def workflow_tool(self):
-        self._tool = True
+        self._mode = "tool"
         return self
 
     def add_workflow_tool_description(self, description):
+        self.pushed = description
+        return self
+
+    def workflow(self):
+        self._mode = "workflow"
+        return self
+
+    def add_workflow_description(self, description):
         self.pushed = description
         return self
 
@@ -202,9 +214,18 @@ class FakeHapi:
     async def generate_resources(self):
         if self.fail_push:
             raise ConnectionError("HAPI FHIR unreachable")
-        if self._tool:
+        if self._mode == "tool":
             tool = self.pushed["workflow_tool"]
             self._save("ActivityDefinition", tool["uuid"], name=tool["name"], description=tool["description"])
+            return
+        if self._mode == "workflow":
+            workflow = self.pushed["workflow"]
+            definitions = {r["identifier"][0]["value"]: ref for ref, r in self.store.items()
+                           if r["resourceType"] == "ActivityDefinition"}
+            actions = [{"title": a["title"], "definition": ({"reference": definitions[a["related_tool_uuid"]]}
+                                                            if a["related_tool_uuid"] in definitions else None)}
+                       for a in workflow["action"]]
+            self._save("PlanDefinition", workflow["uuid"], name=workflow["name"], action=actions)
             return
         d = self.pushed["dataset"]["uuid"]
         for p in self.pushed["patients"]:
@@ -281,15 +302,17 @@ class FakeSeek:
     """In-memory SEEK standing in for ``digitaltwins.seek.writer.Writer``.
 
     ``workflows`` maps each registered workflow id to what it was registered
-    with (CWL file name, tool type, project, the caller's token); ``deleted``
-    lists deleted ids. ``fail_register`` / ``fail_delete`` make the calls raise
-    like the real Writer does when SEEK refuses or is unreachable.
+    with (CWL file name, tool or workflow type, a workflow's tool CWLs, project,
+    the caller's token); ``deleted`` lists deleted ids. ``fail_register`` /
+    ``fail_register_workflow`` / ``fail_delete`` make the calls raise like the
+    real Writer does when SEEK refuses or is unreachable.
     """
 
     def __init__(self):
         self.workflows = {}
         self.deleted = []
         self.fail_register = False
+        self.fail_register_workflow = False
         self.fail_delete = False
         self._next = 100
 
@@ -298,6 +321,15 @@ class FakeSeek:
             raise RuntimeError("SEEK tool registration failed (422): Projects: you are not a member")
         self._next += 1
         self.workflows[self._next] = {"cwl": Path(cwl_path).name, "tool_type": tool_type,
+                                      "project_id": project_id, "token": writer._api_token}
+        return self._next
+
+    def register_workflow(self, writer, workflow_cwl, tool_cwls, workflow_type, project_id):
+        if self.fail_register or self.fail_register_workflow:
+            raise RuntimeError("SEEK workflow registration failed (422): Projects: you are not a member")
+        self._next += 1
+        self.workflows[self._next] = {"cwl": Path(workflow_cwl).name, "workflow_type": workflow_type,
+                                      "tools": [Path(p).name for p in tool_cwls],
                                       "project_id": project_id, "token": writer._api_token}
         return self._next
 
@@ -315,5 +347,6 @@ def seek(monkeypatch):
     fake = FakeSeek()
     monkeypatch.setenv("SEEK_BASE_URL", "http://seek.test/seek")
     monkeypatch.setattr(Writer, "register_tool", lambda self, *a, **kw: fake.register_tool(self, *a, **kw))
+    monkeypatch.setattr(Writer, "register_workflow", lambda self, *a, **kw: fake.register_workflow(self, *a, **kw))
     monkeypatch.setattr(Writer, "delete_workflow", lambda self, *a, **kw: fake.delete_workflow(self, *a, **kw))
     return fake

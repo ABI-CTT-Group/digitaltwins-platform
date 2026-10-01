@@ -19,16 +19,17 @@ def create_session(
     fhir_descriptions: Optional[Dict[str, Any]] = None,
     tool_type: Optional[str] = None,
     seek_project_id: Optional[int] = None,
+    workflow_type: Optional[str] = None,
 ) -> str:
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO upload_session "
             "(category, name, description, source_kind, commit_mode, fhir_mode, fhir_descriptions, "
-            "tool_type, seek_project_id) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING upload_id",
+            "tool_type, seek_project_id, workflow_type) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING upload_id",
             (category, name, description, source_kind, commit_mode, fhir_mode,
              Json(fhir_descriptions) if fhir_descriptions is not None else None,
-             tool_type, seek_project_id),
+             tool_type, seek_project_id, workflow_type),
         )
         upload_id = cur.fetchone()[0]
     conn.commit()

@@ -1,6 +1,7 @@
-"""Write to SEEK as the calling user: register tools as Workflows, delete them.
+"""Write to SEEK as the calling user: register tools and workflows as Workflows, delete them.
 
-A tool is a SEEK Workflow tagged ``tool`` plus its tool type. It is registered
+A tool is a SEEK Workflow tagged ``tool`` plus its tool type, a workflow one
+tagged ``workflow`` plus its workflow type. Each is registered
 with one RO-Crate POST so SEEK's own extractors set the title, tags and the
 CWL ``internals`` (see docs/decisions/2026-09-30-register-tools-in-seek-via-single-ro-crate-post.md).
 """
@@ -19,22 +20,25 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def build_tool_crate(cwl_path: Path, tool_type: str) -> bytes:
-    """A zipped Workflow RO-Crate holding the CWL as its main workflow.
+def _build_crate(main_cwl: Path, keywords, extra_cwls=()) -> bytes:
+    """A zipped Workflow RO-Crate holding ``main_cwl`` as its main workflow.
 
     Root ``name`` / ``description`` come from the CWL ``label`` / ``doc`` (the file
     stem when there is no label); root ``keywords`` become the SEEK tags.
+    ``extra_cwls`` (a workflow's tool CWLs) are packed beside it so that its
+    steps' ``run: tool_x.cwl`` resolve.
     """
-    cwl_path = Path(cwl_path)
-    cwl = yaml.safe_load(cwl_path.read_text()) or {}
-    title = cwl.get("label") or cwl_path.stem
+    main_cwl = Path(main_cwl)
+    extra_cwls = [Path(p) for p in extra_cwls]
+    cwl = yaml.safe_load(main_cwl.read_text()) or {}
+    title = cwl.get("label") or main_cwl.stem
     root = {
         "@id": "./",
         "@type": "Dataset",
         "name": title,
-        "keywords": ["tool", tool_type],
-        "hasPart": [{"@id": cwl_path.name}],
-        "mainEntity": {"@id": cwl_path.name},
+        "keywords": list(keywords),
+        "hasPart": [{"@id": p.name} for p in [main_cwl, *extra_cwls]],
+        "mainEntity": {"@id": main_cwl.name},
     }
     if cwl.get("doc"):
         root["description"] = cwl["doc"]
@@ -52,11 +56,16 @@ def build_tool_crate(cwl_path: Path, tool_type: str) -> bytes:
             },
             root,
             {
-                "@id": cwl_path.name,
+                "@id": main_cwl.name,
                 "@type": ["File", "SoftwareSourceCode", "ComputationalWorkflow"],
                 "name": title,
                 "programmingLanguage": {"@id": "#cwl"},
             },
+            *({
+                "@id": p.name,
+                "@type": ["File", "SoftwareSourceCode"],
+                "programmingLanguage": {"@id": "#cwl"},
+            } for p in extra_cwls),
             {
                 "@id": "#cwl",
                 "@type": "ComputerLanguage",
@@ -69,8 +78,19 @@ def build_tool_crate(cwl_path: Path, tool_type: str) -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("ro-crate-metadata.json", json.dumps(metadata, indent=2))
-        zf.write(cwl_path, cwl_path.name)
+        for path in [main_cwl, *extra_cwls]:
+            zf.write(path, path.name)
     return buf.getvalue()
+
+
+def build_tool_crate(cwl_path: Path, tool_type: str) -> bytes:
+    """A tool's crate: its CWL, tagged ``tool`` + its tool type."""
+    return _build_crate(cwl_path, ["tool", tool_type])
+
+
+def build_workflow_crate(workflow_cwl: Path, tool_cwls, workflow_type: str) -> bytes:
+    """A workflow's crate: its CWL plus its steps' tool CWLs, tagged ``workflow`` + its type."""
+    return _build_crate(workflow_cwl, ["workflow", workflow_type], tool_cwls)
 
 
 def _seek_error(resp) -> str:
@@ -89,25 +109,33 @@ class Writer(object):
         if not self._base_url:
             raise ValueError("SEEK configuration is incomplete. SEEK_BASE_URL is not set.")
 
-    def register_tool(self, cwl_path: Path, tool_type: str, project_id: int) -> int:
-        """Create the tool's SEEK Workflow in ``project_id``; return its id."""
+    def _post_crate(self, kind: str, stem: str, crate: bytes, project_id: int) -> int:
+        """Create a SEEK Workflow from ``crate`` in ``project_id``; return its id."""
         # Authorization only: with ``Accept: application/json`` SEEK treats the call
         # as JSON:API and rejects the multipart crate (422, no ``data`` record).
         headers = {"Authorization": "Bearer " + self._api_token}
-        crate = build_tool_crate(cwl_path, tool_type)
         try:
             resp = requests.post(
                 f"{self._base_url}/workflows",
                 headers=headers,
-                files={"ro_crate": (f"{Path(cwl_path).stem}.crate.zip", crate, "application/zip")},
+                files={"ro_crate": (f"{stem}.crate.zip", crate, "application/zip")},
                 data={"workflow[project_ids][]": project_id},
                 timeout=60,
             )
         except RequestException as exc:
-            raise RuntimeError(f"SEEK tool registration failed: {exc}") from exc
+            raise RuntimeError(f"SEEK {kind} registration failed: {exc}") from exc
         if resp.status_code >= 300:
-            raise RuntimeError(f"SEEK tool registration failed ({resp.status_code}): {_seek_error(resp)}")
+            raise RuntimeError(f"SEEK {kind} registration failed ({resp.status_code}): {_seek_error(resp)}")
         return int(resp.json()["data"]["id"])
+
+    def register_tool(self, cwl_path: Path, tool_type: str, project_id: int) -> int:
+        """Create the tool's SEEK Workflow in ``project_id``; return its id."""
+        return self._post_crate("tool", Path(cwl_path).stem, build_tool_crate(cwl_path, tool_type), project_id)
+
+    def register_workflow(self, workflow_cwl: Path, tool_cwls, workflow_type: str, project_id: int) -> int:
+        """Create the workflow's SEEK Workflow (tagged ``workflow``) in ``project_id``; return its id."""
+        crate = build_workflow_crate(workflow_cwl, tool_cwls, workflow_type)
+        return self._post_crate("workflow", Path(workflow_cwl).stem, crate, project_id)
 
     def delete_workflow(self, workflow_id: int) -> None:
         headers = {"Authorization": "Bearer " + self._api_token, "Accept": "application/json"}

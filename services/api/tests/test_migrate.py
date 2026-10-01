@@ -155,3 +155,37 @@ def test_shipped_migrations_apply_on_top_of_the_baseline_schema(scratch_db):
             cur.execute("UPDATE public.dataset SET fhir_status = 'bogus' WHERE dataset_uuid = %s",
                         (dataset_uuid,))
     conn.rollback()
+
+
+@pytest.mark.integration
+def test_workflow_migration_adds_types_and_a_link_table_that_guards_tools(scratch_db):
+    conn = scratch_db()
+    load_baseline(conn)
+    conn.close()
+    conn = scratch_db()
+    apply_migrations(conn, MIGRATIONS_DIR)
+
+    for table in ("dataset", "upload_session"):
+        cols = [r[0] for r in _fetch(conn, "SELECT column_name FROM information_schema.columns "
+                                           "WHERE table_schema = 'public' AND table_name = %s", (table,))]
+        assert "workflow_type" in cols, table
+    assert _table_exists(conn, "workflow_tool")
+
+    with conn.cursor() as cur:
+        cur.execute("INSERT INTO public.dataset (category) VALUES ('workflows') RETURNING dataset_uuid")
+        workflow = cur.fetchone()[0]
+        cur.execute("INSERT INTO public.dataset (category) VALUES ('tools') RETURNING dataset_uuid")
+        tool = cur.fetchone()[0]
+        cur.execute("INSERT INTO public.workflow_tool (workflow_dataset_uuid, step_id, tool_dataset_uuid) "
+                    "VALUES (%s, 'step', %s)", (workflow, tool))
+    conn.commit()
+    # A tool that a workflow still uses cannot be deleted on its own...
+    with pytest.raises(psycopg2.errors.ForeignKeyViolation):
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM public.dataset WHERE dataset_uuid = %s", (tool,))
+    conn.rollback()
+    # ...while deleting the workflow removes its link rows.
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM public.dataset WHERE dataset_uuid = %s", (workflow,))
+    conn.commit()
+    assert _fetch(conn, "SELECT count(*) FROM public.workflow_tool")[0][0] == 0

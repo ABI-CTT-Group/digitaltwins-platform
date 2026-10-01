@@ -12,6 +12,7 @@ from app.main import create_app
 from app.routers import auth
 from digitaltwins.measurements import jobs, sessions
 from digitaltwins.measurements.staging import dataset_dir, staging_root
+from test_datasets_workflows_api import tool_bucket  # noqa: F401  (fixture)
 
 FIXTURE = Path(__file__).parent / "data" / "example_sds_dataset"
 UPLOADER = {"username": "alice", "token": "t", "claims": {"realm_access": {"roles": ["admin"]}}}
@@ -157,3 +158,108 @@ def test_delete_of_a_non_tool_dataset_does_not_call_seek(env, seek):
 
     assert r.status_code == 200 and r.json()["seek_workflow_deleted"] is False
     assert seek.deleted == []
+
+
+# ── Workflow datasets: confirm whether their tools go too ─────────────────
+
+
+@pytest.fixture
+def workflow_env(env, seek, tool_bucket, tmp_path, monkeypatch):
+    from digitaltwins import tools, workflows
+
+    monkeypatch.setattr(workflows, "CATEGORY", env["bucket"])
+    monkeypatch.setattr(tools, "CATEGORY", tool_bucket)
+    return {**env, "seek": seek, "tmp": tmp_path, "tool_bucket": tool_bucket}
+
+
+def _committed_workflow(env):
+    """A script workflow with two tools, committed and pushed to (fake) FHIR."""
+    from digitaltwins.workflows.pipeline import annotate_workflow, commit_workflow
+    from test_datasets_workflows_api import script_files
+
+    root = env["tmp"] / "wf_convert"
+    for rel, data in script_files().items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_bytes(data)
+    result = commit_workflow(root, "script", 11, "t")
+    conn = env["db"]()
+    annotate_workflow(conn, root, "script", result["dataset_uuid"])
+    jobs.set_fhir_status(conn, result["dataset_uuid"], "pending")
+    jobs.run_fhir_push_job(result["dataset_uuid"])
+    assert env["hapi"].types() == {"ActivityDefinition": 2, "PlanDefinition": 1}
+    return result
+
+
+@pytest.mark.integration
+def test_workflow_delete_needs_delete_tools_and_lists_the_tools(workflow_env):
+    wf = _committed_workflow(workflow_env)
+
+    r = workflow_env["client"].delete(f"/datasets/{wf['dataset_uuid']}")
+
+    assert r.status_code == 409, r.text
+    detail = r.json()["detail"]
+    assert "delete_tools" in detail["message"]
+    assert sorted((t["dataset_uuid"], t["dataset_name"], t["step_ids"]) for t in detail["tools"]) == sorted(
+        (t["dataset_uuid"], f"tool_{t['step_id']}", [t["step_id"]]) for t in wf["tools"])
+    assert _count(workflow_env, "dataset") == 3
+    assert workflow_env["seek"].deleted == []
+
+
+@pytest.mark.integration
+def test_workflow_delete_keeping_its_tools(workflow_env, s3):
+    wf = _committed_workflow(workflow_env)
+
+    r = workflow_env["client"].delete(f"/datasets/{wf['dataset_uuid']}", params={"delete_tools": "false"})
+
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["seek_workflow_deleted"] is True and body["tools_deleted"] == []
+    assert body["fhir_resources_deleted"] == {"PlanDefinition": 1}
+    assert workflow_env["seek"].deleted == [wf["seek_id"]]
+    assert _count(workflow_env, "dataset") == 2 and _count(workflow_env, "workflow_tool") == 0
+    assert _objects(s3, workflow_env["bucket"], f"{wf['dataset_uuid']}/") == 0
+    assert workflow_env["hapi"].types() == {"ActivityDefinition": 2}
+    # The kept tools are now standalone and can be deleted on their own.
+    tool = wf["tools"][0]["dataset_uuid"]
+    assert workflow_env["client"].delete(f"/datasets/{tool}").status_code == 200
+
+
+@pytest.mark.integration
+def test_workflow_delete_with_its_tools(workflow_env, s3):
+    wf = _committed_workflow(workflow_env)
+
+    r = workflow_env["client"].delete(f"/datasets/{wf['dataset_uuid']}", params={"delete_tools": "true"})
+
+    assert r.status_code == 200, r.text
+    assert sorted(r.json()["tools_deleted"]) == sorted(t["dataset_uuid"] for t in wf["tools"])
+    assert _count(workflow_env, "dataset") == 0
+    assert sorted(workflow_env["seek"].deleted) == sorted([wf["seek_id"], *(t["seek_id"] for t in wf["tools"])])
+    assert workflow_env["hapi"].types() == {}
+    for tool in wf["tools"]:
+        assert _objects(s3, workflow_env["tool_bucket"], f"{tool['dataset_uuid']}/") == 0
+
+
+@pytest.mark.integration
+def test_a_tool_used_by_a_workflow_cannot_be_deleted_on_its_own(workflow_env):
+    wf = _committed_workflow(workflow_env)
+    tool = wf["tools"][0]["dataset_uuid"]
+
+    r = workflow_env["client"].delete(f"/datasets/{tool}")
+
+    assert r.status_code == 409, r.text
+    assert [w["dataset_uuid"] for w in r.json()["detail"]["workflows"]] == [wf["dataset_uuid"]]
+    assert _count(workflow_env, "dataset") == 3 and workflow_env["seek"].deleted == []
+
+
+@pytest.mark.integration
+def test_a_workflows_category_dataset_without_a_workflow_type_deletes_as_before(workflow_env):
+    # e.g. an assay workspace output, which shares the category and is stored with the plain Uploader.
+    from digitaltwins.core.uploader import Uploader
+
+    dataset_uuid = Uploader().upload_dataset(str(FIXTURE), category=workflow_env["bucket"])
+
+    r = workflow_env["client"].delete(f"/datasets/{dataset_uuid}")
+
+    assert r.status_code == 200, r.text
+    assert r.json()["seek_workflow_deleted"] is False and r.json()["tools_deleted"] == []
+    assert workflow_env["seek"].deleted == []

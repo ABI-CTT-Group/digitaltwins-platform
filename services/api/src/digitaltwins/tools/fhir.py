@@ -19,8 +19,8 @@ _SERVER_FIELDS = ("uuid", "name", "title")
 _CLIENT_FIELDS = ("version", "description", "model", "software", "input", "output")
 
 
-def _cwl(root: Path) -> Dict[str, Any]:
-    return yaml.safe_load(find_tool_cwl(root).read_text()) or {}
+def _cwl(cwl_path: Path) -> Dict[str, Any]:
+    return yaml.safe_load(Path(cwl_path).read_text()) or {}
 
 
 def _port_list(section) -> List[Dict[str, Any]]:
@@ -33,17 +33,27 @@ def _port_list(section) -> List[Dict[str, Any]]:
     return [{"id": p.get("id"), "type": p.get("type"), "doc": p.get("doc")} for p in items]
 
 
-def ports(root: Path) -> Dict[str, List[Dict[str, Any]]]:
-    cwl = _cwl(root)
+def cwl_ports(cwl_path: Path) -> Dict[str, List[Dict[str, Any]]]:
+    cwl = _cwl(cwl_path)
     return {"inputs": _port_list(cwl.get("inputs")), "outputs": _port_list(cwl.get("outputs"))}
+
+
+def ports(root: Path) -> Dict[str, List[Dict[str, Any]]]:
+    return cwl_ports(find_tool_cwl(root))
 
 
 def build_descriptions(root: Path, dataset_uuid: str, dataset_name: str,
                        client: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Validated ``{"workflow_tool": {...}}`` for the tool dataset at ``root`` (see build_cwl_descriptions)."""
+    return build_cwl_descriptions(find_tool_cwl(root), dataset_uuid, dataset_name, client)
+
+
+def build_cwl_descriptions(cwl_path: Path, dataset_uuid: str, dataset_name: str,
+                           client: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Validated ``{"workflow_tool": {...}}`` with the server-owned fields stamped.
 
     Raises ValueError for a malformed ``client``, an unknown field, or a port
-    annotation that names no port of the tool's CWL.
+    annotation that names no port of the tool's CWL (``cwl_path``).
     """
     if client is None:
         client = {"workflow_tool": {}}
@@ -57,7 +67,7 @@ def build_descriptions(root: Path, dataset_uuid: str, dataset_name: str,
         if not isinstance(given.get(field, []), list):
             raise ValueError(f"workflow_tool.{field} must be a list")
 
-    cwl = _cwl(root)
+    cwl = _cwl(cwl_path)
     for field, section in (("input", "inputs"), ("output", "outputs")):
         known = {p["id"] for p in _port_list(cwl.get(section))}
         for entry in given.get(field, []):

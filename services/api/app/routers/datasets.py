@@ -20,8 +20,9 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 
 from digitaltwins import Querier, Uploader, Downloader, Deleter
-from digitaltwins import tools
+from digitaltwins import tools, workflows
 from digitaltwins.core.connection import Connection
+from digitaltwins.core.deleter import DatasetInUseError
 from digitaltwins.measurements import jobs, sessions
 from digitaltwins.measurements.pipeline import check_descriptions_match
 from digitaltwins.measurements.staging import dataset_dir as staged_dataset_dir, staging_root
@@ -32,6 +33,9 @@ from digitaltwins.measurements.validation import (
 )
 from digitaltwins.tools import fhir as tool_fhir
 from digitaltwins.tools.pipeline import SeekRegistrationError, annotate_tool, commit_tool
+from digitaltwins.workflows import fhir as workflow_fhir
+from digitaltwins.workflows.pipeline import annotate_workflow, commit_workflow
+from digitaltwins.workflows.validation import load_workflow
 from . import dataset_uploads
 from .auth import require_upload_role, validate_credentials
 from .dataset_uploads import _max_upload_bytes
@@ -252,6 +256,28 @@ def _ingest_tool(dataset_root: Path, tool_type: str, seek_project_id: int, api_t
     return {**result, "fhir_status": "pending"}
 
 
+def _ingest_workflow(dataset_root: Path, workflow_type: str, seek_project_id: int, api_token: str,
+                     fhir: str, fhir_descriptions: Optional[str]) -> dict:
+    """Validate any FHIR descriptions, commit the workflow and its tools (SEEK + Postgres + MinIO), then annotate them."""
+    client = None
+    if fhir_descriptions:
+        try:
+            client = json.loads(fhir_descriptions)
+        except json.JSONDecodeError as exc:
+            raise ValueError("'fhir_descriptions' must be a JSON object") from exc
+        workflow_fhir.build_descriptions(load_workflow(dataset_root, workflow_type), "", "", client=client)
+    result = commit_workflow(dataset_root, workflow_type, seek_project_id, api_token)
+    if client is None and fhir == "none":
+        return result
+    conn, _ = Connection().connect()
+    try:
+        annotate_workflow(conn, dataset_root, workflow_type, result["dataset_uuid"], client)
+        jobs.set_fhir_status(conn, result["dataset_uuid"], "pending")
+    finally:
+        conn.close()
+    return {**result, "fhir_status": "pending"}
+
+
 @router.post("/datasets", tags=["datasets"])
 async def upload_dataset(
     background: BackgroundTasks,
@@ -271,19 +297,24 @@ async def upload_dataset(
         json_schema_extra={"enum": sorted(DATASET_CATEGORIES)},
     ),
     fhir: Literal["none", "auto"] = Query(
-        "none", description="measurements and tools: 'auto' annotates and pushes FHIR after the commit",
+        "none", description="measurements, tools and workflows: 'auto' annotates and pushes FHIR after the commit",
     ),
     fhir_descriptions: Optional[str] = Form(
         None, description=(
             "FHIR descriptions JSON (UUIDs are assigned). Measurements: keyed by folder name. "
-            'Tools: {"workflow_tool": {version, description, model, software, input, output}}'
+            'Tools: {"workflow_tool": {version, description, model, software, input, output}}. '
+            'Workflows: {"workflow": {version, description, purpose, usage, author, action: [{step, input, output}]}, '
+            '"workflow_tools": {<step id>: {<workflow_tool fields>}}}'
         ),
     ),
     tool_type: Optional[Literal["script", "notebook", "gui"]] = Query(
         None, description="tools only (required): the tool type, tagged on its SEEK Workflow",
     ),
     seek_project_id: Optional[int] = Query(
-        None, description="tools only (required): the SEEK project to register the tool in",
+        None, description="tools and workflows only (required): the SEEK project to register them in",
+    ),
+    workflow_type: Optional[Literal["script", "notebook", "gui"]] = Query(
+        None, description="workflows only (required): the workflow type, tagged on its SEEK Workflow and its tools'",
     ),
     uploader: Uploader = Depends(get_uploader),
     _creds: dict = Depends(require_upload_role),
@@ -300,8 +331,13 @@ async def upload_dataset(
     (all-or-nothing: 502 if SEEK fails); with ``fhir``/``fhir_descriptions``
     an ActivityDefinition keyed by the dataset UUID is pushed after the
     commit (``fhir_status``; a failed push is retried via
-    ``POST /datasets/{uuid}/fhir/push``). Other categories go straight to
-    ``Uploader.upload_dataset``.
+    ``POST /datasets/{uuid}/fhir/push``). Workflow datasets need
+    ``workflow_type`` and a ``primary/workflow_*.cwl`` whose steps run
+    ``primary/tool_*.cwl``: each tool is stored as a tool dataset and
+    registered in SEEK, then the workflow (tagged ``workflow`` +
+    ``workflow_type``), all-or-nothing; FHIR pushes the tools'
+    ActivityDefinitions, then the workflow's PlanDefinition. Other categories
+    go straight to ``Uploader.upload_dataset``.
     """
     if category not in DATASET_CATEGORIES:
         raise HTTPException(
@@ -310,13 +346,14 @@ async def upload_dataset(
         )
     measurements = category in dataset_uploads.INGEST_CATEGORIES
     tool = category == tools.CATEGORY
-    if tool:
-        missing = [name for name, value in (("tool_type", tool_type), ("seek_project_id", seek_project_id))
-                   if value is None]
+    workflow = category == workflows.CATEGORY
+    if tool or workflow:
+        kind_type = ("tool_type", tool_type) if tool else ("workflow_type", workflow_type)
+        missing = [name for name, value in (kind_type, ("seek_project_id", seek_project_id)) if value is None]
         if missing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Tool uploads need: {', '.join(missing)}",
+                detail=f"{'Tool' if tool else 'Workflow'} uploads need: {', '.join(missing)}",
             )
     try:
         staging_root().mkdir(parents=True, exist_ok=True)
@@ -329,6 +366,11 @@ async def upload_dataset(
             elif tool:
                 result = await run_in_threadpool(
                     _ingest_tool, dataset_dir_path, tool_type, seek_project_id, _creds["token"],
+                    fhir, fhir_descriptions,
+                )
+            elif workflow:
+                result = await run_in_threadpool(
+                    _ingest_workflow, dataset_dir_path, workflow_type, seek_project_id, _creds["token"],
                     fhir, fhir_descriptions,
                 )
             else:
@@ -451,25 +493,41 @@ def download_dataset(
 @router.delete("/datasets/{dataset_uuid}", tags=["datasets"])
 def delete_dataset(
     dataset_uuid: str,
+    delete_tools: Optional[bool] = Query(
+        None, description="workflows only (required): also delete the tool datasets the workflow's steps run",
+    ),
     deleter: Deleter = Depends(get_deleter),
     _creds: dict = Depends(require_upload_role),
 ) -> dict:
     """Delete a dataset and all associated data: Postgres (incl. its subject /
-    sample rows), MinIO, HAPI FHIR resources, a tool's SEEK Workflow and local
-    copies. FHIR and SEEK cleanup are best-effort (logged, never fail the delete).
+    sample rows), MinIO, HAPI FHIR resources, a tool's or workflow's SEEK
+    Workflow and local copies. FHIR and SEEK cleanup are best-effort (logged,
+    never fail the delete).
+
+    A workflow dataset needs ``delete_tools``: without it the response is 409
+    listing the workflow's tool datasets so the client can ask; with ``true``
+    they are deleted after the workflow. A tool dataset that a workflow still
+    runs cannot be deleted on its own (409 naming the workflows).
 
     Args:
         dataset_uuid: The UUID of the dataset to delete.
+        delete_tools: For a workflow, whether its tool datasets are deleted too.
 
     Returns:
         A confirmation message with deletion details.
 
     Raises:
         HTTPException 404: If the dataset UUID does not exist.
+        HTTPException 409: A workflow without ``delete_tools``, or a tool in use.
         HTTPException 500: If storage deletion fails.
     """
     try:
-        result = deleter.delete_dataset(dataset_uuid)
+        result = deleter.delete_dataset(dataset_uuid, delete_tools=delete_tools)
+    except DatasetInUseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"message": str(exc), **exc.details},
+        ) from exc
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -493,4 +551,5 @@ def delete_dataset(
         "minio_objects_deleted": result["minio_objects_deleted"],
         "fhir_resources_deleted": result["fhir_resources_deleted"],
         "seek_workflow_deleted": result["seek_workflow_deleted"],
+        "tools_deleted": result["tools_deleted"],
     }
