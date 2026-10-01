@@ -8,8 +8,25 @@
     :disabled="dockerComposeBusy"
     :is-pending="(items) => items.some(t => t.status === 'building' || t.deployStatus === 'deploying' ||
       ['uploading', 'awaiting_reauth', 'committing'].includes(t.handoffStatus))"
+    :filter-fn="registrationFilterFn"
     @register="handleRegister"
   >
+    <template #filters>
+      <v-select
+        v-model="registrationFilter"
+        :items="registrationFilterOptions"
+        item-title="title"
+        item-value="value"
+        label="Registration status"
+        variant="outlined"
+        base-color="#5fd6e8"
+        color="#5fd6e8"
+        density="compact"
+        hide-details
+        style="max-width: 240px;"
+      />
+    </template>
+
     <template #default="{ items }">
       <!-- Inline cast: RegistryView types displayItems as `{ value: T[] }` (a
            ref-shaped object) but Vue auto-unwraps the ref at the slot binding,
@@ -63,8 +80,27 @@ import {
 import type { ToolApprovalStatus, ToolMinIOToolMetadata, ToolResponse, SourceType, TransientAuth } from '@/models/types';
 import { useRemoteAppStore } from '@/store/remote_store';
 import { useRouter } from 'vue-router';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useLogConsole } from '@/composables/useLogConsole';
+
+// A tool counts as "in platform" once it has a real platform dataset UUID
+// (legacy rows carry a `sparc-tool-` placeholder instead) or was uploaded
+// straight to the platform via the REST API (ToolCard uses the same checks
+// for its "in platform" / "platform upload" badges).
+const isToolInPlatform = (t: ToolResponse) =>
+  !!t.platformOnly || (!!t.uuid && !t.uuid.startsWith('sparc-tool-'));
+
+const registrationFilterOptions = [
+  { title: 'All', value: 'all' },
+  { title: 'In platform', value: 'in-platform' },
+  { title: 'Not in platform', value: 'not-in-platform' },
+];
+const registrationFilter = ref<'all' | 'in-platform' | 'not-in-platform'>('all');
+const registrationFilterFn = computed(() => {
+  if (registrationFilter.value === 'all') return undefined;
+  const wantInPlatform = registrationFilter.value === 'in-platform';
+  return (t: ToolResponse) => isToolInPlatform(t) === wantInPlatform;
+});
 
 // Shared, app-level log console (mounted once in workflow-tool/index.vue).
 const { openConsole } = useLogConsole();

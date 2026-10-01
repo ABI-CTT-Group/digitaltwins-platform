@@ -21,6 +21,10 @@
       <!-- List panel -->
       <div class="d-flex flex-column w-100 my-2 pa-5 rounded registry-container">
         <Search :label="searchLabel" v-model:search="search" @search="handleSearch" :accent="accent" />
+        <!-- Optional extra filters (e.g. a status dropdown), narrowing on top of the search box -->
+        <div v-if="$slots.filters" class="d-flex w-100 px-2 pb-3">
+          <slot name="filters" />
+        </div>
         <Refresh @refresh="handleRefresh" />
         <div class="d-flex flex-grow-1">
           <div v-if="displayItems.length > 0" class="ucard-grid pa-5">
@@ -57,6 +61,9 @@ const props = withDefaults(
     pollInterval?: number;
     /** Predicate to determine if any item is in a "pending" state that requires polling */
     isPending?: (items: T[]) => boolean;
+    /** Optional predicate (e.g. a status filter) applied on top of the search box.
+     *  Pass a computed so a new reference flows through whenever the filter changes. */
+    filterFn?: (item: T) => boolean;
   }>(),
   {
     registerLabel: 'Register a new item',
@@ -65,6 +72,7 @@ const props = withDefaults(
     accent: '#5fd6e8',
     pollInterval: 5000,
     isPending: (items: T[]) => false,
+    filterFn: undefined,
   },
 );
 
@@ -81,21 +89,25 @@ const isStatusPending = ref(false);
 let refreshInterval: number | undefined;
 
 // ---- refresh / search -----------------------------------------------------
+const applyDisplay = () => {
+  const base = props.filterFn ? allItems.value.filter(props.filterFn) : allItems.value;
+  if (!search.value) { displayItems.value = base; return; }
+  const fuse = new Fuse(base, { keys: ['name'], threshold: 0.4 });
+  displayItems.value = fuse.search(search.value).map((r) => r.item);
+};
+
 const handleRefresh = async () => {
   const items = await props.fetchList();
   allItems.value = items;
-  displayItems.value = items;
+  applyDisplay();
   isStatusPending.value = props.isPending(items);
   emit('refresh', items);
 };
 
-const handleSearch = () => {
-  if (!search.value) { displayItems.value = allItems.value; return; }
-  const fuse = new Fuse(allItems.value, { keys: ['name'], threshold: 0.4 });
-  displayItems.value = fuse.search(search.value).map((r) => r.item);
-};
+const handleSearch = () => applyDisplay();
 
-watch(search, (val) => { if (!val) displayItems.value = allItems.value; });
+watch(search, () => applyDisplay());
+watch(() => props.filterFn, () => applyDisplay());
 
 // ---- auto-polling ---------------------------------------------------------
 watch(isStatusPending, (pending) => {

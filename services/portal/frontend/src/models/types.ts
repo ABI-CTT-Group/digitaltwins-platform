@@ -293,6 +293,9 @@ export interface WorkflowResponse {
     updatedAt: string;
     sourceType?: SourceType;
     localArchivePath?: string;
+    // Platform dataset of the approved workflow; legacy/unapproved rows hold a
+    // `sparc-workflow-` placeholder instead (see ToolResponse.uuid).
+    uuid?: string;
 }
 
 interface AnnotateToolInput{
