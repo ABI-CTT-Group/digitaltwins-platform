@@ -1,4 +1,4 @@
-﻿import { GitContent, SourceType } from '@/models/types';
+﻿import { CheckNameResponse, GitContent, SourceType } from '@/models/types';
 import yaml from "js-yaml";
 
 /**
@@ -80,18 +80,41 @@ export const getRepoContents = async (url: string, path: string = "") => {
   return { data };
 }
 
+// A tool is either source code (one .cwl at the root) or an SDS package whose
+// CWL is primary/tool_*.cwl. Mirrors portal-backend app/builder/tool_layout.py.
+export const SDS_MARKER = "dataset_description.xlsx";
+const SDS_TOOL_CWL = /^tool_.*\.cwl$/;
+
+export const sdsToolCwls = (primaryFiles: string[]) => primaryFiles.filter((name) => SDS_TOOL_CWL.test(name));
+
+export const sdsCwlResult = (hasToolCwl: boolean): CheckNameResponse => hasToolCwl
+  ? { available: true, message: "Detected an SDS package: its metadata is kept as-is." }
+  : { available: false, message: "An SDS package must have exactly one primary/tool_*.cwl." };
+
+export const noToolCwlMessage = (where: string) =>
+  `No CWL found in the ${where}. Expected one .cwl at the root (source code), ` +
+  `or one primary/tool_*.cwl in an SDS package (${SDS_MARKER} at the root).`;
+
 export const getRepoRootCWLContent = (repositoryUrl: string) => {
   return new Promise<{ cwlFile: string, content: any }>((resolve, reject) => {
-    getRepoContents(repositoryUrl).then((res) => {
+    getRepoContents(repositoryUrl).then(async (res) => {
       const folders = res!.data as GitContent[];
       let cwlFile = "";
-      folders.forEach((item: GitContent) => {
-        if (item.type == 'file' && item.name.endsWith(".cwl")) {
-          cwlFile = item.name;
-          return;
-        }
-      })
-      getRepoContents(repositoryUrl, cwlFile).then((res) => {
+      let cwlPath = "";
+      if (folders.some((item) => item.type == 'file' && item.name === SDS_MARKER)) {
+        const primary = (await getRepoContents(repositoryUrl, "primary")).data as GitContent[];
+        cwlFile = sdsToolCwls(primary.filter((item) => item.type == 'file').map((item) => item.name))[0] ?? "";
+        cwlPath = `primary/${cwlFile}`;
+      } else {
+        folders.forEach((item: GitContent) => {
+          if (item.type == 'file' && item.name.endsWith(".cwl")) {
+            cwlFile = item.name;
+            return;
+          }
+        })
+        cwlPath = cwlFile;
+      }
+      getRepoContents(repositoryUrl, cwlPath).then((res) => {
         const contentBase64 = res.data.content;
         const content = atob(contentBase64); // base64 → plain text
         try {

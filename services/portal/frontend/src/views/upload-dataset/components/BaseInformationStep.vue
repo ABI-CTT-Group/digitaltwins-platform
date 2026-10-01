@@ -282,7 +282,7 @@ async function refreshSourceInfo() {
     if (gitRepo.info.value.version) formData.version = gitRepo.info.value.version;
   } else {
     if (!formData.source) return;
-    await localFolder.refresh(formData.source, true);
+    await localFolder.refresh(formData.source, true, props.type === 'tool');
     if (localFolder.info.value.name) formData.name = localFolder.info.value.name;
     if (localFolder.info.value.author) formData.author = localFolder.info.value.author;
     if (localFolder.info.value.version) formData.version = localFolder.info.value.version;

@@ -5,6 +5,10 @@ import {
   getRepoAuthorFromUrl,
   getRepoContents,
   inferProviderFromUrl,
+  noToolCwlMessage,
+  SDS_MARKER,
+  sdsCwlResult,
+  sdsToolCwls,
 } from '@/views/upload-dataset/components/utils';
 import type { GitContent, ProbeSourceResponse, ProbeFailureReason } from '@/models/types';
 import { useProbeToolSource } from '@/bootstrap/tool_api';
@@ -102,6 +106,7 @@ export function useGitRepoInfo() {
   async function refreshPublicGithub(
     normalizedUrl: string,
     checkCwl: boolean,
+    allowSds: boolean,
   ): Promise<void> {
     info.value.foldersInRoot = [];
     info.value.cwlExists = false;
@@ -112,19 +117,28 @@ export function useGitRepoInfo() {
       const items = res!.data as GitContent[];
       const cwlFiles: string[] = [];
 
-      items.forEach((item: GitContent) => {
-        if (item.type === 'dir') {
-          info.value.foldersInRoot.push(item.name);
-        } else if (item.type === 'file' && item.name.endsWith('.cwl')) {
-          cwlFiles.push(item.name);
-        }
-      });
+      if (allowSds && items.some((item) => item.type === 'file' && item.name === SDS_MARKER)) {
+        await refreshPublicGithubSds(normalizedUrl, items, checkCwl);
+      } else {
+        items.forEach((item: GitContent) => {
+          if (item.type === 'dir') {
+            info.value.foldersInRoot.push(item.name);
+          } else if (item.type === 'file' && item.name.endsWith('.cwl')) {
+            cwlFiles.push(item.name);
+          }
+        });
 
-      if (checkCwl) {
-        info.value.cwlExists = cwlFiles.length > 0;
-        info.value.cwlRepoErr = cwlFiles.length > 0
-          ? { available: true, message: '' }
-          : { available: false, message: 'No CWL files found in the root of the repository.' };
+        if (checkCwl) {
+          info.value.cwlExists = cwlFiles.length > 0;
+          info.value.cwlRepoErr = cwlFiles.length > 0
+            ? { available: true, message: '' }
+            : {
+                available: false,
+                message: allowSds
+                  ? noToolCwlMessage('repository')
+                  : 'No CWL files found in the root of the repository.',
+              };
+        }
       }
     } catch (err) {
       // Map the GitHub API status to a structured reason code so
@@ -167,6 +181,25 @@ export function useGitRepoInfo() {
       }
     } catch (err) {
       console.error('Error reading package.json (public GitHub):', err);
+    }
+  }
+
+  /** An SDS-shaped public GitHub repo: folders come from code/, the CWL from primary/. */
+  async function refreshPublicGithubSds(
+    normalizedUrl: string,
+    rootItems: GitContent[],
+    checkCwl: boolean,
+  ): Promise<void> {
+    const listing = async (dir: string): Promise<GitContent[]> => {
+      if (!rootItems.some((item) => item.type === 'dir' && item.name === dir)) return [];
+      return (await getRepoContents(normalizedUrl, dir)).data as GitContent[];
+    };
+    const [code, primary] = await Promise.all([listing('code'), listing('primary')]);
+    info.value.foldersInRoot = code.filter((item) => item.type === 'dir').map((item) => item.name);
+    if (checkCwl) {
+      const ok = sdsToolCwls(primary.filter((item) => item.type === 'file').map((item) => item.name)).length === 1;
+      info.value.cwlExists = ok;
+      info.value.cwlRepoErr = sdsCwlResult(ok);
     }
   }
 
@@ -217,9 +250,18 @@ export function useGitRepoInfo() {
     if (res.data.packageAuthor) info.value.author = res.data.packageAuthor;
     if (checkCwl) {
       info.value.cwlExists = res.data.hasCwl;
-      info.value.cwlRepoErr = res.data.hasCwl
-        ? { available: true, message: '' }
-        : { available: false, message: 'No CWL files found in the root of the repository.' };
+      if (res.data.isSds) {
+        info.value.cwlRepoErr = sdsCwlResult(res.data.hasCwl);
+      } else {
+        info.value.cwlRepoErr = res.data.hasCwl
+          ? { available: true, message: '' }
+          : {
+              available: false,
+              message: backendKind === 'tool'
+                ? noToolCwlMessage('repository')
+                : 'No CWL files found in the root of the repository.',
+            };
+      }
     }
   }
 
@@ -256,7 +298,7 @@ export function useGitRepoInfo() {
       provider === 'github' && !opts.auth?.token;
 
     if (usePublicGithubPath) {
-      await refreshPublicGithub(normalizedUrl, checkCwl);
+      await refreshPublicGithub(normalizedUrl, checkCwl, opts.kind === 'tool');
     } else {
       await refreshViaBackend(normalizedUrl, provider, opts.auth, opts.kind, checkCwl);
     }

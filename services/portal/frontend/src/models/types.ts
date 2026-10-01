@@ -102,6 +102,8 @@ export interface ProbeSourceSuccess {
     packageAuthor: string;
     hasCwl: boolean;
     cwlRequired: boolean;
+    /** Tool probes only: the repo is an SDS package (its CWL is primary/tool_*.cwl). */
+    isSds?: boolean;
     /** Inlined when `hasCwl` is true so the annotation step can read the
      *  CWL without a second clone — backend reuses the shallow clone it
      *  already did for inspect. */

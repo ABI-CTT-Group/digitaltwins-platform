@@ -30,6 +30,7 @@ from app.builder.logger import get_logger, configure_logging, safe_dump
 from app.builder.build_tool import PluginBuilder
 from app.builder.deploy_tool import PluginDeployer
 from app.builder.source_acquirer import SourceAcquirer, SourceSpec, CloneError
+from app.builder.tool_layout import inspect_tool_source, read_tool_cwl
 from app.client.minio import get_minio_client
 
 from pathlib import Path
@@ -41,8 +42,6 @@ from app.utils.workflow_tool_utils import (
 from app.utils.builder_utils import (
     execute_build_in_background,
     extract_uploaded_archive,
-    inspect_uploaded_source,
-    read_root_cwl,
     resolve_project_root,
 )
 from app.builder.log_stream import log_registry, bind_thread_job, unbind_thread_job
@@ -198,7 +197,7 @@ async def upload_tool_source(file: UploadFile = File(...)):
         except zipfile.BadZipFile:
             raise HTTPException(status_code=400, detail="Uploaded file is not a valid zip archive")
 
-        meta = inspect_uploaded_source(staging, want_npm=True, want_cwl=False)
+        meta = inspect_tool_source(staging, want_cwl=False)
         logger.info(f"Tool source uploaded: upload_id={staging.name}, meta={meta}")
 
         return {
@@ -207,6 +206,7 @@ async def upload_tool_source(file: UploadFile = File(...)):
             "package_version": meta["package_version"],
             "package_author": meta["package_author"],
             "has_cwl": meta["has_cwl"],
+            "is_sds": meta["is_sds"],
         }
     finally:
         if tmp_zip.exists():
@@ -483,6 +483,7 @@ async def probe_source(req: ProbeSourceRequest):
         token=req.token,
         auth_username=req.auth_username,
         verify_ssl=req.verify_ssl,
+        tool_layout=True,
     )
     try:
         acquirer = SourceAcquirer.for_type(req.source_type, builder.tmp_dir)
@@ -524,7 +525,7 @@ async def get_plugin_builds(plugin_id: str, skip: int = 0, limit: int = 100, db:
 
 @router.get("/plugin/{plugin_id}/cwl")
 async def get_plugin_cwl(plugin_id: str, db: Session = Depends(get_db)):
-    """Read the root .cwl file for a local-source plugin from its staging dir.
+    """Read the tool's .cwl (root, or primary/tool_*.cwl in an SDS package) for a local-source plugin from its staging dir.
     Used by the annotation step in local mode (github mode still hits GitHub directly)."""
     plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
     if plugin is None:
@@ -542,9 +543,12 @@ async def get_plugin_cwl(plugin_id: str, db: Session = Depends(get_db)):
             detail="Staging directory has been removed (build already completed?)",
         )
 
-    result = read_root_cwl(staging)
+    result = read_tool_cwl(staging)
     if result is None:
-        raise HTTPException(status_code=404, detail="No .cwl file found at the root of the uploaded folder")
+        raise HTTPException(
+            status_code=404,
+            detail="No .cwl file found at the root of the uploaded folder, or as primary/tool_*.cwl in an SDS package",
+        )
     return result
 
 

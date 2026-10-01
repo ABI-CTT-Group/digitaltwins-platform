@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.models.db_model import Plugin, SessionLocal
 from app.builder.source_acquirer import SourceAcquirer, SourceSpec
 from app.builder.proc_stream import stream_process, plugin_subprocess_env
+from app.builder.tool_layout import detect_tool_layout
 from app.utils.builder_utils import (
     copy_item,
     remove_tmp_folder,
@@ -29,15 +30,6 @@ logger = get_logger(__name__)
 # Test builds (Build & Test step) are served from this public bucket; the
 # approved build is ingested by digitaltwins-api into ``tools/<dataset_uuid>/``.
 TOOL_BUILDS_BUCKET = "tool-builds"
-
-
-def root_cwl(project_dir: Path) -> Path:
-    """The source's single top-level ``.cwl``: it describes the tool for SEEK and for workflows."""
-    cwls = sorted(p for p in Path(project_dir).glob("*.cwl") if p.is_file())
-    if len(cwls) != 1:
-        found = ", ".join(p.name for p in cwls) or "none"
-        raise RuntimeError(f"The tool source must have exactly one .cwl file at its root (found: {found})")
-    return cwls[0]
 
 
 class PluginBuilder:
@@ -141,32 +133,45 @@ class PluginBuilder:
                              has_backend: bool,
                              build_output_dir: Optional[Path] = None,
                              dataset_name: str = "plugin_build_dataset") -> Path:
-        """Create a SPARC dataset with the build outputs and source code"""
+        """Create a SPARC dataset with the build outputs and source code.
+
+        An SDS-packaged source keeps its own metadata and primary/ CWL; only
+        its code/ is re-copied (without build leftovers) and a GUI bundle added.
+        """
         try:
             dataset_dir = self.dataset_dir / dataset_name
             dataset_dir.mkdir(parents=True, exist_ok=True)
 
             logger.info(f"Creating SPARC dataset {dataset_name}")
 
-            dataset = Dataset()
-            dataset.set_path(str(dataset_dir))
+            layout = detect_tool_layout(project_dir)
+            project_dir = layout.source_dir
+            if layout.is_sds:
+                for item in layout.root.iterdir():
+                    if item.name != "code":
+                        copy_item(item, dataset_dir)
+            else:
+                dataset = Dataset()
+                dataset.set_path(str(dataset_dir))
 
-            dataset.create_empty_dataset(version="2.0.0")
+                dataset.create_empty_dataset(version="2.0.0")
 
-            dataset_description = dataset.get_metadata(metadata_file="dataset_description")
-            dataset_description.add_values(element="type", values="software")
-            dataset_description.add_values(element='Title', values=f"{dataset_name} - Plugin Build")
-            dataset_description.add_values(element='keywords', values=["plugin", "build", "software"])
-            dataset_description.set_values(
-                element='Contributor orcid',
-                values=["https://orcid.org/0000-0000-0000-0000"]  # placeholder
-            )
+                dataset_description = dataset.get_metadata(metadata_file="dataset_description")
+                dataset_description.add_values(element="type", values="software")
+                dataset_description.add_values(element='Title', values=f"{dataset_name} - Plugin Build")
+                dataset_description.add_values(element='keywords', values=["plugin", "build", "software"])
+                dataset_description.set_values(
+                    element='Contributor orcid',
+                    values=["https://orcid.org/0000-0000-0000-0000"]  # placeholder
+                )
 
             code_dir = dataset_dir / "code"
             code_dir.mkdir(exist_ok=True)
 
             logger.info(f"the tool label is {label}")
-            if label == "GUI":
+            if not project_dir.is_dir():
+                logger.info("The SDS package has no code/ folder; no source to copy")
+            elif label == "GUI":
                 if has_backend:
                     for layer in project_dir.iterdir():
                         if layer.name == ".git":
@@ -201,17 +206,18 @@ class PluginBuilder:
                         continue
                     copy_item(item, code_dir)
 
-            # digitaltwins-api needs exactly one primary/tool_*.cwl.
-            cwl = root_cwl(project_dir)
-            primary_dir = dataset_dir / "primary"
-            primary_dir.mkdir(exist_ok=True)
-            stem = cwl.stem if cwl.stem.startswith("tool_") else f"tool_{cwl.stem}"
-            shutil.copy2(cwl, primary_dir / f"{stem}.cwl")
-            logger.info(f"Copied {cwl.name} to {primary_dir / (stem + '.cwl')}")
+            if not layout.is_sds:
+                # digitaltwins-api needs exactly one primary/tool_*.cwl.
+                cwl = layout.cwl
+                primary_dir = dataset_dir / "primary"
+                primary_dir.mkdir(exist_ok=True)
+                stem = cwl.stem if cwl.stem.startswith("tool_") else f"tool_{cwl.stem}"
+                shutil.copy2(cwl, primary_dir / f"{stem}.cwl")
+                logger.info(f"Copied {cwl.name} to {primary_dir / (stem + '.cwl')}")
 
-            dataset.save(save_dir=str(dataset_dir))
+                dataset.save(save_dir=str(dataset_dir))
 
-            print("saved dataset")
+                print("saved dataset")
 
             logger.info(f"SPARC dataset created successfully in {dataset_dir}")
             logger.info(f"- Source code in: {code_dir}")
@@ -553,16 +559,16 @@ class PluginBuilder:
             acquirer = SourceAcquirer.for_type(source_type, self.tmp_dir)
             project_dir = acquirer.acquire(spec)
             tmp_source_dir = project_dir  # Mark for cleanup
-            root_cwl(project_dir)  # fail before a long npm build, not after
+            layout = detect_tool_layout(project_dir)  # fail before a long npm build, not after
 
             # If the tool is a script, skip some of the steps below.
             if label == "GUI":
                 # Step 2: Check if it's an npm project and extract metadata
                 logger.info("Step 2: Checking if the frontend is an npm project...")
                 if has_backend:
-                    frontend_path = project_dir / frontend_folder
+                    frontend_path = layout.source_dir / frontend_folder
                 else:
-                    frontend_path = project_dir
+                    frontend_path = layout.source_dir
                 if not self.check_npm_project(frontend_path):
                     raise RuntimeError("No package.json found - not an npm project")
                 logger.info("npm project detected")
@@ -597,7 +603,7 @@ class PluginBuilder:
                 logger.info("npm build completed successfully")
 
                 # read config file in the cloned directory
-                config_file = project_dir / "config.portal.json"
+                config_file = layout.source_dir / "config.portal.json"
 
                 if config_file.exists():
                     logger.info(f"Reading config from {config_file}")
