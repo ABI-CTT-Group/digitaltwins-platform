@@ -28,7 +28,8 @@ async def get_current_user(authorization: str = Header(None)):
     try:
         keycloak_client = get_keycloak_client()
         user_info = keycloak_client.get_user_info(token)
-        return user_info
+        # The raw token lets a request act as the user downstream (e.g. the tool handoff to digitaltwins-api).
+        return {**user_info, "token": token}
     except Exception as e:
         logger.error(f"Authentication failed: {e}")
         raise HTTPException(
@@ -58,6 +59,19 @@ def require_role(required_role: str) -> Callable:
                 detail="Authorization check failed"
             )
     
+    return role_checker
+
+
+def require_any_role(*roles: str) -> Callable:
+    """Dependency: the user must hold at least one of ``roles``."""
+    async def role_checker(user=Depends(get_current_user)):
+        if not set(user.get("roles", [])) & set(roles):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Requires one of the roles: {', '.join(roles)}",
+            )
+        return user
+
     return role_checker
 
 

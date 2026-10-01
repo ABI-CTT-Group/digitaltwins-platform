@@ -100,13 +100,8 @@ def safe_open(path: Path, mode="rb"):
 
 
 def get_workflow_type(tags) -> str:
-    tags_lower = [t.lower() if isinstance(t, str) else t for t in tags]
-    if 'script' in tags_lower and 'gui' in tags_lower:
-        workflow_type = 'error'
-    elif 'script' in tags_lower:
-        workflow_type = 'script'
-    elif 'gui' in tags_lower:
-        workflow_type = 'gui'
-    else:
-        workflow_type = 'other'
-    return workflow_type
+    tags_lower = {t.lower() if isinstance(t, str) else t for t in tags}
+    types = tags_lower & {'script', 'gui', 'notebook'}
+    if len(types) > 1:
+        return 'error'
+    return types.pop() if types else 'other'

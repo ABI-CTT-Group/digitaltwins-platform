@@ -195,6 +195,9 @@ services:
       mc mb myminio/tools --ignore-existing;
       echo '{\"Version\": \"2012-10-17\", \"Statement\": [{\"Effect\": \"Allow\", \"Principal\": \"*\", \"Action\": [\"s3:GetObject\", \"s3:GetObjectVersion\", \"s3:PutObject\"], \"Resource\": \"arn:aws:s3:::tools/*\"}]}' > /tmp/tools-policy.json;
       mc anonymous set-json /tmp/tools-policy.json myminio/tools;
+      echo 'Creating public-read bucket tool-builds (test builds)...';
+      mc mb myminio/tool-builds --ignore-existing;
+      mc anonymous set download myminio/tool-builds;
       echo 'Buckets created and policies applied successfully.';
       "
 

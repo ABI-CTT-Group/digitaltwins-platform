@@ -26,6 +26,19 @@ from app.utils.builder_utils import (
 
 logger = get_logger(__name__)
 
+# Test builds (Build & Test step) are served from this public bucket; the
+# approved build is ingested by digitaltwins-api into ``tools/<dataset_uuid>/``.
+TOOL_BUILDS_BUCKET = "tool-builds"
+
+
+def root_cwl(project_dir: Path) -> Path:
+    """The source's single top-level ``.cwl``: it describes the tool for SEEK and for workflows."""
+    cwls = sorted(p for p in Path(project_dir).glob("*.cwl") if p.is_file())
+    if len(cwls) != 1:
+        found = ", ".join(p.name for p in cwls) or "none"
+        raise RuntimeError(f"The tool source must have exactly one .cwl file at its root (found: {found})")
+    return cwls[0]
+
 
 class PluginBuilder:
     """Handles building plugins using git CLI and npm"""
@@ -183,16 +196,18 @@ class PluginBuilder:
 
                     logger.info(f"Copied build artifacts from {build_output_dir} to {primary_dir}")
             else:
-                primary_dir = dataset_dir / "primary"
-                primary_dir.mkdir(exist_ok=True)
-
                 for item in project_dir.iterdir():
                     if item.name == ".git":
                         continue
                     copy_item(item, code_dir)
-                    if item.is_file() and item.suffix == ".cwl":
-                        shutil.copy2(item, primary_dir / item.name)
-                logger.info(f"Copied cwl artifacts from {project_dir} to {primary_dir}")
+
+            # digitaltwins-api needs exactly one primary/tool_*.cwl.
+            cwl = root_cwl(project_dir)
+            primary_dir = dataset_dir / "primary"
+            primary_dir.mkdir(exist_ok=True)
+            stem = cwl.stem if cwl.stem.startswith("tool_") else f"tool_{cwl.stem}"
+            shutil.copy2(cwl, primary_dir / f"{stem}.cwl")
+            logger.info(f"Copied {cwl.name} to {primary_dir / (stem + '.cwl')}")
 
             dataset.save(save_dir=str(dataset_dir))
 
@@ -538,6 +553,7 @@ class PluginBuilder:
             acquirer = SourceAcquirer.for_type(source_type, self.tmp_dir)
             project_dir = acquirer.acquire(spec)
             tmp_source_dir = project_dir  # Mark for cleanup
+            root_cwl(project_dir)  # fail before a long npm build, not after
 
             # If the tool is a script, skip some of the steps below.
             if label == "GUI":
@@ -615,7 +631,7 @@ class PluginBuilder:
 
             # Step 6: Upload dataset to MinIO
             s3_path = None
-            minio_client = get_minio_client()
+            minio_client = get_minio_client(TOOL_BUILDS_BUCKET)
             logger.info("Step 6: Uploading dataset to MinIO...")
             try:
                 logger.info(f"Uploading dataset to MinIO: {metadata}")

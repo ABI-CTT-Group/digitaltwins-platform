@@ -31,7 +31,6 @@ from app.builder.build_tool import PluginBuilder
 from app.builder.deploy_tool import PluginDeployer
 from app.builder.source_acquirer import SourceAcquirer, SourceSpec, CloneError
 from app.client.minio import get_minio_client
-from app.client.fhir import get_fhir_adapter, get_fhir_async_client
 
 from pathlib import Path
 from botocore.exceptions import ClientError
@@ -48,17 +47,20 @@ from app.utils.builder_utils import (
 )
 from app.builder.log_stream import log_registry, bind_thread_job, unbind_thread_job
 from uuid import UUID
-from app.utils.utils import force_rmtree, is_empty
-from fhir_cda import Annotator
+from app.services import tool_handoff
+from app.utils.auth import get_current_user, require_any_role
+from app.utils.utils import force_rmtree
 
 configure_logging()
 logger = get_logger(__name__)
-router = APIRouter(prefix="/api/tools")
+# Every endpoint needs a valid Keycloak token; writes need admin|researcher and
+# running plugin backends (docker on the host socket) needs admin.
+router = APIRouter(prefix="/api/tools", dependencies=[Depends(get_current_user)])
+WRITER = Depends(require_any_role("admin", "researcher"))
+ADMIN = Depends(require_any_role("admin"))
 builder = PluginBuilder()
 deployer = PluginDeployer()
 minio = get_minio_client()
-adapter = get_fhir_adapter()
-fhir_async_client = get_fhir_async_client()
 
 
 def _parse_docker_compose_routing(backend_dir: Path, expose_name: str = "") -> dict:
@@ -105,7 +107,7 @@ def _parse_docker_compose_routing(backend_dir: Path, expose_name: str = "") -> d
         return {}
 
 
-@router.get("/debug/nginx-config")
+@router.get("/debug/nginx-config", dependencies=[ADMIN])
 async def get_nginx_config():
     """Debug endpoint: show current nginx plugin configs and main nginx.conf."""
     import subprocess as _sp
@@ -173,7 +175,7 @@ async def check_name(name: str, db: Session = Depends(get_db)):
     return {"available": True, "message": "Name is available"}
 
 
-@router.post("/upload-source")
+@router.post("/upload-source", dependencies=[WRITER])
 async def upload_tool_source(file: UploadFile = File(...)):
     """Receive a zip archive of a plugin source folder, extract to staging, and return metadata.
 
@@ -214,7 +216,7 @@ async def upload_tool_source(file: UploadFile = File(...)):
                 logger.warning(f"Failed to remove temp zip {tmp_zip}: {e}")
 
 
-@router.post("/create", response_model=PluginResponse)
+@router.post("/create", response_model=PluginResponse, dependencies=[WRITER])
 async def create_tool_plugin(plugin: PluginCreate, db: Session = Depends(get_db)):
     data = plugin.model_dump()
     upload_id = data.pop("upload_id", None)
@@ -250,7 +252,7 @@ async def create_tool_plugin(plugin: PluginCreate, db: Session = Depends(get_db)
     return db_plugin
 
 
-@router.post("/plugin/{plugin_id}/annotation", response_model=PluginAnnotationResponse)
+@router.post("/plugin/{plugin_id}/annotation", response_model=PluginAnnotationResponse, dependencies=[WRITER])
 async def create_tool_annotation(plugin_id: str, annotation: PluginAnnotationCreate, db: Session = Depends(get_db)):
     plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
     if plugin is None:
@@ -280,7 +282,7 @@ async def get_plugin(plugin_id: str, db: Session = Depends(get_db)):
 
 
 @router.delete("/plugin/{plugin_id}")
-async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
+def delete_plugin(plugin_id: str, user: dict = WRITER, db: Session = Depends(get_db)):
     try:
         plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
         logger.info(f"Deleting plugin {plugin_id}")
@@ -293,17 +295,13 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
                     detail=f"Cannot delete plugin. It is used in workflows: {', '.join(workflow_names)}",
                 )
 
-            # Check if plugin instance exists
-            if plugin.uuid:
-                resource_tools = await fhir_async_client.resources("ActivityDefinition").search(
-                    identifier=plugin.uuid).fetch_all()
-                logger.info(f"Delete: find tool fhir resources: {resource_tools}")
-                for t in resource_tools:
-                    try:
-                        await t.delete()
-                        logger.info(f"Deleted tool fhir resource uuid: {plugin_id}, resource: {t.to_reference()}")
-                    except Exception as e:
-                        logger.error(f"Failed to delete tool {plugin_id} in FHIR server: {e}")
+            # The approved version lives in the platform: digitaltwins-api removes its
+            # Postgres rows, MinIO objects, SEEK workflow and FHIR. Done first, so a
+            # failure leaves the tool intact rather than orphaning that dataset.
+            # (Legacy ``sparc-tool-`` placeholders were never in the platform.)
+            if plugin.uuid and not plugin.uuid.startswith("sparc-tool-"):
+                api = tool_handoff.Api(tool_handoff.make_http(), lambda: user["token"])
+                api.request("DELETE", f"/datasets/{plugin.uuid}", expect=(200, 404))
 
             builds = db.query(PluginBuild).filter(PluginBuild.plugin_id == plugin.id).all()
             if plugin.has_backend:
@@ -325,10 +323,11 @@ async def delete_plugin(plugin_id: str, db: Session = Depends(get_db)):
                 # remove all images volume in docker
                 if build.s3_path is not None:
                     logger.info("Deleting s3 path {}".format(build.s3_path))
-                    prefix = build.s3_path.split("/")[-1]
-                    object_keys = minio.list_objects(prefix=prefix)
-                    if len(object_keys) > 0:
-                        minio.delete_objects(delete_keys=object_keys)
+                    bucket, prefix = build.s3_path.split("/")[2], build.s3_path.split("/")[-1]  # s3://<bucket>/<prefix>
+                    build_bucket = get_minio_client(bucket)
+                    # One by one: this MinIO rejects multi-object delete without Content-MD5.
+                    for obj in build_bucket.list_objects(prefix=prefix):
+                        build_bucket.delete_object(obj["Key"])
                     # Delete dataset in dataset folder
                     dataset_path = builder.dataset_dir / prefix
                     force_rmtree(dataset_path)
@@ -432,7 +431,7 @@ def _trigger_plugin_build(
     }
 
 
-@router.get("/plugin/{plugin_id}/build", deprecated=True)
+@router.get("/plugin/{plugin_id}/build", deprecated=True, dependencies=[WRITER])
 async def execute_build(
         plugin_id: str,
         background_tasks: BackgroundTasks = None,
@@ -447,7 +446,7 @@ async def execute_build(
     return _trigger_plugin_build(plugin_id, background_tasks, db, transient=None)
 
 
-@router.post("/plugin/{plugin_id}/build")
+@router.post("/plugin/{plugin_id}/build", dependencies=[WRITER])
 async def execute_build_post(
         plugin_id: str,
         req: BuildTriggerRequest = Body(default_factory=BuildTriggerRequest),
@@ -463,7 +462,7 @@ async def execute_build_post(
     return _trigger_plugin_build(plugin_id, background_tasks, db, transient=req)
 
 
-@router.post("/probe-source")
+@router.post("/probe-source", dependencies=[WRITER])
 async def probe_source(req: ProbeSourceRequest):
     """Probe a git URL and return inspect metadata (folders, package.json
     version/author, .cwl presence) for autofilling the registration form.
@@ -550,16 +549,32 @@ async def get_plugin_cwl(plugin_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/plugin/{plugin_id}/annotation", response_model=PluginAnnotationResponse)
-async def get_plugin_annotations(plugin_id: str, db: Session = Depends(get_db)):
+def get_plugin_annotations(plugin_id: str, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """The tool's port annotation. Once approved, the platform's copy is the source of truth."""
     plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first() # type: ignore
     if plugin is None:
         raise HTTPException(status_code=404, detail="Plugin not found")
-    annotation = db.query(PluginAnnotation).filter(PluginAnnotation.plugin_id == plugin.id).all()
-    if len(annotation) == 0:
+    annotation = db.query(PluginAnnotation).filter(PluginAnnotation.plugin_id == plugin.id).first()
+    if plugin.uuid and not plugin.uuid.startswith("sparc-tool-"):
+        api = tool_handoff.Api(tool_handoff.make_http(), lambda: user["token"])
+        try:
+            descriptions = api.request("GET", f"/datasets/{plugin.uuid}/fhir/annotation")["descriptions"]
+            now = datetime.utcnow()
+            return {
+                "id": annotation.id if annotation else plugin.uuid,
+                "annotation_id": annotation.annotation_id if annotation else plugin.uuid,
+                "fhir_note": json.dumps(tool_handoff.draft_from_descriptions(plugin.name, descriptions)),
+                "sparc_note": (annotation.sparc_note if annotation else None) or "",
+                "created_at": annotation.created_at if annotation else now,
+                "updated_at": now,
+            }
+        except (tool_handoff.ApiError, tool_handoff.NeedsReauth) as exc:
+            logger.warning("Platform annotation of plugin %s unavailable, using the draft: %s", plugin_id, exc)
+    if annotation is None:
         raise HTTPException(status_code=404, detail="Annotation not found")
-    return annotation[0]
+    return annotation
 
-@router.get("/plugin/{plugin_id}/deploy")
+@router.get("/plugin/{plugin_id}/deploy", dependencies=[ADMIN])
 async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = None, db: Session = Depends(get_db)):
     plugin, latest_build = get_latest_build_record(plugin_id, "plugin", db)
     # Covert Plugin, PluginBuild object to dict for JSON serialization
@@ -671,7 +686,7 @@ async def get_plugin_builds(build_id: str, skip: int = 0, limit: int = 100, db: 
     return deployments
 
 
-@router.get("/plugin/deploy/{deploy_id}/execute")
+@router.get("/plugin/deploy/{deploy_id}/execute", dependencies=[ADMIN])
 async def execute_plugin_backend_by_docker(deploy_id: str, command: Literal["up", "down"],
                                            db: Session = Depends(get_db)):
     deploy_record = db.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()  # type: ignore
@@ -731,28 +746,57 @@ async def get_check_deploy(deploy_id: str, db: Session = Depends(get_db)):
     return deploy_record.up
 
 
-@router.get("/plugin/{plugin_id}/approval")
-async def get_plugin_approval(plugin_id: str, db: Session = Depends(get_db)):
-    plugin, latest_build = get_latest_build_record(plugin_id, "plugin", db)
-    dataset_path = Path(latest_build.dataset_path)
-    # TODO 1: Upload dataset to Digitaltwins Platform,and get the uuid
-    # dataset_uuid = upload_dataset(dataset_path)
-    if is_empty(plugin.uuid):
-        dataset_uuid = f"sparc-tool-${uuid.uuid4()}"
-        # TODO 2: Update workflow uuid
-        plugin.uuid = dataset_uuid
-        db.commit()
-    else:
-        dataset_uuid = plugin.uuid
+class ApprovalRequest(BaseModel):
+    seek_project_id: Optional[int] = None  # defaults to the project of the previous approval
+    fhir: bool = True                      # push the tool's ActivityDefinition (plus port annotations)
 
-    # TODO 3: Annotate tool dataset and upload to FHIR server
-    annotator = Annotator(dataset_path).workflow_tool()
-    annotator.update_uuid(dataset_uuid).update_name(plugin.name).update_title("Workflow tool").update_version(
-        plugin.version).save()
-    adapter_workflow_tool = adapter.digital_twin().workflow_tool()
 
-    await adapter_workflow_tool.add_workflow_tool_description(annotator.get_descriptions()).generate_resources()
-    return latest_build
+@router.post("/plugin/{plugin_id}/approval", status_code=202)
+def approve_plugin(plugin_id: str, background: BackgroundTasks, body: Optional[ApprovalRequest] = None,
+                   user: dict = WRITER, db: Session = Depends(get_db)):
+    """Hand the latest completed build to digitaltwins-api as the calling user.
+
+    The API registers the tool in SEEK and stores it (Postgres + MinIO) under a
+    new dataset UUID; once that commits, a previously approved version is
+    deleted. Poll ``GET .../approval/status`` for progress; each poll also
+    relays a fresh token to the running handoff.
+    """
+    body = body or ApprovalRequest()
+    plugin, latest = get_latest_build_record(plugin_id, "plugin", db)
+    if latest is None or latest.status != BuildStatus.COMPLETED.value:
+        raise HTTPException(status_code=409, detail="The latest build has not completed")
+    if latest.handoff_status in tool_handoff.ACTIVE:
+        raise HTTPException(status_code=409, detail="This build is already being approved")
+    if latest.handoff_status == "completed":
+        raise HTTPException(status_code=409, detail="This build is already approved; rebuild to approve a new version")
+    seek_project_id = body.seek_project_id or plugin.seek_project_id
+    if seek_project_id is None:
+        raise HTTPException(status_code=400, detail="seek_project_id is required")
+    try:
+        tool_handoff.start(db, plugin, latest, user, seek_project_id, body.fhir)
+    except tool_handoff.NeedsReauth:
+        raise HTTPException(status_code=401, detail="digitaltwins-api rejected the token")
+    except tool_handoff.ApiError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    background.add_task(tool_handoff.run, latest.build_id)
+    return tool_handoff.status_view(latest)
+
+
+@router.get("/plugin/{plugin_id}/approval/status")
+def approval_status(plugin_id: str, background: BackgroundTasks, user: dict = Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+    """Handoff progress of the plugin's most recent approval; the approver's poll also resumes a paused handoff."""
+    if db.query(Plugin).filter(Plugin.id == plugin_id).first() is None:  # type: ignore
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    build = (db.query(PluginBuild)
+             .filter(PluginBuild.plugin_id == plugin_id, PluginBuild.upload_id.isnot(None))
+             .order_by(PluginBuild.created_at.desc()).first())
+    if build is None:
+        return {"handoff_status": None}
+    if build.handoff_status in tool_handoff.ACTIVE and tool_handoff.relay_token(build, user):
+        if not tool_handoff.is_running(build.build_id):
+            background.add_task(tool_handoff.run, build.build_id)
+    return tool_handoff.status_view(build)
 
 
 @router.get("/builds/{build_id}", response_model=PluginBuildResponse)
@@ -837,7 +881,7 @@ async def get_deploy_logs(deploy_id: str):
     raise HTTPException(status_code=410, detail="Deploy logs expired (in-memory only)")
 
 
-@router.get("/test-build")
+@router.get("/test-build", dependencies=[ADMIN])
 async def get_test_build_info():
     try:
         result = builder.build_plugin({
@@ -856,32 +900,36 @@ async def get_test_build_info():
         raise HTTPException(status_code=404, detail=f"build failed: {e}")
 
 
+def _bundle_path(build: PluginBuild, approved_uuid: Optional[str], label: str) -> str:
+    """Where the launcher loads the tool from: its platform dataset once approved, else its test build."""
+    ts = int(build.created_at.timestamp()) if build.created_at else 0
+    if approved_uuid:
+        prefix = f"/tools/{approved_uuid}"
+    elif build.s3_path is None:  # MinIO upload failed; served locally, as before
+        return f"/{build.expose_name}/my-app.umd.js?v={ts}" if label == "GUI" else f"/{build.expose_name}"
+    else:
+        bucket = build.s3_path.split("/")[2]  # s3://<bucket>/<expose_name>
+        prefix = f"/{bucket}/{build.expose_name}"
+    return f"{prefix}/primary/my-app.umd.js?v={ts}" if label == "GUI" else f"{prefix}/primary"
+
+
 @router.get("/metadata")
 async def get_metadata_json(db: Session = Depends(get_db)):
     plugins = db.query(Plugin).all()
     components = []
     for plugin in plugins:
-        latest_build = (db.query(PluginBuild)
+        builds = (db.query(PluginBuild)
             .filter(PluginBuild.plugin_id == plugin.id,
                     PluginBuild.status == BuildStatus.COMPLETED.value)
             .order_by(PluginBuild.created_at.desc())
-            .first())
+            .all())
+        approved = next((b for b in builds if plugin.uuid and b.dataset_uuid == plugin.uuid), None)
+        latest_build = approved or (builds[0] if builds else None)
         if not latest_build or not latest_build.expose_name:
             continue
 
-        build_ts = int(latest_build.created_at.timestamp()) if latest_build.created_at else 0
-        is_local = latest_build.s3_path is None
-
-        if plugin.label == "GUI":
-            if is_local:
-                path = f"/{latest_build.expose_name}/my-app.umd.js?v={build_ts}"
-            else:
-                path = f"/tools/{latest_build.expose_name}/primary/my-app.umd.js?v={build_ts}"
-        else:
-            if is_local:
-                path = f"/{latest_build.expose_name}"
-            else:
-                path = f"/tools/{latest_build.expose_name}/primary"
+        is_local = approved is None and latest_build.s3_path is None
+        path = _bundle_path(latest_build, approved.dataset_uuid if approved else None, plugin.label)
 
         components.append({
             "uuid": plugin.uuid or "",

@@ -30,6 +30,21 @@ def migrate_add_missing_columns(bind=engine):
                     conn.execute(text(stmt))
 
 
+def migrate_enum_values(bind=engine):
+    """Add enum values that exist in the models but not yet in Postgres' native enum types."""
+    from sqlalchemy import Enum, text
+
+    if bind.dialect.name != "postgresql":
+        return
+    enums = {col.type.name: col.type.enums for table in Base.metadata.tables.values()
+             for col in table.columns if isinstance(col.type, Enum) and col.type.name}
+    # ADD VALUE is not allowed in a transaction block on older Postgres.
+    with bind.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        for name, values in enums.items():
+            for value in values:
+                conn.execute(text(f"ALTER TYPE {name} ADD VALUE IF NOT EXISTS '{value}'"))
+
+
 def ensure_data_directory():
     database_path = os.getenv("DATABASE_PATH", "./data/plugin_registry.db")
     data_dir = os.path.dirname(database_path)
@@ -57,3 +72,4 @@ def init_db(bind=engine):
             conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {PORTAL_DB_SCHEMA}"))
     create_tables(bind)
     migrate_add_missing_columns(bind)
+    migrate_enum_values(bind)
