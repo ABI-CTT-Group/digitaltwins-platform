@@ -40,6 +40,8 @@ services:
       - DIGITALTWINS_API_PORT=${DIGITALTWINS_API_PORT:-8000}
       - PORTAL_BACKEND_HOST=${PORTAL_BACKEND_HOST:-localhost}
       - PORTAL_KEYCLOAK_BASE_URL=${PORTAL_KEYCLOAK_BASE_URL:-https://130.216.216.243:8009}
+      # Internal Keycloak address for token checks (unset standalone: falls back to the one above).
+      - KEYCLOAK_BASE_URL=${KEYCLOAK_BASE_URL:-}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-api}
       - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-xxxxxx}
@@ -193,6 +195,9 @@ services:
       mc mb myminio/tools --ignore-existing;
       echo '{\"Version\": \"2012-10-17\", \"Statement\": [{\"Effect\": \"Allow\", \"Principal\": \"*\", \"Action\": [\"s3:GetObject\", \"s3:GetObjectVersion\", \"s3:PutObject\"], \"Resource\": \"arn:aws:s3:::tools/*\"}]}' > /tmp/tools-policy.json;
       mc anonymous set-json /tmp/tools-policy.json myminio/tools;
+      echo 'Creating public-read bucket tool-builds (test builds)...';
+      mc mb myminio/tool-builds --ignore-existing;
+      mc anonymous set download myminio/tool-builds;
       echo 'Buckets created and policies applied successfully.';
       "
 

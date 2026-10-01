@@ -13,7 +13,11 @@ class KeycloakClient:
     """Keycloak authentication and authorization client"""
 
     def __init__(self):
-        self.server_url = os.getenv('PORTAL_KEYCLOAK_BASE_URL')
+        # Server-side calls (realm public key, admin API) prefer Keycloak's internal
+        # address; PORTAL_KEYCLOAK_BASE_URL is the public one, which may not resolve
+        # to Keycloak from inside this container (e.g. http://localhost/auth).
+        # The trailing slash keeps a context path such as /auth when python-keycloak urljoins its paths.
+        self.server_url = (os.getenv('KEYCLOAK_BASE_URL') or os.getenv('PORTAL_KEYCLOAK_BASE_URL') or '').rstrip('/') + '/'
         self.realm_name = os.getenv('KEYCLOAK_REALM', 'digitaltwins')
         self.client_id = os.getenv('KEYCLOAK_CLIENT_ID', 'api')
         self.client_secret = os.getenv('KEYCLOAK_CLIENT_SECRET', '')

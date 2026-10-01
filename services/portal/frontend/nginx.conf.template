@@ -109,6 +109,25 @@ server {
         add_header Cache-Control "public, max-age=31536000, immutable";
     }
 
+    # Proxy public 'tool-builds' bucket: test builds (Build & Test step) of plugins
+    # not yet approved into the platform. Approved tools are served from /tools/.
+    location /tool-builds/ {
+        set $up_minio minio;
+        proxy_pass http://$up_minio:9000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_buffering off;
+        proxy_request_buffering off;
+        client_max_body_size 0;
+
+        # Content is versioned via ?v=<build_ts>
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
     # MinIO Console — DEV-ONLY COPY.
     #
     # The authoritative copy lives in the platform repo at

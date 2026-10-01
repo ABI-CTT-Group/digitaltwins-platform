@@ -93,7 +93,7 @@ class Deleter(object):
                 conn.close()
 
         # 6. Outside Postgres, best-effort: FHIR resources, a tool's SEEK Workflow, local copies.
-        fhir_deleted = (_delete_fhir_resources(dataset_uuid, cleanup["subject_uuids"])
+        fhir_deleted = (_delete_fhir_resources(dataset_uuid, cleanup["category"], cleanup["subject_uuids"])
                         if cleanup["fhir_status"] != "none" else {})
         seek_deleted = _delete_seek_workflow(dataset_uuid, cleanup["category"], cleanup["seek_id"], self._api_token)
         _remove_local_copies(dataset_uuid, cleanup["upload_ids"])
@@ -106,11 +106,16 @@ class Deleter(object):
         }
 
 
-def _delete_fhir_resources(dataset_uuid: str, subject_uuids: list) -> dict:
+def _delete_fhir_resources(dataset_uuid: str, category: Optional[str], subject_uuids: list) -> dict:
     """Remove the dataset's HAPI FHIR resources; log and carry on if HAPI is unreachable."""
+    from .. import tools
     from ..measurements import fhir_service
+    from ..tools import fhir as tool_fhir
 
     try:
+        if category == tools.CATEGORY:
+            removed = tool_fhir.delete(dataset_uuid, fhir_service.get_fhir_rest())
+            return {"ActivityDefinition": removed} if removed else {}
         return fhir_service.delete_dataset_fhir_resources(dataset_uuid, subject_uuids, fhir_service.get_fhir_rest())
     except Exception as exc:
         logger.warning("FHIR cleanup failed for dataset %s: %s", dataset_uuid, exc)

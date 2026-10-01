@@ -6,8 +6,25 @@
     accent="#62d3b0"
     :fetch-list="useMeasurement"
     :is-pending="hasPendingItem"
+    :filter-fn="registrationFilterFn"
     @register="handleRegister"
   >
+    <template #filters>
+      <v-select
+        v-model="registrationFilter"
+        :items="registrationFilterOptions"
+        item-title="title"
+        item-value="value"
+        label="Registration status"
+        variant="outlined"
+        base-color="#62d3b0"
+        color="#62d3b0"
+        density="compact"
+        hide-details
+        style="max-width: 240px;"
+      />
+    </template>
+
     <template #default="{ items }">
       <MeasurementCard
         v-for="m in items"
@@ -35,7 +52,7 @@
 <script setup lang="ts">
 // @ts-ignore - vue-toastification ships without type declarations
 import { useToast } from 'vue-toastification';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import RegistryView from '../components/RegistryView.vue';
 import MeasurementCard from './components/MeasurementCard.vue';
@@ -72,6 +89,22 @@ const hasPendingItem = (items: MeasurementResponse[]) =>
   items.some(
     (m) => m.status === 'uploading' || m.status === 'pending' || m.status === 'pending_upload',
   );
+
+// "In platform" = fully approved: uploaded to MinIO and pushed to FHIR.
+// Everything else (pending, uploading, submit_failed, fhir_failed) is still a draft.
+const isMeasurementInPlatform = (m: MeasurementResponse) => m.status === 'completed';
+
+const registrationFilterOptions = [
+  { title: 'All', value: 'all' },
+  { title: 'In platform', value: 'in-platform' },
+  { title: 'Not in platform', value: 'not-in-platform' },
+];
+const registrationFilter = ref<'all' | 'in-platform' | 'not-in-platform'>('all');
+const registrationFilterFn = computed(() => {
+  if (registrationFilter.value === 'all') return undefined;
+  const wantInPlatform = registrationFilter.value === 'in-platform';
+  return (m: MeasurementResponse) => isMeasurementInPlatform(m) === wantInPlatform;
+});
 
 const handleDelete = async (id: string) => {
   try {

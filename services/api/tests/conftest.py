@@ -153,6 +153,9 @@ class FakeHapi:
       Like the library's ``save()``, a resource whose identifier already exists
       is kept as it is (not updated) — except Compositions, which the library
       creates every time (one per patient, all tagged with the dataset UUID).
+    - Tool push: ``digital_twin().workflow_tool().add_workflow_tool_description(d)``
+      + ``await generate_resources()`` saves one ActivityDefinition identified
+      by the tool's UUID (kept as it is if that identifier already exists).
     - Cleanup (``fhir_service.HapiRest`` surface): ``search``, ``read`` and
       ``delete``. Delete refuses a resource another resource still references
       (HAPI's referential integrity on delete).
@@ -162,6 +165,7 @@ class FakeHapi:
         self.store = {}  # "Type/id" -> resource
         self.calls = []  # REST calls made through the cleanup client
         self.fail_push = False
+        self._tool = False
         self._next = 1
 
     # -- push -------------------------------------------------------------
@@ -169,9 +173,18 @@ class FakeHapi:
         return self
 
     def measurements(self):
+        self._tool = False
         return self
 
     def add_measurements_description(self, description):
+        self.pushed = description
+        return self
+
+    def workflow_tool(self):
+        self._tool = True
+        return self
+
+    def add_workflow_tool_description(self, description):
         self.pushed = description
         return self
 
@@ -189,6 +202,10 @@ class FakeHapi:
     async def generate_resources(self):
         if self.fail_push:
             raise ConnectionError("HAPI FHIR unreachable")
+        if self._tool:
+            tool = self.pushed["workflow_tool"]
+            self._save("ActivityDefinition", tool["uuid"], name=tool["name"], description=tool["description"])
+            return
         d = self.pushed["dataset"]["uuid"]
         for p in self.pushed["patients"]:
             patient = self._save("Patient", p["uuid"])

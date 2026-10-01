@@ -18,6 +18,12 @@
       <span v-if="tool.deployStatus" class="aurora-chip" :style="{ '--chip': auroraStatus(tool.deployStatus) }">
         deploy · {{ tool.deployStatus }}
       </span>
+      <span v-if="handoffActive" class="aurora-chip" :style="{ '--chip': '#5fd6e8' }">approving…</span>
+      <span v-else-if="tool.handoffStatus === 'failed'" class="aurora-chip" :style="{ '--chip': '#ff6b6b' }">
+        approval failed
+      </span>
+      <span v-if="tool.platformOnly" class="aurora-chip" :style="{ '--chip': '#9fb4bf' }">platform upload</span>
+      <span v-else-if="inPlatform" class="aurora-chip" :style="{ '--chip': '#6fd49a' }">in platform</span>
       <span v-if="tool.createdAt" class="aurora-chip">{{ formatDate(tool.createdAt) }}</span>
     </template>
 
@@ -32,7 +38,7 @@
         v-else
         type="button"
         class="aurora-btn aurora-btn--sm"
-        :disabled="disabled || tool.status != 'completed'"
+        :disabled="disabled || tool.status != 'completed' || tool.platformOnly"
         @click.stop="onLaunch"
       >
         <v-icon icon="mdi-rocket-launch-outline" size="15" /> Launch
@@ -42,9 +48,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRef } from 'vue'
+import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue'
 import { ToolResponse } from '@/models/types';
-import { useGetDockerComposeStatus, useDeleteTool } from '@/bootstrap/tool_api'
+import { useGetDockerComposeStatus, useDeleteTool, useToolApprovalStatus } from '@/bootstrap/tool_api'
 import CardUI, { type UCardMenuItem } from './CardUI.vue';
 import { formatDate } from './utils';
 // @ts-ignore - vue-toastification is installed but missing type declarations
@@ -62,8 +68,32 @@ const isDeleting = ref(false)
 
 // Per-type identity colour — GUI tools aqua, CWL scripts violet — so the rail,
 // eyebrow and Launch button all carry the tool's kind at a glance.
-const accent = computed(() => (tool.value.label === 'Script' ? '#c792ea' : '#5fd6e8'))
-const kind = computed(() => (tool.value.label === 'Script' ? 'CWL Script' : 'Web GUI Tool'))
+const accent = computed(() => ({ Script: '#c792ea', Notebook: '#ffb74d' } as Record<string, string>)[tool.value.label] ?? '#5fd6e8')
+const kind = computed(() => ({ Script: 'CWL Script', Notebook: 'Notebook' } as Record<string, string>)[tool.value.label] ?? 'Web GUI Tool')
+
+const inPlatform = computed(() => !!tool.value.uuid && !tool.value.uuid.startsWith('sparc-tool-'))
+const handoffActive = computed(() => ['uploading', 'awaiting_reauth', 'committing'].includes(tool.value.handoffStatus ?? ''))
+
+// While an approval is under way, poll it: each poll relays a fresh token to
+// the portal backend, which resumes a handoff paused by an expired one.
+let approvalTimer: ReturnType<typeof setInterval> | undefined
+const stopApprovalPoll = () => { if (approvalTimer) clearInterval(approvalTimer); approvalTimer = undefined }
+watch(handoffActive, (active) => {
+  stopApprovalPoll()
+  if (!active) return
+  approvalTimer = setInterval(async () => {
+    try {
+      const s = await useToolApprovalStatus(tool.value.id)
+      if (s.handoffStatus && !['uploading', 'awaiting_reauth', 'committing'].includes(s.handoffStatus)) {
+        stopApprovalPoll()
+        emit('approval-done', s)
+      }
+    } catch (err) {
+      console.warn(`Approval status poll failed for tool ${tool.value.id}:`, err)
+    }
+  }, 3000)
+}, { immediate: true })
+onBeforeUnmount(stopApprovalPoll)
 
 const isBuilding = computed(() => tool.value.status == "building")
 const isDeploying = computed(() => {
@@ -84,13 +114,14 @@ const auroraStatus = (s?: string) => {
   }
 }
 
-const emit = defineEmits(["launch", "rebuild", "submit-approve", "deploy", "compose-up", "compose-down", "delete", "view-logs"])
+const emit = defineEmits(["launch", "rebuild", "submit-approve", "deploy", "compose-up", "compose-down", "delete", "view-logs", "approval-done"])
 
 const hasViewLogs = computed(() =>
   !!(tool.value.latestDeployId || tool.value.latestBuildId)
 )
 
 const menuItems = computed<UCardMenuItem[]>(() => {
+  if (tool.value.platformOnly) return []  // uploaded via the REST API: manage it there
   const isGui = tool.value.label === 'GUI'
   const items: UCardMenuItem[] = [
     { label: 'Rebuild tool', icon: 'mdi-refresh', onClick: onRebuild },
@@ -142,8 +173,8 @@ const onViewLogs = () => {
 }
 
 const onLaunch = async () => {
-    if(tool.value.label === "Script"){
-        toast.warning("CWL Script tool cannot be launched. Please download the script and run it locally.");
+    if(tool.value.label === "Script" || tool.value.label === "Notebook"){
+        toast.warning(`${kind.value} tool cannot be launched. Please download it and run it locally.`);
         return;
     }
     if (tool.value.hasBackend && !tool.value.latestDeployId && tool.value.deployStatus !== 'completed') {

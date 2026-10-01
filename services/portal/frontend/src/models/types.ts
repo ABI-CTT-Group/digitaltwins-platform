@@ -102,6 +102,8 @@ export interface ProbeSourceSuccess {
     packageAuthor: string;
     hasCwl: boolean;
     cwlRequired: boolean;
+    /** Tool probes only: the repo is an SDS package (its CWL is primary/tool_*.cwl). */
+    isSds?: boolean;
     /** Inlined when `hasCwl` is true so the annotation step can read the
      *  CWL without a second clone — backend reuses the shallow clone it
      *  already did for inspect. */
@@ -123,7 +125,7 @@ export interface ToolInformationStep {
     name: string;
     version: string;
     repositoryUrl?: string;
-    label: "GUI" | "Script";
+    label: "GUI" | "Script" | "Notebook";
     hasBackend: boolean;
     frontendFolder: string;
     frontendBuildCommand: string;
@@ -168,6 +170,32 @@ export interface ToolResponse {
     updatedAt: string
     sourceType?: SourceType
     localArchivePath?: string
+    // Platform dataset of the approved version (digitaltwins-api); legacy rows may hold a `sparc-tool-` placeholder.
+    uuid?: string
+    seekProjectId?: number
+    // Handoff to the platform of the latest build (see ToolApprovalStatus).
+    handoffStatus?: HandoffStatus | null
+    // A tool uploaded to the platform directly (REST API), with no portal build: listed read-only.
+    platformOnly?: boolean
+}
+
+export type HandoffStatus = "uploading" | "awaiting_reauth" | "committing" | "completed" | "failed"
+
+/** GET /api/tools/plugin/{id}/approval/status */
+export interface ToolApprovalStatus {
+    buildId?: string
+    handoffStatus: HandoffStatus | null
+    uploadId?: string
+    datasetUuid?: string
+    seekId?: string
+    handoffError?: string
+    partsSent?: number | null
+    partsTotal?: number | null
+}
+
+export interface SeekProject {
+    id: number
+    title: string
 }
 
 export interface BuildResponse {
@@ -178,6 +206,9 @@ export interface BuildResponse {
     buildLogs?: string
     errorMessages?: string
     s3Path?: string
+    handoffStatus?: HandoffStatus | null
+    datasetUuid?: string
+    handoffError?: string
     createdAt: string
     updatedAt: string
 }
@@ -262,6 +293,9 @@ export interface WorkflowResponse {
     updatedAt: string;
     sourceType?: SourceType;
     localArchivePath?: string;
+    // Platform dataset of the approved workflow; legacy/unapproved rows hold a
+    // `sparc-workflow-` placeholder instead (see ToolResponse.uuid).
+    uuid?: string;
 }
 
 interface AnnotateToolInput{

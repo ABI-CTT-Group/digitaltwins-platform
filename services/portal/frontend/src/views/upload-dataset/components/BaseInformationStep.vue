@@ -22,7 +22,19 @@
           @update:modelValue="handleLabelChange"
         >
           <v-radio color="#5fd6e8" label="Web GUI" value="GUI" />
-          <v-radio color="#5fd6e8" label="CWL Script" value="Script" class="ml-2" />
+          <v-radio color="#5fd6e8" label="Script" value="Script" class="ml-2" />
+          <v-tooltip text="Script tools currently support Python scripts only." location="top" open-delay="200">
+            <template #activator="{ props: tip }">
+              <v-icon
+                icon="mdi-information-outline"
+                size="16"
+                class="ml-n1 mr-2 text-medium-emphasis"
+                style="cursor: help;"
+                v-bind="tip"
+              />
+            </template>
+          </v-tooltip>
+          <v-radio color="#5fd6e8" label="Notebook" value="Notebook" class="ml-2" />
         </v-radio-group>
       </template>
 
@@ -159,7 +171,8 @@ const dropzone = ref<InstanceType<typeof LocalFolderDropzone> | null>(null);
 const policyCheckbox = ref(false);
 const showAlert = ref(false);
 const alertText = ref('');
-const cwlCheck = ref(props.type === 'workflow' ? false : true); // workflow needs CWL; tool (GUI) doesn't by default
+// Every tool and workflow needs its root CWL (a tool's describes it in SEEK and for workflows).
+const cwlCheck = ref(false);
 
 const nameErr = ref<CheckNameResponse>();
 const cwlRepoErr = ref<CheckNameResponse>();
@@ -249,22 +262,12 @@ const backendFolderRules = [
 // ---- handlers -------------------------------------------------------------
 const handleLabelChange = () => {
   if (props.type !== 'tool') return;
-  if (formData.label === 'Script') {
-    formData.hasBackend = false;
-    refreshSourceInfo();
-  } else {
-    cwlCheck.value = false;
-    cwlRepoErr.value = undefined;
-  }
+  if (formData.label !== 'GUI') formData.hasBackend = false;
+  refreshSourceInfo();
   showAlert.value = false;
 };
 
-const isCwlCheckMode = () =>
-  props.type === 'workflow' || formData.label === 'Script';
-
 async function refreshSourceInfo() {
-  const isCwlCheck = isCwlCheckMode();
-
   if (formData.sourceType !== 'local') {
     if (!formData.repositoryUrl) return;
     // gitRepo dispatches: anonymous GitHub Contents API for public github
@@ -278,7 +281,7 @@ async function refreshSourceInfo() {
             verifySsl: trustSelfSigned.value ? false : undefined,
           }
         : undefined;
-    const normalizedUrl = await gitRepo.refresh(formData.repositoryUrl, isCwlCheck, {
+    const normalizedUrl = await gitRepo.refresh(formData.repositoryUrl, true, {
       kind: props.type === 'tool' ? 'tool' : 'workflow',
       auth,
     });
@@ -290,16 +293,14 @@ async function refreshSourceInfo() {
     if (gitRepo.info.value.version) formData.version = gitRepo.info.value.version;
   } else {
     if (!formData.source) return;
-    await localFolder.refresh(formData.source, isCwlCheck);
+    await localFolder.refresh(formData.source, true, props.type === 'tool');
     if (localFolder.info.value.name) formData.name = localFolder.info.value.name;
     if (localFolder.info.value.author) formData.author = localFolder.info.value.author;
     if (localFolder.info.value.version) formData.version = localFolder.info.value.version;
   }
 
-  if (isCwlCheck) {
-    cwlCheck.value = repoInfo.value.cwlExists;
-    cwlRepoErr.value = repoInfo.value.cwlRepoErr;
-  }
+  cwlCheck.value = repoInfo.value.cwlExists;
+  cwlRepoErr.value = repoInfo.value.cwlRepoErr;
 }
 
 const onRepoBlur = async () => {
@@ -351,7 +352,7 @@ watch(() => formData.sourceType, (next, prev) => {
     formData.repositoryUrl = '';
   }
   cwlRepoErr.value = undefined;
-  cwlCheck.value = props.type === 'workflow' ? false : (formData.label !== 'Script');
+  cwlCheck.value = false;
 });
 
 // ---- validation -----------------------------------------------------------
@@ -373,11 +374,11 @@ async function validate(): Promise<boolean> {
     if (formData.hasBackend) {
       const fOk = checkFolderInRoot(formData.frontendFolder ?? '');
       const bOk = checkFolderInRoot(formData.backendFolder ?? '');
-      return valid && !!nameErr.value?.available && fOk && bOk;
+      return valid && !!nameErr.value?.available && fOk && bOk && cwlCheck.value;
     }
-    return valid && !!nameErr.value?.available;
+    return valid && !!nameErr.value?.available && cwlCheck.value;
   } else {
-    // Script
+    // Script / Notebook
     return valid && !!nameErr.value?.available && cwlCheck.value;
   }
 }

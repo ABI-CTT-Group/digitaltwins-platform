@@ -31,6 +31,7 @@
             required
             @blur="onBlur"
             :error-messages="(!!cwlRepoErr && !cwlRepoErr.available) ? cwlRepoErr.message : ''"
+            :messages="cwlRepoErr?.available ? cwlRepoErr.message : ''"
             clearable
         ></v-text-field>
 
@@ -119,6 +120,10 @@
         <div
             v-if="!!cwlRepoErr && !cwlRepoErr.available"
             class="text-error text-caption ml-1 mt-1"
+        >{{ cwlRepoErr.message }}</div>
+        <div
+            v-else-if="cwlRepoErr?.available && cwlRepoErr.message"
+            class="text-success text-caption ml-1 mt-1"
         >{{ cwlRepoErr.message }}</div>
     </template>
         <div class="d-flex flex-row">

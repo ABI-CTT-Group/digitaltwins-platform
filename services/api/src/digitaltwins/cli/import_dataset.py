@@ -1,10 +1,13 @@
-"""Import a measurement dataset from inside the digitaltwins-api container.
+"""Import a measurement or tool dataset from inside the digitaltwins-api container.
 
     python -m digitaltwins.cli.import_dataset <folder|zip> [--name N] [--fhir auto] [--move]
+    python -m digitaltwins.cli.import_dataset <folder|zip> --category tools \
+        --tool-type script|notebook|gui --seek-project-id P [--fhir auto]
 
 Signs in with Keycloak (browser device flow, or ``--password``), checks the
 upload role, then runs the same pipeline as ``/datasets/uploads`` in-process:
-SPARC validation → commit (Postgres + MinIO) → optional FHIR push. The
+validation (SPARC, or a tool's ``primary/tool_*.cwl``) → commit (Postgres +
+MinIO; tools are also registered in SEEK as the signed-in user) → optional FHIR push. The
 ``scripts/import-dataset.*`` wrappers copy a dataset from the host into the
 container and call this.
 
@@ -15,10 +18,12 @@ import shutil
 import sys
 from pathlib import Path
 
+from .. import tools
 from ..core.connection import Connection
 from ..measurements import jobs, pipeline, sessions
 from ..measurements.staging import dataset_dir, staging_root
 from ..measurements.validation import extract_uploaded_archive, resolve_project_root, validate_sparc_structure
+from ..tools.validation import find_tool_cwl
 from .keycloak_login import login
 
 
@@ -30,6 +35,8 @@ def _parse(argv):
     parser.add_argument("--description")
     parser.add_argument("--fhir", choices=["none", "auto"], default="none", help="auto-annotate and push FHIR")
     parser.add_argument("--category", default="measurements")
+    parser.add_argument("--tool-type", choices=["script", "notebook", "gui"], help="tools only (required)")
+    parser.add_argument("--seek-project-id", type=int, help="tools only (required): SEEK project to register in")
     parser.add_argument("--move", action="store_true", help="move (not copy) the folder into staging")
     parser.add_argument("--password", action="store_true", help="password login instead of the device flow")
     parser.add_argument("--username")
@@ -44,13 +51,16 @@ def _fail(code: int, message: str) -> int:
 def main(argv=None) -> int:
     args = _parse(argv)
     try:
-        username = login(use_password=args.password, username=args.username)
+        username, token = login(use_password=args.password, username=args.username)
     except PermissionError as e:
         return _fail(3, str(e))
 
     path = Path(args.path)
     if not path.exists():
         return _fail(2, f"No such path: {path}")
+    tool = args.category == tools.CATEGORY
+    if tool and (args.tool_type is None or args.seek_project_id is None):
+        return _fail(2, "Tool imports need --tool-type and --seek-project-id")
 
     extracted = None
     try:
@@ -62,9 +72,15 @@ def main(argv=None) -> int:
             source = extracted
         else:
             source = path
-        ok, message = validate_sparc_structure(source)
-        if not ok:
-            return _fail(2, message)
+        if tool:
+            try:
+                find_tool_cwl(source)
+            except ValueError as e:
+                return _fail(2, str(e))
+        else:
+            ok, message = validate_sparc_structure(source)
+            if not ok:
+                return _fail(2, message)
         root = resolve_project_root(source)
 
         conn, _ = Connection().connect()
@@ -73,6 +89,7 @@ def main(argv=None) -> int:
                 conn, category=args.category, name=args.name or (path.stem if path.is_file() else path.name),
                 description=args.description, source_kind="zip" if path.is_file() else "folder",
                 commit_mode="on_finalize", fhir_mode=args.fhir,
+                tool_type=args.tool_type if tool else None, seek_project_id=args.seek_project_id if tool else None,
             )
             target = dataset_dir(upload_id)
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -82,7 +99,7 @@ def main(argv=None) -> int:
             else:
                 shutil.copytree(root, target)
             sessions.update_session(conn, upload_id, status="processing")
-            jobs.run_commit_and_push(upload_id)
+            jobs.run_commit_and_push(upload_id, token)
 
             session = sessions.get_session(conn, upload_id)
             if session["status"] != "completed":

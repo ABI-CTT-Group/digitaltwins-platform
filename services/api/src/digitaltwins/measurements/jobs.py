@@ -17,7 +17,8 @@ from typing import Any, Dict, Optional
 
 from .. import tools
 from ..core.connection import Connection
-from ..tools.pipeline import commit_tool
+from ..tools import fhir as tool_fhir
+from ..tools.pipeline import annotate_tool, commit_tool
 from . import fhir_service, pipeline, sessions
 from .staging import dataset_dir, staging_root
 from .tree import build_tree
@@ -54,7 +55,14 @@ def _commit(session: Dict[str, Any], root: Path, api_token: Optional[str]) -> pi
     if session["category"] == tools.CATEGORY:
         result = commit_tool(root, session["tool_type"], session["seek_project_id"], api_token,
                              dataset_name=session["name"])
-        return pipeline.CommitResult(result["dataset_uuid"], None)
+        if session["fhir_mode"] == "none":
+            return pipeline.CommitResult(result["dataset_uuid"], None)
+        conn = _connect()
+        try:
+            descriptions = annotate_tool(conn, root, result["dataset_uuid"], session["fhir_descriptions"])
+        finally:
+            conn.close()
+        return pipeline.CommitResult(result["dataset_uuid"], descriptions)
     return pipeline.commit_dataset(
         root,
         category=session["category"],
@@ -121,12 +129,19 @@ def _replace_fhir_resources(conn, dataset_uuid: str, fhir_json: Dict[str, Any]) 
     asyncio.run(fhir_service.push_to_hapi_fhir(fhir_json, fhir_service.get_fhir_adapter()))
 
 
+def _push_tool(dataset_uuid: str, descriptions: Dict[str, Any]) -> None:
+    # As for measurements, the library keeps an existing identifier: delete first.
+    tool_fhir.delete(dataset_uuid, fhir_service.get_fhir_rest())
+    asyncio.run(tool_fhir.push(descriptions, fhir_service.get_fhir_adapter()))
+
+
 def run_fhir_push_job(dataset_uuid: str) -> None:
     """Build fhir.json from the stored annotation, store it in MinIO and (re)push it to HAPI.
 
     Earlier resources for the dataset are removed first, so a retry or re-push
     never duplicates. On failure the dataset stays committed with
-    ``fhir_status=failed`` and its local copy is kept for the retry.
+    ``fhir_status=failed`` and its local copy is kept for the retry. A tool's
+    fhir.json is its ``workflow_tool`` descriptions, pushed as one ActivityDefinition.
     """
     conn = _connect()
     try:
@@ -136,6 +151,12 @@ def run_fhir_push_job(dataset_uuid: str) -> None:
             if descriptions is None:
                 raise ValueError("No FHIR annotation stored for this dataset")
             dataset = pipeline.get_dataset_row(conn, dataset_uuid)
+            if dataset["category"] == tools.CATEGORY:
+                pipeline.store_fhir_json(dataset["category"], dataset_uuid, descriptions)
+                _push_tool(dataset_uuid, descriptions)
+                set_fhir_status(conn, dataset_uuid, "completed")
+                logger.info("Pushed FHIR for tool dataset %s", dataset_uuid)
+                return
             root = pipeline.local_dataset(conn, dataset_uuid)
             descriptions = fhir_service.compute_endpoint_urls(descriptions, dataset_uuid, public_base())
             pipeline.save_annotation(conn, dataset_uuid, descriptions)

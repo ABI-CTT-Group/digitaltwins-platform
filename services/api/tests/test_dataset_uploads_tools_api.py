@@ -17,13 +17,13 @@ CWL = b"cwlVersion: v1.2\nclass: CommandLineTool\nlabel: Tool - convert\ninputs:
 
 
 @pytest.fixture
-def client(platform_db, minio_bucket, seek, tmp_path, monkeypatch):
+def client(platform_db, minio_bucket, seek, hapi, tmp_path, monkeypatch):
     monkeypatch.setenv("DATASET_STAGING_DIR", str(tmp_path / "staging"))
     monkeypatch.setattr(tools, "CATEGORY", minio_bucket)
     app = create_app()
     app.dependency_overrides[auth.validate_credentials] = lambda: UPLOADER
     c = TestClient(app)
-    c.bucket, c.db, c.seek = minio_bucket, platform_db, seek
+    c.bucket, c.db, c.seek, c.hapi = minio_bucket, platform_db, seek, hapi
     return c
 
 
@@ -93,8 +93,7 @@ def test_staged_tool_session_registers_on_approval(client):
 @pytest.mark.parametrize("body, detail", [
     ({"tool_type": None}, "tool_type"),
     ({"seek_project_id": None}, "seek_project_id"),
-    ({"fhir": "auto"}, "FHIR"),
-    ({"fhir_descriptions": {"patients": []}}, "FHIR"),
+    ({"fhir_descriptions": {"patients": []}}, "workflow_tool"),
 ])
 def test_tool_session_options_are_checked_at_creation(client, body, detail):
     r = _create(client, _files(), **body)
@@ -149,3 +148,27 @@ def test_gui_tool_session_is_registered_with_the_gui_type(client):
     session = client.get(f"/datasets/uploads/{upload_id}").json()
     assert (session["status"], session["tool_type"]) == ("completed", "gui")
     assert [w["tool_type"] for w in client.seek.workflows.values()] == ["gui"]
+
+
+@pytest.mark.integration
+def test_tool_session_with_descriptions_is_committed_and_pushed(client):
+    files = _files()
+    upload_id = _upload(client, files, fhir_descriptions={"workflow_tool": {"version": "2.0.0"}})
+
+    assert client.post(f"/datasets/uploads/{upload_id}/finalize").status_code == 202
+    session = client.get(f"/datasets/uploads/{upload_id}").json()
+    assert session["status"] == "completed", session
+    uuid = session["dataset_uuid"]
+    assert _db_one(client, "SELECT fhir_status FROM dataset WHERE dataset_uuid = %s", (uuid,)) == ("completed",)
+    [ad] = [r for ref, r in client.hapi.store.items() if ref.startswith("ActivityDefinition/")]
+    assert ad["identifier"][0]["value"] == uuid
+
+
+@pytest.mark.integration
+def test_tool_session_descriptions_are_checked_at_finalize(client):
+    upload_id = _upload(client, _files(), fhir_descriptions={"workflow_tool": {"input": [{"id": "nope"}]}})
+
+    r = client.post(f"/datasets/uploads/{upload_id}/finalize")
+
+    assert r.status_code == 400 and "nope" in r.json()["detail"]
+    assert client.get(f"/datasets/uploads/{upload_id}").json()["status"] == "receiving"

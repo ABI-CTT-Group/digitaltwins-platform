@@ -44,10 +44,11 @@
       <div class="grid">
         <button
           v-for="(card, i) in actions"
-          :key="card.herf"
+          :key="card.title"
           type="button"
           class="tile"
-          :class="{ 'is-busy': activeHref === card.herf }"
+          :class="{ 'is-busy': activeHref === card.herf, 'is-locked': card.comingSoon }"
+          :aria-disabled="card.comingSoon"
           :style="{ '--accent': card.accent, '--delay': `${120 + i * 80}ms` }"
           @click="navigate(card)"
         >
@@ -56,7 +57,10 @@
             <span class="tile__icon">
               <v-icon :icon="card.icon" size="26"></v-icon>
             </span>
-            <span v-if="card.requireRoles" class="tile__roles">
+            <span v-if="card.comingSoon" class="tile__roles">
+              Coming soon
+            </span>
+            <span v-else-if="card.requireRoles" class="tile__roles">
               <v-icon icon="mdi-lock-outline" size="12"></v-icon>
               {{ card.requireRoles.join(' · ') }}
             </span>
@@ -94,6 +98,7 @@ type CatalogueCard = {
   accent?: string;
   external?: boolean;
   requireRoles?: string[];
+  comingSoon?: boolean;
 };
 
 const hero: CatalogueCard = {
@@ -110,32 +115,41 @@ const hero: CatalogueCard = {
 
 const actions: CatalogueCard[] = [
   {
-    title: 'Upload tool',
-    description: 'Register a new tool and make it available across the platform.',
+    title: 'Measurements',
+    description:
+      'Browse measurement datasets, or upload a new SPARC dataset — patients, observations, imaging studies and document references.',
+    herf: 'UploadMeasurementsDataset',
+    icon: 'mdi-chart-box-outline',
+    cta: 'Open',
+    accent: '#62d3b0',
+    requireRoles: ['admin', 'researcher'],
+  },
+  {
+    title: 'Models',
+    description: 'Browse and register models on the platform.',
+    herf: '',
+    icon: 'mdi-cube-outline',
+    cta: 'Coming soon',
+    accent: '#b08fe8',
+    comingSoon: true,
+  },
+  {
+    title: 'Tools',
+    description: 'Browse the tools on the platform, or register a new one to make it available.',
     herf: 'UploadToolDataset',
     icon: 'mdi-wrench-outline',
-    cta: 'Upload',
+    cta: 'Open',
     accent: '#5fd6e8',
     requireRoles: ['admin'],
   },
   {
-    title: 'Upload workflow',
-    description: 'Publish a new workflow definition to the platform registry.',
+    title: 'Workflows',
+    description: 'Browse the workflows on the platform, or publish a new workflow definition to the registry.',
     herf: 'UploadWorkflowDataset',
     icon: 'mdi-sitemap-outline',
-    cta: 'Upload',
+    cta: 'Open',
     accent: '#7fb2f0',
     requireRoles: ['admin'],
-  },
-  {
-    title: 'Upload measurements',
-    description:
-      'Upload a SPARC measurements dataset — register patients, observations, imaging studies and document references.',
-    herf: 'UploadMeasurementsDataset',
-    icon: 'mdi-chart-box-outline',
-    cta: 'Upload',
-    accent: '#62d3b0',
-    requireRoles: ['admin', 'researcher'],
   },
   {
     title: 'Workflow assembler',
@@ -157,6 +171,8 @@ const isLocked = (card: CatalogueCard) =>
   card.requireRoles !== undefined && !authStore.isLoggedIn;
 
 const navigate = async (card: CatalogueCard) => {
+  if (card.comingSoon) return;
+
   // An empty requireRoles list still means "must be signed in", so pass it through
   // as-is — collapsing it to undefined would skip the auth check entirely.
   if (card.requireRoles) {
@@ -466,6 +482,17 @@ const navigate = async (card: CatalogueCard) => {
   transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .tile:hover .tile__cta .v-icon { transform: translateX(5px); }
+
+/* Placeholder cards (e.g. Models): not yet wired to a route */
+.tile.is-locked { cursor: not-allowed; }
+.tile.is-locked .tile__cta { color: var(--text-dim); }
+.tile.is-locked:hover {
+  transform: none;
+  border-color: var(--line);
+  background: var(--surface);
+}
+.tile.is-locked:hover .tile__rail { transform: scaleX(0); }
+.tile.is-locked:hover .tile__cta .v-icon { transform: none; }
 .tile__index {
   position: absolute;
   top: 18px;

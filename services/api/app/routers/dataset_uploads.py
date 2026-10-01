@@ -34,6 +34,7 @@ from digitaltwins.measurements.validation import (
     sampleless_subjects,
     validate_sparc_structure,
 )
+from digitaltwins.tools import fhir as tool_fhir
 from digitaltwins.tools.validation import find_tool_cwl
 
 from .auth import require_upload_role, validate_credentials
@@ -142,9 +143,9 @@ def create_upload(body: SessionCreate, conn=Depends(get_conn), _creds: dict = De
         if missing:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail=f"Tool uploads need: {', '.join(missing)}")
-        if body.fhir != "none" or body.fhir_descriptions is not None:
+        if body.fhir_descriptions is not None and not isinstance(body.fhir_descriptions.get("workflow_tool"), dict):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Tool uploads carry no FHIR annotation")
+                                detail='Tool FHIR descriptions must be {"workflow_tool": {...}}')
     fhir_mode = "descriptions" if body.fhir_descriptions is not None else body.fhir
     upload_id = sessions.create_session(
         conn, category=body.category, name=body.name, description=body.description,
@@ -216,7 +217,9 @@ def finalize_upload(
             if not ok:
                 raise ValueError(message)
         root = resolve_project_root(staging)
-        if session["fhir_mode"] == "descriptions":
+        if session["fhir_mode"] == "descriptions" and tool:
+            tool_fhir.build_descriptions(root, "", "", session["fhir_descriptions"])
+        elif session["fhir_mode"] == "descriptions":
             check_descriptions_match(session["fhir_descriptions"], root)
 
         target = dataset_dir(upload_id)

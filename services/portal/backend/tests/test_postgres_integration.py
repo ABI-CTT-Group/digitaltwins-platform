@@ -122,6 +122,17 @@ class InitDbTest(PostgresTestCase):
         self.assertIn("up", {c["name"] for c in insp.get_columns("plugin_deployments")})
 
 
+    def test_an_existing_label_enum_gains_new_values(self):
+        # Databases created before the Notebook label have plugin_label = ('GUI', 'Script').
+        with self.engine.begin() as conn:
+            conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {PORTAL_DB_SCHEMA}"))
+            conn.execute(text(f"CREATE TYPE {PORTAL_DB_SCHEMA}.plugin_label AS ENUM ('GUI', 'Script')"))
+        init_db(bind=self.engine)
+        with self.engine.connect() as conn:
+            labels = conn.execute(text("SELECT unnest(enum_range(NULL::plugin_label))::text")).scalars().all()
+        self.assertEqual(labels, ["GUI", "Script", "Notebook"])
+
+
 class ForeignKeyTest(PostgresTestCase):
     def test_deploy_and_cascade_delete(self):
         init_db(bind=self.engine)

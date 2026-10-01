@@ -1,6 +1,6 @@
 import os
 import uuid
-from sqlalchemy import create_engine, Column, String, DateTime, ForeignKey, Text, JSON, Boolean, Enum, Table
+from sqlalchemy import create_engine, Column, String, DateTime, ForeignKey, Text, JSON, Boolean, Enum, Table, Integer
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
@@ -74,12 +74,14 @@ class Plugin(Base):
     source_type = Column(String, nullable=False, default="github")
     local_archive_path = Column(String, nullable=True)
     plugin_metadata = Column(JSON, nullable=True)
-    label = Column(Enum("GUI", "Script", name="plugin_label"), nullable=False)
+    label = Column(Enum("GUI", "Script", "Notebook", name="plugin_label"), nullable=False)
     has_backend = Column(Boolean, nullable=False, default=True)
     frontend_folder = Column(String, nullable=False)
     frontend_build_command = Column(String, nullable=False)
     backend_folder = Column(String, nullable=True)
     backend_deploy_command = Column(String, nullable=True, default="docker compose up --build -d")
+    # SEEK project the tool is registered in on approval (kept as the default for re-approval).
+    seek_project_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -105,6 +107,13 @@ class PluginBuild(Base):
     s3_path = Column(String, nullable=True)
     expose_name = Column(String, nullable=True)
     dataset_path = Column(String, nullable=True)
+    # Approval hands the build to digitaltwins-api (app/services/tool_handoff.py).
+    handoff_status = Column(String, nullable=True)  # uploading|awaiting_reauth|committing|completed|failed
+    upload_id = Column(String, nullable=True)       # the API's upload session
+    dataset_uuid = Column(String, nullable=True)    # the platform dataset, once committed
+    seek_id = Column(String, nullable=True)
+    handoff_error = Column(Text, nullable=True)
+    handoff_user = Column(String, nullable=True)    # the approver; only their token may continue the handoff
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -209,7 +218,7 @@ class PluginBase(BaseModel):
     source_type: Literal["github", "gitlab", "bitbucket", "git_generic", "local"] = "github"
     frontend_folder: str
     frontend_build_command: str
-    label: Literal["GUI", "Script"]
+    label: Literal["GUI", "Script", "Notebook"]
     has_backend: bool
     backend_folder: Optional[str]
     backend_deploy_command: str
@@ -231,6 +240,7 @@ class PluginUpdate(PluginBase):
 class PluginResponse(PluginBase):
     id: str
     uuid: Optional[str] = None
+    seek_project_id: Optional[int] = None
     plugin_metadata: Optional[dict] = None
     workflow_ids: Optional[List[str]] = None
     local_archive_path: Optional[str] = None
@@ -262,6 +272,10 @@ class PluginBuildResponse(BuildBase):
     build_id: str
     status: str
     expose_name: Optional[str] = None
+    handoff_status: Optional[str] = None
+    dataset_uuid: Optional[str] = None
+    seek_id: Optional[str] = None
+    handoff_error: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

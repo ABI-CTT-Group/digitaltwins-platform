@@ -32,6 +32,7 @@ from typing import Any, ClassVar, Dict, Optional, Tuple, Type
 from urllib.parse import urlparse, urlunparse
 
 from app.builder.logger import get_logger
+from app.builder.tool_layout import inspect_tool_source, read_tool_cwl
 from app.utils.builder_utils import clone_repository, inspect_uploaded_source, read_root_cwl
 from app.utils.utils import force_rmtree
 
@@ -68,6 +69,9 @@ class SourceSpec:
     # audit trail. Honored by all token-git acquirers (self-hosted GitLab
     # / Bitbucket instances may also have self-signed certs) and generic.
     verify_ssl: bool = True
+    # Tool probes also recognise SDS packages (see app.builder.tool_layout);
+    # workflow probes keep the root-.cwl rule.
+    tool_layout: bool = False
 
 
 class SourceAcquirer(ABC):
@@ -250,7 +254,7 @@ def _clone_anonymous_classified(
         raise
 
 
-def _inspect_with_cwl_content(project_dir: Path) -> Dict[str, Any]:
+def _inspect_with_cwl_content(project_dir: Path, tool_layout: bool = False) -> Dict[str, Any]:
     """Run inspect_uploaded_source and additionally inline the root CWL
     content when present.
 
@@ -259,9 +263,14 @@ def _inspect_with_cwl_content(project_dir: Path) -> Dict[str, Any]:
     clone for private and self-hosted git sources where the frontend can't
     fetch CWL anonymously.
     """
-    result = inspect_uploaded_source(project_dir, want_npm=True, want_cwl=True)
+    if tool_layout:
+        result = inspect_tool_source(project_dir, want_cwl=True)
+        read_cwl = read_tool_cwl
+    else:
+        result = inspect_uploaded_source(project_dir, want_npm=True, want_cwl=True)
+        read_cwl = read_root_cwl
     if result.get("has_cwl"):
-        cwl = read_root_cwl(project_dir)
+        cwl = read_cwl(project_dir)
         if cwl:
             result["cwl_file"] = cwl["cwl_file"]
             result["cwl_content"] = cwl["content"]
@@ -451,7 +460,7 @@ class _TokenGitAcquirer(SourceAcquirer):
             )
 
         try:
-            return _inspect_with_cwl_content(project_dir)
+            return _inspect_with_cwl_content(project_dir, spec.tool_layout)
         finally:
             force_rmtree(project_dir)
 
@@ -529,7 +538,7 @@ class GenericGitAcquirer(SourceAcquirer):
     def probe_metadata(self, spec: SourceSpec) -> Dict[str, Any]:
         project_dir = self._clone(spec, shallow=True)
         try:
-            return _inspect_with_cwl_content(project_dir)
+            return _inspect_with_cwl_content(project_dir, spec.tool_layout)
         finally:
             force_rmtree(project_dir)
 

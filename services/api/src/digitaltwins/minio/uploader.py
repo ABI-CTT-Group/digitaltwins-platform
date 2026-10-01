@@ -1,3 +1,4 @@
+import mimetypes
 import os
 import boto3
 from botocore.exceptions import ClientError
@@ -94,7 +95,10 @@ class Uploader(object):
                     return False
 
         try:
-            self.s3_client.upload_file(file_path, bucket_name, object_name)
+            # MinIO serves with nosniff: without a real type, browsers refuse JS/CSS/workers.
+            content_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+            self.s3_client.upload_file(file_path, bucket_name, object_name,
+                                       ExtraArgs={"ContentType": content_type})
             logger.info(f"Successfully uploaded {file_path} to {bucket_name}/{object_name}")
             return True
         except ClientError as e:
