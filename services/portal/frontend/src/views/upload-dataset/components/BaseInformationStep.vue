@@ -23,11 +23,19 @@
         >
           <v-radio color="#5fd6e8" label="Web GUI" value="GUI" />
           <v-radio color="#5fd6e8" label="Script" value="Script" class="ml-2" />
+          <v-tooltip text="Script tools currently support Python scripts only." location="top" open-delay="200">
+            <template #activator="{ props: tip }">
+              <v-icon
+                icon="mdi-information-outline"
+                size="16"
+                class="ml-n1 mr-2 text-medium-emphasis"
+                style="cursor: help;"
+                v-bind="tip"
+              />
+            </template>
+          </v-tooltip>
           <v-radio color="#5fd6e8" label="Notebook" value="Notebook" class="ml-2" />
         </v-radio-group>
-        <p class="text-caption text-medium-emphasis mt-n4 mb-4">
-          Note: Script tools currently support Python scripts only.
-        </p>
       </template>
 
       <CommonInfoForm
