@@ -40,6 +40,8 @@ services:
       - DIGITALTWINS_API_PORT=${DIGITALTWINS_API_PORT:-8000}
       - PORTAL_BACKEND_HOST=${PORTAL_BACKEND_HOST:-localhost}
       - PORTAL_KEYCLOAK_BASE_URL=${PORTAL_KEYCLOAK_BASE_URL:-https://130.216.216.243:8009}
+      # Internal Keycloak address for token checks (unset standalone: falls back to the one above).
+      - KEYCLOAK_BASE_URL=${KEYCLOAK_BASE_URL:-}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-api}
       - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-xxxxxx}
