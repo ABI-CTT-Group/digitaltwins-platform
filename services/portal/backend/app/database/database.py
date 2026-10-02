@@ -30,6 +30,25 @@ def migrate_add_missing_columns(bind=engine):
                     conn.execute(text(stmt))
 
 
+def migrate_workflow_is_sds(bind=engine):
+    """Add workflows.is_sds, backfilled from workflow_type, only when the column is created.
+
+    Until 2026-10-02 a set workflow_type marked an SDS package. Since then every
+    workflow has a type, so running the backfill again would mark root-.cwl workflows as SDS.
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(bind)
+    if not inspector.has_table("workflows"):
+        return
+    if "is_sds" in {col["name"] for col in inspector.get_columns("workflows")}:
+        return
+    logger.info("Migrating: ALTER TABLE workflows ADD COLUMN is_sds BOOLEAN, backfilled from workflow_type")
+    with bind.begin() as conn:
+        conn.execute(text("ALTER TABLE workflows ADD COLUMN is_sds BOOLEAN"))
+        conn.execute(text("UPDATE workflows SET is_sds = (workflow_type IS NOT NULL)"))
+
+
 def migrate_enum_values(bind=engine):
     """Add enum values that exist in the models but not yet in Postgres' native enum types."""
     from sqlalchemy import Enum, text
@@ -71,5 +90,6 @@ def init_db(bind=engine):
         with bind.begin() as conn:
             conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {PORTAL_DB_SCHEMA}"))
     create_tables(bind)
+    migrate_workflow_is_sds(bind)
     migrate_add_missing_columns(bind)
     migrate_enum_values(bind)

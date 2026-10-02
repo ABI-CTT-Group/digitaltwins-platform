@@ -167,8 +167,10 @@ class Workflow(Base):
     repository_url = Column(String, nullable=False)
     source_type = Column(String, nullable=False, default="github")
     local_archive_path = Column(String, nullable=True)
-    # Set (script|notebook|gui) for an SDS workflow package, which approval hands to digitaltwins-api.
-    workflow_type = Column(String, nullable=True)
+    workflow_type = Column(String, nullable=True)  # script|notebook|gui; NULL on rows registered before 2026-10-02
+    # Set by a successful build from the source layout (app/builder/workflow_layout.py); NULL until built.
+    # An SDS package is approved through digitaltwins-api (see docs/decisions/2026-10-02-workflow-type-independent-of-sds.md).
+    is_sds = Column(Boolean, nullable=True)
     seek_project_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
