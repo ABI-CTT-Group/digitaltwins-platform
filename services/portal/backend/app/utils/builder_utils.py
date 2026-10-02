@@ -318,6 +318,8 @@ def execute_build_in_background(
                         build_record.s3_path = result["s3_path"]
                         build_record.dataset_path = result["dataset_path"]
                         build_record.expose_name = result["expose_name"]
+                        if "is_sds" in result:  # workflow builds: the source layout decides (workflow_layout.py)
+                            build_record.workflow.is_sds = result["is_sds"]
                     else:
                         build_record.status = BuildStatus.FAILED.value
                         build_record.error = result["error_message"]

@@ -146,9 +146,6 @@ class WorkflowBuilder:
             workflow_type = workflow.get("workflow_type")
             if layout.is_sds and not workflow_type:
                 raise RuntimeError("An SDS workflow package needs a workflow type (script, notebook or gui)")
-            if workflow_type and not layout.is_sds:
-                raise RuntimeError("A workflow type is set, but the source is not an SDS workflow package "
-                                   "(dataset_description.xlsx and one primary/workflow_*.cwl)")
 
             # Step 2: Create SPARC dataset for cwl plugin script
             logger.info("Step 2: Creating SPARC dataset by sparc-me")
@@ -190,6 +187,7 @@ class WorkflowBuilder:
             return {
                 "success": True,
                 "dataset_path": str(dataset_dir),
+                "is_sds": layout.is_sds,
                 "expose_name": workflow_unique_expose_name,
                 "s3_path": s3_path,
                 "build_logs": "\n".join(build_logs),

@@ -50,18 +50,19 @@ class WorkflowBuildDatasetTest(unittest.TestCase):
         result = self._build(self.root, "script")
         self.assertTrue(result["success"], result["error_message"])
         self.assertIn("primary/workflow_convert.cwl", _files(Path(result["dataset_path"])))
+        self.assertTrue(result["is_sds"])
 
     def test_an_sds_package_needs_a_workflow_type(self):
         result = self._build(self.root, None)
         self.assertFalse(result["success"])
         self.assertIn("needs a workflow type", result["error_message"])
 
-    def test_a_workflow_type_needs_an_sds_package(self):
+    def test_a_root_cwl_workflow_with_a_type_builds(self):
         src = Path(tempfile.mkdtemp())
         (src / "flow.cwl").write_text(WORKFLOW)
         result = self._build(src, "script")
-        self.assertFalse(result["success"])
-        self.assertIn("not an SDS workflow package", result["error_message"])
+        self.assertTrue(result["success"], result["error_message"])
+        self.assertFalse(result["is_sds"])
 
 
 if __name__ == "__main__":
