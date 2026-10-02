@@ -59,7 +59,7 @@ const menuItems = computed<UCardMenuItem[]>(() => workflow.value.platformOnly
   // Uploaded via the REST API: the hub confirms the delete (and whether its tools go too).
   ? [{ label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: () => emit("delete-platform", workflow.value) }]
   : [
-    { label: 'Submit to approval', icon: 'mdi-send-check-outline', onClick: workflow.value.workflowType ? () => emit("approve-platform", workflow.value) : onSubmit },
+    { label: 'Submit to approval', icon: 'mdi-send-check-outline', onClick: workflow.value.isSds ? () => emit("approve-platform", workflow.value) : onSubmit },
     { label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: onDelete },
   ])
 

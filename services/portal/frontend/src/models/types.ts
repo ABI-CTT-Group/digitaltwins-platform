@@ -304,6 +304,8 @@ export interface WorkflowResponse {
     // Uploaded to the platform directly (REST API): listed with only a delete.
     platformOnly?: boolean;
     workflowType?: string;
+    // An SDS package, as the latest successful build found it (null until built); approval goes to the platform.
+    isSds?: boolean | null;
     seekProjectId?: number;
     // Handoff to the platform of the latest build (SDS workflows; see ToolApprovalStatus).
     handoffStatus?: HandoffStatus | null;

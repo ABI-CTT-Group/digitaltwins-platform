@@ -59,7 +59,7 @@ describe("WorkflowCard", () => {
   });
 
   it("routes a portal SDS workflow to the platform approval", () => {
-    const sds = { ...WORKFLOW, workflowType: "script" };
+    const sds = { ...WORKFLOW, workflowType: "script", isSds: true };
     const w = mount(WorkflowCard, { props: { workflow: sds as any }, global: { plugins } });
 
     menu(w)[0].onClick();
@@ -69,6 +69,15 @@ describe("WorkflowCard", () => {
 
   it("keeps the legacy approval for a portal workflow without a type", () => {
     const w = mount(WorkflowCard, { props: { workflow: WORKFLOW as any }, global: { plugins } });
+
+    menu(w)[0].onClick();
+    expect(w.emitted("submit-approve")?.[0]).toEqual(["p1"]);
+    expect(w.emitted("approve-platform")).toBeUndefined();
+  });
+
+  it("keeps the legacy approval for a typed workflow that is not an SDS package", () => {
+    const rootCwl = { ...WORKFLOW, workflowType: "gui", isSds: false };
+    const w = mount(WorkflowCard, { props: { workflow: rootCwl as any }, global: { plugins } });
 
     menu(w)[0].onClick();
     expect(w.emitted("submit-approve")?.[0]).toEqual(["p1"]);
