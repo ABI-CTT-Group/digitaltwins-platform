@@ -57,6 +57,8 @@ export interface AssayDataset {
 
 export type SourceType = "github" | "gitlab" | "bitbucket" | "git_generic" | "local";
 
+export type WorkflowType = 'script' | 'notebook' | 'gui';
+
 /** UI toggle state — Git URL (any provider) vs Local Folder. The actual
  *  `SourceType` for git is inferred from the URL host on blur. */
 export type SourceMode = "git" | "local";
@@ -104,6 +106,8 @@ export interface ProbeSourceSuccess {
     cwlRequired: boolean;
     /** Tool probes only: the repo is an SDS package (its CWL is primary/tool_*.cwl). */
     isSds?: boolean;
+    /** SDS workflow probes: each `tool_*.cwl` of the package (a list, because the camelCase interceptor rewrites dict keys). */
+    toolCwls?: { cwlFile: string; content: string }[];
     /** Inlined when `hasCwl` is true so the annotation step can read the
      *  CWL without a second clone — backend reuses the shallow clone it
      *  already did for inspect. */
@@ -278,6 +282,7 @@ export interface WorkflowInformationStep {
     author?: string;
     sourceType: SourceType;
     uploadId?: string;
+    workflowType?: WorkflowType;
 }
 
 export interface WorkflowResponse {
@@ -299,6 +304,9 @@ export interface WorkflowResponse {
     // Uploaded to the platform directly (REST API): listed with only a delete.
     platformOnly?: boolean;
     workflowType?: string;
+    seekProjectId?: number;
+    // Handoff to the platform of the latest build (SDS workflows; see ToolApprovalStatus).
+    handoffStatus?: HandoffStatus | null;
 }
 
 /** A platform dataset linked to another: a workflow's tool, or a workflow that runs a tool. */

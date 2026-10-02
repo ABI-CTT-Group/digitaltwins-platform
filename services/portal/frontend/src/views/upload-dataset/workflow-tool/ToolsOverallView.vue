@@ -52,7 +52,7 @@
     </template>
   </RegistryView>
 
-  <ToolApprovalDialog v-model="approvalDialogOpen" :tool="approvalTool" @done="onApprovalDone" />
+  <ToolApprovalDialog v-model="approvalDialogOpen" :item="approvalTool" @done="onApprovalDone" />
 
   <DeletePlatformDatasetDialog v-model="platformDeleteOpen" kind="tool" :item="platformDeleteItem"
                                @deleted="handleDeleteTool" />

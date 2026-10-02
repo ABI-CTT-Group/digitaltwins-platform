@@ -33,9 +33,13 @@
         @delete="handleDeleteWorkflow"
         @delete-platform="openPlatformDelete"
         @submit-approve="(id) => handleWorkflowApproval(id)"
+        @approve-platform="openApproval"
+        @approval-done="onApprovalDone"
       />
     </template>
   </RegistryView>
+
+  <ToolApprovalDialog v-model="approvalOpen" kind="workflow" :item="approvalWorkflow" @done="onApprovalDone" />
 
   <DeletePlatformDatasetDialog v-model="platformDeleteOpen" kind="workflow" :item="platformDeleteItem"
                                @deleted="registryRef?.handleRefresh()" />
@@ -48,8 +52,9 @@ import { computed, ref } from 'vue';
 import RegistryView from '../components/RegistryView.vue';
 import WorkflowCard from '../components/WorkflowCard.vue';
 import DeletePlatformDatasetDialog from '../components/DeletePlatformDatasetDialog.vue';
-import { useWorkflowHub, useDeleteWorkflow, useWorkflowApproval } from '@/bootstrap/workflow_api';
-import type { WorkflowResponse } from '@/models/types';
+import ToolApprovalDialog from '../components/ToolApprovalDialog.vue';
+import { useWorkflowHub, useWorkflowApproval } from '@/bootstrap/workflow_api';
+import type { ToolApprovalStatus, WorkflowResponse } from '@/models/types';
 
 const toast = useToast();
 const registryRef = ref<{ handleRefresh: () => Promise<void> }>();
@@ -75,8 +80,7 @@ const registrationFilterFn = computed(() => {
 
 const handleRegister = () => emit('register');
 
-const handleDeleteWorkflow = async (id: string) => {
-  await useDeleteWorkflow(id);
+const handleDeleteWorkflow = async () => {
   await registryRef.value?.handleRefresh();
 };
 
@@ -87,6 +91,19 @@ const platformDeleteItem = ref<{ uuid: string; name: string } | null>(null);
 const openPlatformDelete = (w: WorkflowResponse) => {
   platformDeleteItem.value = { uuid: w.uuid ?? w.id, name: w.name };
   platformDeleteOpen.value = true;
+};
+
+// An SDS workflow is handed to the platform: the dialog picks the SEEK project and follows the handoff.
+const approvalOpen = ref(false);
+const approvalWorkflow = ref<WorkflowResponse | null>(null);
+const openApproval = (w: WorkflowResponse) => {
+  approvalWorkflow.value = w;
+  approvalOpen.value = true;
+};
+const onApprovalDone = async (status: ToolApprovalStatus | null) => {
+  if (status?.handoffStatus === 'completed') toast.success('Workflow approved into the platform.');
+  else if (status?.handoffStatus === 'failed') toast.error(`Approval failed: ${status.handoffError ?? 'unknown error'}`);
+  await registryRef.value?.handleRefresh();
 };
 
 const handleWorkflowApproval = async (id: string) => {

@@ -10,6 +10,7 @@ import {
     TransientAuth,
     ProbeSourceRequest,
     ProbeSourceResponse,
+    ToolApprovalStatus,
 } from "@/models/types";
 import { useCheckName, fetchWithLatestBuild } from "./api_helpers";
 import { usePlatformWorkflows } from "./platform_api";
@@ -61,6 +62,7 @@ export async function useWorkflow(): Promise<WorkflowResponse[]> {
   return fetchWithLatestBuild<WorkflowResponse>(
     '/workflow/',
     (id) => `/workflow/${id}/builds`,
+    async (_w, latestBuild) => ({ handoffStatus: latestBuild.handoffStatus ?? null }),
   ) as Promise<WorkflowResponse[]>;
 }
 
@@ -80,6 +82,16 @@ export async function useWorkflowApproval(workflowId:string) {
   return res;
 }
 
-export async function useGetWorkflowLocalCwl(id: string): Promise<{ cwlFile: string; content: string }> {
-  return http.get<{ cwlFile: string; content: string }>(`/workflow/${id}/cwl`);
+/** Hand the latest build of an SDS workflow to the platform (as the signed-in user). */
+export async function useWorkflowPlatformApproval(id: string, body: { seekProjectId?: number; fhir?: boolean }) {
+  return http.post<ToolApprovalStatus>(`/workflow/${id}/approval`, body);
+}
+
+/** Handoff progress. Polling it also hands the backend a fresh token, which resumes a paused handoff. */
+export async function useWorkflowApprovalStatus(id: string) {
+  return http.get<ToolApprovalStatus>(`/workflow/${id}/approval/status`);
+}
+
+export async function useGetWorkflowLocalCwl(id: string): Promise<{ cwlFile: string; content: string; toolCwls?: { cwlFile: string; content: string }[] }> {
+  return http.get<{ cwlFile: string; content: string; toolCwls?: { cwlFile: string; content: string }[] }>(`/workflow/${id}/cwl`);
 }

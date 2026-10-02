@@ -66,6 +66,16 @@
           />
         </template>
 
+        <!-- Workflow + SDS package: the API needs its type -->
+        <div v-if="type === 'workflow' && repoInfo.isSds" class="w-100">
+          <h4 class="my-2">Choose the workflow type *</h4>
+          <v-radio-group v-model="formData.workflowType" inline class="w-100 d-flex justify-start">
+            <v-radio color="#5fd6e8" label="Script" value="script" />
+            <v-radio color="#5fd6e8" label="Notebook" value="notebook" class="ml-2" />
+            <v-radio color="#5fd6e8" label="Web GUI" value="gui" class="ml-2" />
+          </v-radio-group>
+        </div>
+
         <!-- Tool + GUI mode: backend & folder fields -->
         <div v-if="type === 'tool' && formData.label === 'GUI'" class="w-100">
           <div class="w-100">
@@ -150,7 +160,7 @@
 import { ref, reactive, watch, computed } from 'vue';
 import CommonInfoForm from './CommonInfoForm.vue';
 import LocalFolderDropzone from './LocalFolderDropzone.vue';
-import type { ToolInformationStep, WorkflowInformationStep, CheckNameResponse, TransientAuth } from '@/models/types';
+import type { ToolInformationStep, WorkflowInformationStep, CheckNameResponse, TransientAuth, WorkflowType } from '@/models/types';
 import { useCheckName } from '@/bootstrap/api_helpers';
 import { useGitRepoInfo } from '@/composables/useGithubRepoInfo';
 import { useLocalFolderInfo } from '@/composables/useLocalFolderInfo';
@@ -181,7 +191,7 @@ const cwlRepoErr = ref<CheckNameResponse>();
 // reference (folder File[] OR zip Blob) that is *not* sent to the backend
 // directly — it is zipped (folder kind) + uploaded during handleSubmit, after
 // which `uploadId` is filled in.
-const formData = reactive<ToolInformationStep & { source?: LocalSource }>({
+const formData = reactive<ToolInformationStep & { source?: LocalSource; workflowType?: WorkflowType }>({
   label: 'GUI',
   repositoryUrl: '',
   name: '',
@@ -197,6 +207,7 @@ const formData = reactive<ToolInformationStep & { source?: LocalSource }>({
   sourceType: 'github',
   uploadId: undefined,
   source: undefined,
+  workflowType: undefined,
 });
 
 // ---- repo info composables (one for each source) -------------------------
@@ -293,7 +304,7 @@ async function refreshSourceInfo() {
     if (gitRepo.info.value.version) formData.version = gitRepo.info.value.version;
   } else {
     if (!formData.source) return;
-    await localFolder.refresh(formData.source, true, props.type === 'tool');
+    await localFolder.refresh(formData.source, true, props.type);
     if (localFolder.info.value.name) formData.name = localFolder.info.value.name;
     if (localFolder.info.value.author) formData.author = localFolder.info.value.author;
     if (localFolder.info.value.version) formData.version = localFolder.info.value.version;
@@ -366,7 +377,7 @@ async function validate(): Promise<boolean> {
   }
 
   if (props.type === 'workflow') {
-    return valid && !!cwlCheck.value;
+    return valid && !!cwlCheck.value && (!repoInfo.value.isSds || !!formData.workflowType);
   }
 
   // tool
@@ -425,7 +436,7 @@ async function handleSubmit() {
     alertText.value =
       props.type === 'tool'
         ? 'Some required fields are missing. Please provide your source (GitHub URL or local folder), tool name, build command, and, if the tool includes a backend, fill in the frontend and backend folder details.'
-        : 'Some required fields are missing. Please provide your source (GitHub URL or local folder), workflow name, and annotating information.';
+        : 'Some required fields are missing. Please provide your source (GitHub URL or local folder), workflow name, and, for an SDS package, its workflow type.';
     return;
   }
 
@@ -450,6 +461,7 @@ async function handleSubmit() {
         description: formData.description,
         sourceType: formData.sourceType,
         uploadId: formData.uploadId,
+        workflowType: repoInfo.value.isSds ? formData.workflowType : undefined,
       };
       // Auth is emitted separately so the wizard's BaseBuildStep can pass
       // it into the build POST body. NEVER part of the create payload —

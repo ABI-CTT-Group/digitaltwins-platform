@@ -6,7 +6,9 @@ vi.mock("@/bootstrap/http", () => ({ default: {}, dtApi: {} }));
 vi.mock("@/bootstrap/tool_api", () => ({
   useGetDockerComposeStatus: vi.fn(), useDeleteTool: vi.fn(), useToolApprovalStatus: vi.fn(),
 }));
-vi.mock("vue-toastification", () => ({ useToast: () => ({ error: vi.fn(), warning: vi.fn(), success: vi.fn() }) }));
+const { toastError, deleteWorkflow } = vi.hoisted(() => ({ toastError: vi.fn(), deleteWorkflow: vi.fn() }));
+vi.mock("vue-toastification", () => ({ useToast: () => ({ error: toastError, warning: vi.fn(), success: vi.fn() }) }));
+vi.mock("@/bootstrap/workflow_api", () => ({ useWorkflowApprovalStatus: vi.fn(), useDeleteWorkflow: deleteWorkflow }));
 
 import CardUI from "../CardUI.vue";
 import WorkflowCard from "../WorkflowCard.vue";
@@ -33,12 +35,44 @@ describe("WorkflowCard", () => {
     expect(w.emitted("delete")).toBeUndefined();
   });
 
-  it("keeps the portal workflow menu", () => {
+  it("keeps the portal workflow menu", async () => {
     const w = mount(WorkflowCard, { props: { workflow: WORKFLOW as any }, global: { plugins } });
 
     expect(menu(w).map((m) => m.label)).toEqual(["Submit to approval", "Delete workflow"]);
-    menu(w)[1].onClick();
-    expect(w.emitted("delete")?.[0]).toEqual(["p1"]);
+    deleteWorkflow.mockResolvedValue({ status: true, message: "ok" });
+    await menu(w)[1].onClick();
+    expect(deleteWorkflow).toHaveBeenCalledWith("p1");
+    expect(w.emitted("delete")?.[0]).toEqual([{ status: true, message: "ok" }]);
+  });
+
+  it("shows the error and stops being busy when a workflow delete fails", async () => {
+    const w = mount(WorkflowCard, { props: { workflow: WORKFLOW as any }, global: { plugins } });
+    deleteWorkflow.mockResolvedValue({ status: false, message: "platform said no" });
+    await menu(w)[1].onClick();
+    expect(toastError).toHaveBeenCalledWith("Error: platform said no");
+    expect(w.findComponent(CardUI).props("isDeleting")).toBe(false);
+
+    deleteWorkflow.mockRejectedValue(new Error("403"));
+    await menu(w)[1].onClick();
+    expect(toastError).toHaveBeenCalledWith("Error: 403");
+    expect(w.findComponent(CardUI).props("isDeleting")).toBe(false);
+  });
+
+  it("routes a portal SDS workflow to the platform approval", () => {
+    const sds = { ...WORKFLOW, workflowType: "script" };
+    const w = mount(WorkflowCard, { props: { workflow: sds as any }, global: { plugins } });
+
+    menu(w)[0].onClick();
+    expect(w.emitted("approve-platform")?.[0]).toEqual([sds]);
+    expect(w.emitted("submit-approve")).toBeUndefined();
+  });
+
+  it("keeps the legacy approval for a portal workflow without a type", () => {
+    const w = mount(WorkflowCard, { props: { workflow: WORKFLOW as any }, global: { plugins } });
+
+    menu(w)[0].onClick();
+    expect(w.emitted("submit-approve")?.[0]).toEqual(["p1"]);
+    expect(w.emitted("approve-platform")).toBeUndefined();
   });
 });
 
