@@ -282,7 +282,7 @@ export interface WorkflowInformationStep {
     author?: string;
     sourceType: SourceType;
     uploadId?: string;
-    workflowType?: WorkflowType;
+    workflowType: WorkflowType;
 }
 
 export interface WorkflowResponse {

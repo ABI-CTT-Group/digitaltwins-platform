@@ -74,7 +74,7 @@ import BaseInformationStep from '../components/BaseInformationStep.vue';
 import BaseAnnotateStep from '../components/BaseAnnotateStep.vue';
 import BaseCompleteStep from '../components/BaseCompleteStep.vue';
 import BaseBuildStep from '../components/BaseBuildStep.vue';
-import type { BaseInformationStep as BaseInfoStepType, WorkflowResponse, IAnnotation, TransientAuth} from '@/models/types';
+import type { WorkflowInformationStep, WorkflowResponse, IAnnotation, TransientAuth} from '@/models/types';
 import { useCreateWorkflow, useCreateWorkflowAnnotation, useWorkflowBuild } from '@/bootstrap/workflow_api'
 import { ref, watch } from "vue";
 
@@ -84,7 +84,7 @@ const  workflow = ref<WorkflowResponse>()
 // Captured at registration, used once for first build (see UploadToolForm).
 const pendingAuth = ref<TransientAuth | undefined>(undefined)
 
-const handleSubmit = async (data: BaseInfoStepType, auth?: TransientAuth)=>{
+const handleSubmit = async (data: WorkflowInformationStep, auth?: TransientAuth)=>{
     workflow.value  = await useCreateWorkflow(data)
     pendingAuth.value = auth
     step.value += 1;

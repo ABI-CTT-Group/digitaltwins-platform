@@ -12,7 +12,7 @@
     <v-divider class="my-2 mb-5" :thickness="3" />
 
     <v-form ref="form" class="px-5">
-      <!-- Tool-only: type selector -->
+      <!-- The type comes first, for tools and workflows alike -->
       <template v-if="type === 'tool'">
         <h4 class="my-2">Choose the tool type *</h4>
         <v-radio-group
@@ -21,8 +21,7 @@
           class="w-100 d-flex justify-start"
           @update:modelValue="handleLabelChange"
         >
-          <v-radio color="#5fd6e8" label="Web GUI" value="GUI" />
-          <v-radio color="#5fd6e8" label="Script" value="Script" class="ml-2" />
+          <v-radio color="#5fd6e8" label="Script" value="Script" />
           <v-tooltip text="Script tools currently support Python scripts only." location="top" open-delay="200">
             <template #activator="{ props: tip }">
               <v-icon
@@ -35,6 +34,15 @@
             </template>
           </v-tooltip>
           <v-radio color="#5fd6e8" label="Notebook" value="Notebook" class="ml-2" />
+          <v-radio color="#5fd6e8" label="Web GUI" value="GUI" class="ml-2" />
+        </v-radio-group>
+      </template>
+      <template v-else>
+        <h4 class="my-2">Choose the workflow type *</h4>
+        <v-radio-group v-model="formData.workflowType" inline class="w-100 d-flex justify-start">
+          <v-radio color="#5fd6e8" label="Script" value="script" />
+          <v-radio color="#5fd6e8" label="Notebook" value="notebook" class="ml-2" />
+          <v-radio color="#5fd6e8" label="Web GUI" value="gui" class="ml-2" />
         </v-radio-group>
       </template>
 
@@ -65,16 +73,6 @@
             @cancel-requested="onUploadCancel"
           />
         </template>
-
-        <!-- Workflow + SDS package: the API needs its type -->
-        <div v-if="type === 'workflow' && repoInfo.isSds" class="w-100">
-          <h4 class="my-2">Choose the workflow type *</h4>
-          <v-radio-group v-model="formData.workflowType" inline class="w-100 d-flex justify-start">
-            <v-radio color="#5fd6e8" label="Script" value="script" />
-            <v-radio color="#5fd6e8" label="Notebook" value="notebook" class="ml-2" />
-            <v-radio color="#5fd6e8" label="Web GUI" value="gui" class="ml-2" />
-          </v-radio-group>
-        </div>
 
         <!-- Tool + GUI mode: backend & folder fields -->
         <div v-if="type === 'tool' && formData.label === 'GUI'" class="w-100">
@@ -191,8 +189,8 @@ const cwlRepoErr = ref<CheckNameResponse>();
 // reference (folder File[] OR zip Blob) that is *not* sent to the backend
 // directly — it is zipped (folder kind) + uploaded during handleSubmit, after
 // which `uploadId` is filled in.
-const formData = reactive<ToolInformationStep & { source?: LocalSource; workflowType?: WorkflowType }>({
-  label: 'GUI',
+const formData = reactive<ToolInformationStep & { source?: LocalSource; workflowType: WorkflowType }>({
+  label: 'Script',
   repositoryUrl: '',
   name: '',
   author: '',
@@ -200,14 +198,14 @@ const formData = reactive<ToolInformationStep & { source?: LocalSource; workflow
   description: '',
   frontendFolder: '',
   frontendBuildCommand: 'npm run build:plugin',
-  hasBackend: true,
+  hasBackend: false,
   backendFolder: '',
   backendDeployCommand: 'docker compose up --build -d',
   toolMetadata: {},
   sourceType: 'github',
   uploadId: undefined,
   source: undefined,
-  workflowType: undefined,
+  workflowType: 'script',
 });
 
 // ---- repo info composables (one for each source) -------------------------
@@ -377,7 +375,7 @@ async function validate(): Promise<boolean> {
   }
 
   if (props.type === 'workflow') {
-    return valid && !!cwlCheck.value && (!repoInfo.value.isSds || !!formData.workflowType);
+    return valid && !!cwlCheck.value && !!formData.workflowType;
   }
 
   // tool
@@ -436,7 +434,7 @@ async function handleSubmit() {
     alertText.value =
       props.type === 'tool'
         ? 'Some required fields are missing. Please provide your source (GitHub URL or local folder), tool name, build command, and, if the tool includes a backend, fill in the frontend and backend folder details.'
-        : 'Some required fields are missing. Please provide your source (GitHub URL or local folder), workflow name, and, for an SDS package, its workflow type.';
+        : 'Some required fields are missing. Please provide your source (GitHub URL or local folder), workflow name and workflow type.';
     return;
   }
 
@@ -461,7 +459,7 @@ async function handleSubmit() {
         description: formData.description,
         sourceType: formData.sourceType,
         uploadId: formData.uploadId,
-        workflowType: repoInfo.value.isSds ? formData.workflowType : undefined,
+        workflowType: formData.workflowType,
       };
       // Auth is emitted separately so the wizard's BaseBuildStep can pass
       // it into the build POST body. NEVER part of the create payload —
