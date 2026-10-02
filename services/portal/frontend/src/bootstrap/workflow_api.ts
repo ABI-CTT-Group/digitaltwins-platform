@@ -92,6 +92,6 @@ export async function useWorkflowApprovalStatus(id: string) {
   return http.get<ToolApprovalStatus>(`/workflow/${id}/approval/status`);
 }
 
-export async function useGetWorkflowLocalCwl(id: string): Promise<{ cwlFile: string; content: string; toolCwls?: { cwlFile: string; content: string }[] }> {
-  return http.get<{ cwlFile: string; content: string; toolCwls?: { cwlFile: string; content: string }[] }>(`/workflow/${id}/cwl`);
+export async function useGetWorkflowLocalCwl(id: string): Promise<{ cwlFile: string; content: string; isSds: boolean; toolCwls?: { cwlFile: string; content: string }[] }> {
+  return http.get<{ cwlFile: string; content: string; isSds: boolean; toolCwls?: { cwlFile: string; content: string }[] }>(`/workflow/${id}/cwl`);
 }
