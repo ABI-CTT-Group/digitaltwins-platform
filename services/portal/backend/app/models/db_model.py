@@ -394,6 +394,7 @@ class ProbeSourceFailure(BaseModel):
 
 
 class WorkflowCreate(WorkflowBase):
+    workflow_type: Literal["script", "notebook", "gui"]  # required for new workflows; optional on WorkflowBase for older rows
     upload_id: Optional[str] = None  # client-supplied at create-time only; resolved to local_archive_path server-side
 
 
@@ -402,6 +403,7 @@ class WorkflowResponse(WorkflowBase):
     uuid: Optional[str] = None
     local_archive_path: Optional[str] = None
     seek_project_id: Optional[int] = None
+    is_sds: Optional[bool] = None  # set by the build; never accepted from the client
     created_at: datetime
     updated_at: datetime
 

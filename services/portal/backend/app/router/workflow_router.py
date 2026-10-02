@@ -30,7 +30,7 @@ from app.client.minio import get_minio_client
 from app.client.fhir import get_fhir_adapter, get_fhir_async_client
 from app.builder.build_workflow import WorkflowBuilder
 from app.builder.source_acquirer import SourceAcquirer, SourceSpec, CloneError
-from app.builder.workflow_layout import inspect_workflow_source, read_workflow_cwl
+from app.builder.workflow_layout import detect_workflow_layout, inspect_workflow_source, read_workflow_cwl
 from app.utils.workflow_tool_utils import get_build_record_or_404, get_latest_build_record
 from app.utils.builder_utils import (
     execute_build_in_background,
@@ -143,7 +143,7 @@ async def get_workflow_cwl(workflow_id: str, db: Session = Depends(get_db)):
             status_code=404,
             detail="No .cwl file found at the root of the uploaded folder, or as the one primary/workflow_*.cwl of an SDS package",
         )
-    return result
+    return {**result, "is_sds": detect_workflow_layout(staging).is_sds}
 
 
 @router.post("/create", dependencies=[WRITER], response_model=WorkflowResponse)
@@ -475,7 +475,7 @@ def approve_workflow(workflow_id: str, background: BackgroundTasks, body: Option
     """
     body = body or WorkflowApprovalRequest()
     workflow, latest = get_latest_build_record(workflow_id, "workflow", db)
-    if not workflow.workflow_type:
+    if not workflow.is_sds:
         raise HTTPException(status_code=409, detail="Only SDS workflow packages are approved to the platform")
     if latest is None or latest.status != BuildStatus.COMPLETED.value:
         raise HTTPException(status_code=409, detail="The latest build has not completed")
@@ -516,7 +516,7 @@ def workflow_approval_status(workflow_id: str, background: BackgroundTasks, user
 @router.get("/{workflow_id}/approval", dependencies=[WRITER])
 async def get_workflow_approval(workflow_id: str, db: Session = Depends(get_db)):
     workflow, latest_build = get_latest_build_record(workflow_id, "workflow", db)
-    if workflow.workflow_type:
+    if workflow.is_sds:
         raise HTTPException(status_code=409, detail="SDS workflow packages are approved with POST /api/workflow/{id}/approval")
     dataset_path = Path(latest_build.dataset_path)
     # TODO 1: Upload dataset to Digitaltwins Platform,and get the uuid
@@ -596,7 +596,7 @@ async def delete_plugin(workflow_id: str, user: dict = WRITER, db: Session = Dep
 
             # An approved SDS workflow lives in the platform: digitaltwins-api removes it with its tools
             # (Postgres, MinIO, SEEK, FHIR). Done first, so a failure keeps the workflow.
-            if workflow_handoff.in_platform(workflow) and workflow.workflow_type:
+            if workflow_handoff.in_platform(workflow):
                 api = tool_handoff.Api(tool_handoff.make_http(), lambda: user["token"])
                 await asyncio.to_thread(api.request, "DELETE", f"/datasets/{workflow.uuid}",
                                         expect=(200, 404), params={"delete_tools": "true"})

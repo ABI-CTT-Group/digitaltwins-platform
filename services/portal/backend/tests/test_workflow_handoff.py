@@ -32,7 +32,7 @@ class WorkflowHandoffTest(unittest.TestCase):
         tool_handoff.relay.clear()
         with SessionLocal() as db:
             wf = Workflow(name="Convert", version="1.0.0", author="Ann", description="DICOM to NIfTI",
-                          repository_url="local://x", source_type="local", workflow_type="script")
+                          repository_url="local://x", source_type="local", workflow_type="script", is_sds=True)
             db.add(wf)
             db.commit()
             self.wf_id = wf.id
@@ -133,7 +133,13 @@ class WorkflowHandoffTest(unittest.TestCase):
 
     def test_a_root_cwl_workflow_is_not_approved_to_the_platform(self):
         with SessionLocal() as db:
-            db.get(Workflow, self.wf_id).workflow_type = None
+            db.get(Workflow, self.wf_id).is_sds = False
+            db.commit()
+        self.assertEqual(self._approve().status_code, 409)
+
+    def test_a_workflow_not_built_yet_is_not_approved_to_the_platform(self):
+        with SessionLocal() as db:
+            db.get(Workflow, self.wf_id).is_sds = None
             db.commit()
         self.assertEqual(self._approve().status_code, 409)
 

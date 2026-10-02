@@ -54,6 +54,20 @@ class WorkflowSdsSourceTest(unittest.TestCase):
         self.assertEqual(r.status_code, 200, r.text)
         self.assertEqual(r.json()["cwl_file"], "workflow_convert.cwl")
         self.assertEqual(r.json()["tool_cwls"], [{"cwl_file": "tool_convert.cwl", "content": TOOL}])
+        self.assertTrue(r.json()["is_sds"])
+
+    def test_cwl_reports_a_root_cwl_source_as_not_sds(self):
+        src = Path(tempfile.mkdtemp())
+        (src / "flow.cwl").write_text(WORKFLOW)
+        with SessionLocal() as db:
+            wf = Workflow(name="flow", version="1.0.0", repository_url="local://y", source_type="local",
+                          local_archive_path=str(src), workflow_type="script")
+            db.add(wf)
+            db.commit()
+            wf_id = wf.id
+        r = self.client.get(f"/api/workflow/{wf_id}/cwl", headers=bearer("viewer"))
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertFalse(r.json()["is_sds"])
 
     def test_a_git_probe_inlines_the_tool_cwls(self):
         data = _inspect_with_cwl_content(self.root, workflow_layout=True)
