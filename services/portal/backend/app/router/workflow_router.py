@@ -617,9 +617,9 @@ async def delete_plugin(workflow_id: str, user: dict = WRITER, db: Session = Dep
                 if build.s3_path is not None:
                     logger.info("Deleting s3 path {}".format(build.s3_path))
                     prefix = build.s3_path.split("/")[-1]
-                    object_keys = minio.list_objects(prefix=prefix)
-                    if len(object_keys) > 0:
-                        minio.delete_objects(delete_keys=object_keys)
+                    # One by one: this MinIO rejects multi-object delete without Content-MD5.
+                    for obj in minio.list_objects(prefix=prefix):
+                        minio.delete_object(obj["Key"])
                     # Delete dataset in dataset folder
                     dataset_path = builder.dataset_dir / prefix
                     print("delete: ", dataset_path)

@@ -13,7 +13,9 @@ import httpx
 
 from tests.tool_app import bearer, make_workflow_client  # noqa: I001  (sets DATABASE_PATH first)
 from app.models.db_model import BuildStatus, SessionLocal, Workflow, WorkflowAnnotation, WorkflowBuild
+from app.router import workflow_router
 from app.services import tool_handoff
+from tests.test_tool_catalogue import FakeBucket
 from tests.test_tool_handoff import FakeApi
 from tests.test_workflow_layout import make_sds_workflow
 
@@ -168,6 +170,20 @@ class WorkflowHandoffTest(unittest.TestCase):
 
         self.assertFalse(r.json()["status"])
         self.assertIsNotNone(self._workflow())
+
+    def test_deleting_a_workflow_removes_its_build_objects_one_by_one(self):
+        with SessionLocal() as db:
+            db.query(WorkflowBuild).update({"s3_path": "s3://workflows/convert_ab12cd34"})
+            db.commit()
+        bucket = FakeBucket(["convert_ab12cd34/a.cwl", "convert_ab12cd34/b.cwl", "other/c.cwl"])
+        orig, workflow_router.minio = workflow_router.minio, bucket
+        self.addCleanup(setattr, workflow_router, "minio", orig)
+
+        r = self.client.delete(f"/api/workflow/{self.wf_id}", headers=bearer("researcher"))
+
+        self.assertTrue(r.json()["status"], r.json())
+        self.assertEqual(bucket.deleted, ["convert_ab12cd34/a.cwl", "convert_ab12cd34/b.cwl"])
+        self.assertIsNone(self._workflow())
 
     def test_a_token_the_platform_rejects_says_to_sign_in_again(self):
         self._approve()
