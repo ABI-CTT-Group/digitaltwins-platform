@@ -20,6 +20,7 @@
         approval failed
       </span>
       <span v-if="workflow.platformOnly" class="aurora-chip" :style="{ '--chip': '#9fb4bf' }">platform upload</span>
+      <span v-else-if="inPlatform" class="aurora-chip" :style="{ '--chip': '#6fd49a' }">in platform</span>
       <span v-if="workflow.createdAt" class="aurora-chip ms-auto">{{ formatDate(workflow.createdAt) }}</span>
     </template>
   </CardUI>
@@ -62,6 +63,9 @@ const menuItems = computed<UCardMenuItem[]>(() => workflow.value.platformOnly
     { label: 'Submit to approval', icon: 'mdi-send-check-outline', onClick: workflow.value.isSds ? () => emit("approve-platform", workflow.value) : onSubmit },
     { label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: onDelete },
   ])
+
+// Approved into the platform: a real dataset uuid, not the legacy approval's `sparc-workflow-` placeholder.
+const inPlatform = computed(() => !!workflow.value.uuid && !workflow.value.uuid.startsWith('sparc-workflow-'))
 
 const ACTIVE = ['uploading', 'awaiting_reauth', 'committing']
 const handoffActive = computed(() => ACTIVE.includes(workflow.value.handoffStatus ?? ''))

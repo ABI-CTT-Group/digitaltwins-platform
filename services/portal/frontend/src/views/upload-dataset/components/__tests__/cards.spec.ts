@@ -35,6 +35,18 @@ describe("WorkflowCard", () => {
     expect(w.emitted("delete")).toBeUndefined();
   });
 
+  it("tags a workflow approved into the platform, like the Tool Hub", () => {
+    const tagged = (workflow: object) =>
+      mount(WorkflowCard, { props: { workflow: workflow as any }, global: { plugins } }).text();
+
+    expect(tagged({ ...WORKFLOW, uuid: "a8d6da0e-1" })).toContain("in platform");
+    expect(tagged(WORKFLOW)).not.toContain("in platform");
+    // The legacy approval only gives the row a placeholder; it never reached the platform.
+    expect(tagged({ ...WORKFLOW, uuid: "sparc-workflow-$x" })).not.toContain("in platform");
+    // A platform upload says so instead.
+    expect(tagged(PLATFORM_WORKFLOW)).not.toContain("in platform");
+  });
+
   it("keeps the portal workflow menu", async () => {
     const w = mount(WorkflowCard, { props: { workflow: WORKFLOW as any }, global: { plugins } });
 

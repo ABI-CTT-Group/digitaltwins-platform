@@ -90,9 +90,9 @@ const hasPendingItem = (items: MeasurementResponse[]) =>
     (m) => m.status === 'uploading' || m.status === 'pending' || m.status === 'pending_upload',
   );
 
-// "In platform" = fully approved: uploaded to MinIO and pushed to FHIR.
-// Everything else (pending, uploading, submit_failed, fhir_failed) is still a draft.
-const isMeasurementInPlatform = (m: MeasurementResponse) => m.status === 'completed';
+// "In platform" = a committed platform dataset (it has a uuid), whatever its FHIR
+// state; uploads not committed yet are still drafts. MeasurementCard tags the same.
+const isMeasurementInPlatform = (m: MeasurementResponse) => !!m.uuid;
 
 const registrationFilterOptions = [
   { title: 'All', value: 'all' },
