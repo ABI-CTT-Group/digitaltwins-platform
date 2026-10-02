@@ -1,3 +1,4 @@
+import asyncio
 import os
 import json
 import mimetypes
@@ -29,12 +30,11 @@ from app.client.minio import get_minio_client
 from app.client.fhir import get_fhir_adapter, get_fhir_async_client
 from app.builder.build_workflow import WorkflowBuilder
 from app.builder.source_acquirer import SourceAcquirer, SourceSpec, CloneError
+from app.builder.workflow_layout import inspect_workflow_source, read_workflow_cwl
 from app.utils.workflow_tool_utils import get_build_record_or_404, get_latest_build_record
 from app.utils.builder_utils import (
     execute_build_in_background,
     extract_uploaded_archive,
-    inspect_uploaded_source,
-    read_root_cwl,
     resolve_project_root,
 )
 
@@ -45,10 +45,13 @@ from uuid import UUID
 from app.utils.utils import force_rmtree, is_empty
 from fhir_cda import Annotator
 from pprint import pprint
+from app.utils.auth import get_current_user, require_any_role
+from app.services import tool_handoff, workflow_handoff
 
 configure_logging()
 logger = get_logger(__name__)
-router = APIRouter(prefix="/api/workflow")
+router = APIRouter(prefix="/api/workflow", dependencies=[Depends(get_current_user)])
+WRITER = Depends(require_any_role("admin", "researcher"))
 minio = get_minio_client("workflows")
 adapter = get_fhir_adapter()
 builder = WorkflowBuilder()
@@ -64,10 +67,11 @@ async def check_name(name: str, db: Session = Depends(get_db)):
     return {"available": True, "message": "Name is available"}
 
 
-@router.post("/upload-source")
+@router.post("/upload-source", dependencies=[WRITER])
 async def upload_workflow_source(file: UploadFile = File(...)):
     """Receive a zip archive of a CWL workflow source folder, extract to staging.
-    Workflows must contain at least one .cwl file at the root.
+    Workflows must contain a .cwl file at the root, or be an SDS workflow package
+    with exactly one primary/workflow_*.cwl.
     """
     tmp_zip = builder.tmp_dir / f"upload_archive_{uuid.uuid4().hex[:8]}.zip"
     try:
@@ -85,7 +89,7 @@ async def upload_workflow_source(file: UploadFile = File(...)):
         except zipfile.BadZipFile:
             raise HTTPException(status_code=400, detail="Uploaded file is not a valid zip archive")
 
-        meta = inspect_uploaded_source(staging, want_npm=False, want_cwl=True)
+        meta = inspect_workflow_source(staging, want_cwl=True)
         logger.info(f"Workflow source uploaded: upload_id={staging.name}, meta={meta}")
 
         if not meta["has_cwl"]:
@@ -93,7 +97,8 @@ async def upload_workflow_source(file: UploadFile = File(...)):
             force_rmtree(staging)
             raise HTTPException(
                 status_code=400,
-                detail="No .cwl file found at the root of the uploaded folder",
+                detail=("No .cwl file found at the root of the uploaded folder, "
+                        "or as the one primary/workflow_*.cwl of an SDS package"),
             )
 
         return {
@@ -102,6 +107,7 @@ async def upload_workflow_source(file: UploadFile = File(...)):
             "package_version": meta["package_version"],
             "package_author": meta["package_author"],
             "has_cwl": meta["has_cwl"],
+            "is_sds": meta["is_sds"],
         }
     finally:
         if tmp_zip.exists():
@@ -113,7 +119,7 @@ async def upload_workflow_source(file: UploadFile = File(...)):
 
 @router.get("/{workflow_id}/cwl")
 async def get_workflow_cwl(workflow_id: str, db: Session = Depends(get_db)):
-    """Read the root .cwl file for a local-source workflow from its staging dir.
+    """Read the root .cwl (or, for an SDS package, the workflow and tool CWLs) of a local-source workflow.
     Used by the annotation step in local mode (github mode still hits GitHub directly)."""
     workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()  # type: ignore
     if workflow is None:
@@ -131,13 +137,16 @@ async def get_workflow_cwl(workflow_id: str, db: Session = Depends(get_db)):
             detail="Staging directory has been removed (build already completed?)",
         )
 
-    result = read_root_cwl(staging)
+    result = read_workflow_cwl(staging)
     if result is None:
-        raise HTTPException(status_code=404, detail="No .cwl file found at the root of the uploaded folder")
+        raise HTTPException(
+            status_code=404,
+            detail="No .cwl file found at the root of the uploaded folder, or as the one primary/workflow_*.cwl of an SDS package",
+        )
     return result
 
 
-@router.post("/create", response_model=WorkflowResponse)
+@router.post("/create", dependencies=[WRITER], response_model=WorkflowResponse)
 async def create_tool_plugin(workflow: WorkflowCreate, db: Session = Depends(get_db)):
     data = workflow.model_dump()
     upload_id = data.pop("upload_id", None)
@@ -171,7 +180,7 @@ async def create_tool_plugin(workflow: WorkflowCreate, db: Session = Depends(get
     return db_workflow
 
 
-@router.post("/{workflow_id}/annotation", response_model=WorkflowAnnotationResponse)
+@router.post("/{workflow_id}/annotation", dependencies=[WRITER], response_model=WorkflowAnnotationResponse)
 async def create_tool_annotation(workflow_id: str, annotation: WorkflowAnnotationCreate, db: Session = Depends(get_db)):
     workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()  # type: ignore
     if workflow is None:
@@ -322,6 +331,7 @@ def _trigger_workflow_build(
         "repo_url": workflow.repository_url,
         "source_type": workflow.source_type,
         "local_archive_path": workflow.local_archive_path,
+        "workflow_type": workflow.workflow_type,
         "metadata": {},
         "created_at": workflow.created_at.isoformat() if workflow.created_at else None,
         "updated_at": workflow.updated_at.isoformat() if workflow.updated_at else None,
@@ -361,7 +371,7 @@ def _trigger_workflow_build(
     }
 
 
-@router.get("/{workflow_id}/build", deprecated=True)
+@router.get("/{workflow_id}/build", deprecated=True, dependencies=[WRITER])
 async def execute_build(
         workflow_id: str,
         background_tasks: BackgroundTasks = None,
@@ -375,7 +385,7 @@ async def execute_build(
     return _trigger_workflow_build(workflow_id, background_tasks, db, transient=None)
 
 
-@router.post("/{workflow_id}/build")
+@router.post("/{workflow_id}/build", dependencies=[WRITER])
 async def execute_build_post(
         workflow_id: str,
         req: BuildTriggerRequest = Body(default_factory=BuildTriggerRequest),
@@ -388,7 +398,7 @@ async def execute_build_post(
     return _trigger_workflow_build(workflow_id, background_tasks, db, transient=req)
 
 
-@router.post("/probe-source")
+@router.post("/probe-source", dependencies=[WRITER])
 async def probe_source(req: ProbeSourceRequest):
     """Probe a git URL for workflow source metadata.
 
@@ -402,6 +412,7 @@ async def probe_source(req: ProbeSourceRequest):
         token=req.token,
         auth_username=req.auth_username,
         verify_ssl=req.verify_ssl,
+        workflow_layout=True,
     )
     try:
         acquirer = SourceAcquirer.for_type(req.source_type, builder.tmp_dir)
@@ -448,9 +459,65 @@ async def get_workflow_annotation(workflow_id: str, db: Session = Depends(get_db
     return annotation
 
 
-@router.get("/{workflow_id}/approval")
+class WorkflowApprovalRequest(BaseModel):
+    seek_project_id: Optional[int] = None  # defaults to the project of the previous approval
+    fhir: bool = True                      # push the PlanDefinition and an ActivityDefinition per tool
+
+
+@router.post("/{workflow_id}/approval", status_code=202)
+def approve_workflow(workflow_id: str, background: BackgroundTasks, body: Optional[WorkflowApprovalRequest] = None,
+                     user: dict = WRITER, db: Session = Depends(get_db)):
+    """Hand the latest completed build of an SDS workflow to digitaltwins-api as the calling user.
+
+    The API registers the workflow and each of its tools in SEEK and stores them
+    under new dataset UUIDs; once that commits, a previously approved version
+    (with its tools) is deleted. Poll ``GET .../approval/status`` for progress.
+    """
+    body = body or WorkflowApprovalRequest()
+    workflow, latest = get_latest_build_record(workflow_id, "workflow", db)
+    if not workflow.workflow_type:
+        raise HTTPException(status_code=409, detail="Only SDS workflow packages are approved to the platform")
+    if latest is None or latest.status != BuildStatus.COMPLETED.value:
+        raise HTTPException(status_code=409, detail="The latest build has not completed")
+    if latest.handoff_status in tool_handoff.ACTIVE:
+        raise HTTPException(status_code=409, detail="This build is already being approved")
+    if latest.handoff_status == "completed":
+        raise HTTPException(status_code=409, detail="This build is already approved; rebuild to approve a new version")
+    seek_project_id = body.seek_project_id or workflow.seek_project_id
+    if seek_project_id is None:
+        raise HTTPException(status_code=400, detail="seek_project_id is required")
+    try:
+        workflow_handoff.start(db, workflow, latest, user, seek_project_id, body.fhir)
+    except tool_handoff.NeedsReauth:
+        raise HTTPException(status_code=401, detail="digitaltwins-api rejected the token")
+    except tool_handoff.ApiError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    background.add_task(workflow_handoff.run, latest.build_id)
+    return tool_handoff.status_view(latest)
+
+
+@router.get("/{workflow_id}/approval/status")
+def workflow_approval_status(workflow_id: str, background: BackgroundTasks, user: dict = Depends(get_current_user),
+                             db: Session = Depends(get_db)):
+    """Handoff progress of the workflow's most recent approval; the approver's poll also resumes a paused handoff."""
+    if db.query(Workflow).filter(Workflow.id == workflow_id).first() is None:  # type: ignore
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    build = (db.query(WorkflowBuild)
+             .filter(WorkflowBuild.workflow_id == workflow_id, WorkflowBuild.upload_id.isnot(None))
+             .order_by(WorkflowBuild.created_at.desc()).first())
+    if build is None:
+        return {"handoff_status": None}
+    if build.handoff_status in tool_handoff.ACTIVE and tool_handoff.relay_token(build, user):
+        if not tool_handoff.is_running(build.build_id):
+            background.add_task(workflow_handoff.run, build.build_id)
+    return tool_handoff.status_view(build)
+
+
+@router.get("/{workflow_id}/approval", dependencies=[WRITER])
 async def get_workflow_approval(workflow_id: str, db: Session = Depends(get_db)):
     workflow, latest_build = get_latest_build_record(workflow_id, "workflow", db)
+    if workflow.workflow_type:
+        raise HTTPException(status_code=409, detail="SDS workflow packages are approved with POST /api/workflow/{id}/approval")
     dataset_path = Path(latest_build.dataset_path)
     # TODO 1: Upload dataset to Digitaltwins Platform,and get the uuid
     # dataset_uuid = upload_dataset(dataset_path)
@@ -520,15 +587,20 @@ async def get_workflow(workflow_id: str, db: Session = Depends(get_db)):
     return annotation
 
 
-@router.delete("/{workflow_id}")
-async def delete_plugin(workflow_id: str, db: Session = Depends(get_db)):
+@router.delete("/{workflow_id}", dependencies=[WRITER])
+async def delete_plugin(workflow_id: str, user: dict = WRITER, db: Session = Depends(get_db)):
     try:
         workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()  # type: ignore
         logger.info(f"Deleting plugin {workflow_id}")
         if workflow is not None:
 
-            # Check if workflow instance exists
-            if workflow.uuid:
+            # An approved SDS workflow lives in the platform: digitaltwins-api removes it with its tools
+            # (Postgres, MinIO, SEEK, FHIR). Done first, so a failure keeps the workflow.
+            if workflow_handoff.in_platform(workflow) and workflow.workflow_type:
+                api = tool_handoff.Api(tool_handoff.make_http(), lambda: user["token"])
+                await asyncio.to_thread(api.request, "DELETE", f"/datasets/{workflow.uuid}",
+                                        expect=(200, 404), params={"delete_tools": "true"})
+            elif workflow.uuid:
                 resource_workflows = await fhir_async_client.resources("PlanDefinition").search(
                     identifier=workflow.uuid).fetch_all()
                 logger.info(f"Delete: find workflow fhir resources: {resource_workflows}")
@@ -569,6 +641,9 @@ async def delete_plugin(workflow_id: str, db: Session = Depends(get_db)):
 
         logger.info(f"Deleting workflow {workflow_id} successfully.")
         return {"status": True, "message": "Workflow deleted successfully."}
+    except tool_handoff.NeedsReauth:
+        logger.info("Deleting plugin failed: digitaltwins-api rejected the token")
+        return {"status": False, "message": "digitaltwins-api rejected the token; sign in again"}
     except Exception as e:
         logger.info("Deleting plugin failed due to exception {}".format(e))
         return {"status": False, "message": str(e)}

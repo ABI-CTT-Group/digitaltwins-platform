@@ -8,6 +8,7 @@ from .logger import get_logger
 from app.client.minio import get_minio_client
 from sqlalchemy.orm import Session
 from app.builder.source_acquirer import SourceAcquirer, SourceSpec
+from app.builder.workflow_layout import detect_workflow_layout
 from app.utils.builder_utils import (
     copy_item,
     remove_tmp_folder,
@@ -40,6 +41,14 @@ class WorkflowBuilder:
             dataset_dir.mkdir(parents=True, exist_ok=True)
 
             logger.info(f"Creating SPARC dataset {dataset_name}")
+
+            layout = detect_workflow_layout(project_dir)
+            if layout.is_sds:
+                # digitaltwins-api ingests the package as it is (its metadata, primary/ CWLs and code/).
+                for item in layout.root.iterdir():
+                    copy_item(item, dataset_dir)  # skips .git, node_modules, dist, build
+                logger.info(f"Copied SDS workflow package {layout.root} to {dataset_dir}")
+                return dataset_dir
 
             dataset = Dataset()
             dataset.set_path(str(dataset_dir))
@@ -132,6 +141,14 @@ class WorkflowBuilder:
             acquirer = SourceAcquirer.for_type(source_type, self.tmp_dir)
             project_dir = acquirer.acquire(spec)
             tmp_source_dir = project_dir  # Mark for cleanup
+
+            layout = detect_workflow_layout(project_dir)
+            workflow_type = workflow.get("workflow_type")
+            if layout.is_sds and not workflow_type:
+                raise RuntimeError("An SDS workflow package needs a workflow type (script, notebook or gui)")
+            if workflow_type and not layout.is_sds:
+                raise RuntimeError("A workflow type is set, but the source is not an SDS workflow package "
+                                   "(dataset_description.xlsx and one primary/workflow_*.cwl)")
 
             # Step 2: Create SPARC dataset for cwl plugin script
             logger.info("Step 2: Creating SPARC dataset by sparc-me")

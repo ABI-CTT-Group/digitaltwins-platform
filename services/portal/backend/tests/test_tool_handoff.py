@@ -33,6 +33,7 @@ class FakeApi:
         self.fail_commit = None
         self.fail_delete = False
         self.sessions, self.puts, self.deleted, self.auth = {}, [], [], []
+        self.delete_params = []
         self.datasets = {}
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
@@ -93,6 +94,7 @@ class FakeApi:
             dataset = self.datasets.get(parts[2])
             return httpx.Response(200, json={"dataset": dataset}) if dataset else httpx.Response(404, json={})
         if path.startswith("/datasets/") and method == "DELETE":
+            self.delete_params.append(dict(request.url.params))
             self.deleted.append(parts[2])
             return httpx.Response(200, json={}) if self.datasets.pop(parts[2], None) else httpx.Response(404, json={})
         return httpx.Response(404, json={"detail": f"no fake route {method} {path}"})

@@ -167,6 +167,9 @@ class Workflow(Base):
     repository_url = Column(String, nullable=False)
     source_type = Column(String, nullable=False, default="github")
     local_archive_path = Column(String, nullable=True)
+    # Set (script|notebook|gui) for an SDS workflow package, which approval hands to digitaltwins-api.
+    workflow_type = Column(String, nullable=True)
+    seek_project_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -192,6 +195,13 @@ class WorkflowBuild(Base):
     s3_path = Column(String, nullable=True)
     expose_name = Column(String, nullable=True)
     dataset_path = Column(String, nullable=True)
+    # Approval hands the build to digitaltwins-api (app/services/workflow_handoff.py).
+    handoff_status = Column(String, nullable=True)  # uploading|awaiting_reauth|committing|completed|failed
+    upload_id = Column(String, nullable=True)       # the API's upload session
+    dataset_uuid = Column(String, nullable=True)    # the platform dataset, once committed
+    seek_id = Column(String, nullable=True)
+    handoff_error = Column(Text, nullable=True)
+    handoff_user = Column(String, nullable=True)    # the approver; only their token may continue the handoff
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -335,6 +345,7 @@ class WorkflowBase(BaseModel):
     source_type: Literal["github", "gitlab", "bitbucket", "git_generic", "local"] = "github"
     description: Optional[str] = None
     author: Optional[str] = None
+    workflow_type: Optional[Literal["script", "notebook", "gui"]] = None
 
 
 # --- Source-acquisition request bodies (phase 5: multi-git-provider) ---
@@ -388,6 +399,7 @@ class WorkflowResponse(WorkflowBase):
     id: str
     uuid: Optional[str] = None
     local_archive_path: Optional[str] = None
+    seek_project_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
@@ -401,6 +413,10 @@ class WorkflowBuildResponse(BuildBase):
     build_id: str
     status: str
     expose_name: Optional[str] = None
+    handoff_status: Optional[str] = None
+    dataset_uuid: Optional[str] = None
+    seek_id: Optional[str] = None
+    handoff_error: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

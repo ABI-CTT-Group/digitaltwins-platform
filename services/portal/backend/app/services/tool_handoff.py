@@ -105,11 +105,9 @@ def _files(root: Path) -> Iterator[Tuple[str, Path]]:
 # ── Annotation draft <-> workflow_tool descriptions ────────────────────
 
 
-def fhir_descriptions(plugin: Plugin) -> Dict[str, Any]:
-    """The tool's ``workflow_tool`` FHIR descriptions: its version plus the Annotation step's port draft."""
-    tool: Dict[str, Any] = {"version": plugin.version}
-    note = plugin.annotation.fhir_note if plugin.annotation else None
-    draft = json.loads(note) if note else {}
+def tool_section(version: str, draft: Dict[str, Any]) -> Dict[str, Any]:
+    """A ``workflow_tool`` section: ``version`` plus a port draft's annotated ports."""
+    tool: Dict[str, Any] = {"version": version}
     inputs = [{"id": p["name"], "resourceType": p["resource"]} for p in draft.get("inputs") or [] if p.get("resource")]
     outputs = [
         {"id": p["name"], "resourceType": p["resource"],
@@ -120,7 +118,13 @@ def fhir_descriptions(plugin: Plugin) -> Dict[str, Any]:
         tool["input"] = inputs
     if outputs:
         tool["output"] = outputs
-    return {"workflow_tool": tool}
+    return tool
+
+
+def fhir_descriptions(plugin: Plugin) -> Dict[str, Any]:
+    """The tool's ``workflow_tool`` FHIR descriptions: its version plus the Annotation step's port draft."""
+    note = plugin.annotation.fhir_note if plugin.annotation else None
+    return {"workflow_tool": tool_section(plugin.version, json.loads(note) if note else {})}
 
 
 def draft_from_descriptions(name: str, descriptions: Dict[str, Any]) -> Dict[str, Any]:
@@ -159,10 +163,8 @@ def is_running(build_id: str) -> bool:
         return build_id in _running
 
 
-def start(db, plugin: Plugin, build: PluginBuild, user: Dict[str, Any], seek_project_id: int, fhir: bool) -> None:
-    """Open the API upload session for ``build`` as ``user`` (the caller then runs :func:`run` in the background)."""
-    token = user["token"]
-    api = Api(make_http(), lambda: token)
+def open_session(api: Api, build, username: str, body: Dict[str, Any]) -> None:
+    """Open an on-finalize upload session for ``build``'s folder (``body`` without manifest); the caller commits."""
     if build.upload_id:  # an earlier, failed handoff of this build
         try:
             api.request("DELETE", f"/datasets/uploads/{build.upload_id}", expect=(200, 404, 409))
@@ -172,16 +174,20 @@ def start(db, plugin: Plugin, build: PluginBuild, user: Dict[str, Any], seek_pro
     manifest = [{"rel_path": rel, "size": local.stat().st_size,
                  "parts": max(1, math.ceil(local.stat().st_size / part_size))}
                 for rel, local in _files(Path(build.dataset_path))]
-    body = {
-        "name": plugin.name, "description": plugin.description, "category": TOOL_CATEGORY,
-        "source_kind": "folder", "manifest": manifest, "commit_mode": "on_finalize",
-        "tool_type": TOOL_TYPES[plugin.label], "seek_project_id": seek_project_id,
-    }
+    created = api.request("POST", "/datasets/uploads", json={
+        **body, "source_kind": "folder", "manifest": manifest, "commit_mode": "on_finalize"})
+    build.upload_id, build.handoff_status, build.handoff_error = created["upload_id"], "uploading", None
+    build.handoff_user = username
+
+
+def start(db, plugin: Plugin, build: PluginBuild, user: Dict[str, Any], seek_project_id: int, fhir: bool) -> None:
+    """Open the API upload session for ``build`` as ``user`` (the caller then runs :func:`run` in the background)."""
+    token = user["token"]
+    body = {"name": plugin.name, "description": plugin.description, "category": TOOL_CATEGORY,
+            "tool_type": TOOL_TYPES[plugin.label], "seek_project_id": seek_project_id}
     if fhir:
         body["fhir_descriptions"] = fhir_descriptions(plugin)
-    created = api.request("POST", "/datasets/uploads", json=body)
-    build.upload_id, build.handoff_status, build.handoff_error = created["upload_id"], "uploading", None
-    build.handoff_user = user["username"]
+    open_session(Api(make_http(), lambda: token), build, user["username"], body)
     plugin.seek_project_id = seek_project_id
     db.commit()
     relay.put(build.build_id, token)
@@ -233,7 +239,11 @@ def _complete(db, api: Api, plugin: Plugin, build: PluginBuild, dataset_uuid: st
         db.commit()
 
 
-def run(build_id: str) -> None:
+def _tool_complete(db, api: Api, build: PluginBuild, dataset_uuid: str) -> None:
+    _complete(db, api, build.plugin, build, dataset_uuid)
+
+
+def run(build_id: str, build_cls=PluginBuild, complete=None) -> None:
     """Send the build's missing parts, finalize, wait for the commit. Never raises; state goes on the row."""
     with _running_lock:
         if build_id in _running:
@@ -241,7 +251,7 @@ def run(build_id: str) -> None:
         _running.add(build_id)
     try:
         with SessionLocal() as db:
-            build = db.query(PluginBuild).filter(PluginBuild.build_id == build_id).one()
+            build = db.query(build_cls).filter(build_cls.build_id == build_id).one()
             if build.handoff_status not in ACTIVE:
                 return
             api = Api(make_http(), lambda: relay.get(build_id))
@@ -259,13 +269,13 @@ def run(build_id: str) -> None:
                     build.handoff_status, build.handoff_error = "failed", session.get("failure_message")
                     db.commit()
                 else:
-                    _complete(db, api, build.plugin, build, session["dataset_uuid"])
+                    (complete or _tool_complete)(db, api, build, session["dataset_uuid"])
                 relay.drop(build_id)
             except NeedsReauth:
                 build.handoff_status = "awaiting_reauth"
                 db.commit()
             except Exception as exc:
-                logger.exception("Tool handoff failed for build %s", build_id)
+                logger.exception("Handoff failed for build %s", build_id)
                 build.handoff_status, build.handoff_error = "failed", str(exc)
                 db.commit()
                 relay.drop(build_id)

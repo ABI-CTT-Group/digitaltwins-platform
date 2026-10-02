@@ -33,6 +33,7 @@ from urllib.parse import urlparse, urlunparse
 
 from app.builder.logger import get_logger
 from app.builder.tool_layout import inspect_tool_source, read_tool_cwl
+from app.builder.workflow_layout import inspect_workflow_source, read_workflow_cwl
 from app.utils.builder_utils import clone_repository, inspect_uploaded_source, read_root_cwl
 from app.utils.utils import force_rmtree
 
@@ -72,6 +73,8 @@ class SourceSpec:
     # Tool probes also recognise SDS packages (see app.builder.tool_layout);
     # workflow probes keep the root-.cwl rule.
     tool_layout: bool = False
+    # Workflow probes also recognise SDS workflow packages (see app.builder.workflow_layout).
+    workflow_layout: bool = False
 
 
 class SourceAcquirer(ABC):
@@ -254,9 +257,10 @@ def _clone_anonymous_classified(
         raise
 
 
-def _inspect_with_cwl_content(project_dir: Path, tool_layout: bool = False) -> Dict[str, Any]:
-    """Run inspect_uploaded_source and additionally inline the root CWL
-    content when present.
+def _inspect_with_cwl_content(project_dir: Path, tool_layout: bool = False,
+                              workflow_layout: bool = False) -> Dict[str, Any]:
+    """Run inspect_uploaded_source (or the tool / SDS-workflow inspector) and
+    additionally inline the root CWL content when present.
 
     Used by all probe_metadata paths so the annotation step (which needs
     to read the CWL file content) can avoid a second round-trip / second
@@ -266,6 +270,9 @@ def _inspect_with_cwl_content(project_dir: Path, tool_layout: bool = False) -> D
     if tool_layout:
         result = inspect_tool_source(project_dir, want_cwl=True)
         read_cwl = read_tool_cwl
+    elif workflow_layout:
+        result = inspect_workflow_source(project_dir, want_cwl=True, want_npm=True)
+        read_cwl = read_workflow_cwl
     else:
         result = inspect_uploaded_source(project_dir, want_npm=True, want_cwl=True)
         read_cwl = read_root_cwl
@@ -274,6 +281,8 @@ def _inspect_with_cwl_content(project_dir: Path, tool_layout: bool = False) -> D
         if cwl:
             result["cwl_file"] = cwl["cwl_file"]
             result["cwl_content"] = cwl["content"]
+            if "tool_cwls" in cwl:
+                result["tool_cwls"] = cwl["tool_cwls"]
     return result
 
 
@@ -460,7 +469,7 @@ class _TokenGitAcquirer(SourceAcquirer):
             )
 
         try:
-            return _inspect_with_cwl_content(project_dir, spec.tool_layout)
+            return _inspect_with_cwl_content(project_dir, spec.tool_layout, spec.workflow_layout)
         finally:
             force_rmtree(project_dir)
 
@@ -538,7 +547,7 @@ class GenericGitAcquirer(SourceAcquirer):
     def probe_metadata(self, spec: SourceSpec) -> Dict[str, Any]:
         project_dir = self._clone(spec, shallow=True)
         try:
-            return _inspect_with_cwl_content(project_dir, spec.tool_layout)
+            return _inspect_with_cwl_content(project_dir, spec.tool_layout, spec.workflow_layout)
         finally:
             force_rmtree(project_dir)
 
