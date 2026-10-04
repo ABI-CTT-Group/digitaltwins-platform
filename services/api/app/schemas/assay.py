@@ -29,3 +29,5 @@ class AssayDataModel(BaseModel):
     ready: bool
     inputs: Optional[List[AssayInputModel]] = []
     outputs: Optional[List[AssayOutputModel]] = []
+    # Also link the workflow to the assay in SEEK (through an SOP) before saving.
+    link_workflow: bool = False

@@ -23,8 +23,11 @@ from requests import Response
 from sparc_me import Dataset
 
 from digitaltwins import Querier, Uploader
+from digitaltwins.core.assay_workflow_link import WorkflowNotInAssayProject, link_assay_workflow
 from digitaltwins.minio.uploader import Uploader as MinioUploader
-from .auth import validate_credentials
+from digitaltwins.seek.querier import Querier as SeekQuerier
+from digitaltwins.seek.writer import Writer as SeekWriter
+from .auth import require_upload_role, validate_credentials
 from .dependencies import get_querier, get_uploader
 from ..schemas.assay import AssayDataModel
 
@@ -427,11 +430,16 @@ def get_assay(assay_id: int, get_configs: bool = False, querier: Querier = Depen
 # ── Configure endpoint ────────────────────────────────────────────────
 
 
+def _link_workflow_in_seek(token: str, assay_id: int, workflow_id: int):
+    """Link the workflow to the assay through a SEEK SOP as the caller; return the undo."""
+    return link_assay_workflow(SeekQuerier(api_token=token), SeekWriter(api_token=token), assay_id, workflow_id)
+
+
 @router.post("/assays", tags=["assays"])
 async def configure_assay(
     assay_data: AssayDataModel,
     uploader: Uploader = Depends(get_uploader),
-    _valid: bool = Depends(validate_credentials),
+    credentials: dict = Depends(validate_credentials),
 ) -> dict[str, Any]:
     """Configure an assay through PostgreSQL.
     
@@ -439,17 +447,38 @@ async def configure_assay(
     as well as inputs and outputs mapping. Directly invokes
     `uploader.configure_assay(assay_data.model_dump())` to persist the 
     configuration in the PostgreSQL database.
+
+    With ``link_workflow`` (admin/researcher only) the workflow is first linked to
+    the assay in SEEK through an SOP; that link is undone if the save fails. A
+    workflow from none of the assay's projects is refused (400).
     """
+    undo_link = lambda: None
+    if assay_data.link_workflow:
+        require_upload_role(credentials)
+        try:
+            undo_link = _link_workflow_in_seek(
+                credentials["token"], assay_data.assay_seek_id, assay_data.workflow_seek_id)
+        except WorkflowNotInAssayProject as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        except Exception as exc:
+            logger.exception("Failed to link the workflow to assay %s in SEEK", assay_data.assay_seek_id)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Failed to link the workflow in SEEK: {exc}",
+            ) from exc
+
     try:
         # Convert Pydantic payload to dictionary string exactly as the DB layer expects
-        payload = assay_data.model_dump()
+        payload = assay_data.model_dump(exclude={"link_workflow"})
         assay_uuid = uploader.configure_assay(payload)
     except ValueError as exc:
+        undo_link()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
     except Exception as exc:
+        undo_link()
         logger.exception("Failed to configure assay")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
