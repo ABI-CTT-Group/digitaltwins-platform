@@ -89,6 +89,12 @@ async def get_programmes(client: DigitalTWINSAPIClient = Depends(get_client)):
     return programmes
 
 
+def _relationship_ids(resource: dict, relationship: str) -> list:
+    """IDs of a SEEK JSON:API resource's ``relationship`` (e.g. its projects)."""
+    data = ((resource.get("relationships") or {}).get(relationship) or {}).get("data") or []
+    return [str(ref.get("id")) for ref in data]
+
+
 @router.get("/category-children")
 async def get_dashboard_category_children_by_uuid(
         seek_id: str = Query(None),
@@ -162,14 +168,16 @@ async def get_dashboard_category_children_by_uuid(
                 # to Programmes on any assay without a linked Workflow.
                 tags_list = child.get("attributes", {}).get("tags") or []
                 workflows_rel = child.get("relationships", {}).get("workflows") or []
-                workflow_seek_id = None
-                if workflows_rel and isinstance(workflows_rel[0], list) and workflows_rel[0]:
-                    workflow_seek_id = workflows_rel[0][0].get('id')
+                # One list per linked SOP; a plain protocol SOP links no workflow.
+                workflow_seek_id = next(
+                    (w[0].get('id') for w in workflows_rel if isinstance(w, list) and w), None)
                 temp = {
                     "seek_id": child.get("id", None),
                     "name": child.get("attributes").get("title", None),
                     "tag": tags_list[0] if tags_list else None,
                     "workflow_seek_id": workflow_seek_id,
+                    # The config dialog offers only workflows from these projects.
+                    "project_ids": _relationship_ids(child, "projects"),
                     "category": send_category.capitalize() if send_category else None,
                     "description": child.get("attributes").get("description", None),
                 }
@@ -248,6 +256,7 @@ async def get_dashboard_workflows(client: DigitalTWINSAPIClient = Depends(get_cl
                 "uuid": "",
                 "name": title,
                 "type": workflow_type,
+                "project_ids": _relationship_ids(workflow_detail, "projects"),
             }
             workflows_response.append(temp)
 
@@ -361,10 +370,14 @@ async def get_dashboard_dataset_detail_by_uuid(uuid: str = Query(None), client: 
 
 @router.post("/assay-details")
 async def set_dashboard_assay_details(details: assay_model.AssayDetails, client: DigitalTWINSAPIClient = Depends(get_client)):
+    if not details.workflow.seek_id:
+        raise HTTPException(status_code=400, detail="Select a workflow")
     assay_data = {
         "assay_uuid": details.uuid,
         "assay_seek_id": int(details.seek_id),
         "workflow_seek_id": int(details.workflow.seek_id),
+        # Link the workflow to the assay in SEEK (through an SOP) as part of the save.
+        "link_workflow": True,
         "cohort": [str(n) for n in details.number_of_participants],
         "ready": details.is_assay_ready_to_launch,
         "inputs": [
@@ -381,9 +394,7 @@ async def set_dashboard_assay_details(details: assay_model.AssayDetails, client:
         ]
     }
     try:
-        print("assay_data sent:", assay_data)
-        res = await client.post(f"/assays", assay_data)
-        print(res.json())
+        await client.post(f"/assays", assay_data)
         return True
 
     except HTTPStatusError as e:
