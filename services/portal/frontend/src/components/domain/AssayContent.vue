@@ -25,7 +25,7 @@
                     </div>
                     <div class="w-50 mx-1">
                         <v-select
-                            v-if="data.input.category === 'measurement'"
+                            v-if="data.input.category === 'measurements'"
                             v-model="data.sampleSelectedType"
                             label="Select Sample"
                             :items="!!workflowInputDatasetSamples[data.input.name]?workflowInputDatasetSamples[data.input.name].selectedDatasetSampleTypes:[]"
@@ -181,7 +181,7 @@ onMounted(async () => {
     for (const inputData of inputs) {
         const { name, category } = inputData.input;
         const datasets = await getDatasets(category);
-        const sampleTypes = category === "measurement" && inputData.datasetSelectedUuid
+        const sampleTypes = category === "measurements" && inputData.datasetSelectedUuid
             ? await useDashboardSelectedDatasetSampleTypes(inputData.datasetSelectedUuid)
             : [];
         workflowInputDatasetSamples.value[name] = {
@@ -195,7 +195,7 @@ onMounted(async () => {
 
 const handleDatasetSelected = async (value: string, inputName:string, inputCategory:string) => {
     let sampleTypes:string[] = []
-    if(inputCategory === "measurement") {
+    if(inputCategory === "measurements") {
         sampleTypes = await useDashboardSelectedDatasetSampleTypes(value);
         workflowInputDatasetSamples.value[inputName].selectedDatasetSampleTypes = sampleTypes;
     }
