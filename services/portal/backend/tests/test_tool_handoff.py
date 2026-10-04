@@ -35,6 +35,8 @@ class FakeApi:
         self.sessions, self.puts, self.deleted, self.auth = {}, [], [], []
         self.delete_params = []
         self.datasets = {}
+        self.workflow_tools = []          # what GET /datasets/{uuid}/workflow-tools lists
+        self.fail_workflow_tools = False
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         token = request.headers.get("authorization", "").removeprefix("Bearer ")
@@ -90,6 +92,10 @@ class FakeApi:
             if dataset is None or "annotation" not in dataset:
                 return httpx.Response(404, json={"detail": "No FHIR annotation for this dataset"})
             return httpx.Response(200, json={"descriptions": dataset["annotation"]})
+        if path.startswith("/datasets/") and path.endswith("/workflow-tools"):
+            if self.fail_workflow_tools:
+                return httpx.Response(500, json={"detail": "Postgres unreachable"})
+            return httpx.Response(200, json={"workflow_type": "gui", "tools": self.workflow_tools})
         if path.startswith("/datasets/") and method == "GET":
             dataset = self.datasets.get(parts[2])
             return httpx.Response(200, json={"dataset": dataset}) if dataset else httpx.Response(404, json={})

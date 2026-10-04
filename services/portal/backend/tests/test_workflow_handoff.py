@@ -68,6 +68,15 @@ class WorkflowHandoffTest(unittest.TestCase):
             db.expunge_all()
             return wf
 
+    def _make_gui(self):
+        with SessionLocal() as db:
+            db.get(Workflow, self.wf_id).workflow_type = "gui"
+            db.commit()
+
+    def _tool_dataset(self):
+        with SessionLocal() as db:
+            return db.query(WorkflowBuild).filter(WorkflowBuild.build_id == self.build_id).one().tool_dataset_uuid
+
     def test_approval_commits_the_package_as_a_workflow_dataset(self):
         r = self._approve()
 
@@ -193,6 +202,26 @@ class WorkflowHandoffTest(unittest.TestCase):
         self.assertFalse(r.json()["status"])
         self.assertIn("sign in again", r.json()["message"])
         self.assertIsNotNone(self._workflow())
+
+    def test_a_gui_approval_records_its_tool_dataset(self):
+        self._make_gui()
+        self.api.workflow_tools = [{"dataset_uuid": "tool-1", "dataset_name": "tool_convert", "seek_id": "7",
+                                    "step_ids": ["convert"]}]
+        self._approve()
+        self.assertEqual(self._status().json()["handoff_status"], "completed")
+        self.assertEqual(self._tool_dataset(), "tool-1")
+
+    def test_an_unknown_tool_dataset_does_not_fail_the_approval(self):
+        self._make_gui()
+        self.api.fail_workflow_tools = True
+        self._approve()
+        self.assertEqual(self._status().json()["handoff_status"], "completed")
+        self.assertIsNone(self._tool_dataset())
+
+    def test_a_script_approval_does_not_look_up_tools(self):
+        self.api.workflow_tools = [{"dataset_uuid": "tool-1"}]
+        self._approve()
+        self.assertIsNone(self._tool_dataset())
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ delete removes the previous dataset with its tools
 """
 import json
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from app.models.db_model import Workflow, WorkflowBuild
 from app.services import tool_handoff
@@ -67,12 +67,25 @@ def start(db, workflow: Workflow, build: WorkflowBuild, user: Dict[str, Any], se
     tool_handoff.relay.put(build.build_id, token)
 
 
+def _tool_dataset_uuid(api: tool_handoff.Api, workflow: Workflow, dataset_uuid: str) -> Optional[str]:
+    """The platform tool dataset of a gui workflow's one step, so the Tool Hub can launch it (None if unknown)."""
+    if workflow.workflow_type != "gui":
+        return None
+    try:
+        tools = api.request("GET", f"/datasets/{dataset_uuid}/workflow-tools")["tools"]
+    except Exception as exc:
+        logger.warning("Tool dataset of gui workflow %s not found: %s", workflow.id, exc)
+        return None
+    return tools[0]["dataset_uuid"] if len(tools) == 1 else None
+
+
 def _complete(db, api: tool_handoff.Api, build: WorkflowBuild, dataset_uuid: str) -> None:
     """Record the committed dataset; with re-approval, the previous one (and its tools) is deleted only now."""
     workflow = build.workflow
     seek_id = api.request("GET", f"/datasets/{dataset_uuid}")["dataset"].get("seek_id")
     previous = workflow.uuid if in_platform(workflow) else None
     build.dataset_uuid, build.seek_id, build.handoff_status = dataset_uuid, seek_id, "completed"
+    build.tool_dataset_uuid = _tool_dataset_uuid(api, workflow, dataset_uuid)
     workflow.uuid = dataset_uuid
     db.commit()
     if previous and previous != dataset_uuid:
