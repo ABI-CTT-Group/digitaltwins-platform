@@ -1,13 +1,16 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { testVuetify } from "@/testing/vuetify";
 
 vi.mock("@/bootstrap/http", () => ({ default: {}, dtApi: {} }));
 vi.mock("@/bootstrap/api_helpers", () => ({ useCheckName: vi.fn(async () => ({ available: true, message: "" })) }));
 vi.mock("@/bootstrap/upload_source", () => ({ useUploadToolSource: vi.fn(), useUploadWorkflowSource: vi.fn() }));
+
+const repo = vi.hoisted(() => ({ info: null as any }));
 vi.mock("@/composables/useGithubRepoInfo", async () => {
   const { ref } = await import("vue");
-  return { useGitRepoInfo: () => ({ info: ref({ foldersInRoot: [], isSds: false, cwlExists: false }), refresh: vi.fn() }) };
+  repo.info = ref({ foldersInRoot: [], isSds: false, cwlExists: false });
+  return { useGitRepoInfo: () => ({ info: repo.info, refresh: vi.fn() }) };
 });
 vi.mock("@/composables/useLocalFolderInfo", async () => {
   const { ref } = await import("vue");
@@ -35,6 +38,10 @@ async function submit(w: Step) {
 }
 
 describe("BaseInformationStep", () => {
+  beforeEach(() => {
+    repo.info.value = { foldersInRoot: [], isSds: false, cwlExists: false };
+  });
+
   it("asks a workflow for its type before any source is chosen, defaulting to Script", () => {
     const w = mountStep("workflow");
     expect(w.text()).toContain("Choose the workflow type *");
@@ -65,5 +72,31 @@ describe("BaseInformationStep", () => {
     (w.vm as any).formData.hasBackend = true;
     await pick(w, "Script");
     expect(await submit(w)).toMatchObject({ label: "Script", hasBackend: false });
+  });
+
+  it("asks a gui SDS workflow how to build its tool, and sends it", async () => {
+    repo.info.value = { foldersInRoot: ["backend", "frontend"], isSds: true, cwlExists: true };
+    const w = mountStep("workflow");
+    await pick(w, "gui");
+    expect(w.text()).toContain("has backend?");
+
+    Object.assign((w.vm as any).formData, { hasBackend: true, frontendFolder: "frontend", backendFolder: "backend" });
+    expect(await submit(w)).toMatchObject({ workflowType: "gui", hasBackend: true, frontendFolder: "frontend",
+      backendFolder: "backend", frontendBuildCommand: "npm run build:plugin" });
+  });
+
+  it("asks nothing more of a root-.cwl gui workflow", async () => {
+    const w = mountStep("workflow");
+    await pick(w, "gui");
+    expect(w.text()).not.toContain("has backend?");
+    expect(await submit(w)).not.toHaveProperty("hasBackend");
+  });
+
+  it("does not send a gui layout for another workflow type", async () => {
+    repo.info.value = { foldersInRoot: ["frontend"], isSds: true, cwlExists: true };
+    const w = mountStep("workflow");
+    await pick(w, "script");
+    expect(w.text()).not.toContain("has backend?");
+    expect(await submit(w)).not.toHaveProperty("frontendBuildCommand");
   });
 });

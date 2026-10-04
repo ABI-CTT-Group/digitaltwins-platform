@@ -286,6 +286,11 @@ export interface WorkflowInformationStep {
     sourceType: SourceType;
     uploadId?: string;
     workflowType: WorkflowType;
+    // gui SDS workflows only: how to build the tool's frontend (folders under code/), as for GUI tools.
+    hasBackend?: boolean;
+    frontendFolder?: string;
+    frontendBuildCommand?: string;
+    backendFolder?: string;
 }
 
 export interface WorkflowResponse {

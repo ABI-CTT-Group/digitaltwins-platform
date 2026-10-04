@@ -74,8 +74,8 @@
           />
         </template>
 
-        <!-- Tool + GUI mode: backend & folder fields -->
-        <div v-if="type === 'tool' && formData.label === 'GUI'" class="w-100">
+        <!-- GUI tool, or a gui SDS workflow's tool: backend & folder fields -->
+        <div v-if="(type === 'tool' && formData.label === 'GUI') || isGuiSdsWorkflow" class="w-100">
           <div class="w-100">
             <h4 class="my-2">has backend? *</h4>
             <v-radio-group inline v-model="formData.hasBackend" class="w-100 d-flex justify-between">
@@ -251,6 +251,11 @@ defineExpose({ buildAuth });
 // nested property read on the underlying reactive `info` object directly.
 const foldersInRoot = computed(() => repoInfo.value.foldersInRoot);
 
+// A gui workflow packaged as SDS builds its one tool's frontend like a GUI tool (folders come from code/).
+const isGuiSdsWorkflow = computed(() =>
+  props.type === 'workflow' && formData.workflowType === 'gui' && !!repoInfo.value.isSds,
+);
+
 // ---- upload state ---------------------------------------------------------
 const submitting = ref(false);
 const abortController = ref<AbortController | null>(null);
@@ -375,6 +380,10 @@ async function validate(): Promise<boolean> {
   }
 
   if (props.type === 'workflow') {
+    if (isGuiSdsWorkflow.value && formData.hasBackend) {
+      const foldersOk = checkFolderInRoot(formData.frontendFolder ?? '') && checkFolderInRoot(formData.backendFolder ?? '');
+      return valid && !!cwlCheck.value && foldersOk;
+    }
     return valid && !!cwlCheck.value && !!formData.workflowType;
   }
 
@@ -460,6 +469,12 @@ async function handleSubmit() {
         sourceType: formData.sourceType,
         uploadId: formData.uploadId,
         workflowType: formData.workflowType,
+        ...(isGuiSdsWorkflow.value ? {
+          hasBackend: formData.hasBackend,
+          frontendFolder: formData.hasBackend ? formData.frontendFolder : undefined,
+          backendFolder: formData.hasBackend ? formData.backendFolder : undefined,
+          frontendBuildCommand: formData.frontendBuildCommand,
+        } : {}),
       };
       // Auth is emitted separately so the wizard's BaseBuildStep can pass
       // it into the build POST body. NEVER part of the create payload —
