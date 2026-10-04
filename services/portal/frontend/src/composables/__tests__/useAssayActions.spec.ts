@@ -73,7 +73,10 @@ describe("useAssayActions.save", () => {
     api.useDashboardGetAssayConfigDetails.mockResolvedValue({ ...saved("42"), isAssayReadyToLaunch: false });
     // Record what is sent at call time: save() mutates the same object afterwards.
     const sent: boolean[] = [];
-    api.useSaveAssayDetails.mockImplementation(async (d: AssayDetails) => (sent.push(d.isAssayReadyToLaunch), true));
+    api.useSaveAssayDetails.mockImplementation(async (d: AssayDetails) => {
+      sent.push(d.isAssayReadyToLaunch);
+      return true;
+    });
     const actions = useAssayActions();
     await actions.loadAssayList([assay("42")]);
     actions.openEdit("42");
