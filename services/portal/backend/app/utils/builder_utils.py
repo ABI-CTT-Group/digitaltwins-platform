@@ -320,6 +320,9 @@ def execute_build_in_background(
                         build_record.expose_name = result["expose_name"]
                         if "is_sds" in result:  # workflow builds: the source layout decides (workflow_layout.py)
                             build_record.workflow.is_sds = result["is_sds"]
+                        if result.get("tool_name"):  # a gui workflow's built tool (build_workflow.py)
+                            build_record.tool_name = result["tool_name"]
+                            build_record.bundle_path = result["bundle_path"]
                     else:
                         build_record.status = BuildStatus.FAILED.value
                         build_record.error = result["error_message"]

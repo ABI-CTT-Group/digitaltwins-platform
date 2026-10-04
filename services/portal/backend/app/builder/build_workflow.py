@@ -1,5 +1,6 @@
 import os
 import shutil
+import tempfile
 from pathlib import Path
 from typing import Optional, Dict, Any
 
@@ -7,6 +8,7 @@ from sparc_me import Dataset
 from .logger import get_logger
 from app.client.minio import get_minio_client
 from sqlalchemy.orm import Session
+from app.builder.build_tool import PluginBuilder, TOOL_BUILDS_BUCKET
 from app.builder.source_acquirer import SourceAcquirer, SourceSpec
 from app.builder.workflow_layout import detect_workflow_layout
 from app.utils.builder_utils import (
@@ -14,7 +16,8 @@ from app.utils.builder_utils import (
     remove_tmp_folder,
     unique_name,
 )
-from app.utils.utils import safe_path
+from app.models.db_model import DEFAULT_GUI_BUILD_COMMAND
+from app.utils.utils import force_rmtree, safe_path
 
 logger = get_logger(__name__)
 
@@ -96,6 +99,48 @@ class WorkflowBuilder:
             logger.error(f"Failed to create SPARC dataset: {e}")
             raise RuntimeError(f"Failed to create SPARC dataset: {e}")
 
+    def build_gui_tool(self, package_root: Path, dataset_dir: Path, workflow: Dict[str, Any], expose_name: str) -> str:
+        """Build a gui SDS workflow's tool frontend into ``primary/<tool stem>/`` of the dataset; returns the stem.
+
+        digitaltwins-api copies that folder into the tool dataset's primary/ on approval. The build runs in a
+        scratch copy of code/, so the source (for a local upload, its staging folder) is never modified.
+        """
+        tool_cwls = sorted(p for p in (package_root / "primary").glob("tool_*.cwl") if p.is_file())
+        if len(tool_cwls) != 1:
+            raise RuntimeError(f"A gui workflow must have exactly one primary/tool_*.cwl (found {len(tool_cwls)})")
+        tool_name = tool_cwls[0].stem
+        has_backend = bool(workflow.get("has_backend"))
+        scratch = Path(tempfile.mkdtemp(prefix="gui_build_", dir=self.tmp_dir))
+        try:
+            code = scratch / "code"
+            code.mkdir()
+            for item in (package_root / "code").iterdir():
+                copy_item(item, code)  # skips .git, node_modules, dist, build
+            frontend = code / workflow["frontend_folder"] if has_backend else code
+            command = workflow.get("frontend_build_command") or DEFAULT_GUI_BUILD_COMMAND
+            output = PluginBuilder(dataset_dir=str(self.dataset_dir)).build_frontend(
+                frontend, expose_name, command, has_backend)
+            if output is None:
+                raise RuntimeError("The frontend build produced no dist/ or build/ folder")
+            shutil.copytree(output, dataset_dir / "primary" / tool_name, dirs_exist_ok=True)
+        finally:
+            force_rmtree(scratch)
+        return tool_name
+
+    @staticmethod
+    def upload_bundle(bundle_dir: Path, expose_name: str) -> Optional[str]:
+        """Serve a gui workflow's bundle before approval from the public tool-builds bucket, like a tool test build.
+
+        Returns the bundle's prefix, or None if the upload failed (the build still succeeds, as for tools).
+        """
+        prefix = f"{expose_name}/primary"
+        try:
+            get_minio_client(TOOL_BUILDS_BUCKET).upload_directory(str(bundle_dir), prefix)
+        except Exception as e:
+            logger.error(f"Failed to upload the gui tool bundle to {TOOL_BUILDS_BUCKET}: {e}")
+            return None
+        return f"{TOOL_BUILDS_BUCKET}/{prefix}"
+
     def build(self, workflow: Dict[str, Any]) -> Dict[str, Any]:
         """Complete plugin build process"""
         build_logs = []
@@ -153,6 +198,13 @@ class WorkflowBuilder:
                                                     f"{workflow_unique_expose_name}")
             logger.info(f"SPARC dataset created in {dataset_dir}")
 
+            # Step 2.1: a gui SDS workflow builds its one tool's frontend, as GUI tools do
+            tool_name = bundle_path = None
+            if layout.is_sds and workflow_type == "gui":
+                logger.info("Step 2.1: Building the gui tool's frontend")
+                tool_name = self.build_gui_tool(layout.root, dataset_dir, workflow, workflow_unique_expose_name)
+                bundle_path = self.upload_bundle(dataset_dir / "primary" / tool_name, workflow_unique_expose_name)
+
             # Step 3: Upload dataset to MinIO
             s3_path = None
             minio_client = get_minio_client("workflows")
@@ -188,6 +240,8 @@ class WorkflowBuilder:
                 "success": True,
                 "dataset_path": str(dataset_dir),
                 "is_sds": layout.is_sds,
+                "tool_name": tool_name,
+                "bundle_path": bundle_path,
                 "expose_name": workflow_unique_expose_name,
                 "s3_path": s3_path,
                 "build_logs": "\n".join(build_logs),

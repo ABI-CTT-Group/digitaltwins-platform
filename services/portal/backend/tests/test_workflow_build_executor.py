@@ -49,6 +49,14 @@ class WorkflowBuildExecutorTest(unittest.TestCase):
     def test_a_failed_build_leaves_it_alone(self):
         self.assertIsNone(self._run({"success": False, "error_message": "boom"}))
 
+    def test_a_gui_build_records_its_tool_and_bundle(self):
+        self._run({"success": True, "s3_path": None, "dataset_path": "/d", "expose_name": "convert_ab12",
+                   "is_sds": True, "tool_name": "tool_convert", "bundle_path": "tool-builds/convert_ab12/primary"})
+        with SessionLocal() as db:
+            build = db.query(WorkflowBuild).filter(WorkflowBuild.build_id == self.build_id).one()
+            self.assertEqual((build.tool_name, build.bundle_path),
+                             ("tool_convert", "tool-builds/convert_ab12/primary"))
+
 
 if __name__ == "__main__":
     unittest.main()

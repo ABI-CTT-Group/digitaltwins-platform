@@ -215,6 +215,11 @@ class WorkflowBuild(Base):
     seek_id = Column(String, nullable=True)
     handoff_error = Column(Text, nullable=True)
     handoff_user = Column(String, nullable=True)    # the approver; only their token may continue the handoff
+    # A gui SDS workflow's built tool (app/builder/build_workflow.py): its CWL stem (set only when the bundle
+    # was built), the bundle's tool-builds prefix (null if that upload failed) and, once approved, its tool dataset.
+    tool_name = Column(String, nullable=True)
+    bundle_path = Column(String, nullable=True)        # e.g. tool-builds/<expose>/primary
+    tool_dataset_uuid = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
