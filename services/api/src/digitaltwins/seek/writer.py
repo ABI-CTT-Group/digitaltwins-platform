@@ -1,4 +1,5 @@
-"""Write to SEEK as the calling user: register tools and workflows as Workflows, delete them.
+"""Write to SEEK as the calling user: register tools and workflows as Workflows, delete them,
+and manage the SOPs that link an assay to its workflow.
 
 A tool is a SEEK Workflow tagged ``tool`` plus its tool type, a workflow one
 tagged ``workflow`` plus its workflow type. Each is registered
@@ -145,3 +146,69 @@ class Writer(object):
             raise RuntimeError(f"SEEK workflow {workflow_id} delete failed: {exc}") from exc
         if resp.status_code >= 300:
             raise RuntimeError(f"SEEK workflow {workflow_id} delete failed ({resp.status_code}): {_seek_error(resp)}")
+
+    def _jsonapi_headers(self) -> dict:
+        return {"Authorization": "Bearer " + self._api_token, "Accept": "application/vnd.api+json",
+                "Content-Type": "application/vnd.api+json"}
+
+    def create_sop(self, title: str, description: str, project_ids, assay_id, workflow_id, content: str) -> int:
+        """Create an SOP linking ``assay_id`` to ``workflow_id`` in ``project_ids``; return its id.
+
+        Viewable by those projects' members. Its content is ``content`` as a markdown file:
+        a remote-URL blob is checked anonymously by SEEK, so it fails for private workflows.
+        """
+        body = {"data": {"type": "sops", "attributes": {
+            "title": title,
+            "description": description,
+            "content_blobs": [{"original_filename": "workflow-link.md", "content_type": "text/markdown"}],
+            "policy": {"access": "no_access", "permissions": [
+                {"resource": {"id": str(p), "type": "projects"}, "access": "view"} for p in project_ids]},
+        }, "relationships": {
+            "projects": {"data": [{"id": str(p), "type": "projects"} for p in project_ids]},
+            "assays": {"data": [{"id": str(assay_id), "type": "assays"}]},
+            "workflows": {"data": [{"id": str(workflow_id), "type": "workflows"}]},
+        }}}
+        try:
+            resp = requests.post(f"{self._base_url}/sops", headers=self._jsonapi_headers(), json=body, timeout=60)
+        except RequestException as exc:
+            raise RuntimeError(f"SEEK SOP create failed: {exc}") from exc
+        if resp.status_code >= 300:
+            raise RuntimeError(f"SEEK SOP create failed ({resp.status_code}): {_seek_error(resp)}")
+        data = resp.json()["data"]
+        sop_id = int(data["id"])
+
+        # SEEK's blob link carries SEEK's own host, which may not be reachable from here.
+        blob_id = data["attributes"]["content_blobs"][0]["link"].rstrip("/").rsplit("/", 1)[-1]
+        headers = {"Authorization": "Bearer " + self._api_token, "Accept": "application/json",
+                   "Content-Type": "application/octet-stream"}
+        try:
+            resp = requests.put(f"{self._base_url}/sops/{sop_id}/content_blobs/{blob_id}",
+                                headers=headers, data=content.encode(), timeout=60)
+            error = None if resp.status_code < 300 else f"({resp.status_code}): {_seek_error(resp)}"
+        except RequestException as exc:
+            error = str(exc)
+        if error:
+            self.delete_sop(sop_id)
+            raise RuntimeError(f"SEEK SOP {sop_id} content upload failed {error}")
+        return sop_id
+
+    def set_sop_assays(self, sop_id, assay_ids) -> None:
+        """Replace the assays SOP ``sop_id`` is linked to."""
+        body = {"data": {"type": "sops", "id": str(sop_id), "relationships": {
+            "assays": {"data": [{"id": str(a), "type": "assays"} for a in assay_ids]}}}}
+        try:
+            resp = requests.patch(f"{self._base_url}/sops/{sop_id}", headers=self._jsonapi_headers(),
+                                  json=body, timeout=60)
+        except RequestException as exc:
+            raise RuntimeError(f"SEEK SOP {sop_id} update failed: {exc}") from exc
+        if resp.status_code >= 300:
+            raise RuntimeError(f"SEEK SOP {sop_id} update failed ({resp.status_code}): {_seek_error(resp)}")
+
+    def delete_sop(self, sop_id) -> None:
+        headers = {"Authorization": "Bearer " + self._api_token, "Accept": "application/json"}
+        try:
+            resp = requests.delete(f"{self._base_url}/sops/{sop_id}", headers=headers, timeout=30)
+        except RequestException as exc:
+            raise RuntimeError(f"SEEK SOP {sop_id} delete failed: {exc}") from exc
+        if resp.status_code >= 300:
+            raise RuntimeError(f"SEEK SOP {sop_id} delete failed ({resp.status_code}): {_seek_error(resp)}")

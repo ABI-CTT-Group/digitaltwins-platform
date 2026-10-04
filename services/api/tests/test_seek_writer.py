@@ -215,3 +215,103 @@ def test_register_workflow_raises_on_seek_error(seek_env, workflow_paths, monkey
     monkeypatch.setattr(writer.requests, "post", lambda url, **kw: FakeResponse(422, {"errors": [{"detail": "bad"}]}))
     with pytest.raises(RuntimeError, match="workflow registration failed.*bad"):
         Writer(api_token="tok").register_workflow(workflow, tool_cwls, "script", project_id=11)
+
+
+JSONAPI = {"Authorization": "Bearer tok", "Accept": "application/vnd.api+json",
+           "Content-Type": "application/vnd.api+json"}
+SOP_CREATED = {"data": {"id": "34", "type": "sops", "attributes": {"content_blobs": [
+    {"original_filename": "workflow-link.md", "link": "http://seek-internal:3000/seek/sops/34/content_blobs/73"}]}}}
+
+
+def test_create_sop_posts_links_and_uploads_content(seek_env, monkeypatch):
+    calls = []
+
+    def fake_post(url, **kwargs):
+        calls.append(("post", url, kwargs))
+        return FakeResponse(200, SOP_CREATED)
+
+    def fake_put(url, **kwargs):
+        calls.append(("put", url, kwargs))
+        return FakeResponse(200)
+
+    monkeypatch.setattr(writer.requests, "post", fake_post)
+    monkeypatch.setattr(writer.requests, "put", fake_put)
+    sop_id = Writer(api_token="tok").create_sop(
+        "Workflow link: Inference", "Created by the portal.", project_ids=["12"],
+        assay_id="42", workflow_id="39", content="# Link\n")
+    assert sop_id == 34
+
+    (_, post_url, post_kw), (_, put_url, put_kw) = calls
+    assert post_url == "http://seek.test/seek/sops"
+    assert post_kw["headers"] == JSONAPI
+    data = post_kw["json"]["data"]
+    assert data["type"] == "sops"
+    assert data["attributes"]["title"] == "Workflow link: Inference"
+    assert data["attributes"]["description"] == "Created by the portal."
+    assert data["attributes"]["content_blobs"] == [
+        {"original_filename": "workflow-link.md", "content_type": "text/markdown"}]
+    assert data["attributes"]["policy"] == {
+        "access": "no_access",
+        "permissions": [{"resource": {"id": "12", "type": "projects"}, "access": "view"}]}
+    assert data["relationships"] == {
+        "projects": {"data": [{"id": "12", "type": "projects"}]},
+        "assays": {"data": [{"id": "42", "type": "assays"}]},
+        "workflows": {"data": [{"id": "39", "type": "workflows"}]},
+    }
+    # SEEK's blob link carries its own host; the PUT goes through SEEK_BASE_URL.
+    assert put_url == "http://seek.test/seek/sops/34/content_blobs/73"
+    assert put_kw["headers"] == {"Authorization": "Bearer tok", "Accept": "application/json",
+                                 "Content-Type": "application/octet-stream"}
+    assert put_kw["data"] == b"# Link\n"
+
+
+def test_create_sop_raises_on_seek_error(seek_env, monkeypatch):
+    monkeypatch.setattr(writer.requests, "post",
+                        lambda url, **kw: FakeResponse(422, {"errors": [{"detail": "not a member"}]}))
+    with pytest.raises(RuntimeError, match="SOP create failed.*not a member"):
+        Writer(api_token="tok").create_sop("t", "d", ["12"], "42", "39", "x")
+
+
+def test_create_sop_deletes_the_sop_when_the_upload_fails(seek_env, monkeypatch):
+    deleted = []
+    monkeypatch.setattr(writer.requests, "post", lambda url, **kw: FakeResponse(200, SOP_CREATED))
+    monkeypatch.setattr(writer.requests, "put", lambda url, **kw: FakeResponse(500, {"errors": [{"title": "boom"}]}))
+    monkeypatch.setattr(writer.requests, "delete", lambda url, **kw: deleted.append(url) or FakeResponse(200))
+    with pytest.raises(RuntimeError, match="SOP 34 content upload failed.*boom"):
+        Writer(api_token="tok").create_sop("t", "d", ["12"], "42", "39", "x")
+    assert deleted == ["http://seek.test/seek/sops/34"]
+
+
+def test_set_sop_assays_patches_the_assay_relationship(seek_env, monkeypatch):
+    calls = []
+
+    def fake_patch(url, **kwargs):
+        calls.append((url, kwargs))
+        return FakeResponse(200)
+
+    monkeypatch.setattr(writer.requests, "patch", fake_patch)
+    Writer(api_token="tok").set_sop_assays("34", ["7"])
+    [(url, kwargs)] = calls
+    assert url == "http://seek.test/seek/sops/34"
+    assert kwargs["headers"] == JSONAPI
+    assert kwargs["json"] == {"data": {"type": "sops", "id": "34", "relationships": {
+        "assays": {"data": [{"id": "7", "type": "assays"}]}}}}
+
+
+def test_set_sop_assays_raises_on_seek_error(seek_env, monkeypatch):
+    monkeypatch.setattr(writer.requests, "patch", lambda url, **kw: FakeResponse(403, {"errors": [{"title": "Forbidden"}]}))
+    with pytest.raises(RuntimeError, match="SOP 34 update failed.*Forbidden"):
+        Writer(api_token="tok").set_sop_assays("34", [])
+
+
+def test_delete_sop(seek_env, monkeypatch):
+    calls = []
+    monkeypatch.setattr(writer.requests, "delete", lambda url, **kw: calls.append((url, kw["headers"])) or FakeResponse(200))
+    Writer(api_token="tok").delete_sop("34")
+    assert calls == [("http://seek.test/seek/sops/34", {"Authorization": "Bearer tok", "Accept": "application/json"})]
+
+
+def test_delete_sop_raises_on_seek_error(seek_env, monkeypatch):
+    monkeypatch.setattr(writer.requests, "delete", lambda url, **kw: FakeResponse(403, {"errors": [{"title": "Forbidden"}]}))
+    with pytest.raises(RuntimeError, match="SOP 34 delete failed.*Forbidden"):
+        Writer(api_token="tok").delete_sop("34")
