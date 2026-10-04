@@ -1,3 +1,6 @@
+import yaml
+from datetime import datetime
+from pathlib import Path
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from typing import Tuple, Optional, Union, Type
@@ -9,6 +12,7 @@ from app.models.db_model import (
 )
 from app.builder.deploy_tool import PluginDeployer
 from app.builder.logger import get_logger, configure_logging
+from app.builder.log_stream import log_registry, bind_thread_job, unbind_thread_job
 
 configure_logging()
 logger = get_logger(__name__)
@@ -85,18 +89,133 @@ def get_latest_build_record(
     return model, latest_build
 
 
+def parse_docker_compose_routing(backend_dir: Path, expose_name: str = "") -> dict:
+    """Extract container_name and internal port from docker-compose.yml for nginx routing."""
+    for fname in ("docker-compose.yml", "docker-compose.yaml"):
+        compose_path = backend_dir / fname
+        if compose_path.exists():
+            break
+    else:
+        return {}
+
+    try:
+        with open(compose_path, "r", encoding="utf-8") as f:
+            compose = yaml.safe_load(f)
+        services = compose.get("services", {})
+        if not services:
+            return {}
+        # Use the first service
+        service_name, service_conf = next(iter(services.items()))
+        # Try explicit container_name, otherwise use project-based name
+        container_name = service_conf.get("container_name")
+        if not container_name:
+            # With -p flag: <expose_name>-<service>-1, fallback to directory name
+            project = expose_name if expose_name else backend_dir.name
+            container_name = f"{project}-{service_name}-1"
+        # Extract internal port from ports mapping (e.g. "8002:8082" → "8082")
+        internal_port = "8082"  # default
+        ports = service_conf.get("ports", [])
+        if ports:
+            port_str = str(ports[0])
+            if ":" in port_str:
+                internal_port = port_str.split(":")[-1]
+            else:
+                internal_port = port_str
+        # Check if websocket is likely (default True for plugins with backend)
+        has_websocket = True
+        return {
+            "internal_host": container_name,
+            "internal_port": internal_port,
+            "has_websocket": has_websocket,
+        }
+    except Exception as e:
+        logger.error(f"Failed to parse docker-compose for routing: {e}")
+        return {}
+
+
+def run_deployment(deployer: PluginDeployer, deploy_id: str, deploy_dict: dict) -> None:
+    """Run a deployment row's backend (docker compose) and route /plugin/<expose> to it: a tool's or a gui workflow's.
+
+    ``deploy_dict`` holds ``expose_name``, ``dataset_path`` and ``backend_folder`` (PluginDeployer.deploy).
+    """
+    job_key = f"deploy:{deploy_id}"
+    try:
+        with SessionLocal() as session:
+            deploy_record = session.query(PluginDeployment).filter(
+                PluginDeployment.deploy_id == deploy_id).first()  # type: ignore
+            if deploy_record:
+                deploy_record.status = DeployStatus.DEPLOYING.value
+                session.commit()
+        log_registry.open(job_key)
+        # Bind this thread so every deploy log record (compose up output AND
+        # the surrounding orchestration steps) streams into the console.
+        bind_thread_job(job_key)
+        logger.info("Starting plugin deployment...")
+        try:
+            result = deployer.deploy(deploy_dict)
+        finally:
+            unbind_thread_job()
+        with SessionLocal() as session:
+            deploy_record = session.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()
+            if deploy_record:
+                if result["success"]:
+                    log_registry.finish(job_key, "completed")
+                    deploy_record.status = DeployStatus.COMPLETED.value
+                    deploy_record.source_path = result["backend_dir"]
+                    deploy_record.up = True
+
+                    # Generate nginx config for this plugin
+                    expose_name = deploy_dict["expose_name"]
+                    backend_dir = Path(result["backend_dir"])
+                    routing = parse_docker_compose_routing(backend_dir, expose_name)
+                    if routing and expose_name:
+                        route_prefix = f"/plugin/{expose_name}"
+                        deploy_record.route_prefix = route_prefix
+                        deploy_record.internal_host = routing["internal_host"]
+                        deploy_record.internal_port = routing["internal_port"]
+                        deploy_record.has_websocket = routing.get("has_websocket", True)
+                        deployer.generate_nginx_conf(
+                            expose_name=expose_name,
+                            internal_host=routing["internal_host"],
+                            internal_port=routing["internal_port"],
+                            has_websocket=routing.get("has_websocket", True),
+                        )
+                        deployer.reload_nginx()
+                        logger.info(f"Nginx config generated for plugin {expose_name}")
+                else:
+                    log_registry.finish(job_key, "failed")
+                    deploy_record.status = BuildStatus.FAILED.value
+                    deploy_record.error = result["error_message"]
+
+                deploy_record.updated_at = datetime.now()
+                session.commit()
+    except Exception as e:
+        log_registry.finish(job_key, "failed")
+        logger.error(f"Deploy failed: {e}")
+        with SessionLocal() as session:
+            deploy_record = session.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()
+            if deploy_record:
+                deploy_record.status = DeployStatus.FAILED.value
+                deploy_record.error_message = str(e)
+                deploy_record.updated_at = datetime.now()
+                session.commit()
+
+
+def _shut_down(deploys, deployer: PluginDeployer) -> None:
+    for deployment in deploys:
+        logger.info("Start to shuttle down the deployment {}".format(deployment.id))
+        expose_name = deployment.route_prefix.replace("/plugin/", "") if deployment.route_prefix else ""
+        deploy_dict = {
+            "backend_dir": deployment.source_path,
+            "expose_name": expose_name,
+        }
+        logger.info("the deployment is {}".format(deploy_dict))
+        deployer.delete(deploy_dict)
+
+
 def shuttle_down_deployed_backend(plugin_id: str, deployer: PluginDeployer):
     try:
         with SessionLocal() as session:
-            deploys = session.query(PluginDeployment).filter(PluginDeployment.plugin_id == plugin_id).all()
-            for deployment in deploys:
-                logger.info("Start to shuttle down the deployment {}".format(deployment.id))
-                expose_name = deployment.route_prefix.replace("/plugin/", "") if deployment.route_prefix else ""
-                deploy_dict = {
-                    "backend_dir": deployment.source_path,
-                    "expose_name": expose_name,
-                }
-                logger.info("the deployment is {}".format(deploy_dict))
-                deployer.delete(deploy_dict)
+            _shut_down(session.query(PluginDeployment).filter(PluginDeployment.plugin_id == plugin_id).all(), deployer)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

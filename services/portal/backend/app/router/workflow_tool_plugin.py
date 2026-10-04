@@ -1,7 +1,6 @@
 import asyncio
 import os
 import json
-import yaml
 import uvicorn
 import zipfile
 from fastapi import APIRouter, FastAPI, Depends, HTTPException, BackgroundTasks, Request, Query, UploadFile, File
@@ -19,7 +18,7 @@ import logging
 import requests
 from app.models.db_model import (
     Plugin, PluginCreate, PluginBuild, PluginResponse,
-    PluginBuildResponse, BuildStatus, SessionLocal,
+    PluginBuildResponse, BuildStatus,
     DeployStatus, PluginDeployment, PluginDeployResponse,
     PluginAnnotationResponse, PluginAnnotationCreate,
     PluginAnnotation,
@@ -38,13 +37,14 @@ from botocore.exceptions import ClientError
 from app.utils.workflow_tool_utils import (
     get_build_record_or_404,
     get_latest_build_record,
-    shuttle_down_deployed_backend)
+    shuttle_down_deployed_backend,
+    run_deployment)
 from app.utils.builder_utils import (
     execute_build_in_background,
     extract_uploaded_archive,
     resolve_project_root,
 )
-from app.builder.log_stream import log_registry, bind_thread_job, unbind_thread_job
+from app.builder.log_stream import log_registry
 from uuid import UUID
 from app.services import tool_handoff
 from app.utils.auth import get_current_user, require_any_role
@@ -60,50 +60,6 @@ ADMIN = Depends(require_any_role("admin"))
 builder = PluginBuilder()
 deployer = PluginDeployer()
 minio = get_minio_client()
-
-
-def _parse_docker_compose_routing(backend_dir: Path, expose_name: str = "") -> dict:
-    """Extract container_name and internal port from docker-compose.yml for nginx routing."""
-    for fname in ("docker-compose.yml", "docker-compose.yaml"):
-        compose_path = backend_dir / fname
-        if compose_path.exists():
-            break
-    else:
-        return {}
-
-    try:
-        with open(compose_path, "r", encoding="utf-8") as f:
-            compose = yaml.safe_load(f)
-        services = compose.get("services", {})
-        if not services:
-            return {}
-        # Use the first service
-        service_name, service_conf = next(iter(services.items()))
-        # Try explicit container_name, otherwise use project-based name
-        container_name = service_conf.get("container_name")
-        if not container_name:
-            # With -p flag: <expose_name>-<service>-1, fallback to directory name
-            project = expose_name if expose_name else backend_dir.name
-            container_name = f"{project}-{service_name}-1"
-        # Extract internal port from ports mapping (e.g. "8002:8082" → "8082")
-        internal_port = "8082"  # default
-        ports = service_conf.get("ports", [])
-        if ports:
-            port_str = str(ports[0])
-            if ":" in port_str:
-                internal_port = port_str.split(":")[-1]
-            else:
-                internal_port = port_str
-        # Check if websocket is likely (default True for plugins with backend)
-        has_websocket = True
-        return {
-            "internal_host": container_name,
-            "internal_port": internal_port,
-            "has_websocket": has_websocket,
-        }
-    except Exception as e:
-        logger.error(f"Failed to parse docker-compose for routing: {e}")
-        return {}
 
 
 @router.get("/debug/nginx-config", dependencies=[ADMIN])
@@ -602,73 +558,10 @@ async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = 
     db.commit()
     db.refresh(db_deploy)
 
-    def run_deploy():
-        job_key = f"deploy:{deploy_id}"
-        try:
-            with SessionLocal() as session:
-                deploy_record = session.query(PluginDeployment).filter(
-                    PluginDeployment.deploy_id == deploy_id).first()  # type: ignore
-                if deploy_record:
-                    deploy_record.status = DeployStatus.DEPLOYING.value
-                    session.commit()
-            log_registry.open(job_key)
-            # Bind this thread so every deploy log record (compose up output AND
-            # the surrounding orchestration steps) streams into the console.
-            bind_thread_job(job_key)
-            logger.info("Starting plugin deployment...")
-            try:
-                result = deployer.deploy(plugin_dict)
-            finally:
-                unbind_thread_job()
-            with SessionLocal() as session:
-                deploy_record = session.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()
-                if deploy_record:
-                    if result["success"]:
-                        log_registry.finish(job_key, "completed")
-                        deploy_record.status = DeployStatus.COMPLETED.value
-                        deploy_record.source_path = result["backend_dir"]
-                        deploy_record.up = True
-
-                        # Generate nginx config for this plugin
-                        expose_name = latest_build.expose_name
-                        backend_dir = Path(result["backend_dir"])
-                        routing = _parse_docker_compose_routing(backend_dir, expose_name)
-                        if routing and expose_name:
-                            route_prefix = f"/plugin/{expose_name}"
-                            deploy_record.route_prefix = route_prefix
-                            deploy_record.internal_host = routing["internal_host"]
-                            deploy_record.internal_port = routing["internal_port"]
-                            deploy_record.has_websocket = routing.get("has_websocket", True)
-                            deployer.generate_nginx_conf(
-                                expose_name=expose_name,
-                                internal_host=routing["internal_host"],
-                                internal_port=routing["internal_port"],
-                                has_websocket=routing.get("has_websocket", True),
-                            )
-                            deployer.reload_nginx()
-                            logger.info(f"Nginx config generated for plugin {expose_name}")
-                    else:
-                        log_registry.finish(job_key, "failed")
-                        deploy_record.status = BuildStatus.FAILED.value
-                        deploy_record.error = result["error_message"]
-
-                    deploy_record.updated_at = datetime.now()
-                    session.commit()
-        except Exception as e:
-            log_registry.finish(job_key, "failed")
-            logger.error(f"Deploy failed: {e}")
-            with SessionLocal() as session:
-                deploy_record = session.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()
-                if deploy_record:
-                    deploy_record.status = DeployStatus.FAILED.value
-                    deploy_record.error_message = str(e)
-                    deploy_record.updated_at = datetime.now()
-                    session.commit()
-
     if background_tasks:
-        background_tasks.add_task(run_deploy)
+        background_tasks.add_task(run_deployment, deployer, deploy_id, plugin_dict)
     else:
-        thread = threading.Thread(target=run_deploy)
+        thread = threading.Thread(target=run_deployment, args=(deployer, deploy_id, plugin_dict))
         thread.start()
 
     return {
