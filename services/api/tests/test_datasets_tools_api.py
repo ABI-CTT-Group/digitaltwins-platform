@@ -212,7 +212,7 @@ def test_a_failing_rollback_still_reports_the_seek_error(client, monkeypatch):
     def fail(*a, **kw):
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(pipeline, "_link", fail)
+    monkeypatch.setattr(pipeline, "link_tool", fail)
     monkeypatch.setattr(Deleter, "delete_dataset", fail)
 
     r = _post(client, _folder_parts(_tool_files()))

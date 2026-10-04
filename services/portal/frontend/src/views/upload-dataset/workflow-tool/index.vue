@@ -40,7 +40,7 @@ const heroDetail = computed(()=>{
     if(showOverall.value){
         return {
             title:'Tool Hub',
-            subtitle:'Browse all tools — create, upload, and build Web GUI or CWL Script tools effortlessly, and preview results seamlessly.'
+            subtitle:'Browse all tools — create, upload, and build Web GUI or Script tools effortlessly, and preview results seamlessly.'
         }
     }else{
         return {

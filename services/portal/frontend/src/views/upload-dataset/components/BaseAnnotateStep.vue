@@ -9,7 +9,49 @@
   <!-- ──────────────────────────────────────────────────
        WORKFLOW annotation: multi-step + tool selection
        ────────────────────────────────────────────────── -->
-  <template v-if="type === 'workflow'">
+  <!-- SDS workflow package: FHIR types for the ports of each step's tool -->
+  <!-- Whether a workflow is an SDS package is read from its source first -->
+  <v-progress-linear v-if="type === 'workflow' && loadingCwl" indeterminate color="#5fd6e8" />
+  <v-alert v-else-if="type === 'workflow' && loadError" type="error" :text="loadError" class="mb-5" />
+  <template v-else-if="isSdsWorkflow">
+    <div>
+      <h3 class="step-heading">Workflow FHIR Annotation</h3>
+      <v-divider class="my-2 mb-5" :thickness="3" />
+
+      <div v-if="sdsSteps.length">
+        <v-form ref="form" class="px-5">
+          <div v-for="(s, i) in sdsSteps" :key="s.step" class="mb-5">
+            <h3 class="step-heading">Step {{ i + 1 }}: {{ s.step }} ({{ s.tool }})</h3>
+            <v-divider class="my-2 mb-3" :thickness="2" />
+
+            <h4 class="my-2">Tool Inputs</h4>
+            <div class="w-100 d-flex flex-row flex-wrap">
+              <div v-for="input in s.inputs" :key="input.name" class="d-flex flex-column justify-start w-33">
+                <span class="mx-2">{{ input.name }}</span>
+                <v-select class="mt-4 mx-2" v-model="input.resource" :items="fhirResources" label="FHIR Resource" required clearable />
+              </div>
+            </div>
+
+            <h4 class="my-2">Tool Outputs</h4>
+            <div class="w-100 d-flex flex-row flex-wrap">
+              <div v-for="output in s.outputs" :key="output.name" class="d-flex flex-column justify-start w-33">
+                <span class="mx-2">{{ output.name }}</span>
+                <v-select class="mt-4 mx-2" v-model="output.resource" :items="fhirResources" :rules="notEmptyRules" label="FHIR Resource" required clearable />
+                <div v-if="output.resource === 'Observation'">
+                  <v-text-field class="mx-2 my-1" label="Code" v-model="output.code" :rules="notEmptyRules" required clearable />
+                  <v-select class="mx-2 my-1" :items="fhirObservationSystems" item-title="name" item-value="value" label="Code System" v-model="output.system" :rules="notEmptyRules" clearable />
+                  <v-text-field class="mx-2 my-1" label="Unit" v-model="output.unit" required clearable />
+                </div>
+              </div>
+            </div>
+          </div>
+        </v-form>
+      </div>
+      <NoData v-else />
+    </div>
+  </template>
+
+  <template v-else-if="type === 'workflow'">
     <div>
       <h3 class="step-heading">Workflow Annotation</h3>
       <v-divider class="my-2 mb-5" :thickness="3" />
@@ -137,12 +179,11 @@
 <script lang="ts" setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import type { WorkflowResponse, ToolResponse, WorkflowStepAnnotation, AnnotateTool, TransientAuth, SourceType } from '@/models/types';
-import { getRepoContents, getRepoRootCWLContent } from '@/views/upload-dataset/components/utils';
-import type { GitContent } from '@/models/types';
-import yaml from 'js-yaml';
+import { getRepoRootCWLContent } from '@/views/upload-dataset/components/utils';
+import { sdsWorkflowSteps, type SdsStepAnnotation } from '@/views/upload-dataset/components/sds_workflow';
 import NoData from '@/views/upload-dataset/components/NoData.vue';
 import { useWorkflowTools, useGetWorkflowToolAnnotation, useGetToolLocalCwl, useProbeToolSource } from '@/bootstrap/tool_api';
-import { useGetWorkflowLocalCwl, useProbeWorkflowSource } from '@/bootstrap/workflow_api';
+import { canUsePublicGithubPath, loadWorkflowCwls, parseCwlText } from '@/views/upload-dataset/components/workflow_cwls';
 
 // ---- props / emits --------------------------------------------------------
 const props = defineProps<{
@@ -170,6 +211,11 @@ const fhirObservationSystems = [
 const notEmptyRules = [(v: string) => !!v || "This field can't be empty!"];
 
 // ---- workflow-specific state ----------------------------------------------
+// From the source, by loadWorkflowCwls (the build records the same as workflows.is_sds).
+const isSdsWorkflow = ref(false);
+const loadingCwl = ref(props.type === 'workflow');
+const sdsSteps = ref<SdsStepAnnotation[]>([]);
+const loadError = ref('');
 const annotateSteps = ref<Array<WorkflowStepAnnotation>>([]);
 const workflowTools = ref<ToolResponse[]>([]);
 const toolItems = computed(() =>
@@ -180,28 +226,14 @@ const toolItems = computed(() =>
 const annotateTool = ref<AnnotateTool>({ name: '', inputs: [], outputs: [] });
 
 // ---- helpers --------------------------------------------------------------
-function parseCwlText(raw: string): any {
-  try { return yaml.load(raw); }
-  catch { return JSON.parse(raw); }
-}
-
-/** Decide whether we should use the public-GitHub anonymous browser-fetch
- *  path (works without backend roundtrip) or fall back to /probe-source
- *  with the token captured at registration. */
-function _canUsePublicGithubPath(sourceType: SourceType | undefined): boolean {
-  return sourceType === 'github' && !props.pendingAuth?.token;
-}
-
 /** Fetch CWL via backend /probe-source (token-aware). Used for private
  *  GitHub and all non-GitHub providers — the backend re-clones with the
  *  token via askpass and inlines the root CWL content in the response. */
 async function _loadCwlViaBackendProbe(
   sourceType: Exclude<SourceType, 'local'>,
   repositoryUrl: string,
-  kind: 'tool' | 'workflow',
 ): Promise<{ cwlFile: string; content: any }> {
-  const probe = kind === 'tool' ? useProbeToolSource : useProbeWorkflowSource;
-  const res = await probe({
+  const res = await useProbeToolSource({
     sourceType,
     url: repositoryUrl,
     token: props.pendingAuth?.token,
@@ -217,56 +249,33 @@ async function _loadCwlViaBackendProbe(
   return { cwlFile: res.data.cwlFile, content: parseCwlText(res.data.cwlContent) };
 }
 
-async function loadWorkflowCwl(workflow: WorkflowResponse): Promise<{ cwlFile: string; content: any }> {
-  if (workflow.sourceType === 'local') {
-    const { cwlFile, content } = await useGetWorkflowLocalCwl(workflow.id);
-    return { cwlFile, content: parseCwlText(content) };
-  }
-  if (_canUsePublicGithubPath(workflow.sourceType)) {
-    // Public GitHub: keep the anonymous browser-direct path (no backend
-    // roundtrip needed, lower latency).
-    const res = await getRepoContents(workflow.repositoryUrl);
-    const files = res!.data as GitContent[];
-    let cwlFile = '';
-    files.forEach((item: GitContent) => {
-      if (item.type === 'file' && item.name.endsWith('.cwl')) { cwlFile = item.name; }
-    });
-    if (!cwlFile) throw new Error('No CWL file found at repo root.');
-    const contentRes = await getRepoContents(workflow.repositoryUrl, cwlFile);
-    const raw = atob((contentRes.data.content as string).replace(/\n/g, ''));
-    return { cwlFile, content: parseCwlText(raw) };
-  }
-  return _loadCwlViaBackendProbe(
-    workflow.sourceType as Exclude<SourceType, 'local'>,
-    workflow.repositoryUrl,
-    'workflow',
-  );
-}
-
 async function loadToolCwl(tool: ToolResponse): Promise<{ cwlFile: string; content: any }> {
   if (tool.sourceType === 'local') {
     const { cwlFile, content } = await useGetToolLocalCwl(tool.id);
     return { cwlFile, content: parseCwlText(content) };
   }
-  if (_canUsePublicGithubPath(tool.sourceType)) {
+  if (canUsePublicGithubPath(tool.sourceType, props.pendingAuth)) {
     return getRepoRootCWLContent(tool.repositoryUrl);
   }
-  return _loadCwlViaBackendProbe(
-    tool.sourceType as Exclude<SourceType, 'local'>,
-    tool.repositoryUrl,
-    'tool',
-  );
+  return _loadCwlViaBackendProbe(tool.sourceType as Exclude<SourceType, 'local'>, tool.repositoryUrl);
 }
 
 // ---- lifecycle ------------------------------------------------------------
 onMounted(async () => {
   if (props.type === 'workflow') {
-    const workflow = props.data as WorkflowResponse | undefined;
-    if (!workflow) { console.warn('No workflow info in annotation stepper.'); return; }
-
-    workflowTools.value = await useWorkflowTools();
-    const { content } = await loadWorkflowCwl(workflow);
-    cwlObj.value = content;
+    try {
+      const workflow = props.data as WorkflowResponse | undefined;
+      if (!workflow) { console.warn('No workflow info in annotation stepper.'); return; }
+      const { isSds, content, tools } = await loadWorkflowCwls(workflow, props.pendingAuth);
+      isSdsWorkflow.value = isSds;
+      if (isSds) sdsSteps.value = sdsWorkflowSteps(content, tools);
+      else workflowTools.value = await useWorkflowTools();
+      cwlObj.value = content;
+    } catch (err: any) {
+      loadError.value = err?.message ?? String(err);
+    } finally {
+      loadingCwl.value = false;
+    }
   } else {
     const tool = props.data as ToolResponse | undefined;
     if (!tool) { console.warn('No tool info in annotation stepper.'); return; }
@@ -278,7 +287,7 @@ onMounted(async () => {
 
 // ---- watchers -------------------------------------------------------------
 watch(cwlObj, (newVal) => {
-  if (!newVal) return;
+  if (!newVal || isSdsWorkflow.value) return;
   if (props.type === 'workflow') {
     annotateSteps.value = Object.entries(newVal.steps ?? {}).map(([name]) => ({
       name, id: '', uuid: '',
@@ -310,6 +319,7 @@ function toolFilter(itemTitle: string, queryText: string, item: any) {
 }
 
 async function validate() {
+  if (!form.value) return false;
   const { valid } = await form.value.validate();
   return valid;
 }
@@ -321,7 +331,7 @@ const handleAnnotationSubmit = async () => {
     if (props.type === 'workflow') {
       emit('annotation-submit', (props.data as WorkflowResponse)!.id, {
         sparcNote: '',
-        fhirNote: JSON.stringify(annotateSteps.value),
+        fhirNote: JSON.stringify(isSdsWorkflow.value ? { steps: sdsSteps.value } : annotateSteps.value),
       });
     } else {
       emit('annotation-submit', (props.data as ToolResponse)!.id, annotateTool.value);

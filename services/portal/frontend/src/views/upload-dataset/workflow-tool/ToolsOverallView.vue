@@ -40,10 +40,11 @@
         :disabled="dockerComposeBusy"
         @launch="(id) => handleLaunch(id)"
         @rebuild="(id) => handleRebuild(id)"
-        @deploy="(id) => handleDeploy(id)"
+        @deploy="(id, kind) => handleDeploy(id, kind)"
         @compose-up="(id) => handleExecuteDockerCompose(id, 'up')"
         @compose-down="(id) => handleExecuteDockerCompose(id, 'down')"
         @delete="handleDeleteTool"
+        @delete-platform="openPlatformDelete"
         @submit-approve="(id) => handleToolApproval(id)"
         @approval-done="onApprovalDone"
         @view-logs="handleViewLogs"
@@ -51,7 +52,10 @@
     </template>
   </RegistryView>
 
-  <ToolApprovalDialog v-model="approvalDialogOpen" :tool="approvalTool" @done="onApprovalDone" />
+  <ToolApprovalDialog v-model="approvalDialogOpen" :item="approvalTool" @done="onApprovalDone" />
+
+  <DeletePlatformDatasetDialog v-model="platformDeleteOpen" kind="tool" :item="platformDeleteItem"
+                               @deleted="handleDeleteTool" />
 
   <RebuildAuthDialog
     v-model="rebuildDialogOpen"
@@ -69,6 +73,7 @@ import RegistryView from '../components/RegistryView.vue';
 import ToolCard from '../components/ToolCard.vue';
 import RebuildAuthDialog from '../components/RebuildAuthDialog.vue';
 import ToolApprovalDialog from '../components/ToolApprovalDialog.vue';
+import DeletePlatformDatasetDialog from '../components/DeletePlatformDatasetDialog.vue';
 import {
   useWorkflowTools,
   useToolHub,
@@ -76,6 +81,8 @@ import {
   useWorkflowToolBuild,
   useDeployTool,
   useDockerCompose,
+  useWorkflowGuiTools,
+  useDeployWorkflowTool,
 } from '@/bootstrap/tool_api';
 import type { ToolApprovalStatus, ToolMinIOToolMetadata, ToolResponse, SourceType, TransientAuth } from '@/models/types';
 import { useRemoteAppStore } from '@/store/remote_store';
@@ -251,13 +258,14 @@ const onRebuildCancel = () => {
   rebuildSourceType.value = null;
 };
 
-const handleDeploy = async (id: string) => {
-  const res = await useDeployTool(id) as any;
+const handleDeploy = async (id: string, kind?: string) => {
+  const isWorkflow = kind === 'workflow';
+  const res = (isWorkflow ? await useDeployWorkflowTool(id) : await useDeployTool(id)) as any;
   const deployId: string = res?.deployId ?? res?.deploy_id ?? '';
   // Resolve tool name for the console title
   let toolName = id;
   try {
-    const items = (await useWorkflowTools()) as ToolResponse[];
+    const items = (isWorkflow ? await useWorkflowGuiTools() : await useWorkflowTools()) as ToolResponse[];
     toolName = items.find((t) => t.id === id)?.name ?? id;
   } catch { /* fallback to id */ }
   if (deployId) {
@@ -268,6 +276,14 @@ const handleDeploy = async (id: string) => {
 
 const handleDeleteTool = async () => {
   await registryRef.value?.handleRefresh();
+};
+
+// A tool uploaded via the REST API is deleted from the platform after a confirmation.
+const platformDeleteOpen = ref(false);
+const platformDeleteItem = ref<{ uuid: string; name: string } | null>(null);
+const openPlatformDelete = (tool: ToolResponse) => {
+  platformDeleteItem.value = { uuid: tool.uuid ?? tool.id, name: tool.name };
+  platformDeleteOpen.value = true;
 };
 
 const handleExecuteDockerCompose = async (id: string, command: 'up' | 'down') => {

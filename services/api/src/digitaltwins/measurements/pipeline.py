@@ -159,18 +159,19 @@ def load_annotation(conn, dataset_uuid: str) -> Optional[Dict[str, Any]]:
 
 
 def get_dataset_row(conn, dataset_uuid: str) -> Optional[Dict[str, Any]]:
-    """``{dataset_name, category, fhir_status}`` or None (also for a malformed UUID)."""
+    """``{dataset_name, category, fhir_status, workflow_type}`` or None (also for a malformed UUID)."""
     try:
         uuid.UUID(str(dataset_uuid))
     except ValueError:
         return None
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT dataset_name, category, fhir_status FROM dataset WHERE dataset_uuid = %s", (dataset_uuid,)
+            "SELECT dataset_name, category, fhir_status, workflow_type FROM dataset WHERE dataset_uuid = %s",
+            (dataset_uuid,),
         )
         row = cur.fetchone()
     conn.commit()
-    return dict(zip(("dataset_name", "category", "fhir_status"), row)) if row else None
+    return dict(zip(("dataset_name", "category", "fhir_status", "workflow_type"), row)) if row else None
 
 
 def local_dataset(conn, dataset_uuid: str) -> Path:

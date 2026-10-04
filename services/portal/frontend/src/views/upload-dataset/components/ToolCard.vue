@@ -22,7 +22,10 @@
       <span v-else-if="tool.handoffStatus === 'failed'" class="aurora-chip" :style="{ '--chip': '#ff6b6b' }">
         approval failed
       </span>
-      <span v-if="tool.platformOnly" class="aurora-chip" :style="{ '--chip': '#9fb4bf' }">platform upload</span>
+      <span v-if="tool.kind === 'workflow'" class="aurora-chip" :style="{ '--chip': '#7fb2f0' }">
+        from workflow {{ tool.workflowName }}
+      </span>
+      <span v-else-if="tool.platformOnly" class="aurora-chip" :style="{ '--chip': '#9fb4bf' }">platform upload</span>
       <span v-else-if="inPlatform" class="aurora-chip" :style="{ '--chip': '#6fd49a' }">in platform</span>
       <span v-if="tool.createdAt" class="aurora-chip">{{ formatDate(tool.createdAt) }}</span>
     </template>
@@ -66,10 +69,10 @@ const props = defineProps<{
 const tool = toRef(props, "tool")
 const isDeleting = ref(false)
 
-// Per-type identity colour — GUI tools aqua, CWL scripts violet — so the rail,
+// Per-type identity colour — GUI tools aqua, scripts violet — so the rail,
 // eyebrow and Launch button all carry the tool's kind at a glance.
 const accent = computed(() => ({ Script: '#c792ea', Notebook: '#ffb74d' } as Record<string, string>)[tool.value.label] ?? '#5fd6e8')
-const kind = computed(() => ({ Script: 'CWL Script', Notebook: 'Notebook' } as Record<string, string>)[tool.value.label] ?? 'Web GUI Tool')
+const kind = computed(() => ({ Script: 'Script', Notebook: 'Notebook' } as Record<string, string>)[tool.value.label] ?? 'Web GUI Tool')
 
 const inPlatform = computed(() => !!tool.value.uuid && !tool.value.uuid.startsWith('sparc-tool-'))
 const handoffActive = computed(() => ['uploading', 'awaiting_reauth', 'committing'].includes(tool.value.handoffStatus ?? ''))
@@ -114,14 +117,28 @@ const auroraStatus = (s?: string) => {
   }
 }
 
-const emit = defineEmits(["launch", "rebuild", "submit-approve", "deploy", "compose-up", "compose-down", "delete", "view-logs", "approval-done"])
+const emit = defineEmits(["launch", "rebuild", "submit-approve", "deploy", "compose-up", "compose-down", "delete", "delete-platform", "view-logs", "approval-done"])
 
 const hasViewLogs = computed(() =>
   !!(tool.value.latestDeployId || tool.value.latestBuildId)
 )
 
 const menuItems = computed<UCardMenuItem[]>(() => {
-  if (tool.value.platformOnly) return []  // uploaded via the REST API: manage it there
+  // A gui workflow's tool: its workflow (Workflow Hub) rebuilds, approves and deletes it; only its backend runs here.
+  if (tool.value.kind === 'workflow') {
+    const items: UCardMenuItem[] = []
+    if (tool.value.hasBackend) items.push({ label: 'Deploy backend', icon: 'mdi-server-network', onClick: onDeploy })
+    if (tool.value.deployStatus === 'completed') {
+      items.push({ label: 'Compose up', icon: 'mdi-play-circle-outline', onClick: onDockerComposeUp })
+      items.push({ label: 'Compose down', icon: 'mdi-stop-circle-outline', onClick: onDockerComposeDown })
+    }
+    if (hasViewLogs.value) items.push({ label: 'View logs', icon: 'mdi-console-line', onClick: onViewLogs })
+    return items
+  }
+  // Uploaded via the REST API: only a delete, which the hub confirms.
+  if (tool.value.platformOnly) {
+    return [{ label: 'Delete tool', icon: 'mdi-trash-can-outline', danger: true, onClick: () => emit("delete-platform", tool.value) }]
+  }
   const isGui = tool.value.label === 'GUI'
   const items: UCardMenuItem[] = [
     { label: 'Rebuild tool', icon: 'mdi-refresh', onClick: onRebuild },
@@ -174,7 +191,7 @@ const onViewLogs = () => {
 
 const onLaunch = async () => {
     if(tool.value.label === "Script" || tool.value.label === "Notebook"){
-        toast.warning(`${kind.value} tool cannot be launched. Please download it and run it locally.`);
+        toast.warning(`${tool.value.label} tool cannot be launched. Please download it and run it locally.`);
         return;
     }
     if (tool.value.hasBackend && !tool.value.latestDeployId && tool.value.deployStatus !== 'completed') {
@@ -197,7 +214,7 @@ const onRebuild = () => {
 const onSubmit = () => emit("submit-approve", tool.value.id)
 const onDeploy = () => {
     tool.value.deployStatus = "deploying"
-    emit("deploy", tool.value.id)
+    emit("deploy", tool.value.id, tool.value.kind)
 }
 const onDockerComposeUp = () => emit("compose-up", tool.value.latestDeployId)
 const onDockerComposeDown = () => emit("compose-down", tool.value.latestDeployId)

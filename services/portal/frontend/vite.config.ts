@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 // Plugins
 import vue from "@vitejs/plugin-vue";
 import vuetify, { transformAssetUrls } from "vite-plugin-vuetify";
@@ -153,5 +154,12 @@ export default defineConfig({
   },
   preview: {
     port: 3000,
+  },
+  // Unit tests (yarn test): components mount with a real Vuetify (src/testing/vuetify.ts).
+  test: {
+    environment: "jsdom",
+    include: ["src/**/__tests__/**/*.spec.ts"],
+    setupFiles: ["./src/testing/setup.ts"],
+    server: { deps: { inline: ["vuetify"] } },
   },
 });

@@ -44,5 +44,30 @@ def make_client():
     return TestClient(app)
 
 
+def make_workflow_client():
+    """The /api/workflow router on the same SQLite tables and fake Keycloak."""
+    from app.router import workflow_router  # imported late: it builds MinIO / FHIR clients at import
+
+    auth.get_keycloak_client = lambda: FakeKeycloak()
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+    app = FastAPI()
+    app.include_router(workflow_router.router)
+    return TestClient(app)
+
+
+def make_hub_client():
+    """Both the /api/tools and /api/workflow routers, as the Tool Hub uses them, on fresh SQLite tables."""
+    from app.router import workflow_router  # imported late: it builds MinIO / FHIR clients at import
+
+    auth.get_keycloak_client = lambda: FakeKeycloak()
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+    app = FastAPI()
+    app.include_router(workflow_tool_plugin.router)
+    app.include_router(workflow_router.router)
+    return TestClient(app)
+
+
 def bearer(token):
     return {"Authorization": f"Bearer {token}"}

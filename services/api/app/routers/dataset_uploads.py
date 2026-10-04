@@ -7,9 +7,11 @@ queues the commit (Postgres + MinIO) and returns 202. With ``on_approve``
 (portal) the dataset is staged: its FHIR annotation draft can be edited, and
 ``/approve`` queues the commit. Clients poll ``GET /datasets/uploads/{id}``.
 
-Tool sessions need ``tool_type`` + ``seek_project_id``, carry no FHIR, and are
-checked for exactly one ``primary/tool_*.cwl``; their commit also registers
-the tool in SEEK as the user who finalized / approved it.
+Tool sessions need ``tool_type`` + ``seek_project_id`` and are checked for
+exactly one ``primary/tool_*.cwl``; their commit also registers the tool in
+SEEK as the user who finalized / approved it. Workflow sessions need
+``workflow_type`` + ``seek_project_id`` and are checked by ``load_workflow``;
+their commit stores and registers each tool, then the workflow.
 """
 import os
 import shutil
@@ -20,7 +22,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from digitaltwins import tools
+from digitaltwins import tools, workflows
 from digitaltwins.core.connection import Connection
 from digitaltwins.measurements import jobs, sessions
 from digitaltwins.measurements.chunk_store import PART_SIZE, ChunkStore, ChunkStoreError
@@ -36,14 +38,16 @@ from digitaltwins.measurements.validation import (
 )
 from digitaltwins.tools import fhir as tool_fhir
 from digitaltwins.tools.validation import find_tool_cwl
+from digitaltwins.workflows import fhir as workflow_fhir
+from digitaltwins.workflows.validation import load_workflow
 
 from .auth import require_upload_role, validate_credentials
 
 router = APIRouter(prefix="/datasets/uploads", tags=["dataset uploads"])
 
 # Categories ingested through sessions with SPARC validation and FHIR. Tool
-# datasets (``tools.CATEGORY``) also use sessions; other categories keep using
-# the one-shot POST /datasets.
+# and workflow datasets (``tools.CATEGORY``, ``workflows.CATEGORY``) also use
+# sessions; other categories keep using the one-shot POST /datasets.
 INGEST_CATEGORIES = {"measurements"}
 
 # Sessions not yet committed, as listed for the portal overview.
@@ -88,7 +92,7 @@ def _require_status(session: Dict[str, Any], *allowed: str) -> None:
 def _session_view(session: Dict[str, Any]) -> Dict[str, Any]:
     keys = ("upload_id", "name", "description", "category", "source_kind", "commit_mode", "status",
             "failure_stage", "failure_message", "fhir_mode", "dataset_uuid", "tool_type", "seek_project_id",
-            "created_at", "updated_at")
+            "workflow_type", "created_at", "updated_at")
     return {k: session[k] for k in keys}
 
 
@@ -112,6 +116,7 @@ class SessionCreate(BaseModel):
     fhir_descriptions: Optional[Dict[str, Any]] = None
     tool_type: Optional[Literal["script", "notebook", "gui"]] = None
     seek_project_id: Optional[int] = None
+    workflow_type: Optional[Literal["script", "notebook", "gui"]] = None
 
 
 class AnnotationBody(BaseModel):
@@ -133,10 +138,11 @@ def list_uploads(conn=Depends(get_conn), _creds: dict = Depends(validate_credent
 
 @router.post("")
 def create_upload(body: SessionCreate, conn=Depends(get_conn), _creds: dict = Depends(require_upload_role)):
-    if body.category not in INGEST_CATEGORIES and body.category != tools.CATEGORY:
+    supported = INGEST_CATEGORIES | {tools.CATEGORY, workflows.CATEGORY}
+    if body.category not in supported:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Upload sessions support categories: {', '.join(sorted(INGEST_CATEGORIES | {tools.CATEGORY}))}",
+            detail=f"Upload sessions support categories: {', '.join(sorted(supported))}",
         )
     if body.category == tools.CATEGORY:
         missing = [name for name in ("tool_type", "seek_project_id") if getattr(body, name) is None]
@@ -146,12 +152,20 @@ def create_upload(body: SessionCreate, conn=Depends(get_conn), _creds: dict = De
         if body.fhir_descriptions is not None and not isinstance(body.fhir_descriptions.get("workflow_tool"), dict):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail='Tool FHIR descriptions must be {"workflow_tool": {...}}')
+    if body.category == workflows.CATEGORY:
+        missing = [name for name in ("workflow_type", "seek_project_id") if getattr(body, name) is None]
+        if missing:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail=f"Workflow uploads need: {', '.join(missing)}")
+        if body.fhir_descriptions is not None and not set(body.fhir_descriptions) <= {"workflow", "workflow_tools"}:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail='Workflow FHIR descriptions must be {"workflow": {...}, "workflow_tools": {...}}')
     fhir_mode = "descriptions" if body.fhir_descriptions is not None else body.fhir
     upload_id = sessions.create_session(
         conn, category=body.category, name=body.name, description=body.description,
         source_kind=body.source_kind, commit_mode=body.commit_mode,
         fhir_mode=fhir_mode, fhir_descriptions=body.fhir_descriptions,
-        tool_type=body.tool_type, seek_project_id=body.seek_project_id,
+        tool_type=body.tool_type, seek_project_id=body.seek_project_id, workflow_type=body.workflow_type,
     )
     try:
         _chunk_store().init(upload_id, body.source_kind, [e.model_dump() for e in body.manifest])
@@ -210,8 +224,11 @@ def finalize_upload(
         else:
             staging = assembled
         tool = session["category"] == tools.CATEGORY
+        workflow = session["category"] == workflows.CATEGORY
         if tool:
             find_tool_cwl(staging)
+        elif workflow:
+            layout = load_workflow(staging, session["workflow_type"])
         else:
             ok, message = validate_sparc_structure(staging)
             if not ok:
@@ -219,6 +236,8 @@ def finalize_upload(
         root = resolve_project_root(staging)
         if session["fhir_mode"] == "descriptions" and tool:
             tool_fhir.build_descriptions(root, "", "", session["fhir_descriptions"])
+        elif session["fhir_mode"] == "descriptions" and workflow:
+            workflow_fhir.build_descriptions(layout, "", "", client=session["fhir_descriptions"])
         elif session["fhir_mode"] == "descriptions":
             check_descriptions_match(session["fhir_descriptions"], root)
 
@@ -232,7 +251,7 @@ def finalize_upload(
             shutil.rmtree(extracted, ignore_errors=True)
 
     store.cleanup(upload_id)
-    warnings = [] if tool else sampleless_subjects(target)
+    warnings = [] if tool or workflow else sampleless_subjects(target)
 
     if session["commit_mode"] == "on_approve":
         sessions.update_session(conn, upload_id, status="staged")

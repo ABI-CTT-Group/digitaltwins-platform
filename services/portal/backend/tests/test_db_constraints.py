@@ -18,9 +18,10 @@ os.environ.setdefault("DATABASE_PATH", str(BACKEND_ROOT / "tmp" / "test_plugin_r
 (BACKEND_ROOT / "tmp").mkdir(parents=True, exist_ok=True)
 
 from sqlalchemy import create_engine, event  # noqa: E402
+from sqlalchemy.exc import IntegrityError  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
-from app.models.db_model import Base, Plugin, PluginBuild, PluginDeployment  # noqa: E402
+from app.models.db_model import Base, Plugin, PluginBuild, PluginDeployment, Workflow, WorkflowBuild  # noqa: E402
 
 
 def make_fk_session():
@@ -64,6 +65,54 @@ class PluginDeploymentForeignKeyTest(unittest.TestCase):
         session.commit()
         self.assertEqual(session.query(PluginBuild).count(), 0)
         self.assertEqual(session.query(PluginDeployment).count(), 0)
+
+
+def add_workflow_build(session):
+    workflow = Workflow(name="w", version="1", repository_url="local://w", workflow_type="gui")
+    session.add(workflow)
+    session.flush()
+    build = WorkflowBuild(workflow_id=workflow.id, build_id="wf-build-key")
+    session.add(build)
+    session.flush()
+    return workflow, build
+
+
+class WorkflowDeploymentTest(unittest.TestCase):
+    def test_a_deployment_can_belong_to_a_workflow_build(self):
+        session = make_fk_session()
+        _, build = add_workflow_build(session)
+        session.add(PluginDeployment(workflow_build_id=build.build_id, deploy_id="d1"))
+        session.commit()
+        self.assertEqual(session.query(PluginDeployment).one().workflow_build.build_id, "wf-build-key")
+
+    def test_a_deployment_needs_a_build(self):
+        session = make_fk_session()
+        session.add(PluginDeployment(deploy_id="d2"))
+        with self.assertRaises(IntegrityError):
+            session.commit()
+
+    def test_a_deployment_belongs_to_only_one_build(self):
+        session = make_fk_session()
+        add_plugin_with_deployment(session)
+        _, build = add_workflow_build(session)
+        session.add(PluginDeployment(build_id="build-business-key", workflow_build_id=build.build_id, deploy_id="d3"))
+        with self.assertRaises(IntegrityError):
+            session.commit()
+
+    def test_delete_workflow_cascades_its_deployments(self):
+        session = make_fk_session()
+        workflow, build = add_workflow_build(session)
+        session.add(PluginDeployment(workflow_build_id=build.build_id, deploy_id="d4"))
+        session.commit()
+        session.delete(workflow)
+        session.commit()
+        self.assertEqual(session.query(PluginDeployment).count(), 0)
+
+    def test_the_postgres_migration_leaves_sqlite_alone(self):
+        from app.database.database import migrate_plugin_deployments_for_workflows
+        engine = create_engine("sqlite://")
+        Base.metadata.create_all(engine)
+        migrate_plugin_deployments_for_workflows(engine)  # must not raise
 
 
 if __name__ == "__main__":

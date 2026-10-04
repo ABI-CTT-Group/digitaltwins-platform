@@ -57,6 +57,8 @@ export interface AssayDataset {
 
 export type SourceType = "github" | "gitlab" | "bitbucket" | "git_generic" | "local";
 
+export type WorkflowType = 'script' | 'notebook' | 'gui';
+
 /** UI toggle state — Git URL (any provider) vs Local Folder. The actual
  *  `SourceType` for git is inferred from the URL host on blur. */
 export type SourceMode = "git" | "local";
@@ -104,6 +106,8 @@ export interface ProbeSourceSuccess {
     cwlRequired: boolean;
     /** Tool probes only: the repo is an SDS package (its CWL is primary/tool_*.cwl). */
     isSds?: boolean;
+    /** SDS workflow probes: each `tool_*.cwl` of the package (a list, because the camelCase interceptor rewrites dict keys). */
+    toolCwls?: { cwlFile: string; content: string }[];
     /** Inlined when `hasCwl` is true so the annotation step can read the
      *  CWL without a second clone — backend reuses the shallow clone it
      *  already did for inspect. */
@@ -177,6 +181,9 @@ export interface ToolResponse {
     handoffStatus?: HandoffStatus | null
     // A tool uploaded to the platform directly (REST API), with no portal build: listed read-only.
     platformOnly?: boolean
+    // A gui SDS workflow's tool (GET /api/workflow/gui-tools): built, approved and deleted with its workflow.
+    kind?: "workflow"
+    workflowName?: string
 }
 
 export type HandoffStatus = "uploading" | "awaiting_reauth" | "committing" | "completed" | "failed"
@@ -278,6 +285,12 @@ export interface WorkflowInformationStep {
     author?: string;
     sourceType: SourceType;
     uploadId?: string;
+    workflowType: WorkflowType;
+    // gui SDS workflows only: how to build the tool's frontend (folders under code/), as for GUI tools.
+    hasBackend?: boolean;
+    frontendFolder?: string;
+    frontendBuildCommand?: string;
+    backendFolder?: string;
 }
 
 export interface WorkflowResponse {
@@ -296,6 +309,22 @@ export interface WorkflowResponse {
     // Platform dataset of the approved workflow; legacy/unapproved rows hold a
     // `sparc-workflow-` placeholder instead (see ToolResponse.uuid).
     uuid?: string;
+    // Uploaded to the platform directly (REST API): listed with only a delete.
+    platformOnly?: boolean;
+    workflowType?: string;
+    // An SDS package, as the latest successful build found it (null until built); approval goes to the platform.
+    isSds?: boolean | null;
+    seekProjectId?: number;
+    // Handoff to the platform of the latest build (SDS workflows; see ToolApprovalStatus).
+    handoffStatus?: HandoffStatus | null;
+}
+
+/** A platform dataset linked to another: a workflow's tool, or a workflow that runs a tool. */
+export interface PlatformLink {
+    datasetUuid: string;
+    datasetName?: string;
+    seekId?: string;
+    stepIds?: string[];
 }
 
 interface AnnotateToolInput{

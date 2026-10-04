@@ -1,13 +1,16 @@
-"""Import a measurement or tool dataset from inside the digitaltwins-api container.
+"""Import a measurement, tool or workflow dataset from inside the digitaltwins-api container.
 
     python -m digitaltwins.cli.import_dataset <folder|zip> [--name N] [--fhir auto] [--move]
     python -m digitaltwins.cli.import_dataset <folder|zip> --category tools \
         --tool-type script|notebook|gui --seek-project-id P [--fhir auto]
+    python -m digitaltwins.cli.import_dataset <folder|zip> --category workflows \
+        --workflow-type script|notebook|gui --seek-project-id P [--fhir auto]
 
 Signs in with Keycloak (browser device flow, or ``--password``), checks the
 upload role, then runs the same pipeline as ``/datasets/uploads`` in-process:
-validation (SPARC, or a tool's ``primary/tool_*.cwl``) → commit (Postgres +
-MinIO; tools are also registered in SEEK as the signed-in user) → optional FHIR push. The
+validation (SPARC, a tool's ``primary/tool_*.cwl``, or a workflow's layout) →
+commit (Postgres + MinIO; tools and workflows are also registered in SEEK as
+the signed-in user, a workflow's tools as tool datasets) → optional FHIR push. The
 ``scripts/import-dataset.*`` wrappers copy a dataset from the host into the
 container and call this.
 
@@ -18,12 +21,13 @@ import shutil
 import sys
 from pathlib import Path
 
-from .. import tools
+from .. import tools, workflows
 from ..core.connection import Connection
 from ..measurements import jobs, pipeline, sessions
 from ..measurements.staging import dataset_dir, staging_root
 from ..measurements.validation import extract_uploaded_archive, resolve_project_root, validate_sparc_structure
 from ..tools.validation import find_tool_cwl
+from ..workflows.validation import load_workflow
 from .keycloak_login import login
 
 
@@ -36,7 +40,9 @@ def _parse(argv):
     parser.add_argument("--fhir", choices=["none", "auto"], default="none", help="auto-annotate and push FHIR")
     parser.add_argument("--category", default="measurements")
     parser.add_argument("--tool-type", choices=["script", "notebook", "gui"], help="tools only (required)")
-    parser.add_argument("--seek-project-id", type=int, help="tools only (required): SEEK project to register in")
+    parser.add_argument("--seek-project-id", type=int,
+                        help="tools and workflows only (required): SEEK project to register in")
+    parser.add_argument("--workflow-type", choices=["script", "notebook", "gui"], help="workflows only (required)")
     parser.add_argument("--move", action="store_true", help="move (not copy) the folder into staging")
     parser.add_argument("--password", action="store_true", help="password login instead of the device flow")
     parser.add_argument("--username")
@@ -61,6 +67,9 @@ def main(argv=None) -> int:
     tool = args.category == tools.CATEGORY
     if tool and (args.tool_type is None or args.seek_project_id is None):
         return _fail(2, "Tool imports need --tool-type and --seek-project-id")
+    workflow = args.category == workflows.CATEGORY
+    if workflow and (args.workflow_type is None or args.seek_project_id is None):
+        return _fail(2, "Workflow imports need --workflow-type and --seek-project-id")
 
     extracted = None
     try:
@@ -77,6 +86,11 @@ def main(argv=None) -> int:
                 find_tool_cwl(source)
             except ValueError as e:
                 return _fail(2, str(e))
+        elif workflow:
+            try:
+                load_workflow(source, args.workflow_type)
+            except ValueError as e:
+                return _fail(2, str(e))
         else:
             ok, message = validate_sparc_structure(source)
             if not ok:
@@ -89,7 +103,9 @@ def main(argv=None) -> int:
                 conn, category=args.category, name=args.name or (path.stem if path.is_file() else path.name),
                 description=args.description, source_kind="zip" if path.is_file() else "folder",
                 commit_mode="on_finalize", fhir_mode=args.fhir,
-                tool_type=args.tool_type if tool else None, seek_project_id=args.seek_project_id if tool else None,
+                tool_type=args.tool_type if tool else None,
+                seek_project_id=args.seek_project_id if tool or workflow else None,
+                workflow_type=args.workflow_type if workflow else None,
             )
             target = dataset_dir(upload_id)
             target.parent.mkdir(parents=True, exist_ok=True)

@@ -190,7 +190,7 @@ def test_config_reports_part_size(client):
 @pytest.mark.integration
 def test_other_categories_are_rejected(client):
     r = client.post("/datasets/uploads", json={
-        "name": "n", "category": "workflows", "source_kind": "folder",
+        "name": "n", "category": "models", "source_kind": "folder",
         "manifest": [{"rel_path": "a", "size": 1, "parts": 1}],
     })
     assert r.status_code == 400

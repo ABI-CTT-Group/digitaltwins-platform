@@ -54,13 +54,17 @@ class UploadClient:
         wait_for_fhir: bool = True,
         tool_type: Optional[str] = None,
         seek_project_id: Optional[int] = None,
+        workflow_type: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Upload a dataset folder or ``.zip`` and wait until it is committed.
 
         ``fhir="auto"`` auto-annotates and pushes FHIR; ``fhir_descriptions``
         supplies the annotation (measurements: keyed by folder name; tools:
-        ``{"workflow_tool": {...}}``; UUIDs are assigned by the server). Tools
-        (``category="tools"``) need ``tool_type`` and ``seek_project_id``.
+        ``{"workflow_tool": {...}}``; workflows: ``{"workflow": {...},
+        "workflow_tools": {<step id>: {...}}}``; UUIDs are assigned by the
+        server). Tools (``category="tools"``) need ``tool_type`` and
+        ``seek_project_id``; workflows (``category="workflows"``) need
+        ``workflow_type`` and ``seek_project_id``.
         Returns the final session, plus ``fhir_status`` when FHIR was requested
         and ``wait_for_fhir`` is set.
         """
@@ -82,6 +86,8 @@ class UploadClient:
             body["fhir_descriptions"] = fhir_descriptions
         if tool_type is not None:
             body.update(tool_type=tool_type, seek_project_id=seek_project_id)
+        if workflow_type is not None:
+            body.update(workflow_type=workflow_type, seek_project_id=seek_project_id)
         created = self._request("post", "/datasets/uploads", json=body)
         self.last_upload_id = created["upload_id"]
         return self._send_and_finish(created["upload_id"], path, created["max_part_size"],

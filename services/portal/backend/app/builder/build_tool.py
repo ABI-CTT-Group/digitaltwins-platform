@@ -503,6 +503,36 @@ class PluginBuilder:
                 f.write(f"{key}={val}\n")
         logger.info(f"Updated env file in {env_path} with route prefix /plugin/{expose_name}")
 
+    def build_frontend(self, frontend_path: Path, expose_name: str, build_command: str,
+                       has_backend: bool, sink=None) -> Optional[Path]:
+        """Build a GUI tool's frontend as the portal's UMD plugin bundle, exposed as ``expose_name``.
+
+        Shared by tool builds and gui workflow builds (build_workflow.py). Returns the dist/ or build/
+        folder, or None if the build left neither.
+        """
+        if not self.check_npm_project(frontend_path):
+            raise RuntimeError("No package.json found - not an npm project")
+        logger.info("npm project detected; updating vite.config")
+        self._update_vite_config(frontend_path, expose_name)
+        if has_backend:
+            logger.info("Creating the frontend .env file with the backend route prefix")
+            self._create_env_file(frontend_path, expose_name)
+
+        logger.info("Running npm install")
+        install_result = self.frontend_install(frontend_path, sink=sink)
+        if not install_result["success"]:
+            raise RuntimeError(f"npm install failed: {install_result.get('error', 'Unknown error')}")
+        logger.info("Running npm build")
+        build_result = self.frontend_build(frontend_path, build_command, sink=sink)
+        if not build_result["success"]:
+            raise RuntimeError(f"npm build failed: {build_result.get('error', 'Unknown error')}")
+
+        for dir_name in ("dist", "build"):
+            if (frontend_path / dir_name).exists():
+                logger.info(f"Found build output directory: {frontend_path / dir_name}")
+                return frontend_path / dir_name
+        return None
+
     def build(self, plugin: Dict[str, Any], sink=None) -> Dict[str, Any]:
         """Complete plugin build process"""
         build_logs = []
@@ -563,44 +593,16 @@ class PluginBuilder:
 
             # If the tool is a script, skip some of the steps below.
             if label == "GUI":
-                # Step 2: Check if it's an npm project and extract metadata
-                logger.info("Step 2: Checking if the frontend is an npm project...")
-                if has_backend:
-                    frontend_path = layout.source_dir / frontend_folder
-                else:
-                    frontend_path = layout.source_dir
-                if not self.check_npm_project(frontend_path):
-                    raise RuntimeError("No package.json found - not an npm project")
-                logger.info("npm project detected")
+                # Steps 2-4: vite.config rewrite, .env route prefix, npm install + build
+                logger.info("Step 2: Building the frontend...")
+                frontend_path = layout.source_dir / frontend_folder if has_backend else layout.source_dir
+                build_output_dir = self.build_frontend(frontend_path, plugin_unique_expose_name,
+                                                       frontend_build_command, has_backend, sink=sink)
+                logger.info("npm build completed successfully")
 
-                # Step 2.1: update vite.config.js
-                logger.info("Step 2.1: Updating vite.config.js...")
-                self._update_vite_config(frontend_path, metadata["expose"])
-                logger.info("vite.config.js updated successfully")
-
-                # Step 2.2: update plugin version base on plugin frontend package.json version
-                logger.info("Step 2.2: Updating plugin version...")
+                # update plugin version base on plugin frontend package.json version
                 new_version = self._update_plugin_version(frontend_path, plugin_id)
                 version = new_version if new_version is not None else version
-
-                # Step 2.3: create .env file with route prefix for nginx proxy
-                if has_backend:
-                    logger.info("Step 2.3: Create .env file for frontend...")
-                    self._create_env_file(frontend_path, plugin_unique_expose_name)
-
-                # Step 3: npm install
-                logger.info("Step 3: Running npm install")
-                install_result = self.frontend_install(frontend_path, sink=sink)
-                if not install_result["success"]:
-                    raise RuntimeError(f"npm install failed: {install_result.get('error', 'Unknown error')}")
-                logger.info("npm install completed successfully")
-
-                # Step 4: npm build
-                logger.info("Step 4: Running npm build...")
-                build_result = self.frontend_build(frontend_path, frontend_build_command, sink=sink)
-                if not build_result["success"]:
-                    raise RuntimeError(f"npm build failed: {build_result.get('error', 'Unknown error')}")
-                logger.info("npm build completed successfully")
 
                 # read config file in the cloned directory
                 config_file = layout.source_dir / "config.portal.json"
@@ -614,16 +616,6 @@ class PluginBuilder:
 
                 # Step 5: Create SPARC dataset
                 logger.info("Step 5: Creating SPARC dataset by sparc-me")
-
-                # Look for common build output directories
-                build_output_dir = None
-                possible_build_dir = ["dist", "build"]
-                for dir_name in possible_build_dir:
-                    potential_dir = frontend_path / dir_name
-                    if potential_dir.exists():
-                        build_output_dir = potential_dir
-                        logger.info(f"Found build output directory: {build_output_dir}")
-                        break
 
                 dataset_dir = self.create_sparc_dataset(project_dir, label, has_backend, build_output_dir,
                                                         f"{plugin_unique_expose_name}")

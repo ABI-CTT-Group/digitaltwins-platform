@@ -6,11 +6,15 @@ import {
   getRepoContents,
   inferProviderFromUrl,
   noToolCwlMessage,
+  noWorkflowCwlMessage,
   SDS_MARKER,
   sdsCwlResult,
   sdsToolCwls,
+  sdsWorkflowCwlResult,
+  sdsWorkflowCwls,
 } from '@/views/upload-dataset/components/utils';
 import type { GitContent, ProbeSourceResponse, ProbeFailureReason } from '@/models/types';
+import type { SdsKind } from '@/composables/useLocalFolderInfo';
 import { useProbeToolSource } from '@/bootstrap/tool_api';
 import { useProbeWorkflowSource } from '@/bootstrap/workflow_api';
 
@@ -25,6 +29,8 @@ export interface GitRepoInfo {
   foldersInRoot: string[];
   /** whether at least one .cwl file exists in the repo root */
   cwlExists: boolean;
+  /** whether the repo is an SDS package */
+  isSds: boolean;
   /** CWL validation result (populated after refresh) */
   cwlRepoErr: CheckNameResponse | undefined;
   /** Provider inferred from URL — set on every refresh, drives parent's
@@ -64,6 +70,7 @@ export function useGitRepoInfo() {
     version: '',
     foldersInRoot: [],
     cwlExists: false,
+    isSds: false,
     cwlRepoErr: undefined,
     provider: 'github',
     probeFailure: undefined,
@@ -106,10 +113,11 @@ export function useGitRepoInfo() {
   async function refreshPublicGithub(
     normalizedUrl: string,
     checkCwl: boolean,
-    allowSds: boolean,
+    sds: SdsKind,
   ): Promise<void> {
     info.value.foldersInRoot = [];
     info.value.cwlExists = false;
+    info.value.isSds = false;
     info.value.cwlRepoErr = undefined;
 
     try {
@@ -117,8 +125,8 @@ export function useGitRepoInfo() {
       const items = res!.data as GitContent[];
       const cwlFiles: string[] = [];
 
-      if (allowSds && items.some((item) => item.type === 'file' && item.name === SDS_MARKER)) {
-        await refreshPublicGithubSds(normalizedUrl, items, checkCwl);
+      if (items.some((item) => item.type === 'file' && item.name === SDS_MARKER)) {
+        await refreshPublicGithubSds(normalizedUrl, items, checkCwl, sds);
       } else {
         items.forEach((item: GitContent) => {
           if (item.type === 'dir') {
@@ -134,9 +142,9 @@ export function useGitRepoInfo() {
             ? { available: true, message: '' }
             : {
                 available: false,
-                message: allowSds
+                message: sds === 'tool'
                   ? noToolCwlMessage('repository')
-                  : 'No CWL files found in the root of the repository.',
+                  : noWorkflowCwlMessage('repository'),
               };
         }
       }
@@ -189,7 +197,9 @@ export function useGitRepoInfo() {
     normalizedUrl: string,
     rootItems: GitContent[],
     checkCwl: boolean,
+    sds: SdsKind,
   ): Promise<void> {
+    info.value.isSds = true;
     const listing = async (dir: string): Promise<GitContent[]> => {
       if (!rootItems.some((item) => item.type === 'dir' && item.name === dir)) return [];
       return (await getRepoContents(normalizedUrl, dir)).data as GitContent[];
@@ -197,9 +207,10 @@ export function useGitRepoInfo() {
     const [code, primary] = await Promise.all([listing('code'), listing('primary')]);
     info.value.foldersInRoot = code.filter((item) => item.type === 'dir').map((item) => item.name);
     if (checkCwl) {
-      const ok = sdsToolCwls(primary.filter((item) => item.type === 'file').map((item) => item.name)).length === 1;
+      const names = primary.filter((item) => item.type === 'file').map((item) => item.name);
+      const ok = (sds === 'workflow' ? sdsWorkflowCwls : sdsToolCwls)(names).length === 1;
       info.value.cwlExists = ok;
-      info.value.cwlRepoErr = sdsCwlResult(ok);
+      info.value.cwlRepoErr = sds === 'workflow' ? sdsWorkflowCwlResult(ok) : sdsCwlResult(ok);
     }
   }
 
@@ -210,11 +221,12 @@ export function useGitRepoInfo() {
     normalizedUrl: string,
     provider: Exclude<SourceType, "local">,
     auth: TransientAuth | undefined,
-    backendKind: 'tool' | 'workflow',
+    backendKind: SdsKind,
     checkCwl: boolean,
   ): Promise<void> {
     info.value.foldersInRoot = [];
     info.value.cwlExists = false;
+    info.value.isSds = false;
     info.value.cwlRepoErr = undefined;
 
     const probe = backendKind === 'tool' ? useProbeToolSource : useProbeWorkflowSource;
@@ -246,12 +258,15 @@ export function useGitRepoInfo() {
     // Response data is camelCase post-interceptor (backend ships snake_case
     // `folders_in_root` / `package_version` / `has_cwl` / `cwl_required`).
     info.value.foldersInRoot = res.data.foldersInRoot;
+    info.value.isSds = !!res.data.isSds;
     if (res.data.packageVersion) info.value.version = res.data.packageVersion;
     if (res.data.packageAuthor) info.value.author = res.data.packageAuthor;
     if (checkCwl) {
       info.value.cwlExists = res.data.hasCwl;
       if (res.data.isSds) {
-        info.value.cwlRepoErr = sdsCwlResult(res.data.hasCwl);
+        info.value.cwlRepoErr = backendKind === 'workflow'
+          ? sdsWorkflowCwlResult(res.data.hasCwl)
+          : sdsCwlResult(res.data.hasCwl);
       } else {
         info.value.cwlRepoErr = res.data.hasCwl
           ? { available: true, message: '' }
@@ -259,7 +274,7 @@ export function useGitRepoInfo() {
               available: false,
               message: backendKind === 'tool'
                 ? noToolCwlMessage('repository')
-                : 'No CWL files found in the root of the repository.',
+                : noWorkflowCwlMessage('repository'),
             };
       }
     }
@@ -280,7 +295,7 @@ export function useGitRepoInfo() {
   async function refresh(
     repositoryUrl: string,
     checkCwl = false,
-    opts: { kind: 'tool' | 'workflow'; auth?: TransientAuth } = { kind: 'tool' },
+    opts: { kind: SdsKind; auth?: TransientAuth } = { kind: 'tool' },
   ): Promise<string> {
     if (!repositoryUrl) return repositoryUrl;
 
@@ -298,7 +313,7 @@ export function useGitRepoInfo() {
       provider === 'github' && !opts.auth?.token;
 
     if (usePublicGithubPath) {
-      await refreshPublicGithub(normalizedUrl, checkCwl, opts.kind === 'tool');
+      await refreshPublicGithub(normalizedUrl, checkCwl, opts.kind);
     } else {
       await refreshViaBackend(normalizedUrl, provider, opts.auth, opts.kind, checkCwl);
     }

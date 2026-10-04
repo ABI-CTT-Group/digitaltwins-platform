@@ -1,10 +1,11 @@
 import os
+import re
 import uuid
-from sqlalchemy import create_engine, Column, String, DateTime, ForeignKey, Text, JSON, Boolean, Enum, Table, Integer
+from sqlalchemy import create_engine, Column, String, DateTime, ForeignKey, Text, JSON, Boolean, Enum, Table, Integer, CheckConstraint
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from enum import Enum as PyEnum
 from datetime import datetime
 from typing import Optional, Literal, List, Any
@@ -12,6 +13,9 @@ from typing import Optional, Literal, List, Any
 # Under the platform the tables live in this schema of the shared Postgres; it is
 # selected via search_path so the models stay schema-agnostic (and SQLite-compatible).
 PORTAL_DB_SCHEMA = "portal"
+
+# A deployment runs the backend of either a tool build or a gui workflow's build, never both.
+DEPLOYMENT_ONE_BUILD = "ck_plugin_deployments_one_build"
 
 
 def database_url() -> URL:
@@ -53,6 +57,11 @@ class DeployStatus(PyEnum):
     DEPLOYING = "deploying"
     FAILED = "failed"
     COMPLETED = "completed"
+
+
+# A GUI tool's frontend build command (tools and gui workflows): only npm or yarn runs on the portal.
+DEFAULT_GUI_BUILD_COMMAND = "npm run build:plugin"
+GUI_BUILD_COMMAND = re.compile(r"^(npm|yarn)\s+\S+")
 
 workflow_plugin_association = Table(
     "workflow_plugin_association",
@@ -123,10 +132,12 @@ class PluginBuild(Base):
 
 class PluginDeployment(Base):
     __tablename__ = "plugin_deployments"
+    __table_args__ = (CheckConstraint("(build_id IS NULL) <> (workflow_build_id IS NULL)", name=DEPLOYMENT_ONE_BUILD),)
     id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
-    plugin_id = Column(String, ForeignKey("plugins.id"), nullable=False)
+    plugin_id = Column(String, ForeignKey("plugins.id"), nullable=True)  # null for a gui workflow's tool
     # References the build's business key (what the deploy endpoint stores), not plugin_builds.id.
-    build_id = Column(String, ForeignKey("plugin_builds.build_id"), nullable=False)
+    build_id = Column(String, ForeignKey("plugin_builds.build_id"), nullable=True)
+    workflow_build_id = Column(String, ForeignKey("workflow_builds.build_id"), nullable=True)
     deploy_id = Column(String, unique=True, index=True, nullable=False)
     status = Column(String, default=DeployStatus.PENDING.value, nullable=False)
     source_path = Column(String, nullable=True)
@@ -141,6 +152,7 @@ class PluginDeployment(Base):
 
     build = relationship("PluginBuild", back_populates="deployments")
     plugin = relationship("Plugin", back_populates="deployments")
+    workflow_build = relationship("WorkflowBuild", back_populates="deployments")
 
 
 class PluginAnnotation(Base):
@@ -167,6 +179,16 @@ class Workflow(Base):
     repository_url = Column(String, nullable=False)
     source_type = Column(String, nullable=False, default="github")
     local_archive_path = Column(String, nullable=True)
+    workflow_type = Column(String, nullable=True)  # script|notebook|gui; NULL on rows registered before 2026-10-02
+    # Set by a successful build from the source layout (app/builder/workflow_layout.py); NULL until built.
+    # An SDS package is approved through digitaltwins-api (see docs/decisions/2026-10-02-workflow-type-independent-of-sds.md).
+    is_sds = Column(Boolean, nullable=True)
+    seek_project_id = Column(Integer, nullable=True)
+    # A gui SDS workflow builds its tool's frontend like a GUI tool (Plugin); folders are relative to code/.
+    has_backend = Column(Boolean, nullable=True, default=False)
+    frontend_folder = Column(String, nullable=True)
+    frontend_build_command = Column(String, nullable=True)
+    backend_folder = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -192,10 +214,23 @@ class WorkflowBuild(Base):
     s3_path = Column(String, nullable=True)
     expose_name = Column(String, nullable=True)
     dataset_path = Column(String, nullable=True)
+    # Approval hands the build to digitaltwins-api (app/services/workflow_handoff.py).
+    handoff_status = Column(String, nullable=True)  # uploading|awaiting_reauth|committing|completed|failed
+    upload_id = Column(String, nullable=True)       # the API's upload session
+    dataset_uuid = Column(String, nullable=True)    # the platform dataset, once committed
+    seek_id = Column(String, nullable=True)
+    handoff_error = Column(Text, nullable=True)
+    handoff_user = Column(String, nullable=True)    # the approver; only their token may continue the handoff
+    # A gui SDS workflow's built tool (app/builder/build_workflow.py): its CWL stem (set only when the bundle
+    # was built), the bundle's tool-builds prefix (null if that upload failed) and, once approved, its tool dataset.
+    tool_name = Column(String, nullable=True)
+    bundle_path = Column(String, nullable=True)        # e.g. tool-builds/<expose>/primary
+    tool_dataset_uuid = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     workflow = relationship("Workflow", back_populates="builds")
+    deployments = relationship("PluginDeployment", back_populates="workflow_build", cascade="all, delete-orphan")
 
 
 class WorkflowAnnotation(Base):
@@ -291,8 +326,9 @@ class PluginDeployBase(BaseModel):
 
 class PluginDeployResponse(PluginDeployBase):
     id: str
-    plugin_id: str
-    build_id: str
+    plugin_id: Optional[str] = None
+    build_id: Optional[str] = None
+    workflow_build_id: Optional[str] = None
     deploy_id: str
     status: str
     up: bool
@@ -335,6 +371,12 @@ class WorkflowBase(BaseModel):
     source_type: Literal["github", "gitlab", "bitbucket", "git_generic", "local"] = "github"
     description: Optional[str] = None
     author: Optional[str] = None
+    workflow_type: Optional[Literal["script", "notebook", "gui"]] = None
+    # gui SDS workflows only (see Workflow): how to build the tool's frontend, as for GUI tools.
+    has_backend: Optional[bool] = False
+    frontend_folder: Optional[str] = None
+    frontend_build_command: Optional[str] = None
+    backend_folder: Optional[str] = None
 
 
 # --- Source-acquisition request bodies (phase 5: multi-git-provider) ---
@@ -381,13 +423,36 @@ class ProbeSourceFailure(BaseModel):
 
 
 class WorkflowCreate(WorkflowBase):
+    workflow_type: Literal["script", "notebook", "gui"]  # required for new workflows; optional on WorkflowBase for older rows
     upload_id: Optional[str] = None  # client-supplied at create-time only; resolved to local_archive_path server-side
+
+    @model_validator(mode="after")
+    def _gui_fields(self):
+        """Only a gui workflow keeps a frontend layout; a backend needs both folders (relative to code/)."""
+        if self.workflow_type != "gui":
+            self.has_backend, self.frontend_folder, self.frontend_build_command, self.backend_folder = False, None, None, None
+            return self
+        self.has_backend = bool(self.has_backend)
+        self.frontend_build_command = self.frontend_build_command or DEFAULT_GUI_BUILD_COMMAND
+        if not GUI_BUILD_COMMAND.match(self.frontend_build_command):
+            raise ValueError("frontend_build_command must be an npm or yarn command, e.g. npm run build:plugin")
+        if self.has_backend and not (self.frontend_folder and self.backend_folder):
+            raise ValueError("A gui workflow with a backend needs frontend_folder and backend_folder")
+        if self.has_backend:
+            for folder in (self.frontend_folder, self.backend_folder):
+                if "/" in folder or "\\" in folder or folder in (".", ".."):
+                    raise ValueError("frontend_folder and backend_folder must be folder names inside code/")
+        else:
+            self.frontend_folder = self.backend_folder = None
+        return self
 
 
 class WorkflowResponse(WorkflowBase):
     id: str
     uuid: Optional[str] = None
     local_archive_path: Optional[str] = None
+    seek_project_id: Optional[int] = None
+    is_sds: Optional[bool] = None  # set by the build; never accepted from the client
     created_at: datetime
     updated_at: datetime
 
@@ -401,6 +466,10 @@ class WorkflowBuildResponse(BuildBase):
     build_id: str
     status: str
     expose_name: Optional[str] = None
+    handoff_status: Optional[str] = None
+    dataset_uuid: Optional[str] = None
+    seek_id: Optional[str] = None
+    handoff_error: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

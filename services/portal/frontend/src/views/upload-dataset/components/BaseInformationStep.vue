@@ -12,7 +12,7 @@
     <v-divider class="my-2 mb-5" :thickness="3" />
 
     <v-form ref="form" class="px-5">
-      <!-- Tool-only: type selector -->
+      <!-- The type comes first, for tools and workflows alike -->
       <template v-if="type === 'tool'">
         <h4 class="my-2">Choose the tool type *</h4>
         <v-radio-group
@@ -21,8 +21,7 @@
           class="w-100 d-flex justify-start"
           @update:modelValue="handleLabelChange"
         >
-          <v-radio color="#5fd6e8" label="Web GUI" value="GUI" />
-          <v-radio color="#5fd6e8" label="Script" value="Script" class="ml-2" />
+          <v-radio color="#5fd6e8" label="Script" value="Script" />
           <v-tooltip text="Script tools currently support Python scripts only." location="top" open-delay="200">
             <template #activator="{ props: tip }">
               <v-icon
@@ -35,6 +34,15 @@
             </template>
           </v-tooltip>
           <v-radio color="#5fd6e8" label="Notebook" value="Notebook" class="ml-2" />
+          <v-radio color="#5fd6e8" label="Web GUI" value="GUI" class="ml-2" />
+        </v-radio-group>
+      </template>
+      <template v-else>
+        <h4 class="my-2">Choose the workflow type *</h4>
+        <v-radio-group v-model="formData.workflowType" inline class="w-100 d-flex justify-start">
+          <v-radio color="#5fd6e8" label="Script" value="script" />
+          <v-radio color="#5fd6e8" label="Notebook" value="notebook" class="ml-2" />
+          <v-radio color="#5fd6e8" label="Web GUI" value="gui" class="ml-2" />
         </v-radio-group>
       </template>
 
@@ -66,8 +74,8 @@
           />
         </template>
 
-        <!-- Tool + GUI mode: backend & folder fields -->
-        <div v-if="type === 'tool' && formData.label === 'GUI'" class="w-100">
+        <!-- GUI tool, or a gui SDS workflow's tool: backend & folder fields -->
+        <div v-if="(type === 'tool' && formData.label === 'GUI') || isGuiSdsWorkflow" class="w-100">
           <div class="w-100">
             <h4 class="my-2">has backend? *</h4>
             <v-radio-group inline v-model="formData.hasBackend" class="w-100 d-flex justify-between">
@@ -150,7 +158,7 @@
 import { ref, reactive, watch, computed } from 'vue';
 import CommonInfoForm from './CommonInfoForm.vue';
 import LocalFolderDropzone from './LocalFolderDropzone.vue';
-import type { ToolInformationStep, WorkflowInformationStep, CheckNameResponse, TransientAuth } from '@/models/types';
+import type { ToolInformationStep, WorkflowInformationStep, CheckNameResponse, TransientAuth, WorkflowType } from '@/models/types';
 import { useCheckName } from '@/bootstrap/api_helpers';
 import { useGitRepoInfo } from '@/composables/useGithubRepoInfo';
 import { useLocalFolderInfo } from '@/composables/useLocalFolderInfo';
@@ -181,8 +189,8 @@ const cwlRepoErr = ref<CheckNameResponse>();
 // reference (folder File[] OR zip Blob) that is *not* sent to the backend
 // directly — it is zipped (folder kind) + uploaded during handleSubmit, after
 // which `uploadId` is filled in.
-const formData = reactive<ToolInformationStep & { source?: LocalSource }>({
-  label: 'GUI',
+const formData = reactive<ToolInformationStep & { source?: LocalSource; workflowType: WorkflowType }>({
+  label: 'Script',
   repositoryUrl: '',
   name: '',
   author: '',
@@ -190,13 +198,14 @@ const formData = reactive<ToolInformationStep & { source?: LocalSource }>({
   description: '',
   frontendFolder: '',
   frontendBuildCommand: 'npm run build:plugin',
-  hasBackend: true,
+  hasBackend: false,
   backendFolder: '',
   backendDeployCommand: 'docker compose up --build -d',
   toolMetadata: {},
   sourceType: 'github',
   uploadId: undefined,
   source: undefined,
+  workflowType: 'script',
 });
 
 // ---- repo info composables (one for each source) -------------------------
@@ -241,6 +250,11 @@ defineExpose({ buildAuth });
 // Computed (not a mirror ref) so reactivity is bulletproof — Vue tracks the
 // nested property read on the underlying reactive `info` object directly.
 const foldersInRoot = computed(() => repoInfo.value.foldersInRoot);
+
+// A gui workflow packaged as SDS builds its one tool's frontend like a GUI tool (folders come from code/).
+const isGuiSdsWorkflow = computed(() =>
+  props.type === 'workflow' && formData.workflowType === 'gui' && !!repoInfo.value.isSds,
+);
 
 // ---- upload state ---------------------------------------------------------
 const submitting = ref(false);
@@ -293,7 +307,7 @@ async function refreshSourceInfo() {
     if (gitRepo.info.value.version) formData.version = gitRepo.info.value.version;
   } else {
     if (!formData.source) return;
-    await localFolder.refresh(formData.source, true, props.type === 'tool');
+    await localFolder.refresh(formData.source, true, props.type);
     if (localFolder.info.value.name) formData.name = localFolder.info.value.name;
     if (localFolder.info.value.author) formData.author = localFolder.info.value.author;
     if (localFolder.info.value.version) formData.version = localFolder.info.value.version;
@@ -366,7 +380,11 @@ async function validate(): Promise<boolean> {
   }
 
   if (props.type === 'workflow') {
-    return valid && !!cwlCheck.value;
+    if (isGuiSdsWorkflow.value && formData.hasBackend) {
+      const foldersOk = checkFolderInRoot(formData.frontendFolder ?? '') && checkFolderInRoot(formData.backendFolder ?? '');
+      return valid && !!cwlCheck.value && foldersOk;
+    }
+    return valid && !!cwlCheck.value && !!formData.workflowType;
   }
 
   // tool
@@ -425,7 +443,7 @@ async function handleSubmit() {
     alertText.value =
       props.type === 'tool'
         ? 'Some required fields are missing. Please provide your source (GitHub URL or local folder), tool name, build command, and, if the tool includes a backend, fill in the frontend and backend folder details.'
-        : 'Some required fields are missing. Please provide your source (GitHub URL or local folder), workflow name, and annotating information.';
+        : 'Some required fields are missing. Please provide your source (GitHub URL or local folder), workflow name and workflow type.';
     return;
   }
 
@@ -450,6 +468,13 @@ async function handleSubmit() {
         description: formData.description,
         sourceType: formData.sourceType,
         uploadId: formData.uploadId,
+        workflowType: formData.workflowType,
+        ...(isGuiSdsWorkflow.value ? {
+          hasBackend: formData.hasBackend,
+          frontendFolder: formData.hasBackend ? formData.frontendFolder : undefined,
+          backendFolder: formData.hasBackend ? formData.backendFolder : undefined,
+          frontendBuildCommand: formData.frontendBuildCommand,
+        } : {}),
       };
       // Auth is emitted separately so the wizard's BaseBuildStep can pass
       // it into the build POST body. NEVER part of the create payload —

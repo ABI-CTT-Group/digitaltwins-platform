@@ -10,6 +10,7 @@
 
     <template #meta>
       <span class="aurora-chip" :style="{ '--chip': statusColor }">{{ statusLabel }}</span>
+      <span v-if="measurement.uuid" class="aurora-chip" :style="{ '--chip': '#6fd49a' }">in platform</span>
       <span
         v-if="measurement.failureStage && (measurement.status === 'submit_failed' || measurement.status === 'fhir_failed')"
         class="aurora-chip"

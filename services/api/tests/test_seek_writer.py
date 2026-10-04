@@ -7,7 +7,7 @@ import pytest
 import requests
 
 from digitaltwins.seek import writer
-from digitaltwins.seek.writer import Writer, build_tool_crate
+from digitaltwins.seek.writer import Writer, build_tool_crate, build_workflow_crate
 
 CWL = """cwlVersion: v1.2
 class: CommandLineTool
@@ -149,3 +149,69 @@ def test_crate_tags_the_notebook_type(cwl_path):
 def test_crate_tags_the_gui_type(cwl_path):
     graph, _, _ = _crate(build_tool_crate(cwl_path, "gui"))
     assert graph["./"]["keywords"] == ["tool", "gui"]
+
+
+WORKFLOW_CWL = """cwlVersion: v1.2
+class: Workflow
+label: "Workflow - convert"
+doc: Converts twice.
+inputs: {src: Directory}
+outputs: {}
+steps:
+  convert: {run: tool_convert.cwl, in: {src: src}, out: []}
+  other: {run: tool_other.cwl, in: {src: src}, out: []}
+"""
+
+
+@pytest.fixture
+def workflow_paths(tmp_path, cwl_path):
+    workflow = tmp_path / "workflow_convert.cwl"
+    workflow.write_text(WORKFLOW_CWL)
+    other = tmp_path / "tool_other.cwl"
+    other.write_text("cwlVersion: v1.2\nclass: CommandLineTool\ninputs: []\noutputs: []\n")
+    return workflow, [cwl_path, other]
+
+
+def test_workflow_crate_tags_workflow_and_packs_its_tool_cwls(workflow_paths):
+    workflow, tool_cwls = workflow_paths
+    graph, names, zf = _crate(build_workflow_crate(workflow, tool_cwls, "script"))
+    root = graph["./"]
+    assert root["name"] == "Workflow - convert"
+    assert root["description"] == "Converts twice."
+    assert root["keywords"] == ["workflow", "script"]
+    assert root["mainEntity"] == {"@id": "workflow_convert.cwl"}
+    assert root["hasPart"] == [{"@id": "workflow_convert.cwl"}, {"@id": "tool_convert.cwl"}, {"@id": "tool_other.cwl"}]
+    assert "ComputationalWorkflow" in graph["workflow_convert.cwl"]["@type"]
+    assert "ComputationalWorkflow" not in graph["tool_convert.cwl"]["@type"]
+    assert sorted(names) == ["ro-crate-metadata.json", "tool_convert.cwl", "tool_other.cwl", "workflow_convert.cwl"]
+    with zipfile.ZipFile(io.BytesIO(build_workflow_crate(workflow, tool_cwls, "script"))) as z:
+        assert z.read("workflow_convert.cwl").decode() == WORKFLOW_CWL
+        assert z.read("tool_convert.cwl").decode() == CWL
+
+
+def test_register_workflow_posts_one_crate(seek_env, workflow_paths, monkeypatch):
+    workflow, tool_cwls = workflow_paths
+    calls = []
+
+    def fake_post(url, **kwargs):
+        calls.append((url, kwargs))
+        return FakeResponse(200, {"data": {"id": "43", "type": "workflows"}})
+
+    monkeypatch.setattr(writer.requests, "post", fake_post)
+    assert Writer(api_token="tok").register_workflow(workflow, tool_cwls, "gui", project_id=11) == 43
+
+    [(url, kwargs)] = calls
+    assert url == "http://seek.test/seek/workflows"
+    assert kwargs["headers"] == {"Authorization": "Bearer tok"}
+    assert kwargs["data"] == {"workflow[project_ids][]": 11}
+    filename, content, content_type = kwargs["files"]["ro_crate"]
+    assert filename == "workflow_convert.crate.zip"
+    graph, _, _ = _crate(content)
+    assert graph["./"]["keywords"] == ["workflow", "gui"]
+
+
+def test_register_workflow_raises_on_seek_error(seek_env, workflow_paths, monkeypatch):
+    workflow, tool_cwls = workflow_paths
+    monkeypatch.setattr(writer.requests, "post", lambda url, **kw: FakeResponse(422, {"errors": [{"detail": "bad"}]}))
+    with pytest.raises(RuntimeError, match="workflow registration failed.*bad"):
+        Writer(api_token="tok").register_workflow(workflow, tool_cwls, "script", project_id=11)

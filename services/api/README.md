@@ -179,6 +179,63 @@ curl -H "Authorization: Bearer <token>" \
   - Inside the API container: `scripts/import-dataset.sh <folder|zip> --category tools --tool-type script --seek-project-id <id>`.
 - `GET /datasets/<uuid>?get_cwl=true` returns the parsed CWL. `DELETE /datasets/<uuid>` also deletes the SEEK Workflow and the ActivityDefinition.
 
+### Uploading a workflow dataset
+
+A workflow dataset is an SDS folder like a tool dataset. `primary/` holds exactly one `workflow_<name>.cwl` (`class: Workflow`), and each step `run`s a `tool_<name>.cwl` that is also in `primary/`. The code is in `code/`. There are three workflow types:
+
+- `script`: any number of steps, each a script tool;
+- `notebook`: exactly one step, a notebook tool;
+- `gui`: exactly one step, a GUI/plugin tool.
+
+Each tool the workflow uses is stored as a tool dataset of its own, with `tool_type` set to the workflow type. That tool dataset holds the workflow's top-level metadata files, the tool's CWL, and the tool's code:
+
+- `code/<tool_name>/` if that folder exists;
+- otherwise, for a script tool, the top-level `code/<tool_name>.*` files (the upload fails with `400` if there are none);
+- otherwise, for a notebook or gui tool, all of `code/`.
+
+If the package has a `primary/<tool_name>/` folder, its contents are copied into the tool dataset's `primary/`, next to the tool's CWL. The portal puts a gui workflow tool's built bundle (`my-app.umd.js` and its assets) there, so the tool can be launched like an approved portal GUI tool.
+
+Example datasets are in `tests/data/workflow_image_conversion` (script) and `tests/data/workflow_volview` (gui) at the root of the platform repository.
+
+As you, in the SEEK project you name, the upload registers:
+
+- each tool, as a Workflow tagged `tool` + `<workflow_type>`;
+- then the workflow, as a Workflow tagged `workflow` + `<workflow_type>`. Its RO-Crate also packs the tool CWLs, so `GET /workflows` lists it.
+
+The tool datasets are then stored in the MinIO `tools` bucket, and the workflow dataset is stored as uploaded in `workflows`. In Postgres:
+
+- the workflow's dataset row has `seek_id` and `workflow_type`;
+- each tool's row has `seek_id` and `tool_type`;
+- `workflow_tool` records which tool dataset each step runs.
+
+The `workflows` category is also used by assay workspace outputs. A workflow definition is a dataset whose `workflow_type` is set.
+
+```bash
+curl -H "Authorization: Bearer <token>" \
+  -F "files=@workflow_image_conversion.zip" \
+  "https://<platform-host>/digitaltwins-api/datasets?category=workflows&workflow_type=script&seek_project_id=<id>&fhir=auto"
+# -> {"message": "...", "dataset_uuid": "...", "seek_id": 43, "fhir_status": "pending",
+#     "tools": [{"step_id": "dicom_to_nifti", "dataset_uuid": "...", "seek_id": 41}, ...]}
+```
+
+- **All-or-nothing.** If any SEEK registration fails, the entries already made are removed, nothing is stored, and the API returns `502`. If storing fails, every SEEK Workflow and every dataset stored so far is removed again.
+- **FHIR is optional.**
+  - `fhir=auto` pushes one `ActivityDefinition` per tool, then a `PlanDefinition` for the workflow. Each of its actions (one per step, titled with the step id) points to the ActivityDefinition of the step's tool.
+  - `fhir_descriptions` gives `{"workflow": {"version", "description", "purpose", "usage", "author", "action": [{"step", "input": [{"id", "resource_type", "code", "system", "unit"}], "output": [...]}]}, "workflow_tools": {"<step id>": {<workflow_tool fields>}}}`.
+    - `resource_type` is one of `ImagingStudy`, `DocumentReference` or `Observation`.
+    - Step and port ids are checked against the CWLs.
+  - Each tool's descriptions are stored on its tool dataset. `GET /datasets/<uuid>/fhir/tree` on the workflow returns the workflow's and the tools' descriptions together, with each step's ports. `PUT .../fhir/annotation` takes the same shape.
+  - `POST /datasets/<uuid>/fhir/push` re-pushes the tools and then the workflow.
+- **Other clients.**
+  - Resumable sessions accept `category="workflows"` with `workflow_type` and `seek_project_id`.
+  - From Python: `UploadClient.upload_dataset(path, category="workflows", workflow_type="script", seek_project_id=<id>)`.
+  - Inside the API container: `scripts/import-dataset.sh <folder|zip> --category workflows --workflow-type script --seek-project-id <id>`.
+- **Deleting.** `DELETE /datasets/<uuid>` on a workflow needs `delete_tools=true` or `delete_tools=false`.
+  - Without it, the API returns `409` listing the workflow's tool datasets, so the client can ask the user.
+  - `GET /datasets/<uuid>/workflow-tools` lists those tool datasets (name, SEEK id, steps) without deleting anything.
+  - With `true`, the tools are deleted after the workflow, together with their SEEK Workflows and ActivityDefinitions.
+  - A tool dataset that a workflow still runs can't be deleted on its own (`409`).
+
 ## Reporting Issues
 To report an issue or suggest a new feature, please use the [issues page](https://github.com/ABI-CTT-Group/digitaltwins-api/issues). Issue templates are provided to allow users to report bugs, and documentation or feature requests. Please check existing issues before submitting a new one.
 

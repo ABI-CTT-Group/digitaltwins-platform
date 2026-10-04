@@ -15,10 +15,12 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from .. import tools
+from .. import tools, workflows
 from ..core.connection import Connection
 from ..tools import fhir as tool_fhir
 from ..tools.pipeline import annotate_tool, commit_tool
+from ..workflows import fhir as workflow_fhir
+from ..workflows.pipeline import annotate_workflow, commit_workflow, linked_tools
 from . import fhir_service, pipeline, sessions
 from .staging import dataset_dir, staging_root
 from .tree import build_tree
@@ -60,6 +62,18 @@ def _commit(session: Dict[str, Any], root: Path, api_token: Optional[str]) -> pi
         conn = _connect()
         try:
             descriptions = annotate_tool(conn, root, result["dataset_uuid"], session["fhir_descriptions"])
+        finally:
+            conn.close()
+        return pipeline.CommitResult(result["dataset_uuid"], descriptions)
+    if session["category"] == workflows.CATEGORY:
+        result = commit_workflow(root, session["workflow_type"], session["seek_project_id"], api_token,
+                                 dataset_name=session["name"])
+        if session["fhir_mode"] == "none":
+            return pipeline.CommitResult(result["dataset_uuid"], None)
+        conn = _connect()
+        try:
+            descriptions = annotate_workflow(conn, root, session["workflow_type"], result["dataset_uuid"],
+                                             session["fhir_descriptions"])
         finally:
             conn.close()
         return pipeline.CommitResult(result["dataset_uuid"], descriptions)
@@ -135,13 +149,39 @@ def _push_tool(dataset_uuid: str, descriptions: Dict[str, Any]) -> None:
     asyncio.run(tool_fhir.push(descriptions, fhir_service.get_fhir_adapter()))
 
 
+def _push_workflow(conn, dataset_uuid: str, descriptions: Dict[str, Any]) -> None:
+    """Re-push the workflow's tools' ActivityDefinitions, then its PlanDefinition.
+
+    The old PlanDefinition is deleted first (it references the ActivityDefinitions)
+    and the new one created last, so that each action finds its tool's ActivityDefinition.
+    """
+    workflow_fhir.delete(dataset_uuid, fhir_service.get_fhir_rest())
+    for tool in linked_tools(conn, dataset_uuid):
+        tool_uuid = tool["dataset_uuid"]
+        tool_descriptions = pipeline.load_annotation(conn, tool_uuid)
+        if tool_descriptions is None:
+            raise ValueError(f"No FHIR annotation stored for tool dataset {tool_uuid}")
+        set_fhir_status(conn, tool_uuid, "pushing")
+        try:
+            pipeline.store_fhir_json(pipeline.get_dataset_row(conn, tool_uuid)["category"], tool_uuid,
+                                     tool_descriptions)
+            _push_tool(tool_uuid, tool_descriptions)
+        except Exception as exc:
+            set_fhir_status(conn, tool_uuid, "failed", str(exc))
+            raise
+        set_fhir_status(conn, tool_uuid, "completed")
+    asyncio.run(workflow_fhir.push(descriptions, fhir_service.get_fhir_adapter()))
+
+
 def run_fhir_push_job(dataset_uuid: str) -> None:
     """Build fhir.json from the stored annotation, store it in MinIO and (re)push it to HAPI.
 
     Earlier resources for the dataset are removed first, so a retry or re-push
     never duplicates. On failure the dataset stays committed with
     ``fhir_status=failed`` and its local copy is kept for the retry. A tool's
-    fhir.json is its ``workflow_tool`` descriptions, pushed as one ActivityDefinition.
+    fhir.json is its ``workflow_tool`` descriptions, pushed as one ActivityDefinition;
+    a workflow's is its ``workflow`` descriptions, pushed as a PlanDefinition after
+    its tools' ActivityDefinitions.
     """
     conn = _connect()
     try:
@@ -151,6 +191,12 @@ def run_fhir_push_job(dataset_uuid: str) -> None:
             if descriptions is None:
                 raise ValueError("No FHIR annotation stored for this dataset")
             dataset = pipeline.get_dataset_row(conn, dataset_uuid)
+            if dataset["workflow_type"]:
+                pipeline.store_fhir_json(dataset["category"], dataset_uuid, descriptions)
+                _push_workflow(conn, dataset_uuid, descriptions)
+                set_fhir_status(conn, dataset_uuid, "completed")
+                logger.info("Pushed FHIR for workflow dataset %s", dataset_uuid)
+                return
             if dataset["category"] == tools.CATEGORY:
                 pipeline.store_fhir_json(dataset["category"], dataset_uuid, descriptions)
                 _push_tool(dataset_uuid, descriptions)

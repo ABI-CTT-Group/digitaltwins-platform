@@ -95,6 +95,18 @@ export const noToolCwlMessage = (where: string) =>
   `No CWL found in the ${where}. Expected one .cwl at the root (source code), ` +
   `or one primary/tool_*.cwl in an SDS package (${SDS_MARKER} at the root).`;
 
+const SDS_WORKFLOW_CWL = /^workflow_.*\.cwl$/;
+
+export const sdsWorkflowCwls = (primaryFiles: string[]) => primaryFiles.filter((name) => SDS_WORKFLOW_CWL.test(name));
+
+export const sdsWorkflowCwlResult = (ok: boolean): CheckNameResponse => ok
+  ? { available: true, message: "Detected an SDS workflow package: approving it registers the workflow and its tools." }
+  : { available: false, message: "An SDS workflow package must have exactly one primary/workflow_*.cwl." };
+
+export const noWorkflowCwlMessage = (where: string) =>
+  `No CWL found in the ${where}. Expected a .cwl at the root (source code), ` +
+  `or one primary/workflow_*.cwl in an SDS package (${SDS_MARKER} at the root).`;
+
 export const getRepoRootCWLContent = (repositoryUrl: string) => {
   return new Promise<{ cwlFile: string, content: any }>((resolve, reject) => {
     getRepoContents(repositoryUrl).then(async (res) => {

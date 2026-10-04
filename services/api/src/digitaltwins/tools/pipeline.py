@@ -18,7 +18,8 @@ class SeekRegistrationError(RuntimeError):
     """SEEK registration or linking failed; anything created for the tool has been removed again."""
 
 
-def _link(dataset_uuid: str, seek_id: int, tool_type: str) -> None:
+def link_tool(dataset_uuid: str, seek_id: int, tool_type: str) -> None:
+    """Record the stored tool dataset's SEEK Workflow id and tool type."""
     conn, _ = Connection().connect()
     try:
         with conn.cursor() as cur:
@@ -69,7 +70,7 @@ def commit_tool(
             str(dataset_root), category=tools.CATEGORY, dataset_name=dataset_name,
             skip_tables=("subject", "sample"),
         )
-        _link(dataset_uuid, seek_id, tool_type)
+        link_tool(dataset_uuid, seek_id, tool_type)
     except Exception as exc:
         logger.exception("Tool commit failed after SEEK registration (workflow %s); rolling back", seek_id)
         _undo(writer, seek_id, dataset_uuid)

@@ -14,25 +14,36 @@
       <span v-if="workflow.status" class="aurora-chip" :style="{ '--chip': auroraStatus(workflow.status) }">
         {{ workflow.status }}
       </span>
+      <span v-if="workflow.workflowType" class="aurora-chip">{{ workflow.workflowType }}</span>
+      <span v-if="handoffActive" class="aurora-chip" :style="{ '--chip': '#5fd6e8' }">approving…</span>
+      <span v-else-if="workflow.handoffStatus === 'failed'" class="aurora-chip" :style="{ '--chip': '#ff6b6b' }">
+        approval failed
+      </span>
+      <span v-if="workflow.platformOnly" class="aurora-chip" :style="{ '--chip': '#9fb4bf' }">platform upload</span>
+      <span v-else-if="inPlatform" class="aurora-chip" :style="{ '--chip': '#6fd49a' }">in platform</span>
       <span v-if="workflow.createdAt" class="aurora-chip ms-auto">{{ formatDate(workflow.createdAt) }}</span>
     </template>
   </CardUI>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRef } from 'vue'
+import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue'
 import { WorkflowResponse } from '@/models/types';
 import CardUI, { type UCardMenuItem } from './CardUI.vue';
 import { formatDate } from './utils';
+import { useWorkflowApprovalStatus, useDeleteWorkflow } from '@/bootstrap/workflow_api';
+// @ts-ignore - vue-toastification is installed but missing type declarations
+import { useToast } from 'vue-toastification';
 
 const props = defineProps<{
   workflow: WorkflowResponse
 }>()
 
+const toast = useToast();
 const workflow = toRef(props, "workflow")
 const isDeleting = ref(false)
 
-const emit = defineEmits(["submit-approve", "delete"])
+const emit = defineEmits(["submit-approve", "approve-platform", "approval-done", "delete", "delete-platform"])
 
 // Aurora status palette — soft tonal chips keyed by lifecycle state.
 const auroraStatus = (s?: string) => {
@@ -45,14 +56,54 @@ const auroraStatus = (s?: string) => {
   }
 }
 
-const menuItems = computed<UCardMenuItem[]>(() => [
-  { label: 'Submit to approval', icon: 'mdi-send-check-outline', onClick: onSubmit },
-  { label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: onDelete },
-])
+const menuItems = computed<UCardMenuItem[]>(() => workflow.value.platformOnly
+  // Uploaded via the REST API: the hub confirms the delete (and whether its tools go too).
+  ? [{ label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: () => emit("delete-platform", workflow.value) }]
+  : [
+    { label: 'Submit to approval', icon: 'mdi-send-check-outline', onClick: workflow.value.isSds ? () => emit("approve-platform", workflow.value) : onSubmit },
+    { label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: onDelete },
+  ])
+
+// Approved into the platform: a real dataset uuid, not the legacy approval's `sparc-workflow-` placeholder.
+const inPlatform = computed(() => !!workflow.value.uuid && !workflow.value.uuid.startsWith('sparc-workflow-'))
+
+const ACTIVE = ['uploading', 'awaiting_reauth', 'committing']
+const handoffActive = computed(() => ACTIVE.includes(workflow.value.handoffStatus ?? ''))
+
+// While an approval is under way, poll it: each poll relays a fresh token to
+// the portal backend, which resumes a handoff paused by an expired one.
+let approvalTimer: ReturnType<typeof setInterval> | undefined
+const stopApprovalPoll = () => { if (approvalTimer) clearInterval(approvalTimer); approvalTimer = undefined }
+watch(handoffActive, (active) => {
+  stopApprovalPoll()
+  if (!active) return
+  approvalTimer = setInterval(async () => {
+    try {
+      const s = await useWorkflowApprovalStatus(workflow.value.id)
+      if (s.handoffStatus && !ACTIVE.includes(s.handoffStatus)) {
+        stopApprovalPoll()
+        emit('approval-done', s)
+      }
+    } catch (err) {
+      console.warn(`Approval status poll failed for workflow ${workflow.value.id}:`, err)
+    }
+  }, 3000)
+}, { immediate: true })
+onBeforeUnmount(stopApprovalPoll)
 
 const onSubmit = () => emit("submit-approve", workflow.value.id)
-const onDelete = () => {
+const onDelete = async () => {
     isDeleting.value = true;
-    emit("delete", workflow.value.id)
+    try {
+        const res: any = await useDeleteWorkflow(workflow.value.id)
+        if (!res["status"]) {
+            isDeleting.value = false;
+            toast.error("Error: " + res["message"])
+        }
+        emit("delete", res)
+    } catch (err: any) {
+        isDeleting.value = false;
+        toast.error("Error: " + (err?.message ?? err))
+    }
 }
 </script>

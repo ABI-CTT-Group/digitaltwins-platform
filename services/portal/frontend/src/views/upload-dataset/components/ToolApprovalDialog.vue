@@ -10,8 +10,9 @@
         <template v-if="!status">
           <v-alert type="info" variant="tonal" color="#5fd6e8" density="comfortable" class="mb-6 text-body-2"
                    icon="mdi-information-outline">
-            The latest build of <strong>{{ tool?.name }}</strong> is registered in SEEK as you, and stored in the
-            platform. Approving a rebuilt tool replaces its previous version.
+            The latest build of <strong>{{ item?.name }}</strong> is registered in SEEK as you, and stored in the
+            platform{{ kind === 'workflow' ? ', with a tool dataset for each of its tools' : '' }}. Approving a
+            rebuild replaces its previous version.
           </v-alert>
           <v-select
             v-model="seekProjectId"
@@ -27,13 +28,13 @@
             prepend-inner-icon="mdi-folder-account-outline"
           />
           <v-checkbox v-model="fhir" color="#5fd6e8" hide-details density="compact"
-                      label="Publish to FHIR (ActivityDefinition with the port annotations)" />
+                              :label="kind === 'workflow' ? 'Publish to FHIR (a PlanDefinition, and an ActivityDefinition per tool)' : 'Publish to FHIR (ActivityDefinition with the port annotations)'" />
         </template>
 
         <template v-else>
           <div class="d-flex align-center mb-3">
             <v-chip :color="chipColor" variant="tonal" class="mr-3">{{ statusLabel }}</v-chip>
-            <span v-if="running" class="text-caption mr-3">You can close this; the Tool Hub keeps it going.</span>
+            <span v-if="running" class="text-caption mr-3">You can close this; the {{ kind === 'workflow' ? 'Workflow' : 'Tool' }} Hub keeps it going.</span>
             <span v-if="status.partsTotal" class="text-caption">{{ status.partsSent }} / {{ status.partsTotal }} parts</span>
           </div>
           <v-progress-linear v-if="running" :model-value="percent" :indeterminate="!status.partsTotal"
@@ -67,17 +68,21 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 // @ts-ignore - vue-toastification is installed but missing type declarations
 import { useToast } from 'vue-toastification';
-import type { SeekProject, ToolApprovalStatus, ToolResponse } from '@/models/types';
+import type { SeekProject, ToolApprovalStatus, ToolResponse, WorkflowResponse } from '@/models/types';
 import {
   usePlatformDataset, useRetryToolFhir, useSeekProjects, useToolApproval, useToolApprovalStatus,
 } from '@/bootstrap/tool_api';
+import { useWorkflowApprovalStatus, useWorkflowPlatformApproval } from '@/bootstrap/workflow_api';
 
 const POLL_MS = 3000;
 
-const props = defineProps<{ tool: ToolResponse | null }>();
+const props = defineProps<{ item: ToolResponse | WorkflowResponse | null; kind?: 'tool' | 'workflow' }>();
 const open = defineModel<boolean>({ default: false });
 const emit = defineEmits(['done']);
 const toast = useToast();
+const calls = computed(() => props.kind === 'workflow'
+  ? { approve: useWorkflowPlatformApproval, status: useWorkflowApprovalStatus }
+  : { approve: useToolApproval, status: useToolApprovalStatus });
 
 const projects = ref<SeekProject[]>([]);
 const loadingProjects = ref(false);
@@ -105,8 +110,8 @@ watch(open, async (isOpen) => {
   if (!isOpen) return;
   status.value = null;
   fhirStatus.value = undefined;
-  seekProjectId.value = props.tool?.seekProjectId;
-  if (props.tool && ['uploading', 'awaiting_reauth', 'committing'].includes(props.tool.handoffStatus ?? '')) {
+  seekProjectId.value = props.item?.seekProjectId;
+  if (props.item && ['uploading', 'awaiting_reauth', 'committing'].includes(props.item.handoffStatus ?? '')) {
     poll(); // an approval already under way: show (and resume) it
     return;
   }
@@ -122,10 +127,10 @@ watch(open, async (isOpen) => {
 });
 
 async function approve() {
-  if (!props.tool || !seekProjectId.value) return;
+  if (!props.item || !seekProjectId.value) return;
   submitting.value = true;
   try {
-    status.value = await useToolApproval(props.tool.id, { seekProjectId: seekProjectId.value, fhir: fhir.value });
+    status.value = await calls.value.approve(props.item.id, { seekProjectId: seekProjectId.value, fhir: fhir.value });
     schedule();
   } catch (err: any) {
     toast.error(`Approval failed: ${err?.response?.data?.detail ?? err?.message ?? 'unknown error'}`);
@@ -135,9 +140,9 @@ async function approve() {
 }
 
 async function poll() {
-  if (!props.tool) return;
+  if (!props.item) return;
   try {
-    status.value = await useToolApprovalStatus(props.tool.id);
+    status.value = await calls.value.status(props.item.id);
   } catch (err) {
     console.warn('Approval status poll failed:', err);
   }

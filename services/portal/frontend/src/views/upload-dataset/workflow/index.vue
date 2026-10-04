@@ -24,7 +24,7 @@ const heroDetail = computed(()=>{
     if(showOverall.value){
         return {
             title:'Workflow Hub',
-            subtitle:'Explore all tools, design workflows effortlessly using Web GUI or CWL Script components.'
+            subtitle:'Explore all tools, design workflows effortlessly using Web GUI or Script components.'
         }
     }else{
         return {

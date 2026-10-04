@@ -2,7 +2,17 @@ import { ref } from 'vue';
 import JSZip from 'jszip';
 import type { CheckNameResponse } from '@/models/types';
 import type { LocalSource } from '@/bootstrap/upload_source';
-import { SDS_MARKER, noToolCwlMessage, sdsCwlResult, sdsToolCwls } from '@/views/upload-dataset/components/utils';
+import {
+  SDS_MARKER,
+  noToolCwlMessage,
+  noWorkflowCwlMessage,
+  sdsCwlResult,
+  sdsToolCwls,
+  sdsWorkflowCwlResult,
+  sdsWorkflowCwls,
+} from '@/views/upload-dataset/components/utils';
+
+export type SdsKind = 'tool' | 'workflow';
 
 export interface LocalFolderInfo {
   /** Display root name (zip filename minus .zip, or webkitRelativePath top segment) */
@@ -15,6 +25,8 @@ export interface LocalFolderInfo {
   foldersInRoot: string[];
   /** whether at least one .cwl file exists in the resolved project root */
   cwlExists: boolean;
+  /** whether the source is an SDS package (only detected when an SDS kind was asked for) */
+  isSds: boolean;
   /** CWL validation result, populated after refresh in checkCwl mode */
   cwlRepoErr: CheckNameResponse | undefined;
 }
@@ -132,6 +144,7 @@ export function useLocalFolderInfo() {
     version: '',
     foldersInRoot: [],
     cwlExists: false,
+    isSds: false,
     cwlRepoErr: undefined,
   });
 
@@ -141,6 +154,7 @@ export function useLocalFolderInfo() {
     info.value.version = '';
     info.value.foldersInRoot = [];
     info.value.cwlExists = false;
+    info.value.isSds = false;
     info.value.cwlRepoErr = undefined;
   }
 
@@ -156,9 +170,10 @@ export function useLocalFolderInfo() {
    *
    * @param source    Folder (File[]) or zip (Blob) wrapper from the dropzone.
    * @param checkCwl  When true, treat absence of a root `.cwl` as an error.
-   * @param allowSds  When true (tools), an SDS package with `primary/tool_*.cwl` also passes.
+   * @param sds       'tool' or 'workflow': an SDS package with one `primary/tool_*.cwl` or
+   *                  `primary/workflow_*.cwl` also passes. `null` accepts root `.cwl` only.
    */
-  async function refresh(source: LocalSource | null, checkCwl = false, allowSds = false): Promise<void> {
+  async function refresh(source: LocalSource | null, checkCwl = false, sds: SdsKind | null = null): Promise<void> {
     reset();
 
     if (!source) {
@@ -171,9 +186,9 @@ export function useLocalFolderInfo() {
     info.value.name = source.rootName;
 
     if (source.kind === 'folder') {
-      await refreshFromFiles(source.files, checkCwl, allowSds);
+      await refreshFromFiles(source.files, checkCwl, sds);
     } else {
-      await refreshFromZip(source.blob, checkCwl, allowSds);
+      await refreshFromZip(source.blob, checkCwl, sds);
     }
   }
 
@@ -181,31 +196,34 @@ export function useLocalFolderInfo() {
   function applyCwlCheck(
     rootFolders: Set<string>,
     rootHasCwl: boolean,
-    sds: SdsScan,
+    scan: SdsScan,
     checkCwl: boolean,
-    allowSds: boolean,
+    sds: SdsKind | null,
     where: string,
   ) {
-    const isSds = allowSds && sds.rootFiles.has(SDS_MARKER);
-    const sdsOk = sdsToolCwls(sds.primaryFiles).length === 1;
-    info.value.foldersInRoot = Array.from(isSds ? sds.codeFolders : rootFolders).sort();
+    const isSds = !!sds && scan.rootFiles.has(SDS_MARKER);
+    const sdsOk = (sds === 'workflow' ? sdsWorkflowCwls : sdsToolCwls)(scan.primaryFiles).length === 1;
+    info.value.isSds = isSds;
+    info.value.foldersInRoot = Array.from(isSds ? scan.codeFolders : rootFolders).sort();
     info.value.cwlExists = isSds ? sdsOk : rootHasCwl;
 
     if (checkCwl) {
       if (isSds) {
-        info.value.cwlRepoErr = sdsCwlResult(sdsOk);
+        info.value.cwlRepoErr = sds === 'workflow' ? sdsWorkflowCwlResult(sdsOk) : sdsCwlResult(sdsOk);
       } else {
         info.value.cwlRepoErr = rootHasCwl
           ? { available: true, message: '' }
           : {
               available: false,
-              message: allowSds ? noToolCwlMessage(where) : `No CWL files found in the root of the ${where}.`,
+              message: sds === 'tool' ? noToolCwlMessage(where)
+                : sds === 'workflow' ? noWorkflowCwlMessage(where)
+                : `No CWL files found in the root of the ${where}.`,
             };
       }
     }
   }
 
-  async function refreshFromFiles(files: File[], checkCwl: boolean, allowSds: boolean) {
+  async function refreshFromFiles(files: File[], checkCwl: boolean, sds: SdsKind | null) {
     // FileList from <input webkitdirectory> always prefixes with the root
     // folder name; treat each file path as-is and let resolveRootPrefix peel
     // off the top segment(s) for us.
@@ -219,7 +237,7 @@ export function useLocalFolderInfo() {
     const rootPrefix = resolveRootPrefix(entries);
 
     const rootFolders = new Set<string>();
-    const sds = newSdsScan();
+    const scan = newSdsScan();
     let rootHasCwl = false;
     const pkgCandidates: { file: File; depth: number }[] = [];
 
@@ -234,7 +252,7 @@ export function useLocalFolderInfo() {
       const first = parts[0];
       if (!first) continue;
 
-      sds.add(parts, false);
+      scan.add(parts, false);
       if (parts.length === 1) {
         if (first === 'package.json') pkgCandidates.push({ file: f, depth: 1 });
         else if (first.endsWith('.cwl')) rootHasCwl = true;
@@ -247,7 +265,7 @@ export function useLocalFolderInfo() {
       }
     }
 
-    applyCwlCheck(rootFolders, rootHasCwl, sds, checkCwl, allowSds, 'selected folder');
+    applyCwlCheck(rootFolders, rootHasCwl, scan, checkCwl, sds, 'selected folder');
 
     // Pick the shallowest package.json — same heuristic as GitHub mode's
     // `findPackageJsonPaths()[0]`, just made explicit.
@@ -262,7 +280,7 @@ export function useLocalFolderInfo() {
     }
   }
 
-  async function refreshFromZip(blob: Blob, checkCwl: boolean, allowSds: boolean) {
+  async function refreshFromZip(blob: Blob, checkCwl: boolean, sds: SdsKind | null) {
     let zip: JSZip;
     try {
       zip = await JSZip.loadAsync(blob);
@@ -281,7 +299,7 @@ export function useLocalFolderInfo() {
     const rootPrefix = resolveRootPrefix(entries);
 
     const rootFolders = new Set<string>();
-    const sds = newSdsScan();
+    const scan = newSdsScan();
     let rootHasCwl = false;
     const pkgCandidates: { entry: JSZip.JSZipObject; depth: number }[] = [];
 
@@ -297,7 +315,7 @@ export function useLocalFolderInfo() {
       if (!trimmed) continue;
       const parts = trimmed.split('/');
       const first = parts[0];
-      sds.add(parts, zip.files[path].dir);
+      scan.add(parts, zip.files[path].dir);
 
       if (parts.length === 1) {
         if (zip.files[path].dir) {
@@ -316,7 +334,7 @@ export function useLocalFolderInfo() {
       }
     }
 
-    applyCwlCheck(rootFolders, rootHasCwl, sds, checkCwl, allowSds, 'selected zip');
+    applyCwlCheck(rootFolders, rootHasCwl, scan, checkCwl, sds, 'selected zip');
 
     pkgCandidates.sort((a, b) => a.depth - b.depth);
     const pkg = pkgCandidates[0];

@@ -64,10 +64,38 @@ class Deleter(object):
         finally:
             conn.close()
 
+    def workflow_links(self, dataset_uuid: str) -> dict:
+        """``{workflow_type, tools, used_by}``: a workflow's type and the tool datasets
+        its steps run (see ``workflows.pipeline.linked_tools``), and the workflows
+        that run this dataset as a tool (``[{dataset_uuid, dataset_name}]``)."""
+        from ..workflows.pipeline import linked_tools
+
+        conn = self.connect()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT workflow_type FROM dataset WHERE dataset_uuid = %s", (dataset_uuid,))
+                row = cur.fetchone()
+                cur.execute(
+                    "SELECT DISTINCT wt.workflow_dataset_uuid::text, d.dataset_name FROM workflow_tool wt "
+                    "JOIN dataset d ON d.dataset_uuid = wt.workflow_dataset_uuid "
+                    "WHERE wt.tool_dataset_uuid = %s ORDER BY 1",
+                    (dataset_uuid,),
+                )
+                used_by = [{"dataset_uuid": u, "dataset_name": n} for u, n in cur.fetchall()]
+            workflow_type = row[0] if row else None
+            return {
+                "workflow_type": workflow_type,
+                "tools": linked_tools(conn, dataset_uuid) if workflow_type else [],
+                "used_by": used_by,
+            }
+        finally:
+            conn.close()
+
     def get_cleanup_info(self, cur, dataset_uuid: str) -> dict:
         """What lives outside Postgres for this dataset: its FHIR status, subjects
-        (the Patients' identifiers), upload sessions, and category + SEEK id."""
-        cur.execute("SELECT fhir_status, category, seek_id FROM dataset WHERE dataset_uuid = %s", (dataset_uuid,))
+        (the Patients' identifiers), upload sessions, and category + SEEK id + workflow type."""
+        cur.execute("SELECT fhir_status, category, seek_id, workflow_type FROM dataset WHERE dataset_uuid = %s",
+                    (dataset_uuid,))
         row = cur.fetchone()
         cur.execute("SELECT DISTINCT subject_uuid FROM dataset_mapping WHERE dataset_uuid = %s", (dataset_uuid,))
         subject_uuids = [str(r[0]) for r in cur.fetchall()]
@@ -78,6 +106,7 @@ class Deleter(object):
             "upload_ids": [str(r[0]) for r in cur.fetchall()],
             "category": row[1] if row else None,
             "seek_id": row[2] if row else None,
+            "workflow_type": row[3] if row else None,
         }
 
     def delete_dataset(self, cur, dataset_uuid: str) -> None:
