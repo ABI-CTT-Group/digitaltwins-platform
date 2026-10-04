@@ -45,3 +45,11 @@ A `gitleaks` pre-commit hook is configured in `.pre-commit-config.yaml` to autom
 1. **Proactive redaction:** Always use placeholders like `<REDACTED>` for any passwords, API keys, tokens, or sensitive environment variables in all documents.
 2. **Pre-sync scan:** Before staging artifact files, verify no secrets are present. If unsure, run `gitleaks detect --source docs/artifacts/ --no-git` and fix any findings.
 3. **Never bypass:** Do not advise or assist in bypassing the pre-commit hook.
+
+---
+
+## Docker Container Management
+
+When making code changes that affect services running in Docker containers:
+1. **Rebuild and Restart:** Always rebuild and restart the affected Docker images/containers to ensure the changes are applied and tested. You MUST explicitly mention in your response that you have successfully rebuilt and restarted the images.
+2. **Provide Commands:** If you cannot restart them yourself, or if you need the user to take action, you MUST explicitly print the exact `docker` or `docker compose` commands required to rebuild and restart the affected services for the user to run.
