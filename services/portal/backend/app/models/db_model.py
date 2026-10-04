@@ -1,7 +1,7 @@
 import os
 import re
 import uuid
-from sqlalchemy import create_engine, Column, String, DateTime, ForeignKey, Text, JSON, Boolean, Enum, Table, Integer
+from sqlalchemy import create_engine, Column, String, DateTime, ForeignKey, Text, JSON, Boolean, Enum, Table, Integer, CheckConstraint
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
@@ -13,6 +13,9 @@ from typing import Optional, Literal, List, Any
 # Under the platform the tables live in this schema of the shared Postgres; it is
 # selected via search_path so the models stay schema-agnostic (and SQLite-compatible).
 PORTAL_DB_SCHEMA = "portal"
+
+# A deployment runs the backend of either a tool build or a gui workflow's build, never both.
+DEPLOYMENT_ONE_BUILD = "ck_plugin_deployments_one_build"
 
 
 def database_url() -> URL:
@@ -129,10 +132,12 @@ class PluginBuild(Base):
 
 class PluginDeployment(Base):
     __tablename__ = "plugin_deployments"
+    __table_args__ = (CheckConstraint("(build_id IS NULL) <> (workflow_build_id IS NULL)", name=DEPLOYMENT_ONE_BUILD),)
     id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
-    plugin_id = Column(String, ForeignKey("plugins.id"), nullable=False)
+    plugin_id = Column(String, ForeignKey("plugins.id"), nullable=True)  # null for a gui workflow's tool
     # References the build's business key (what the deploy endpoint stores), not plugin_builds.id.
-    build_id = Column(String, ForeignKey("plugin_builds.build_id"), nullable=False)
+    build_id = Column(String, ForeignKey("plugin_builds.build_id"), nullable=True)
+    workflow_build_id = Column(String, ForeignKey("workflow_builds.build_id"), nullable=True)
     deploy_id = Column(String, unique=True, index=True, nullable=False)
     status = Column(String, default=DeployStatus.PENDING.value, nullable=False)
     source_path = Column(String, nullable=True)
@@ -147,6 +152,7 @@ class PluginDeployment(Base):
 
     build = relationship("PluginBuild", back_populates="deployments")
     plugin = relationship("Plugin", back_populates="deployments")
+    workflow_build = relationship("WorkflowBuild", back_populates="deployments")
 
 
 class PluginAnnotation(Base):
@@ -224,6 +230,7 @@ class WorkflowBuild(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     workflow = relationship("Workflow", back_populates="builds")
+    deployments = relationship("PluginDeployment", back_populates="workflow_build", cascade="all, delete-orphan")
 
 
 class WorkflowAnnotation(Base):
@@ -319,8 +326,9 @@ class PluginDeployBase(BaseModel):
 
 class PluginDeployResponse(PluginDeployBase):
     id: str
-    plugin_id: str
-    build_id: str
+    plugin_id: Optional[str] = None
+    build_id: Optional[str] = None
+    workflow_build_id: Optional[str] = None
     deploy_id: str
     status: str
     up: bool

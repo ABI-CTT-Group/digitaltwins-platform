@@ -219,3 +219,44 @@ def shuttle_down_deployed_backend(plugin_id: str, deployer: PluginDeployer):
             _shut_down(session.query(PluginDeployment).filter(PluginDeployment.plugin_id == plugin_id).all(), deployer)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def shut_down_workflow_backends(workflow_id: str, deployer: PluginDeployer):
+    """Stop every backend deployed from a gui workflow's builds (before a rebuild or a delete)."""
+    try:
+        with SessionLocal() as session:
+            deploys = (session.query(PluginDeployment)
+                       .join(WorkflowBuild, PluginDeployment.workflow_build_id == WorkflowBuild.build_id)
+                       .filter(WorkflowBuild.workflow_id == workflow_id).all())
+            _shut_down(deploys, deployer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def served_workflow_build(db: Session, workflow: Workflow) -> Optional[WorkflowBuild]:
+    """The build whose gui tool the Tool Hub launches and deploys: the approved one, else the latest with a bundle."""
+    builds = (db.query(WorkflowBuild)
+              .filter(WorkflowBuild.workflow_id == workflow.id,
+                      WorkflowBuild.status == BuildStatus.COMPLETED.value,
+                      WorkflowBuild.tool_name.isnot(None))
+              .order_by(WorkflowBuild.created_at.desc())
+              .all())
+    approved = next((b for b in builds if workflow.uuid and b.dataset_uuid == workflow.uuid), None)
+    return approved or (builds[0] if builds else None)
+
+
+def workflow_bundle_path(build: WorkflowBuild) -> Optional[str]:
+    """Where the launcher loads a gui workflow's bundle: its platform tool dataset once approved, else tool-builds."""
+    ts = int(build.created_at.timestamp()) if build.created_at else 0
+    if build.tool_dataset_uuid:
+        return f"/tools/{build.tool_dataset_uuid}/primary/my-app.umd.js?v={ts}"
+    if build.bundle_path:
+        return f"/{build.bundle_path}/my-app.umd.js?v={ts}"
+    return None
+
+
+def latest_deployment(db: Session, build: WorkflowBuild) -> Optional[PluginDeployment]:
+    return (db.query(PluginDeployment)
+            .filter(PluginDeployment.workflow_build_id == build.build_id)
+            .order_by(PluginDeployment.created_at.desc())
+            .first())

@@ -1,4 +1,4 @@
-from app.models.db_model import SessionLocal, Base, engine, PORTAL_DB_SCHEMA
+from app.models.db_model import SessionLocal, Base, engine, PORTAL_DB_SCHEMA, DEPLOYMENT_ONE_BUILD
 import os
 import logging
 
@@ -49,6 +49,34 @@ def migrate_workflow_is_sds(bind=engine):
         conn.execute(text("UPDATE workflows SET is_sds = (workflow_type IS NOT NULL)"))
 
 
+def migrate_plugin_deployments_for_workflows(bind=engine):
+    """Let a deployment belong to a gui workflow's build (create_all does this for new tables).
+
+    Postgres tables created before 2026-10-02 get nullable plugin_id/build_id, the workflow_build_id
+    foreign key and the one-build check. SQLite databases are only test or legacy ones and are left alone.
+    """
+    from sqlalchemy import inspect, text
+
+    if bind.dialect.name != "postgresql":
+        return
+    inspector = inspect(bind)
+    if not inspector.has_table("plugin_deployments"):
+        return
+    foreign_keys = {fk["name"] for fk in inspector.get_foreign_keys("plugin_deployments")}
+    checks = {ck["name"] for ck in inspector.get_check_constraints("plugin_deployments")}
+    with bind.begin() as conn:
+        conn.execute(text("ALTER TABLE plugin_deployments ALTER COLUMN plugin_id DROP NOT NULL"))
+        conn.execute(text("ALTER TABLE plugin_deployments ALTER COLUMN build_id DROP NOT NULL"))
+        if "plugin_deployments_workflow_build_id_fkey" not in foreign_keys:
+            logger.info("Migrating: plugin_deployments.workflow_build_id references workflow_builds.build_id")
+            conn.execute(text("ALTER TABLE plugin_deployments ADD CONSTRAINT plugin_deployments_workflow_build_id_fkey "
+                              "FOREIGN KEY (workflow_build_id) REFERENCES workflow_builds (build_id)"))
+        if DEPLOYMENT_ONE_BUILD not in checks:
+            logger.info("Migrating: a plugin deployment belongs to exactly one build")
+            conn.execute(text(f"ALTER TABLE plugin_deployments ADD CONSTRAINT {DEPLOYMENT_ONE_BUILD} "
+                              "CHECK ((build_id IS NULL) <> (workflow_build_id IS NULL))"))
+
+
 def migrate_enum_values(bind=engine):
     """Add enum values that exist in the models but not yet in Postgres' native enum types."""
     from sqlalchemy import Enum, text
@@ -92,4 +120,5 @@ def init_db(bind=engine):
     create_tables(bind)
     migrate_workflow_is_sds(bind)
     migrate_add_missing_columns(bind)
+    migrate_plugin_deployments_for_workflows(bind)
     migrate_enum_values(bind)

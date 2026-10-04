@@ -23,6 +23,7 @@ from app.models.db_model import (
     PluginAnnotationResponse, PluginAnnotationCreate,
     PluginAnnotation,
     ProbeSourceRequest, BuildTriggerRequest,
+    Workflow, WorkflowBuild,
 )
 from fastapi import Body
 from app.builder.logger import get_logger, configure_logging, safe_dump
@@ -37,6 +38,8 @@ from botocore.exceptions import ClientError
 from app.utils.workflow_tool_utils import (
     get_build_record_or_404,
     get_latest_build_record,
+    served_workflow_build,
+    workflow_bundle_path,
     shuttle_down_deployed_backend,
     run_deployment)
 from app.utils.builder_utils import (
@@ -764,7 +767,8 @@ async def get_build_logs(build_id: str, db: Session = Depends(get_db)):
     key = f"build:{build_id}"
     if log_registry.exists(key):
         return log_registry.full_text(key)
-    rec = db.query(PluginBuild).filter(PluginBuild.build_id == build_id).first()
+    rec = (db.query(PluginBuild).filter(PluginBuild.build_id == build_id).first()
+           or db.query(WorkflowBuild).filter(WorkflowBuild.build_id == build_id).first())
     if rec is None:
         raise HTTPException(status_code=404, detail="Build not found")
     return rec.build_logs or ""
@@ -847,6 +851,33 @@ async def get_metadata_json(db: Session = Depends(get_db)):
             "backend_folder": plugin.backend_folder if plugin.has_backend else None,
             "backend_deploy_command": plugin.backend_deploy_command if (plugin.has_backend and plugin.label == "GUI") else None,
             "config": plugin.plugin_metadata or {},
+        })
+
+    # A gui SDS workflow's tool is launched like a GUI tool (built by build_workflow.py).
+    for workflow in db.query(Workflow).filter(Workflow.workflow_type == "gui").all():
+        build = served_workflow_build(db, workflow)
+        path = workflow_bundle_path(build) if build else None
+        if not path:
+            continue
+        components.append({
+            "uuid": build.tool_dataset_uuid or "",
+            "id": workflow.id,
+            "kind": "workflow",
+            "name": build.tool_name,
+            "path": path,
+            "expose": build.expose_name,
+            "label": "GUI",
+            "description": workflow.description or "",
+            "version": workflow.version,
+            "created_at": workflow.created_at.isoformat() if workflow.created_at else "",
+            "author": workflow.author or "",
+            "repository_url": workflow.repository_url,
+            "is_local": False,
+            "frontend_folder": workflow.frontend_folder,
+            "has_backend": bool(workflow.has_backend),
+            "backend_folder": workflow.backend_folder,
+            "backend_deploy_command": None,
+            "config": {},
         })
 
     return JSONResponse(

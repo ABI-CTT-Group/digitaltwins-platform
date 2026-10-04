@@ -14,6 +14,7 @@ from sqlalchemy import select
 from typing import List, Dict, Any, Literal, Optional
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
+import threading
 import uuid
 import requests
 from app.models.db_model import (
@@ -22,6 +23,7 @@ from app.models.db_model import (
     WorkflowResponse, WorkflowCreate, WorkflowAnnotationCreate,
     WorkflowAnnotationResponse, WorkflowBuildResponse, BuildStatus,
     SessionLocal,
+    DeployStatus, PluginDeployment,
     ProbeSourceRequest, BuildTriggerRequest,
 )
 from fastapi import Body
@@ -29,9 +31,10 @@ from app.builder.logger import get_logger, configure_logging, safe_dump
 from app.client.minio import get_minio_client
 from app.client.fhir import get_fhir_adapter, get_fhir_async_client
 from app.builder.build_workflow import WorkflowBuilder
+from app.builder.deploy_tool import PluginDeployer
 from app.builder.source_acquirer import SourceAcquirer, SourceSpec, CloneError
 from app.builder.workflow_layout import detect_workflow_layout, inspect_workflow_source, read_workflow_cwl
-from app.utils.workflow_tool_utils import get_build_record_or_404, get_latest_build_record
+from app.utils.workflow_tool_utils import get_build_record_or_404, get_latest_build_record, served_workflow_build, workflow_bundle_path, latest_deployment, run_deployment, shut_down_workflow_backends
 from app.utils.builder_utils import (
     execute_build_in_background,
     extract_uploaded_archive,
@@ -52,6 +55,8 @@ configure_logging()
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/workflow", dependencies=[Depends(get_current_user)])
 WRITER = Depends(require_any_role("admin", "researcher"))
+ADMIN = Depends(require_any_role("admin"))  # running plugin backends (docker on the host socket) needs admin
+deployer = PluginDeployer()
 minio = get_minio_client("workflows")
 adapter = get_fhir_adapter()
 builder = WorkflowBuilder()
@@ -263,6 +268,77 @@ async def get_metadata_json(db: Session = Depends(get_db)):
     )
 
 
+def _iso(value):
+    return value.isoformat() if value else None
+
+
+@router.get("/gui-tools")
+async def get_gui_tools(db: Session = Depends(get_db)):
+    """gui SDS workflows' tools as Tool Hub rows (the frontend's ToolResponse, plus kind and workflow_name)."""
+    rows = []
+    for workflow in db.query(Workflow).filter(Workflow.workflow_type == "gui", Workflow.is_sds.is_(True)).order_by(Workflow.created_at).all():
+        latest = (db.query(WorkflowBuild).filter(WorkflowBuild.workflow_id == workflow.id)
+                  .order_by(WorkflowBuild.created_at.desc()).first())
+        served = served_workflow_build(db, workflow)
+        if served is not None and workflow_bundle_path(served) is None:
+            served = None  # nowhere to load its bundle from
+        if latest is None or (served is None and latest.status == BuildStatus.COMPLETED.value):
+            continue  # never built, or built before gui workflows built their tool (no bundle)
+        deploy = latest_deployment(db, served) if served else None
+        rows.append({
+            "id": workflow.id,
+            "kind": "workflow",
+            "workflow_name": workflow.name,
+            "name": (served or latest).tool_name or workflow.name,
+            "label": "GUI",
+            "version": workflow.version,
+            "description": workflow.description,
+            "author": workflow.author,
+            "repository_url": workflow.repository_url,
+            "frontend_folder": workflow.frontend_folder or "",
+            "frontend_build_command": workflow.frontend_build_command or "",
+            "has_backend": bool(workflow.has_backend),
+            "backend_folder": workflow.backend_folder,
+            "backend_deploy_command": "",
+            "tool_metadata": {},
+            "status": (served or latest).status,
+            "latest_build_id": latest.build_id,
+            "latest_build_created_at": _iso(latest.created_at),
+            "latest_build_updated_at": _iso(latest.updated_at),
+            "uuid": served.tool_dataset_uuid if served else None,
+            "deploy_status": deploy.status if deploy else None,
+            "latest_deploy_id": deploy.deploy_id if deploy else None,
+            "latest_deploy_created_at": _iso(deploy.created_at) if deploy else None,
+            "latest_deploy_updated_at": _iso(deploy.updated_at) if deploy else None,
+            "created_at": _iso(workflow.created_at),
+            "updated_at": _iso(workflow.updated_at),
+        })
+    return rows
+
+
+@router.get("/{workflow_id}/deploy", dependencies=[ADMIN])
+async def deploy_workflow_tool(workflow_id: str, background_tasks: BackgroundTasks = None,
+                               db: Session = Depends(get_db)):
+    """Deploy a gui workflow tool's backend, as for GUI tools, from the build whose bundle the Tool Hub launches."""
+    workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()  # type: ignore
+    if workflow is None:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    build = served_workflow_build(db, workflow)
+    if not workflow.has_backend or build is None:
+        raise HTTPException(status_code=400, detail="This workflow has no built gui tool with a backend")
+    deploy_dict = {"expose_name": build.expose_name, "dataset_path": build.dataset_path,
+                   "backend_folder": workflow.backend_folder}
+    deploy_id = str(uuid.uuid4())
+    db.add(PluginDeployment(workflow_build_id=build.build_id, deploy_id=deploy_id, status=DeployStatus.PENDING.value))
+    db.commit()
+    if background_tasks:
+        background_tasks.add_task(run_deployment, deployer, deploy_id, deploy_dict)
+    else:
+        threading.Thread(target=run_deployment, args=(deployer, deploy_id, deploy_dict)).start()
+    return {"build_id": build.build_id, "deploy_id": deploy_id, "status": DeployStatus.PENDING.value,
+            "message": "Deploy started in background"}
+
+
 @router.get("/{expose_name}/primary/{path:path}")
 async def stream_workflow_object(expose_name: str, path: str):
     # Streams workflow build artifacts (e.g. CWL files) from the private MinIO
@@ -321,6 +397,8 @@ def _trigger_workflow_build(
     workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()  # type: ignore
     if workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
+    if workflow.has_backend:
+        shut_down_workflow_backends(workflow.id, deployer)  # as for tools: a rebuild stops the workflow's running backends (including the approved build's)
 
     workflow_dict = {
         "id": workflow.id,
@@ -615,9 +693,15 @@ async def delete_plugin(workflow_id: str, user: dict = WRITER, db: Session = Dep
                     except Exception as e:
                         logger.error(f"Failed to delete workflow {workflow_id} in FHIR server: {e}")
 
+            await asyncio.to_thread(shut_down_workflow_backends, workflow.id, deployer)
             builds = db.query(WorkflowBuild).filter(WorkflowBuild.workflow_id == workflow.id).all()  # type: ignore
             for build in builds:
                 logger.info("Deleting build {}".format(build.id))
+                if build.bundle_path:  # a gui workflow's tool bundle, served from tool-builds before approval
+                    bucket, prefix = build.bundle_path.split("/", 1)
+                    tool_builds = get_minio_client(bucket)
+                    for obj in tool_builds.list_objects(prefix=prefix):
+                        tool_builds.delete_object(obj["Key"])
                 if build.s3_path is not None:
                     logger.info("Deleting s3 path {}".format(build.s3_path))
                     prefix = build.s3_path.split("/")[-1]
