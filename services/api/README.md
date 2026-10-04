@@ -193,6 +193,8 @@ Each tool the workflow uses is stored as a tool dataset of its own, with `tool_t
 - otherwise, for a script tool, the top-level `code/<tool_name>.*` files (the upload fails with `400` if there are none);
 - otherwise, for a notebook or gui tool, all of `code/`.
 
+If the package has a `primary/<tool_name>/` folder, its contents are copied into the tool dataset's `primary/`, next to the tool's CWL. The portal puts a gui workflow tool's built bundle (`my-app.umd.js` and its assets) there, so the tool can be launched like an approved portal GUI tool.
+
 Example datasets are in `tests/data/workflow_image_conversion` (script) and `tests/data/workflow_volview` (gui) at the root of the platform repository.
 
 As you, in the SEEK project you name, the upload registers:

@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 
 def _assemble_tool(layout: WorkflowLayout, tool_cwl: Path, parent: Path) -> Path:
-    """A tool dataset folder: the workflow's root metadata files, the tool's CWL and its code."""
+    """A tool dataset folder: the workflow's root metadata files, the tool's CWL, the files in
+    ``primary/<tool stem>/`` (e.g. the portal's built GUI bundle) and the tool's code."""
     root = parent / tool_cwl.stem
     (root / "primary").mkdir(parents=True)
     (root / "code").mkdir()
@@ -26,6 +27,9 @@ def _assemble_tool(layout: WorkflowLayout, tool_cwl: Path, parent: Path) -> Path
         if path.is_file():
             shutil.copy2(path, root / path.name)
     shutil.copy2(tool_cwl, root / "primary" / tool_cwl.name)
+    built = tool_cwl.parent / tool_cwl.stem
+    if built.is_dir():
+        shutil.copytree(built, root / "primary", dirs_exist_ok=True)
     for path in layout.tool_code[tool_cwl]:
         if path.is_dir():
             shutil.copytree(path, root / "code", dirs_exist_ok=True)
