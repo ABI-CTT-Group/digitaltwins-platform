@@ -1,10 +1,11 @@
 import os
+import re
 import uuid
 from sqlalchemy import create_engine, Column, String, DateTime, ForeignKey, Text, JSON, Boolean, Enum, Table, Integer
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from enum import Enum as PyEnum
 from datetime import datetime
 from typing import Optional, Literal, List, Any
@@ -53,6 +54,11 @@ class DeployStatus(PyEnum):
     DEPLOYING = "deploying"
     FAILED = "failed"
     COMPLETED = "completed"
+
+
+# A GUI tool's frontend build command (tools and gui workflows): only npm or yarn runs on the portal.
+DEFAULT_GUI_BUILD_COMMAND = "npm run build:plugin"
+GUI_BUILD_COMMAND = re.compile(r"^(npm|yarn)\s+\S+")
 
 workflow_plugin_association = Table(
     "workflow_plugin_association",
@@ -172,6 +178,11 @@ class Workflow(Base):
     # An SDS package is approved through digitaltwins-api (see docs/decisions/2026-10-02-workflow-type-independent-of-sds.md).
     is_sds = Column(Boolean, nullable=True)
     seek_project_id = Column(Integer, nullable=True)
+    # A gui SDS workflow builds its tool's frontend like a GUI tool (Plugin); folders are relative to code/.
+    has_backend = Column(Boolean, nullable=True, default=False)
+    frontend_folder = Column(String, nullable=True)
+    frontend_build_command = Column(String, nullable=True)
+    backend_folder = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -348,6 +359,11 @@ class WorkflowBase(BaseModel):
     description: Optional[str] = None
     author: Optional[str] = None
     workflow_type: Optional[Literal["script", "notebook", "gui"]] = None
+    # gui SDS workflows only (see Workflow): how to build the tool's frontend, as for GUI tools.
+    has_backend: Optional[bool] = False
+    frontend_folder: Optional[str] = None
+    frontend_build_command: Optional[str] = None
+    backend_folder: Optional[str] = None
 
 
 # --- Source-acquisition request bodies (phase 5: multi-git-provider) ---
@@ -396,6 +412,26 @@ class ProbeSourceFailure(BaseModel):
 class WorkflowCreate(WorkflowBase):
     workflow_type: Literal["script", "notebook", "gui"]  # required for new workflows; optional on WorkflowBase for older rows
     upload_id: Optional[str] = None  # client-supplied at create-time only; resolved to local_archive_path server-side
+
+    @model_validator(mode="after")
+    def _gui_fields(self):
+        """Only a gui workflow keeps a frontend layout; a backend needs both folders (relative to code/)."""
+        if self.workflow_type != "gui":
+            self.has_backend, self.frontend_folder, self.frontend_build_command, self.backend_folder = False, None, None, None
+            return self
+        self.has_backend = bool(self.has_backend)
+        self.frontend_build_command = self.frontend_build_command or DEFAULT_GUI_BUILD_COMMAND
+        if not GUI_BUILD_COMMAND.match(self.frontend_build_command):
+            raise ValueError("frontend_build_command must be an npm or yarn command, e.g. npm run build:plugin")
+        if self.has_backend and not (self.frontend_folder and self.backend_folder):
+            raise ValueError("A gui workflow with a backend needs frontend_folder and backend_folder")
+        if self.has_backend:
+            for folder in (self.frontend_folder, self.backend_folder):
+                if "/" in folder or "\\" in folder or folder in (".", ".."):
+                    raise ValueError("frontend_folder and backend_folder must be folder names inside code/")
+        else:
+            self.frontend_folder = self.backend_folder = None
+        return self
 
 
 class WorkflowResponse(WorkflowBase):
