@@ -61,6 +61,8 @@
       v-if="!isClinicianView"
       v-model="configOpen"
       :assay-name="data.name"
+      :assay-type="data.tag"
+      :assay-project-ids="data.projectIds"
       @save="actions.save()"
     />
   </div>
