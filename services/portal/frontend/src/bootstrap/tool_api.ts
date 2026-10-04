@@ -117,15 +117,30 @@ export async function usePlatformTools(known: Set<string>): Promise<ToolResponse
     }));
 }
 
-/** The Tool Hub: portal tools plus platform-only tools (the platform being down hides only the latter). */
+/** gui SDS workflows' tools as Tool Hub rows; their workflow builds them (GET /api/workflow/gui-tools). */
+export async function useWorkflowGuiTools(): Promise<ToolResponse[]> {
+  return http.get<ToolResponse[]>("/workflow/gui-tools");
+}
+
+/** The Tool Hub: portal tools, gui workflows' tools, then platform-only tools (each source can fail on its own). */
 export async function useToolHub(): Promise<ToolResponse[]> {
-  const tools = await useWorkflowTools();
-  const known = new Set(tools.map((t) => t.uuid).filter((u): u is string => !!u));
+  const [tools, workflowTools] = await Promise.all([
+    useWorkflowTools(),
+    useWorkflowGuiTools().catch((err) => {
+      console.warn("Failed to list gui workflow tools:", err);
+      return [] as ToolResponse[];
+    }),
+  ]);
+  const known = new Set([...tools, ...workflowTools].map((t) => t.uuid).filter((u): u is string => !!u));
   const platform = await usePlatformTools(known).catch((err) => {
     console.warn("Failed to list platform tools:", err);
     return [] as ToolResponse[];
   });
-  return [...tools, ...platform];
+  return [...tools, ...workflowTools, ...platform];
+}
+
+export async function useDeployWorkflowTool(workflowId: string) {
+  return http.get(`/workflow/${workflowId}/deploy`);
 }
 
 export async function useToolMetadata() {

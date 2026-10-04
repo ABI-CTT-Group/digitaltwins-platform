@@ -22,7 +22,10 @@
       <span v-else-if="tool.handoffStatus === 'failed'" class="aurora-chip" :style="{ '--chip': '#ff6b6b' }">
         approval failed
       </span>
-      <span v-if="tool.platformOnly" class="aurora-chip" :style="{ '--chip': '#9fb4bf' }">platform upload</span>
+      <span v-if="tool.kind === 'workflow'" class="aurora-chip" :style="{ '--chip': '#7fb2f0' }">
+        from workflow {{ tool.workflowName }}
+      </span>
+      <span v-else-if="tool.platformOnly" class="aurora-chip" :style="{ '--chip': '#9fb4bf' }">platform upload</span>
       <span v-else-if="inPlatform" class="aurora-chip" :style="{ '--chip': '#6fd49a' }">in platform</span>
       <span v-if="tool.createdAt" class="aurora-chip">{{ formatDate(tool.createdAt) }}</span>
     </template>
@@ -121,6 +124,17 @@ const hasViewLogs = computed(() =>
 )
 
 const menuItems = computed<UCardMenuItem[]>(() => {
+  // A gui workflow's tool: its workflow (Workflow Hub) rebuilds, approves and deletes it; only its backend runs here.
+  if (tool.value.kind === 'workflow') {
+    const items: UCardMenuItem[] = []
+    if (tool.value.hasBackend) items.push({ label: 'Deploy backend', icon: 'mdi-server-network', onClick: onDeploy })
+    if (tool.value.deployStatus === 'completed') {
+      items.push({ label: 'Compose up', icon: 'mdi-play-circle-outline', onClick: onDockerComposeUp })
+      items.push({ label: 'Compose down', icon: 'mdi-stop-circle-outline', onClick: onDockerComposeDown })
+    }
+    if (hasViewLogs.value) items.push({ label: 'View logs', icon: 'mdi-console-line', onClick: onViewLogs })
+    return items
+  }
   // Uploaded via the REST API: only a delete, which the hub confirms.
   if (tool.value.platformOnly) {
     return [{ label: 'Delete tool', icon: 'mdi-trash-can-outline', danger: true, onClick: () => emit("delete-platform", tool.value) }]
@@ -200,7 +214,7 @@ const onRebuild = () => {
 const onSubmit = () => emit("submit-approve", tool.value.id)
 const onDeploy = () => {
     tool.value.deployStatus = "deploying"
-    emit("deploy", tool.value.id)
+    emit("deploy", tool.value.id, tool.value.kind)
 }
 const onDockerComposeUp = () => emit("compose-up", tool.value.latestDeployId)
 const onDockerComposeDown = () => emit("compose-down", tool.value.latestDeployId)

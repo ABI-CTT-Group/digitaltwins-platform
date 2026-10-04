@@ -22,6 +22,8 @@ const PLATFORM_WORKFLOW = { ...WORKFLOW, id: "wf-1", uuid: "wf-1", name: "workfl
   workflowType: "script" };
 const TOOL = { id: "t1", name: "portal tool", label: "Script", status: "completed", createdAt: "", updatedAt: "" };
 const PLATFORM_TOOL = { ...TOOL, id: "t-9", uuid: "t-9", name: "tool_dicom_to_nifti", platformOnly: true };
+const WORKFLOW_TOOL = { ...TOOL, id: "w1", label: "GUI", kind: "workflow", workflowName: "workflow_volview",
+  name: "tool_volview", uuid: "tool-v" };
 
 describe("WorkflowCard", () => {
   it("offers only delete for a platform workflow, and shows where it came from", () => {
@@ -111,5 +113,24 @@ describe("ToolCard", () => {
     const w = mount(ToolCard, { props: { tool: TOOL as any }, global: { plugins } });
 
     expect(menu(w).map((m) => m.label)).toEqual(["Rebuild tool", "Submit to approval", "Delete tool"]);
+  });
+
+  it("tags a gui workflow's tool with its workflow, which owns rebuild, approval and delete", () => {
+    const w = mount(ToolCard, { props: { tool: WORKFLOW_TOOL as any }, global: { plugins } });
+
+    expect(w.text()).toContain("from workflow workflow_volview");
+    expect(w.text()).not.toContain("in platform");
+    expect(menu(w)).toEqual([]);
+    const launch = w.findAll("button").find((b) => b.text().includes("Launch"))!;
+    expect(launch.attributes("disabled")).toBeUndefined();
+  });
+
+  it("runs a workflow tool's backend like a tool's", () => {
+    const tool = { ...WORKFLOW_TOOL, hasBackend: true, deployStatus: "completed", latestDeployId: "d1", latestBuildId: "b1" };
+    const w = mount(ToolCard, { props: { tool: tool as any }, global: { plugins } });
+
+    expect(menu(w).map((m) => m.label)).toEqual(["Deploy backend", "Compose up", "Compose down", "View logs"]);
+    menu(w)[0].onClick();
+    expect(w.emitted("deploy")?.[0]).toEqual(["w1", "workflow"]);
   });
 });

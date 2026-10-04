@@ -40,7 +40,7 @@
         :disabled="dockerComposeBusy"
         @launch="(id) => handleLaunch(id)"
         @rebuild="(id) => handleRebuild(id)"
-        @deploy="(id) => handleDeploy(id)"
+        @deploy="(id, kind) => handleDeploy(id, kind)"
         @compose-up="(id) => handleExecuteDockerCompose(id, 'up')"
         @compose-down="(id) => handleExecuteDockerCompose(id, 'down')"
         @delete="handleDeleteTool"
@@ -81,6 +81,8 @@ import {
   useWorkflowToolBuild,
   useDeployTool,
   useDockerCompose,
+  useWorkflowGuiTools,
+  useDeployWorkflowTool,
 } from '@/bootstrap/tool_api';
 import type { ToolApprovalStatus, ToolMinIOToolMetadata, ToolResponse, SourceType, TransientAuth } from '@/models/types';
 import { useRemoteAppStore } from '@/store/remote_store';
@@ -256,13 +258,14 @@ const onRebuildCancel = () => {
   rebuildSourceType.value = null;
 };
 
-const handleDeploy = async (id: string) => {
-  const res = await useDeployTool(id) as any;
+const handleDeploy = async (id: string, kind?: string) => {
+  const isWorkflow = kind === 'workflow';
+  const res = (isWorkflow ? await useDeployWorkflowTool(id) : await useDeployTool(id)) as any;
   const deployId: string = res?.deployId ?? res?.deploy_id ?? '';
   // Resolve tool name for the console title
   let toolName = id;
   try {
-    const items = (await useWorkflowTools()) as ToolResponse[];
+    const items = (isWorkflow ? await useWorkflowGuiTools() : await useWorkflowTools()) as ToolResponse[];
     toolName = items.find((t) => t.id === id)?.name ?? id;
   } catch { /* fallback to id */ }
   if (deployId) {
