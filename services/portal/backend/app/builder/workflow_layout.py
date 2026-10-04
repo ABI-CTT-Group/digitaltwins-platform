@@ -12,7 +12,12 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from app.builder.tool_layout import SDS_MARKER
-from app.utils.builder_utils import inspect_uploaded_source, read_root_cwl, resolve_project_root
+from app.utils.builder_utils import (
+    _ARCHIVE_BLACKLIST_NAMES,
+    inspect_uploaded_source,
+    read_root_cwl,
+    resolve_project_root,
+)
 
 
 @dataclass(frozen=True)
@@ -43,6 +48,11 @@ def inspect_workflow_source(staging_dir: Path, *, want_cwl: bool, want_npm: bool
     root = Path(meta["root"])
     meta["is_sds"] = (root / SDS_MARKER).is_file()
     if meta["is_sds"]:
+        # Mirror inspect_tool_source: list code/ subfolders, not root folders.
+        code = root / "code"
+        meta["folders_in_root"] = [
+            c.name for c in code.iterdir() if c.is_dir() and c.name not in _ARCHIVE_BLACKLIST_NAMES
+        ] if code.is_dir() else []
         meta["has_cwl"] = read_workflow_cwl(root) is not None
     return meta
 

@@ -73,6 +73,26 @@ class WorkflowLayoutTest(unittest.TestCase):
         (src / "flow.cwl").write_text(WORKFLOW)
         self.assertEqual(read_workflow_cwl(src), {"cwl_file": "flow.cwl", "content": WORKFLOW})
 
+    def test_inspection_of_sds_workflow_lists_code_subfolders_excluding_blacklist(self):
+        # SDS workflows should report code/ subfolders (like tools do), not root folders.
+        (self.root / "code").mkdir(exist_ok=True)
+        (self.root / "code" / "frontend").mkdir()
+        (self.root / "code" / "backend").mkdir()
+        (self.root / "code" / "node_modules").mkdir()  # Blacklisted
+        meta = inspect_workflow_source(self.root, want_cwl=True)
+        self.assertTrue(meta["is_sds"])
+        self.assertEqual(sorted(meta.get("folders_in_root", [])), ["backend", "frontend"])
+
+    def test_inspection_of_root_cwl_source_lists_root_folders(self):
+        # Root-.cwl workflows should still report root folders as before.
+        src = Path(tempfile.mkdtemp())
+        (src / "flow.cwl").write_text(WORKFLOW)
+        (src / "config").mkdir()
+        meta = inspect_workflow_source(src, want_cwl=True)
+        self.assertFalse(meta["is_sds"])
+        # folders_in_root should list root folders for non-SDS sources
+        self.assertIn("config", meta.get("folders_in_root", []))
+
 
 if __name__ == "__main__":
     unittest.main()
