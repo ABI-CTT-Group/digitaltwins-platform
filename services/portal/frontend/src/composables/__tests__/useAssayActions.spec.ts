@@ -67,3 +67,32 @@ describe("useAssayActions.openEdit", () => {
     expect(actions.assayDetails.value["42"].workflow.seekId).toBe("39");
   });
 });
+
+describe("useAssayActions.save", () => {
+  it("saves the config as ready to launch, so Launch stays enabled after a reload", async () => {
+    api.useDashboardGetAssayConfigDetails.mockResolvedValue({ ...saved("42"), isAssayReadyToLaunch: false });
+    // Record what is sent at call time: save() mutates the same object afterwards.
+    const sent: boolean[] = [];
+    api.useSaveAssayDetails.mockImplementation(async (d: AssayDetails) => (sent.push(d.isAssayReadyToLaunch), true));
+    const actions = useAssayActions();
+    await actions.loadAssayList([assay("42")]);
+    actions.openEdit("42");
+
+    await actions.save();
+
+    expect(sent).toEqual([true]);
+    expect(actions.assayDetails.value["42"].isAssayReadyToLaunch).toBe(true);
+  });
+
+  it("leaves the assay not ready when the save fails", async () => {
+    api.useDashboardGetAssayConfigDetails.mockResolvedValue({ ...saved("42"), isAssayReadyToLaunch: false });
+    api.useSaveAssayDetails.mockRejectedValue(new Error("502"));
+    const actions = useAssayActions();
+    await actions.loadAssayList([assay("42")]);
+    actions.openEdit("42");
+
+    await actions.save();
+
+    expect(actions.assayDetails.value["42"].isAssayReadyToLaunch).toBe(false);
+  });
+});

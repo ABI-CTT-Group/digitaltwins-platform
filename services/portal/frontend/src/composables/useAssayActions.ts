@@ -81,7 +81,8 @@ export function useAssayActions() {
 
   const save = async () => {
     try {
-      const success = await useSaveAssayDetails(currentAssayDetails.value!);
+      // The dialog only saves a validated config, so it is stored as ready to launch.
+      const success = await useSaveAssayDetails({ ...currentAssayDetails.value!, isAssayReadyToLaunch: true });
       if (success) {
         currentAssayDetails.value!.isAssayReadyToLaunch = true;
         store.setAssayDetails(currentAssayDetails.value!.seekId, currentAssayDetails.value!);

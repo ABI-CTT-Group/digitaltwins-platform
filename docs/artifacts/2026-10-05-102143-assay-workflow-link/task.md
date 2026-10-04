@@ -92,3 +92,14 @@ Plan: [implementation_plan.md](implementation_plan.md)
     - a 403 for a non-researcher
     - rollback after a failed Postgres save
     - clicking through the dialog in a browser
+
+## Follow-up: Launch disabled after a reload (2026-10-05)
+
+- [x] **Root cause:** `useAssayActions.save()` sent the config with `isAssayReadyToLaunch` as loaded (false for a new or previously portal-saved assay) and set it to true only in the cache afterwards. So Postgres `assay.ready` stayed false, and after a reload Launch, Download and Submit were disabled. Evidence: Postgres `ready = f` for 41, 42 and 43, while 41 and 42 were saved and launched in the same session. This bug predates today's work; only the populate script ever wrote `ready: true`.
+- [x] **Fix:** `save()` sends `isAssayReadyToLaunch: true`, because the dialog only saves a validated config. The cache is still marked ready only after a successful save.
+- [x] **Tests:**
+  - Red: `useAssayActions.spec.ts` "saves the config as ready to launch" failed with `[false]`. The value is captured at call time, because `save()` mutates the same object afterwards.
+  - A guard test (a failed save stays not ready) already passed and stays green.
+  - Green: vitest 17 files, 73 tests passed; tsc clean for `useAssayActions.ts`.
+- [x] Rebuilt and restarted portal-frontend (healthy; bundle `index-BvpZIAEt.js`)
+- [ ] Existing rows 41, 42 and 43 still have `ready = false`. A re-save in the dialog fixes each one.
