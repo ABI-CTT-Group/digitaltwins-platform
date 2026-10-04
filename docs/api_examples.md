@@ -187,6 +187,65 @@ ASSAY_ID=$(curl -sX POST $BASE_API_URL/assays \
   --data @$TFILE | jq -r '.data.id')
 ```
 
+## Link an assay to a workflow (SOP)
+
+The portal reads an assay's workflow through Assay → SOP → Workflow. The portal's **Configure assay** dialog creates this link for you (see [`populating_data.md`](populating_data.md)). This is the same flow by hand.
+
+An SOP needs content. **Don't use a remote-URL content blob pointing at the workflow page.** SEEK fetches that URL anonymously when the SOP is created, a private workflow returns 403, and the POST fails with `400 {"error":"bad upload"}`. Instead, create the SOP with a placeholder blob, then upload a small file into it:
+
+```
+WORKFLOW_ID=89   # must share a project with the assay
+PROJECT_ID=12    # the assay's project
+
+cat > $TFILE <<EOF
+{
+  "data": {
+    "type": "sops",
+    "attributes": {
+      "title": "Workflow link: <workflow title>",
+      "content_blobs": [{ "original_filename": "workflow-link.md", "content_type": "text/markdown" }],
+      "policy": {
+        "access": "no_access",
+        "permissions": [{ "resource": { "id": "$PROJECT_ID", "type": "projects" }, "access": "view" }]
+      }
+    },
+    "relationships": {
+      "projects":  { "data": [{ "id": "$PROJECT_ID",  "type": "projects" }] },
+      "assays":    { "data": [{ "id": "$ASSAY_ID",    "type": "assays" }] },
+      "workflows": { "data": [{ "id": "$WORKFLOW_ID", "type": "workflows" }] }
+    }
+  }
+}
+EOF
+
+SOP=$(curl -sX POST $BASE_API_URL/sops \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Content-Type: application/vnd.api+json" -H "Accept: application/vnd.api+json" \
+  --data @$TFILE)
+SOP_ID=$(echo "$SOP" | jq -r '.data.id')
+BLOB_ID=$(echo "$SOP" | jq -r '.data.attributes.content_blobs[0].link' | awk -F/ '{print $NF}')
+
+# Upload the content. The blob link in the response uses SEEK's own host, so rebuild the URL on $BASE_API_URL.
+printf 'Links assay %s to workflow %s.\n' "$ASSAY_ID" "$WORKFLOW_ID" | \
+curl -sX PUT $BASE_API_URL/sops/$SOP_ID/content_blobs/$BLOB_ID \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Content-Type: application/octet-stream" -H "Accept: application/json" \
+  --data-binary @-
+```
+
+Without the `policy`, an SOP created through JSON:API is visible only to its creator, so other project members wouldn't see the link.
+
+To **unlink**, replace the SOP's assays. There is no `sops` relationship on an assay PATCH, so the change goes on the SOP:
+
+```
+curl -sX PATCH $BASE_API_URL/sops/$SOP_ID \
+  -H "Authorization: Bearer $JWT_TOKEN" \
+  -H "Content-Type: application/vnd.api+json" -H "Accept: application/vnd.api+json" \
+  --data '{"data": {"type": "sops", "id": "'$SOP_ID'", "relationships": {"assays": {"data": []}}}}'
+```
+
+The portal uses the **first** workflow it finds across an assay's SOPs, so detach the old workflow SOP before linking a new one.
+
 ## Delete
 
 ```
