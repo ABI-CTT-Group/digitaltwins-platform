@@ -6,11 +6,13 @@ and workspace dataset upload/download.
 """
 
 import logging
+import mimetypes
 import os
 import shutil
 import tempfile
 import zipfile
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -24,11 +26,12 @@ from sparc_me import Dataset
 
 from digitaltwins import Querier, Uploader
 from digitaltwins.core.assay_workflow_link import WorkflowNotInAssayProject, link_assay_workflow
+from digitaltwins.minio.downloader import Downloader as MinioDownloader
 from digitaltwins.minio.uploader import Uploader as MinioUploader
 from digitaltwins.seek.querier import Querier as SeekQuerier
 from digitaltwins.seek.writer import Writer as SeekWriter
 from .auth import require_upload_role, validate_credentials
-from .dependencies import get_querier, get_uploader
+from .dependencies import get_minio_downloader, get_querier, get_uploader
 from ..schemas.assay import AssayDataModel
 
 load_dotenv()
@@ -598,6 +601,80 @@ def run_assay(assay_id: int, credentials: dict = Depends(validate_credentials), 
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Assay must have either 'script' or 'notebook' tag to determine workflow.",
         )
+
+
+# ── GUI launch: the files an assay's inputs resolve to ───────────────
+
+# Imaging types mimetypes does not know; anything else falls back to octet-stream.
+_INPUT_CONTENT_TYPES = {".dcm": "application/dicom"}
+
+
+def _file_input_prefixes(configs: dict) -> list[str]:
+    """The ``<dataset_uuid>/primary/`` prefixes of the assay's non-model inputs."""
+    return [f"{inp['dataset_uuid']}/primary/" for inp in configs.get("inputs", [])
+            if inp.get("category") != MODEL_INPUT_CATEGORY and inp.get("dataset_uuid")]
+
+
+@router.get("/assays/{assay_id}/gui-inputs", tags=["assays"])
+def get_assay_gui_inputs(assay_id: int, querier: Querier = Depends(get_querier),
+                         downloader: MinioDownloader = Depends(get_minio_downloader)):
+    """
+    The MinIO objects a gui assay's file inputs resolve to, so a GUI tool can load them.
+
+    Samples are chosen as for a script run (configured sample type, cohort subjects);
+    model inputs are left out. Each input lists its files as ``{bucket, key, name, subject_id, sample_id}``.
+    """
+    try:
+        configs = _fetch_assay_configs(querier, assay_id)
+        samples = _discover_samples(querier, configs)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    buckets: dict[str, Optional[str]] = {}
+    files_by_input: dict[str, list[dict]] = {}
+    for sample in samples:
+        dataset_uuid = sample["dataset_uuid"]
+        if dataset_uuid not in buckets:
+            buckets[dataset_uuid] = downloader.find_bucket(dataset_uuid)
+        bucket = buckets[dataset_uuid]
+        if bucket is None:
+            continue
+        prefix = f"{dataset_uuid}/primary/{sample['subject_id']}/{sample['sample_id']}/"
+        for key in downloader.list_objects(bucket, prefix):
+            files_by_input.setdefault(sample["input_name"], []).append({
+                "bucket": bucket,
+                "key": key,
+                "name": key[len(prefix):],
+                "subject_id": sample["subject_id"],
+                "sample_id": sample["sample_id"],
+            })
+
+    inputs = [{
+        "name": inp.get("name"),
+        "dataset_uuid": inp.get("dataset_uuid"),
+        "sample_type": inp.get("sample_type"),
+        "files": files_by_input.get(inp.get("name"), []),
+    } for inp in configs.get("inputs", []) if inp.get("category") != MODEL_INPUT_CATEGORY]
+    return {"workflow_seek_id": configs.get("workflow_seek_id"), "inputs": inputs}
+
+
+@router.get("/assays/{assay_id}/input-files/{bucket}/{key:path}", tags=["assays"])
+def get_assay_input_file(assay_id: int, bucket: str, key: str, querier: Querier = Depends(get_querier),
+                         downloader: MinioDownloader = Depends(get_minio_downloader)):
+    """Stream one object of the assay's input datasets; any other key is refused (403)."""
+    try:
+        configs = _fetch_assay_configs(querier, assay_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    if ".." in key.split("/") or not any(key.startswith(p) for p in _file_input_prefixes(configs)):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not one of this assay's input files.")
+    try:
+        chunks, length = downloader.open_object(bucket, key)
+    except FileNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Input file not found: {bucket}/{key}")
+    media_type = (_INPUT_CONTENT_TYPES.get(Path(key).suffix.lower())
+                  or mimetypes.guess_type(key)[0] or "application/octet-stream")
+    return StreamingResponse(chunks, media_type=media_type, headers={"Content-Length": str(length)})
 
 
 # ── Workspace dataset endpoints ───────────────────────────────────────

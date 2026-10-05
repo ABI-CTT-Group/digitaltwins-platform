@@ -89,6 +89,34 @@ class Downloader(object):
 
         return keys
 
+    def find_bucket(self, dataset_uuid: str) -> str | None:
+        """The bucket holding objects under ``<dataset_uuid>/`` (datasets are stored one bucket per category)."""
+        prefix = f"{dataset_uuid}/"
+        for bucket in self.s3_client.list_buckets().get("Buckets", []):
+            resp = self.s3_client.list_objects_v2(Bucket=bucket["Name"], Prefix=prefix, MaxKeys=1)
+            if resp.get("KeyCount", 0) > 0:
+                return bucket["Name"]
+        return None
+
+    def list_objects(self, bucket_name: str, prefix: str) -> list[str]:
+        """Every object key under ``prefix`` in ``bucket_name`` (empty when there are none)."""
+        keys = []
+        paginator = self.s3_client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix):
+            keys.extend(obj["Key"] for obj in page.get("Contents", []))
+        return keys
+
+    def open_object(self, bucket_name: str, key: str):
+        """Stream one object: ``(chunks, content_length)``. Raises FileNotFoundError for a missing key."""
+        try:
+            obj = self.s3_client.get_object(Bucket=bucket_name, Key=key)
+        except ClientError as e:
+            code = e.response.get("Error", {}).get("Code", "")
+            if code in {"404", "NoSuchKey", "NoSuchBucket", "NotFound"}:
+                raise FileNotFoundError(f"{bucket_name}/{key}") from e
+            raise
+        return obj["Body"].iter_chunks(), obj["ContentLength"]
+
     def download_dataset(self, dataset_uuid: str, save_dir: str) -> int:
         """Download all objects for a dataset across all buckets.
 

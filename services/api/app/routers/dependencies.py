@@ -24,3 +24,10 @@ def get_downloader() -> Downloader:
 def get_deleter(credentials: dict = Depends(validate_credentials)) -> Deleter:
     """Create a per-request Deleter that removes a tool's SEEK Workflow as the calling user."""
     return Deleter(api_token=credentials["token"])
+
+
+def get_minio_downloader():
+    """The MinIO object store itself (buckets, keys, streams), as opposed to the core dataset Downloader."""
+    from digitaltwins.minio.downloader import Downloader as MinioDownloader
+
+    return MinioDownloader()
