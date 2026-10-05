@@ -23,6 +23,17 @@ Research objects can be created through the catalog service (SEEK) UI or via the
 
 > 💡 For detailed help, refer to the [SEEK’s help documentation](https://docs.seek4science.org/help/user-guide/programme-creation-and-management).
 
+#### Link an assay to its workflow
+
+The portal finds an assay's workflow through SEEK: Assay → SOP → Workflow. You don't need to build that link by hand. On the study dashboard, open the assay's **Configure assay** dialog, pick the workflow under **Select Workflow**, fill in the form and **Save**. Saving creates an SOP `Workflow link: <workflow title>` in the assay's project, visible to that project's members.
+
+- The assay needs a type tag in SEEK: **gui**, **notebook** or **script**.
+- The dropdown lists only workflows with the same type tag that belong to one of the assay's SEEK projects. The API refuses any other workflow (400).
+- Only admins and researchers can link a workflow.
+- Picking a different workflow later resets the form's inputs, outputs and cohort. On Save, the assay is detached from the old SOP (which stays in SEEK) and a new SOP is created.
+
+See [the ADR](decisions/2026-10-05-link-assay-to-workflow-via-auto-created-sop.md) for why it works this way.
+
 #### Method 2: Using the API service
 
 * [**TODO:** Implementation details for populating data via the DigitalTWINS platform API.]

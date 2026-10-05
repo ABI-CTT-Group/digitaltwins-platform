@@ -11,7 +11,7 @@ import {
   useDashboardSubmitAssayResults,
   useDashboardDownloadAssayWorkspace,
 } from "@/bootstrap/dashboard_api";
-import { DashboardCategory } from "@/models/types";
+import { DashboardCategory, DashboardWorkflow } from "@/models/types";
 import { JUPYTER_BASE_URL } from "@/config/platform-links";
 import { getApiErrorMessage } from "@/utils/common";
 
@@ -49,11 +49,16 @@ export function useAssayActions() {
       store.setAssayName(item.seekId, item.name); // cache name for the report title
       if (assayDetails.value[item.seekId]) continue; // already cached
       store.setAssayExecute(item.seekId, "Launch", "");
-      const details = await useDashboardGetAssayConfigDetails(item.seekId);
-      if (details) {
-        store.setAssayDetails(item.seekId, details);
-      } else {
-        const workflowDetail = await useDashboardWorkflowDetail(item.workflowSeekId!);
+      try {
+        const details = await useDashboardGetAssayConfigDetails(item.seekId);
+        if (details) {
+          store.setAssayDetails(item.seekId, details);
+          continue;
+        }
+        // No linked workflow yet: an empty one, picked in the config dialog.
+        const workflowDetail: DashboardWorkflow = item.workflowSeekId
+          ? await useDashboardWorkflowDetail(item.workflowSeekId)
+          : { uuid: "", seekId: "", name: "", inputs: [], outputs: [] };
         workflowDetail.type = item.tag ?? "unknown workflow type";
         store.setAssayDetails(item.seekId, {
           uuid: "",
@@ -62,17 +67,22 @@ export function useAssayActions() {
           numberOfParticipants: [],
           isAssayReadyToLaunch: false,
         });
+      } catch (e: any) {
+        // One unreadable assay must not leave the rest of the list without a config.
+        toast.error(getApiErrorMessage(e, `Load assay "${item.name}"`));
       }
     }
   };
 
   const openEdit = (seekId: string) => {
-    store.setCurrentAssayDetails(assayDetails.value[seekId]);
+    // A copy, so edits (e.g. picking another workflow) are dropped on Cancel.
+    store.setCurrentAssayDetails(JSON.parse(JSON.stringify(assayDetails.value[seekId])));
   };
 
   const save = async () => {
     try {
-      const success = await useSaveAssayDetails(currentAssayDetails.value!);
+      // The dialog only saves a validated config, so it is stored as ready to launch.
+      const success = await useSaveAssayDetails({ ...currentAssayDetails.value!, isAssayReadyToLaunch: true });
       if (success) {
         currentAssayDetails.value!.isAssayReadyToLaunch = true;
         store.setAssayDetails(currentAssayDetails.value!.seekId, currentAssayDetails.value!);

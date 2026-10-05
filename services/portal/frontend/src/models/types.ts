@@ -5,6 +5,7 @@
   description?: string;
   workflowSeekId?: string;
   tag?: string;
+  projectIds?: string[];
 }
 
 export interface DashboardWorkflow {
@@ -12,6 +13,7 @@ export interface DashboardWorkflow {
   seekId: string;
   name: string;
   type?: string;
+  projectIds?: string[];
   inputs?: IWorkflowInput[];
   outputs?: IWorkflowOutput[];
 }

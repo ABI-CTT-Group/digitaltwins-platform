@@ -5,14 +5,14 @@
         <v-icon icon="mdi-cog-outline" color="#5fd6e8" size="34" class="mr-3" />
         <div>
           <h2 class="config-sheet__title">Configure assay "{{ assayName }}"</h2>
-          <p class="config-sheet__sub">Set the workflow inputs, outputs, dataset and cohorts, then save.</p>
+          <p class="config-sheet__sub">Pick the workflow, set its inputs, outputs, dataset and cohorts, then save.</p>
         </div>
       </div>
 
       <v-divider class="mb-2" />
 
       <div class="config-sheet__body">
-        <AssayContent ref="assayContentRef" v-model="details" />
+        <AssayContent ref="assayContentRef" v-model="details" :assay-type="assayType" :assay-project-ids="assayProjectIds" />
       </div>
 
       <v-divider class="mt-2 mb-4" />
@@ -32,7 +32,7 @@ import { useToast } from "vue-toastification";
 import { useDashboardCacheStore } from "@/store/dashboard_cache_store";
 import AssayContent from "@/components/domain/AssayContent.vue";
 
-defineProps<{ assayName: string }>();
+defineProps<{ assayName: string; assayType?: string; assayProjectIds?: string[] }>();
 const open = defineModel<boolean>({ required: true });
 const emit = defineEmits<{ (e: "save"): void }>();
 

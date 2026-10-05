@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { AssayDetails } from "@/models/types";
+import { AssayDetails, DashboardWorkflow } from "@/models/types";
 
 /**
  * Transient caches for the dashboard, keyed by assay seekId. The drill-down
@@ -14,6 +14,8 @@ export const useDashboardCacheStore = defineStore("dashboardCache", () => {
   // Display names captured from the assays list, so the report page can show the
   // title without a redundant seek-assay fetch when arriving from the dashboard.
   const assayNames = ref<Record<string, string>>({});
+  // Registered SEEK workflows for the config dialog's picker; costly to list (one SEEK call each).
+  const workflows = ref<DashboardWorkflow[] | undefined>();
 
   const setAssayDetails = (seekId: string, details: AssayDetails) => {
     assayDetails.value[seekId] = details;
@@ -30,16 +32,21 @@ export const useDashboardCacheStore = defineStore("dashboardCache", () => {
   const setCurrentAssayDetails = (details: AssayDetails) => {
     currentAssayDetails.value = details;
   };
+  const setWorkflows = (list: DashboardWorkflow[]) => {
+    workflows.value = list;
+  };
 
   return {
     assayDetails,
     assayExecute,
     currentAssayDetails,
     assayNames,
+    workflows,
     setAssayDetails,
     setAssayName,
     setAssayExecute,
     setAssayLaunching,
     setCurrentAssayDetails,
+    setWorkflows,
   };
 });

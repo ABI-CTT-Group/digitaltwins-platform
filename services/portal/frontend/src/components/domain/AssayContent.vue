@@ -2,8 +2,19 @@
     <v-form ref="formRef" class="py-2 my-5 mx-5 d-flex flex-column align-start" @submit.prevent>
         <div class="d-flex flex-row ma-2 workflow">
             <span class="assay-form-subtitle w-25 mt-4 accent-workflow">Workflow: </span>
-            <div class="w-66 mt-4">
-                <span class="workflow-name">{{ workflowDisplayName }}</span>
+            <div class="w-50 mt-2">
+                <v-select
+                    :model-value="assayDetails!.workflow.seekId || null"
+                    label="Select Workflow"
+                    :items="workflowItems"
+                    item-title="name"
+                    item-value="seekId"
+                    variant="outlined"
+                    :loading="workflowsLoading"
+                    :no-data-text="assayType ? `No ${assayType} workflows registered in this assay's project` : 'This assay has no type tag (gui, notebook or script) in SEEK'"
+                    :rules="[v => !!v || 'Please select a workflow']"
+                    @update:model-value="handleWorkflowSelected"
+                ></v-select>
             </div>
         </div>
         <div class="d-flex flex-row ma-2 input">
@@ -85,9 +96,11 @@
 
 <script setup lang="ts">
 
-import { ref, watch, onMounted, onBeforeMount } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeMount } from 'vue';
+import { storeToRefs } from 'pinia';
 import {AssayDetails} from '@/models/types';
-import { useDashboardGetDatasets, useDashboardSelectedDatasetSampleTypes, useDashboardWorkflowDetail } from '@/bootstrap/dashboard_api';
+import { useDashboardGetDatasets, useDashboardSelectedDatasetSampleTypes, useDashboardWorkflowDetail, useDashboardWorkflows } from '@/bootstrap/dashboard_api';
+import { useDashboardCacheStore } from '@/store/dashboard_cache_store';
 
 import { capitalize } from '@/utils/common';
 
@@ -107,9 +120,17 @@ interface IRenderWorkflowInputDatasetSamples {
 const formRef = ref();
 const cohortsParticipants = ref<string>("");
 const datasetRenderItems = ref<string[]>();
-const workflowDisplayName = ref<string>("");
 
 const assayDetails = defineModel<AssayDetails>();
+// The assay's SEEK tag (gui / notebook / script) and projects: only workflows of that
+// type, registered in one of those projects, are offered.
+const props = defineProps<{ assayType?: string; assayProjectIds?: string[] }>();
+
+const store = useDashboardCacheStore();
+const { workflows } = storeToRefs(store);
+const workflowsLoading = ref(false);
+const workflowItems = computed(() => (workflows.value ?? []).filter(w =>
+    w.type === props.assayType && (w.projectIds ?? []).some(p => props.assayProjectIds?.includes(p))));
 const workflowInputDatasetSamples = ref<IRenderWorkflowInputDatasetSamples>({});
 
 
@@ -164,19 +185,21 @@ onMounted(async () => {
         cohortsParticipants.value = compressRangeList(assayDetails.value.numberOfParticipants);
     }
 
-    if (assayDetails.value?.workflow?.seekId) {
-        const name = assayDetails.value.workflow.name;
-        const type = assayDetails.value.workflow.type;
-        if (name) {
-            workflowDisplayName.value = type ? `${name} - ${type}` : name;
-        } else {
-            const workflowDetail = await useDashboardWorkflowDetail(assayDetails.value.workflow.seekId);
-            workflowDisplayName.value = workflowDetail.type
-                ? `${workflowDetail.name} - ${workflowDetail.type}`
-                : workflowDetail.name;
+    if (!workflows.value) {
+        workflowsLoading.value = true;
+        try {
+            store.setWorkflows(await useDashboardWorkflows());
+        } finally {
+            workflowsLoading.value = false;
         }
     }
 
+    await loadInputDatasets();
+});
+
+// Datasets (and saved sample types) for each workflow input, by the input's category.
+const loadInputDatasets = async () => {
+    workflowInputDatasetSamples.value = {};
     const inputs = assayDetails.value?.workflow.inputs ?? [];
     for (const inputData of inputs) {
         const { name, category } = inputData.input;
@@ -190,8 +213,22 @@ onMounted(async () => {
             selectedDatasetSampleTypes: sampleTypes,
         };
     }
-    
-});
+};
+
+// Picking another workflow replaces the form: its ports become the inputs/outputs, the cohort is cleared.
+const handleWorkflowSelected = async (seekId: string) => {
+    const current = assayDetails.value!.workflow;
+    if (!seekId || seekId === current.seekId) return;
+    if (current.seekId && !window.confirm("Changing the workflow resets this assay's inputs, outputs and cohorts. Continue?")) {
+        return;
+    }
+    const detail = await useDashboardWorkflowDetail(seekId);
+    const picked = workflowItems.value.find(w => w.seekId === seekId);
+    assayDetails.value!.workflow = { ...detail, type: picked?.type ?? props.assayType };
+    assayDetails.value!.numberOfParticipants = [];
+    cohortsParticipants.value = "";
+    await loadInputDatasets();
+};
 
 const handleDatasetSelected = async (value: string, inputName:string, inputCategory:string) => {
     let sampleTypes:string[] = []
@@ -284,11 +321,6 @@ defineExpose({ validate });
 </script>
 
 <style scoped>
-.workflow-name{
-    font-size: 1rem;
-    font-weight: 500;
-    color: #e9f2f5;
-}
 .assay-form-subtitle{
     font-size: 1rem;
     font-weight: 650;
