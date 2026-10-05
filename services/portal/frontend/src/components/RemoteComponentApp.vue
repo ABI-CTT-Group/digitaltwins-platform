@@ -14,7 +14,10 @@ import ElementPlus from 'element-plus'
 const props = defineProps<{
   src: string
   expose: string
+  // A gui assay launch: provided to the plugin as `assayContext` (see tool-plugin-view.vue).
+  context?: Record<string, unknown>
 }>()
+const emit = defineEmits<{ mounted: [] }>()
 
 const container = ref<HTMLElement | null>(null)
 let pluginApp: App | null = null
@@ -24,9 +27,8 @@ let scriptEl: HTMLScriptElement | null = null
 // reset on exit and never leaks across plugins. Vuetify / Toast / ElementPlus
 // are intentionally shared with portal — they are stateless / singleton UI
 // containers, isolating them would split the toast queue and theme.
-// Portal does not currently `provide()` anything to plugins (verified in plan
-// 01 phase 0); if that changes, forward keys with `pluginApp.provide(...)`
-// before mount.
+// The only thing portal provides is `assayContext`, and only when /tool-view was
+// opened for an assay; a Tool Hub launch provides nothing.
 
 onMounted(async () => {
   scriptEl = await loadScript(props.src)
@@ -39,7 +41,9 @@ onMounted(async () => {
   pluginApp.use(vuetify)
   pluginApp.use(Toast)
   pluginApp.use(ElementPlus)
+  if (props.context) pluginApp.provide('assayContext', props.context)
   pluginApp.mount(container.value!)
+  emit('mounted')
 })
 
 onBeforeUnmount(() => {

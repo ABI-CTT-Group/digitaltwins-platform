@@ -1,6 +1,6 @@
 import http from "./http";
 import axios from "axios";
-import { DashboardCategory, DashboardWorkflow, AssayDetails, AssayLaunch, AssayDataset, SeekAssayDetails } from "@/models/types";
+import { DashboardCategory, DashboardWorkflow, AssayDetails, AssayLaunch, AssayDataset, SeekAssayDetails, AssayGuiContext } from "@/models/types";
 
 export async function useDashboardProgrammes() {
     const programmes = http.get<DashboardCategory[]>("/dashboard/programmes");
@@ -39,6 +39,10 @@ export async function useDashboardGetAssayConfigDetails(seekId: string) {
 export async function useDashboardGetAssayLaunch(seekId: string) {
     const details = http.get<AssayLaunch>("/dashboard/assay-launch", { seekId });
     return details;
+}
+export async function useDashboardGetAssayGuiContext(seekId: string) {
+    const context = http.get<AssayGuiContext>("/dashboard/assay-gui-context", { seekId });
+    return context;
 }
 export async function useDashboardGetDatasets(category: string) {
     const details = http.get<AssayDataset[]>("/dashboard/datasets", { category });
