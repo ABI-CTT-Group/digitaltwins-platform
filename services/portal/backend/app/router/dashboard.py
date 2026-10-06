@@ -9,8 +9,14 @@ from pprint import pprint
 import os
 from app.utils.utils import get_workflow_type
 from app.client.digitaltwins_api import DigitalTWINSAPIClient
-from fastapi import Header, HTTPException
+from fastapi import Cookie, Header, HTTPException
 from httpx import HTTPStatusError, RequestError
+from typing import Optional
+from sqlalchemy.orm import Session
+from urllib.parse import quote
+from app.database.database import get_db
+from app.models.db_model import Workflow, WorkflowBuild
+from app.utils.workflow_tool_utils import served_workflow_build, workflow_bundle_path
 
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent.parent
@@ -462,8 +468,29 @@ async def get_project_by_assay_id(seek_id: str = Query(None)):
     return {"message": "Functionality currently disabled."}
 
 
+NO_GUI_TOOL_MESSAGE = ("This assay's workflow has no launchable GUI tool. Build and approve it in the portal, "
+                       "or link the assay to a workflow that has one.")
+
+
+def _resolve_gui_tool(db: Session, workflow_seek_id) -> Optional[dict]:
+    """The bundle /tool-view mounts for a SEEK workflow: the portal's gui workflow registered against that id,
+    served as the Tool Hub serves it. None when no such build exists (REST/CLI gui uploads stay non-launchable)."""
+    if workflow_seek_id in (None, ""):
+        return None
+    workflow = (db.query(Workflow).join(WorkflowBuild, WorkflowBuild.workflow_id == Workflow.id)
+                .filter(WorkflowBuild.seek_id == str(workflow_seek_id), Workflow.workflow_type == "gui").first())
+    if workflow is None:
+        return None
+    build = served_workflow_build(db, workflow)
+    path = workflow_bundle_path(build) if build else None
+    if not path:
+        return None
+    return {"name": build.tool_name, "path": path, "expose": build.expose_name}
+
+
 @router.get("/assay-launch")
-async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None), client: DigitalTWINSAPIClient = Depends(get_client)):
+async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None), client: DigitalTWINSAPIClient = Depends(get_client),
+                                                db: Session = Depends(get_db)):
     """
         When user click launch in assay, what should we do?
     """
@@ -491,6 +518,14 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None), clie
                 "type": "notebook",
                 "data": jupyter_hub_url
             }
+        if workflow_type == "gui":
+            # The tool runs in the browser: /tool-view loads the assay's inputs through /assay-gui-context.
+            if _resolve_gui_tool(db, configs.get("workflow_seek_id")) is None:
+                return {"message": NO_GUI_TOOL_MESSAGE}
+            return {
+                "type": "gui",
+                "data": f"/tool-view?assay={seek_id}"
+            }
         else:
             return {
                 "message": "Currently only script based workflow launch is supported. GUI based workflow launch is under development.",
@@ -503,6 +538,89 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None), clie
     except KeyError:
         return None
     # # Step2: check the workflow type
+
+
+@router.get("/assay-gui-context")
+async def get_assay_gui_context(seek_id: str = Query(...), client: DigitalTWINSAPIClient = Depends(get_client),
+                                db: Session = Depends(get_db)):
+    """What /tool-view needs to open a gui assay: the tool bundle, and the assay's input files as portal URLs."""
+    try:
+        a_res = await client.get(f"/assays/{seek_id}", {"get_configs": True})
+        configs = a_res.json().get("assay", {}).get("configs") or {}
+        tool = _resolve_gui_tool(db, configs.get("workflow_seek_id"))
+        if tool is None:
+            raise HTTPException(status_code=404, detail=NO_GUI_TOOL_MESSAGE)
+        gui_inputs = (await client.get(f"/assays/{seek_id}/gui-inputs")).json()
+    except HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except RequestError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    inputs = [{
+        "name": inp.get("name"),
+        "dataset_uuid": inp.get("dataset_uuid"),
+        "sample_type": inp.get("sample_type"),
+        "files": [{
+            "name": f.get("name"),
+            "subject_id": f.get("subject_id"),
+            "sample_id": f.get("sample_id"),
+            "url": f"/api/dashboard/assays/{seek_id}/input-files/{quote(f['bucket'], safe='')}/{quote(f['key'])}",
+        } for f in inp.get("files", [])],
+    } for inp in gui_inputs.get("inputs", [])]
+    return {"assay_id": seek_id, "tool": tool, "inputs": inputs}
+
+
+def get_input_file_token(authorization: Optional[str] = Header(None),
+                         dt_assay_file_token: Optional[str] = Cookie(None)) -> str:
+    """The bearer for an input-file download: the Authorization header, else the cookie /tool-view sets.
+
+    VolView downloads `urls=` with the browser's plain fetch, which sends no Authorization header but does
+    send same-origin cookies, so /tool-view scopes the user's token to the assay's input-files path."""
+    if authorization:
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() != "bearer" or not token:
+            raise HTTPException(status_code=401, detail="Invalid Authorization header")
+        return token
+    if dt_assay_file_token:
+        return dt_assay_file_token
+    raise HTTPException(status_code=401, detail="Missing Authorization header")
+
+
+async def get_input_file_client(token: str = Depends(get_input_file_token)):
+    client = DigitalTWINSAPIClient(token=token)
+    try:
+        yield client
+    finally:
+        await client.close()
+
+
+@router.get("/assays/{seek_id}/input-files/{bucket}/{key:path}")
+async def get_assay_input_file(seek_id: str, bucket: str, key: str,
+                               client: DigitalTWINSAPIClient = Depends(get_input_file_client)):
+    """Stream one of the assay's input files from the API (which checks the key against the assay's input datasets)."""
+    try:
+        response = await client.get_stream(f"/assays/{seek_id}/input-files/{quote(bucket, safe='')}/{quote(key)}")
+    except HTTPStatusError as e:
+        await e.response.aread()
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except RequestError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    async def stream_generator():
+        try:
+            async for chunk in response.aiter_bytes():
+                yield chunk
+        finally:
+            await response.aclose()
+
+    headers = {}
+    if response.headers.get("Content-Length"):
+        headers["Content-Length"] = response.headers["Content-Length"]
+    return StreamingResponse(
+        stream_generator(),
+        media_type=response.headers.get("Content-Type", "application/octet-stream"),
+        headers=headers,
+    )
     # # Step2.1: script based, return the airflow url
     # # Step2.2: GUI based, execute Step 2
     # workflow = digitaltwins_configs.querier.get_sop(sop_id=assay_detail.get("params").get("workflow_seek_id"))

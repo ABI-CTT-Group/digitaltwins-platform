@@ -99,3 +99,18 @@ describe("useAssayActions.save", () => {
     expect(actions.assayDetails.value["42"].isAssayReadyToLaunch).toBe(false);
   });
 });
+
+describe("useAssayActions.launch", () => {
+  it("opens a gui assay's tool in a new tab and leaves Monitor alone", async () => {
+    api.useDashboardGetAssayConfigDetails.mockResolvedValue(saved("43"));
+    api.useDashboardGetAssayLaunch.mockResolvedValue({ type: "gui", data: "/tool-view?assay=43" });
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    const actions = useAssayActions();
+    await actions.loadAssayList([assay("43", { tag: "gui" })]);
+
+    await actions.launch("43");
+
+    expect(open).toHaveBeenCalledWith("/tool-view?assay=43", "_blank");
+    expect(actions.assayExecute.value["43"]?.url ?? "").toBe("");
+  });
+});

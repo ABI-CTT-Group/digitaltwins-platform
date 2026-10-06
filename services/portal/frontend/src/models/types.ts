@@ -52,6 +52,27 @@ export interface AssayLaunch {
   message?: string;
 }
 
+// What /tool-view gets for a gui assay: the tool bundle, and the assay's input files as portal URLs.
+export interface AssayGuiFile {
+  name: string;
+  subjectId: string;
+  sampleId: string;
+  url: string;
+}
+
+export interface AssayGuiInput {
+  name: string;
+  datasetUuid: string;
+  sampleType: string | null;
+  files: AssayGuiFile[];
+}
+
+export interface AssayGuiContext {
+  assayId: string;
+  tool: { name: string; path: string; expose: string };
+  inputs: AssayGuiInput[];
+}
+
 export interface AssayDataset {
   uuid: string;
   name: string;
