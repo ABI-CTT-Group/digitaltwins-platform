@@ -203,3 +203,36 @@ def test_invalid_workflow_import_exits_2(cli_env, workflow_dir, capsys):
     assert import_dataset.main([str(workflow_dir), "--category", cli_env["bucket"], "--workflow-type", "gui",
                                 "--seek-project-id", "11"]) == 2
     assert "exactly one step" in capsys.readouterr().err
+
+
+# ── Models ─────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def model_dir(cli_env, monkeypatch):
+    from digitaltwins import models
+    from test_model_pipeline import make_model
+
+    monkeypatch.setattr(models, "CATEGORY", cli_env["bucket"])
+    return make_model(cli_env["tmp"] / "model_skin_test")
+
+
+@pytest.mark.integration
+def test_imports_a_model_with_auto_fhir(cli_env, model_dir):
+    # A single weights file directly under primary/: valid for a model, not for measurements.
+    shutil.rmtree(model_dir / "primary")
+    (model_dir / "primary").mkdir()
+    (model_dir / "primary" / "model.onnx").write_bytes(b"weights")
+
+    code = import_dataset.main([str(model_dir), "--category", cli_env["bucket"], "--fhir", "auto"])
+
+    assert code == 0
+    assert _dataset(cli_env, _only_session(cli_env)["dataset_uuid"]) == ("model_skin_test", "completed")
+
+
+@pytest.mark.integration
+def test_model_import_without_primary_files_exits_2(cli_env, model_dir, capsys):
+    shutil.rmtree(model_dir / "primary")
+
+    assert import_dataset.main([str(model_dir), "--category", cli_env["bucket"]]) == 2
+    assert "primary/" in capsys.readouterr().err

@@ -126,12 +126,12 @@ const actions: CatalogueCard[] = [
   },
   {
     title: 'Models',
-    description: 'Browse and register models on the platform.',
-    herf: '',
+    description: 'Browse the models on the platform, or register a trained model (SDS dataset) for assays and workflows to use.',
+    herf: 'UploadModelDataset',
     icon: 'mdi-cube-outline',
-    cta: 'Coming soon',
+    cta: 'Open',
     accent: '#b08fe8',
-    comingSoon: true,
+    requireRoles: ['admin', 'researcher'],
   },
   {
     title: 'Tools',

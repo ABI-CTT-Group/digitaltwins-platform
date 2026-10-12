@@ -31,7 +31,7 @@ import type {
 // Server shapes (camelized by the dtApi interceptor) + adapters
 // ---------------------------------------------------------------------------
 
-interface UploadSession {
+export interface UploadSession {
   uploadId: string;
   name: string;
   description?: string;
@@ -45,7 +45,7 @@ interface UploadSession {
   upload: UploadStatusResponse | null;
 }
 
-interface PlatformDataset {
+export interface PlatformDataset {
   datasetUuid: string;
   datasetName?: string;
   fhirStatus: "none" | "pending" | "pushing" | "completed" | "failed";
@@ -76,7 +76,7 @@ const FHIR_STATUS: Record<string, string> = {
   failed: "fhir_failed",
 };
 
-function sessionToMeasurement(s: UploadSession): MeasurementResponse {
+export function sessionToMeasurement(s: UploadSession): MeasurementResponse {
   return {
     id: `upload:${s.uploadId}`,
     name: s.name,
@@ -91,7 +91,7 @@ function sessionToMeasurement(s: UploadSession): MeasurementResponse {
   };
 }
 
-function datasetToMeasurement(d: PlatformDataset): MeasurementResponse {
+export function datasetToMeasurement(d: PlatformDataset): MeasurementResponse {
   return {
     id: `dataset:${d.datasetUuid}`,
     uuid: d.datasetUuid,
@@ -134,7 +134,7 @@ export async function useMeasurementConfig(): Promise<MeasurementConfig> {
 /** Every measurement: uploads not yet committed + committed measurement datasets. */
 export async function useMeasurement(): Promise<MeasurementResponse[]> {
   const [uploads, datasets] = await Promise.all([
-    dtApi.get<{ uploads: UploadSession[] }>(`/datasets/uploads`),
+    dtApi.get<{ uploads: UploadSession[] }>(`/datasets/uploads`, { category: "measurements" }),
     dtApi.get<{ datasets: PlatformDataset[] }>(`/datasets`, { categories: "measurements" }),
   ]);
   return [
@@ -228,6 +228,8 @@ export interface UploadInitPayload {
   description?: string;
   sourceKind: 'folder' | 'zip';
   manifest: UploadManifestEntry[];
+  /** Dataset category of the session; defaults to "measurements". */
+  category?: string;
 }
 
 export interface UploadInitResponse {
@@ -254,7 +256,7 @@ export interface UploadStatusResponse {
 export async function useUploadInit(payload: UploadInitPayload): Promise<UploadInitResponse> {
   const res = await dtApi.post<{ uploadId: string; maxPartSize: number }>(`/datasets/uploads`, {
     ...payload,
-    category: "measurements",
+    category: payload.category ?? "measurements",
     commitMode: "on_approve",
   });
   return { measurementId: `upload:${res.uploadId}`, maxPartSize: res.maxPartSize };

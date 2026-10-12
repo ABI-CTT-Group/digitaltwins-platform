@@ -1,16 +1,18 @@
-"""Import a measurement, tool or workflow dataset from inside the digitaltwins-api container.
+"""Import a measurement, model, tool or workflow dataset from inside the digitaltwins-api container.
 
     python -m digitaltwins.cli.import_dataset <folder|zip> [--name N] [--fhir auto] [--move]
     python -m digitaltwins.cli.import_dataset <folder|zip> --category tools \
         --tool-type script|notebook|gui --seek-project-id P [--fhir auto]
     python -m digitaltwins.cli.import_dataset <folder|zip> --category workflows \
         --workflow-type script|notebook|gui --seek-project-id P [--fhir auto]
+    python -m digitaltwins.cli.import_dataset <folder|zip> --category models [--fhir auto]
 
 Signs in with Keycloak (browser device flow, or ``--password``), checks the
 upload role, then runs the same pipeline as ``/datasets/uploads`` in-process:
-validation (SPARC, a tool's ``primary/tool_*.cwl``, or a workflow's layout) →
+validation (SPARC, a model's SDS files, a tool's ``primary/tool_*.cwl``, or a workflow's layout) →
 commit (Postgres + MinIO; tools and workflows are also registered in SEEK as
-the signed-in user, a workflow's tools as tool datasets) → optional FHIR push. The
+the signed-in user, a workflow's tools as tool datasets) → optional FHIR push (a
+model's is one Device). The
 ``scripts/import-dataset.*`` wrappers copy a dataset from the host into the
 container and call this.
 
@@ -21,11 +23,12 @@ import shutil
 import sys
 from pathlib import Path
 
-from .. import tools, workflows
+from .. import models, tools, workflows
 from ..core.connection import Connection
 from ..measurements import jobs, pipeline, sessions
 from ..measurements.staging import dataset_dir, staging_root
 from ..measurements.validation import extract_uploaded_archive, resolve_project_root, validate_sparc_structure
+from ..models.validation import validate_model_structure
 from ..tools.validation import find_tool_cwl
 from ..workflows.validation import load_workflow
 from .keycloak_login import login
@@ -92,7 +95,8 @@ def main(argv=None) -> int:
             except ValueError as e:
                 return _fail(2, str(e))
         else:
-            ok, message = validate_sparc_structure(source)
+            validate = validate_model_structure if args.category == models.CATEGORY else validate_sparc_structure
+            ok, message = validate(source)
             if not ok:
                 return _fail(2, message)
         root = resolve_project_root(source)

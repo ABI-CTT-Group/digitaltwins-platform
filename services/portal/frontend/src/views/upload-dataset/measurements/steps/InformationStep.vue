@@ -54,7 +54,7 @@
     text="This source doesn't match any unfinished upload — it will start as a brand-new upload (your previous one is untouched)."
   />
   <div>
-    <h3 class="step-heading">Measurements Information</h3>
+    <h3 class="step-heading">{{ copy.heading }}</h3>
     <v-divider class="my-2 mb-5" :thickness="3" />
 
     <v-form ref="form" class="px-5">
@@ -80,11 +80,7 @@
       />
 
       <h4 class="mb-1 mt-3">Dataset source *</h4>
-      <p class="text-caption step-sub mb-2">
-        Drag a folder or .zip of a SPARC measurements dataset. Large datasets
-        upload in resumable chunks; patients and samples are detected on the
-        next step.
-      </p>
+      <p class="text-caption step-sub mb-2">{{ copy.hint }}</p>
       <MeasurementChunkedDropzone
         ref="dropzone"
         :max-total-bytes="measurementUploadMaxBytes"
@@ -149,12 +145,28 @@ import type { MeasurementResponse } from '@/models/types';
 const DEFAULT_MAX_UPLOAD_BYTES = 20 * 1024 * 1024 * 1024;
 const measurementUploadMaxBytes = ref<number>(DEFAULT_MAX_UPLOAD_BYTES);
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   // When set, the step opens in resume mode bound to this unfinished upload:
   // name locked, dropped folder validated against the
   // server's authoritative manifest.
   resumeMeasurementId?: string;
-}>();
+  // Dataset category of the upload session (the Models wizard reuses this step).
+  category?: 'measurements' | 'models';
+}>(), { resumeMeasurementId: undefined, category: 'measurements' });
+
+const COPY = {
+  measurements: {
+    heading: 'Measurements Information',
+    hint: 'Drag a folder or .zip of a SPARC measurements dataset. Large datasets upload in resumable chunks; patients and samples are detected on the next step.',
+    missingSource: 'Drop a SPARC measurements folder or .zip before continuing.',
+  },
+  models: {
+    heading: 'Model Information',
+    hint: 'Drag a folder or .zip of an SDS model dataset: dataset_description.xlsx at the root and the model files (e.g. weights) under primary/. Large models upload in resumable chunks.',
+    missingSource: 'Drop an SDS model folder or .zip before continuing.',
+  },
+};
+const copy = computed(() => COPY[props.category]);
 
 const emit = defineEmits<{
   (e: 'created', m: MeasurementResponse): void;
@@ -242,7 +254,7 @@ async function loadResumeTarget(id: string): Promise<void> {
 // server-side progress, and drop entries whose measurement no longer exists.
 async function refreshPendingList(): Promise<void> {
   const out: { id: string; name: string; percent: number }[] = [];
-  for (const p of loadPendingUploads()) {
+  for (const p of loadPendingUploads(props.category)) {
     try {
       const status = await useUploadStatus(p.measurementId);
       const total = status.files.reduce((s, f) => s + f.size, 0);
@@ -282,7 +294,7 @@ const onSourceSelected = (selected: LocalSource) => {
   }
 
   // New-upload mode: exact-manifest match against a recorded pending upload → offer resume.
-  resumeId.value = findResumableUpload(selected);
+  resumeId.value = findResumableUpload(selected, props.category);
 
   const derived = (selected.rootName || '').replace(/\.zip$/i, '').trim();
   const nameIsUntouched = !formData.name.trim() || formData.name === autoFilledName.value;
@@ -291,7 +303,7 @@ const onSourceSelected = (selected: LocalSource) => {
     autoFilledName.value = derived;
   }
 
-  if (selected.kind === 'folder') {
+  if (selected.kind === 'folder' && props.category === 'measurements') {
     void autofillDescriptionFromSamples(selected.files);
   }
 };
@@ -357,7 +369,7 @@ async function handleSubmit() {
   if (!validName || !source.value) {
     showAlert.value = true;
     alertText.value = !source.value
-      ? 'Drop a SPARC measurements folder or .zip before continuing.'
+      ? copy.value.missingSource
       : 'Enter a dataset name before continuing.';
     return;
   }
@@ -367,7 +379,7 @@ async function handleSubmit() {
 
   const up = new ChunkedUploader(
     source.value,
-    { name: formData.name.trim(), description: formData.description?.trim() || undefined },
+    { name: formData.name.trim(), description: formData.description?.trim() || undefined, category: props.category },
     {
       onProgress: (p) =>
         dropzone.value?.setProgress({

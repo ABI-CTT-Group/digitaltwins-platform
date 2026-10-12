@@ -204,10 +204,5 @@ services/airflow/logs/*
 /tmp/
 /*_realm_*.json
 
-
-# Local database backups (SQLite snapshots, pg_dump files, role dumps with password
-# hashes) — never commit
-/backup/
-
 # Local E2E login (username, password); never commit
 e2e-creds.txt

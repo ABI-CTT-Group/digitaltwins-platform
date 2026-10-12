@@ -15,8 +15,10 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from .. import tools, workflows
+from .. import models, tools, workflows
 from ..core.connection import Connection
+from ..models import fhir as model_fhir
+from ..models.pipeline import commit_model
 from ..tools import fhir as tool_fhir
 from ..tools.pipeline import annotate_tool, commit_tool
 from ..workflows import fhir as workflow_fhir
@@ -54,6 +56,11 @@ def _requested_descriptions(session: Dict[str, Any], root: Path) -> Optional[Dic
 
 
 def _commit(session: Dict[str, Any], root: Path, api_token: Optional[str]) -> pipeline.CommitResult:
+    if session["category"] == models.CATEGORY:
+        # fhir=auto: a default Device (name, and the session description).
+        descriptions = {"auto": {"model": {}}, "descriptions": session["fhir_descriptions"]}.get(session["fhir_mode"])
+        return commit_model(root, dataset_name=session["name"], descriptions=descriptions,
+                            default_description=session["description"] or "")
     if session["category"] == tools.CATEGORY:
         result = commit_tool(root, session["tool_type"], session["seek_project_id"], api_token,
                              dataset_name=session["name"])
@@ -181,7 +188,7 @@ def run_fhir_push_job(dataset_uuid: str) -> None:
     ``fhir_status=failed`` and its local copy is kept for the retry. A tool's
     fhir.json is its ``workflow_tool`` descriptions, pushed as one ActivityDefinition;
     a workflow's is its ``workflow`` descriptions, pushed as a PlanDefinition after
-    its tools' ActivityDefinitions.
+    its tools' ActivityDefinitions; a model's is its Device.
     """
     conn = _connect()
     try:
@@ -202,6 +209,12 @@ def run_fhir_push_job(dataset_uuid: str) -> None:
                 _push_tool(dataset_uuid, descriptions)
                 set_fhir_status(conn, dataset_uuid, "completed")
                 logger.info("Pushed FHIR for tool dataset %s", dataset_uuid)
+                return
+            if dataset["category"] == models.CATEGORY:
+                device = model_fhir.push(descriptions, fhir_service.get_fhir_rest())
+                pipeline.store_fhir_json(dataset["category"], dataset_uuid, device)  # as HAPI stored it
+                set_fhir_status(conn, dataset_uuid, "completed")
+                logger.info("Pushed FHIR for model dataset %s", dataset_uuid)
                 return
             root = pipeline.local_dataset(conn, dataset_uuid)
             descriptions = fhir_service.compute_endpoint_urls(descriptions, dataset_uuid, public_base())

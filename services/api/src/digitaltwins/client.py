@@ -61,8 +61,9 @@ class UploadClient:
         ``fhir="auto"`` auto-annotates and pushes FHIR; ``fhir_descriptions``
         supplies the annotation (measurements: keyed by folder name; tools:
         ``{"workflow_tool": {...}}``; workflows: ``{"workflow": {...},
-        "workflow_tools": {<step id>: {...}}}``; UUIDs are assigned by the
-        server). Tools (``category="tools"``) need ``tool_type`` and
+        "workflow_tools": {<step id>: {...}}}``; models (``category="models"``):
+        ``{"model": {"description", "version"}}``, pushed as a Device; UUIDs
+        are assigned by the server). Tools (``category="tools"``) need ``tool_type`` and
         ``seek_project_id``; workflows (``category="workflows"``) need
         ``workflow_type`` and ``seek_project_id``.
         Returns the final session, plus ``fhir_status`` when FHIR was requested

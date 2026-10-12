@@ -194,7 +194,7 @@ def get_fhir_adapter():
 
 
 class HapiRest:
-    """Minimal synchronous FHIR REST client for cleanup.
+    """Minimal synchronous FHIR REST client for cleanup (and model Devices, which no library builds).
 
     Searches send ``Cache-Control: no-cache``: HAPI otherwise reuses a cached
     result of the same search (60 s by default), e.g. the empty one from the
@@ -223,6 +223,13 @@ class HapiRest:
         r = self.session.get(f"{self.base}/{reference}", headers=self._HEADERS, timeout=self.timeout)
         if r.status_code in (404, 410):
             return None
+        r.raise_for_status()
+        return r.json()
+
+    def create(self, resource: Dict[str, Any]) -> Dict[str, Any]:
+        r = self.session.post(f"{self.base}/{resource['resourceType']}", json=resource,
+                              headers={**self._HEADERS, "Content-Type": "application/fhir+json"},
+                              timeout=self.timeout)
         r.raise_for_status()
         return r.json()
 

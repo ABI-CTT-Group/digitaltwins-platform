@@ -8,7 +8,7 @@
 
       <v-card-text class="px-6 pb-4 text-body-2">
         <p class="mb-4">
-          <strong>{{ item?.name }}</strong> is removed from the platform: its dataset, SEEK entry and FHIR resources.
+          <strong>{{ item?.name }}</strong> is removed from the platform: its dataset{{ kind === 'model' ? '' : ', SEEK entry' }} and FHIR resources.
           This cannot be undone.
         </p>
 
@@ -46,7 +46,7 @@
                  @click="remove(true)" />
         </template>
         <v-btn v-else data-testid="delete-tool" variant="tonal" color="#ff6b6b" class="text-none mx-2"
-               rounded="lg" :loading="!!deleting" :disabled="!!deleting" text="Delete tool" @click="remove()" />
+               rounded="lg" :loading="!!deleting" :disabled="!!deleting" :text="`Delete ${kind}`" @click="remove()" />
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -60,7 +60,7 @@ import { datasetInUse, deletePlatformDataset, useWorkflowTools } from '@/bootstr
 // Confirms deleting a dataset uploaded to the platform directly. For a workflow it
 // lists the tool datasets its steps run and asks whether they go too.
 const open = defineModel<boolean>({ default: false })
-const props = defineProps<{ kind: 'workflow' | 'tool'; item: { uuid: string; name: string } | null }>()
+const props = defineProps<{ kind: 'workflow' | 'tool' | 'model'; item: { uuid: string; name: string } | null }>()
 const emit = defineEmits<{ deleted: [uuid: string] }>()
 
 const accent = computed(() => (props.kind === 'workflow' ? '#7fb2f0' : '#5fd6e8'))

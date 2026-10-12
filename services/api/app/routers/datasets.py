@@ -20,12 +20,14 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 
 from digitaltwins import Querier, Uploader, Downloader, Deleter
-from digitaltwins import tools, workflows
+from digitaltwins import models, tools, workflows
 from digitaltwins.core.connection import Connection
 from digitaltwins.core.deleter import DatasetInUseError
 from digitaltwins.measurements import jobs, sessions
 from digitaltwins.measurements.pipeline import check_descriptions_match, get_dataset_row
 from digitaltwins.measurements.staging import dataset_dir as staged_dataset_dir, staging_root
+from digitaltwins.models import fhir as model_fhir
+from digitaltwins.models.validation import validate_model_structure
 from digitaltwins.measurements.validation import (
     extract_uploaded_archive,
     resolve_project_root,
@@ -223,7 +225,27 @@ def _ingest_measurements(dataset_root: Path, category: str, fhir: str, fhir_desc
         except json.JSONDecodeError as exc:
             raise ValueError("'fhir_descriptions' must be a JSON object") from exc
         check_descriptions_match(descriptions, root)
+    return _commit_through_session(root, category, name, fhir, descriptions)
 
+
+def _ingest_model(dataset_root: Path, fhir: str, fhir_descriptions: Optional[str]) -> dict:
+    """Validate the model dataset and any FHIR descriptions, then commit through the upload-session pipeline."""
+    ok, message = validate_model_structure(dataset_root)
+    if not ok:
+        raise ValueError(message)
+    descriptions = None
+    if fhir_descriptions:
+        try:
+            descriptions = json.loads(fhir_descriptions)
+        except json.JSONDecodeError as exc:
+            raise ValueError("'fhir_descriptions' must be a JSON object") from exc
+        model_fhir.build_descriptions("", "", descriptions)
+    return _commit_through_session(resolve_project_root(dataset_root), models.CATEGORY, dataset_root.name,
+                                   fhir, descriptions)
+
+
+def _commit_through_session(root: Path, category: str, name: str, fhir: str, descriptions: Optional[dict]) -> dict:
+    """Commit the validated dataset at ``root`` synchronously, as an ``on_finalize`` upload session."""
     conn, _ = Connection().connect()
     try:
         upload_id = sessions.create_session(
@@ -350,8 +372,10 @@ async def upload_dataset(
     ``primary/tool_*.cwl``: each tool is stored as a tool dataset and
     registered in SEEK, then the workflow (tagged ``workflow`` +
     ``workflow_type``), all-or-nothing; FHIR pushes the tools'
-    ActivityDefinitions, then the workflow's PlanDefinition. Other categories
-    go straight to ``Uploader.upload_dataset``.
+    ActivityDefinitions, then the workflow's PlanDefinition. Model datasets
+    need ``dataset_description`` and files under ``primary/`` and are committed
+    through the upload-session pipeline; FHIR pushes one Device. Other
+    categories go straight to ``Uploader.upload_dataset``.
     """
     if category not in DATASET_CATEGORIES:
         raise HTTPException(
@@ -361,6 +385,7 @@ async def upload_dataset(
     measurements = category in dataset_uploads.INGEST_CATEGORIES
     tool = category == tools.CATEGORY
     workflow = category == workflows.CATEGORY
+    model = category == models.CATEGORY
     if tool or workflow:
         kind_type = ("tool_type", tool_type) if tool else ("workflow_type", workflow_type)
         missing = [name for name, value in (kind_type, ("seek_project_id", seek_project_id)) if value is None]
@@ -387,6 +412,8 @@ async def upload_dataset(
                     _ingest_workflow, dataset_dir_path, workflow_type, seek_project_id, _creds["token"],
                     fhir, fhir_descriptions,
                 )
+            elif model:
+                result = await run_in_threadpool(_ingest_model, dataset_dir_path, fhir, fhir_descriptions)
             else:
                 result = {"dataset_uuid": uploader.upload_dataset(dataset_path=str(dataset_dir_path), category=category)}
 

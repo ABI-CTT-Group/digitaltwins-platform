@@ -146,8 +146,9 @@ class Deleter(object):
 def _delete_fhir_resources(dataset_uuid: str, category: Optional[str], subject_uuids: list,
                            workflow_type: Optional[str] = None) -> dict:
     """Remove the dataset's HAPI FHIR resources; log and carry on if HAPI is unreachable."""
-    from .. import tools
+    from .. import models, tools
     from ..measurements import fhir_service
+    from ..models import fhir as model_fhir
     from ..tools import fhir as tool_fhir
     from ..workflows import fhir as workflow_fhir
 
@@ -158,6 +159,9 @@ def _delete_fhir_resources(dataset_uuid: str, category: Optional[str], subject_u
         if category == tools.CATEGORY:
             removed = tool_fhir.delete(dataset_uuid, fhir_service.get_fhir_rest())
             return {"ActivityDefinition": removed} if removed else {}
+        if category == models.CATEGORY:
+            removed = model_fhir.delete(dataset_uuid, fhir_service.get_fhir_rest())
+            return {"Device": removed} if removed else {}
         return fhir_service.delete_dataset_fhir_resources(dataset_uuid, subject_uuids, fhir_service.get_fhir_rest())
     except Exception as exc:
         logger.warning("FHIR cleanup failed for dataset %s: %s", dataset_uuid, exc)

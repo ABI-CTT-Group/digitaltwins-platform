@@ -19,6 +19,7 @@ import UploadToolDataset from "@/views/upload-dataset/workflow-tool/index.vue";
 import UploadWorkflowDataset from "@/views/upload-dataset/workflow/index.vue";
 import UploadMeasurementsDataset from "@/views/upload-dataset/measurements/index.vue";
 import MeasurementFhirPreview from "@/views/upload-dataset/measurements/MeasurementFhirPreview.vue";
+import UploadModelDataset from "@/views/upload-dataset/models/index.vue";
 
 import ToolPluginView from "@/views/tool-plugin/tool-plugin-view.vue";
 
@@ -89,6 +90,12 @@ const routes = [
                 path: "/upload-dataset/measurements",
                 name: "UploadMeasurementsDataset",
                 component: UploadMeasurementsDataset,
+                meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'] },
+              },
+              {
+                path: "/upload-dataset/models",
+                name: "UploadModelDataset",
+                component: UploadModelDataset,
                 meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'] },
               },
               {
