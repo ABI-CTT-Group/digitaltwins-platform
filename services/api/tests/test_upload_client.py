@@ -183,3 +183,22 @@ def test_uploads_a_workflow_with_its_tools(platform_db, minio_bucket, tool_bucke
 
     assert session["status"] == "completed" and session["workflow_type"] == "script"
     assert len(seek.workflows) == 3
+
+
+@pytest.mark.integration
+def test_uploads_a_model_and_pushes_its_device(platform_db, minio_bucket, hapi, tmp_path, monkeypatch):
+    from digitaltwins import models
+    from test_model_pipeline import make_model
+
+    monkeypatch.setenv("DATASET_STAGING_DIR", str(tmp_path / "staging"))
+    monkeypatch.setattr(models, "CATEGORY", minio_bucket)
+    app = create_app()
+    app.dependency_overrides[auth.validate_credentials] = lambda: UPLOADER
+    http = TestClient(app)
+
+    session = _client(http).upload_dataset(make_model(tmp_path / "model_skin_test"), category=minio_bucket,
+                                           fhir_descriptions={"model": {"version": "2.1"}})
+
+    assert session["status"] == "completed" and session["fhir_status"] == "completed"
+    [device] = hapi.search("Device", identifier=session["dataset_uuid"])
+    assert device["version"] == [{"value": "2.1"}]

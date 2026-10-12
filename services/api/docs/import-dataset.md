@@ -54,6 +54,14 @@ import-dataset.(sh|command|ps1) <FOLDER_OR_ZIP> [--name NAME] [--description TEX
 - `--fhir auto`: annotate every sample automatically and push the result to FHIR. The default, `none`, stores the dataset only; you can annotate and push it later from the portal or with `POST /datasets/{uuid}/fhir/push`.
 - `--password` / `--username U`: sign in with a username and password instead of the browser flow. Use this only if the Keycloak device flow isn't enabled.
 
+### Model datasets
+
+Add `--category models` to import a model dataset, such as trained nnUNet weights. It needs a `dataset_description.*` file and at least one file anywhere under `primary/`; no `sub-XXX/sam-YYY` folders are expected. With `--fhir auto`, one FHIR `Device` describing the model is pushed.
+
+```
+./scripts/import-dataset.sh /path/to/model_skin_test --category models --fhir auto
+```
+
 ## Exit codes
 
 - `0`: success

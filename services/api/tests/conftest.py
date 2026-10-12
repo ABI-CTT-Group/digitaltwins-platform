@@ -160,7 +160,7 @@ class FakeHapi:
       + ``await generate_resources()`` saves one PlanDefinition whose actions
       reference the ActivityDefinition of their ``related_tool_uuid`` (``None``
       when there is none, as the library does).
-    - Cleanup (``fhir_service.HapiRest`` surface): ``search``, ``read`` and
+    - Cleanup (``fhir_service.HapiRest`` surface): ``search``, ``read``, ``create`` (model Devices) and
       ``delete``. Delete refuses a resource another resource still references
       (HAPI's referential integrity on delete).
     """
@@ -262,6 +262,15 @@ class FakeHapi:
     def read(self, reference):
         self.calls.append(("read", reference))
         return self.store.get(reference)
+
+    def create(self, resource):
+        self.calls.append(("create", resource["resourceType"]))
+        if self.fail_push:
+            raise ConnectionError("HAPI FHIR unreachable")
+        ref = f"{resource['resourceType']}/{self._next}"
+        self._next += 1
+        self.store[ref] = {**resource, "id": ref.split("/")[1]}
+        return self.store[ref]
 
     def delete(self, reference):
         self.calls.append(("delete", reference))

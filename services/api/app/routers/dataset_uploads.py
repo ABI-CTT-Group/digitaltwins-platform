@@ -1,5 +1,5 @@
 """
-Dataset upload sessions (resumable, chunked) for measurement and tool datasets.
+Dataset upload sessions (resumable, chunked) for measurement, model, tool and workflow datasets.
 
 A session is created, its files arrive as parts, and finalize validates the
 assembled dataset. With ``commit_mode=on_finalize`` (REST default) finalize
@@ -11,7 +11,9 @@ Tool sessions need ``tool_type`` + ``seek_project_id`` and are checked for
 exactly one ``primary/tool_*.cwl``; their commit also registers the tool in
 SEEK as the user who finalized / approved it. Workflow sessions need
 ``workflow_type`` + ``seek_project_id`` and are checked by ``load_workflow``;
-their commit stores and registers each tool, then the workflow.
+their commit stores and registers each tool, then the workflow. Model sessions
+are checked by ``validate_model_structure``; their optional FHIR annotation is
+``{"model": {...}}``, pushed as a Device.
 """
 import os
 import shutil
@@ -22,7 +24,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from digitaltwins import tools, workflows
+from digitaltwins import models, tools, workflows
 from digitaltwins.core.connection import Connection
 from digitaltwins.measurements import jobs, sessions
 from digitaltwins.measurements.chunk_store import PART_SIZE, ChunkStore, ChunkStoreError
@@ -30,6 +32,8 @@ from digitaltwins.measurements.fhir_service import build_fhir_json
 from digitaltwins.measurements.pipeline import check_descriptions_match
 from digitaltwins.measurements.staging import chunk_root, dataset_dir
 from digitaltwins.measurements.tree import build_tree
+from digitaltwins.models import fhir as model_fhir
+from digitaltwins.models.validation import validate_model_structure
 from digitaltwins.measurements.validation import (
     extract_uploaded_archive,
     resolve_project_root,
@@ -45,9 +49,9 @@ from .auth import require_upload_role, validate_credentials
 
 router = APIRouter(prefix="/datasets/uploads", tags=["dataset uploads"])
 
-# Categories ingested through sessions with SPARC validation and FHIR. Tool
-# and workflow datasets (``tools.CATEGORY``, ``workflows.CATEGORY``) also use
-# sessions; other categories keep using the one-shot POST /datasets.
+# Categories ingested through sessions with SPARC validation and FHIR. Model,
+# tool and workflow datasets (``models.CATEGORY``, ``tools.CATEGORY``,
+# ``workflows.CATEGORY``) also use sessions.
 INGEST_CATEGORIES = {"measurements"}
 
 # Sessions not yet committed, as listed for the portal overview.
@@ -132,13 +136,16 @@ def get_upload_config(_creds: dict = Depends(validate_credentials)):
 
 
 @router.get("")
-def list_uploads(conn=Depends(get_conn), _creds: dict = Depends(validate_credentials)):
-    return {"uploads": [_session_view(s) for s in sessions.list_sessions(conn, _OPEN_STATUSES)]}
+def list_uploads(category: Optional[str] = None, conn=Depends(get_conn),
+                 _creds: dict = Depends(validate_credentials)):
+    """Sessions not yet committed, optionally only those of one ``category``."""
+    return {"uploads": [_session_view(s) for s in sessions.list_sessions(conn, _OPEN_STATUSES)
+                        if category is None or s["category"] == category]}
 
 
 @router.post("")
 def create_upload(body: SessionCreate, conn=Depends(get_conn), _creds: dict = Depends(require_upload_role)):
-    supported = INGEST_CATEGORIES | {tools.CATEGORY, workflows.CATEGORY}
+    supported = INGEST_CATEGORIES | {models.CATEGORY, tools.CATEGORY, workflows.CATEGORY}
     if body.category not in supported:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -152,6 +159,10 @@ def create_upload(body: SessionCreate, conn=Depends(get_conn), _creds: dict = De
         if body.fhir_descriptions is not None and not isinstance(body.fhir_descriptions.get("workflow_tool"), dict):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                 detail='Tool FHIR descriptions must be {"workflow_tool": {...}}')
+    if body.category == models.CATEGORY:
+        if body.fhir_descriptions is not None and not isinstance(body.fhir_descriptions.get("model"), dict):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail='Model FHIR descriptions must be {"model": {...}}')
     if body.category == workflows.CATEGORY:
         missing = [name for name in ("workflow_type", "seek_project_id") if getattr(body, name) is None]
         if missing:
@@ -225,10 +236,15 @@ def finalize_upload(
             staging = assembled
         tool = session["category"] == tools.CATEGORY
         workflow = session["category"] == workflows.CATEGORY
+        model = session["category"] == models.CATEGORY
         if tool:
             find_tool_cwl(staging)
         elif workflow:
             layout = load_workflow(staging, session["workflow_type"])
+        elif model:
+            ok, message = validate_model_structure(staging)
+            if not ok:
+                raise ValueError(message)
         else:
             ok, message = validate_sparc_structure(staging)
             if not ok:
@@ -238,6 +254,8 @@ def finalize_upload(
             tool_fhir.build_descriptions(root, "", "", session["fhir_descriptions"])
         elif session["fhir_mode"] == "descriptions" and workflow:
             workflow_fhir.build_descriptions(layout, "", "", client=session["fhir_descriptions"])
+        elif session["fhir_mode"] == "descriptions" and model:
+            model_fhir.build_descriptions("", "", session["fhir_descriptions"])
         elif session["fhir_mode"] == "descriptions":
             check_descriptions_match(session["fhir_descriptions"], root)
 
@@ -251,7 +269,7 @@ def finalize_upload(
             shutil.rmtree(extracted, ignore_errors=True)
 
     store.cleanup(upload_id)
-    warnings = [] if tool or workflow else sampleless_subjects(target)
+    warnings = [] if tool or workflow or model else sampleless_subjects(target)
 
     if session["commit_mode"] == "on_approve":
         sessions.update_session(conn, upload_id, status="staged")
@@ -296,10 +314,17 @@ def _staged(conn, upload_id: str) -> Dict[str, Any]:
     return session
 
 
+def _staged_model_descriptions(session: Dict[str, Any], client: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """A staged model's descriptions; its UUID is assigned on approval."""
+    return model_fhir.build_descriptions("", session["name"], client, session["description"] or "")
+
+
 @router.get("/{upload_id}/fhir/tree")
 def get_staged_tree(upload_id: str, conn=Depends(get_conn), _creds: dict = Depends(validate_credentials)):
     """Prefilled descriptions for the staged dataset (UUIDs are assigned on approval)."""
     session = _staged(conn, upload_id)
+    if session["category"] == models.CATEGORY:
+        return {"descriptions": _staged_model_descriptions(session, None)}
     return build_tree(dataset_dir(upload_id), session["name"])
 
 
@@ -316,9 +341,12 @@ def put_staged_annotation(
     upload_id: str, body: AnnotationBody,
     conn=Depends(get_conn), _creds: dict = Depends(require_upload_role),
 ):
-    _staged(conn, upload_id)
+    session = _staged(conn, upload_id)
     try:
-        check_descriptions_match(body.descriptions, dataset_dir(upload_id))
+        if session["category"] == models.CATEGORY:
+            model_fhir.build_descriptions("", "", body.descriptions)
+        else:
+            check_descriptions_match(body.descriptions, dataset_dir(upload_id))
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     sessions.update_session(conn, upload_id, fhir_mode="descriptions", fhir_descriptions=body.descriptions)
@@ -329,6 +357,8 @@ def put_staged_annotation(
 def preview_staged_fhir(upload_id: str, conn=Depends(get_conn), _creds: dict = Depends(validate_credentials)):
     """Dry-run fhir.json for the draft (or the auto tree); UUIDs are placeholders until approval."""
     session = _staged(conn, upload_id)
+    if session["category"] == models.CATEGORY:
+        return model_fhir.to_device(_staged_model_descriptions(session, session["fhir_descriptions"]))
     root = dataset_dir(upload_id)
     descriptions = session["fhir_descriptions"] or build_tree(root, session["name"])["descriptions"]
     return build_fhir_json(root, descriptions)

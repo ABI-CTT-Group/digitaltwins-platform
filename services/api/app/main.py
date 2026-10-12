@@ -29,7 +29,7 @@ from digitaltwins.utils.config_loader import is_truthy
 
 from .routers import (
     health, auth, datasets, dataset_fhir, dataset_uploads, assays,
-    programs, projects, investigations, studies, workflows, tools
+    programs, projects, investigations, studies, workflows, tools, models
 )
 
 
@@ -81,6 +81,7 @@ def create_app() -> FastAPI:
     app.include_router(studies.router)
     app.include_router(workflows.router)
     app.include_router(tools.router)
+    app.include_router(models.router)
 
     return app
 

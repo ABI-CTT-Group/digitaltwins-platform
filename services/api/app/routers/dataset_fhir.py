@@ -4,7 +4,8 @@ FHIR annotation / push and file access for committed datasets.
 UUIDs in annotations are server-owned: whatever a client sends is re-stamped
 from ``dataset_mapping`` (for a tool: its dataset UUID, name and CWL label,
 with port annotations checked against its CWL; for a workflow: the same, plus
-each step's tool dataset UUID, with the tools' descriptions stored on them). ``POST .../fhir/push`` queues the push job (first
+each step's tool dataset UUID, with the tools' descriptions stored on them; for
+a model: its dataset UUID and name). ``POST .../fhir/push`` queues the push job (first
 push, retry and re-push alike); clients poll ``fhir_status`` via
 ``GET /datasets/{uuid}``. The file endpoint is what FHIR ``endpointUrl`` values
 point at; it requires a token but no particular role.
@@ -16,11 +17,12 @@ from botocore.exceptions import ClientError
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from digitaltwins import tools
+from digitaltwins import models, tools
 from digitaltwins.measurements import jobs, pipeline
 from digitaltwins.measurements.fhir_service import build_fhir_json, compute_endpoint_urls
 from digitaltwins.measurements.tree import build_tree
 from digitaltwins.minio.uploader import Uploader as MinioUploader
+from digitaltwins.models import fhir as model_fhir
 from digitaltwins.tools import fhir as tool_fhir
 from digitaltwins.workflows import fhir as workflow_fhir
 from digitaltwins.workflows.pipeline import annotate_workflow, tool_uuids
@@ -70,6 +72,9 @@ def get_tree(dataset_uuid: str, conn=Depends(get_conn), _creds: dict = Depends(v
     dataset = _dataset_or_404(conn, dataset_uuid)
     if dataset["workflow_type"]:
         return _workflow_tree(conn, dataset_uuid, dataset)
+    if dataset["category"] == models.CATEGORY:
+        return {"descriptions": pipeline.load_annotation(conn, dataset_uuid)
+                or model_fhir.build_descriptions(dataset_uuid, dataset["dataset_name"] or "")}
     if dataset["category"] == tools.CATEGORY:
         root = pipeline.local_dataset(conn, dataset_uuid)
         return {
@@ -97,6 +102,13 @@ def put_annotation(
     conn=Depends(get_conn), _creds: dict = Depends(require_upload_role),
 ):
     dataset = _dataset_or_404(conn, dataset_uuid)
+    if dataset["category"] == models.CATEGORY:
+        try:
+            stamped = model_fhir.build_descriptions(dataset_uuid, dataset["dataset_name"] or "", body.descriptions)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        pipeline.save_annotation(conn, dataset_uuid, stamped)
+        return {"descriptions": stamped}
     try:
         root = pipeline.local_dataset(conn, dataset_uuid)
         if dataset["workflow_type"]:
@@ -145,6 +157,8 @@ def preview_fhir(dataset_uuid: str, conn=Depends(get_conn), _creds: dict = Depen
     descriptions = pipeline.load_annotation(conn, dataset_uuid)
     if descriptions is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No FHIR annotation for this dataset")
+    if dataset["category"] == models.CATEGORY:
+        return model_fhir.to_device(descriptions)
     if dataset["category"] == tools.CATEGORY or dataset["workflow_type"]:
         return descriptions  # what the push hands to digitaltwins-on-fhir
     descriptions = compute_endpoint_urls(descriptions, dataset_uuid, jobs.public_base())

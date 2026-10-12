@@ -150,6 +150,20 @@ print(session["dataset_uuid"], session.get("fhir_status"))
 - A ready-to-run command-line version is at [`examples/upload_measurement_dataset.py`](examples/upload_measurement_dataset.py). It prompts for the password (or reads `DIGITALTWINS_PASSWORD`) and prints a `--resume` command if the upload is interrupted.
 - For small datasets, the one-shot `POST /datasets?category=measurements` (multipart) remains available. It accepts the categories `measurements`, `models`, `tools` and `workflows`; any other value returns `400`.
 
+### Uploading a model dataset
+
+A model dataset (for example trained nnUNet weights) is an SDS folder or `.zip`: a `dataset_description.xlsx` (or `.json`) at the root, and the model files anywhere under `primary/`. No framework-specific layout is checked. Rows in `subjects.xlsx` and `samples.xlsx` are loaded like measurements, but `primary/` folders are never registered as subjects. Models are stored in the MinIO `models` bucket and in Postgres, keyed by dataset UUID, which is how assays and inference workflows refer to them. They are not registered in SEEK.
+
+```python
+session = client.upload_dataset("path/to/model_skin_test", category="models",
+                                fhir_descriptions={"model": {"version": "2.1", "description": "nnUNet skin"}})
+```
+
+- **FHIR is optional.** `fhir=auto` or `fhir_descriptions={"model": {"description", "version"}}` pushes one `Device` identified by the dataset UUID. `uuid` and `name` are set by the server, and `description` defaults to the upload's description. The annotation and push endpoints under `/datasets/<uuid>/fhir/` work as for other categories.
+- **Other clients.** Resumable sessions accept `category="models"`, and the one-shot `POST /datasets?category=models` runs the same validation. Inside the API container, use `scripts/import-dataset.sh <folder|zip> --category models [--fhir auto]`.
+- **Listing and deleting.** `GET /models` lists model datasets. `DELETE /datasets/<uuid>` also deletes the Device.
+- `GET /datasets/uploads?category=models` lists only open model upload sessions.
+
 ### Uploading a tool dataset
 
 A tool dataset is an SDS folder. `primary/` holds exactly one `tool_<name>.cwl`, and the tool itself is in `code/`: a Python script for `tool_type=script`, a Jupyter notebook for `tool_type=notebook`, or the source or built bundle of a GUI/plugin for `tool_type=gui`. Tools have no subjects or samples. A `subjects.xlsx` or `samples.xlsx` in the folder is stored as a file but not loaded into the subject and sample tables.
