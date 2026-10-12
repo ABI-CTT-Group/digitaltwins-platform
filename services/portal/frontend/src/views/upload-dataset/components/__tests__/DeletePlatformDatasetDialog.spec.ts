@@ -18,7 +18,7 @@ const TOOLS = [
 
 let wrapper: ReturnType<typeof mount> | undefined;
 
-async function open(kind: "workflow" | "tool", item = { uuid: "wf-1", name: "workflow_image_conversion" }) {
+async function open(kind: "workflow" | "tool" | "model", item = { uuid: "wf-1", name: "workflow_image_conversion" }) {
   wrapper = mount(DeletePlatformDatasetDialog, {
     props: { kind, item, modelValue: true },
     global: { plugins: [testVuetify()] },
@@ -122,5 +122,23 @@ describe("DeletePlatformDatasetDialog: tool", () => {
 
     expect(text()).toContain("Storage deletion failed");
     expect(w.emitted("deleted")).toBeUndefined();
+  });
+});
+
+describe("DeletePlatformDatasetDialog: model", () => {
+  it("deletes the model without listing tools or mentioning SEEK", async () => {
+    api.deletePlatformDataset.mockResolvedValue({});
+    const w = await open("model", { uuid: "m-1", name: "skin model" });
+
+    expect(api.useWorkflowTools).not.toHaveBeenCalled();
+    expect(text()).toContain("Delete model from the platform");
+    expect(text()).not.toContain("SEEK");
+    expect(button("delete-tool")?.textContent).toContain("Delete model");
+
+    button("delete-tool")!.click();
+    await flushPromises();
+
+    expect(api.deletePlatformDataset).toHaveBeenCalledWith("m-1", undefined);
+    expect(w.emitted("deleted")).toHaveLength(1);
   });
 });

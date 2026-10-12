@@ -1,5 +1,5 @@
 /**
- * Chunked-upload orchestrator for measurement datasets.
+ * Chunked-upload orchestrator for measurement (and model) datasets.
  *
  * Drives the digitaltwins-api upload session from the browser: create session ->
  * fan out part PUTs with bounded concurrency -> finalize (stages the dataset for
@@ -38,6 +38,8 @@ const LS_PREFIX = 'measurement.upload.';
 export interface PendingUpload {
   measurementId: string;
   name: string;
+  /** Session category; entries saved before categories existed are measurements. */
+  category?: string;
   sourceKind: 'folder' | 'zip';
   manifest: UploadManifestEntry[];
 }
@@ -64,10 +66,10 @@ export function clearPending(id: string): void {
  * Exact-manifest match guarantees it's the same dataset, so skipping already-
  * received parts can never splice bytes into the wrong upload.
  */
-export function findResumableUpload(source: LocalSource): string | null {
+export function findResumableUpload(source: LocalSource, category = 'measurements'): string | null {
   const { manifest } = buildManifest(source);
   const key = manifestKey(manifest);
-  for (const p of loadPendingUploads()) {
+  for (const p of loadPendingUploads(category)) {
     if (p.sourceKind === source.kind && manifestKey(p.manifest) === key) {
       return p.measurementId;
     }
@@ -94,15 +96,17 @@ export function serverManifestKey(
   return manifestKey(files.map((f) => ({ relPath: f.relPath, size: f.size, parts: f.parts })));
 }
 
-/** All unfinished uploads recorded in this browser (for the resume prompt). */
-export function loadPendingUploads(): PendingUpload[] {
+/** Unfinished uploads recorded in this browser (for the resume prompt), optionally of one category. */
+export function loadPendingUploads(category?: string): PendingUpload[] {
   const out: PendingUpload[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (!key || !key.startsWith(LS_PREFIX)) continue;
     try {
       const v = JSON.parse(localStorage.getItem(key) ?? '');
-      if (v && typeof v.measurementId === 'string') out.push(v as PendingUpload);
+      if (v && typeof v.measurementId === 'string' && (!category || (v.category ?? 'measurements') === category)) {
+        out.push(v as PendingUpload);
+      }
     } catch {
       // Corrupt entry — skip.
     }
@@ -216,7 +220,7 @@ export class ChunkedUploader {
 
   constructor(
     private source: LocalSource,
-    private meta: { name: string; description?: string },
+    private meta: { name: string; description?: string; category?: string },
     private opts: ChunkedUploaderOptions = {},
     private resumeId?: string,
   ) {}
@@ -300,16 +304,19 @@ export class ChunkedUploader {
       }
     }
     if (!resuming) {
+      const category = this.meta.category ?? 'measurements';
       const res = await useUploadInit({
         name: this.meta.name,
         description: this.meta.description,
         sourceKind: this.source.kind,
         manifest,
+        category,
       });
       this.measurementId = res.measurementId;
       savePending({
         measurementId: res.measurementId,
         name: this.meta.name,
+        category,
         sourceKind: this.source.kind,
         manifest,
       });
