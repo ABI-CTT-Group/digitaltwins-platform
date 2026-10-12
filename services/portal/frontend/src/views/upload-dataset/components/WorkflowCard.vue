@@ -9,18 +9,11 @@
     <template #description>{{ workflow.description || 'No description provided.' }}</template>
 
     <template #meta>
+      <span class="aurora-chip" :style="{ '--chip': registration.color }" :title="registration.title">{{ registration.label }}</span>
+      <span v-if="build" class="aurora-chip" :style="{ '--chip': build.color }">{{ build.label }}</span>
+      <span v-if="type" class="aurora-chip">{{ type.label }}</span>
       <span v-if="workflow.version" class="aurora-chip">v{{ workflow.version }}</span>
       <span v-if="workflow.author" class="aurora-chip">{{ workflow.author }}</span>
-      <span v-if="workflow.status" class="aurora-chip" :style="{ '--chip': auroraStatus(workflow.status) }">
-        {{ workflow.status }}
-      </span>
-      <span v-if="workflow.workflowType" class="aurora-chip">{{ workflow.workflowType }}</span>
-      <span v-if="handoffActive" class="aurora-chip" :style="{ '--chip': '#5fd6e8' }">approving…</span>
-      <span v-else-if="workflow.handoffStatus === 'failed'" class="aurora-chip" :style="{ '--chip': '#ff6b6b' }">
-        approval failed
-      </span>
-      <span v-if="workflow.platformOnly" class="aurora-chip" :style="{ '--chip': '#9fb4bf' }">platform upload</span>
-      <span v-else-if="inPlatform" class="aurora-chip" :style="{ '--chip': '#6fd49a' }">in platform</span>
       <span v-if="workflow.createdAt" class="aurora-chip ms-auto">{{ formatDate(workflow.createdAt) }}</span>
     </template>
   </CardUI>
@@ -31,6 +24,7 @@ import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue'
 import { WorkflowResponse } from '@/models/types';
 import CardUI, { type UCardMenuItem } from './CardUI.vue';
 import { formatDate } from './utils';
+import { buildTag, handoffRegistrationTag, typeTag } from './cardTags';
 import { useWorkflowApprovalStatus, useDeleteWorkflow } from '@/bootstrap/workflow_api';
 // @ts-ignore - vue-toastification is installed but missing type declarations
 import { useToast } from 'vue-toastification';
@@ -45,16 +39,9 @@ const isDeleting = ref(false)
 
 const emit = defineEmits(["submit-approve", "approve-platform", "approval-done", "delete", "delete-platform"])
 
-// Aurora status palette — soft tonal chips keyed by lifecycle state.
-const auroraStatus = (s?: string) => {
-  switch (s) {
-    case "pending": return "#ffb74d"
-    case "building": return "#5fd6e8"
-    case "failed": return "#ff6b6b"
-    case "completed": return "#6fd49a"
-    default: return "#9fb4bf"
-  }
-}
+const registration = computed(() => handoffRegistrationTag(workflow.value, 'sparc-workflow-'))
+const build = computed(() => buildTag(workflow.value))
+const type = computed(() => typeTag(workflow.value.workflowType))
 
 const menuItems = computed<UCardMenuItem[]>(() => workflow.value.platformOnly
   // Uploaded via the REST API: the hub confirms the delete (and whether its tools go too).
@@ -63,9 +50,6 @@ const menuItems = computed<UCardMenuItem[]>(() => workflow.value.platformOnly
     { label: 'Submit to approval', icon: 'mdi-send-check-outline', onClick: workflow.value.isSds ? () => emit("approve-platform", workflow.value) : onSubmit },
     { label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: onDelete },
   ])
-
-// Approved into the platform: a real dataset uuid, not the legacy approval's `sparc-workflow-` placeholder.
-const inPlatform = computed(() => !!workflow.value.uuid && !workflow.value.uuid.startsWith('sparc-workflow-'))
 
 const ACTIVE = ['uploading', 'awaiting_reauth', 'committing']
 const handoffActive = computed(() => ACTIVE.includes(workflow.value.handoffStatus ?? ''))

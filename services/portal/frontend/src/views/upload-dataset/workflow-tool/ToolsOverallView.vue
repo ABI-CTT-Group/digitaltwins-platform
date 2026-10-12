@@ -93,7 +93,7 @@ import { useLogConsole } from '@/composables/useLogConsole';
 // A tool counts as "in platform" once it has a real platform dataset UUID
 // (legacy rows carry a `sparc-tool-` placeholder instead) or was uploaded
 // straight to the platform via the REST API (ToolCard uses the same checks
-// for its "in platform" / "platform upload" badges).
+// for its "in platform" tag; see cardTags.ts).
 const isToolInPlatform = (t: ToolResponse) =>
   !!t.platformOnly || (!!t.uuid && !t.uuid.startsWith('sparc-tool-'));
 

@@ -10,23 +10,17 @@
     <template #description>{{ tool.description || 'No description provided.' }}</template>
 
     <template #meta>
-      <span v-if="tool.version" class="aurora-chip">v{{ tool.version }}</span>
-      <span v-if="tool.author" class="aurora-chip">{{ tool.author }}</span>
-      <span v-if="tool.status" class="aurora-chip" :style="{ '--chip': auroraStatus(tool.status) }">
-        {{ tool.status }}
-      </span>
+      <span class="aurora-chip" :style="{ '--chip': registration.color }" :title="registration.title">{{ registration.label }}</span>
+      <span v-if="build" class="aurora-chip" :style="{ '--chip': build.color }">{{ build.label }}</span>
       <span v-if="tool.deployStatus" class="aurora-chip" :style="{ '--chip': auroraStatus(tool.deployStatus) }">
         deploy · {{ tool.deployStatus }}
       </span>
-      <span v-if="handoffActive" class="aurora-chip" :style="{ '--chip': '#5fd6e8' }">approving…</span>
-      <span v-else-if="tool.handoffStatus === 'failed'" class="aurora-chip" :style="{ '--chip': '#ff6b6b' }">
-        approval failed
-      </span>
+      <span v-if="type" class="aurora-chip">{{ type.label }}</span>
       <span v-if="tool.kind === 'workflow'" class="aurora-chip" :style="{ '--chip': '#7fb2f0' }">
         from workflow {{ tool.workflowName }}
       </span>
-      <span v-else-if="tool.platformOnly" class="aurora-chip" :style="{ '--chip': '#9fb4bf' }">platform upload</span>
-      <span v-else-if="inPlatform" class="aurora-chip" :style="{ '--chip': '#6fd49a' }">in platform</span>
+      <span v-if="tool.version" class="aurora-chip">v{{ tool.version }}</span>
+      <span v-if="tool.author" class="aurora-chip">{{ tool.author }}</span>
       <span v-if="tool.createdAt" class="aurora-chip">{{ formatDate(tool.createdAt) }}</span>
     </template>
 
@@ -56,6 +50,7 @@ import { ToolResponse } from '@/models/types';
 import { useGetDockerComposeStatus, useDeleteTool, useToolApprovalStatus } from '@/bootstrap/tool_api'
 import CardUI, { type UCardMenuItem } from './CardUI.vue';
 import { formatDate } from './utils';
+import { buildTag, handoffRegistrationTag, typeTag } from './cardTags';
 // @ts-ignore - vue-toastification is installed but missing type declarations
 import { useToast } from 'vue-toastification';
 
@@ -74,7 +69,9 @@ const isDeleting = ref(false)
 const accent = computed(() => ({ Script: '#c792ea', Notebook: '#ffb74d' } as Record<string, string>)[tool.value.label] ?? '#5fd6e8')
 const kind = computed(() => ({ Script: 'Script', Notebook: 'Notebook' } as Record<string, string>)[tool.value.label] ?? 'Web GUI Tool')
 
-const inPlatform = computed(() => !!tool.value.uuid && !tool.value.uuid.startsWith('sparc-tool-'))
+const registration = computed(() => handoffRegistrationTag(tool.value, 'sparc-tool-'))
+const build = computed(() => buildTag(tool.value))
+const type = computed(() => typeTag(tool.value.label))
 const handoffActive = computed(() => ['uploading', 'awaiting_reauth', 'committing'].includes(tool.value.handoffStatus ?? ''))
 
 // While an approval is under way, poll it: each poll relays a fresh token to
