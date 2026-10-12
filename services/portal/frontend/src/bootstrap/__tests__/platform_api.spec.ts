@@ -6,34 +6,48 @@ vi.mock("@/bootstrap/http", () => ({ default: {}, dtApi }));
 import {
   datasetInUse,
   deletePlatformDataset,
-  usePlatformWorkflows,
+  withPlatformWorkflows,
   useWorkflowTools,
 } from "@/bootstrap/platform_api";
 
 beforeEach(() => vi.resetAllMocks());
 
-describe("usePlatformWorkflows", () => {
-  it("lists workflow definitions, not other workflows-category datasets or ones the portal knows", async () => {
+describe("withPlatformWorkflows", () => {
+  const portal = (id: string, uuid?: string) => ({ id, name: id, version: "1", repositoryUrl: "", status: "completed",
+    createdAt: "", updatedAt: "", uuid });
+
+  it("appends workflow definitions the portal does not know, not other workflows-category datasets", async () => {
     dtApi.get.mockResolvedValue({
       datasets: [
         { datasetUuid: "wf-1", datasetName: "workflow_image_conversion", workflowType: "script", seekId: "72",
-          createdAt: "2026-10-02T10:00:00" },
+          fhirStatus: "completed", createdAt: "2026-10-02T10:00:00" },
         { datasetUuid: "assay-out", datasetName: "outputs", workflowType: null },
         { datasetUuid: "wf-known", datasetName: "known", workflowType: "gui" },
         { datasetUuid: "wf-2", workflowType: "gui" },
       ],
     });
 
-    const workflows = await usePlatformWorkflows(new Set(["wf-known"]));
+    const workflows = await withPlatformWorkflows([portal("p1", "wf-known")]);
 
     expect(dtApi.get).toHaveBeenCalledWith("/datasets", { categories: "workflows" });
-    expect(workflows.map((w) => w.id)).toEqual(["wf-1", "wf-2"]);
-    expect(workflows[0]).toMatchObject({
+    expect(workflows.map((w) => w.id)).toEqual(["p1", "wf-1", "wf-2"]);
+    expect(workflows[1]).toMatchObject({
       id: "wf-1", uuid: "wf-1", name: "workflow_image_conversion", status: "completed", platformOnly: true,
-      workflowType: "script", description: "Uploaded to the platform directly.",
+      workflowType: "script", description: "Uploaded to the platform directly.", fhirStatus: "completed",
       createdAt: "2026-10-02T10:00:00", updatedAt: "2026-10-02T10:00:00",
     });
-    expect(workflows[1].name).toBe("wf-2");
+    expect(workflows[2].name).toBe("wf-2");
+  });
+
+  it("gives an approved portal workflow its platform dataset's FHIR status", async () => {
+    dtApi.get.mockResolvedValue({
+      datasets: [{ datasetUuid: "wf-a", workflowType: "script", fhirStatus: "failed", fhirFailureMessage: "HAPI 500" }],
+    });
+
+    const [approved, draft] = await withPlatformWorkflows([portal("p1", "wf-a"), portal("p2")]);
+
+    expect(approved).toMatchObject({ id: "p1", fhirStatus: "failed", fhirFailureMessage: "HAPI 500" });
+    expect(draft.fhirStatus).toBeUndefined();
   });
 });
 

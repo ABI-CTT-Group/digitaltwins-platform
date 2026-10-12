@@ -33,16 +33,22 @@ export const looksLikeGitUrl = (url: string): boolean => {
   return false;
 };
 
+/** "just now", "5 minutes ago", "1 day ago"…: whole units, rounded down. */
 export const formatDate = (dateString: string) => {
   const date = new Date(dateString)
   const now = new Date()
   const diffTime = Math.abs(now.getTime() - date.getTime())
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  const ago = (n: number, unit: string) => `${n} ${unit}${n === 1 ? '' : 's'} ago`
 
-  if (diffDays === 1) return '1 day ago'
-  if (diffDays < 30) return `${diffDays} days ago`
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`
-  return `${Math.floor(diffDays / 365)} years ago`
+  const minutes = Math.floor(diffTime / (1000 * 60))
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return ago(minutes, 'minute')
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return ago(hours, 'hour')
+  const diffDays = Math.floor(hours / 24)
+  if (diffDays < 30) return ago(diffDays, 'day')
+  if (diffDays < 365) return ago(Math.floor(diffDays / 30), 'month')
+  return ago(Math.floor(diffDays / 365), 'year')
 }
 
 export const getRepoNameFromUrl = (url: string) => {

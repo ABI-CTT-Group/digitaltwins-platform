@@ -9,14 +9,8 @@
     <template #description>{{ model.description || 'No description provided.' }}</template>
 
     <template #meta>
-      <span class="aurora-chip" :style="{ '--chip': statusColor }">{{ statusLabel }}</span>
-      <span v-if="model.uuid" class="aurora-chip" :style="{ '--chip': '#6fd49a' }">in platform</span>
-      <span v-if="model.hasAnnotation" class="aurora-chip" :style="{ '--chip': '#b08fe8' }">FHIR</span>
+      <span class="aurora-chip" :style="{ '--chip': registration.color }" :title="registration.title">{{ registration.label }}</span>
       <span v-if="model.createdAt" class="aurora-chip ms-auto">{{ formatDate(model.createdAt) }}</span>
-    </template>
-
-    <template v-if="model.failureMessage && (model.status === 'submit_failed' || model.status === 'fhir_failed')" #action>
-      <span class="text-caption failure">{{ model.failureMessage }}</span>
     </template>
   </CardUI>
 </template>
@@ -25,6 +19,7 @@
 import { computed, ref, toRef } from 'vue';
 import CardUI, { type UCardMenuItem } from '../../components/CardUI.vue';
 import { formatDate } from '../../components/utils';
+import { measurementRegistrationTag } from '../../components/cardTags';
 import type { MeasurementResponse } from '@/models/types';
 
 // Statuses are those of measurement_api's adapters: pending_upload (receiving),
@@ -44,23 +39,7 @@ const model = toRef(props, 'model');
 const isDeleting = ref(false);
 const busy = computed(() => model.value.status === 'uploading');
 
-const statusLabel = computed(() => ({
-  pending_upload: 'uploading source…',
-  pending: 'awaiting approval',
-  uploading: 'registering…',
-  submit_failed: 'registration failed',
-  fhir_failed: 'FHIR failed',
-  completed: 'registered',
-} as Record<string, string>)[model.value.status] ?? model.value.status);
-
-const statusColor = computed(() => ({
-  pending_upload: '#5fd6e8',
-  pending: '#9fb4bf',
-  uploading: '#5fd6e8',
-  submit_failed: '#ff6b6b',
-  fhir_failed: '#ffb74d',
-  completed: '#6fd49a',
-} as Record<string, string>)[model.value.status] ?? '#9fb4bf');
+const registration = computed(() => measurementRegistrationTag(model.value));
 
 const menuItems = computed<UCardMenuItem[]>(() => {
   const m = model.value;
@@ -93,7 +72,3 @@ const onCancelUpload = () => {
   emit('cancelUpload', model.value.id);
 };
 </script>
-
-<style scoped>
-.failure { color: #ffb74d; }
-</style>

@@ -9,15 +9,7 @@
     <template #description>{{ measurement.description || 'No description provided.' }}</template>
 
     <template #meta>
-      <span class="aurora-chip" :style="{ '--chip': statusColor }">{{ statusLabel }}</span>
-      <span v-if="measurement.uuid" class="aurora-chip" :style="{ '--chip': '#6fd49a' }">in platform</span>
-      <span
-        v-if="measurement.failureStage && (measurement.status === 'submit_failed' || measurement.status === 'fhir_failed')"
-        class="aurora-chip"
-        :style="{ '--chip': '#ffb74d' }"
-      >
-        stage · {{ measurement.failureStage }}
-      </span>
+      <span class="aurora-chip" :style="{ '--chip': registration.color }" :title="registration.title">{{ registration.label }}</span>
       <span v-if="measurement.createdAt" class="aurora-chip ms-auto">{{ formatDate(measurement.createdAt) }}</span>
     </template>
 
@@ -40,6 +32,7 @@
 import { computed, ref, toRef } from 'vue';
 import CardUI, { type UCardMenuItem } from '../../components/CardUI.vue';
 import { formatDate } from '../../components/utils';
+import { measurementRegistrationTag } from '../../components/cardTags';
 import type { MeasurementResponse } from '@/models/types';
 
 const props = defineProps<{ measurement: MeasurementResponse }>();
@@ -68,30 +61,7 @@ const showApproval = computed(() => !!measurement.value.hasAnnotation && notUplo
 const showEdit = computed(() => notUploaded.value);
 const showAnnotationActions = computed(() => !!measurement.value.hasAnnotation);
 
-const statusLabel = computed(() => {
-  switch (measurement.value.status) {
-    case 'pending_upload': return 'uploading source…';
-    case 'pending': return 'pending';
-    case 'uploading': return 'uploading…';
-    case 'submit_failed': return 'submit failed';
-    case 'fhir_failed': return 'FHIR failed';
-    case 'completed': return 'completed';
-    default: return measurement.value.status;
-  }
-});
-
-// Aurora status palette — soft tonal chips keyed by lifecycle state.
-const statusColor = computed(() => {
-  switch (measurement.value.status) {
-    case 'pending_upload': return '#5fd6e8';
-    case 'pending': return '#9fb4bf';
-    case 'uploading': return '#5fd6e8';
-    case 'submit_failed': return '#ff6b6b';
-    case 'fhir_failed': return '#ffb74d';
-    case 'completed': return '#6fd49a';
-    default: return '#9fb4bf';
-  }
-});
+const registration = computed(() => measurementRegistrationTag(measurement.value));
 
 const menuItems = computed<UCardMenuItem[]>(() => {
   // A pending_upload row is a placeholder for an in-flight chunked upload. The

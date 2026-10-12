@@ -74,7 +74,7 @@ export async function useWorkflowTools(): Promise<ToolResponse[]> {
     (id) => `/tools/plugin/${id}/builds`,
     // Enrich with deploy status for GUI tools whose latest build completed
     async (tool, latestBuild) => {
-      const handoff = { handoffStatus: latestBuild.handoffStatus ?? null };
+      const handoff = { handoffStatus: latestBuild.handoffStatus ?? null, handoffError: latestBuild.handoffError };
       if (!tool.hasBackend || latestBuild.status !== 'completed') return handoff;
       try {
         const deploys = await http.get<ToolDeployResponse[]>(
@@ -103,18 +103,27 @@ export async function useWorkflowTools(): Promise<ToolResponse[]> {
 
 const PLATFORM_LABELS: Record<string, string> = { gui: "GUI", script: "Script", notebook: "Notebook" };
 
-/** Tools in the platform that no portal plugin produced (uploaded through the REST API). */
-export async function usePlatformTools(known: Set<string>): Promise<ToolResponse[]> {
+/** The portal's tools, each with its platform dataset's FHIR status, then the tools in the
+ *  platform that no portal plugin produced (uploaded through the REST API). */
+export async function withPlatformTools(tools: ToolResponse[]): Promise<ToolResponse[]> {
   const res = await dtApi.get<{ datasets: PlatformToolDataset[] }>("/datasets", { categories: "tools" });
-  return (res.datasets ?? [])
-    .filter((d) => !known.has(d.datasetUuid) && PLATFORM_LABELS[d.toolType ?? ""])
+  const datasets = new Map((res.datasets ?? []).map((d) => [d.datasetUuid, d]));
+  const known = tools.map((t) => {
+    const d = t.uuid ? datasets.get(t.uuid) : undefined;
+    return d ? { ...t, fhirStatus: d.fhirStatus, fhirFailureMessage: d.fhirFailureMessage } : t;
+  });
+  const knownUuids = new Set(tools.map((t) => t.uuid));
+  const platform = [...datasets.values()]
+    .filter((d) => !knownUuids.has(d.datasetUuid) && PLATFORM_LABELS[d.toolType ?? ""])
     .map((d) => ({
       id: d.datasetUuid, uuid: d.datasetUuid, name: d.datasetName || d.datasetUuid, version: "",
       label: PLATFORM_LABELS[d.toolType!], description: "Uploaded to the platform directly.",
       status: "completed", platformOnly: true, hasBackend: false, toolMetadata: {}, repositoryUrl: "",
       frontendFolder: "", frontendBuildCommand: "", backendDeployCommand: "",
+      fhirStatus: d.fhirStatus, fhirFailureMessage: d.fhirFailureMessage,
       createdAt: d.createdAt ?? "", updatedAt: d.createdAt ?? "",
     }));
+  return [...known, ...platform];
 }
 
 /** gui SDS workflows' tools as Tool Hub rows; their workflow builds them (GET /api/workflow/gui-tools). */
@@ -131,12 +140,11 @@ export async function useToolHub(): Promise<ToolResponse[]> {
       return [] as ToolResponse[];
     }),
   ]);
-  const known = new Set([...tools, ...workflowTools].map((t) => t.uuid).filter((u): u is string => !!u));
-  const platform = await usePlatformTools(known).catch((err) => {
+  const portal = [...tools, ...workflowTools];
+  return withPlatformTools(portal).catch((err) => {
     console.warn("Failed to list platform tools:", err);
-    return [] as ToolResponse[];
+    return portal;
   });
-  return [...tools, ...workflowTools, ...platform];
 }
 
 export async function useDeployWorkflowTool(workflowId: string) {

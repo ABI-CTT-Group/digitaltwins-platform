@@ -11,22 +11,33 @@ interface PlatformWorkflowDataset {
   datasetUuid: string;
   datasetName?: string;
   workflowType?: string | null;
+  fhirStatus?: string;
+  fhirFailureMessage?: string;
   createdAt?: string;
 }
 
 const WORKFLOW_TYPES = new Set(["script", "notebook", "gui"]);
 
-/** Platform workflow definitions the portal does not know (``known``: portal workflows' uuids).
- *  Assay workspace outputs share the category but have no ``workflowType``. */
-export async function usePlatformWorkflows(known: Set<string>): Promise<WorkflowResponse[]> {
+/** The portal's workflows, each with its platform dataset's FHIR status, then the platform
+ *  workflow definitions the portal does not know. Assay workspace outputs share the category
+ *  but have no ``workflowType``. */
+export async function withPlatformWorkflows(workflows: WorkflowResponse[]): Promise<WorkflowResponse[]> {
   const res = await dtApi.get<{ datasets: PlatformWorkflowDataset[] }>("/datasets", { categories: "workflows" });
-  return (res.datasets ?? [])
-    .filter((d) => !known.has(d.datasetUuid) && WORKFLOW_TYPES.has(d.workflowType ?? ""))
+  const datasets = new Map((res.datasets ?? []).map((d) => [d.datasetUuid, d]));
+  const known = workflows.map((w) => {
+    const d = w.uuid ? datasets.get(w.uuid) : undefined;
+    return d ? { ...w, fhirStatus: d.fhirStatus, fhirFailureMessage: d.fhirFailureMessage } : w;
+  });
+  const knownUuids = new Set(workflows.map((w) => w.uuid));
+  const platform = [...datasets.values()]
+    .filter((d) => !knownUuids.has(d.datasetUuid) && WORKFLOW_TYPES.has(d.workflowType ?? ""))
     .map((d) => ({
       id: d.datasetUuid, uuid: d.datasetUuid, name: d.datasetName || d.datasetUuid, version: "", repositoryUrl: "",
       description: "Uploaded to the platform directly.", status: "completed", platformOnly: true,
-      workflowType: d.workflowType ?? undefined, createdAt: d.createdAt ?? "", updatedAt: d.createdAt ?? "",
+      workflowType: d.workflowType ?? undefined, fhirStatus: d.fhirStatus, fhirFailureMessage: d.fhirFailureMessage,
+      createdAt: d.createdAt ?? "", updatedAt: d.createdAt ?? "",
     }));
+  return [...known, ...platform];
 }
 
 /** The tool datasets a platform workflow's steps run. */

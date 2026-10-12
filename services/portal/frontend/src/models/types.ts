@@ -202,6 +202,10 @@ export interface ToolResponse {
     seekProjectId?: number
     // Handoff to the platform of the latest build (see ToolApprovalStatus).
     handoffStatus?: HandoffStatus | null
+    handoffError?: string
+    // FHIR push of the platform dataset (approved or platform-only tools).
+    fhirStatus?: string
+    fhirFailureMessage?: string
     // A tool uploaded to the platform directly (REST API), with no portal build: listed read-only.
     platformOnly?: boolean
     // A gui SDS workflow's tool (GET /api/workflow/gui-tools): built, approved and deleted with its workflow.
@@ -340,6 +344,10 @@ export interface WorkflowResponse {
     seekProjectId?: number;
     // Handoff to the platform of the latest build (SDS workflows; see ToolApprovalStatus).
     handoffStatus?: HandoffStatus | null;
+    handoffError?: string;
+    // FHIR push of the platform dataset (approved or platform-only workflows).
+    fhirStatus?: string;
+    fhirFailureMessage?: string;
 }
 
 /** A platform dataset linked to another: a workflow's tool, or a workflow that runs a tool. */
