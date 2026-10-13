@@ -18,7 +18,7 @@ locked-down / airgapped deployment.
 The API's SEEK client extracts the Keycloak token from the caller and dynamically injects it into every downstream SEEK request:
 
 ```python
-# services/api/digitaltwins-api/src/digitaltwins/seek/querier.py
+# services/api/src/digitaltwins/seek/querier.py
 self._api_token = api_token # Injected via Depends(get_querier)
 ...
 "Authorization": "Bearer " + self._api_token
@@ -26,7 +26,7 @@ self._api_token = api_token # Injected via Depends(get_querier)
 
 On the SEEK side, the request is intercepted before hitting Rails controllers. We monkey-patch the `AuthenticatedSystem` module to decode and verify the JWT signature against the Keycloak JWKS public keys. 
 
-If valid, SEEK looks up the Keycloak UUID (`sub`) in the `identities` table (where `provider: 'keycloak'`). If a match is found, the request executes as that SEEK user.
+If valid, SEEK looks up the Keycloak UUID (`sub`) in the `identities` table (where `provider: 'oidc'`). If a match is found, the request executes as that SEEK user.
 
 ## What the token grants
 
@@ -63,7 +63,7 @@ SEEK enforces its own per-item sharing at its web UI, independent of the platfor
 
 ## Hardening notes for a secure / airgapped deployment
 
-- **Ensure Keycloak sync:** Ensure the synchronization between Keycloak and SEEK users operates correctly so that the `identities` mapping is intact. A missing mapping means the user will be treated as an anonymous caller by SEEK.
+- **Link each user's SEEK identity:** There is no automatic Keycloak→SEEK user sync. The `identities` row (`provider: 'oidc'`, `uid: <keycloak sub>`) is created only when a user first signs into the `/seek` UI via "Sign in with Keycloak" and completes SEEK's registration. Until then the user's JWT maps to no SEEK user and SEEK treats the call as anonymous — reads see only public items and writes (tool/workflow registration, SOP creation) fail. Have every platform user do that one-time SEEK login.
 - **Default new items to private** so a study isn't inadvertently made public by
   accepting a default sharing policy.
 - **After a `portal-restore`**, SEEK's user DB is the *source's* — that includes
@@ -75,6 +75,6 @@ SEEK enforces its own per-item sharing at its web UI, independent of the platfor
 | Piece | Location |
 |---|---|
 | SEEK JWT Auth Interceptor | `services/seek/ldh-deployment/keycloak_jwt_auth.rb` |
-| Token forwarded (bearer) | `services/api/digitaltwins-api/src/digitaltwins/seek/querier.py` |
-| API Dependency Injection | `services/api/digitaltwins-api/app/routers/query.py` |
+| Token forwarded (bearer) | `services/api/src/digitaltwins/seek/querier.py` |
+| API Dependency Injection | `services/api/app/routers/dependencies.py` (`get_querier`) |
 | `/seek` gateway route | passthrough — see gateway-routes table in `util/README.md` |
