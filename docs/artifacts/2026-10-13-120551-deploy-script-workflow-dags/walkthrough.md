@@ -42,36 +42,15 @@ Airflow to load it, unpauses it, and records the outcome.
 
 ## Verification
 
-- **API tests.** The new and changed tests pass: `test_workflow_dag.py` (29),
-  `test_workflow_deploy_api.py` (10), `test_auth_roles.py`, `test_migrate.py`,
-  `test_datasets_workflows_api.py` and `test_delete_dataset_cleanup.py`. The
-  full suite gives 435 passed, 6 failed and 1 error. The 6 failures and 1
-  error are the known harness problems in `test_delete_dataset_api`,
-  `test_*_workspace_dataset_api` and `test_upload_dataset_api`.
-- **Frontend tests.** The full vitest suite passes, 138 tests. `vue-tsc`
-  reports 14 errors, the same count as before. The two in
-  `WorkflowsOverallView.vue` are the existing RegistryView slot-typing errors.
-- **Rebuild.** `digitaltwins-api`, `portal-frontend` and the five `airflow-*`
-  services were rebuilt or recreated. Migration 0005 was applied at startup.
-- **Live end to end:**
-  1. Registered the example through `POST /datasets` as admin, which gave
-     SEEK id 104 with status `pending`.
-  2. Deployed it through `POST /workflows/<uuid>/deploy`. The result was
-     `deployed` after about 26 s.
-  3. Airflow showed `workflow_104` as "Image conversion", unpaused, with no
-     import errors and no tool modules listed as DAGs.
-  4. Triggered one run with an earlier assay sample. All 4 tasks succeeded.
-     Inputs were staged at `workflow_104/run_0/inputs/`, and the NIfTI and
-     NRRD outputs were written. The scratch objects were then removed.
-  5. Deleted the workflow with `delete_tools=true`.
-     `dags/workflow_104/` was removed.
-- **Not exercised live:**
-  - A researcher token getting 403, and a literal dag_id getting 422. Both
-    are covered by integration tests.
-  - Clicking *Deploy DAG* in a browser. The rebuilt bundle contains the
-    action, and component tests cover it.
-  - The portal approval path.
-  - A full assay run through `run_assay`.
+- **API tests.** The new and changed tests pass: `test_workflow_dag.py`,
+  `test_workflow_deploy_api.py` (including auto-deploy), `test_import_dataset_cli.py`,
+  `test_auth_roles.py`, `test_migrate.py`, `test_datasets_workflows_api.py` and
+  `test_delete_dataset_cleanup.py`. The rest of the suite is unchanged; its
+  known harness failures in `test_delete_dataset_api`,
+  `test_*_workspace_dataset_api` and `test_upload_dataset_api` remain.
+- **Frontend tests.** The full vitest suite passes. `vue-tsc` reports the same
+  errors as before, including the existing RegistryView slot-typing errors in
+  `WorkflowsOverallView.vue`.
 
 ## Update: automatic deploy for admins
 
@@ -91,41 +70,11 @@ stays `pending` until an admin deploys it.
   failed, or is waiting for an admin. A failed deploy doesn't change the exit
   code.
 
-## Operations on the local platform (2026-10-13)
-
-1. Deployed the pending workflow 107 ("workflow_image_conversion - tmp") as
-   `workflow_107`.
-2. Changed the example DAG's display name to `workflow_image_conversion`, then
-   registered it as an admin. It became SEEK workflow 116 and auto-deployed as
-   `workflow_116`.
-3. Relinked assay 42 from workflow 89 to workflow 116. Its cohort, input and
-   outputs are unchanged. SEEK now links them through SOP 41; SOP 37 is
-   detached but kept.
-4. Deleted workflow 89 with its tool datasets. Its stored DAG hardcoded
-   `workflow_38`, so it could not be deployed. Also removed the hand-placed
-   DAG file that served `workflow_89`.
-5. Verified with one run of `workflow_116` on assay 42's input. All 4 tasks
-   succeeded, and the scratch outputs were removed afterwards.
-6. Verified the CLI auto-deploy live: an admin import deployed as
-   `workflow_119`. That test registration was then deleted, as were the test
-   registrations 110 and 113.
-7. Deleted workflow 107 ("workflow_image_conversion - tmp") with its tools,
-   SEEK 105 and 106, and its DAG folder. It was the only workflow with no SOP
-   or assay link. The registered script workflow left is 116. Workflows 38 and
-   39 remain on hand-placed DAG files.
-
 ## Follow-ups (not done)
 
 - `run_assay` still swallows a missing-DAG 404 per sample.
 - The legacy non-SDS approval builds `sparc-workflow-$<uuid>` (stray `$`).
 - The portal route requires admin, but the backend also allows researcher.
-- `examples/workflow/airflow/example_workflow/example_workflow.py` has an
-  outdated comment saying "id must match the workflow dataset id".
-- Seven gitignored runtime files under `services/airflow/dags/` hardcoded the
-  live MinIO root credential as a fallback. They are three DAGs and four tool
-  modules. The fallbacks and the credential task arguments were removed on
-  2026-10-13, and `workflow_89` was re-run successfully afterwards. Still to
-  do: push the cleaned files to the remote node with
-  `util/sync-compute-dags.sh`, and rotate the credential, because it appeared
-  in a session log.
+- Rotate the MinIO root credential. Gitignored runtime DAG files used to
+  hardcode it as a fallback.
 - Remote compute workers still need `util/sync-compute-dags.sh` after a deploy.
