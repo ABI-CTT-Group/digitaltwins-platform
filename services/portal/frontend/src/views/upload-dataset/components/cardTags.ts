@@ -5,6 +5,7 @@
  *  - Registration (every card): upload paused · draft · registering… ·
  *    registration failed · in platform (amber when FHIR or a re-approval failed).
  *  - `build · <status>` (portal-built tools and workflows).
+ *  - `deploy · <status>` (a script workflow's Airflow DAG).
  *  - Type: gui · script · notebook (tools and workflows).
  *
  * Colours: grey waits for the user, cyan runs, green is done, red failed,
@@ -81,6 +82,14 @@ const BUILD_COLORS: Record<string, string> = { pending: AMBER, building: CYAN, c
 export function buildTag(item: { status?: string; platformOnly?: boolean }): CardTag | null {
   if (item.platformOnly || !item.status) return null;
   return { label: `build · ${item.status}`, color: BUILD_COLORS[item.status] ?? GREY };
+}
+
+const DEPLOY_COLORS: Record<string, string> = { pending: GREY, deploying: CYAN, deployed: GREEN, failed: RED };
+
+/** `deploy · <status>` for a script workflow's Airflow DAG; null for a workflow without one. */
+export function deployTag(status?: string | null, error?: string | null): CardTag | null {
+  if (!status) return null;
+  return withTitle({ label: `deploy · ${status}`, color: DEPLOY_COLORS[status] ?? GREY }, error ?? undefined);
 }
 
 const TYPES = ['gui', 'script', 'notebook'];

@@ -11,6 +11,7 @@
     <template #meta>
       <span class="aurora-chip" :style="{ '--chip': registration.color }" :title="registration.title">{{ registration.label }}</span>
       <span v-if="build" class="aurora-chip" :style="{ '--chip': build.color }">{{ build.label }}</span>
+      <span v-if="deploy" class="aurora-chip" :style="{ '--chip': deploy.color }" :title="deploy.title">{{ deploy.label }}</span>
       <span v-if="type" class="aurora-chip">{{ type.label }}</span>
       <span v-if="workflow.version" class="aurora-chip">v{{ workflow.version }}</span>
       <span v-if="workflow.author" class="aurora-chip">{{ workflow.author }}</span>
@@ -24,30 +25,44 @@ import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue'
 import { WorkflowResponse } from '@/models/types';
 import CardUI, { type UCardMenuItem } from './CardUI.vue';
 import { formatDate } from './utils';
-import { buildTag, handoffRegistrationTag, typeTag } from './cardTags';
+import { buildTag, deployTag, handoffRegistrationTag, typeTag } from './cardTags';
 import { useWorkflowApprovalStatus, useDeleteWorkflow } from '@/bootstrap/workflow_api';
 // @ts-ignore - vue-toastification is installed but missing type declarations
 import { useToast } from 'vue-toastification';
 
 const props = defineProps<{
   workflow: WorkflowResponse
+  /** The viewer may deploy script workflow DAGs into Airflow (admins). */
+  canDeploy?: boolean
 }>()
 
 const toast = useToast();
 const workflow = toRef(props, "workflow")
 const isDeleting = ref(false)
 
-const emit = defineEmits(["submit-approve", "approve-platform", "approval-done", "delete", "delete-platform"])
+const emit = defineEmits(["submit-approve", "approve-platform", "approval-done", "delete", "delete-platform", "deploy-dag"])
 
 const registration = computed(() => handoffRegistrationTag(workflow.value, 'sparc-workflow-'))
 const build = computed(() => buildTag(workflow.value))
 const type = computed(() => typeTag(workflow.value.workflowType))
 
+const deploy = computed(() => deployTag(workflow.value.dagStatus, workflow.value.dagError))
+
+// A script workflow in the platform has an Airflow DAG an admin can deploy (again).
+const inPlatform = computed(() => !!workflow.value.platformOnly
+  || (!!workflow.value.uuid && !workflow.value.uuid.startsWith('sparc-workflow-')))
+const deployItem = computed<UCardMenuItem[]>(() =>
+  props.canDeploy && workflow.value.workflowType === 'script' && inPlatform.value && workflow.value.dagStatus !== 'deploying'
+    ? [{ label: 'Deploy DAG', icon: 'mdi-rocket-launch-outline', onClick: () => emit("deploy-dag", workflow.value) }]
+    : [])
+
 const menuItems = computed<UCardMenuItem[]>(() => workflow.value.platformOnly
   // Uploaded via the REST API: the hub confirms the delete (and whether its tools go too).
-  ? [{ label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: () => emit("delete-platform", workflow.value) }]
+  ? [...deployItem.value,
+    { label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: () => emit("delete-platform", workflow.value) }]
   : [
     { label: 'Submit to approval', icon: 'mdi-send-check-outline', onClick: workflow.value.isSds ? () => emit("approve-platform", workflow.value) : onSubmit },
+    ...deployItem.value,
     { label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: onDelete },
   ])
 

@@ -348,6 +348,9 @@ export interface WorkflowResponse {
     // FHIR push of the platform dataset (approved or platform-only workflows).
     fhirStatus?: string;
     fhirFailureMessage?: string;
+    /** Airflow DAG deploy of a script workflow: pending | deploying | deployed | failed. */
+    dagStatus?: string | null;
+    dagError?: string | null;
 }
 
 /** A platform dataset linked to another: a workflow's tool, or a workflow that runs a tool. */
