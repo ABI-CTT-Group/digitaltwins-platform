@@ -259,7 +259,7 @@ def _create_sds_output(
         subjects_meta = dataset.get_metadata("subjects")
         subjects_meta.clear_values("subject id")
         # Ensure unique subjects
-        unique_subjects = list(set([s["subject_id"].replace("sub-", "") for s in samples]))
+        unique_subjects = list(set([f'sub-{s["subject_id"].replace("sub-", "")}' for s in samples]))
         subjects_meta.add_values("subject id", unique_subjects)
     except Exception as e:
         logger.warning("Failed to set subjects metadata: %s", e)
@@ -296,8 +296,8 @@ def _create_sds_output(
                 output_mappings[(subject_key, sample_key)][out_name] = new_sam_id
                 subject_sample_counter[sub_id] += 1
                 
-                subject_ids.append(sub_id)
-                sample_ids.append(new_sam_id)
+                subject_ids.append(f"sub-{sub_id}")
+                sample_ids.append(f"sam-{new_sam_id}")
                 sample_types.append(sample_type)
 
         samples_meta.add_values("subject id", subject_ids)
@@ -392,6 +392,51 @@ def _create_sds_output(
         logger.warning("Failed to create empty S3 directories: %s", e)
 
     return s3_prefix, output_mappings
+
+
+def _reconcile_manifest(dataset_dir: str) -> None:
+    """Make ``manifest.xlsx`` name the files actually under ``primary/``.
+
+    The manifest is written before the run, with guessed file names. A row is kept if
+    its file exists, renamed to the unlisted file in its sample folder, or dropped when
+    that folder has none left; unlisted files get a row copied from their folder's.
+    See docs/decisions/2026-10-13-assay-output-manifest-from-files.md.
+    """
+    manifest = Path(dataset_dir) / "manifest.xlsx"
+    primary = Path(dataset_dir) / "primary"
+    if not manifest.is_file() or not primary.is_dir():
+        return
+
+    files = sorted(p.relative_to(primary).as_posix() for p in primary.rglob("*") if p.is_file())
+    folder = lambda rel: rel.rsplit("/", 1)[0]
+
+    import openpyxl
+    wb = openpyxl.load_workbook(manifest)
+    ws = wb.active
+    header = [str(c.value).strip().lower() if c.value else "" for c in ws[1]]
+    col = header.index("filename")
+    rows = [r for r in ws.iter_rows(min_row=2) if r[col].value]
+
+    listed = {r[col].value for r in rows}
+    unlisted = [f for f in files if f not in listed]
+    template = {}
+    for row in rows:
+        name = row[col].value
+        if name not in files:
+            match = next((f for f in unlisted if folder(f) == folder(name)), None)
+            if match is None:
+                logger.warning("Manifest row %s has no file; dropping it", name)
+                ws.delete_rows(row[col].row)
+                continue
+            unlisted.remove(match)
+            row[col].value = match
+        template.setdefault(folder(row[col].value), [c.value for c in row])
+
+    for f in unlisted:
+        values = list(template.get(folder(f), [None] * len(header)))
+        values[col] = f
+        ws.append(values)
+    wb.save(manifest)
 
 
 # ── Query endpoints ───────────────────────────────────────────────────
@@ -860,7 +905,8 @@ async def upload_workspace_datasets(
             if os.path.isdir(item_path):
                 # determine category
                 category = category_map.get(item, "workflows")
-                
+                _reconcile_manifest(item_path)
+
                 # upload
                 dataset_uuid = uploader.upload_dataset(
                     dataset_path=item_path,
