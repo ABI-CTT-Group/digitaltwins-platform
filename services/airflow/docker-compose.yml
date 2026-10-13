@@ -65,6 +65,9 @@ x-airflow-common:
     AIRFLOW__CELERY__BROKER_URL: redis://:${REDIS_PASSWORD:?set REDIS_PASSWORD in secrets.env}@redis:6379/0
     AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:?set AIRFLOW__CORE__FERNET_KEY in secrets.env}
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    # Scan the dags folder for new files every 30 s (default 300), so a DAG deployed through
+    # digitaltwins-api's POST /workflows/{uuid}/deploy loads within its wait.
+    AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL: '30'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/airflow/execution/'
     # Mounts the Airflow UI under the gateway's /airflow route. Without it the api-server

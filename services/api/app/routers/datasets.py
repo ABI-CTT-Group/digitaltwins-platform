@@ -35,11 +35,11 @@ from digitaltwins.measurements.validation import (
 )
 from digitaltwins.tools import fhir as tool_fhir
 from digitaltwins.tools.pipeline import SeekRegistrationError, annotate_tool, commit_tool
-from digitaltwins.workflows import fhir as workflow_fhir
+from digitaltwins.workflows import deploy, fhir as workflow_fhir
 from digitaltwins.workflows.pipeline import annotate_workflow, commit_workflow, linked_tools
 from digitaltwins.workflows.validation import load_workflow
 from . import dataset_uploads
-from .auth import require_upload_role, validate_credentials
+from .auth import has_admin_role, require_upload_role, validate_credentials
 from .dataset_uploads import _max_upload_bytes, get_conn
 from .dependencies import get_querier, get_uploader, get_downloader, get_deleter
 
@@ -412,6 +412,8 @@ async def upload_dataset(
                     _ingest_workflow, dataset_dir_path, workflow_type, seek_project_id, _creds["token"],
                     fhir, fhir_descriptions,
                 )
+                if workflow_type == "script" and has_admin_role(_creds):
+                    background.add_task(deploy.auto_deploy, result["dataset_uuid"])
             elif model:
                 result = await run_in_threadpool(_ingest_model, dataset_dir_path, fhir, fhir_descriptions)
             else:

@@ -115,6 +115,11 @@ def password_login(username: Optional[str] = None) -> str:
     return body["access_token"]
 
 
+def is_admin(token: str) -> bool:
+    """Whether ``token`` carries the ``admin`` realm role (an admin's script workflow import deploys its DAG)."""
+    return "admin" in verify_token(token).get("realm_access", {}).get("roles", [])
+
+
 def login(use_password: bool = False, username: Optional[str] = None) -> Tuple[str, str]:
     """Authenticate (device flow first, unless ``use_password``) and enforce the upload role.
 

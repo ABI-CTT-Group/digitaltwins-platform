@@ -6,6 +6,7 @@ const api = vi.hoisted(() => ({ useWorkflowHub: vi.fn(), useMeasurement: vi.fn()
 vi.mock("@/bootstrap/http", () => ({ default: {}, dtApi: {} }));
 vi.mock("@/bootstrap/tool_api", () => ({}));
 vi.mock("@/bootstrap/platform_api", () => ({}));
+vi.mock("@/store/auth_store", () => ({ useAuthStore: () => ({ hasAdminRole: false }) }));
 vi.mock("@/bootstrap/workflow_api", () => ({ useWorkflowHub: api.useWorkflowHub }));
 vi.mock("@/bootstrap/measurement_api", () => ({ useMeasurement: api.useMeasurement }));
 vi.mock("@/bootstrap/model_api", () => ({ useModels: api.useModels }));

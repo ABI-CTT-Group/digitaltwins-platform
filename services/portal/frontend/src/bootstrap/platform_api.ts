@@ -1,7 +1,8 @@
 /**
  * Datasets uploaded to the platform directly (digitaltwins-api REST, CLI), which
- * no portal record produced: listing platform workflows, and deleting platform
- * workflows / tools. Portal-built ones keep using the portal backend.
+ * no portal record produced: listing platform workflows, deleting platform
+ * workflows / tools, and deploying any registered script workflow's DAG.
+ * Portal-built ones keep using the portal backend otherwise.
  */
 import { dtApi } from "./http";
 import type { PlatformLink, WorkflowResponse } from "@/models/types";
@@ -13,6 +14,8 @@ interface PlatformWorkflowDataset {
   workflowType?: string | null;
   fhirStatus?: string;
   fhirFailureMessage?: string;
+  dagStatus?: string | null;
+  dagError?: string | null;
   createdAt?: string;
 }
 
@@ -26,7 +29,9 @@ export async function withPlatformWorkflows(workflows: WorkflowResponse[]): Prom
   const datasets = new Map((res.datasets ?? []).map((d) => [d.datasetUuid, d]));
   const known = workflows.map((w) => {
     const d = w.uuid ? datasets.get(w.uuid) : undefined;
-    return d ? { ...w, fhirStatus: d.fhirStatus, fhirFailureMessage: d.fhirFailureMessage } : w;
+    return d
+      ? { ...w, fhirStatus: d.fhirStatus, fhirFailureMessage: d.fhirFailureMessage, dagStatus: d.dagStatus, dagError: d.dagError }
+      : w;
   });
   const knownUuids = new Set(workflows.map((w) => w.uuid));
   const platform = [...datasets.values()]
@@ -35,6 +40,7 @@ export async function withPlatformWorkflows(workflows: WorkflowResponse[]): Prom
       id: d.datasetUuid, uuid: d.datasetUuid, name: d.datasetName || d.datasetUuid, version: "", repositoryUrl: "",
       description: "Uploaded to the platform directly.", status: "completed", platformOnly: true,
       workflowType: d.workflowType ?? undefined, fhirStatus: d.fhirStatus, fhirFailureMessage: d.fhirFailureMessage,
+      dagStatus: d.dagStatus, dagError: d.dagError,
       createdAt: d.createdAt ?? "", updatedAt: d.createdAt ?? "",
     }));
   return [...known, ...platform];
@@ -49,6 +55,12 @@ export async function useWorkflowTools(uuid: string): Promise<PlatformLink[]> {
 /** DELETE a platform dataset; for a workflow, ``deleteTools`` says whether its tools go too. */
 export async function deletePlatformDataset(uuid: string, deleteTools?: boolean) {
   return dtApi.delete(`/datasets/${uuid}`, deleteTools === undefined ? undefined : { deleteTools });
+}
+
+/** Deploy a registered script workflow's DAG into Airflow (admin only); resolves once Airflow
+ *  has loaded it or reported why not. */
+export async function deployWorkflowDag(uuid: string) {
+  return dtApi.post<{ dagId: string; dagStatus: string; dagError: string | null }>(`/workflows/${uuid}/deploy`);
 }
 
 interface RawLink {

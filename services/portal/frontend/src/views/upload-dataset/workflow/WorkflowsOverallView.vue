@@ -30,11 +30,13 @@
         v-for="w in items"
         :key="w.id"
         :workflow="w"
+        :can-deploy="authStore.hasAdminRole"
         @delete="handleDeleteWorkflow"
         @delete-platform="openPlatformDelete"
         @submit-approve="(id) => handleWorkflowApproval(id)"
         @approve-platform="openApproval"
         @approval-done="onApprovalDone"
+        @deploy-dag="handleDeployDag"
       />
     </template>
   </RegistryView>
@@ -54,9 +56,12 @@ import WorkflowCard from '../components/WorkflowCard.vue';
 import DeletePlatformDatasetDialog from '../components/DeletePlatformDatasetDialog.vue';
 import ToolApprovalDialog from '../components/ToolApprovalDialog.vue';
 import { useWorkflowHub, useWorkflowApproval } from '@/bootstrap/workflow_api';
+import { deployWorkflowDag } from '@/bootstrap/platform_api';
+import { useAuthStore } from '@/store/auth_store';
 import type { ToolApprovalStatus, WorkflowResponse } from '@/models/types';
 
 const toast = useToast();
+const authStore = useAuthStore();
 const registryRef = ref<{ handleRefresh: () => Promise<void> }>();
 const emit = defineEmits(['register']);
 
@@ -103,6 +108,20 @@ const openApproval = (w: WorkflowResponse) => {
 const onApprovalDone = async (status: ToolApprovalStatus | null) => {
   if (status?.handoffStatus === 'completed') toast.success('Workflow approved into the platform.');
   else if (status?.handoffStatus === 'failed') toast.error(`Approval failed: ${status.handoffError ?? 'unknown error'}`);
+  await registryRef.value?.handleRefresh();
+};
+
+// An admin deploys a script workflow's DAG into Airflow; the platform API answers once
+// Airflow has loaded it or said why not.
+const handleDeployDag = async (w: WorkflowResponse) => {
+  w.dagStatus = 'deploying';
+  try {
+    const res = await deployWorkflowDag(w.uuid ?? w.id);
+    if (res.dagStatus === 'deployed') toast.success(`DAG ${res.dagId} deployed to Airflow.`);
+    else toast.error(`DAG deploy failed: ${res.dagError ?? 'unknown error'}`);
+  } catch (err: any) {
+    toast.error(`DAG deploy failed: ${err?.response?.data?.detail ?? err?.message ?? err}`);
+  }
   await registryRef.value?.handleRefresh();
 };
 

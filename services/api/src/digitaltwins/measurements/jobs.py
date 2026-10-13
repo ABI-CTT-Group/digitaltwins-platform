@@ -122,8 +122,11 @@ def run_commit_job(upload_id: str, api_token: Optional[str] = None) -> None:
         conn.close()
 
 
-def run_commit_and_push(upload_id: str, api_token: Optional[str] = None) -> None:
-    """Commit, then push FHIR straight away when the session asked for it."""
+def run_commit_and_push(upload_id: str, api_token: Optional[str] = None, deploy_dag: bool = False) -> None:
+    """Commit, then push FHIR straight away when the session asked for it.
+
+    ``deploy_dag`` (an admin committed it): a script workflow's DAG is then deployed to Airflow.
+    """
     run_commit_job(upload_id, api_token)
     conn = _connect()
     try:
@@ -133,6 +136,10 @@ def run_commit_and_push(upload_id: str, api_token: Optional[str] = None) -> None
         conn.close()
     if dataset and dataset["fhir_status"] == "pending":
         run_fhir_push_job(session["dataset_uuid"])
+    if deploy_dag and dataset and dataset["workflow_type"] == "script":
+        from ..workflows.deploy import auto_deploy
+
+        auto_deploy(session["dataset_uuid"])
 
 
 def public_base() -> str:

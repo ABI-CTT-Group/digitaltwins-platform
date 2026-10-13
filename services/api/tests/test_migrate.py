@@ -189,3 +189,26 @@ def test_workflow_migration_adds_types_and_a_link_table_that_guards_tools(scratc
         cur.execute("DELETE FROM public.dataset WHERE dataset_uuid = %s", (workflow,))
     conn.commit()
     assert _fetch(conn, "SELECT count(*) FROM public.workflow_tool")[0][0] == 0
+
+
+def test_dag_status_migration_marks_existing_script_workflows_pending(scratch_db, tmp_path):
+    conn = scratch_db()
+    load_baseline(conn)
+    conn.close()
+    conn = scratch_db()
+    before = tmp_path / "before"
+    before.mkdir()
+    for version, path in discover(MIGRATIONS_DIR):
+        if version <= "0004":
+            (before / path.name).write_text(path.read_text())
+    apply_migrations(conn, before)
+    with conn.cursor() as cur:
+        cur.execute("INSERT INTO public.dataset (category, workflow_type) VALUES ('workflows', 'script'), "
+                    "('workflows', 'gui'), ('workflows', NULL)")
+    conn.commit()
+
+    apply_migrations(conn, MIGRATIONS_DIR)
+
+    rows = _fetch(conn, "SELECT workflow_type, dag_status, dag_error FROM public.dataset "
+                        "WHERE category = 'workflows' ORDER BY workflow_type NULLS LAST")
+    assert rows == [("gui", None, None), ("script", "pending", None), (None, None, None)]

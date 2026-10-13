@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const dtApi = vi.hoisted(() => ({ get: vi.fn(), delete: vi.fn() }));
+const dtApi = vi.hoisted(() => ({ get: vi.fn(), delete: vi.fn(), post: vi.fn() }));
 vi.mock("@/bootstrap/http", () => ({ default: {}, dtApi }));
 
 import {
   datasetInUse,
   deletePlatformDataset,
+  deployWorkflowDag,
   withPlatformWorkflows,
   useWorkflowTools,
 } from "@/bootstrap/platform_api";
@@ -48,6 +49,30 @@ describe("withPlatformWorkflows", () => {
 
     expect(approved).toMatchObject({ id: "p1", fhirStatus: "failed", fhirFailureMessage: "HAPI 500" });
     expect(draft.fhirStatus).toBeUndefined();
+  });
+});
+
+describe("DAG deploy status", () => {
+  it("is carried onto portal and platform-only workflows", async () => {
+    dtApi.get.mockResolvedValue({
+      datasets: [
+        { datasetUuid: "wf-a", workflowType: "script", dagStatus: "failed", dagError: "ImportError" },
+        { datasetUuid: "wf-b", workflowType: "script", dagStatus: "deployed", dagError: null },
+      ],
+    });
+
+    const [approved, platform] = await withPlatformWorkflows([{ id: "p1", name: "p1", version: "1",
+      repositoryUrl: "", status: "completed", createdAt: "", updatedAt: "", uuid: "wf-a" }]);
+
+    expect(approved).toMatchObject({ id: "p1", dagStatus: "failed", dagError: "ImportError" });
+    expect(platform).toMatchObject({ id: "wf-b", dagStatus: "deployed", dagError: null });
+  });
+
+  it("deploys through the platform API", async () => {
+    dtApi.post.mockResolvedValue({ dagId: "workflow_72", dagStatus: "deployed", dagError: null });
+
+    expect(await deployWorkflowDag("wf-b")).toEqual({ dagId: "workflow_72", dagStatus: "deployed", dagError: null });
+    expect(dtApi.post).toHaveBeenCalledWith("/workflows/wf-b/deploy");
   });
 });
 

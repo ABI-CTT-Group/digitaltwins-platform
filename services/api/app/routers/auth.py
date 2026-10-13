@@ -218,3 +218,15 @@ def get_token(
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
     result = auth_bearer(credentials)
     return {"active": bool(result.get("username"))}
+
+
+def has_admin_role(credentials: dict) -> bool:
+    """Whether the caller's token carries the ``admin`` realm role."""
+    return "admin" in credentials.get("claims", {}).get("realm_access", {}).get("roles", [])
+
+
+def require_admin_role(credentials: dict = Depends(validate_credentials)) -> dict:
+    """Authenticated caller whose token carries the ``admin`` realm role, else 403."""
+    if not has_admin_role(credentials):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Requires the realm role: admin")
+    return credentials

@@ -154,6 +154,11 @@ def test_script_workflow_stores_each_tool_as_a_tool_dataset_and_links_them(clien
 
     assert _db(client, "SELECT category, dataset_name, seek_id, workflow_type, tool_type FROM dataset "
                        "WHERE dataset_uuid = %s", (wf_uuid,)) == [(client.bucket, "wf_convert", str(wf_seek), "script", None)]
+    # A script workflow's DAG waits for an admin to deploy it; tools have no DAG.
+    assert _db(client, "SELECT dag_status, dag_error FROM dataset WHERE dataset_uuid = %s", (wf_uuid,)) == [
+        ("pending", None)]
+    assert _db(client, "SELECT DISTINCT dag_status FROM dataset WHERE category = %s", (client.tool_bucket,)) == [
+        (None,)]
     for step, name in (("to_nifti", "tool_to_nifti"), ("to_nrrd", "tool_to_nrrd")):
         tool = steps[step]
         assert _db(client, "SELECT category, dataset_name, seek_id, tool_type, workflow_type FROM dataset "
@@ -193,6 +198,8 @@ def test_gui_workflow_tool_gets_the_whole_code_folder(client):
     assert f"{tool['dataset_uuid']}/code/src/app.ts" in keys
     assert client.seek.workflows[tool["seek_id"]]["tool_type"] == "gui"
     assert client.seek.workflows[r.json()["seek_id"]]["workflow_type"] == "gui"
+    assert _db(client, "SELECT dag_status FROM dataset WHERE dataset_uuid = %s", (r.json()["dataset_uuid"],)) == [
+        (None,)]
 
 
 @pytest.mark.integration

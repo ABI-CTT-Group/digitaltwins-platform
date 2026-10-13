@@ -130,4 +130,4 @@ Verified against the live SEEK on 2026-10-02:
 - Re-uploading a workflow creates new tool datasets. Tools are not deduplicated or reused.
 - The `workflow_tool` foreign key to the tool dataset has no cascade. A tool that a workflow uses can't be deleted on its own.
 - Every reader of the `workflows` category must check `workflow_type` to tell workflow definitions apart from assay outputs.
-- Airflow DAGs found in `code/` are stored, not deployed.
+- Airflow DAGs found in `code/` are stored, not deployed. (An admin now deploys them separately; see [2026-10-13-deploy-script-workflow-dags.md](2026-10-13-deploy-script-workflow-dags.md).)

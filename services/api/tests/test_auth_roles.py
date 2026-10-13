@@ -44,6 +44,10 @@ def client(monkeypatch):
     def protected(creds=Depends(auth.require_upload_role)):
         return {"username": creds["username"]}
 
+    @app.get("/admin-only")
+    def admin_only(creds=Depends(auth.require_admin_role)):
+        return {"username": creds["username"]}
+
     return TestClient(app)
 
 
@@ -91,3 +95,15 @@ def test_basic_auth_uses_roles_from_the_issued_token(client, monkeypatch):
 def test_basic_auth_without_upload_role_is_forbidden(client, monkeypatch):
     monkeypatch.setattr(auth, "get_token", lambda *a, **k: {"access_token": _token(["viewer"])})
     assert client.get("/protected", headers=_basic()).status_code == 403
+
+
+def test_admin_role_is_allowed_where_admin_is_required(client):
+    r = client.get("/admin-only", headers=_bearer(_token(["offline_access", "admin"])))
+    assert r.status_code == 200
+
+
+@pytest.mark.parametrize("roles", [["researcher"], ["viewer"], []])
+def test_other_roles_are_forbidden_where_admin_is_required(client, roles):
+    r = client.get("/admin-only", headers=_bearer(_token(["offline_access", *roles])))
+    assert r.status_code == 403
+    assert "admin" in r.json()["detail"]

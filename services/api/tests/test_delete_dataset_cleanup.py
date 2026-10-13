@@ -263,3 +263,32 @@ def test_a_workflows_category_dataset_without_a_workflow_type_deletes_as_before(
     assert r.status_code == 200, r.text
     assert r.json()["seek_workflow_deleted"] is False and r.json()["tools_deleted"] == []
     assert workflow_env["seek"].deleted == []
+
+
+@pytest.mark.integration
+def test_workflow_delete_removes_its_deployed_dag_folder(workflow_env, monkeypatch):
+    dags = workflow_env["tmp"] / "dags"
+    monkeypatch.setenv("AIRFLOW_DAGS_DIR", str(dags))
+    wf = _committed_workflow(workflow_env)
+    (dags / f"workflow_{wf['seek_id']}").mkdir(parents=True)
+    (dags / f"workflow_{wf['seek_id']}" / "workflow_convert.py").write_text("x")
+    (dags / "workflow_9000").mkdir()
+
+    r = workflow_env["client"].delete(f"/datasets/{wf['dataset_uuid']}", params={"delete_tools": "true"})
+
+    assert r.status_code == 200, r.text
+    assert [p.name for p in dags.iterdir()] == ["workflow_9000"]
+
+
+@pytest.mark.integration
+def test_a_dag_folder_that_cannot_be_removed_does_not_fail_the_delete(workflow_env, monkeypatch):
+    from digitaltwins.workflows import dag
+
+    monkeypatch.setenv("AIRFLOW_DAGS_DIR", str(workflow_env["tmp"] / "dags"))
+    monkeypatch.setattr(dag, "remove_dag_folder", lambda *a: (_ for _ in ()).throw(PermissionError("read-only")))
+    wf = _committed_workflow(workflow_env)
+
+    r = workflow_env["client"].delete(f"/datasets/{wf['dataset_uuid']}", params={"delete_tools": "true"})
+
+    assert r.status_code == 200, r.text
+    assert _count(workflow_env, "dataset") == 0

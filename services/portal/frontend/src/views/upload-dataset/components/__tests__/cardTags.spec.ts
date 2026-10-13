@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTag, handoffRegistrationTag, measurementRegistrationTag, typeTag } from "../cardTags";
+import { buildTag, deployTag, handoffRegistrationTag, measurementRegistrationTag, typeTag } from "../cardTags";
 
 const GREY = "#9fb4bf", CYAN = "#5fd6e8", GREEN = "#6fd49a", RED = "#ff6b6b", AMBER = "#ffb74d";
 
@@ -75,6 +75,25 @@ describe("buildTag", () => {
   it("is absent for an item the portal never built", () => {
     expect(buildTag({ status: "completed", platformOnly: true })).toBeNull();
     expect(buildTag({ status: "" })).toBeNull();
+  });
+});
+
+describe("deployTag", () => {
+  it("prefixes a script workflow's DAG deploy status", () => {
+    expect(deployTag("pending")).toEqual({ label: "deploy · pending", color: GREY });
+    expect(deployTag("deploying")).toEqual({ label: "deploy · deploying", color: CYAN });
+    expect(deployTag("deployed")).toEqual({ label: "deploy · deployed", color: GREEN });
+  });
+
+  it("explains a failed deploy on hover", () => {
+    expect(deployTag("failed", "dag_id must be Path(__file__).parent.name"))
+      .toEqual({ label: "deploy · failed", color: RED, title: "dag_id must be Path(__file__).parent.name" });
+    expect(deployTag("failed", null)).toEqual({ label: "deploy · failed", color: RED });
+  });
+
+  it("is absent for a workflow without a DAG", () => {
+    expect(deployTag(undefined)).toBeNull();
+    expect(deployTag(null)).toBeNull();
   });
 });
 

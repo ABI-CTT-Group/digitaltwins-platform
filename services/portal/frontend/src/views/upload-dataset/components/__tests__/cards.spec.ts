@@ -121,6 +121,43 @@ describe("WorkflowCard", () => {
   });
 });
 
+describe("WorkflowCard DAG deploy", () => {
+  const mountWf = (workflow: object, canDeploy = true) =>
+    mount(WorkflowCard, { props: { workflow: workflow as any, canDeploy }, global: { plugins } });
+
+  it("offers an admin Deploy DAG for a script workflow in the platform", () => {
+    const w = mountWf(PLATFORM_WORKFLOW);
+
+    expect(menu(w).map((m) => m.label)).toEqual(["Deploy DAG", "Delete workflow"]);
+    menu(w)[0].onClick();
+    expect(w.emitted("deploy-dag")?.[0]).toEqual([PLATFORM_WORKFLOW]);
+  });
+
+  it("offers it for a portal script workflow once it is approved into the platform", () => {
+    const approved = { ...WORKFLOW, uuid: "a8d6da0e-1", workflowType: "script", isSds: true };
+
+    expect(menu(mountWf(approved)).map((m) => m.label)).toEqual(["Submit to approval", "Deploy DAG", "Delete workflow"]);
+  });
+
+  it("does not offer it to a non-admin, for other workflow types, before registration, or while deploying", () => {
+    const labels = (workflow: object, canDeploy = true) => menu(mountWf(workflow, canDeploy)).map((m) => m.label);
+
+    expect(labels(PLATFORM_WORKFLOW, false)).not.toContain("Deploy DAG");
+    expect(labels({ ...PLATFORM_WORKFLOW, workflowType: "gui" })).not.toContain("Deploy DAG");
+    expect(labels({ ...WORKFLOW, workflowType: "script" })).not.toContain("Deploy DAG");
+    expect(labels({ ...WORKFLOW, workflowType: "script", uuid: "sparc-workflow-$x" })).not.toContain("Deploy DAG");
+    expect(labels({ ...PLATFORM_WORKFLOW, dagStatus: "deploying" })).not.toContain("Deploy DAG");
+  });
+
+  it("tags the deploy status after build, with the failure on hover", () => {
+    const wf = { ...WORKFLOW, uuid: "a8d6da0e-1", workflowType: "script", dagStatus: "failed", dagError: "ImportError" };
+    const w = mountWf(wf, false);
+
+    expect(chips(w).slice(0, 4)).toEqual(["in platform", "build · completed", "deploy · failed", "script"]);
+    expect(chip(w, "deploy · failed").attributes("title")).toBe("ImportError");
+  });
+});
+
 describe("ToolCard", () => {
   it("offers only delete for a platform tool", () => {
     const w = mount(ToolCard, { props: { tool: PLATFORM_TOOL as any }, global: { plugins } });

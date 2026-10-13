@@ -40,19 +40,22 @@ See [the ADR](decisions/2026-10-05-link-assay-to-workflow-via-auto-created-sop.m
 
 ### 2. Workflow upload (Airflow)
 
-1. Have your workflow code in [Airflow Dags](https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dags.html) format and place in `services/airflow/dags/`. You can use the example workflows in `./example/airflow` for testing
-   
-   ```bash
-   cp -r ./examples/workflow/airflow/* ./services/airflow/dags/
-   ```
-   
-2. Restart the Airflow service to load the new workflows
+Register a script workflow dataset. When an admin registers or approves it, its
+DAG is deployed to Airflow automatically. Otherwise an admin deploys it from the
+Workflow Hub (*Deploy DAG*) or with `POST /digitaltwins-api/workflows/{dataset_uuid}/deploy`.
+The DAG must name itself after its deploy folder (`dag_id=Path(__file__).parent.name`).
+See [Writing and deploying a script workflow DAG](workflow-dag-authoring.md) and the
+example dataset in `examples/workflow/workflow_image_conversion/`.
 
-   ```bash
-   sudo docker compose --env-file ./.env --project-directory services/airflow restart
-   ```
+DAGs that are not workflow datasets (for example `examples/workflow/airflow/`) are
+still copied by hand:
 
-3. Verify if the workflow is visible in the Airflow UI: `http://localhost:8002/dags`
+```bash
+cp -r ./examples/workflow/airflow/* ./services/airflow/dags/
+```
+
+Airflow picks up new files within 30 seconds; check the Airflow UI at
+`http://localhost/airflow/dags`. New DAGs start paused.
 
 ### 3. Upload measurement dataset
 
