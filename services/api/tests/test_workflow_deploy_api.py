@@ -1,4 +1,5 @@
-"""POST /workflows/{dataset_uuid}/deploy: an admin deploys a registered script workflow's DAG into Airflow.
+"""POST /workflows/{dataset_uuid}/deploy: an admin deploys a registered script workflow's DAG into Airflow;
+a script workflow an admin registers (REST upload, or an upload session's commit) is deployed straight away.
 
 The DAG folder is written to a temporary dags dir; Airflow's REST API is faked.
 """
@@ -16,6 +17,7 @@ from app.main import create_app
 from app.routers import auth, datasets
 from digitaltwins import tools, workflows
 from digitaltwins.workflows import deploy
+from test_dataset_uploads_workflows_api import _files as _session_parts, _upload
 from test_datasets_workflows_api import _folder_parts, gui_files, script_files, tool_bucket  # noqa: F401
 
 ADMIN = {"username": "alice", "token": "t", "claims": {"realm_access": {"roles": ["admin"]}}}
@@ -93,10 +95,17 @@ def client(platform_db, minio_bucket, tool_bucket, seek, hapi, s3, tmp_path, mon
     return c
 
 
-def _register(client, dag=GOOD_DAG, files=None, workflow_type="script"):
+def _as(client, creds):
+    client.app_.dependency_overrides[auth.validate_credentials] = lambda: creds
+
+
+def _register(client, dag=GOOD_DAG, files=None, workflow_type="script", as_=RESEARCHER):
+    """Register a workflow through the REST upload as ``as_`` (a researcher's stays pending), then act as admin."""
     files = files or {**script_files(), "code/workflow_convert.py": dag}
+    _as(client, as_)
     r = client.post("/datasets", params={"category": client.bucket, "workflow_type": workflow_type,
                                          "seek_project_id": 11}, files=_folder_parts(files))
+    _as(client, ADMIN)
     assert r.status_code == 200, r.text
     return r.json()["dataset_uuid"], r.json()["seek_id"]
 
@@ -132,7 +141,7 @@ def test_admin_deploy_writes_the_dag_folder_unpauses_it_and_records_deployed(cli
 @pytest.mark.integration
 def test_a_researcher_cannot_deploy(client):
     dataset_uuid, _ = _register(client)
-    client.app_.dependency_overrides[auth.validate_credentials] = lambda: RESEARCHER
+    _as(client, RESEARCHER)
 
     r = client.post(f"/workflows/{dataset_uuid}/deploy")
 
@@ -224,3 +233,101 @@ def test_deploy_is_unavailable_without_a_dags_folder(client, monkeypatch):
 
     assert r.status_code == 503
     assert _status(client, dataset_uuid) == ("pending", None)
+
+
+# ── Automatic deploy when an admin registers the workflow ──────────────
+
+
+@pytest.mark.integration
+def test_an_admin_rest_upload_deploys_the_dag_straight_away(client):
+    dataset_uuid, seek_id = _register(client, as_=ADMIN)
+
+    assert _status(client, dataset_uuid) == ("deployed", None)
+    assert (client.dags / f"workflow_{seek_id}" / "workflow_convert.py").read_bytes() == GOOD_DAG
+    assert client.airflow.patches == [(f"http://airflow.test/airflow/api/v2/dags/workflow_{seek_id}",
+                                       {"is_paused": False})]
+
+
+@pytest.mark.integration
+def test_a_researcher_rest_upload_waits_for_an_admin(client):
+    dataset_uuid, _ = _register(client)
+
+    assert _status(client, dataset_uuid) == ("pending", None)
+    assert list(client.dags.iterdir()) == []
+
+
+@pytest.mark.integration
+def test_an_admin_upload_of_a_gui_workflow_deploys_nothing(client):
+    dataset_uuid, _ = _register(client, files=gui_files(), workflow_type="gui", as_=ADMIN)
+
+    assert _status(client, dataset_uuid) == (None, None)
+    assert list(client.dags.iterdir()) == []
+
+
+@pytest.mark.integration
+def test_an_admin_upload_with_a_bad_dag_is_registered_and_says_why_it_was_not_deployed(client):
+    dataset_uuid, _ = _register(client, dag=LITERAL_DAG, as_=ADMIN)
+
+    status, error = _status(client, dataset_uuid)
+    assert status == "failed" and "'workflow_89'" in error
+    assert list(client.dags.iterdir()) == []
+
+
+@pytest.mark.integration
+def test_an_admin_upload_stays_pending_where_deploying_is_not_set_up(client, monkeypatch):
+    monkeypatch.delenv("AIRFLOW_DAGS_DIR")
+
+    dataset_uuid, _ = _register(client, as_=ADMIN)
+
+    assert _status(client, dataset_uuid) == ("pending", None)
+
+
+@pytest.mark.integration
+def test_an_unexpected_deploy_error_does_not_fail_the_registration(client, monkeypatch):
+    def boom(conn, dataset_uuid):
+        raise OSError("disk full")
+    monkeypatch.setattr(deploy, "deploy_workflow", boom)
+
+    dataset_uuid, _ = _register(client, as_=ADMIN)
+
+    assert _status(client, dataset_uuid) == ("pending", None)
+
+
+def _session_files():
+    return _session_parts({**script_files(), "code/workflow_convert.py": GOOD_DAG})
+
+
+@pytest.mark.integration
+def test_an_admin_upload_session_deploys_after_the_commit(client):
+    upload_id = _upload(client, _session_files())
+
+    assert client.post(f"/datasets/uploads/{upload_id}/finalize").status_code == 202
+
+    session = client.get(f"/datasets/uploads/{upload_id}").json()  # TestClient ran the background job
+    assert session["status"] == "completed", session
+    assert _status(client, session["dataset_uuid"]) == ("deployed", None)
+
+
+@pytest.mark.integration
+def test_a_staged_session_deploys_when_an_admin_approves_it(client):
+    _as(client, RESEARCHER)
+    upload_id = _upload(client, _session_files(), commit_mode="on_approve")
+    assert client.post(f"/datasets/uploads/{upload_id}/finalize").json()["status"] == "staged"
+
+    _as(client, ADMIN)
+    assert client.post(f"/datasets/uploads/{upload_id}/approve").status_code == 202
+
+    session = client.get(f"/datasets/uploads/{upload_id}").json()
+    assert _status(client, session["dataset_uuid"]) == ("deployed", None)
+
+
+@pytest.mark.integration
+def test_a_session_a_researcher_commits_waits_for_an_admin(client):
+    _as(client, RESEARCHER)
+    upload_id = _upload(client, _session_files())
+    client.post(f"/datasets/uploads/{upload_id}/finalize")
+
+    session = client.get(f"/datasets/uploads/{upload_id}").json()
+    assert session["status"] == "completed", session
+    assert _status(client, session["dataset_uuid"]) == ("pending", None)
+    assert list(client.dags.iterdir()) == []

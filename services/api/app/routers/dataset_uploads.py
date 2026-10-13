@@ -45,7 +45,7 @@ from digitaltwins.tools.validation import find_tool_cwl
 from digitaltwins.workflows import fhir as workflow_fhir
 from digitaltwins.workflows.validation import load_workflow
 
-from .auth import require_upload_role, validate_credentials
+from .auth import has_admin_role, require_upload_role, validate_credentials
 
 router = APIRouter(prefix="/datasets/uploads", tags=["dataset uploads"])
 
@@ -276,7 +276,7 @@ def finalize_upload(
         return {"upload_id": upload_id, "status": "staged", "warnings": warnings}
 
     sessions.update_session(conn, upload_id, status="processing")
-    background.add_task(jobs.run_commit_and_push, upload_id, _creds["token"])
+    background.add_task(jobs.run_commit_and_push, upload_id, _creds["token"], has_admin_role(_creds))
     return JSONResponse(
         status_code=status.HTTP_202_ACCEPTED,
         content={"upload_id": upload_id, "status": "processing", "warnings": warnings},
@@ -291,7 +291,7 @@ def approve_upload(
     """Commit a staged session (the portal's Approval), or retry a failed commit."""
     _require_status(_session_or_404(conn, upload_id), "staged", "failed")
     sessions.update_session(conn, upload_id, status="processing", failure_stage=None, failure_message=None)
-    background.add_task(jobs.run_commit_and_push, upload_id, _creds["token"])
+    background.add_task(jobs.run_commit_and_push, upload_id, _creds["token"], has_admin_role(_creds))
     return {"upload_id": upload_id, "status": "processing"}
 
 

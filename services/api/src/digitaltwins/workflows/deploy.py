@@ -136,3 +136,23 @@ def deploy_workflow(conn, dataset_uuid: str) -> Dict[str, Any]:
     _set_status(conn, dataset_uuid, status, error)
     logger.info("Deployed DAG %s for workflow %s: %s", dag_id, dataset_uuid, status)
     return {"dataset_uuid": dataset_uuid, "dag_id": dag_id, "dag_status": status, "dag_error": error}
+
+
+def auto_deploy(dataset_uuid: str) -> None:
+    """Deploy a just-registered script workflow's DAG; run in the background after an admin's commit.
+
+    Never raises: the registration stands whatever happens here. The outcome is
+    in ``dag_status`` (left ``pending`` when deploying is not set up, or on an
+    unexpected error, so an admin can deploy by hand).
+    """
+    from ..core.connection import Connection
+
+    conn, _ = Connection().connect()
+    try:
+        deploy_workflow(conn, dataset_uuid)
+    except (LookupError, NotScriptWorkflow):
+        pass
+    except Exception:  # a failed static check or Airflow check is already stored as "failed"
+        logger.exception("Automatic DAG deploy of workflow %s did not complete", dataset_uuid)
+    finally:
+        conn.close()
