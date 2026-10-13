@@ -119,13 +119,15 @@ class Deleter(object):
             if conn:
                 conn.close()
 
-        # 6. Outside Postgres, best-effort: FHIR resources, a tool's / workflow's SEEK Workflow, local copies.
+        # 6. Outside Postgres, best-effort: FHIR resources, a tool's / workflow's SEEK Workflow, local copies,
+        #    a script workflow's deployed Airflow DAG.
         fhir_deleted = (_delete_fhir_resources(dataset_uuid, cleanup["category"], cleanup["subject_uuids"],
                                                cleanup["workflow_type"])
                         if cleanup["fhir_status"] != "none" else {})
         seek_deleted = _delete_seek_workflow(dataset_uuid, cleanup["category"], cleanup["seek_id"], self._api_token,
                                              cleanup["workflow_type"])
         _remove_local_copies(dataset_uuid, cleanup["upload_ids"])
+        _remove_dag_folder(dataset_uuid, cleanup["seek_id"], cleanup["workflow_type"])
 
         # 7. A workflow's tools, once nothing links to them any more (its link rows went with it).
         tools_deleted = []
@@ -186,6 +188,19 @@ def _delete_seek_workflow(dataset_uuid: str, category: Optional[str], seek_id: O
         logger.warning("SEEK cleanup failed for dataset %s (workflow %s): %s", dataset_uuid, seek_id, exc)
         return False
     return True
+
+
+def _remove_dag_folder(dataset_uuid: str, seek_id: Optional[str], workflow_type: Optional[str]) -> None:
+    """Remove a script workflow's deployed DAG folder (``workflow_<seek_id>/``) when deploying is set up."""
+    from ..workflows import dag
+
+    dags = dag.dags_dir()
+    if workflow_type != "script" or not seek_id or dags is None:
+        return
+    try:
+        dag.remove_dag_folder(dags, seek_id)
+    except Exception as exc:
+        logger.warning("Could not remove the DAG folder of workflow %s (SEEK %s): %s", dataset_uuid, seek_id, exc)
 
 
 def _remove_local_copies(dataset_uuid: str, upload_ids: list) -> None:

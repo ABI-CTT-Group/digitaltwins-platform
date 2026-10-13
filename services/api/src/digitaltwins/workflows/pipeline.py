@@ -39,12 +39,16 @@ def _assemble_tool(layout: WorkflowLayout, tool_cwl: Path, parent: Path) -> Path
 
 
 def _link_workflow(dataset_uuid: str, seek_id: int, workflow_type: str, steps: List[Tuple[str, str]]) -> None:
-    """Record the workflow's SEEK id and type, and the tool dataset each step runs."""
+    """Record the workflow's SEEK id and type, and the tool dataset each step runs.
+
+    A script workflow's DAG starts ``pending`` until an admin deploys it.
+    """
+    dag_status = "pending" if workflow_type == "script" else None
     conn, _ = Connection().connect()
     try:
         with conn.cursor() as cur:
-            cur.execute("UPDATE dataset SET seek_id = %s, workflow_type = %s WHERE dataset_uuid = %s",
-                        (str(seek_id), workflow_type, dataset_uuid))
+            cur.execute("UPDATE dataset SET seek_id = %s, workflow_type = %s, dag_status = %s WHERE dataset_uuid = %s",
+                        (str(seek_id), workflow_type, dag_status, dataset_uuid))
             cur.executemany(
                 "INSERT INTO workflow_tool (workflow_dataset_uuid, step_id, tool_dataset_uuid) VALUES (%s, %s, %s)",
                 [(dataset_uuid, step_id, tool_uuid) for step_id, tool_uuid in steps],
