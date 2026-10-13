@@ -96,7 +96,9 @@ Author picks any id; the platform parses and stores it; `run_assay` reads it.
   `dag_error`.
 - Registration records `dag_status='pending'` for script workflows. When the
   caller is an admin (REST upload, upload-session finalize or approve, which
-  includes the portal's approval), the DAG is then deployed in the background.
+  includes the portal's approval, or the CLI importer), the DAG is then
+  deployed: in the background for the API, straight after the commit for the
+  CLI.
   A failed deploy never fails the registration; it is recorded in
   `dag_status`, or left `pending` when deploying is not set up.
 - Deleting the workflow removes its DAG folder.

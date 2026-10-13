@@ -84,8 +84,12 @@ stays `pending` until an admin deploys it.
   the registration. If deploying isn't set up, or the error is unexpected, the
   workflow stays `pending`.
 - `auth.has_admin_role` decides whether the caller is an admin.
-- `jobs.run_commit_and_push` gained a `deploy_dag` flag. The CLI import
-  doesn't pass it, so CLI imports don't auto-deploy.
+- `jobs.run_commit_and_push` gained a `deploy_dag` flag.
+- The CLI importer (`digitaltwins.cli.import_dataset`) follows the same rule.
+  It sets `deploy_dag` when the signed-in user is an admin
+  (`keycloak_login.is_admin`). It then prints whether the DAG was deployed,
+  failed, or is waiting for an admin. A failed deploy doesn't change the exit
+  code.
 
 ## Operations on the local platform (2026-10-13)
 
@@ -102,6 +106,13 @@ stays `pending` until an admin deploys it.
    DAG file that served `workflow_89`.
 5. Verified with one run of `workflow_116` on assay 42's input. All 4 tasks
    succeeded, and the scratch outputs were removed afterwards.
+6. Verified the CLI auto-deploy live: an admin import deployed as
+   `workflow_119`. That test registration was then deleted, as were the test
+   registrations 110 and 113.
+7. Deleted workflow 107 ("workflow_image_conversion - tmp") with its tools,
+   SEEK 105 and 106, and its DAG folder. It was the only workflow with no SOP
+   or assay link. The registered script workflow left is 116. Workflows 38 and
+   39 remain on hand-placed DAG files.
 
 ## Follow-ups (not done)
 
