@@ -66,9 +66,15 @@ Author picks any id; the platform parses and stores it; `run_assay` reads it.
 
 ### Gate
 
-- **Separate admin-only deploy endpoint (chosen):** registration stays
-  self-service; running code in Airflow needs an admin.
-- **Auto-deploy on registration:** would let any researcher run code in Airflow.
+- **Auto-deploy when an admin registers or approves it, plus an admin-only
+  deploy endpoint (chosen):** an admin's approval is the deploy; a
+  researcher's registration stays `pending` until an admin deploys it.
+  Registration stays self-service, and running code in Airflow still needs an
+  admin.
+- **Admin-only deploy endpoint only:** the first version. It made admins
+  approve a workflow and then deploy it as a second step.
+- **Auto-deploy on every registration:** would let any researcher run code in
+  Airflow.
 - **Make registration admin-only:** removes researcher self-service.
 
 ### Verification
@@ -88,7 +94,11 @@ Author picks any id; the platform parses and stores it; `run_assay` reads it.
   modules, waits for Airflow to load it (or report an import error), unpauses
   it and records `dataset.dag_status` (`pending | deployed | failed`) and
   `dag_error`.
-- Registration records `dag_status='pending'` for script workflows.
+- Registration records `dag_status='pending'` for script workflows. When the
+  caller is an admin (REST upload, upload-session finalize or approve, which
+  includes the portal's approval), the DAG is then deployed in the background.
+  A failed deploy never fails the registration; it is recorded in
+  `dag_status`, or left `pending` when deploying is not set up.
 - Deleting the workflow removes its DAG folder.
 - The portal Workflow Hub shows a `deploy · <status>` chip and an admin-only
   "Deploy DAG" action that calls the API directly with the user's token.
@@ -100,8 +110,8 @@ Author picks any id; the platform parses and stores it; `run_assay` reads it.
   deployed. The contract is documented in `docs/workflow-dag-authoring.md`.
 - Deployed workflows are self-contained: tools ship next to the DAG and are
   imported from its folder, not from the shared `dags/tool/`.
-- An admin approving a deploy is the only control on code that runs with
-  Airflow's credentials.
+- An admin registering, approving or deploying a workflow is the only control
+  on code that runs with Airflow's credentials.
 - The static check runs on the API's Python (3.11); a DAG using syntax newer
   than that is rejected even though Airflow (3.12) could load it.
 - Re-registering creates a new SEEK id and a new `pending` DAG; assays linked

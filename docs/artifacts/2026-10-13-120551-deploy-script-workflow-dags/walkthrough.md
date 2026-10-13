@@ -73,6 +73,36 @@ Airflow to load it, unpauses it, and records the outcome.
   - The portal approval path.
   - A full assay run through `run_assay`.
 
+## Update: automatic deploy for admins
+
+When an admin registers or approves a script workflow, its DAG is now
+deployed straight away. This covers the REST upload, upload-session finalize
+and approve, and therefore the portal's approval. A researcher's registration
+stays `pending` until an admin deploys it.
+
+- `deploy.auto_deploy` runs in the background after the commit. It never fails
+  the registration. If deploying isn't set up, or the error is unexpected, the
+  workflow stays `pending`.
+- `auth.has_admin_role` decides whether the caller is an admin.
+- `jobs.run_commit_and_push` gained a `deploy_dag` flag. The CLI import
+  doesn't pass it, so CLI imports don't auto-deploy.
+
+## Operations on the local platform (2026-10-13)
+
+1. Deployed the pending workflow 107 ("workflow_image_conversion - tmp") as
+   `workflow_107`.
+2. Changed the example DAG's display name to `workflow_image_conversion`, then
+   registered it as an admin. It became SEEK workflow 116 and auto-deployed as
+   `workflow_116`.
+3. Relinked assay 42 from workflow 89 to workflow 116. Its cohort, input and
+   outputs are unchanged. SEEK now links them through SOP 41; SOP 37 is
+   detached but kept.
+4. Deleted workflow 89 with its tool datasets. Its stored DAG hardcoded
+   `workflow_38`, so it could not be deployed. Also removed the hand-placed
+   DAG file that served `workflow_89`.
+5. Verified with one run of `workflow_116` on assay 42's input. All 4 tasks
+   succeeded, and the scratch outputs were removed afterwards.
+
 ## Follow-ups (not done)
 
 - `run_assay` still swallows a missing-DAG 404 per sample.

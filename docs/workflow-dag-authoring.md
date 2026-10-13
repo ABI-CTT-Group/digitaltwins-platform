@@ -111,10 +111,15 @@ An assay run starts one DAG run per input sample, with `dag_run.conf`:
 1. **Register the workflow.** Use the portal's *Upload workflow* page, which
    needs approval, or call
    `POST /digitaltwins-api/datasets?category=workflows&workflow_type=script&seek_project_id=<id>`.
-   The Workflow Hub card then shows `deploy · pending`.
-2. **An admin deploys it.** Use *Deploy DAG* on the card, or call
-   `POST /digitaltwins-api/workflows/{dataset_uuid}/deploy` with an admin token.
-   The platform:
+2. **The DAG is deployed.**
+   - **Registered or approved by an admin:** this happens automatically right
+     after the registration completes.
+   - **Registered by a researcher:** the Workflow Hub card shows
+     `deploy · pending` until an admin uses *Deploy DAG* on the card, or calls
+     `POST /digitaltwins-api/workflows/{dataset_uuid}/deploy`. The same action
+     redeploys a workflow or retries a failed deploy.
+
+   Either way, the platform:
    1. checks the DAG and writes `dags/workflow_<seek_id>/`,
    2. waits for Airflow to load it (default 120 s,
       `AIRFLOW_DAG_DEPLOY_TIMEOUT`),
@@ -126,8 +131,9 @@ An assay run starts one DAG run per input sample, with `dag_run.conf`:
      again, and deploy. A timeout says "deploy again to re-check": Airflow may
      simply be slow, and deploying again picks up a DAG that has since loaded.
 
-Deploying is admin-only because DAG code runs inside Airflow with Airflow's
-credentials. Deploying again replaces the folder. Deleting the workflow removes
+Deploying needs an admin, either the one who approves or registers the
+workflow or one who deploys it later, because DAG code runs inside Airflow
+with Airflow's credentials. Deploying again replaces the folder. Deleting the workflow removes
 it. Airflow keeps the old run history as a stale DAG.
 
 Remote compute nodes don't see new DAG folders on their own. Run
