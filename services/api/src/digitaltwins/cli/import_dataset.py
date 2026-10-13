@@ -12,7 +12,9 @@ upload role, then runs the same pipeline as ``/datasets/uploads`` in-process:
 validation (SPARC, a model's SDS files, a tool's ``primary/tool_*.cwl``, or a workflow's layout) →
 commit (Postgres + MinIO; tools and workflows are also registered in SEEK as
 the signed-in user, a workflow's tools as tool datasets) → optional FHIR push (a
-model's is one Device). The
+model's is one Device) → for a script workflow imported by an admin, its DAG is
+deployed to Airflow (a researcher's waits for an admin; a failed deploy is
+reported but does not fail the import). The
 ``scripts/import-dataset.*`` wrappers copy a dataset from the host into the
 container and call this.
 
@@ -31,7 +33,7 @@ from ..measurements.validation import extract_uploaded_archive, resolve_project_
 from ..models.validation import validate_model_structure
 from ..tools.validation import find_tool_cwl
 from ..workflows.validation import load_workflow
-from .keycloak_login import login
+from .keycloak_login import is_admin, login
 
 
 def _parse(argv):
@@ -55,6 +57,20 @@ def _parse(argv):
 def _fail(code: int, message: str) -> int:
     print(f"  ✗ {message}", file=sys.stderr)
     return code
+
+
+def _report_dag(conn, dataset_uuid: str) -> None:
+    """Say whether the imported script workflow's DAG is in Airflow."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT seek_id, dag_status, dag_error FROM dataset WHERE dataset_uuid = %s", (dataset_uuid,))
+        seek_id, status, error = cur.fetchone()
+    conn.commit()
+    if status == "deployed":
+        print(f"  ✓ DAG deployed as workflow_{seek_id}")
+    elif status == "failed":
+        print(f"  ✗ DAG deploy failed: {error}", file=sys.stderr)
+    else:
+        print(f"  DAG not deployed yet: an admin deploys it with POST /workflows/{dataset_uuid}/deploy")
 
 
 def main(argv=None) -> int:
@@ -119,12 +135,15 @@ def main(argv=None) -> int:
             else:
                 shutil.copytree(root, target)
             sessions.update_session(conn, upload_id, status="processing")
-            jobs.run_commit_and_push(upload_id, token)
+            script_workflow = workflow and args.workflow_type == "script"
+            jobs.run_commit_and_push(upload_id, token, deploy_dag=script_workflow and is_admin(token))
 
             session = sessions.get_session(conn, upload_id)
             if session["status"] != "completed":
                 return _fail(1, f"Commit failed: {session['failure_message']}")
             dataset = pipeline.get_dataset_row(conn, session["dataset_uuid"])
+            if script_workflow:
+                _report_dag(conn, session["dataset_uuid"])
         finally:
             conn.close()
     finally:

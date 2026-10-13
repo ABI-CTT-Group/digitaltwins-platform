@@ -40,6 +40,12 @@ def test_device_login_polls_until_the_user_signs_in(monkeypatch, capsys):
     assert "https://kc/device?code=X" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("roles, admin", [(["offline_access", "admin"], True), (["researcher"], False), ([], False)])
+def test_is_admin_reads_the_tokens_realm_roles(monkeypatch, roles, admin):
+    monkeypatch.setattr(keycloak_login, "verify_token", lambda token: {"realm_access": {"roles": roles}})
+    assert keycloak_login.is_admin("tok") is admin
+
+
 def test_login_falls_back_to_password_when_device_flow_is_unavailable(monkeypatch):
     monkeypatch.setattr(keycloak_login, "device_login", lambda: (_ for _ in ()).throw(RuntimeError("off")))
     monkeypatch.setattr(keycloak_login, "password_login", lambda username=None: "tok")
@@ -56,6 +62,7 @@ def test_login_falls_back_to_password_when_device_flow_is_unavailable(monkeypatc
 def cli_env(platform_db, minio_bucket, hapi, tmp_path, monkeypatch):
     monkeypatch.setenv("DATASET_STAGING_DIR", str(tmp_path / "staging"))
     monkeypatch.setattr(import_dataset, "login", lambda **kw: ("alice", "t"))
+    monkeypatch.setattr(import_dataset, "is_admin", lambda token: False)
     return {"db": platform_db, "bucket": minio_bucket, "tmp": tmp_path}
 
 
@@ -190,6 +197,69 @@ def test_imports_a_workflow_with_its_tools(cli_env, workflow_dir):
     assert session["workflow_type"] == "script"
     assert sorted(w.get("workflow_type", "tool") for w in cli_env["seek"].workflows.values()) == [
         "script", "tool", "tool"]
+
+
+@pytest.fixture
+def airflow(cli_env, workflow_dir, monkeypatch):
+    """A dags dir and a faked Airflow that has loaded the DAG by its second poll; the workflow ships a valid DAG."""
+    from digitaltwins.workflows import deploy
+    from test_workflow_deploy_api import GOOD_DAG, FakeAirflow, _now
+
+    (workflow_dir / "code" / "workflow_convert.py").write_bytes(GOOD_DAG)
+    dags = cli_env["tmp"] / "dags"
+    dags.mkdir()
+    monkeypatch.setenv("AIRFLOW_DAGS_DIR", str(dags))
+    monkeypatch.setenv("AIRFLOW_ENDPOINT", "http://airflow.test/airflow")
+    monkeypatch.setattr(deploy, "POLL_INTERVAL", 0)
+    fake = FakeAirflow(parsed=[None, _now(3600)])
+    monkeypatch.setattr(deploy, "_airflow_session", lambda: fake)
+    return dags
+
+
+def _dag_status(env, dataset_uuid):
+    with env["db"]().cursor() as cur:
+        cur.execute("SELECT seek_id, dag_status FROM dataset WHERE dataset_uuid = %s", (dataset_uuid,))
+        return cur.fetchone()
+
+
+@pytest.mark.integration
+def test_an_admin_importing_a_script_workflow_deploys_its_dag(cli_env, workflow_dir, airflow, monkeypatch, capsys):
+    monkeypatch.setattr(import_dataset, "is_admin", lambda token: True)
+
+    code = import_dataset.main([str(workflow_dir), "--category", cli_env["bucket"], "--workflow-type", "script",
+                                "--seek-project-id", "11"])
+
+    assert code == 0
+    seek_id, status = _dag_status(cli_env, _only_session(cli_env)["dataset_uuid"])
+    assert status == "deployed"
+    assert (airflow / f"workflow_{seek_id}" / "workflow_convert.py").exists()
+    assert f"DAG deployed as workflow_{seek_id}" in capsys.readouterr().out
+
+
+@pytest.mark.integration
+def test_a_researcher_importing_a_script_workflow_leaves_it_for_an_admin(cli_env, workflow_dir, airflow, capsys):
+    code = import_dataset.main([str(workflow_dir), "--category", cli_env["bucket"], "--workflow-type", "script",
+                                "--seek-project-id", "11"])
+
+    assert code == 0
+    dataset_uuid = _only_session(cli_env)["dataset_uuid"]
+    assert _dag_status(cli_env, dataset_uuid)[1] == "pending"
+    assert list(airflow.iterdir()) == []
+    assert f"POST /workflows/{dataset_uuid}/deploy" in capsys.readouterr().out
+
+
+@pytest.mark.integration
+def test_a_failed_deploy_is_reported_but_the_import_stands(cli_env, workflow_dir, airflow, monkeypatch, capsys):
+    monkeypatch.setattr(import_dataset, "is_admin", lambda token: True)
+    (workflow_dir / "code" / "workflow_convert.py").write_text(
+        "from airflow.decorators import dag\n@dag(dag_id='workflow_89')\ndef wf():\n    pass\n")
+
+    code = import_dataset.main([str(workflow_dir), "--category", cli_env["bucket"], "--workflow-type", "script",
+                                "--seek-project-id", "11"])
+
+    assert code == 0
+    assert _dag_status(cli_env, _only_session(cli_env)["dataset_uuid"])[1] == "failed"
+    assert "DAG deploy failed" in capsys.readouterr().err
 
 
 @pytest.mark.integration
