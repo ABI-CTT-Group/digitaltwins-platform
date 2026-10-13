@@ -175,7 +175,7 @@ def _run_dicom_to_nrrd(
 
 @dag(
     dag_id=DAG_ID,
-    dag_display_name="Image conversion",
+    dag_display_name="workflow_image_conversion",
     description=(
         "Convert a DICOM directory to NIfTI and NRRD formats. "
         "Inputs are fetched from MinIO (airflow-workspace bucket); "
