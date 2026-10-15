@@ -26,12 +26,15 @@ from sparc_me import Dataset
 
 from digitaltwins import Querier, Uploader
 from digitaltwins.core.assay_workflow_link import WorkflowNotInAssayProject, link_assay_workflow
+from digitaltwins.jupyterhub.hub import HubError, HubTimeout, JupyterHub
+from digitaltwins.jupyterhub.staging import plan_files, stage_notebook_assay, workflow_uuid_by_seek_id
 from digitaltwins.minio.downloader import Downloader as MinioDownloader
 from digitaltwins.minio.uploader import Uploader as MinioUploader
 from digitaltwins.seek.querier import Querier as SeekQuerier
 from digitaltwins.seek.writer import Writer as SeekWriter
 from .auth import require_upload_role, validate_credentials
-from .dependencies import get_minio_downloader, get_querier, get_uploader
+from .dataset_uploads import get_conn
+from .dependencies import get_jupyterhub, get_minio_downloader, get_querier, get_uploader
 from ..schemas.assay import AssayDataModel
 
 load_dotenv()
@@ -543,11 +546,15 @@ async def configure_assay(
 
 
 @router.post("/assays/{assay_id}/run", tags=["assays"])
-def run_assay(assay_id: int, credentials: dict = Depends(validate_credentials), querier: Querier = Depends(get_querier)):
+def run_assay(assay_id: int, credentials: dict = Depends(validate_credentials), querier: Querier = Depends(get_querier),
+              conn=Depends(get_conn), downloader: MinioDownloader = Depends(get_minio_downloader),
+              hub: JupyterHub = Depends(get_jupyterhub)):
     """
     Trigger the assay processing.
     For script-based workflows, this handles fetching configs, discovering samples,
     creating SDS skeleton, uploading to MinIO, and triggering workflow DAG runs per sample.
+    For notebook-based workflows, this stages the workflow's code and the assay's inputs into
+    ``assay_<id>/`` in the user's JupyterHub server (starting it if needed) and returns its URL.
 
     Args:
         assay_id (int): The ID of the assay to process.
@@ -555,19 +562,19 @@ def run_assay(assay_id: int, credentials: dict = Depends(validate_credentials), 
         querier: Per-request querier authenticated as the calling user.
 
     Returns:
-        dict: Information about the triggered workflow runs.
+        dict: Information about the triggered workflow runs, or the notebook workspace URL.
     """
     username = credentials["username"]
-    if not AIRFLOW_ENABLED:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Airflow integration is disabled (AIRFLOW_ENABLED=false).",
-        )
 
     assay = querier.get_assay(assay_id, get_configs=False)
-    tags = assay.get("attributes").get("tags")
+    tags = assay.get("attributes").get("tags") or []
 
     if "script" in tags:
+        if not AIRFLOW_ENABLED:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Airflow integration is disabled (AIRFLOW_ENABLED=false).",
+            )
         try:
             configs = _fetch_assay_configs(querier, assay_id)
             samples = _discover_samples(querier, configs)
@@ -638,9 +645,26 @@ def run_assay(assay_id: int, credentials: dict = Depends(validate_credentials), 
         return {"dag_runs": results, "monitor_url": monitor_url}
         
     elif "notebook" in tags:
+        try:
+            configs = _fetch_assay_configs(querier, assay_id)
+            samples = _discover_samples(querier, configs)
+            workflow_uuid = workflow_uuid_by_seek_id(conn, configs.get("workflow_seek_id"))
+            entries = plan_files(configs, samples, workflow_uuid, downloader)
+        except (ValueError, LookupError) as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to prepare assay: {e}",
+            )
+        try:
+            counts = stage_notebook_assay(hub, username, assay_id, entries)
+        except HubTimeout as e:
+            raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail=str(e))
+        except (HubError, requests.RequestException) as e:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Failed to stage the notebook workspace: {e}")
+
         monitor_base_url = JUPYTERHUB_PUBLIC_URL
         monitor_url = f"{monitor_base_url}/user/{username}/lab/tree/assay_{assay_id}"
-        return {"url": monitor_url}
+        return {"url": monitor_url, **counts}
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
