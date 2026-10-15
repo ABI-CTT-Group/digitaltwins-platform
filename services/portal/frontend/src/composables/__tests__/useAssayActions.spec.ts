@@ -114,3 +114,14 @@ describe("useAssayActions.launch", () => {
     expect(actions.assayExecute.value["43"]?.url ?? "").toBe("");
   });
 });
+
+describe("useAssayActions.verify", () => {
+  it("opens the assay's notebook workspace for the signed-in Jupyter user", () => {
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    const actions = useAssayActions();
+
+    actions.verify("43");
+
+    expect(open).toHaveBeenCalledWith("/jupyter/hub/user-redirect/lab/tree/assay_43", "_blank");
+  });
+});
