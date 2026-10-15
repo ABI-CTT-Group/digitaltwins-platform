@@ -202,7 +202,7 @@ const formData = reactive<ToolInformationStep & { source?: LocalSource; workflow
   backendFolder: '',
   backendDeployCommand: 'docker compose up --build -d',
   toolMetadata: {},
-  sourceType: 'github',
+  sourceType: 'local',
   uploadId: undefined,
   source: undefined,
   workflowType: 'script',

@@ -6,8 +6,8 @@
         class="w-100 d-flex justify-start mb-1"
         hide-details
     >
-        <v-radio color="#5fd6e8" label="Git URL" value="git" />
-        <v-radio color="#5fd6e8" label="Local Folder" value="local" class="ml-2" />
+        <v-radio color="#5fd6e8" label="Local Folder" value="local" />
+        <v-radio color="#5fd6e8" label="Git URL" value="git" class="ml-2" />
     </v-radio-group>
 
     <template v-if="sourceMode === 'git'">
@@ -210,7 +210,7 @@ const author = defineModel<string>('author')
 const version = defineModel<string>('version')
 const description = defineModel<string>('description')
 const policy_checkbox = defineModel<boolean>('policyCheckbox', { default: false })
-const sourceType = defineModel<SourceType>('sourceType', { default: 'github' })
+const sourceType = defineModel<SourceType>('sourceType', { default: 'local' })
 
 // Transient auth — bound to parent's formData (NOT in PluginCreate payload).
 // Parent passes these into useWorkflowToolBuild / useWorkflowBuild as the
