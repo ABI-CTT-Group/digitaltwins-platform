@@ -7,7 +7,7 @@ from pathlib import Path
 # from app.utils import digitaltwins_configs
 from pprint import pprint
 import os
-from app.utils.utils import get_workflow_type
+from app.utils.utils import assay_type, get_workflow_type
 from app.client.digitaltwins_api import DigitalTWINSAPIClient
 from fastapi import Cookie, Header, HTTPException
 from httpx import HTTPStatusError, RequestError
@@ -180,7 +180,7 @@ async def get_dashboard_category_children_by_uuid(
                 temp = {
                     "seek_id": child.get("id", None),
                     "name": child.get("attributes").get("title", None),
-                    "tag": tags_list[0] if tags_list else None,
+                    "tag": assay_type(tags_list) or (tags_list[0] if tags_list else None),
                     "workflow_seek_id": workflow_seek_id,
                     # The config dialog offers only workflows from these projects.
                     "project_ids": _relationship_ids(child, "projects"),
@@ -501,9 +501,9 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None), clie
         configs = assay_detail.get("configs", None)
         if configs is None:
             return None
-        workflow_type = assay_detail.get("attributes").get("tags", [])[0] if assay_detail.get("attributes").get("tags", None) is not None else None
+        workflow_type = assay_type(assay_detail.get("attributes", {}).get("tags"))
         if workflow_type is None:
-            return None
+            return {"message": "Tag this assay in SEEK with exactly one of script, notebook or gui."}
         if workflow_type == "script":
             res = await client.post(f"/assays/{seek_id}/run", {})
             workflow_monitor_url = res.json().get("monitor_url", "")

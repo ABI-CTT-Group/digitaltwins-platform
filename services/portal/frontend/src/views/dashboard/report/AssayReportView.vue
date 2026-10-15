@@ -33,6 +33,7 @@
             :launching="launching"
             :can-monitor="canMonitor"
             :is-script="isScript"
+            :is-notebook="isNotebook"
             :downloading="actions.downloadingMap.value[assayId]"
             :submitting="actions.submittingMap.value[assayId]"
             @launch="actions.launch(assayId)"
@@ -99,6 +100,7 @@ const ready = computed(() => detail.value?.isAssayReadyToLaunch ?? false);
 const launching = computed(() => exec.value?.isLaunching ?? false);
 const canMonitor = computed(() => exec.value?.text === "Monitor");
 const isScript = computed(() => (detail.value?.workflow.type ?? "").toLowerCase().includes("script"));
+const isNotebook = computed(() => (detail.value?.workflow.type ?? "").toLowerCase().includes("notebook"));
 
 // Prefer the name cached from the assays list; fall back to the fetched seek
 // assay only on a deep-link where the list was never loaded.

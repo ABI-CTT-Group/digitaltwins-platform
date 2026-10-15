@@ -132,12 +132,10 @@ export function useAssayActions() {
     if (url) window.open(url, "_blank");
   };
 
+  // Notebook assays only: open the workspace Launch staged. user-redirect resolves the
+  // signed-in Jupyter user, so the portal does not need their username.
   const verify = (seekId: string) => {
-    const workflowUUID = assayDetails.value[seekId]?.workflow.uuid;
-    window.open(
-      `${JUPYTER_BASE_URL}/lab/tree/workflow_outputs/${workflowUUID}/verify.ipynb`,
-      "_blank",
-    );
+    window.open(`${JUPYTER_BASE_URL}/hub/user-redirect/lab/tree/assay_${seekId}`, "_blank");
   };
 
   const download = async (seekId: string) => {

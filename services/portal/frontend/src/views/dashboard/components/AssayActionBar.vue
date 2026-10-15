@@ -20,10 +20,10 @@
           </span>
         </template>
       </v-tooltip>
-      <v-tooltip text="Verify is not implemented yet" location="top">
+      <v-tooltip text="Verify is only available for notebook assays" location="top" :disabled="isNotebook">
         <template #activator="{ props: tip }">
           <span v-bind="tip" style="display: inline-flex">
-            <button type="button" class="btn btn--secondary" disabled @click.stop="$emit('verify')">
+            <button type="button" class="btn btn--secondary" :disabled="!ready || !isNotebook" @click.stop="$emit('verify')">
               Verify
             </button>
           </span>
@@ -52,6 +52,8 @@ defineProps<{
   canMonitor?: boolean;
   /** is the assay a script type */
   isScript?: boolean;
+  /** is the assay a notebook type → Verify opens its Jupyter workspace. */
+  isNotebook?: boolean;
   /** a download request in flight. */
   downloading?: boolean;
   /** a submit request in flight. */

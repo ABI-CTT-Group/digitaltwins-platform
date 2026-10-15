@@ -26,8 +26,9 @@ def _json_response(payload):
     return res
 
 
-def _assay(tag="gui", workflow_seek_id=95):
-    return {"assay": {"id": "43", "attributes": {"title": "Test Assay 3: image visualisation", "tags": [tag]},
+def _assay(tag="gui", workflow_seek_id=95, tags=None):
+    tags = [tag] if tags is None else tags
+    return {"assay": {"id": "43", "attributes": {"title": "Test Assay 3: image visualisation", "tags": tags},
                       "configs": {"workflow_seek_id": workflow_seek_id, "cohort": ["1"], "inputs": [], "outputs": []}}}
 
 
@@ -92,6 +93,23 @@ def test_script_launch_still_runs_the_assay(api):
     res = client.get("/api/dashboard/assay-launch", params={"seek_id": "43"})
     assert res.json() == {"type": "airflow", "data": "http://localhost/airflow/dags/workflow_89"}
     api.post.assert_called_once_with("/assays/43/run", {})
+
+
+def test_notebook_launch_finds_the_type_tag_anywhere_in_the_tags(api):
+    api.get.return_value = _json_response(_assay(tags=["demo", "notebook"], workflow_seek_id=97))
+    api.post.return_value = _json_response({"url": "http://localhost/jupyter/user/u/lab/tree/assay_43"})
+    res = client.get("/api/dashboard/assay-launch", params={"seek_id": "43"})
+    assert res.json() == {"type": "notebook", "data": "http://localhost/jupyter/user/u/lab/tree/assay_43"}
+    api.post.assert_called_once_with("/assays/43/run", {})
+
+
+@pytest.mark.parametrize("tags", [[], ["demo"], ["script", "notebook"]])
+def test_launch_without_exactly_one_type_tag_explains_why(api, tags):
+    api.get.return_value = _json_response(_assay(tags=tags))
+    res = client.get("/api/dashboard/assay-launch", params={"seek_id": "43"})
+    assert res.status_code == 200, res.text
+    assert "exactly one of script, notebook or gui" in res.json()["message"]
+    api.post.assert_not_called()
 
 
 # ── Context for /tool-view (snake_case: the frontend's http client camelCases responses) ──
