@@ -128,10 +128,10 @@
     </template>
         <div class="d-flex flex-row">
             <div class="w-100">
-                <h4 class="my-2">Workflow Name *</h4>
+                <h4 class="my-2">{{ type === 'tool' ? 'Tool' : 'Workflow' }} Name *</h4>
                 <v-text-field
                     v-model="name"
-                    label="My Tool Name"
+                    :label="type === 'tool' ? 'My Tool Name' : 'My Workflow Name'"
                     clearable
                     @blur="onNameBlur"
                     :rules="pluginNameRules"
@@ -202,6 +202,7 @@ const props = defineProps<{
     /** Structured probe failure from the parent's last `gitRepo.refresh()`.
      *  `reason` drives which auxiliary field opens via v-if. */
     probeFailure?: { reason: ProbeFailureReason; message: string } | undefined;
+    type?: 'tool' | 'workflow';
 }>()
 
 const repositoryUrl = defineModel<string>('repositoryUrl')

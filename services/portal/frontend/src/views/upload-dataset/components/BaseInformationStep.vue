@@ -47,6 +47,7 @@
       </template>
 
       <CommonInfoForm
+        :type="type"
         :cwl-repo-err="cwlRepoErr"
         :name-err="nameErr"
         :probe-failure="probeFailure"
