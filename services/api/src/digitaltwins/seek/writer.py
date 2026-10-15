@@ -5,12 +5,15 @@ A tool is a SEEK Workflow tagged ``tool`` plus its tool type, a workflow one
 tagged ``workflow`` plus its workflow type. Each is registered
 with one RO-Crate POST so SEEK's own extractors set the title, tags and the
 CWL ``internals`` (see docs/decisions/2026-09-30-register-tools-in-seek-via-single-ro-crate-post.md).
+The title is the portal name when one is given, else the CWL ``label``
+(see docs/decisions/2026-10-15-seek-title-from-portal-name.md).
 """
 import io
 import json
 import os
 import zipfile
 from pathlib import Path
+from typing import Optional
 
 import requests
 import yaml
@@ -21,22 +24,22 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def _build_crate(main_cwl: Path, keywords, extra_cwls=()) -> bytes:
+def _build_crate(main_cwl: Path, keywords, extra_cwls=(), title: Optional[str] = None) -> bytes:
     """A zipped Workflow RO-Crate holding ``main_cwl`` as its main workflow.
 
-    Root ``name`` / ``description`` come from the CWL ``label`` / ``doc`` (the file
-    stem when there is no label); root ``keywords`` become the SEEK tags.
+    Root ``name`` (the SEEK title) is ``title``, else the CWL ``label``, else the
+    file stem; root ``description`` is the CWL ``doc``; root ``keywords`` become the SEEK tags.
     ``extra_cwls`` (a workflow's tool CWLs) are packed beside it so that its
     steps' ``run: tool_x.cwl`` resolve.
     """
     main_cwl = Path(main_cwl)
     extra_cwls = [Path(p) for p in extra_cwls]
     cwl = yaml.safe_load(main_cwl.read_text()) or {}
-    title = cwl.get("label") or main_cwl.stem
+    label = cwl.get("label") or main_cwl.stem
     root = {
         "@id": "./",
         "@type": "Dataset",
-        "name": title,
+        "name": (title or "").strip() or label,
         "keywords": list(keywords),
         "hasPart": [{"@id": p.name} for p in [main_cwl, *extra_cwls]],
         "mainEntity": {"@id": main_cwl.name},
@@ -59,7 +62,7 @@ def _build_crate(main_cwl: Path, keywords, extra_cwls=()) -> bytes:
             {
                 "@id": main_cwl.name,
                 "@type": ["File", "SoftwareSourceCode", "ComputationalWorkflow"],
-                "name": title,
+                "name": label,
                 "programmingLanguage": {"@id": "#cwl"},
             },
             *({
@@ -84,14 +87,14 @@ def _build_crate(main_cwl: Path, keywords, extra_cwls=()) -> bytes:
     return buf.getvalue()
 
 
-def build_tool_crate(cwl_path: Path, tool_type: str) -> bytes:
+def build_tool_crate(cwl_path: Path, tool_type: str, title: Optional[str] = None) -> bytes:
     """A tool's crate: its CWL, tagged ``tool`` + its tool type."""
-    return _build_crate(cwl_path, ["tool", tool_type])
+    return _build_crate(cwl_path, ["tool", tool_type], title=title)
 
 
-def build_workflow_crate(workflow_cwl: Path, tool_cwls, workflow_type: str) -> bytes:
+def build_workflow_crate(workflow_cwl: Path, tool_cwls, workflow_type: str, title: Optional[str] = None) -> bytes:
     """A workflow's crate: its CWL plus its steps' tool CWLs, tagged ``workflow`` + its type."""
-    return _build_crate(workflow_cwl, ["workflow", workflow_type], tool_cwls)
+    return _build_crate(workflow_cwl, ["workflow", workflow_type], tool_cwls, title=title)
 
 
 def _seek_error(resp) -> str:
@@ -129,13 +132,21 @@ class Writer(object):
             raise RuntimeError(f"SEEK {kind} registration failed ({resp.status_code}): {_seek_error(resp)}")
         return int(resp.json()["data"]["id"])
 
-    def register_tool(self, cwl_path: Path, tool_type: str, project_id: int) -> int:
-        """Create the tool's SEEK Workflow in ``project_id``; return its id."""
-        return self._post_crate("tool", Path(cwl_path).stem, build_tool_crate(cwl_path, tool_type), project_id)
+    def register_tool(self, cwl_path: Path, tool_type: str, project_id: int, title: Optional[str] = None) -> int:
+        """Create the tool's SEEK Workflow in ``project_id``; return its id.
 
-    def register_workflow(self, workflow_cwl: Path, tool_cwls, workflow_type: str, project_id: int) -> int:
-        """Create the workflow's SEEK Workflow (tagged ``workflow``) in ``project_id``; return its id."""
-        crate = build_workflow_crate(workflow_cwl, tool_cwls, workflow_type)
+        Titled ``title`` if given, else the CWL ``label``.
+        """
+        crate = build_tool_crate(cwl_path, tool_type, title=title)
+        return self._post_crate("tool", Path(cwl_path).stem, crate, project_id)
+
+    def register_workflow(self, workflow_cwl: Path, tool_cwls, workflow_type: str, project_id: int,
+                          title: Optional[str] = None) -> int:
+        """Create the workflow's SEEK Workflow (tagged ``workflow``) in ``project_id``; return its id.
+
+        Titled ``title`` if given, else the CWL ``label``.
+        """
+        crate = build_workflow_crate(workflow_cwl, tool_cwls, workflow_type, title=title)
         return self._post_crate("workflow", Path(workflow_cwl).stem, crate, project_id)
 
     def delete_workflow(self, workflow_id: int) -> None:

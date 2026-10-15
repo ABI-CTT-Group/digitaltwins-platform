@@ -103,7 +103,7 @@ def commit_workflow(
                 tool_seek_ids[cwl] = writer.register_tool(root / "primary" / cwl.name, workflow_type, seek_project_id)
                 seek_ids.append(tool_seek_ids[cwl])
             seek_id = writer.register_workflow(layout.workflow_cwl, list(layout.tool_code), workflow_type,
-                                               seek_project_id)
+                                               seek_project_id, title=dataset_name)
             seek_ids.append(seek_id)
         except Exception as exc:
             logger.exception("SEEK registration failed for workflow dataset %s", dataset_root)

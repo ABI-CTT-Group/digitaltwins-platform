@@ -82,7 +82,7 @@ def test_tool_folder_is_stored_and_registered_in_seek(client):
                    (uuid,)) == (client.bucket, "sds_tool_convert", str(seek_id))
     assert f"{uuid}/primary/tool_convert.cwl" in _keys(client)
     assert f"{uuid}/code/tool_convert.py" in _keys(client)
-    assert client.seek.workflows[seek_id] == {"cwl": "tool_convert.cwl", "tool_type": "script",
+    assert client.seek.workflows[seek_id] == {"cwl": "tool_convert.cwl", "tool_type": "script", "title": None,
                                               "project_id": 11, "token": "t"}
     assert _db_one(client, "SELECT count(*) FROM upload_session") == (0,)
 
@@ -179,7 +179,7 @@ def test_seek_is_registered_before_the_dataset_is_stored(client, monkeypatch):
 
     events, upload = [], Uploader.upload_dataset
     register = client.seek.register_tool
-    monkeypatch.setattr(client.seek, "register_tool", lambda *a: events.append("seek") or register(*a))
+    monkeypatch.setattr(client.seek, "register_tool", lambda *a, **kw: events.append("seek") or register(*a, **kw))
     monkeypatch.setattr(Uploader, "upload_dataset", lambda *a, **kw: events.append("store") or upload(*a, **kw))
 
     r = _post(client, _folder_parts(_tool_files()))

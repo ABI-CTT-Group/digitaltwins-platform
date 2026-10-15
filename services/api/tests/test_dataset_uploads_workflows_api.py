@@ -74,6 +74,9 @@ def test_workflow_session_commits_the_workflow_and_its_tools(client):
     assert _db(client, "SELECT count(*) FROM workflow_tool WHERE workflow_dataset_uuid = %s",
                (session["dataset_uuid"],)) == [(2,)]
     assert sorted(w.get("workflow_type", "tool") for w in client.seek.workflows.values()) == ["script", "tool", "tool"]
+    # The workflow is titled with the session name; its step tools keep their CWL label.
+    assert sorted((w.get("workflow_type", "tool"), w["title"]) for w in client.seek.workflows.values()) == [
+        ("script", "Convert workflow"), ("tool", None), ("tool", None)]
 
 
 @pytest.mark.integration
