@@ -115,7 +115,8 @@ An assay run starts one DAG run per input sample, with `dag_run.conf`:
    - **Registered or approved by an admin:** this happens automatically right
      after the registration completes. That includes the portal, the REST API
      and the CLI importer (`python -m digitaltwins.cli.import_dataset`).
-   - **Registered by a researcher:** the Workflow Hub card shows
+   - **Registered by a researcher:** the workflow's card on the portal's
+     Workflows page (`/catalogue/workflows`) shows
      `deploy · pending` until an admin uses *Deploy DAG* on the card, or calls
      `POST /digitaltwins-api/workflows/{dataset_uuid}/deploy`. The same action
      redeploys a workflow or retries a failed deploy.

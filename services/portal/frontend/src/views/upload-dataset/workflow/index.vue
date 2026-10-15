@@ -23,7 +23,7 @@ const showOverall = ref(true);
 const heroDetail = computed(()=>{
     if(showOverall.value){
         return {
-            title:'Workflow Hub',
+            title:'Workflows',
             subtitle:'Explore all tools, design workflows effortlessly using Web GUI or Script components.'
         }
     }else{

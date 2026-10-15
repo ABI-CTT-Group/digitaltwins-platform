@@ -39,7 +39,7 @@ const showOverall = ref(true);
 const heroDetail = computed(()=>{
     if(showOverall.value){
         return {
-            title:'Tool Hub',
+            title:'Tools',
             subtitle:'Browse all tools — create, upload, and build Web GUI or Script tools effortlessly, and preview results seamlessly.'
         }
     }else{

@@ -40,7 +40,7 @@ const resumeMeasurementId = ref<string | undefined>(undefined);
 const heroDetail = computed(() =>
   showOverall.value
     ? {
-        title: 'Measurements Hub',
+        title: 'Measurements',
         subtitle:
           'Register SPARC measurements datasets and annotate patients, observations, imaging studies, and document references.',
       }
