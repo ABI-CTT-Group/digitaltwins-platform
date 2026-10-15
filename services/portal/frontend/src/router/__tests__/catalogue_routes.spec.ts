@@ -12,6 +12,7 @@ describe("catalogue routes", () => {
     ["UploadModelDataset", "/catalogue/models"],
     ["UploadToolDataset", "/catalogue/tools"],
     ["UploadWorkflowDataset", "/catalogue/workflows"],
+    ["ToolsViewer", "/catalogue/workflow-assembler"],
   ])("serves %s at %s", (name, path) => {
     expect(router.resolve({ name }).path).toBe(path);
   });

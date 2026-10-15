@@ -57,7 +57,7 @@ const routes = [
             component: CatalogueDashboardView,
           },
           {
-            path: "/catalogue-dashboard-tools",
+            path: "/catalogue/workflow-assembler",
             name: "ToolsViewer",
             component: ToolsViewer,
             meta: { requiresAuth: true },
