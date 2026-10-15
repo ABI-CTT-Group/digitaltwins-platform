@@ -74,7 +74,7 @@ def test_tool_session_is_committed_and_registered_in_seek(client):
     assert (session["tool_type"], session["seek_project_id"]) == ("script", 11)
     [seek_id] = _db_one(client, "SELECT seek_id FROM dataset WHERE dataset_uuid = %s", (session["dataset_uuid"],))
     assert client.seek.workflows[int(seek_id)] == {"cwl": "tool_convert.cwl", "tool_type": "script",
-                                                   "project_id": 11, "token": "t"}
+                                                   "title": "Convert tool", "project_id": 11, "token": "t"}
 
 
 @pytest.mark.integration

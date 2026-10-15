@@ -79,6 +79,19 @@ def test_crate_falls_back_to_the_file_stem_without_label_or_doc(tmp_path):
     assert "description" not in graph["./"]
 
 
+def test_crate_title_overrides_the_label(cwl_path):
+    graph, _, _ = _crate(build_tool_crate(cwl_path, "script", title="My convert tool"))
+    assert graph["./"]["name"] == "My convert tool"
+    assert graph["./"]["description"] == "Converts things."
+    assert graph["tool_convert.cwl"]["name"] == "Tool - convert"
+
+
+@pytest.mark.parametrize("title", [None, "", "   "])
+def test_crate_falls_back_to_the_label_without_a_title(cwl_path, title):
+    graph, _, _ = _crate(build_tool_crate(cwl_path, "script", title=title))
+    assert graph["./"]["name"] == "Tool - convert"
+
+
 def test_writer_requires_seek_base_url(monkeypatch):
     monkeypatch.delenv("SEEK_BASE_URL", raising=False)
     with pytest.raises(ValueError, match="SEEK_BASE_URL"):
@@ -104,6 +117,15 @@ def test_register_tool_posts_one_crate(seek_env, cwl_path, monkeypatch):
     assert content_type == "application/zip"
     graph, _, _ = _crate(content)
     assert graph["./"]["keywords"] == ["tool", "script"]
+
+
+def test_register_tool_titles_the_crate(seek_env, cwl_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(writer.requests, "post", lambda url, **kw: calls.append(kw) or
+                        FakeResponse(200, {"data": {"id": "42", "type": "workflows"}}))
+    Writer(api_token="tok").register_tool(cwl_path, "script", project_id=11, title="My convert tool")
+    graph, _, _ = _crate(calls[0]["files"]["ro_crate"][1])
+    assert graph["./"]["name"] == "My convert tool"
 
 
 def test_register_tool_raises_on_seek_error(seek_env, cwl_path, monkeypatch):
@@ -208,6 +230,24 @@ def test_register_workflow_posts_one_crate(seek_env, workflow_paths, monkeypatch
     assert filename == "workflow_convert.crate.zip"
     graph, _, _ = _crate(content)
     assert graph["./"]["keywords"] == ["workflow", "gui"]
+
+
+def test_workflow_crate_title_overrides_the_label(workflow_paths):
+    workflow, tool_cwls = workflow_paths
+    graph, _, _ = _crate(build_workflow_crate(workflow, tool_cwls, "script", title="My convert workflow"))
+    assert graph["./"]["name"] == "My convert workflow"
+    assert graph["./"]["description"] == "Converts twice."
+    assert graph["workflow_convert.cwl"]["name"] == "Workflow - convert"
+
+
+def test_register_workflow_titles_the_crate(seek_env, workflow_paths, monkeypatch):
+    workflow, tool_cwls = workflow_paths
+    calls = []
+    monkeypatch.setattr(writer.requests, "post", lambda url, **kw: calls.append(kw) or
+                        FakeResponse(200, {"data": {"id": "43", "type": "workflows"}}))
+    Writer(api_token="tok").register_workflow(workflow, tool_cwls, "gui", project_id=11, title="My convert workflow")
+    graph, _, _ = _crate(calls[0]["files"]["ro_crate"][1])
+    assert graph["./"]["name"] == "My convert workflow"
 
 
 def test_register_workflow_raises_on_seek_error(seek_env, workflow_paths, monkeypatch):

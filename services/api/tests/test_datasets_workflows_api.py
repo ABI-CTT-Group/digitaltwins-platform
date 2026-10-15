@@ -181,8 +181,9 @@ def test_script_workflow_stores_each_tool_as_a_tool_dataset_and_links_them(clien
 
     seek = client.seek.workflows
     assert seek[wf_seek] == {"cwl": "workflow_convert.cwl", "workflow_type": "script",
-                             "tools": ["tool_to_nifti.cwl", "tool_to_nrrd.cwl"], "project_id": 11, "token": "t"}
-    assert seek[steps["to_nifti"]["seek_id"]] == {"cwl": "tool_to_nifti.cwl", "tool_type": "script",
+                             "tools": ["tool_to_nifti.cwl", "tool_to_nrrd.cwl"], "title": None,
+                             "project_id": 11, "token": "t"}
+    assert seek[steps["to_nifti"]["seek_id"]] == {"cwl": "tool_to_nifti.cwl", "tool_type": "script", "title": None,
                                                   "project_id": 11, "token": "t"}
     assert len(seek) == 3
 

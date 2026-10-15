@@ -168,7 +168,7 @@ session = client.upload_dataset("path/to/model_skin_test", category="models",
 
 A tool dataset is an SDS folder. `primary/` holds exactly one `tool_<name>.cwl`, and the tool itself is in `code/`: a Python script for `tool_type=script`, a Jupyter notebook for `tool_type=notebook`, or the source or built bundle of a GUI/plugin for `tool_type=gui`. Tools have no subjects or samples. A `subjects.xlsx` or `samples.xlsx` in the folder is stored as a file but not loaded into the subject and sample tables.
 
-The upload is registered in SEEK first, as a Workflow tagged `tool` + `<tool_type>` in the SEEK project you name, and as you. You must be a member of that project. SEEK takes the Workflow's title from the CWL `label` and parses its inputs and outputs. The dataset is then stored in the MinIO `tools` bucket and in Postgres. The dataset's `seek_id` and `tool_type` link it to that Workflow.
+The upload is registered in SEEK first, as a Workflow tagged `tool` + `<tool_type>` in the SEEK project you name, and as you. You must be a member of that project. SEEK parses the CWL's inputs and outputs. The Workflow's title is the upload's name when one is given (the `name` of a resumable session, as typed in the portal), otherwise the CWL `label`, otherwise the CWL file stem. The same applies to workflow datasets; the tools a workflow registers for its steps keep their CWL `label`. The dataset is then stored in the MinIO `tools` bucket and in Postgres. The dataset's `seek_id` and `tool_type` link it to that Workflow.
 
 The portal's tool wizard builds a tool from source (git or a local folder), and on Approval it hands the build to this same pipeline.
 

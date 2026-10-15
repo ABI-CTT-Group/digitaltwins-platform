@@ -311,8 +311,8 @@ class FakeSeek:
     """In-memory SEEK standing in for ``digitaltwins.seek.writer.Writer``.
 
     ``workflows`` maps each registered workflow id to what it was registered
-    with (CWL file name, tool or workflow type, a workflow's tool CWLs, project,
-    the caller's token); ``deleted`` lists deleted ids. ``fail_register`` /
+    with (CWL file name, tool or workflow type, a workflow's tool CWLs, title,
+    project, the caller's token); ``deleted`` lists deleted ids. ``fail_register`` /
     ``fail_register_workflow`` / ``fail_delete`` make the calls raise like the
     real Writer does when SEEK refuses or is unreachable.
     """
@@ -325,20 +325,20 @@ class FakeSeek:
         self.fail_delete = False
         self._next = 100
 
-    def register_tool(self, writer, cwl_path, tool_type, project_id):
+    def register_tool(self, writer, cwl_path, tool_type, project_id, title=None):
         if self.fail_register:
             raise RuntimeError("SEEK tool registration failed (422): Projects: you are not a member")
         self._next += 1
-        self.workflows[self._next] = {"cwl": Path(cwl_path).name, "tool_type": tool_type,
+        self.workflows[self._next] = {"cwl": Path(cwl_path).name, "tool_type": tool_type, "title": title,
                                       "project_id": project_id, "token": writer._api_token}
         return self._next
 
-    def register_workflow(self, writer, workflow_cwl, tool_cwls, workflow_type, project_id):
+    def register_workflow(self, writer, workflow_cwl, tool_cwls, workflow_type, project_id, title=None):
         if self.fail_register or self.fail_register_workflow:
             raise RuntimeError("SEEK workflow registration failed (422): Projects: you are not a member")
         self._next += 1
         self.workflows[self._next] = {"cwl": Path(workflow_cwl).name, "workflow_type": workflow_type,
-                                      "tools": [Path(p).name for p in tool_cwls],
+                                      "tools": [Path(p).name for p in tool_cwls], "title": title,
                                       "project_id": project_id, "token": writer._api_token}
         return self._next
 

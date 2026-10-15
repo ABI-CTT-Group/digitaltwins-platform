@@ -60,7 +60,7 @@ def commit_tool(
     cwl_path = find_tool_cwl(dataset_root)
     try:
         writer = Writer(api_token=api_token)
-        seek_id = writer.register_tool(cwl_path, tool_type, seek_project_id)
+        seek_id = writer.register_tool(cwl_path, tool_type, seek_project_id, title=dataset_name)
     except Exception as exc:
         logger.exception("SEEK registration failed for tool dataset %s", dataset_root)
         raise SeekRegistrationError(f"SEEK registration failed; nothing was stored: {exc}") from exc

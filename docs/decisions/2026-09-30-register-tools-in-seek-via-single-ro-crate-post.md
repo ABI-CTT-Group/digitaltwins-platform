@@ -24,7 +24,7 @@ So SEEK must parse the CWL. A prototype (`services/api/app/routers/upload_workfl
 - Cons: we would have to parse the CWL ourselves into SEEK's internal structure, which duplicates SEEK's CWL extractor. `internals` isn't in the documented `workflowPost` schema. Setting a description still needs a PATCH (`workflowPost` has no `description`).
 
 ### Option C: Build a minimal Workflow RO-Crate and send one multipart POST
-- Pros: one call. SEEK's own extractors set the title (CWL `label`), the description (CWL `doc`), the tags (crate `keywords`) and `internals`. Nothing to repair or delete. The request uses the caller's Keycloak JWT, like the rest of the SEEK integration.
+- Pros: one call. SEEK's own extractors set the title (CWL `label`; the portal name since [2026-10-15-seek-title-from-portal-name.md](2026-10-15-seek-title-from-portal-name.md)), the description (CWL `doc`), the tags (crate `keywords`) and `internals`. Nothing to repair or delete. The request uses the caller's Keycloak JWT, like the rest of the SEEK integration.
 - Cons: relies on RO-Crate submission, a WorkflowHub extension that isn't in SEEK's OpenAPI spec. We build `ro-crate-metadata.json` by hand.
 
 ## Decision
