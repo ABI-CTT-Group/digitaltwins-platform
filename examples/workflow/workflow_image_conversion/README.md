@@ -14,7 +14,7 @@ A script (Airflow) workflow that converts a DICOM series to NIfTI and NRRD.
 
 Register the workflow (portal *Upload workflow* or digitaltwins-api
 `POST /datasets?category=workflows&workflow_type=script`), then an admin
-deploys its DAG (*Deploy DAG* in the Workflow Hub, or
+deploys its DAG (*Deploy DAG* on the portal's Workflows page, or
 `POST /workflows/{dataset_uuid}/deploy`). The DAG names itself after the
 folder it is deployed to (`workflow_<seek_id>`), so it never hardcodes an id.
 See `docs/workflow-dag-authoring.md` in the platform repository.

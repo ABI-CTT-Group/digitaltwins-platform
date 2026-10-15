@@ -4,7 +4,6 @@
 
       <!-- Header -->
       <header class="masthead">
-        <p class="masthead__eyebrow">DigitalTWINS · AI Platform</p>
         <h1 class="masthead__title">Catalogue</h1>
         <p class="masthead__sub">
           Your gateway to descriptions, datasets, workflows and tools across the platform.
@@ -60,6 +59,9 @@
             <span v-if="card.comingSoon" class="tile__roles">
               Coming soon
             </span>
+            <span v-else-if="card.prototype" class="tile__roles">
+              Prototype
+            </span>
             <span v-else-if="card.requireRoles" class="tile__roles">
               <v-icon icon="mdi-lock-outline" size="12"></v-icon>
               {{ card.requireRoles.join(' · ') }}
@@ -99,6 +101,7 @@ type CatalogueCard = {
   external?: boolean;
   requireRoles?: string[];
   comingSoon?: boolean;
+  prototype?: boolean;
 };
 
 const hero: CatalogueCard = {
@@ -154,10 +157,12 @@ const actions: CatalogueCard[] = [
   {
     title: 'Workflow assembler',
     description: 'Assemble and publish a new workflow to the platform, step by step.',
-    herf: 'WorkflowToolsViewer',
+    herf: 'ToolsViewer',
     icon: 'mdi-vector-combine',
     cta: 'Open',
     accent: '#9fd0e6',
+    requireRoles: [],
+    prototype: true,
   },
 ];
 
@@ -229,15 +234,6 @@ const navigate = async (card: CatalogueCard) => {
 .masthead {
   margin-bottom: clamp(28px, 5vh, 52px);
   animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.masthead__eyebrow {
-  margin: 0 0 14px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.32em;
-  text-transform: uppercase;
-  color: var(--aqua);
-  opacity: 0.85;
 }
 .masthead__title {
   margin: 0;

@@ -94,10 +94,10 @@ Plugins and CWL workflows can be registered into the portal in **two ways**:
 
 | Source | When to use | What you provide |
 |---|---|---|
-| **GitHub URL** | Code already lives on a **public** GitHub repo | Paste `https://github.com/<owner>/<repo>` — portal reads `package.json`, root folders, and `.cwl` from the GitHub API |
-| **Local folder / .zip** | Private repo, in-progress code, or no GitHub at all | Drag a folder (or a `.zip` file) into the dropzone — uploaded directly to the portal |
+| **Local folder / .zip** (default) | Private repo, in-progress code, or no GitHub at all | Drag a folder (or a `.zip` file) into the dropzone — uploaded directly to the portal |
+| **Git URL** | Code already lives on a **public** GitHub repo | Paste `https://github.com/<owner>/<repo>` — portal reads `package.json`, root folders, and `.cwl` from the GitHub API |
 
-In the registration form, switch the **Source** radio at the top of the *Base Information* step.
+In the registration form (*Catalogue → Tools* or *Catalogue → Workflows*), the **Source** radio at the top of the *Base Information* step starts on *Local Folder*; switch it to *Git URL* to register from a repository.
 
 ### Local upload constraints
 

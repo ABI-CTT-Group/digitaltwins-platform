@@ -21,9 +21,14 @@ import BaseInformationStep from "../BaseInformationStep.vue";
 
 // The source fields belong to CommonInfoForm; render only its slots, so the type radios are tested on their own.
 const stubs = { CommonInfoForm: { template: "<div><slot name='dropzone' /><slot /></div>" }, LocalFolderDropzone: true };
-const mountStep = (type: "tool" | "workflow") =>
-  mount(BaseInformationStep, { props: { type }, global: { plugins: [testVuetify()], stubs } });
-type Step = ReturnType<typeof mountStep>;
+// Source defaults to a local folder; these tests drive the git path (the mocked repo info).
+async function mountStep(type: "tool" | "workflow") {
+  const w = mount(BaseInformationStep, { props: { type }, global: { plugins: [testVuetify()], stubs } });
+  (w.vm as any).formData.sourceType = "github";
+  await flushPromises();
+  return w;
+}
+type Step = Awaited<ReturnType<typeof mountStep>>;
 const typeGroup = (w: Step) => w.findAllComponents({ name: "VRadioGroup" })[0];
 const labels = (w: Step) => typeGroup(w).findAllComponents({ name: "VRadio" }).map((r) => r.props("label"));
 const pick = async (w: Step, value: string) => { typeGroup(w).vm.$emit("update:modelValue", value); await flushPromises(); };
@@ -42,21 +47,26 @@ describe("BaseInformationStep", () => {
     repo.info.value = { foldersInRoot: [], isSds: false, cwlExists: false };
   });
 
-  it("asks a workflow for its type before any source is chosen, defaulting to Script", () => {
-    const w = mountStep("workflow");
+  it("defaults the source to a local folder", () => {
+    const w = mount(BaseInformationStep, { props: { type: "tool" }, global: { plugins: [testVuetify()], stubs } });
+    expect((w.vm as any).formData.sourceType).toBe("local");
+  });
+
+  it("asks a workflow for its type before any source is chosen, defaulting to Script", async () => {
+    const w = await mountStep("workflow");
     expect(w.text()).toContain("Choose the workflow type *");
     expect(labels(w)).toEqual(["Script", "Notebook", "Web GUI"]);
     expect(typeGroup(w).props("modelValue")).toBe("script");
   });
 
   it("sends the workflow type for any source", async () => {
-    const w = mountStep("workflow");
+    const w = await mountStep("workflow");
     await pick(w, "notebook");
     expect(await submit(w)).toMatchObject({ workflowType: "notebook" });
   });
 
-  it("lists tool types in the same order, defaulting to Script with no backend", () => {
-    const w = mountStep("tool");
+  it("lists tool types in the same order, defaulting to Script with no backend", async () => {
+    const w = await mountStep("tool");
     expect(labels(w)).toEqual(["Script", "Notebook", "Web GUI"]);
     expect(typeGroup(w).props("modelValue")).toBe("Script");
     expect(w.text()).not.toContain("has backend?");
@@ -64,7 +74,7 @@ describe("BaseInformationStep", () => {
   });
 
   it("asks about a backend only for a Web GUI tool, and never sends one for a Script tool", async () => {
-    const w = mountStep("tool");
+    const w = await mountStep("tool");
     await pick(w, "GUI");
     expect(w.text()).toContain("has backend?");
     expect((w.vm as any).formData.hasBackend).toBe(false);
@@ -76,7 +86,7 @@ describe("BaseInformationStep", () => {
 
   it("asks a gui SDS workflow how to build its tool, and sends it", async () => {
     repo.info.value = { foldersInRoot: ["backend", "frontend"], isSds: true, cwlExists: true };
-    const w = mountStep("workflow");
+    const w = await mountStep("workflow");
     await pick(w, "gui");
     expect(w.text()).toContain("has backend?");
 
@@ -86,7 +96,7 @@ describe("BaseInformationStep", () => {
   });
 
   it("asks nothing more of a root-.cwl gui workflow", async () => {
-    const w = mountStep("workflow");
+    const w = await mountStep("workflow");
     await pick(w, "gui");
     expect(w.text()).not.toContain("has backend?");
     expect(await submit(w)).not.toHaveProperty("hasBackend");
@@ -94,7 +104,7 @@ describe("BaseInformationStep", () => {
 
   it("does not send a gui layout for another workflow type", async () => {
     repo.info.value = { foldersInRoot: ["frontend"], isSds: true, cwlExists: true };
-    const w = mountStep("workflow");
+    const w = await mountStep("workflow");
     await pick(w, "script");
     expect(w.text()).not.toContain("has backend?");
     expect(await submit(w)).not.toHaveProperty("frontendBuildCommand");

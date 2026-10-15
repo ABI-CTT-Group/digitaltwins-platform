@@ -37,7 +37,7 @@ const resumeModelId = ref<string | undefined>(undefined);
 const heroDetail = computed(() =>
   showOverall.value
     ? {
-        title: 'Models Hub',
+        title: 'Models',
         subtitle: 'Register trained models (SDS datasets) so assays and inference workflows can use them.',
       }
     : {

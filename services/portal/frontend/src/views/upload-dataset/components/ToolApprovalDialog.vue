@@ -34,7 +34,7 @@
         <template v-else>
           <div class="d-flex align-center mb-3">
             <v-chip :color="chipColor" variant="tonal" class="mr-3">{{ statusLabel }}</v-chip>
-            <span v-if="running" class="text-caption mr-3">You can close this; the {{ kind === 'workflow' ? 'Workflow' : 'Tool' }} Hub keeps it going.</span>
+            <span v-if="running" class="text-caption mr-3">You can close this; the {{ kind === 'workflow' ? 'Workflows' : 'Tools' }} page keeps it going.</span>
             <span v-if="status.partsTotal" class="text-caption">{{ status.partsSent }} / {{ status.partsTotal }} parts</span>
           </div>
           <v-progress-linear v-if="running" :model-value="percent" :indeterminate="!status.partsTotal"

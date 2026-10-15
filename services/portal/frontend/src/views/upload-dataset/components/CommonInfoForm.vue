@@ -6,8 +6,8 @@
         class="w-100 d-flex justify-start mb-1"
         hide-details
     >
-        <v-radio color="#5fd6e8" label="Git URL" value="git" />
-        <v-radio color="#5fd6e8" label="Local Folder" value="local" class="ml-2" />
+        <v-radio color="#5fd6e8" label="Local Folder" value="local" />
+        <v-radio color="#5fd6e8" label="Git URL" value="git" class="ml-2" />
     </v-radio-group>
 
     <template v-if="sourceMode === 'git'">
@@ -128,10 +128,10 @@
     </template>
         <div class="d-flex flex-row">
             <div class="w-100">
-                <h4 class="my-2">Workflow Name *</h4>
+                <h4 class="my-2">{{ type === 'tool' ? 'Tool' : 'Workflow' }} Name *</h4>
                 <v-text-field
                     v-model="name"
-                    label="My Tool Name"
+                    :label="type === 'tool' ? 'My Tool Name' : 'My Workflow Name'"
                     clearable
                     @blur="onNameBlur"
                     :rules="pluginNameRules"
@@ -202,6 +202,7 @@ const props = defineProps<{
     /** Structured probe failure from the parent's last `gitRepo.refresh()`.
      *  `reason` drives which auxiliary field opens via v-if. */
     probeFailure?: { reason: ProbeFailureReason; message: string } | undefined;
+    type?: 'tool' | 'workflow';
 }>()
 
 const repositoryUrl = defineModel<string>('repositoryUrl')
@@ -210,7 +211,7 @@ const author = defineModel<string>('author')
 const version = defineModel<string>('version')
 const description = defineModel<string>('description')
 const policy_checkbox = defineModel<boolean>('policyCheckbox', { default: false })
-const sourceType = defineModel<SourceType>('sourceType', { default: 'github' })
+const sourceType = defineModel<SourceType>('sourceType', { default: 'local' })
 
 // Transient auth — bound to parent's formData (NOT in PluginCreate payload).
 // Parent passes these into useWorkflowToolBuild / useWorkflowBuild as the
