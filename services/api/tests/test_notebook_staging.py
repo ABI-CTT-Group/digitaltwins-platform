@@ -172,6 +172,18 @@ def test_list_paths_walks_the_tree_and_a_missing_root_is_empty():
     assert hub.list_paths("alice", "assay_2") == set()
 
 
+def test_the_token_comes_from_the_environment(monkeypatch):
+    monkeypatch.setenv("JUPYTERHUB_API_TOKEN", "tok")
+    fake = FakeJupyter(server={"ready": True, "pending": None})
+    JupyterHub(base_url=BASE, session=fake).ensure_server("alice")  # FakeJupyter asserts "token tok"
+
+
+def test_a_missing_token_is_an_error_not_a_default(monkeypatch):
+    monkeypatch.delenv("JUPYTERHUB_API_TOKEN", raising=False)
+    with pytest.raises(KeyError, match="JUPYTERHUB_API_TOKEN"):
+        JupyterHub(base_url=BASE, session=FakeJupyter())
+
+
 def test_a_failed_call_raises_hub_error():
     fake = FakeJupyter()
     hub = hub_for(fake)

@@ -91,7 +91,9 @@ Full detail in [`README.md`](README.md); the shape is:
 1. Re-attach the volume, mount it (`util/mount_src.sh`).
 2. Docker: airgap → step2 playbook (static binaries); connected → Docker's apt repo.
 3. Configure `data/env` + `data/secrets.env` (incl. `REMOTE_COMPUTE`,
-   `AIRFLOW_VAR_COMPUTE_QUEUE`; `REDIS_PASSWORD` is **required** now).
+   `AIRFLOW_VAR_COMPUTE_QUEUE`; `REDIS_PASSWORD` is **required** now, and so is
+   `JUPYTERHUB_API_TOKEN` — an existing `data/secrets.env` needs it added, see
+   [the ADR](../docs/decisions/2026-10-16-jupyterhub-service-token-secret.md)).
 4. Deploy: step3 playbook — airgap loads the frozen images; connected adds
    `-e load_frozen_images=false` to build from source. It renders `.env`, installs
    the TLS cert + the `digitaltwins-platform.service` boot unit, and brings the

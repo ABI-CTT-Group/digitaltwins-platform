@@ -75,8 +75,10 @@ def test_upload_workspace_datasets():
         assert mock_uploader.upload_dataset.call_count == 2
 
 
-def test_upload_workspace_datasets_jupyter():
+def test_upload_workspace_datasets_jupyter(monkeypatch):
     """Test the POST /assays/{assay_id}/workspace/dataset/upload endpoint for Jupyter assays."""
+    # Compose passes the hub service token; it has no default.
+    monkeypatch.setenv("JUPYTERHUB_API_TOKEN", "testtoken")
     mock_uploader = MagicMock()
     mock_uploader.upload_dataset.return_value = "mocked-uuid-jupyter"
     

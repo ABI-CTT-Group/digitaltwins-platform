@@ -154,10 +154,30 @@ c.JupyterHub.admin_access = True
 # ---------------------------------------------------------------------------
 # Services
 # ---------------------------------------------------------------------------
+_API_SERVICE = 'digitaltwins-api'
+
+# The hub adds configured service tokens to its database but never removes ones no longer
+# configured, so a rotated token — including the public default this one used to have —
+# would stay valid. Drop the service's config tokens before the hub starts; it re-adds
+# the current one. Only the default SQLite db_url (in the working directory) is handled.
+# See docs/decisions/2026-10-16-jupyterhub-service-token-secret.md.
+_hub_db = os.path.join(os.getcwd(), 'jupyterhub.sqlite')
+if os.path.exists(_hub_db):
+    import sqlite3
+
+    _db = sqlite3.connect(_hub_db)
+    with _db:
+        _db.execute(
+            "DELETE FROM api_tokens WHERE note = 'from config'"
+            " AND service_id IN (SELECT id FROM services WHERE name = ?)",
+            (_API_SERVICE,),
+        )
+    _db.close()
+
 c.JupyterHub.services = [
     {
-        'name': 'digitaltwins-api',
-        'api_token': os.environ.get('JUPYTERHUB_API_TOKEN', 'digitaltwins-api-secret-token'),
+        'name': _API_SERVICE,
+        'api_token': os.environ['JUPYTERHUB_API_TOKEN'],
         'admin': True
     }
 ]
