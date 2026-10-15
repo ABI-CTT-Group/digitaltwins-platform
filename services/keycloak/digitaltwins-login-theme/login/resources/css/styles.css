@@ -183,18 +183,6 @@ a:hover {
   margin: 0;
 }
 
-.dtwins-or {
-  position: relative;
-  top: -11px;
-  display: inline-block;
-  padding: 0 8px;
-  background: rgba(31, 41, 55, 0.45);
-  color: #e2e8f0;
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-
 #kc-social-providers {
   margin-top: 2px;
 }

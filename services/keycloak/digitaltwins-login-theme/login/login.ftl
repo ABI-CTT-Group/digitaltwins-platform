@@ -89,7 +89,6 @@
       <div id="kc-social-providers" class="form-group">
         <div class="dtwins-divider-wrap">
           <hr class="dtwins-divider" />
-          <span class="dtwins-or">OR</span>
         </div>
         <ul class="${properties.kcFormSocialAccountListClass!}">
           <#list social.providers as p>
