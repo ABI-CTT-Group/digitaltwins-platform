@@ -2,7 +2,7 @@ import os
 import stat
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 import math
 import platform
 from app.builder.logger import get_logger
@@ -105,3 +105,12 @@ def get_workflow_type(tags) -> str:
     if len(types) > 1:
         return 'error'
     return types.pop() if types else 'other'
+
+
+def assay_type(tags) -> Optional[str]:
+    """The assay's one SEEK type tag (script, gui or notebook), wherever it is among its tags.
+
+    None when it has no type tag or more than one, as it can't be launched then.
+    """
+    types = {t.strip().lower() for t in tags or [] if isinstance(t, str)} & {'script', 'gui', 'notebook'}
+    return types.pop() if len(types) == 1 else None

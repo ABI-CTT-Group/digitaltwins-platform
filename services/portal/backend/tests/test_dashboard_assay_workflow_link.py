@@ -69,6 +69,17 @@ def test_assay_card_uses_the_first_sop_that_links_a_workflow(api):
     assert card["tag"] == "script"
 
 
+def test_assay_card_tag_is_the_type_tag_wherever_it_is(api):
+    study = {"study": {"relationships": {"assays": {"data": [{"id": "42", "type": "assays"}]}}}}
+    assay = {"assay": {"id": "42", "type": "assays",
+                       "attributes": {"title": "Test Assay 4: notebook", "tags": ["demo", "Notebook"], "description": None},
+                       "relationships": {"workflows": []}}}
+    api.get.side_effect = lambda path, *a, **kw: _json_response(study if path == "/studies/11" else assay)
+    res = client.get("/api/dashboard/category-children", params={"seek_id": "11", "category": "Studies"})
+    [card] = res.json()
+    assert card["tag"] == "notebook"
+
+
 def test_assay_card_carries_the_assays_projects(api):
     study = {"study": {"relationships": {"assays": {"data": [{"id": "42", "type": "assays"}]}}}}
     assay = {"assay": {"id": "42", "type": "assays",
