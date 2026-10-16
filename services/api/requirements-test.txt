@@ -1,0 +1,4 @@
+# Unit-test dependencies (run with `make test-api` from the repo root)
+-r requirements-prod.txt
+pytest==8.4.2
+httpx==0.28.1
