@@ -1,0 +1,148 @@
+# Unit-test gate. Every job calls a Makefile target, so `make <target>` reproduces it locally.
+# See docs/testing.md and docs/decisions/2026-10-16-ci-make-in-pinned-containers.md.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Decides which suites a PR touches. Pushes to main and manual runs test everything.
+  # Draft PRs skip this job, and with it every job below.
+  changes:
+    name: detect changes
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      portal_backend: ${{ steps.filter.outputs.portal_backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      jupyterhub: ${{ steps.filter.outputs.jupyterhub }}
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            files="Makefile"
+          else
+            files=$(git diff --name-only "$BASE...$HEAD")
+          fi
+          printf 'Changed files:\n%s\n' "$files"
+          has() { grep -qE "$1" <<<"$files" && echo true || echo false; }
+          all=$(has '^(Makefile|\.github/workflows/)')
+          api=$(has '^services/(api|postgres)/')
+          frontend=$(has '^services/portal/frontend/')
+          # One portal-backend test reads the frontend's nginx.conf.template.
+          portal_backend=$(has '^services/portal/(backend|frontend)/')
+          jupyterhub=$(has '^services/jupyterhub/')
+          [ "$all" = true ] && api=true frontend=true portal_backend=true jupyterhub=true
+          code=false
+          for v in $api $frontend $portal_backend $jupyterhub; do [ "$v" = true ] && code=true; done
+          {
+            echo "api=$api"
+            echo "portal_backend=$portal_backend"
+            echo "frontend=$frontend"
+            echo "jupyterhub=$jupyterhub"
+            echo "code=$code"
+          } | tee -a "$GITHUB_OUTPUT"
+
+  # Job names are the required-check names on main; don't rename them.
+  api:
+    name: api unit tests
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: make test-api
+
+  portal-backend:
+    name: portal-backend unit tests
+    needs: changes
+    if: needs.changes.outputs.portal_backend == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: make test-portal-backend
+
+  frontend:
+    name: frontend unit tests
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: make test-frontend
+
+  jupyterhub:
+    name: jupyterhub unit tests
+    needs: changes
+    if: needs.changes.outputs.jupyterhub == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: make test-jupyterhub
+
+  # Report-only: continue-on-error is on the steps so the job stays green while findings still show.
+  lint:
+    name: lint (report-only)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: make lint-python RUFF_FORMAT=github
+        continue-on-error: true
+      - run: make lint-frontend
+        continue-on-error: true
+
+  # Scans only this PR's commits: the public history predates the pre-commit hook.
+  gitleaks:
+    name: gitleaks (PR commits)
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - run: make gitleaks GITLEAKS_RANGE="$BASE..$HEAD"
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
