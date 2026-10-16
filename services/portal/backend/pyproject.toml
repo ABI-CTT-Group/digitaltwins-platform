@@ -32,3 +32,12 @@ dependencies = [
     "sparc-me>=3.0.2",
     "sqlalchemy>=2.0.43",
 ]
+
+[dependency-groups]
+test = [
+    "pytest>=8.4,<9",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

@@ -59,7 +59,7 @@ See [Populating_data](docs/populating_data.md)
 To report an issue or suggest a new feature, please use the [issues page](https://github.com/ABI-CTT-Group/digitaltwins-platform/issues). Issue templates are provided to allow users to report bugs, and documentation or feature requests. Please check existing issues before submitting a new one.
 
 ## Contributing
-Fork this repository and submit a pull request to contribute. Before doing so, please read our [Code of Conduct](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/master/CODE_OF_CONDUCT.md) and [Contributing Guidelines](https://github.com/ABI-CTT-Group/digitaltwins-api/blob/master/CONTRIBUTING.md). Pull request templates are provided to help developers describe their contribution, mention the issues related to the pull request, and describe their testing environment. 
+Fork this repository and submit a pull request to contribute. Before doing so, please read our [Code of Conduct](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/master/CODE_OF_CONDUCT.md) and [Contributing Guidelines](https://github.com/ABI-CTT-Group/digitaltwins-api/blob/master/CONTRIBUTING.md). Pull request templates are provided to help developers describe their contribution, mention the issues related to the pull request, and describe their testing environment. Run the unit tests with `make test` before opening a pull request; see [docs/testing.md](docs/testing.md). 
 
 ## License
 The DigitalTWINS platform API is fully open source and distributed under the very permissive Apache License 2.0. See [LICENSE](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/LICENSE) for more information.

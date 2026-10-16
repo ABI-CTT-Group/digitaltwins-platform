@@ -30,3 +30,17 @@ class LiveDbGuardTest(unittest.TestCase):
         r = import_tests()
 
         self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_sqlite_engine_never_binds_to_the_working_dir_registry(self):
+        # Test modules that import app.main before tool_app.py sets DATABASE_PATH used to bind
+        # the engine to ./plugin_registry.db, which the suite's drop_all() then wiped.
+        registry = BACKEND_ROOT / "plugin_registry.db"
+        base = {k: v for k, v in os.environ.items() if k not in ("PORTAL_DB_HOST", "DATABASE_PATH")}
+        for env in (base, {**base, "DATABASE_PATH": str(registry)}):
+            r = subprocess.run(
+                [sys.executable, "-c",
+                 "import tests, app.models.db_model as m; print(m.engine.url.database)"],
+                cwd=BACKEND_ROOT, env=env, capture_output=True, text=True)
+
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertNotEqual((BACKEND_ROOT / r.stdout.strip()).resolve(), registry.resolve())

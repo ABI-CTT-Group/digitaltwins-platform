@@ -191,6 +191,7 @@ def test_workflow_migration_adds_types_and_a_link_table_that_guards_tools(scratc
     assert _fetch(conn, "SELECT count(*) FROM public.workflow_tool")[0][0] == 0
 
 
+@pytest.mark.integration
 def test_dag_status_migration_marks_existing_script_workflows_pending(scratch_db, tmp_path):
     conn = scratch_db()
     load_baseline(conn)

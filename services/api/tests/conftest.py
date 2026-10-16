@@ -139,6 +139,28 @@ def s3():
     )
 
 
+LIVE_FIXTURES = {"scratch_db", "platform_db", "minio_bucket", "tool_bucket", "s3"}
+
+
+def pytest_collection_modifyitems(config, items):
+    """Fail collection when a test uses a live-service fixture without the integration marker.
+
+    Unit runs deselect ``-m integration``; an unmarked live test would otherwise
+    silently skip there (or hit whatever service the environment points at).
+    """
+    unmarked = [
+        item.nodeid
+        for item in items
+        if LIVE_FIXTURES & set(getattr(item, "fixturenames", ()))
+        and item.get_closest_marker("integration") is None
+    ]
+    if unmarked:
+        raise pytest.UsageError(
+            "tests using live-service fixtures must be marked @pytest.mark.integration:\n  "
+            + "\n  ".join(unmarked)
+        )
+
+
 # ── HAPI FHIR fake ─────────────────────────────────────────────────────
 
 

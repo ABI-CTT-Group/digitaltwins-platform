@@ -49,6 +49,7 @@ Notes:
 - `docker compose down && up -d` (your instinct) works but restarts *everything*,
   including SEEK. Fine for an intentional full restart; heavy for a one-service change.
 - Dry-run the sync first if unsure: `./util/sync-runtime.sh -n`.
+- Run the unit tests (`make test`) before pushing; see [testing.md](testing.md).
 
 ---
 

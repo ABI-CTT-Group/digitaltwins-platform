@@ -6,14 +6,17 @@ from unittest.mock import patch, MagicMock
 # Ensure the project root is on sys.path so `app` can be imported
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.routers.auth import validate_credentials
 from app.routers.dependencies import get_uploader, get_querier
 
-# Bypass authentication
-app.dependency_overrides[validate_credentials] = lambda: {"username": "testuser", "token": "testtoken"}
+# Bypass authentication per test (other modules clear this override in teardown)
+@pytest.fixture(autouse=True)
+def _bypass_auth(monkeypatch):
+    monkeypatch.setitem(app.dependency_overrides, validate_credentials, lambda: {"username": "testuser", "token": "testtoken"})
 
 client = TestClient(app)
 
@@ -105,12 +108,12 @@ def test_upload_workspace_datasets_jupyter(monkeypatch):
             mock_resp.status_code = 200
             
             if "api/contents" in url:
-                if "dataset" not in url:
-                    # Root outputs directory
+                if "jupyter_dataset" not in url:
+                    # Root outputs/datasets directory
                     mock_resp.json.return_value = {
                         "type": "directory",
                         "content": [
-                            {"name": "jupyter_dataset", "path": "assay_2/outputs/jupyter_dataset", "type": "directory"}
+                            {"name": "jupyter_dataset", "path": "assay_2/outputs/datasets/jupyter_dataset", "type": "directory"}
                         ]
                     }
                 else:
@@ -118,7 +121,7 @@ def test_upload_workspace_datasets_jupyter(monkeypatch):
                     mock_resp.json.return_value = {
                         "type": "directory",
                         "content": [
-                            {"name": "test.txt", "path": "assay_2/outputs/jupyter_dataset/test.txt", "type": "file"}
+                            {"name": "test.txt", "path": "assay_2/outputs/datasets/jupyter_dataset/test.txt", "type": "file"}
                         ]
                     }
             elif "files" in url:

@@ -38,6 +38,9 @@ dependencies = { file = ["requirements-prod.txt"] }
 "digitaltwins" = ["postgres/migrations/*.sql"]
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+addopts = "--strict-markers -ra"
 markers = [
     "integration: needs live platform services (Postgres/MinIO/HAPI); skipped when unreachable",
 ]
