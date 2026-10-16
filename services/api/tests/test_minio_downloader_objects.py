@@ -7,6 +7,8 @@ import pytest
 
 from digitaltwins.minio.downloader import Downloader
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def dataset(minio_bucket, s3):
