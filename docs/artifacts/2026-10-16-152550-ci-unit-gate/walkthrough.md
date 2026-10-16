@@ -81,10 +81,10 @@ make test        # all four suites green
 make lint        # reports findings, exit 1 is expected for now
 ```
 
-On GitHub:
-- Open a PR and check that the jobs listed above appear.
-- Push a docs-only change; the test jobs should show as skipped.
-- Convert the PR to a draft; all jobs should show as skipped.
+On GitHub, checked on PR #353:
+- First run: all 7 jobs green, with the same counts as the local run. The jobs take 30 s to 1 m 20 s each.
+- A push while the PR was a draft skipped every job. Marking it "Ready for review" triggered a full run.
+- The docs-only path filter can only be observed on a later PR, after this one merges. The filter uses the whole PR's diff, and this PR changes the Makefile and the workflow. The filter script was tested locally against docs-only, frontend, API, Makefile, hub and push cases.
 
 ## Follow-ups (not in this change)
 

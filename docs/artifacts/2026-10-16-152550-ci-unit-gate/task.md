@@ -39,7 +39,9 @@
 
 ## Phase 5: verify and PR
 - [x] `make test lint` in a clean checkout-equivalent tree (no .env, node_modules or caches): all 4 suites green, lint reports as expected, 1m34s cold
-- [ ] Push and open the PR (ask first)
+- [x] Push and open the PR (#353): first run green, all 7 jobs; counts match local
+- [x] Draft check: a push while the PR was a draft skipped every job; "Ready for review" triggered a full green run
+- [ ] Docs-only path filter on GitHub: only possible after merge (the filter uses the whole PR diff, and this PR changes the Makefile and workflow); script tested locally
 - [ ] Required checks on `main` (ask first)
 
 ## Follow-ups (out of scope)
