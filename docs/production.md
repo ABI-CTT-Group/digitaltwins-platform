@@ -57,7 +57,9 @@ Set every one of these to a strong value in `secrets.env` (never leave a
 - [ ] **MinIO root** — `MINIO_ROOT_PASSWORD` / `MINIO_SERVER_SECRET_KEY` (compose
   falls back to `minioadmin`).
 - [ ] **Postgres** superuser — `POSTGRES_PASSWORD` (shared DB, user `admin`).
-- [ ] **JupyterHub** — `JUPYTERHUB_CRYPT_KEY` (compose ships a hardcoded default).
+- [ ] **JupyterHub** — `JUPYTERHUB_CRYPT_KEY` (compose ships a hardcoded default);
+  `JUPYTERHUB_API_TOKEN` (required; the API's admin-role hub token — rotating it
+  revokes the old one at the next hub start).
 - [ ] **Orthanc** — `ORTHANC_AUTH_SECRET_KEY`, `ORTHANC_AUTH_SERVICE_PASSWORD`,
   `ORTHANC_KEYCLOAK_CLIENT_SECRET`.
 

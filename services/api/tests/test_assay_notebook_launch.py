@@ -134,3 +134,31 @@ def test_an_unregistered_workflow_is_400(client, monkeypatch):
 def test_a_server_that_does_not_start_is_504(client, hub):
     hub.fail = HubTimeout("did not start")
     assert client.post("/assays/43/run").status_code == 504
+
+
+# ── Workspace download/upload: the token they send to the user's server ──
+
+
+def test_workspace_reads_send_the_configured_token(monkeypatch, tmp_path):
+    monkeypatch.setenv("JUPYTERHUB_API_TOKEN", "tok")
+    sent = []
+
+    class Listing:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"type": "directory", "content": []}
+
+    monkeypatch.setattr(assays.requests, "get", lambda url, headers=None, **kw: sent.append(headers) or Listing())
+    assays._download_jupyter_folder("tester", "assay_43/outputs/datasets", str(tmp_path))
+    assert sent == [{"Authorization": "token tok"}]
+
+
+def test_workspace_reads_without_a_token_fail_instead_of_using_a_default(monkeypatch, tmp_path):
+    monkeypatch.delenv("JUPYTERHUB_API_TOKEN", raising=False)
+    monkeypatch.setattr(assays.requests, "get", lambda *a, **kw: pytest.fail("must not call the hub"))
+    with pytest.raises(KeyError, match="JUPYTERHUB_API_TOKEN"):
+        assays._download_jupyter_folder("tester", "assay_43/outputs/datasets", str(tmp_path))

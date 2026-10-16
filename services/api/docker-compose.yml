@@ -44,6 +44,8 @@ services:
       AIRFLOW_DAG_DEPLOY_TIMEOUT: ${AIRFLOW_DAG_DEPLOY_TIMEOUT:-120}
       # JupyterHub
       JUPYTERHUB_PUBLIC_URL: ${JUPYTERHUB_PUBLIC_URL:-http://localhost/jupyter}
+      # Token of the hub's digitaltwins-api service; the hub registers the same value.
+      JUPYTERHUB_API_TOKEN: ${JUPYTERHUB_API_TOKEN:?JUPYTERHUB_API_TOKEN is required}
       # dataset upload sessions (chunked parts, staged datasets, FHIR build cache)
       DATASET_STAGING_DIR: /dataset_staging
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-20480}

@@ -12,7 +12,6 @@ from urllib.parse import quote
 import requests
 
 DEFAULT_URL = "http://digitaltwins-platform-jupyterhub:8000/jupyter"
-DEFAULT_TOKEN = "digitaltwins-api-secret-token"
 PART_SIZE = 8 * 1024 * 1024
 # Appended while a file is being written, so a path that exists is always complete. Not a
 # dot-prefix: jupyter_server refuses hidden paths unless allow_hidden is set.
@@ -31,7 +30,8 @@ class JupyterHub:
     def __init__(self, base_url: Optional[str] = None, token: Optional[str] = None,
                  session=None, start_timeout: float = 120.0, poll_interval: float = 1.0):
         self.base_url = (base_url or os.getenv("JUPYTERHUB_INTERNAL_URL", DEFAULT_URL)).rstrip("/")
-        self.headers = {"Authorization": f"token {token or os.getenv('JUPYTERHUB_API_TOKEN', DEFAULT_TOKEN)}"}
+        # No default: the hub would accept it, and a default would be public.
+        self.headers = {"Authorization": f"token {token or os.environ['JUPYTERHUB_API_TOKEN']}"}
         self.session = session or requests.Session()
         # Matches DockerSpawner.start_timeout.
         self.start_timeout = start_timeout

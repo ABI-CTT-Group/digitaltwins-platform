@@ -837,7 +837,7 @@ def download_workspace_dataset(
 
 def _download_jupyter_folder(username: str, remote_path: str, local_dir: str):
     """Recursively download a folder from Jupyter Server."""
-    api_token = os.getenv("JUPYTERHUB_API_TOKEN", "digitaltwins-api-secret-token")
+    api_token = os.environ["JUPYTERHUB_API_TOKEN"]
     headers = {"Authorization": f"token {api_token}"}
     api_url = f"{JUPYTERHUB_INTERNAL_URL}/user/{username}/api/contents/{remote_path}"
     
