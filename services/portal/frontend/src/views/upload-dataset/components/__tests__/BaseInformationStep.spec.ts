@@ -20,7 +20,11 @@ vi.mock("@/composables/useLocalFolderInfo", async () => {
 import BaseInformationStep from "../BaseInformationStep.vue";
 
 // The source fields belong to CommonInfoForm; render only its slots, so the type radios are tested on their own.
-const stubs = { CommonInfoForm: { template: "<div><slot name='dropzone' /><slot /></div>" }, LocalFolderDropzone: true };
+const stubs = {
+  CommonInfoForm: { template: "<div><slot name='dropzone' /><slot /></div>" },
+  // The real dropzone exposes setProgress; switching source type resets it.
+  LocalFolderDropzone: { template: "<div />", methods: { setProgress() {} } },
+};
 // Source defaults to a local folder; these tests drive the git path (the mocked repo info).
 async function mountStep(type: "tool" | "workflow") {
   const w = mount(BaseInformationStep, { props: { type }, global: { plugins: [testVuetify()], stubs } });
