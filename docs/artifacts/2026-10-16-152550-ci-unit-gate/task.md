@@ -41,8 +41,8 @@
 - [x] `make test lint` in a clean checkout-equivalent tree (no .env, node_modules or caches): all 4 suites green, lint reports as expected, 1m34s cold
 - [x] Push and open the PR (#353): first run green, all 7 jobs; counts match local
 - [x] Draft check: a push while the PR was a draft skipped every job; "Ready for review" triggered a full green run
-- [ ] Docs-only path filter on GitHub: only possible after merge (the filter uses the whole PR diff, and this PR changes the Makefile and workflow); script tested locally
-- [ ] Required checks on `main` (ask first)
+- [x] Docs-only path filter on GitHub (PR #354): only `detect changes` and `gitleaks` ran; the 4 required test checks were SKIPPED and the check rollup was SUCCESS. The only thing blocking the merge was the org 1-approval rule
+- [x] Required checks on `main`: repo ruleset "CI required checks" (5 checks, branch need not be up to date)
 
 ## Follow-ups (out of scope)
 - Coverage lost with the deleted legacy scripts: `GET /datasets/{uuid}/download` has no remaining test
