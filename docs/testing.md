@@ -76,6 +76,8 @@ These checks block merging:
 
 `lint (report-only)` shows its findings as annotations but never fails.
 
+These five checks are required by the repo ruleset "CI required checks" (Settings → Rules). The ruleset matches checks by job `name:` in `.github/workflows/ci.yml`. If you rename a job, update the ruleset in the same change, or every PR will wait for a check that never reports.
+
 ## Safety rules
 
 - **Never run the portal backend tests inside the live `portal-backend` container,** or in any shell where `PORTAL_DB_HOST` is set. The suite drops and recreates every table. `tests/__init__.py` refuses to load when `PORTAL_DB_HOST` is set, and it always points SQLite at a temporary file.
