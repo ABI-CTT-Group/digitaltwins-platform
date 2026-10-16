@@ -52,7 +52,7 @@ The workflow runs:
 - on pushes to `main`
 - manually, from the Actions tab
 
-On a PR, only the suites whose files changed run:
+On a PR, only the suites whose files changed run. "Changed" means the whole PR's diff against `main`, not just the latest commit:
 
 | Change touches | Jobs that run |
 |---|---|
