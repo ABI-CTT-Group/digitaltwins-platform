@@ -61,7 +61,7 @@ Airflow picks up new files within 30 seconds; check the Airflow UI at
 
 Measurement datasets can be uploaded using the following methods:
 
-* Via the **API service**. [todo. add details]
+* Via the **API service**: from a terminal on the server, run `services/api/scripts/import-dataset.sh <folder|zip> --category measurements --fhir auto` ([guide](../services/api/docs/import-dataset.md)), or upload from Python with `UploadClient` (see the [API README](../services/api/README.md)).
 * Directly from the **portal**. [todo. future implementation]
 
 ## Automated Data Population
