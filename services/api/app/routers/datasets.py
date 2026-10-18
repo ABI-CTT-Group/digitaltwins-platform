@@ -25,7 +25,7 @@ from digitaltwins.core.connection import Connection
 from digitaltwins.core.deleter import DatasetInUseError
 from digitaltwins.measurements import jobs, sessions
 from digitaltwins.measurements.pipeline import check_descriptions_match, get_dataset_row
-from digitaltwins.measurements.staging import dataset_dir as staged_dataset_dir, staging_root
+from digitaltwins.measurements.staging import dataset_dir as staged_dataset_dir, max_upload_bytes, staging_root
 from digitaltwins.models import fhir as model_fhir
 from digitaltwins.models.validation import validate_model_structure
 from digitaltwins.measurements.validation import (
@@ -40,7 +40,7 @@ from digitaltwins.workflows.pipeline import annotate_workflow, commit_workflow, 
 from digitaltwins.workflows.validation import load_workflow
 from . import dataset_uploads
 from .auth import has_admin_role, require_upload_role, validate_credentials
-from .dataset_uploads import _max_upload_bytes, get_conn
+from .dataset_uploads import get_conn
 from .dependencies import get_querier, get_uploader, get_downloader, get_deleter
 
 logger = logging.getLogger(__name__)
@@ -191,7 +191,7 @@ def _receive_upload(files: List[UploadFile], tmp_path: Path) -> Path:
         with open(zip_path, "wb") as out:
             shutil.copyfileobj(files[0].file, out)
         try:
-            extracted = extract_uploaded_archive(tmp_path, zip_path, max_total_bytes=_max_upload_bytes())
+            extracted = extract_uploaded_archive(tmp_path, zip_path, max_total_bytes=max_upload_bytes())
         except zipfile.BadZipFile as exc:
             raise ValueError("Invalid zip file") from exc
         zip_path.unlink()
