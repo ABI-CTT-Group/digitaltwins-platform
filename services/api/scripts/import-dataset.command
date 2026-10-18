@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# One-click measurement dataset import for macOS — double-click this file.
+# One-click dataset import for macOS — double-click this file.
 #
 # A Terminal window opens and asks for the dataset path (folder or .zip, anywhere
-# on this Mac). It copies it into the running digitaltwins-api container
-# (progress bar if `pv` is installed: `brew install pv`), then runs the importer.
+# on this Mac) and its category (measurements, models, tools or workflows; a tool
+# or workflow also needs its type and SEEK project ID). It copies the dataset into
+# the running digitaltwins-api container (progress bar if `pv` is installed:
+# `brew install pv`), then runs the importer.
 # Sign in (admin or researcher) via your browser when prompted.
 set -euo pipefail
 
@@ -25,6 +27,19 @@ if [ -z "$CID" ]; then
   read -r -p "Press Enter to close…" _
   exit 1
 fi
+
+# --category is required; ask for it (and a tool's or workflow's options) before the copy.
+case " $* " in
+  *" --category "*|*" --category="*) ;;
+  *)
+    read -r -p "Category (measurements, models, tools, workflows): " CATEGORY
+    set -- "$@" --category "$CATEGORY"
+    if [ "$CATEGORY" = tools ] || [ "$CATEGORY" = workflows ]; then
+      read -r -p "Type (script, notebook, gui): " KIND
+      read -r -p "SEEK project ID: " PROJECT
+      set -- "$@" "--${CATEGORY%s}-type" "$KIND" --seek-project-id "$PROJECT"
+    fi ;;
+esac
 
 BASE="$(basename "$SRC")"
 STAGE_DIR="/dataset_staging/import-staging"
