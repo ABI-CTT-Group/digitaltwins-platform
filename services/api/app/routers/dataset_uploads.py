@@ -103,7 +103,7 @@ class ManifestEntry(BaseModel):
 class SessionCreate(BaseModel):
     name: str
     description: Optional[str] = None
-    category: str = "measurements"
+    category: str
     source_kind: Literal["folder", "zip"]
     manifest: List[ManifestEntry]
     commit_mode: Literal["on_finalize", "on_approve"] = "on_finalize"

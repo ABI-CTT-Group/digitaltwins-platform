@@ -23,6 +23,13 @@ example = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(example)
 
 
+def test_category_is_required(capsys):
+    with pytest.raises(SystemExit) as exit_:
+        example.main([str(FIXTURE)])
+    assert exit_.value.code == 2
+    assert "--category" in capsys.readouterr().err
+
+
 @pytest.fixture
 def client(platform_db, minio_bucket, hapi, tmp_path, monkeypatch):
     monkeypatch.setenv("DATASET_STAGING_DIR", str(tmp_path / "staging"))

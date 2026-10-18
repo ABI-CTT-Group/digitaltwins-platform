@@ -58,6 +58,14 @@ def _db_one(client, sql, params):
 
 
 @pytest.mark.integration
+def test_a_session_needs_a_category(client):
+    r = client.post("/datasets/uploads", json={
+        "name": "My dataset", "source_kind": "folder", "manifest": [{"rel_path": "a.txt", "size": 1, "parts": 1}]})
+
+    assert r.status_code == 422 and "category" in r.text
+
+
+@pytest.mark.integration
 def test_on_finalize_upload_commits_in_the_background(client):
     upload_id = _upload(client, _folder_manifest(FIXTURE))
     assert client.get(f"/datasets/uploads/{upload_id}").json()["upload"]["complete"] is True

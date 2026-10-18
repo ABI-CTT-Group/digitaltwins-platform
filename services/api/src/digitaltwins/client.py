@@ -46,7 +46,7 @@ class UploadClient:
     def upload_dataset(
         self,
         path,
-        category: str = "measurements",
+        category: str,
         name: Optional[str] = None,
         description: Optional[str] = None,
         fhir: Optional[str] = None,
