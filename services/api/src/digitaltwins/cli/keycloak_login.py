@@ -69,8 +69,8 @@ def require_upload_role(claims: Dict) -> str:
     return username
 
 
-def device_login(timeout: int = 600) -> str:
-    """OAuth2 device-authorization grant: print a sign-in link, poll, return the access token."""
+def device_login(timeout: int = 600) -> Tuple[str, Optional[str]]:
+    """OAuth2 device-authorization grant: print a sign-in link, poll, return (access, refresh) tokens."""
     endpoint = f"{_realm_url()}/protocol/openid-connect"
     status, dev = _post_form(f"{endpoint}/auth/device", {**_client_fields(), "scope": "openid profile roles"})
     if status != 200:
@@ -92,7 +92,7 @@ def device_login(timeout: int = 600) -> str:
             "device_code": dev["device_code"],
         })
         if status == 200:
-            return poll["access_token"]
+            return poll["access_token"], poll.get("refresh_token")
         error = poll.get("error")
         if error == "authorization_pending":
             continue
@@ -103,8 +103,8 @@ def device_login(timeout: int = 600) -> str:
     raise TimeoutError("Timed out waiting for sign-in.")
 
 
-def password_login(username: Optional[str] = None) -> str:
-    """Resource-owner password grant (prompts for credentials); return the access token."""
+def password_login(username: Optional[str] = None) -> Tuple[str, Optional[str]]:
+    """Resource-owner password grant (prompts for credentials); return (access, refresh) tokens."""
     username = username or input("Username: ").strip()
     status, body = _post_form(f"{_realm_url()}/protocol/openid-connect/token", {
         **_client_fields(), "grant_type": "password", "username": username,
@@ -112,6 +112,21 @@ def password_login(username: Optional[str] = None) -> str:
     })
     if status != 200:
         raise PermissionError(f"Login failed for '{username}': {body.get('error_description') or body}")
+    return body["access_token"], body.get("refresh_token")
+
+
+def refresh(refresh_token: str) -> str:
+    """Exchange the sign-in's refresh token for a fresh access token.
+
+    Access tokens are short-lived; the import re-fetches one just before the commit
+    (tools and workflows register in SEEK with it). Raises PermissionError once the
+    sign-in itself has expired.
+    """
+    status, body = _post_form(f"{_realm_url()}/protocol/openid-connect/token", {
+        **_client_fields(), "grant_type": "refresh_token", "refresh_token": refresh_token,
+    })
+    if status != 200:
+        raise PermissionError(f"Sign-in expired ({body.get('error') or status}); run the import again.")
     return body["access_token"]
 
 
@@ -120,17 +135,18 @@ def is_admin(token: str) -> bool:
     return "admin" in verify_token(token).get("realm_access", {}).get("roles", [])
 
 
-def login(use_password: bool = False, username: Optional[str] = None) -> Tuple[str, str]:
+def login(use_password: bool = False, username: Optional[str] = None) -> Tuple[str, str, Optional[str]]:
     """Authenticate (device flow first, unless ``use_password``) and enforce the upload role.
 
-    Returns ``(username, access_token)``; the token is what tool imports register in SEEK with.
+    Returns ``(username, access_token, refresh_token)``; ``refresh`` turns the refresh
+    token into the fresh access token that tool and workflow imports register in SEEK with.
     """
     if use_password:
-        token = password_login(username)
+        token, refresh_token = password_login(username)
     else:
         try:
-            token = device_login()
+            token, refresh_token = device_login()
         except RuntimeError as e:
             print(f"  Device login unavailable ({e}); falling back to password.")
-            token = password_login(username)
-    return require_upload_role(verify_token(token)), token
+            token, refresh_token = password_login(username)
+    return require_upload_role(verify_token(token)), token, refresh_token

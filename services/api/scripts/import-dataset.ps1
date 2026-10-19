@@ -1,8 +1,11 @@
-# One-click measurement dataset import (Windows PowerShell).
+# One-click dataset import (Windows PowerShell): measurements, models, tools or
+# workflows. Without --category, it asks for the category first.
 #
 # The dataset can live anywhere on this PC — give its path:
-#   .\scripts\import-dataset.ps1 C:\data\mydataset
-#   .\scripts\import-dataset.ps1 C:\data\mydataset.zip --name X --fhir auto
+#   .\scripts\import-dataset.ps1 C:\data\mydataset --category measurements
+#   .\scripts\import-dataset.ps1 C:\data\mydataset.zip --category measurements --name X --fhir auto
+#   .\scripts\import-dataset.ps1 C:\data\mymodel --category models --fhir auto
+#   .\scripts\import-dataset.ps1 C:\data\mytool --category tools --tool-type script --seek-project-id 1
 # It copies the dataset into the running digitaltwins-api container, then runs
 # the importer. Sign in (admin or researcher) via your browser when prompted.
 param(
@@ -17,6 +20,18 @@ if (-not (Test-Path $Source)) { Write-Host "  X No such path: $Source"; Read-Hos
 
 $cid = (docker ps -q --filter "label=com.docker.compose.service=digitaltwins-api" | Select-Object -First 1)
 if (-not $cid) { Write-Host "  X The digitaltwins-api container is not running."; Read-Host "Press Enter to close"; exit 1 }
+
+# --category is required; ask for it (and a tool's or workflow's options) before the copy.
+if (-not $Rest) { $Rest = @() }
+if (-not ($Rest -match '^--category(=|$)')) {
+  $category = Read-Host "Category (measurements, models, tools, workflows)"
+  $Rest += @("--category", $category)
+  if ($category -in @("tools", "workflows")) {
+    $kind = Read-Host "Type (script, notebook, gui)"
+    $project = Read-Host "SEEK project ID"
+    $Rest += @("--$($category.TrimEnd('s'))-type", $kind, "--seek-project-id", $project)
+  }
+}
 
 $base = Split-Path $Source -Leaf
 $stageDir = "/dataset_staging/import-staging"

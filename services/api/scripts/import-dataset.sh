@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
-# One-click measurement dataset import (Linux / macOS terminal).
+# One-click dataset import (Linux / macOS terminal): measurements, models, tools
+# or workflows.
 #
 # The dataset can live ANYWHERE on this host — just give its path:
-#   ./scripts/import-dataset.sh /path/to/mydataset            # folder
-#   ./scripts/import-dataset.sh /path/to/mydataset.zip        # zip
-#   ./scripts/import-dataset.sh /path/to/mydataset --name X --fhir auto
+#   ./scripts/import-dataset.sh /path/to/mydataset --category measurements            # folder
+#   ./scripts/import-dataset.sh /path/to/mydataset.zip --category measurements        # zip
+#   ./scripts/import-dataset.sh /path/to/mydataset --category measurements --name X --fhir auto
+#   ./scripts/import-dataset.sh /path/to/mymodel --category models --fhir auto
+#   ./scripts/import-dataset.sh /path/to/mytool --category tools --tool-type script --seek-project-id 1
+#   ./scripts/import-dataset.sh /path/to/myworkflow --category workflows --workflow-type script --seek-project-id 1
 #
 # The script copies it into the running digitaltwins-api container (with a
 # progress bar if `pv` is installed), then runs the importer. You'll sign in
-# (admin or researcher) via your browser.
+# (admin or researcher). Without --category, it asks for the category first.
 set -euo pipefail
 
 # First non-flag arg is the dataset path; the rest pass through to the CLI.
@@ -22,6 +26,19 @@ SRC="${SRC%/}"
 
 CID="$(docker ps -q --filter "label=com.docker.compose.service=digitaltwins-api" | head -n1)"
 [ -n "$CID" ] || { echo "  ✗ The digitaltwins-api container is not running." >&2; exit 1; }
+
+# --category is required; ask for it (and a tool's or workflow's options) before the copy.
+case " $* " in
+  *" --category "*|*" --category="*) ;;
+  *)
+    read -r -p "Category (measurements, models, tools, workflows): " CATEGORY
+    set -- "$@" --category "$CATEGORY"
+    if [ "$CATEGORY" = tools ] || [ "$CATEGORY" = workflows ]; then
+      read -r -p "Type (script, notebook, gui): " KIND
+      read -r -p "SEEK project ID: " PROJECT
+      set -- "$@" "--${CATEGORY%s}-type" "$KIND" --seek-project-id "$PROJECT"
+    fi ;;
+esac
 
 BASE="$(basename "$SRC")"
 STAGE_DIR="/dataset_staging/import-staging"

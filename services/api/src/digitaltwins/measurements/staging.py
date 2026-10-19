@@ -18,3 +18,12 @@ def chunk_root() -> Path:
 
 def dataset_dir(upload_id: str) -> Path:
     return staging_root() / "datasets" / str(upload_id)
+
+
+def max_upload_bytes() -> int:
+    """Largest dataset accepted, unzipped (``MAX_UPLOAD_MB``, default 20 GiB)."""
+    try:
+        mb = int(os.getenv("MAX_UPLOAD_MB", "20480"))
+    except ValueError:
+        mb = 20480
+    return max(mb, 1) * 1024 * 1024

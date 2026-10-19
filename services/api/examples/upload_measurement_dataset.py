@@ -4,9 +4,9 @@ The upload is chunked and resumable, so it suits large datasets. The script
 waits until the dataset is stored (platform Postgres + MinIO) and, if FHIR
 annotation was requested, until it has been pushed to FHIR.
 
-    python upload_measurement_dataset.py path/to/my_dataset --fhir auto
-    python upload_measurement_dataset.py path/to/my_dataset.zip --name "My dataset"
-    python upload_measurement_dataset.py path/to/my_dataset --descriptions annotation.json
+    python upload_measurement_dataset.py path/to/my_dataset --category measurements --fhir auto
+    python upload_measurement_dataset.py path/to/my_dataset.zip --category measurements --name "My dataset"
+    python upload_measurement_dataset.py path/to/my_dataset --category measurements --descriptions annotation.json
 
 If the upload is interrupted, run the command the script prints (the same
 arguments plus ``--resume <upload_id>``); only the missing parts are sent.
@@ -41,7 +41,7 @@ def parse_args(argv=None):
                         help="Keycloak username (default: $DIGITALTWINS_USERNAME, else prompt)")
     parser.add_argument("--name", help="dataset name (default: folder / zip name)")
     parser.add_argument("--description")
-    parser.add_argument("--category", default="measurements")
+    parser.add_argument("--category", required=True, help="measurements, models, tools or workflows")
     fhir = parser.add_mutually_exclusive_group()
     fhir.add_argument("--fhir", choices=["none", "auto"], default="none",
                       help="auto: annotate every sample automatically and push to FHIR")

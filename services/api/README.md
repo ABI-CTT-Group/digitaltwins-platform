@@ -148,6 +148,8 @@ print(session["dataset_uuid"], session.get("fhir_status"))
 - `fhir="auto"` annotates every sample automatically. Alternatively, pass `fhir_descriptions=` with your own annotation. Refer to subjects and samples by folder name (`primary/<subject>/<sample>`); the server assigns the dataset, subject and sample UUIDs.
 - If the upload is interrupted, call `client.resume(upload_id, "path/to/my_dataset")`. Only the missing parts are sent.
 - A ready-to-run command-line version is at [`examples/upload_measurement_dataset.py`](examples/upload_measurement_dataset.py). It prompts for the password (or reads `DIGITALTWINS_PASSWORD`) and prints a `--resume` command if the upload is interrupted.
+- To import a dataset from a terminal on the server, with no code, use `services/api/scripts/import-dataset.sh <folder|zip> --category measurements [--fhir auto]`. It copies the dataset into the API container and runs this same pipeline. See [`docs/import-dataset.md`](docs/import-dataset.md).
+- `category` is required, by `UploadClient.upload_dataset`, by `POST /datasets/uploads` (`422` without it) and by the one-shot endpoint below. Before 2026-10-19 the first two defaulted to `measurements`.
 - For small datasets, the one-shot `POST /datasets?category=measurements` (multipart) remains available. It accepts the categories `measurements`, `models`, `tools` and `workflows`; any other value returns `400`.
 
 ### Uploading a model dataset
@@ -160,7 +162,7 @@ session = client.upload_dataset("path/to/model_skin_test", category="models",
 ```
 
 - **FHIR is optional.** `fhir=auto` or `fhir_descriptions={"model": {"description", "version"}}` pushes one `Device` identified by the dataset UUID. `uuid` and `name` are set by the server, and `description` defaults to the upload's description. The annotation and push endpoints under `/datasets/<uuid>/fhir/` work as for other categories.
-- **Other clients.** Resumable sessions accept `category="models"`, and the one-shot `POST /datasets?category=models` runs the same validation. Inside the API container, use `scripts/import-dataset.sh <folder|zip> --category models [--fhir auto]`.
+- **Other clients.** Resumable sessions accept `category="models"`, and the one-shot `POST /datasets?category=models` runs the same validation. From a terminal on the server, use `services/api/scripts/import-dataset.sh <folder|zip> --category models [--fhir auto]` ([guide](docs/import-dataset.md)).
 - **Listing and deleting.** `GET /models` lists model datasets. `DELETE /datasets/<uuid>` also deletes the Device.
 - `GET /datasets/uploads?category=models` lists only open model upload sessions.
 
@@ -190,7 +192,7 @@ curl -H "Authorization: Bearer <token>" \
 - **Other clients.**
   - Resumable sessions (`POST /datasets/uploads`) accept `category="tools"`, with `tool_type`, `seek_project_id` and the same FHIR options in the body.
   - From Python: `UploadClient.upload_dataset(path, category="tools", tool_type="script", seek_project_id=<id>)`.
-  - Inside the API container: `scripts/import-dataset.sh <folder|zip> --category tools --tool-type script --seek-project-id <id>`.
+  - From a terminal on the server: `services/api/scripts/import-dataset.sh <folder|zip> --category tools --tool-type script --seek-project-id <id>` ([guide](docs/import-dataset.md)).
 - `GET /datasets/<uuid>?get_cwl=true` returns the parsed CWL. `DELETE /datasets/<uuid>` also deletes the SEEK Workflow and the ActivityDefinition.
 
 ### Uploading a workflow dataset
@@ -243,7 +245,7 @@ curl -H "Authorization: Bearer <token>" \
 - **Other clients.**
   - Resumable sessions accept `category="workflows"` with `workflow_type` and `seek_project_id`.
   - From Python: `UploadClient.upload_dataset(path, category="workflows", workflow_type="script", seek_project_id=<id>)`.
-  - Inside the API container: `scripts/import-dataset.sh <folder|zip> --category workflows --workflow-type script --seek-project-id <id>`.
+  - From a terminal on the server: `services/api/scripts/import-dataset.sh <folder|zip> --category workflows --workflow-type script --seek-project-id <id>` ([guide](docs/import-dataset.md)).
 - **Deleting.** `DELETE /datasets/<uuid>` on a workflow needs `delete_tools=true` or `delete_tools=false`.
   - Without it, the API returns `409` listing the workflow's tool datasets, so the client can ask the user.
   - `GET /datasets/<uuid>/workflow-tools` lists those tool datasets (name, SEEK id, steps) without deleting anything.

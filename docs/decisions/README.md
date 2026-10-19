@@ -19,6 +19,8 @@ Do **not** create ADRs for routine fixes, minor refactors, or straightforward im
 
 `YYYY-MM-DD-descriptive-title.md`
 
+The filename date is the creation date and is never changed, even when the status changes — renaming a file breaks `Superseded by` links.
+
 ## Template
 
 See [TEMPLATE.md](TEMPLATE.md) for the standard format.

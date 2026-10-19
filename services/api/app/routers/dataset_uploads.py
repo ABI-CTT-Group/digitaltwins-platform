@@ -15,7 +15,6 @@ their commit stores and registers each tool, then the workflow. Model sessions
 are checked by ``validate_model_structure``; their optional FHIR annotation is
 ``{"model": {...}}``, pushed as a Device.
 """
-import os
 import shutil
 import zipfile
 from typing import Any, Dict, List, Literal, Optional
@@ -30,7 +29,7 @@ from digitaltwins.measurements import jobs, sessions
 from digitaltwins.measurements.chunk_store import PART_SIZE, ChunkStore, ChunkStoreError
 from digitaltwins.measurements.fhir_service import build_fhir_json
 from digitaltwins.measurements.pipeline import check_descriptions_match
-from digitaltwins.measurements.staging import chunk_root, dataset_dir
+from digitaltwins.measurements.staging import chunk_root, dataset_dir, max_upload_bytes
 from digitaltwins.measurements.tree import build_tree
 from digitaltwins.models import fhir as model_fhir
 from digitaltwins.models.validation import validate_model_structure
@@ -56,14 +55,6 @@ INGEST_CATEGORIES = {"measurements"}
 
 # Sessions not yet committed, as listed for the portal overview.
 _OPEN_STATUSES = ["receiving", "staged", "processing", "failed"]
-
-
-def _max_upload_bytes() -> int:
-    try:
-        mb = int(os.getenv("MAX_UPLOAD_MB", "20480"))
-    except ValueError:
-        mb = 20480
-    return max(mb, 1) * 1024 * 1024
 
 
 def _chunk_store() -> ChunkStore:
@@ -112,7 +103,7 @@ class ManifestEntry(BaseModel):
 class SessionCreate(BaseModel):
     name: str
     description: Optional[str] = None
-    category: str = "measurements"
+    category: str
     source_kind: Literal["folder", "zip"]
     manifest: List[ManifestEntry]
     commit_mode: Literal["on_finalize", "on_approve"] = "on_finalize"
@@ -132,7 +123,7 @@ class AnnotationBody(BaseModel):
 
 @router.get("/config")
 def get_upload_config(_creds: dict = Depends(validate_credentials)):
-    return {"max_upload_bytes": _max_upload_bytes(), "max_part_size": PART_SIZE}
+    return {"max_upload_bytes": max_upload_bytes(), "max_part_size": PART_SIZE}
 
 
 @router.get("")
@@ -228,7 +219,7 @@ def finalize_upload(
         assembled = store.assemble(upload_id)
         if session["source_kind"] == "zip":
             try:
-                extracted = extract_uploaded_archive(chunk_root(), assembled, max_total_bytes=_max_upload_bytes())
+                extracted = extract_uploaded_archive(chunk_root(), assembled, max_total_bytes=max_upload_bytes())
             except zipfile.BadZipFile as exc:
                 raise ValueError("Uploaded file is not a valid zip archive") from exc
             staging = extracted

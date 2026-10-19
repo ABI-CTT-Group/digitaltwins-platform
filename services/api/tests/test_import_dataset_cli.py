@@ -1,4 +1,5 @@
 """python -m digitaltwins.cli.import_dataset: login + role gate, then the in-process pipeline."""
+import json
 import shutil
 from pathlib import Path
 
@@ -6,7 +7,9 @@ import pytest
 
 from digitaltwins import tools
 from digitaltwins.cli import import_dataset, keycloak_login
-from digitaltwins.measurements import sessions
+from digitaltwins.measurements import jobs, sessions
+from digitaltwins.measurements.staging import dataset_dir
+from digitaltwins.measurements.tree import build_tree
 from test_datasets_workflows_api import tool_bucket  # noqa: F401  (fixture)
 
 FIXTURE = Path(__file__).parent / "data" / "example_sds_dataset"
@@ -32,11 +35,11 @@ def test_device_login_polls_until_the_user_signs_in(monkeypatch, capsys):
     responses = iter([
         (200, {"device_code": "dc", "verification_uri_complete": "https://kc/device?code=X", "interval": 0}),
         (400, {"error": "authorization_pending"}),
-        (200, {"access_token": "tok"}),
+        (200, {"access_token": "tok", "refresh_token": "rt"}),
     ])
     monkeypatch.setattr(keycloak_login, "_post_form", lambda url, data: next(responses))
 
-    assert keycloak_login.device_login() == "tok"
+    assert keycloak_login.device_login() == ("tok", "rt")
     assert "https://kc/device?code=X" in capsys.readouterr().out
 
 
@@ -48,11 +51,38 @@ def test_is_admin_reads_the_tokens_realm_roles(monkeypatch, roles, admin):
 
 def test_login_falls_back_to_password_when_device_flow_is_unavailable(monkeypatch):
     monkeypatch.setattr(keycloak_login, "device_login", lambda: (_ for _ in ()).throw(RuntimeError("off")))
-    monkeypatch.setattr(keycloak_login, "password_login", lambda username=None: "tok")
+    monkeypatch.setattr(keycloak_login, "password_login", lambda username=None: ("tok", "rt"))
     monkeypatch.setattr(keycloak_login, "verify_token", lambda token: {
         "preferred_username": "alice", "realm_access": {"roles": ["admin"]}})
 
-    assert keycloak_login.login() == ("alice", "tok")
+    assert keycloak_login.login() == ("alice", "tok", "rt")
+
+
+def test_refresh_exchanges_the_refresh_token_for_a_fresh_access_token(monkeypatch):
+    sent = {}
+
+    def post(url, data):
+        sent.update(data)
+        return 200, {"access_token": "fresh"}
+
+    monkeypatch.setattr(keycloak_login, "_post_form", post)
+
+    assert keycloak_login.refresh("rt") == "fresh"
+    assert (sent["grant_type"], sent["refresh_token"]) == ("refresh_token", "rt")
+
+
+def test_refresh_raises_when_the_sign_in_has_expired(monkeypatch):
+    monkeypatch.setattr(keycloak_login, "_post_form", lambda url, data: (400, {"error": "invalid_grant"}))
+
+    with pytest.raises(PermissionError, match="invalid_grant"):
+        keycloak_login.refresh("rt")
+
+
+def test_category_is_required_and_checked_before_sign_in(monkeypatch, capsys):
+    monkeypatch.setattr(import_dataset, "login", lambda **kw: pytest.fail("signed in without a category"))
+
+    assert import_dataset.main([str(FIXTURE)]) == 2
+    assert "--category" in capsys.readouterr().err
 
 
 # ── Integration: import ────────────────────────────────────────────────
@@ -61,7 +91,9 @@ def test_login_falls_back_to_password_when_device_flow_is_unavailable(monkeypatc
 @pytest.fixture
 def cli_env(platform_db, minio_bucket, hapi, tmp_path, monkeypatch):
     monkeypatch.setenv("DATASET_STAGING_DIR", str(tmp_path / "staging"))
-    monkeypatch.setattr(import_dataset, "login", lambda **kw: ("alice", "t"))
+    monkeypatch.setattr(import_dataset, "MEASUREMENTS", minio_bucket)
+    monkeypatch.setattr(import_dataset, "login", lambda **kw: ("alice", "t", "r"))
+    monkeypatch.setattr(import_dataset, "refresh", lambda refresh_token: "t2")
     monkeypatch.setattr(import_dataset, "is_admin", lambda token: False)
     return {"db": platform_db, "bucket": minio_bucket, "tmp": tmp_path}
 
@@ -130,6 +162,130 @@ def test_user_without_an_upload_role_exits_3(cli_env, monkeypatch, capsys):
     assert "bob" in capsys.readouterr().err
 
 
+@pytest.mark.integration
+def test_unknown_category_exits_2_without_a_session(cli_env, capsys):
+    assert import_dataset.main([str(FIXTURE), "--category", "measurement"]) == 2
+    assert "measurement" in capsys.readouterr().err
+    with cli_env["db"]().cursor() as cur:
+        cur.execute("SELECT count(*) FROM upload_session")
+        assert cur.fetchone() == (0,)
+
+
+@pytest.mark.integration
+def test_zip_over_the_upload_limit_exits_2(cli_env, monkeypatch, capsys):
+    monkeypatch.setattr(import_dataset, "max_upload_bytes", lambda: 1)
+
+    assert import_dataset.main([str(FIXTURE_ZIP), "--category", cli_env["bucket"]]) == 2
+    assert "Cannot extract" in capsys.readouterr().err
+
+
+@pytest.mark.integration
+def test_warns_about_subjects_without_samples(cli_env, capsys):
+    dataset = cli_env["tmp"] / "with_empty_subject"
+    shutil.copytree(FIXTURE, dataset)
+    (dataset / "primary" / "sub-3").mkdir()
+
+    assert import_dataset.main([str(dataset), "--category", cli_env["bucket"]]) == 0
+    assert "primary/sub-3 has no sample folders" in capsys.readouterr().out
+
+
+@pytest.mark.integration
+def test_failed_commit_exits_1_with_a_retry_hint(cli_env, monkeypatch, capsys):
+    def broken(session, root, api_token):
+        raise RuntimeError("minio down")
+
+    monkeypatch.setattr(jobs, "_commit", broken)
+
+    assert import_dataset.main([str(FIXTURE), "--category", cli_env["bucket"]]) == 1
+    err = capsys.readouterr().err
+    upload_id = _only_session(cli_env)["upload_id"]
+    assert "minio down" in err and f"POST /datasets/uploads/{upload_id}/approve" in err
+
+
+@pytest.mark.integration
+def test_expired_sign_in_fails_the_session_and_exits_3(cli_env, monkeypatch, capsys):
+    def expired(refresh_token):
+        raise PermissionError("Sign-in expired")
+
+    monkeypatch.setattr(import_dataset, "refresh", expired)
+
+    assert import_dataset.main([str(FIXTURE), "--category", cli_env["bucket"]]) == 3
+    session = _only_session(cli_env)
+    assert (session["status"], session["failure_stage"]) == ("failed", "auth")
+    assert f"POST /datasets/uploads/{session['upload_id']}/approve" in capsys.readouterr().err
+
+
+@pytest.mark.integration
+def test_login_errors_exit_3_without_a_traceback(cli_env, monkeypatch, capsys):
+    def unreachable(**kw):
+        raise OSError("Connection refused")
+
+    monkeypatch.setattr(import_dataset, "login", unreachable)
+
+    assert import_dataset.main([str(FIXTURE), "--category", cli_env["bucket"]]) == 3
+    assert "Login failed: Connection refused" in capsys.readouterr().err
+
+
+@pytest.mark.integration
+def test_missing_path_exits_2_before_sign_in(cli_env, monkeypatch):
+    monkeypatch.setattr(import_dataset, "login", lambda **kw: pytest.fail("signed in for a missing path"))
+
+    assert import_dataset.main([str(cli_env["tmp"] / "nope"), "--category", cli_env["bucket"]]) == 2
+
+
+def _with_fhir_json(env, descriptions):
+    dataset = env["tmp"] / "annotated"
+    shutil.copytree(FIXTURE, dataset)
+    (dataset / "fhir.json").write_text(json.dumps(descriptions))
+    return dataset
+
+
+@pytest.mark.integration
+def test_a_root_fhir_json_is_used_as_the_annotation(cli_env, monkeypatch, capsys):
+    descriptions = build_tree(FIXTURE, "annotated")["descriptions"]
+    descriptions["dataset"]["description"] = "hand annotated"
+    dataset = _with_fhir_json(cli_env, descriptions)
+    staged_at_commit = []
+    commit = jobs.run_commit_and_push
+
+    def spy(upload_id, *args, **kwargs):
+        staged_at_commit.append((dataset_dir(upload_id) / "fhir.json").exists())
+        return commit(upload_id, *args, **kwargs)
+
+    monkeypatch.setattr(jobs, "run_commit_and_push", spy)
+
+    assert import_dataset.main([str(dataset), "--category", cli_env["bucket"]]) == 0
+    session = _only_session(cli_env)
+    assert session["fhir_mode"] == "descriptions"
+    assert session["fhir_descriptions"]["dataset"]["description"] == "hand annotated"
+    assert _dataset(cli_env, session["dataset_uuid"]) == ("annotated", "completed")
+    assert staged_at_commit == [False]  # not published as data
+    assert (dataset / "fhir.json").exists()  # the source is left alone
+    assert "fhir.json" in capsys.readouterr().out
+
+
+@pytest.mark.integration
+def test_a_root_fhir_json_that_does_not_match_exits_2_without_a_session(cli_env, capsys):
+    dataset = _with_fhir_json(cli_env, {"dataset": {"name": "x"}, "patients": [
+        {"name": "sub-9", "observations": [], "imagingStudy": [], "documentReference": []}]})
+
+    assert import_dataset.main([str(dataset), "--category", cli_env["bucket"]]) == 2
+    assert "sub-9" in capsys.readouterr().err
+    with cli_env["db"]().cursor() as cur:
+        cur.execute("SELECT count(*) FROM upload_session")
+        assert cur.fetchone() == (0,)
+
+
+@pytest.mark.integration
+def test_move_removes_a_staged_zip(cli_env):
+    staged = cli_env["tmp"] / "import-staging" / "example.zip"
+    staged.parent.mkdir()
+    shutil.copy(FIXTURE_ZIP, staged)
+
+    assert import_dataset.main([str(staged), "--move", "--category", cli_env["bucket"]]) == 0
+    assert not staged.exists()
+
+
 TOOL_CWL = "cwlVersion: v1.2\nclass: CommandLineTool\nlabel: Tool - convert\ninputs: []\noutputs: []\n"
 
 
@@ -153,7 +309,8 @@ def test_imports_a_tool_and_registers_it_in_seek_as_the_signed_in_user(cli_env, 
     session = _only_session(cli_env)
     assert _dataset(cli_env, session["dataset_uuid"]) == ("sds_tool_convert", "completed")
     [workflow] = cli_env["seek"].workflows.values()
-    assert (workflow["tool_type"], workflow["project_id"], workflow["token"]) == ("notebook", 11, "t")
+    # The token refreshed just before the commit, not the one from sign-in.
+    assert (workflow["tool_type"], workflow["project_id"], workflow["token"]) == ("notebook", 11, "t2")
 
 
 @pytest.mark.integration

@@ -228,7 +228,7 @@ export interface UploadInitPayload {
   description?: string;
   sourceKind: 'folder' | 'zip';
   manifest: UploadManifestEntry[];
-  /** Dataset category of the session; defaults to "measurements". */
+  /** Dataset category of the session; required by the API (the uploader sends "measurements" when unset). */
   category?: string;
 }
 

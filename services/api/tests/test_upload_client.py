@@ -34,6 +34,11 @@ def _client(http):
     return UploadClient("http://testserver", token="t", session=http, poll_interval=0)
 
 
+def test_category_is_required():
+    with pytest.raises(TypeError, match="category"):
+        UploadClient("http://testserver", token="t").upload_dataset(FIXTURE)
+
+
 def _dataset_name(http, dataset_uuid):
     with http.db().cursor() as cur:
         cur.execute("SELECT dataset_name FROM dataset WHERE dataset_uuid = %s", (dataset_uuid,))
