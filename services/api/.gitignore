@@ -135,11 +135,3 @@ dmypy.json
 # VS Code files
 .vscode/
 /my_workspace/
-
-# builder (builder/) runtime files, written relative to its working directory
-/tmp/
-/app.log
-/plugin_registry.db
-/data/
-/datasets_tool/
-/datasets_workflow/

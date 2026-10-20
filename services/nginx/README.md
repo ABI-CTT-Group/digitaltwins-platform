@@ -125,7 +125,7 @@ the limit means and can return a coherent error.
   shared volume and reloads portal-frontend's nginx. Writing one here means something
   else is broken.
 - **Never edit `services/portal/` to change portal routing.** Portal routing is
-  managed by the builder at runtime; changes belong in `services/api/builder/`
+  managed by the builder at runtime; changes belong in `services/builder/`
   and should go through a PR on this repo.
 
 ---

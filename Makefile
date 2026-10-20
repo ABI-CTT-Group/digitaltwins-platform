@@ -29,26 +29,34 @@ OFFLINE := --network none
 # The frontend's node_modules comes from the cache, so the host's node_modules is never used or changed.
 FE := -v $(CURDIR)/services/portal/frontend:/w -v $(CACHE)/frontend/node_modules:/w/node_modules -w /w
 
-.PHONY: test test-api test-frontend test-jupyterhub frontend-deps cache-dirs \
+.PHONY: test test-api test-builder test-frontend test-jupyterhub frontend-deps cache-dirs \
 	lint lint-python lint-frontend gitleaks
 
-test: test-api test-frontend test-jupyterhub
+test: test-api test-builder test-frontend test-jupyterhub
 
 # Created up front so docker doesn't create missing mount points as root.
 cache-dirs:
 	mkdir -p $(CACHE)/uv $(CACHE)/yarn $(CACHE)/frontend/node_modules services/portal/frontend/node_modules
 
-# Covers the API and the builder (services/api/builder). Also mounted, read-only: the portal-frontend
-# nginx template (a test checks which locations reach the builder) and the root compose file (a test
-# checks the builder's environment and mounts there; it holds no secrets).
 test-api: cache-dirs
 	$(RUN) -v $(CURDIR)/services/api:/w:ro -w /w $(PY311_IMAGE) sh -c \
 	  'uv venv -q --allow-existing /cache/api/venv && uv pip install -q --python /cache/api/venv -r requirements-test.txt'
 	$(RUN) $(OFFLINE) -v $(CURDIR)/services/api:/w/services/api -v $(CURDIR)/services/postgres:/w/services/postgres:ro \
-	  -v $(CURDIR)/services/portal/frontend/nginx.conf.template:/w/services/portal/frontend/nginx.conf.template:ro \
-	  -v $(CURDIR)/docker-compose.yml:/w/docker-compose.yml:ro \
 	  -w /w/services/api $(PY311_IMAGE) \
 	  /cache/api/venv/bin/python -m pytest -m "not integration" -p no:cacheprovider $(PYTEST_ARGS)
+
+# Also mounted, read-only: the portal-frontend nginx template (a test checks which locations reach
+# the builder) and the root and API compose files (tests check the builder's environment and the
+# Docker socket mount there; they hold no secrets).
+test-builder: cache-dirs
+	$(RUN) -v $(CURDIR)/services/builder:/w:ro -w /w $(PY311_IMAGE) sh -c \
+	  'uv venv -q --allow-existing /cache/builder/venv && uv pip install -q --python /cache/builder/venv -r requirements-test.txt'
+	$(RUN) $(OFFLINE) -v $(CURDIR)/services/builder:/w/services/builder \
+	  -v $(CURDIR)/services/portal/frontend/nginx.conf.template:/w/services/portal/frontend/nginx.conf.template:ro \
+	  -v $(CURDIR)/docker-compose.yml:/w/docker-compose.yml:ro \
+	  -v $(CURDIR)/services/api/docker-compose.yml:/w/services/api/docker-compose.yml:ro \
+	  -w /w/services/builder $(PY311_IMAGE) \
+	  /cache/builder/venv/bin/python -m pytest -p no:cacheprovider $(PYTEST_ARGS)
 
 frontend-deps: cache-dirs
 	$(RUN) $(FE) $(NODE_IMAGE) yarn install -s --frozen-lockfile --non-interactive --cache-folder /cache/yarn
@@ -70,7 +78,7 @@ lint:
 
 lint-python:
 	docker run --rm --user $(UID):$(GID) $(OFFLINE) -v $(CURDIR)/services:/w/services:ro -w /w $(RUFF_IMAGE) \
-	  check --no-cache --select E4,E7,E9,F --output-format=$(RUFF_FORMAT) services/api services/jupyterhub
+	  check --no-cache --select E4,E7,E9,F --output-format=$(RUFF_FORMAT) services/api services/builder services/jupyterhub
 
 lint-frontend: frontend-deps
 	$(RUN) $(OFFLINE) $(FE) $(NODE_IMAGE) sh -c 'rc=0; yarn -s lint:check || rc=1; yarn -s type-check || rc=1; exit $$rc'

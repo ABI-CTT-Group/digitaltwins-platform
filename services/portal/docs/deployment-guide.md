@@ -9,7 +9,7 @@
 
 ## 0. TL;DR
 
-`portal-frontend`'s nginx serves **only what the portal owns**: the SPA, `/api/builder/` → the builder (code in `services/api/builder`, service `builder`), `/tools/` → the public MinIO bucket, and the dynamically generated `/plugin/*` routes.
+`portal-frontend`'s nginx serves **only what the portal owns**: the SPA, `/api/builder/` → the builder (`services/builder`, service `builder`), `/tools/` → the public MinIO bucket, and the dynamically generated `/plugin/*` routes.
 
 - **HTTP only.** There is no SSL template and no `entry.sh` anymore. TLS terminates at the platform gateway (`digitaltwins-platform/services/nginx`), which proxies everything it doesn't recognise back to `portal-frontend` via `location /`.
 - **Standalone is a development inner loop**, not a deployment target. Real deployments go through the platform.
@@ -70,7 +70,7 @@ Browse `http://localhost/`.
 
 That asymmetry is deliberate: the platform consumes this repo through `extends: { file: docker-compose.yml, service: portal-frontend }`, which reads only the file it names. So the platform never picks up the override, and 80/443 stay free for the gateway.
 
-The standalone stack runs only `portal-frontend`. The builder that serves `/api/builder/` is part of the platform API's codebase (`services/api/docker-compose.builder.yml`) and comes up with the platform; without it `/api/builder/` answers 502.
+The standalone stack runs only `portal-frontend`. The builder that serves `/api/builder/` is its own service (`services/builder/docker-compose.yml`) and comes up with the platform; without it `/api/builder/` answers 502.
 
 ---
 
@@ -148,8 +148,8 @@ The builder picks its database at startup:
 To move an existing SQLite database into Postgres, run this once from the platform repo, with the builder stopped (the dry run changes nothing):
 
 ```bash
-docker compose run --rm builder python -m builder.cli.migrate_sqlite_to_postgres --dry-run
-docker compose run --rm builder python -m builder.cli.migrate_sqlite_to_postgres
+docker compose run --rm builder python -m app.cli.migrate_sqlite_to_postgres --dry-run
+docker compose run --rm builder python -m app.cli.migrate_sqlite_to_postgres
 ```
 
 It refuses to run if the target already has portal rows, and it copies everything in a single transaction.

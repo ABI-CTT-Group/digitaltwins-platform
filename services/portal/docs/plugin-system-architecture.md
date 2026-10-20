@@ -1,7 +1,7 @@
 # Plugin System — How It Actually Works
 
 **Date:** 2026-04-20
-**Status:** Describes the current implementation in `services/api/builder/engine/`, `services/api/builder/models/db_model.py`, `frontend/src/plugins/`, and the nginx templates. (The builder was the portal backend until it moved into the platform API's codebase; it runs as the `builder` service.)
+**Status:** Describes the current implementation in `services/builder/app/engine/`, `services/builder/app/models/db_model.py`, `frontend/src/plugins/`, and the nginx templates. (The builder was the portal backend; it now lives in `services/builder` and runs as the `builder` service.)
 
 ---
 
@@ -88,7 +88,7 @@ The **four persistence planes**:
 
 ---
 
-## 3. Build pipeline (`PluginBuilder` in `services/api/builder/engine/build_tool.py`)
+## 3. Build pipeline (`PluginBuilder` in `services/builder/app/engine/build_tool.py`)
 
 Triggered by POST to the plugin register/build endpoint. Input: git URL **or** local path under `/plugins/` (mounted volume). Steps:
 
@@ -106,7 +106,7 @@ After this, the plugin is **installed** (listed in the portal) but not yet **dep
 
 ---
 
-## 4. Deploy pipeline (`PluginDeployer` in `services/api/builder/engine/deploy_tool.py`)
+## 4. Deploy pipeline (`PluginDeployer` in `services/builder/app/engine/deploy_tool.py`)
 
 Runs after build for plugins with a backend folder. Steps:
 
@@ -224,7 +224,7 @@ After this the plugin is fully gone — no containers, no files, no route, no DB
 
 ## 9. Files map — what lives where
 
-### Builder (`services/api/builder/` in the platform repo)
+### Builder (`services/builder/app/` in the platform repo)
 
 | Path | Responsibility |
 |---|---|
@@ -248,7 +248,7 @@ After this the plugin is fully gone — no containers, no files, no route, no DB
 
 | Service | Role in plugin system |
 |---|---|
-| `builder` (platform: `services/api/docker-compose.builder.yml`) | Runs builder/deployer; needs `/var/run/docker.sock`, `nginx_plugin_configs` volume |
+| `builder` (platform: `services/builder/docker-compose.yml`) | Runs builder/deployer; needs `/var/run/docker.sock`, `nginx_plugin_configs` volume |
 | `portal-frontend` | nginx host; mounts `nginx_plugin_configs` at `/etc/nginx/conf.d/plugins`; `container_name: digitaltwins-platform-portal-frontend` so the builder can `docker exec` it |
 | `minio` + `minio-init` | Creates the 5 buckets; sets public read on `tools` |
 | Volumes: `nginx_plugin_configs`, `plugin_database`, `portal_datasets`, `minio_data` | Shared state that must survive container restarts |
@@ -261,7 +261,7 @@ After this the plugin is fully gone — no containers, no files, no route, no DB
 Because plugins are installed at runtime by end users. We don't know at image-build time which plugins will exist. The `include /etc/nginx/conf.d/plugins/*.conf;` line lets us add routes without rebuilding nginx.
 
 **"Why does the `builder` have `/var/run/docker.sock` mounted — isn't that a security risk?"**
-Yes, it's a significant privilege: root on the host. It's there because the deployer literally runs `docker compose up` and `docker exec portal-frontend nginx -s reload`, and builds run the plugin's own `npm` scripts next to it. That is why the builder runs as its own service, apart from the platform API, with a minimal environment (no API credentials) and the only socket mount (see `docs/decisions/2026-10-20-merge-portal-backend-into-api-codebase.md`). Builds are not sandboxed yet; in a hardened deployment they would run against an isolated Docker daemon or a privileged helper service.
+Yes, it's a significant privilege: root on the host. It's there because the deployer literally runs `docker compose up` and `docker exec portal-frontend nginx -s reload`, and builds run the plugin's own `npm` scripts next to it. That is why the builder runs as its own service, apart from the platform API, with a minimal environment (no API credentials) and the only socket mount (see `docs/decisions/2026-10-21-builder-as-its-own-service.md`). Builds are not sandboxed yet; in a hardened deployment they would run against an isolated Docker daemon or a privileged helper service.
 
 **"Can plugins run outside the `digitaltwins` network?"**
 No. If they don't join this network, nginx can't resolve their hostname for `proxy_pass`. The generated conf would compile (nginx defers DNS) but every request would 502. Always attach plugin backends to the external `digitaltwins` network.

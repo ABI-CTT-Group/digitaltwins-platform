@@ -87,7 +87,7 @@ export const getRepoContents = async (url: string, path: string = "") => {
 }
 
 // A tool is either source code (one .cwl at the root) or an SDS package whose
-// CWL is primary/tool_*.cwl. Mirrors services/api/builder/engine/tool_layout.py.
+// CWL is primary/tool_*.cwl. Mirrors services/builder/app/engine/tool_layout.py.
 export const SDS_MARKER = "dataset_description.xlsx";
 const SDS_TOOL_CWL = /^tool_.*\.cwl$/;
 

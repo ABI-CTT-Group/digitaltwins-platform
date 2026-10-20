@@ -30,7 +30,7 @@ Each is a confidential OIDC client unless noted; its secret comes from a
 
 | clientId | Type / flows | Secret var | Used by (service) | Purpose |
 |---|---|---|---|---|
-| **`api`** | confidential · authcode + directgrant + **svcacct** | `KEYCLOAK_CLIENT_SECRET` | `api` (`auth.py`), builder (`services/api/builder/client/keycloak.py`), Airflow DAGs, compute-worker | The core **platform service client**. The API/portal authenticate users and the DAGs use client-credentials as this client. Redirect: `http://localhost/*`. |
+| **`api`** | confidential · authcode + directgrant + **svcacct** | `KEYCLOAK_CLIENT_SECRET` | `api` (`auth.py`), builder (`services/builder/app/client/keycloak.py`), Airflow DAGs, compute-worker | The core **platform service client**. The API/portal authenticate users and the DAGs use client-credentials as this client. Redirect: `http://localhost/*`. |
 | **`portal-frontend`** | **public** · authcode | — (public) | Portal SPA (browser) | Browser-side login for the portal UI. Redirect: `${PLATFORM_PROTOCOL}://${PLATFORM_DOMAIN}/*`. |
 | **`airflow`** | confidential · authcode + directgrant | `AIRFLOW_KEYCLOAK_CLIENT_SECRET` | Airflow UI (`webserver_config.py`) | **Airflow web UI SSO.** Has the `realm roles → realm_access.roles` mapper so `airflow_*` roles reach the token. Redirect: `.../airflow/auth/oauth-authorized/keycloak`. |
 | **`minio`** | confidential · authcode + directgrant | `MINIO_KEYCLOAK_CLIENT_SECRET` | MinIO (`services/minio`) | MinIO console SSO. Mapper puts realm roles into the **`policy`** claim (MinIO maps that claim → its access policy). Redirect: `.../minio/oauth_callback`. |

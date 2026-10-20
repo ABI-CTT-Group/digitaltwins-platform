@@ -231,11 +231,11 @@ Once successfully deployed, the following services and default credentials are a
 ## 9. Upgrading: `/digitaltwins-api` → `/api`, `portal-backend` → `builder`
 
 The platform API moved from `/digitaltwins-api` to `/api`, and its service was renamed from
-`digitaltwins-api` to `api`. The portal backend moved into the API's codebase (`services/api/builder`)
+`digitaltwins-api` to `api`. The portal backend moved to its own service folder, `services/builder`,
 and runs as the `builder` service; its endpoints moved from `/api/tools/...` and `/api/workflow/...`
 to `/api/builder/tools/...` and `/api/builder/workflow/...`. The old paths no longer work: there is
 no redirect. See the ADRs [2026-10-20-api-prefix-and-portal-builder-split](decisions/2026-10-20-api-prefix-and-portal-builder-split.md)
-and [2026-10-20-merge-portal-backend-into-api-codebase](decisions/2026-10-20-merge-portal-backend-into-api-codebase.md).
+and [2026-10-21-builder-as-its-own-service](decisions/2026-10-21-builder-as-its-own-service.md).
 
 An existing deployment upgrades once, from the repository root:
 

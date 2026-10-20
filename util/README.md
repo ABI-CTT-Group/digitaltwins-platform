@@ -158,7 +158,7 @@ Two things are always true on arm64:
   `orthanc-auth-service` publish **amd64 only**. The compose files already pin
   them with `platform: linux/amd64`, so they run — but *emulated*, which is
   CPU-heavy and slow. Give the machine plenty of headroom (≈8 CPU / 16 GB). The
-  builder image (`services/api/Dockerfile`, target `builder`) builds **natively** on arm64
+  builder image (`services/builder/Dockerfile`) builds **natively** on arm64
   (its Docker apt repo uses `$(dpkg --print-architecture)`).
 
 Emulation needs a translation layer — the one setup difference between the two

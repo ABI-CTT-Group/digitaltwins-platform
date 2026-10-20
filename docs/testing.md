@@ -5,8 +5,9 @@ The unit tests run through one root `Makefile`. You get the same results locally
 You need Docker and GNU make. You don't need Python, Node, uv or a virtualenv on the host.
 
 ```bash
-make test                  # all three unit suites
-make test-api              # services/api: the API and the builder (pytest, Python 3.11)
+make test                  # all four unit suites
+make test-api              # services/api                (pytest, Python 3.11)
+make test-builder          # services/builder            (pytest, Python 3.11)
 make test-frontend         # services/portal/frontend    (vitest, Node 20)
 make test-jupyterhub       # services/jupyterhub         (pytest, hub image)
 make lint                  # ruff + eslint + vue-tsc (report-only in CI)
@@ -24,9 +25,10 @@ make test-api PYTEST_ARGS="-q tests/test_models_api.py -k delete"
 Each suite runs in a pinned toolchain image: tag plus digest, at the same Python or Node version as the service's production Dockerfile. A run has two steps:
 
 1. **Install, with network access.** Dependencies are installed into `.cache/ci/`, which is gitignored and reused between runs. The sources are:
-   - API and builder: `services/api/requirements-test.txt` (which includes `requirements-builder.txt`)
+   - API: `services/api/requirements-test.txt`
+   - Builder: `services/builder/requirements-test.txt`
    - Frontend: `yarn.lock`, installed into a cached `node_modules`. Your own `node_modules` is never used or changed.
-2. **Test, with `--network none`.** Only the service's own directory is mounted, never the repo root. (`make test-api` also mounts two files read-only: the portal-frontend nginx template and the root `docker-compose.yml`, which the builder and service-separation tests check. Neither holds secrets.) The tests can't reach live Postgres, MinIO, Keycloak and so on, and they can't see `.env` or `secrets.env`.
+2. **Test, with `--network none`.** Only the service's own directory is mounted, never the repo root. (`make test-builder` also mounts three files read-only: the portal-frontend nginx template and the root and API `docker-compose.yml`, which the builder's template and service-separation tests check. None holds secrets.) The tests can't reach live Postgres, MinIO, Keycloak and so on, and they can't see `.env` or `secrets.env`.
 
 Containers run as your user, so no root-owned files end up in the tree. Because the tests don't run as root, `test_workflow_dag.py`'s root-only `chown` test is skipped.
 
@@ -54,8 +56,9 @@ On a PR, only the suites whose files changed run. "Changed" means the whole PR's
 
 | Change touches | Jobs that run |
 |---|---|
-| `services/api/`, `services/postgres/`, root `docker-compose.yml` | api |
-| `services/portal/frontend/nginx.conf.template` | frontend and api |
+| `services/api/`, `services/postgres/` | api (and builder, for `services/api/docker-compose.yml`) |
+| `services/builder/`, root `docker-compose.yml` | builder |
+| `services/portal/frontend/nginx.conf.template` | frontend and builder |
 | the rest of `services/portal/frontend/` | frontend |
 | `services/jupyterhub/` | jupyterhub |
 | `Makefile`, `.github/workflows/` | all suites |
@@ -66,16 +69,17 @@ Gitleaks runs on every PR. It scans only the PR's own commits, not the full hist
 A suite that isn't needed shows as *skipped*. GitHub counts a skipped required check as passing.
 
 These checks block merging:
-- `api unit tests` (covers the builder too)
+- `api unit tests`
+- `builder unit tests`
 - `frontend unit tests`
 - `jupyterhub unit tests`
 - `gitleaks (PR commits)`
 
 `lint (report-only)` shows its findings as annotations but never fails.
 
-These four checks are required by the repo ruleset "CI required checks" (Settings → Rules). The ruleset matches checks by job `name:` in `.github/workflows/ci.yml`. If you rename a job, update the ruleset in the same change, or every PR will wait for a check that never reports.
+These five checks are required by the repo ruleset "CI required checks" (Settings → Rules). The ruleset matches checks by job `name:` in `.github/workflows/ci.yml`. If you rename a job, update the ruleset in the same change, or every PR will wait for a check that never reports.
 
 ## Safety rules
 
-- **Never run the builder tests (`services/api/tests/builder_tests/`) inside the live `builder` container,** or in any shell where `BUILDER_DB_HOST` is set. They drop and recreate every table. `tests/builder_tests/__init__.py` refuses to load when `BUILDER_DB_HOST` is set, and it always points SQLite at a temporary file.
+- **Never run the builder tests (`services/builder/tests/`) inside the live `builder` container,** or in any shell where `BUILDER_DB_HOST` is set. They drop and recreate every table. `services/builder/tests/__init__.py` refuses to load when `BUILDER_DB_HOST` is set, and it always points SQLite at a temporary file.
 - Don't point the API integration tests at a production database. They need `CREATEDB` rights on whatever `POSTGRES_*` names.
