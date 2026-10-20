@@ -1,0 +1,5 @@
+# The builder is a service, not a package: this file only configures pytest (`make test-builder`).
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"

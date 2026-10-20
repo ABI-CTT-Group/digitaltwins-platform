@@ -19,7 +19,7 @@ Trigger via the Airflow UI or REST API with JSON conf, for example::
         "run_id":        "test_run"
     }
 
-When triggered by an assay run (digitaltwins-api ``POST /assays/{id}/run``), conf contains::
+When triggered by an assay run (the platform API's ``POST /assays/{id}/run``), conf contains::
 
     {
         "bucket":        "airflow-workspace",

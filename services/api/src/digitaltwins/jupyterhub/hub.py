@@ -1,4 +1,4 @@
-"""JupyterHub as the ``digitaltwins-api`` service: start a user's server and write into its workspace.
+"""JupyterHub as the ``api`` service: start a user's server and write into its workspace.
 
 The service token holds the hub's admin role (services/jupyterhub/jupyterhub_config.py), so it
 can create users, spawn their default server and use that server's contents API.

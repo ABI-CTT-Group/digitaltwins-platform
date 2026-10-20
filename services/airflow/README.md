@@ -7,7 +7,7 @@ References:
 
 ## DAG folders managed by the platform
 
-`dags/workflow_<seek_id>/` folders are written by digitaltwins-api when an admin
+`dags/workflow_<seek_id>/` folders are written by the platform API when an admin
 registers or approves a script workflow, or deploys it
 (`POST /workflows/{dataset_uuid}/deploy`), and removed
 when the workflow is deleted. Don't edit them by hand: redeploy instead. See

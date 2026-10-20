@@ -197,7 +197,7 @@ export interface ToolResponse {
     updatedAt: string
     sourceType?: SourceType
     localArchivePath?: string
-    // Platform dataset of the approved version (digitaltwins-api); legacy rows may hold a `sparc-tool-` placeholder.
+    // Platform dataset of the approved version (platform API); legacy rows may hold a `sparc-tool-` placeholder.
     uuid?: string
     seekProjectId?: number
     // Handoff to the platform of the latest build (see ToolApprovalStatus).
@@ -208,14 +208,14 @@ export interface ToolResponse {
     fhirFailureMessage?: string
     // A tool uploaded to the platform directly (REST API), with no portal build: listed read-only.
     platformOnly?: boolean
-    // A gui SDS workflow's tool (GET /api/workflow/gui-tools): built, approved and deleted with its workflow.
+    // A gui SDS workflow's tool (GET /api/builder/workflow/gui-tools): built, approved and deleted with its workflow.
     kind?: "workflow"
     workflowName?: string
 }
 
 export type HandoffStatus = "uploading" | "awaiting_reauth" | "committing" | "completed" | "failed"
 
-/** GET /api/tools/plugin/{id}/approval/status */
+/** GET /api/builder/tools/plugin/{id}/approval/status */
 export interface ToolApprovalStatus {
     buildId?: string
     handoffStatus: HandoffStatus | null
@@ -414,7 +414,7 @@ export type BaseInformationStep = ToolInformationStep | WorkflowInformationStep;
 // (`views/upload-dataset/measurements/components/`) is used only to render the
 // clean "Preview descriptions" panel, not before POST.
 //
-// uuid / endpointUrl / endpointUuid fields are assigned by digitaltwins-api when
+// uuid / endpointUrl / endpointUuid fields are assigned by the platform API when
 // the dataset is approved (platform dataset / subject / sample UUIDs); whatever
 // the UI sends is overwritten. Treat them as read-only in the UI.
 
@@ -473,7 +473,7 @@ export type MeasurementTreeNode = {
   [k: string]: any;
 };
 
-/** Response from digitaltwins-api `GET .../fhir/tree` (see bootstrap/measurement_api.ts). */
+/** Response from the platform API's `GET .../fhir/tree` (see bootstrap/measurement_api.ts). */
 export interface MeasurementTreeResponse {
   tree: MeasurementTreeNode;
   descriptions: FhirCdaDescriptions;

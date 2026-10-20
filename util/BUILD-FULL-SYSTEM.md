@@ -381,7 +381,7 @@ Detail: [`README.md`](README.md) §0–6.
    mirrors `_get_api_token()` in `assays.py` — `os.getenv(key, default)`, so it uses
    the same fallbacks the code does and never KeyErrors on an unset var:
    ```
-   docker compose exec -T digitaltwins-api python -c "import os,requests; ep=os.getenv('AIRFLOW_ENDPOINT','http://airflow-apiserver:8080/airflow'); u=os.getenv('AIRFLOW_USERNAME','admin'); p=os.getenv('AIRFLOW_PASSWORD','admin'); r=requests.post(ep+'/auth/token',json={'username':u,'password':p},timeout=30); print('HTTP',r.status_code)"
+   docker compose exec -T api python -c "import os,requests; ep=os.getenv('AIRFLOW_ENDPOINT','http://airflow-apiserver:8080/airflow'); u=os.getenv('AIRFLOW_USERNAME','admin'); p=os.getenv('AIRFLOW_PASSWORD','admin'); r=requests.post(ep+'/auth/token',json={'username':u,'password':p},timeout=30); print('HTTP',r.status_code)"
    ```
    Expect `HTTP 200`.
 

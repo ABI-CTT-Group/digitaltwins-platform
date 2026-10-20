@@ -43,17 +43,17 @@ Set `PLATFORM_DOMAIN=NEW` in `data/env`, then:
 ```
 util/gen-env.sh -e data/env -s data/secrets.env
 ```
-`PLATFORM_DOMAIN` is a gen-env *input* (not an `.env` line itself); it's
-substituted into the derived absolute-URL vars — `KC_HOSTNAME`,
-`KEYCLOAK_PUBLIC_URL`, `PORTAL_BACKEND_HOST`, `PORTAL_KEYCLOAK_BASE_URL`,
-`AIRFLOW__API__BASE_URL`, `JUPYTERHUB_PUBLIC_URL`, `ORTHANC_KEYCLOAK_URL`.
-Confirm: `grep -E '^(KC_HOSTNAME|PORTAL_BACKEND_HOST)=' .env` shows `NEW`.
+`PLATFORM_DOMAIN` is a gen-env input; gen-env writes it to `.env` as is (the
+builder reads it there) and substitutes it into the derived absolute-URL vars —
+`KC_HOSTNAME`, `KEYCLOAK_PUBLIC_URL`, `AIRFLOW__API__BASE_URL`,
+`JUPYTERHUB_PUBLIC_URL`, `ORTHANC_KEYCLOAK_URL`.
+Confirm: `grep -E '^(KC_HOSTNAME|PLATFORM_DOMAIN)=' .env` shows `NEW`.
 
 ### 4. Recreate the services that read those vars (scoped — no rebuild)
 ```
 docker compose up -d
 ```
-Recreates keycloak (new `KC_HOSTNAME`), portal-backend, airflow*, jupyterhub,
+Recreates keycloak (new `KC_HOSTNAME`), builder, airflow*, jupyterhub,
 orthanc, and the gateway (new cert) because their env changed. The frontend is
 domain-agnostic so it doesn't need recreating for the URL, but a blanket `up -d`
 is fine — just don't force-recreate SEEK unnecessarily (slow boot).

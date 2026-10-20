@@ -1,0 +1,3 @@
+# Unit-test dependencies (run with `make test-builder` from the repo root)
+-r requirements.txt
+pytest==8.4.2

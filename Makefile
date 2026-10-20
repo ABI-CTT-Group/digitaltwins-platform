@@ -13,7 +13,6 @@ CACHE := $(CURDIR)/.cache/ci
 
 # Pinned by tag and digest; resolve a new digest with: docker buildx imagetools inspect <tag>
 PY311_IMAGE := ghcr.io/astral-sh/uv:0.9.30-python3.11-bookworm@sha256:58683a39536f1f4ed2e1dd79cf155edccfb47731aba8964bd0312aac942126cf
-PY39_IMAGE  := ghcr.io/astral-sh/uv:0.9.30-python3.9-bookworm@sha256:593da8ad267c37a1a0c79cdb9c9db49a09f4180533f34b19585b8de91f172ba9
 NODE_IMAGE  := node:20.20.2-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293
 RUFF_IMAGE  := ghcr.io/astral-sh/ruff:0.17.1@sha256:eae3102808b46de58204237a3433001cae4d45d832f31be1c8121f7145a62661
 GITLEAKS_IMAGE := ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
@@ -30,10 +29,10 @@ OFFLINE := --network none
 # The frontend's node_modules comes from the cache, so the host's node_modules is never used or changed.
 FE := -v $(CURDIR)/services/portal/frontend:/w -v $(CACHE)/frontend/node_modules:/w/node_modules -w /w
 
-.PHONY: test test-api test-portal-backend test-frontend test-jupyterhub frontend-deps cache-dirs \
+.PHONY: test test-api test-builder test-frontend test-jupyterhub frontend-deps cache-dirs \
 	lint lint-python lint-frontend gitleaks
 
-test: test-api test-portal-backend test-frontend test-jupyterhub
+test: test-api test-builder test-frontend test-jupyterhub
 
 # Created up front so docker doesn't create missing mount points as root.
 cache-dirs:
@@ -46,12 +45,18 @@ test-api: cache-dirs
 	  -w /w/services/api $(PY311_IMAGE) \
 	  /cache/api/venv/bin/python -m pytest -m "not integration" -p no:cacheprovider $(PYTEST_ARGS)
 
-# Mounts services/portal (not just backend/): one test reads ../frontend/nginx.conf.template.
-test-portal-backend: cache-dirs
-	$(RUN) -e UV_PROJECT_ENVIRONMENT=/cache/portal/venv -v $(CURDIR)/services/portal/backend:/w:ro -w /w \
-	  $(PY39_IMAGE) uv sync -q --frozen --group test
-	$(RUN) $(OFFLINE) -v $(CURDIR)/services/portal:/w/services/portal -w /w/services/portal/backend $(PY39_IMAGE) \
-	  /cache/portal/venv/bin/python -m pytest -p no:cacheprovider $(PYTEST_ARGS)
+# Also mounted, read-only: the portal-frontend nginx template (a test checks which locations reach
+# the builder) and the root and API compose files (tests check the builder's environment and the
+# Docker socket mount there; they hold no secrets).
+test-builder: cache-dirs
+	$(RUN) -v $(CURDIR)/services/builder:/w:ro -w /w $(PY311_IMAGE) sh -c \
+	  'uv venv -q --allow-existing /cache/builder/venv && uv pip install -q --python /cache/builder/venv -r requirements-test.txt'
+	$(RUN) $(OFFLINE) -v $(CURDIR)/services/builder:/w/services/builder \
+	  -v $(CURDIR)/services/portal/frontend/nginx.conf.template:/w/services/portal/frontend/nginx.conf.template:ro \
+	  -v $(CURDIR)/docker-compose.yml:/w/docker-compose.yml:ro \
+	  -v $(CURDIR)/services/api/docker-compose.yml:/w/services/api/docker-compose.yml:ro \
+	  -w /w/services/builder $(PY311_IMAGE) \
+	  /cache/builder/venv/bin/python -m pytest -p no:cacheprovider $(PYTEST_ARGS)
 
 frontend-deps: cache-dirs
 	$(RUN) $(FE) $(NODE_IMAGE) yarn install -s --frozen-lockfile --non-interactive --cache-folder /cache/yarn
@@ -73,7 +78,7 @@ lint:
 
 lint-python:
 	docker run --rm --user $(UID):$(GID) $(OFFLINE) -v $(CURDIR)/services:/w/services:ro -w /w $(RUFF_IMAGE) \
-	  check --no-cache --select E4,E7,E9,F --output-format=$(RUFF_FORMAT) services/api services/portal/backend services/jupyterhub
+	  check --no-cache --select E4,E7,E9,F --output-format=$(RUFF_FORMAT) services/api services/builder services/jupyterhub
 
 lint-frontend: frontend-deps
 	$(RUN) $(OFFLINE) $(FE) $(NODE_IMAGE) sh -c 'rc=0; yarn -s lint:check || rc=1; yarn -s type-check || rc=1; exit $$rc'

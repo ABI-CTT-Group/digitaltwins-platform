@@ -22,7 +22,7 @@ services:
       # Trust the gateway's X-Forwarded-* so Keycloak emits https:// URLs + Secure cookies.
       KC_PROXY_HEADERS: xforwarded
 
-      # Public address (the `iss` in every token). Must match PORTAL_KEYCLOAK_BASE_URL /
+      # Public address (the `iss` in every token). Must match
       # ORTHANC_KEYCLOAK_URL / KEYCLOAK_PUBLIC_URL. Includes /auth.
       KC_HOSTNAME: ${KC_HOSTNAME:-http://localhost/auth}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT:-true}

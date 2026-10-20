@@ -66,7 +66,7 @@ CURL_OPTS=(--resolve "${DOM}:${RESOLVE_PORT}:127.0.0.1")
 
 BASE="$PROT://$DOM"
 SEEK_BASE="$BASE/seek"
-DTAPI_BASE="$BASE/digitaltwins-api"
+DTAPI_BASE="$BASE/api"
 
 echo "populate-cpu-burn-assay: authenticating as $ADMIN_U (password grant, client=api)"
 TOKEN=$(curl -s "${CURL_OPTS[@]}" -X POST "$BASE/auth/realms/digitaltwins/protocol/openid-connect/token" \
@@ -144,7 +144,7 @@ DATASET_UUID=$(curl -s "${CURL_OPTS[@]}" -H "Authorization: Bearer $TOKEN" \
 [ -n "$DATASET_UUID" ] || { echo "populate-cpu-burn-assay: dataset registration failed" >&2; exit 1; }
 echo "  dataset_uuid=$DATASET_UUID"
 
-echo "== configuring the assay (digitaltwins-api Postgres record) =="
+echo "== configuring the assay (platform API Postgres record) =="
 CONFIG_BODY=$(jq -n --argjson assay_seek_id "$ASSAY_ID" --arg dataset_uuid "$DATASET_UUID" '{
   assay_seek_id: $assay_seek_id,
   workflow_seek_id: 9000,

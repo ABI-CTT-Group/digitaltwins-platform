@@ -1,4 +1,4 @@
-DigitalTWINS-API documentation
+DigitalTWINS API documentation
 =======================================
 
 

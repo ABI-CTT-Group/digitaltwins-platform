@@ -1,0 +1,8 @@
+# runtime files the builder (and its tests) write relative to the working directory
+/tmp/
+/app.log
+/plugin_registry.db
+/data/
+/datasets_tool/
+/datasets_workflow/
+__pycache__/

@@ -210,19 +210,19 @@ docker compose logs --tail=30 database | grep -iE "shutdown|restart|fatal|too ma
 ```
 Fix: wait for SEEK to boot; recreate services scoped, never blanket.
 
-**(b) 502 on `/api/...` with SEEK up — portal-frontend cached a stale backend IP.**
-`/api/dashboard/programmes` etc. route through `location /` → **portal-frontend**,
-whose *internal* nginx proxies `/api/` to portal-backend via a LITERAL `proxy_pass`
-resolved once at startup. If portal-backend restarts it gets a new Docker IP and the
+**(b) 502 on `/api/builder/...` with SEEK up — portal-frontend cached a stale builder IP.**
+`/api/builder/tools/...` etc. route through `location /api/builder/` → **portal-frontend**,
+whose *internal* nginx proxies `/api/builder/` to the `builder` service via a LITERAL `proxy_pass`
+resolved once at startup. If the builder restarts it gets a new Docker IP and the
 frontend keeps dialing the dead one → 502. Tell-tale in the **portal-frontend** log:
 ```
 docker compose logs --tail=40 portal-frontend | grep -iE "unreachable|refused|error|502"
-#  -> connect() failed (113: Host is unreachable) ... upstream: "http://<old-ip>:8000/api/..."
-docker inspect $(docker compose ps -q portal-backend) \
+#  -> connect() failed (113: Host is unreachable) ... upstream: "http://<old-ip>:8000/api/builder/..."
+docker inspect $(docker compose ps -q builder) \
   --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'   # its ACTUAL ip now (differs)
 ```
-Fix: `docker compose restart portal-frontend` (re-resolves the backend). A `401` on
-the retest = reaching the backend again (good); `502` = still stale. (Upstream image
+Fix: `docker compose restart portal-frontend` (re-resolves the builder). A `401` on
+the retest = reaching the builder again (good); `502` = still stale. (Upstream image
 quirk — the frontend doesn't re-resolve on backend IP change like the gateway does.)
 
 ## Assay launches (API returns 200) but nothing appears in Airflow

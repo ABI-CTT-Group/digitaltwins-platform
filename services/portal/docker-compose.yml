@@ -1,84 +1,4 @@
 services:
-  portal-backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    environment:
-      - PYTHONPATH=/app
-      - DATABASE_PATH=/data/plugin_registry.db
-      - DATASET_DIR_TOOL=/portal_workspace/tools
-      - DATASET_DIR_WORKFLOW=/portal_workspace/workflows
-      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio:9000}
-      - MINIO_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
-      - MINIO_PORT=${MINIO_PORT:-8004}
-      # Pass-through vars consumed by PLUGIN compose files, not by this backend.
-      # PluginDeployer shells out to `docker compose` from inside this container
-      # with os.environ as the interpolation source, and compose looks for a .env
-      # in the plugin's own project dir — never in clinical-dashboard/.env. So a
-      # `${VAR}` in any plugin compose resolves against THIS block, and a missing
-      # name degrades silently to the plugin's `:-` default rather than erroring.
-      # These names are the plugin-facing contract; keep them even though the
-      # backend's own code reads the MINIO_ACCESS_KEY/MINIO_SECRET_KEY above.
-      #
-      # Corollary: every name in this block occupies a slot in the interpolation
-      # namespace of every third-party plugin's compose file. SSL below is already
-      # a bare, generic word — don't add more of them (HOST, PORT, DEBUG, ENV...)
-      # or a plugin author's unrelated ${VAR} will silently resolve to ours.
-      - MINIO_SERVER_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
-      - MINIO_SERVER_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
-      - PROJECT_NAME=${PROJECT_NAME:-digitaltwins-platform}
-      # Public scheme of the portal — decides whether generated URLs (workflow
-      # metadata, MinIO presigned links) say http:// or https://. The key is SSL
-      # because that is what every .env has always shipped; the backend used to
-      # read USE_SSL, which nothing ever set, so the flag was permanently false.
-      - SSL=${SSL:-false}
-      - FHIR_ENDPOINT=${FHIR_ENDPOINT:-hapi-fhir:8080/fhir}
-      - DIGITALTWINS_API_BASE_URL=${DIGITALTWINS_API_BASE_URL:-http://digitaltwins-api}
-      - DIGITALTWINS_API_PORT=${DIGITALTWINS_API_PORT:-8000}
-      - PORTAL_BACKEND_HOST=${PORTAL_BACKEND_HOST:-localhost}
-      - PORTAL_KEYCLOAK_BASE_URL=${PORTAL_KEYCLOAK_BASE_URL:-https://130.216.216.243:8009}
-      # Internal Keycloak address for token checks (unset standalone: falls back to the one above).
-      - KEYCLOAK_BASE_URL=${KEYCLOAK_BASE_URL:-}
-      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
-      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-api}
-      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-xxxxxx}
-      - KEYCLOAK_VERIFY_SSL=${KEYCLOAK_VERIFY_SSL:-false}
-      - KEYCLOAK_CA_CERT=${KEYCLOAK_CA_CERT:-}
-      # Nginx plugin config (shared volume with portal-frontend)
-      - NGINX_PLUGINS_CONF_DIR=/nginx-plugins-conf
-      - NGINX_CONTAINER_NAME=${PROJECT_NAME}-portal-frontend
-    volumes:
-      - portal_datasets:/app/data
-      # /portal_workspace holds tool + workflow staging in two subdirs
-      # (tools/, workflows/), keyed off the DATASET_DIR_* env vars above.
-      # (measurements/ is legacy: measurement ingest moved to digitaltwins-api.) It was a Windows host bind mount, but
-      # Docker Desktop's gRPC-FUSE hangs under SPARC dataset creation for
-      # large plugins (thousands of small files — VolView/itk pipelines).
-      # Switched to a named volume so SPARC writes stay inside the Linux VM's
-      # ext4. The source of truth for datasets is MinIO; the local copy here
-      # is just build staging + cleanup target on plugin/workflow delete.
-      - portal_workspace:/portal_workspace
-      - plugin_database:/data
-      - /var/run/docker.sock:/var/run/docker.sock
-      - nginx_plugin_configs:/nginx-plugins-conf
-    restart: unless-stopped
-    # Give the lifespan shutdown hook time to batch-kill all plugin backends
-    # before Docker SIGKILLs portal-backend itself.
-    stop_grace_period: 60s
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000" ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    networks:
-      - digitaltwins-platform
-    depends_on:
-      - minio
-
   portal-frontend:
     build:
       context: ./frontend
@@ -97,8 +17,8 @@ services:
     # would just collide. The platform reaches this container by service name on
     # the shared network.
     environment:
-      - BACKEND_PORT=${BACKEND_PORT:-8000}
-      # Must match portal-backend's MAX_UPLOAD_MB. Rendered into
+      - BUILDER_PORT=${BUILDER_PORT:-8000}
+      # Must match the builder's MAX_UPLOAD_MB. Rendered into
       # client_max_body_size on the upload-source nginx location.
       - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-20480}
       # The official nginx image's entrypoint runs envsubst over
@@ -106,7 +26,7 @@ services:
       # environment variable as substitutable. Narrow it to the two the
       # template actually uses, or nginx's own $host / $scheme / $connection_upgrade
       # risk being replaced with empty strings. ($$ escapes compose interpolation.)
-      - NGINX_ENVSUBST_FILTER=^(BACKEND_PORT|MAX_UPLOAD_MB)$$
+      - NGINX_ENVSUBST_FILTER=^(BUILDER_PORT|MAX_UPLOAD_MB)$$
     volumes:
       - nginx_plugin_configs:/etc/nginx/conf.d/plugins
     restart: unless-stopped
@@ -118,8 +38,6 @@ services:
       start_period: 20s
     networks:
       - digitaltwins-platform
-    depends_on:
-      - portal-backend
   
   minio:
     image: quay.io/minio/minio:latest
@@ -129,7 +47,7 @@ services:
       - 'minio_data:/data'
     environment:
       # MinIO authenticates against MINIO_ROOT_USER/PASSWORD and nothing else.
-      # These were hardcoded to minioadmin while portal-backend derived its
+      # These were hardcoded to minioadmin while the portal backend (now the builder) derived its
       # credentials from MINIO_SERVER_*, so filling those in .env used to hand the
       # backend a credential this server had never heard of (403 on every bucket).
       # Both sides now read the same two .env keys.

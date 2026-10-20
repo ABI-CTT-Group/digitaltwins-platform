@@ -4,7 +4,7 @@
 # A Terminal window opens and asks for the dataset path (folder or .zip, anywhere
 # on this Mac) and its category (measurements, models, tools or workflows; a tool
 # or workflow also needs its type and SEEK project ID). It copies the dataset into
-# the running digitaltwins-api container (progress bar if `pv` is installed:
+# the running api container (progress bar if `pv` is installed:
 # `brew install pv`), then runs the importer.
 # Sign in (admin or researcher) via your browser when prompted.
 set -euo pipefail
@@ -21,9 +21,9 @@ if [ ! -e "$SRC" ]; then
   exit 1
 fi
 
-CID="$(docker ps -q --filter "label=com.docker.compose.service=digitaltwins-api" | head -n1)"
+CID="$(docker ps -q --filter "label=com.docker.compose.service=api" | head -n1)"
 if [ -z "$CID" ]; then
-  echo "  ✗ The digitaltwins-api container is not running."
+  echo "  ✗ The api container is not running."
   read -r -p "Press Enter to close…" _
   exit 1
 fi

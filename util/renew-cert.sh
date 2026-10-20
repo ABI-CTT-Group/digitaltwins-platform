@@ -21,9 +21,8 @@
 #     (docker compose up -d gateway) — the script checks and tells you if not
 #   * run as root (the script re-execs itself under sudo if needed)
 #
-# The domain comes from -d, else $PLATFORM_DOMAIN, else .env's PORTAL_BACKEND_HOST
-# (the bare domain gen-env writes — PLATFORM_DOMAIN itself is a gen-env *input*, not
-# an .env variable). REQUIRED — the script aborts if none resolve.
+# The domain comes from -d, else $PLATFORM_DOMAIN, else .env's PLATFORM_DOMAIN (which
+# gen-env writes). REQUIRED — the script aborts if none resolve.
 #
 # Optional: CERTBOT_EMAIL (LE expiry notices; only needed at first registration),
 #           RENEW_DAYS (default 30), SSL_CERT_DIR (from .env).
@@ -65,12 +64,9 @@ env_get() {
     | sed -E 's/^"(.*)"$/\1/; s/^'\''(.*)'\''$/\1/'
 }
 
-# Domain resolution: -d flag > caller env > .env PLATFORM_DOMAIN (usually ABSENT —
-# it's a gen-env *input*, not emitted to .env) > .env PORTAL_BACKEND_HOST (the bare
-# domain gen-env DOES write, from ${PLATFORM_DOMAIN}). REQUIRED.
+# Domain resolution: -d flag > caller env > .env PLATFORM_DOMAIN (gen-env writes it). REQUIRED.
 PLATFORM_DOMAIN="${DOMAIN_OVERRIDE:-${PLATFORM_DOMAIN:-$(env_get PLATFORM_DOMAIN)}}"
-[ -z "$PLATFORM_DOMAIN" ] && PLATFORM_DOMAIN="$(env_get PORTAL_BACKEND_HOST)"
-: "${PLATFORM_DOMAIN:?could not resolve the domain. Pass -d <domain>, or set PLATFORM_DOMAIN in data/env and re-run util/gen-env.sh (it lands in .env as PORTAL_BACKEND_HOST).}"
+: "${PLATFORM_DOMAIN:?could not resolve the domain. Pass -d <domain>, or set PLATFORM_DOMAIN in data/env and re-run util/gen-env.sh.}"
 
 # SSL_CERT_DIR: where the gateway reads server.crt/server.key (root .env).
 SSL_CERT_DIR="$(env_get SSL_CERT_DIR)"; SSL_CERT_DIR="${SSL_CERT_DIR:-./services/nginx/certs}"

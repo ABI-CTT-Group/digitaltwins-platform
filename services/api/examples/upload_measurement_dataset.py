@@ -16,7 +16,7 @@ The username comes from ``--username`` or ``DIGITALTWINS_USERNAME``; the
 password from ``DIGITALTWINS_PASSWORD`` or a prompt. It is never accepted on
 the command line, so it does not end up in shell history.
 
-Requires the ``digitaltwins`` package (``pip install -e .`` in digitaltwins-api).
+Requires the ``digitaltwins`` package (``pip install -e .`` in services/api).
 """
 import argparse
 import getpass
@@ -29,14 +29,14 @@ from pathlib import Path
 from digitaltwins import UploadClient
 from digitaltwins.client import UploadError
 
-DEFAULT_URL = "http://localhost/digitaltwins-api"
+DEFAULT_URL = "http://localhost/api"
 
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("path", help="dataset folder or .zip")
-    parser.add_argument("--url", default=os.getenv("DIGITALTWINS_API_URL", DEFAULT_URL),
-                        help=f"digitaltwins-api base URL (default: $DIGITALTWINS_API_URL or {DEFAULT_URL})")
+    parser.add_argument("--url", default=os.getenv("API_URL", DEFAULT_URL),
+                        help=f"platform API base URL (default: $API_URL or {DEFAULT_URL})")
     parser.add_argument("--username", default=os.getenv("DIGITALTWINS_USERNAME"),
                         help="Keycloak username (default: $DIGITALTWINS_USERNAME, else prompt)")
     parser.add_argument("--name", help="dataset name (default: folder / zip name)")

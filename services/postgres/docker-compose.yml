@@ -6,8 +6,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
       POSTGRES_DB: ${POSTGRES_DB:-digitaltwins}
-      # Read only by 05_portal.sh (creates the portal-backend role).
-      PORTAL_DB_PASSWORD: ${PORTAL_DB_PASSWORD:?PORTAL_DB_PASSWORD must be set}
+      # Read only by 05_portal.sh (creates the builder's `portal` role).
+      BUILDER_DB_PASSWORD: ${BUILDER_DB_PASSWORD:?BUILDER_DB_PASSWORD must be set}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./digitaltwins_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro

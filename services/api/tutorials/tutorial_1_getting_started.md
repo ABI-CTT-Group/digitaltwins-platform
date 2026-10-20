@@ -108,4 +108,4 @@ Please wait a moment for the datasets to load. If the datasets still do not load
 Once you have completed this tutorial, please complete [this survey](https://docs.google.com/forms/d/e/1FAIpQLSe-EsVz6ahz2FXFy906AZh68i50jRYnt3hQe-loc-1DaFWoFQ/viewform?usp=sf_link), which will allow us to improve this and future tutorials.
 
 ## Next steps
-The [next tutorial](https://github.com/ABI-CTT-Group/digitaltwins-api/blob/main/tutorials/tutorial_2_finding_and_downloading_platform_datasets.ipynb) will show how to find and download datasets from the 12 LABOURS DigitalTWINS platform.
+The [next tutorial](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/tutorial_2_finding_and_downloading_platform_datasets.ipynb) will show how to find and download datasets from the 12 LABOURS DigitalTWINS platform.

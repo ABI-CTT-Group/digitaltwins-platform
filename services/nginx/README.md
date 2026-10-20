@@ -49,7 +49,7 @@ docker compose up -d gateway    # seconds, no image build
 
 | Variable | Question it answers | Owner |
 |---|---|---|
-| `SSL` | What scheme do browsers reach us on? (portal-backend puts it in generated URLs) | the app |
+| `SSL` | What scheme do browsers reach us on? (the builder puts it in generated URLs) | the app |
 | `NGINX_MODE` | Does this gateway terminate TLS itself? | the edge |
 
 Normally they agree (`SSL=true` → `NGINX_MODE=ssl`). They diverge when TLS is
@@ -117,14 +117,15 @@ the limit means and can return a coherent error.
 
 ## What is not yours
 
-`/`, `/api/`, `/tools/`, `/plugin/*` belong to the **portal** (nginx inside the
-`portal-frontend` container). `portal-fallback.conf` forwards them there.
+`/`, `/api/builder/`, `/tools/`, `/plugin/*` belong to the **portal** (nginx inside the
+`portal-frontend` container). `portal-fallback.conf` forwards them there (and `/api/builder/` in
+`platform-routes.conf` takes the same hop, `portal-proxy.conf`). The rest of `/api/` is the platform API.
 
-- **Never hand-write a `/plugin/...` route.** portal-backend generates those into a
+- **Never hand-write a `/plugin/...` route.** The builder generates those into a
   shared volume and reloads portal-frontend's nginx. Writing one here means something
   else is broken.
 - **Never edit `services/portal/` to change portal routing.** Portal routing is
-  managed by portal-backend at runtime; changes belong in `services/portal/backend/`
+  managed by the builder at runtime; changes belong in `services/builder/`
   and should go through a PR on this repo.
 
 ---
@@ -145,15 +146,15 @@ reach the app. The app just doesn't know it's mounted under a prefix.
 | `/seek/` | 404 | `RAILS_RELATIVE_URL_ROOT: "/seek"` in `services/seek/ldh-deployment/docker-compose.yml` (on both `seek` and `workers`) | `:8001` |
 | `/airflow/` | 502 / broken UI | `AIRFLOW__API__BASE_URL=http://<host>/airflow` (Airflow 3; `AIRFLOW__WEBSERVER__BASE_URL` on 2.x) | `:8002` |
 | `/jupyter/` | 302 to `/hub/...` | `c.JupyterHub.base_url = '/jupyter/'` in `services/jupyterhub/jupyterhub_config.py` | `:8016` |
-| `/auth/` | 404 | Change `KC_HOSTNAME`, `PORTAL_KEYCLOAK_BASE_URL`, **and** this route together — see below | `:8009` |
+| `/auth/` | 404 | Change `KC_HOSTNAME`, `KEYCLOAK_PUBLIC_URL`, **and** this route together — see below | `:8009` |
 
 `/jupyter/`'s upstream was also simply wrong: the old route pointed at
 `jupyterlab:8888`, a service that is commented out of the root compose `include` and
 has never run here. It now points at `jupyterhub:8000`.
 
 ⚠️ **Keycloak is the dangerous one.** `KC_HOSTNAME` pins the issuer baked into every
-token (`iss=http://localhost:8009`), and the portal SPA validates against
-`PORTAL_KEYCLOAK_BASE_URL`. Move one without the other and every login fails.
+token (`iss=http://localhost:8009`), and JupyterHub and the builder use
+`KEYCLOAK_PUBLIC_URL`. Move one without the other and every login fails.
 
 Note how cheap each of these fixes now is: one line here, `nginx -s reload`, plus one
 setting on the app. Before this gateway existed, touching the route side of that meant

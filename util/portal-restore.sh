@@ -29,7 +29,7 @@ BASE_DIR="${BASE_DIR:-$HOME/digitaltwins-platform}"
 DB_C="${DB_C:-${PROJECT}-database-1}"
 SEEKDB_C="${SEEKDB_C:-${PROJECT}-db-1}"
 SEEK_C="${SEEK_C:-${PROJECT}-seek-1}"
-PORTAL_BE_C="${PORTAL_BE_C:-${PROJECT}-portal-backend-1}"
+BUILDER_C="${BUILDER_C:-${PROJECT}-builder-1}"
 MINIO_C="${MINIO_C:-${PROJECT}-minio-1}"
 # volume=container pairs to stop while their DICOM volume is replaced
 ORTHANC_MAP="${ORTHANC_MAP:-${PROJECT}_orthanc_1_data=${PROJECT}-orthanc-1-1 ${PROJECT}_orthanc_2_data=${PROJECT}-orthanc-2-1}"
@@ -102,9 +102,9 @@ fi
 
 # 5. Portal plugin registry ---------------------------------------------------
 if [ -f "$IN/plugin_registry.db" ]; then
-  echo "== restore plugin registry (restarts portal-backend) =="
-  docker cp "$IN/plugin_registry.db" "$PORTAL_BE_C:/data/plugin_registry.db"
-  docker restart "$PORTAL_BE_C" >/dev/null
+  echo "== restore plugin registry (restarts the builder) =="
+  docker cp "$IN/plugin_registry.db" "$BUILDER_C:/data/plugin_registry.db"
+  docker restart "$BUILDER_C" >/dev/null
 fi
 
 # 6. Orthanc DICOM (stop container, replace volume, start) --------------------

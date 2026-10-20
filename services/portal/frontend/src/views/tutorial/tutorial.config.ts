@@ -31,7 +31,7 @@ export const sections: SectionConfig[] = [
         title: 'API documentation',
         items: [
             {
-                title: 'DigitalTWINS-API',
+                title: 'DigitalTWINS API',
                 herf: import.meta.env.VITE_API_DOC_DT_URL,
                 width: 350,
             },

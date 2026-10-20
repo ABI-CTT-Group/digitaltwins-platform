@@ -158,8 +158,8 @@ Two things are always true on arm64:
   `orthanc-auth-service` publish **amd64 only**. The compose files already pin
   them with `platform: linux/amd64`, so they run — but *emulated*, which is
   CPU-heavy and slow. Give the machine plenty of headroom (≈8 CPU / 16 GB). The
-  portal backend itself builds **natively** on arm64 (the Docker apt repo in its
-  Dockerfile uses `$(dpkg --print-architecture)`).
+  builder image (`services/builder/Dockerfile`) builds **natively** on arm64
+  (its Docker apt repo uses `$(dpkg --print-architecture)`).
 
 Emulation needs a translation layer — the one setup difference between the two
 hosts:
@@ -401,7 +401,7 @@ instead of stopping nginx from starting. Routes are defined in
 
 | Path | Upstream (service:port) | Keycloak auth | Prefix handling |
 |---|---|:---:|---|
-| `/`                 | `portal-frontend`         | **Yes** — OIDC login (frontend `VITE_KEYCLOAK_*`; backend validates the `api` client). Also carries `/api/`, `/tools/`, `/plugin/<expose>/`. | passthrough |
+| `/`                 | `portal-frontend`         | **Yes** — OIDC login (frontend `VITE_KEYCLOAK_*`; backend validates the `api` client). Also carries `/tools/`, `/plugin/<expose>/`. | passthrough |
 | `/seek/`            | `seek:3000`               | **No** — local admin login (`PLATFORM_ADMIN_PASSWORD`). `omniauth_enabled` is on but no provider is wired; the realm ships a `seek` client for future SSO. | passthrough (`RAILS_RELATIVE_URL_ROOT=/seek`) |
 | `/airflow/`         | `airflow-apiserver:8080`  | **Yes** — OIDC (`airflow` client in `digitaltwins` realm). | passthrough (`AIRFLOW__API__BASE_URL`) |
 | `/jupyter/`         | `jupyterhub:8000`         | **Yes** — OIDC (GenericOAuthenticator → Keycloak). | passthrough (`c.JupyterHub.base_url=/jupyter/`) |
@@ -410,7 +410,8 @@ instead of stopping nginx from starting. Routes are defined in
 | `/minio/`           | `minio:9001`              | **Yes** — OIDC (`minio` client in `digitaltwins` realm) or root creds (`minioadmin`). | rewrite (strips `/minio/`) |
 | `/orthanc-1/`       | `orthanc-1:8042`          | **Yes** — `ENABLE_KEYCLOAK=true` (orthanc auth plugin). | rewrite (strips `/orthanc-1/`) |
 | `/orthanc-2/`       | `orthanc-2:8042`          | **Yes** — `ENABLE_KEYCLOAK=true`. | rewrite (strips `/orthanc-2/`) |
-| `/digitaltwins-api/`| `digitaltwins-api:8000`   | **Yes** — validates Keycloak tokens (resource server, `api` client). | rewrite (strips `/digitaltwins-api/`) |
+| `/api/`             | `api:8000`                | **Yes** — validates Keycloak tokens (resource server, `api` client). | rewrite (strips `/api/`) |
+| `/api/builder/`     | `portal-frontend`         | **Yes** — the builder validates the `api` client token. | passthrough |
 
 - **passthrough** routes forward the URI unchanged; the app is *told* it lives
   under the prefix by the setting shown. A 404/redirect-to-`/` there is an app

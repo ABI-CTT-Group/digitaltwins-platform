@@ -67,8 +67,8 @@ always: (1) `git submodule update --init --recursive` in `clean_src`, (2) build
 + `up -d` (so one-shot/init images exist for its `ps`-based capture), *then*
 freeze. Verify the API image matches the pinned submodule before trusting it:
 ```bash
-diff <(docker compose exec -T digitaltwins-api cat app/routers/assay.py) \
-     services/api/digitaltwins-api/app/routers/assay.py && echo MATCH || echo STALE
+diff <(docker compose exec -T api cat app/routers/assay.py) \
+     services/api/app/routers/assays.py && echo MATCH || echo STALE
 ```
 A tarball whose mtime predates the last API build is stale — re-freeze.
 

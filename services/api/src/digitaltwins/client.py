@@ -1,6 +1,6 @@
-"""HTTP client for resumable dataset uploads to digitaltwins-api (``/datasets/uploads``).
+"""HTTP client for resumable dataset uploads to the platform API (``/datasets/uploads``).
 
-    client = UploadClient.login("https://<platform>/digitaltwins-api", "<username>", "<password>")
+    client = UploadClient.login("https://<platform>/api", "<username>", "<password>")
     session = client.upload_dataset("path/to/dataset", category="measurements", fhir="auto")
     session["dataset_uuid"], session["fhir_status"]
 

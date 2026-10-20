@@ -1,7 +1,7 @@
 # Plugin System — How It Actually Works
 
 **Date:** 2026-04-20
-**Status:** Describes the current implementation in `backend/app/builder/`, `backend/app/models/db_model.py`, `frontend/src/plugins/`, and the nginx templates.
+**Status:** Describes the current implementation in `services/builder/app/engine/`, `services/builder/app/models/db_model.py`, `frontend/src/plugins/`, and the nginx templates. (The builder was the portal backend; it now lives in `services/builder` and runs as the `builder` service.)
 
 ---
 
@@ -28,8 +28,8 @@ Everything else in this document is the detail behind those four steps.
 | **SPARC dataset** | A standardized folder layout (`code/`, `primary/`, metadata) produced by the `sparc-me` library. We use it as the transport format between build and deploy. |
 | **UMD bundle** | A single JS file that registers itself on `window` when loaded via `<script>`. The portal dynamically `<script>`-loads this to mount the plugin's Vue component. |
 | **`tools` bucket** | The only **public** MinIO bucket. Holds built plugin UMD bundles so the browser can fetch them without credentials. |
-| **`digitaltwins` network** | The Docker bridge network shared by portal-backend, portal-frontend, and every plugin backend. This is how nginx resolves `proxy_pass http://<plugin-container>:<port>/`. |
-| **`nginx_plugin_configs` volume** | A named Docker volume mounted into both portal-backend (at `/nginx-plugins-conf`) and portal-frontend (at `/etc/nginx/conf.d/plugins`). Backend writes, nginx reads. |
+| **`digitaltwins` network** | The Docker bridge network shared by the builder, portal-frontend, and every plugin backend. This is how nginx resolves `proxy_pass http://<plugin-container>:<port>/`. |
+| **`nginx_plugin_configs` volume** | A named Docker volume mounted into both the builder (at `/nginx-plugins-conf`) and portal-frontend (at `/etc/nginx/conf.d/plugins`). Backend writes, nginx reads. |
 | `PLUGIN_ROUTE_PREFIX` | Env var `= /plugin/<expose_name>`. Injected into the plugin frontend at build time (via `.env`) and into the plugin backend at deploy time (via `docker compose` env). |
 
 ---
@@ -43,20 +43,20 @@ Everything else in this document is the detail behind those four steps.
 │  │   portal HTML     │    │  <script src="MinIO/.../name.umd.js">│   │
 │  │   (Vue SPA)       │    │  dynamically loaded at runtime  ◄(A) │   │
 │  └────────┬──────────┘    └───────────────────┬──────────────────┘   │
-│           │ /api/…                             │ /plugin/<name>/…     │
+│           │ /api/builder/…                     │ /plugin/<name>/…     │
 └───────────▼────────────────────────────────────▼─────────────────────┘
             │                                    │
     ┌───────┴────────────────────────────────────┴────────┐
     │                 nginx (portal-frontend)              │
-    │   /api/           →  portal-backend:8000            │
+    │   /api/builder/   →  builder:8000                   │
     │   /plugin/<name>/ →  <plugin-container>:<port> ◄(D) │
     │   include /etc/nginx/conf.d/plugins/*.conf          │
     └───────┬─────────────────────────────────┬───────────┘
             │                                 │
     ┌───────▼──────────┐             ┌────────▼──────────┐
-    │  portal-backend  │             │  plugin-backend   │
+    │  builder         │             │  plugin-backend   │
     │  (FastAPI)       │             │  (Docker compose) │
-    │  builder/        │             │  must join        │
+    │  engine/         │             │  must join        │
     │  - build_tool    │             │  digitaltwins     │
     │  - deploy_tool   │             │  network          │
     └──┬──────┬────┬───┘             └───────────────────┘
@@ -88,7 +88,7 @@ The **four persistence planes**:
 
 ---
 
-## 3. Build pipeline (`PluginBuilder` in `backend/app/builder/build_tool.py`)
+## 3. Build pipeline (`PluginBuilder` in `services/builder/app/engine/build_tool.py`)
 
 Triggered by POST to the plugin register/build endpoint. Input: git URL **or** local path under `/plugins/` (mounted volume). Steps:
 
@@ -106,7 +106,7 @@ After this, the plugin is **installed** (listed in the portal) but not yet **dep
 
 ---
 
-## 4. Deploy pipeline (`PluginDeployer` in `backend/app/builder/deploy_tool.py`)
+## 4. Deploy pipeline (`PluginDeployer` in `services/builder/app/engine/deploy_tool.py`)
 
 Runs after build for plugins with a backend folder. Steps:
 
@@ -224,16 +224,16 @@ After this the plugin is fully gone — no containers, no files, no route, no DB
 
 ## 9. Files map — what lives where
 
-### Portal backend (`DigitalTWINS-Portal/backend/`)
+### Builder (`services/builder/app/` in the platform repo)
 
 | Path | Responsibility |
 |---|---|
-| `app/builder/build_tool.py` | `PluginBuilder`: clone → patch vite → npm install → build → SPARC → MinIO upload |
-| `app/builder/deploy_tool.py` | `PluginDeployer`: compose up → write nginx conf → reload nginx; also compose down/delete |
-| `app/builder/build_workflow.py` | Orchestrates build → deploy, writes to plugin registry |
-| `app/models/db_model.py` | `Plugin`, `PluginBuild`, `PluginDeployment`, `PluginAnnotation` tables |
-| `app/database/database.py` | DB init + auto-migration (`ALTER TABLE ADD COLUMN` for new model fields) |
-| `app/client/minio.py` | MinIO client factory per bucket |
+| `engine/build_tool.py` | `PluginBuilder`: clone → patch vite → npm install → build → SPARC → MinIO upload |
+| `engine/deploy_tool.py` | `PluginDeployer`: compose up → write nginx conf → reload nginx; also compose down/delete |
+| `engine/build_workflow.py` | Orchestrates build → deploy, writes to plugin registry |
+| `models/db_model.py` | `Plugin`, `PluginBuild`, `PluginDeployment`, `PluginAnnotation` tables |
+| `database/database.py` | DB init + auto-migration (`ALTER TABLE ADD COLUMN` for new model fields) |
+| `client/minio.py` | MinIO client factory per bucket |
 
 ### Portal frontend (`DigitalTWINS-Portal/frontend/`)
 
@@ -248,8 +248,8 @@ After this the plugin is fully gone — no containers, no files, no route, no DB
 
 | Service | Role in plugin system |
 |---|---|
-| `portal-backend` | Runs builder/deployer; needs `/var/run/docker.sock`, `nginx_plugin_configs` volume |
-| `portal-frontend` | nginx host; mounts `nginx_plugin_configs` at `/etc/nginx/conf.d/plugins`; `container_name: digitaltwins-platform-portal-frontend` so backend can `docker exec` it |
+| `builder` (platform: `services/builder/docker-compose.yml`) | Runs builder/deployer; needs `/var/run/docker.sock`, `nginx_plugin_configs` volume |
+| `portal-frontend` | nginx host; mounts `nginx_plugin_configs` at `/etc/nginx/conf.d/plugins`; `container_name: digitaltwins-platform-portal-frontend` so the builder can `docker exec` it |
 | `minio` + `minio-init` | Creates the 5 buckets; sets public read on `tools` |
 | Volumes: `nginx_plugin_configs`, `plugin_database`, `portal_datasets`, `minio_data` | Shared state that must survive container restarts |
 
@@ -260,8 +260,8 @@ After this the plugin is fully gone — no containers, no files, no route, no DB
 **"Why can't you just put the plugin routes directly in the main `nginx.conf`?"**
 Because plugins are installed at runtime by end users. We don't know at image-build time which plugins will exist. The `include /etc/nginx/conf.d/plugins/*.conf;` line lets us add routes without rebuilding nginx.
 
-**"Why does `portal-backend` have `/var/run/docker.sock` mounted — isn't that a security risk?"**
-Yes, it's a significant privilege. It's there because the deployer literally runs `docker compose up` and `docker exec portal-frontend nginx -s reload`. This is a known trade-off of the self-service plugin model; in a hardened deployment this would be replaced by a privileged helper service.
+**"Why does the `builder` have `/var/run/docker.sock` mounted — isn't that a security risk?"**
+Yes, it's a significant privilege: root on the host. It's there because the deployer literally runs `docker compose up` and `docker exec portal-frontend nginx -s reload`, and builds run the plugin's own `npm` scripts next to it. That is why the builder runs as its own service, apart from the platform API, with a minimal environment (no API credentials) and the only socket mount (see `docs/decisions/2026-10-21-builder-as-its-own-service.md`). Builds are not sandboxed yet; in a hardened deployment they would run against an isolated Docker daemon or a privileged helper service.
 
 **"Can plugins run outside the `digitaltwins` network?"**
 No. If they don't join this network, nginx can't resolve their hostname for `proxy_pass`. The generated conf would compile (nginx defers DNS) but every request would 502. Always attach plugin backends to the external `digitaltwins` network.

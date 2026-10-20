@@ -9,7 +9,7 @@
 
 ## 0. TL;DR
 
-`portal-frontend`'s nginx serves **only what the portal owns**: the SPA, `/api/` → portal-backend, `/tools/` → the public MinIO bucket, and the dynamically generated `/plugin/*` routes.
+`portal-frontend`'s nginx serves **only what the portal owns**: the SPA, `/api/builder/` → the builder (`services/builder`, service `builder`), `/tools/` → the public MinIO bucket, and the dynamically generated `/plugin/*` routes.
 
 - **HTTP only.** There is no SSL template and no `entry.sh` anymore. TLS terminates at the platform gateway (`digitaltwins-platform/services/nginx`), which proxies everything it doesn't recognise back to `portal-frontend` via `location /`.
 - **Standalone is a development inner loop**, not a deployment target. Real deployments go through the platform.
@@ -70,15 +70,17 @@ Browse `http://localhost/`.
 
 That asymmetry is deliberate: the platform consumes this repo through `extends: { file: docker-compose.yml, service: portal-frontend }`, which reads only the file it names. So the platform never picks up the override, and 80/443 stay free for the gateway.
 
+The standalone stack runs only `portal-frontend`. The builder that serves `/api/builder/` is its own service (`services/builder/docker-compose.yml`) and comes up with the platform; without it `/api/builder/` answers 502.
+
 ---
 
 ## 4. Environment variables
 
 ```dotenv
-# Hostname the portal is reached at. Used for CORS origins and generated URLs.
-PORTAL_BACKEND_HOST=localhost
+# Hostname the portal is reached at. The builder uses it for CORS origins and generated URLs.
+PLATFORM_DOMAIN=localhost
 
-# Public scheme of the portal. Decides whether the backend emits http:// or https://
+# Public scheme of the portal. Decides whether the builder emits http:// or https://
 # in generated URLs (workflow metadata, MinIO presigned links, CORS origins).
 #
 # Behind the platform gateway this must match how a *browser* reaches the gateway —
@@ -86,16 +88,16 @@ PORTAL_BACKEND_HOST=localhost
 # (then SSL=true even though the gateway itself speaks plain HTTP).
 SSL=false
 
-# portal-backend's port. Rendered into the nginx proxy_pass targets.
-BACKEND_PORT=8000
+# The builder's port. Rendered into the nginx proxy_pass targets.
+BUILDER_PORT=8000
 
 # Upload ceiling, in MB. Rendered into client_max_body_size on the tools / workflow
-# upload-source location. (Measurement uploads go to digitaltwins-api, which has
+# upload-source location. (Measurement uploads go to the platform API, which has
 # its own MAX_UPLOAD_MB.)
 MAX_UPLOAD_MB=20480
 ```
 
-> `SSL` used to be read as `USE_SSL` by the backend while every `.env` shipped `SSL` — so the flag was permanently `false` and HTTPS deployments silently emitted `http://` URLs. The key is now `SSL` everywhere. If you have `USE_SSL` in an old `.env`, it does nothing; rename it.
+> `SSL` used to be read as `USE_SSL` by the builder (then the portal backend) while every `.env` shipped `SSL` — so the flag was permanently `false` and HTTPS deployments silently emitted `http://` URLs. The key is now `SSL` everywhere. If you have `USE_SSL` in an old `.env`, it does nothing; rename it.
 
 > **Do NOT remove `NGINX_CONF=nginx.conf.http`** if it exists in your `.env`. That belongs to **SEEK**, not to portal-frontend.
 
@@ -108,7 +110,7 @@ The official `nginx` image's entrypoint runs `envsubst` over `/etc/nginx/templat
 By default that entrypoint treats **every defined environment variable** as substitutable, which would happily replace nginx's own `$host` / `$scheme` / `$connection_upgrade` with empty strings. `docker-compose.yml` narrows it:
 
 ```yaml
-- NGINX_ENVSUBST_FILTER=^(BACKEND_PORT|MAX_UPLOAD_MB)$$
+- NGINX_ENVSUBST_FILTER=^(BUILDER_PORT|MAX_UPLOAD_MB)$$
 ```
 
 (`$$` escapes compose interpolation, so the container sees a single `$`.)
@@ -120,7 +122,7 @@ docker compose exec portal-frontend nginx -t
 docker compose exec portal-frontend cat /etc/nginx/conf.d/default.conf
 ```
 
-You should see `proxy_pass http://portal-backend:8000;` (substituted), `proxy_set_header Host $host;` (**not** substituted), and at the bottom `include /etc/nginx/conf.d/plugins/*.conf;`.
+You should see `proxy_pass http://$up_builder:8000;` (port substituted), `proxy_set_header Host $host;` (**not** substituted), and at the bottom `include /etc/nginx/conf.d/plugins/*.conf;`.
 
 ---
 
@@ -131,23 +133,23 @@ The platform builds this repo as a git submodule and adds its own edge:
 ```
 browser → gateway (digitaltwins-platform/services/nginx, owns 80/443 + TLS)
             ├── /seek/ /jupyter/ /auth/ /airflow/ /minio/
-            └── /  →  portal-frontend  (this repo: SPA, /api/, /tools/, /plugin/*)
+            └── /  →  portal-frontend  (this repo: SPA, /api/builder/, /tools/, /plugin/*)
 ```
 
 Gateway config is bind-mounted, so operators change a route and `nginx -s reload` — no image rebuild. See `digitaltwins-platform/services/nginx/README.md`.
 
 ### Database
 
-portal-backend picks its database at startup:
+The builder picks its database at startup:
 
-- **`PORTAL_DB_HOST` unset (standalone):** SQLite at `DATABASE_PATH` (`/data/plugin_registry.db` on the `plugin_database` volume).
-- **`PORTAL_DB_HOST` set (the platform sets it):** the platform Postgres, in the `portal` schema of the `PORTAL_DB_NAME` database, as `PORTAL_DB_USER`/`PORTAL_DB_PASSWORD`. The schema and tables are created at startup. `PORTAL_DB_*` variables are stripped from the environment of plugin build and deploy commands.
+- **`BUILDER_DB_HOST` unset:** SQLite at `DATABASE_PATH` (`/data/plugin_registry.db` on the `plugin_database` volume).
+- **`BUILDER_DB_HOST` set (the platform sets it):** the platform Postgres, in the `portal` schema of the `BUILDER_DB_NAME` database, as `BUILDER_DB_USER` (the `portal` role) / `BUILDER_DB_PASSWORD`. The schema and tables are created at startup. `BUILDER_DB_*` variables are stripped from the environment of plugin build and deploy commands.
 
-To move an existing SQLite database into Postgres, run this once, with portal-backend stopped (the dry run changes nothing):
+To move an existing SQLite database into Postgres, run this once from the platform repo, with the builder stopped (the dry run changes nothing):
 
 ```bash
-docker compose run --rm portal-backend uv run python -m app.cli.migrate_sqlite_to_postgres --dry-run
-docker compose run --rm portal-backend uv run python -m app.cli.migrate_sqlite_to_postgres
+docker compose run --rm builder python -m app.cli.migrate_sqlite_to_postgres --dry-run
+docker compose run --rm builder python -m app.cli.migrate_sqlite_to_postgres
 ```
 
 It refuses to run if the target already has portal rows, and it copies everything in a single transaction.
@@ -161,7 +163,7 @@ It refuses to run if the target already has portal rows, and it copies everythin
 - **`NGINX_CONF=nginx.conf.http` in `.env`** — belongs to SEEK.
 - **The shared network name** (real name `digitaltwins-platform`, = `${PROJECT_NAME}`). Plugin backends join it and nginx resolves their container hostnames through it. Renaming it — or `PROJECT_NAME` — breaks plugin routing.
 - **`include /etc/nginx/conf.d/plugins/*.conf;`** at the bottom of `nginx.conf.template`. Removing it breaks the plugin system.
-- **The `nginx_plugin_configs` volume mount** — portal-backend writes, portal-frontend reads. Do not rename its path.
+- **The `nginx_plugin_configs` volume mount** — the builder writes, portal-frontend reads. Do not rename its path.
 - **`NGINX_ENVSUBST_FILTER`** — dropping it lets envsubst eat nginx's own variables.
 
 ---
@@ -173,8 +175,8 @@ It refuses to run if the target already has portal rows, and it copies everythin
 | Nothing on `http://localhost/` after `docker compose up` | You passed `-f docker-compose.yml`, so the override with `ports: 80:80` was skipped | Drop the `-f` |
 | `Conflict. The container name "digitaltwins-platform-portal-frontend" is already in use` | The other stack (platform or standalone) is still up — they share `PROJECT_NAME` | `docker compose down` the other one first (§1) |
 | Rendered `default.conf` has `proxy_set_header Host ;` — empty values | `NGINX_ENVSUBST_FILTER` missing or its `$` not escaped as `$$` in compose | Restore the filter |
-| Backend emits `http://` URLs on an HTTPS deployment | `SSL` not set to `true`, or still using the dead `USE_SSL` key | Set `SSL=true` and rebuild portal-backend |
+| The builder emits `http://` URLs on an HTTPS deployment | `SSL` not set to `true`, or still using the dead `USE_SSL` key | Set `SSL=true` and recreate the builder |
 | Plugin URLs return 404 | Plugin `include` line missing, or `nginx_plugin_configs` not mounted | Check the template's last line and the compose volume list |
-| 502 from `/api/` | portal-backend not ready, or on a non-default port | `docker compose ps portal-backend`; check `BACKEND_PORT` |
+| 502 from `/api/builder/` | the builder not ready, not running (standalone), or on a non-default port | `docker compose ps builder`; check `BUILDER_PORT` |
 | SSE build logs arrive in one delayed burst instead of streaming | A proxy hop is buffering — most likely the gateway's fallback `location /` | Confirm `proxy_buffering off` in `services/nginx/snippets/portal-fallback.conf` |
 | Uploads fail with **413** at the edge | The gateway's fallback is capping the body | The edge must be transparent (`client_max_body_size 0`); the real cap belongs to portal-frontend's `MAX_UPLOAD_MB` |

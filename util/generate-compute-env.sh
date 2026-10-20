@@ -12,7 +12,7 @@
 #
 # Ports below are the portal's PUBLISHED host ports (see compute-node-README.md):
 #   postgres 8003 · redis 8005 · airflow apiserver/execution 8002 · minio 8011 ·
-#   digitaltwins-api 8010.  Redis (8005) is only reachable once the portal's Redis
+#   api 8010.  Redis (8005) is only reachable once the portal's Redis
 #   is published + password-protected — see the README "portal side" step.
 set -euo pipefail
 
@@ -53,8 +53,8 @@ AIRFLOW_POSTGRES_PORT=8003
 REDIS_PORT=8005
 MINIO_PORT=8011
 # Hardcoded like the other published ports above — do NOT inherit the platform's
-# DIGITALTWINS_API_PORT (that's the API's INTERNAL 8000; over the VLAN it's 8010).
-DIGITALTWINS_API_PORT=8010
+# API_PORT (that's the API's INTERNAL 8000; over the VLAN it's 8010).
+API_PORT=8010
 
 # Airflow metadata DB (shared postgres on the portal) — must match the platform.
 AIRFLOW_DB_USER=${AIRFLOW_DB_USER:-airflow}

@@ -1,13 +1,13 @@
 services:
-  digitaltwins-api:
+  api:
     build:
       context: .
       dockerfile: Dockerfile
-    command: [ "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/digitaltwins-api" ]
+    command: [ "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api" ]
     ports:
       - "8010:8000"
     environment:
-      HOSTNAME: ${PORTAL_BACKEND_HOST:-localhost}
+      HOSTNAME: ${PLATFORM_DOMAIN:-localhost}
       # keycloak
       KEYCLOAK_BASE_URL: ${KEYCLOAK_BASE_URL:-http://keycloak:8080/auth}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-digitaltwins}
@@ -44,19 +44,21 @@ services:
       AIRFLOW_DAG_DEPLOY_TIMEOUT: ${AIRFLOW_DAG_DEPLOY_TIMEOUT:-120}
       # JupyterHub
       JUPYTERHUB_PUBLIC_URL: ${JUPYTERHUB_PUBLIC_URL:-http://localhost/jupyter}
-      # Token of the hub's digitaltwins-api service; the hub registers the same value.
+      # Token of the hub's api service; the hub registers the same value.
       JUPYTERHUB_API_TOKEN: ${JUPYTERHUB_API_TOKEN:?JUPYTERHUB_API_TOKEN is required}
+      # the builder (services/builder), which the dashboard asks for an assay's gui tool
+      BUILDER_URL: ${BUILDER_URL:-http://builder:8000}
       # dataset upload sessions (chunked parts, staged datasets, FHIR build cache)
       DATASET_STAGING_DIR: /dataset_staging
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-20480}
       # FHIR annotation push (HAPI FHIR on the platform network) and the public
       # base of this API, used for the FHIR endpoint URLs of dataset files
       FHIR_ENDPOINT: ${FHIR_ENDPOINT:-http://hapi-fhir:8080/fhir}
-      DIGITALTWINS_API_PUBLIC_URL: ${DIGITALTWINS_API_PUBLIC_URL:-http://localhost/digitaltwins-api}
+      API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost/api}
     networks:
       - digitaltwins-platform
     volumes:
-      - ./configs.ini:/digitaltwins-api/configs.ini
+      - ./configs.ini:/api/configs.ini
       - dataset_staging:/dataset_staging
       - ../airflow/dags:/airflow-dags
     healthcheck:

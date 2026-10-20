@@ -119,3 +119,8 @@ def test_startup_runs_the_sweep_after_migrations(monkeypatch):
         pass
 
     assert calls == ["migrate", "sweep"]
+
+
+def test_public_base_defaults_to_the_api_prefix(monkeypatch):
+    monkeypatch.delenv("API_PUBLIC_URL", raising=False)
+    assert jobs.public_base() == "http://localhost/api"

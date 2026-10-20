@@ -16,7 +16,7 @@ import {
   SeekProject,
 } from "@/models/types";
 
-/** A ``tools`` row of GET /digitaltwins-api/datasets (keys camelCased by the interceptor). */
+/** A ``tools`` row of GET /api/datasets (keys camelCased by the interceptor). */
 interface PlatformToolDataset {
   datasetUuid: string;
   datasetName?: string;
@@ -126,7 +126,7 @@ export async function withPlatformTools(tools: ToolResponse[]): Promise<ToolResp
   return [...known, ...platform];
 }
 
-/** gui SDS workflows' tools as Tool Hub rows; their workflow builds them (GET /api/workflow/gui-tools). */
+/** gui SDS workflows' tools as Tool Hub rows; their workflow builds them (GET /api/builder/workflow/gui-tools). */
 export async function useWorkflowGuiTools(): Promise<ToolResponse[]> {
   return http.get<ToolResponse[]>("/workflow/gui-tools");
 }
@@ -164,7 +164,7 @@ export async function useWorkflowToolBuild(id: string, auth?: TransientAuth) {
   return res;
 }
 
-/** POST /api/tools/probe-source — used by `useGitRepoInfo` for non-public-GitHub
+/** POST /api/builder/tools/probe-source — used by `useGitRepoInfo` for non-public-GitHub
  *  paths. Token (if supplied) stays server-side; the response carries either
  *  `{ok:true, data}` (autofill the form) or `{ok:false, reason, message}`
  *  (frontend uses `reason` to decide which UI fields to expand). */
@@ -189,7 +189,7 @@ export async function useToolApprovalStatus(id: string) {
   return http.get<ToolApprovalStatus>(`/tools/plugin/${id}/approval/status`);
 }
 
-/** SEEK projects the signed-in user can see (digitaltwins-api). */
+/** SEEK projects the signed-in user can see (platform API). */
 export async function useSeekProjects(): Promise<SeekProject[]> {
   const res = await dtApi.get<{ projects: Array<{ id: string | number; title?: string; attributes?: { title?: string } }> }>(
     "/projects",
@@ -237,7 +237,7 @@ export async function useGetToolLocalCwl(id: string): Promise<{ cwlFile: string;
 // ---------------------------------------------------------------------------
 
 const _logPath = (kind: 'build' | 'deploy', id: string) =>
-  kind === 'build' ? `/api/tools/builds/${id}/logs` : `/api/tools/deploy/${id}/logs`;
+  kind === 'build' ? `/api/builder/tools/builds/${id}/logs` : `/api/builder/tools/deploy/${id}/logs`;
 
 export function streamLogs(
   kind: 'build' | 'deploy',

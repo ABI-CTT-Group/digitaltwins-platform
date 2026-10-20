@@ -15,20 +15,22 @@ services:
       file: ./services/nginx/docker-compose.yml
       service: gateway
 
-  portal-backend:
+  # The portal's tool/workflow builder (services/builder). It holds the host Docker socket, so it
+  # is its own service with its own minimal environment, apart from the API.
+  builder:
     extends:
-      file: ./services/portal/docker-compose.yml
-      service: portal-backend
-    # Under the platform the portal keeps its tables in the `portal` schema of the
+      file: ./services/builder/docker-compose.yml
+      service: builder
+    # Under the platform the builder keeps its tables in the `portal` schema of the
     # shared Postgres (see docs/decisions/2026-09-28-portal-database-in-platform-postgres.md).
     # Standalone, these are unset and it falls back to SQLite on the plugin_database
     # volume, which stays mounted as the migration source and rollback path.
     environment:
-      - PORTAL_DB_HOST=database
-      - PORTAL_DB_PORT=5432
-      - PORTAL_DB_NAME=${POSTGRES_DB:-digitaltwins}
-      - PORTAL_DB_USER=portal
-      - PORTAL_DB_PASSWORD=${PORTAL_DB_PASSWORD:?PORTAL_DB_PASSWORD must be set}
+      - BUILDER_DB_HOST=database
+      - BUILDER_DB_PORT=5432
+      - BUILDER_DB_NAME=${POSTGRES_DB:-digitaltwins}
+      - BUILDER_DB_USER=portal
+      - BUILDER_DB_PASSWORD=${BUILDER_DB_PASSWORD:?BUILDER_DB_PASSWORD must be set}
     depends_on:
       database:
         condition: service_healthy
@@ -40,6 +42,8 @@ services:
     extends:
       file: ./services/portal/docker-compose.yml
       service: portal-frontend
+    depends_on:
+      - builder
   hapi-fhir:
     extends:
       file: ./services/hapi-fhir/docker-compose.yml
@@ -78,7 +82,7 @@ include:
   #  - path:
   #      - services/pacs_pretend_external/docker-compose.yml
   #    project_directory: services/pacs_pretend_external
-  # digitaltwins-api
+  # api
   - path:
       - services/api/docker-compose.yml
     project_directory: services/api

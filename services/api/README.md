@@ -4,22 +4,22 @@ A Python tool for interacting with the 12 LABOURS DigitalTWINS (Digital Translat
 ![Python 3](https://img.shields.io/badge/Python->=3.9-blue)
 [![Contributors][contributors-shield]][contributors-url]
 [![Stargazers][stars-shield]][stars-url]
-[![GitHub issues-closed](https://img.shields.io/github/issues-closed/ABI-CTT-Group/digitaltwins-api.svg)](https://GitHub.com/ABI-CTT-Group/digitaltwins-api/issues?q=is%3Aissue+is%3Aclosed)
+[![GitHub issues-closed](https://img.shields.io/github/issues-closed/ABI-CTT-Group/digitaltwins-platform.svg)](https://github.com/ABI-CTT-Group/digitaltwins-platform/issues?q=is%3Aissue+is%3Aclosed)
 [![apache License][license-shield]][license-url]
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 [![PyPI version fury.io](https://badge.fury.io/py/digitaltwins.svg)](https://pypi.python.org/pypi/digitaltwins)
 <!--* [![Issues][issues-shield]][issues-url] -->
 <!--* [![DOI](https://zenodo.org/badge/XXXX.svg)](https://zenodo.org/badge/latestdoi/XXXXX) -->
 
-[contributors-shield]: https://img.shields.io/github/contributors/ABI-CTT-Group/digitaltwins-api.svg?style=flat-square
-[contributors-url]: https://github.com/ABI-CTT-Group/digitaltwins-api/graphs/contributors
-[stars-shield]: https://img.shields.io/github/stars/ABI-CTT-Group/digitaltwins-api.svg?style=flat-square
-[stars-url]: https://github.com/ABI-CTT-Group/digitaltwins-api/stargazers
-[issues-shield]: https://img.shields.io/github/issues/ABI-CTT-Group/digitaltwins-api.svg?style=flat-square
-[issues-url]: https://github.com/ABI-CTT-Group/digitaltwins-api/issues
-[license-shield]: https://img.shields.io/github/license/ABI-CTT-Group/digitaltwins-api.svg?style=flat-square
-[license-url]: https://github.com/ABI-CTT-Group/digitaltwins-api/blob/master/LICENSE
-[lines-of-code-shield]: https://img.shields.io/tokei/lines/github/ABI-CTT-Group/digitaltwins-api
+[contributors-shield]: https://img.shields.io/github/contributors/ABI-CTT-Group/digitaltwins-platform.svg?style=flat-square
+[contributors-url]: https://github.com/ABI-CTT-Group/digitaltwins-platform/graphs/contributors
+[stars-shield]: https://img.shields.io/github/stars/ABI-CTT-Group/digitaltwins-platform.svg?style=flat-square
+[stars-url]: https://github.com/ABI-CTT-Group/digitaltwins-platform/stargazers
+[issues-shield]: https://img.shields.io/github/issues/ABI-CTT-Group/digitaltwins-platform.svg?style=flat-square
+[issues-url]: https://github.com/ABI-CTT-Group/digitaltwins-platform/issues
+[license-shield]: https://img.shields.io/github/license/ABI-CTT-Group/digitaltwins-platform.svg?style=flat-square
+[license-url]: https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/LICENSE
+[lines-of-code-shield]: https://img.shields.io/tokei/lines/github/ABI-CTT-Group/digitaltwins-platform
 
 ## Table of contents
 * [Introduction](#introduction)
@@ -109,8 +109,8 @@ The DigitalTWINS platform Python API is called `digitaltwins`. It is designed to
    Clone the source code repository from github, e.g.:
    
    ```commandline
-   git clone https://github.com/ABI-CTT-Group/digitaltwins-api.git
-   cd digitaltwins-api
+   git clone https://github.com/ABI-CTT-Group/digitaltwins-platform.git
+   cd digitaltwins-platform/services/api
    ```
    
 2. **Setting up a virtual environment (optional but recommended)**
@@ -131,7 +131,7 @@ The DigitalTWINS platform Python API is called `digitaltwins`. It is designed to
    
 ## Using the DigitalTWINS platform
 
-Please see the [documentation for workshop 1](https://github.com/ABI-CTT-Group/digitaltwins-api/blob/main/tutorials/workshop_1_describing_and_storing_data.md), which describes how to use the 12 LABOURS DigitalTWINS platform and its API.
+Please see the [documentation for workshop 1](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/workshop_1_describing_and_storing_data.md), which describes how to use the 12 LABOURS DigitalTWINS platform and its API.
 
 ### Uploading a measurement dataset from a script
 
@@ -140,7 +140,7 @@ Please see the [documentation for workshop 1](https://github.com/ABI-CTT-Group/d
 ```python
 from digitaltwins import UploadClient
 
-client = UploadClient.login("https://<platform-host>/digitaltwins-api", "<username>", "<password>")
+client = UploadClient.login("https://<platform-host>/api", "<username>", "<password>")
 session = client.upload_dataset("path/to/my_dataset", category="measurements", fhir="auto")
 print(session["dataset_uuid"], session.get("fhir_status"))
 ```
@@ -172,12 +172,12 @@ A tool dataset is an SDS folder. `primary/` holds exactly one `tool_<name>.cwl`,
 
 The upload is registered in SEEK first, as a Workflow tagged `tool` + `<tool_type>` in the SEEK project you name, and as you. You must be a member of that project. SEEK parses the CWL's inputs and outputs. The Workflow's title is the upload's name when one is given (the `name` of a resumable session, as typed in the portal), otherwise the CWL `label`, otherwise the CWL file stem. The same applies to workflow datasets; the tools a workflow registers for its steps keep their CWL `label`. The dataset is then stored in the MinIO `tools` bucket and in Postgres. The dataset's `seek_id` and `tool_type` link it to that Workflow.
 
-The portal's tool wizard builds a tool from source (git or a local folder), and on Approval it hands the build to this same pipeline.
+The portal's tool wizard builds a tool from source (git or a local folder), and on Approval it hands the build to this same pipeline. The wizard is served by the builder, a separate service; see [services/builder](../builder/README.md).
 
 ```bash
 curl -H "Authorization: Bearer <token>" \
   -F "files=@tool_dicom_to_nifti.zip" \
-  "https://<platform-host>/digitaltwins-api/datasets?category=tools&tool_type=script&seek_project_id=<id>&fhir=auto"
+  "https://<platform-host>/api/datasets?category=tools&tool_type=script&seek_project_id=<id>&fhir=auto"
 # -> {"message": "...", "dataset_uuid": "...", "seek_id": 42, "fhir_status": "pending"}
 ```
 
@@ -229,7 +229,7 @@ The `workflows` category is also used by assay workspace outputs. A workflow def
 ```bash
 curl -H "Authorization: Bearer <token>" \
   -F "files=@workflow_image_conversion.zip" \
-  "https://<platform-host>/digitaltwins-api/datasets?category=workflows&workflow_type=script&seek_project_id=<id>&fhir=auto"
+  "https://<platform-host>/api/datasets?category=workflows&workflow_type=script&seek_project_id=<id>&fhir=auto"
 # -> {"message": "...", "dataset_uuid": "...", "seek_id": 43, "fhir_status": "pending",
 #     "tools": [{"step_id": "dicom_to_nifti", "dataset_uuid": "...", "seek_id": 41}, ...]}
 ```
@@ -253,13 +253,13 @@ curl -H "Authorization: Bearer <token>" \
   - A tool dataset that a workflow still runs can't be deleted on its own (`409`).
 
 ## Reporting Issues
-To report an issue or suggest a new feature, please use the [issues page](https://github.com/ABI-CTT-Group/digitaltwins-api/issues). Issue templates are provided to allow users to report bugs, and documentation or feature requests. Please check existing issues before submitting a new one.
+To report an issue or suggest a new feature, please use the [issues page](https://github.com/ABI-CTT-Group/digitaltwins-platform/issues). Issue templates are provided to allow users to report bugs, and documentation or feature requests. Please check existing issues before submitting a new one.
 
 ## Contributing
-Fork this repository and submit a pull request to contribute. Before doing so, please read our [Code of Conduct](https://github.com/ABI-CTT-Group/digitaltwins-api/blob/master/CODE_OF_CONDUCT.md) and [Contributing Guidelines](https://github.com/ABI-CTT-Group/digitaltwins-api/blob/master/CONTRIBUTING.md). Pull request templates are provided to help developers describe their contribution, mention the issues related to the pull request, and describe their testing environment. 
+Fork this repository and submit a pull request to contribute. Before doing so, please read our [Code of Conduct](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/CODE_OF_CONDUCT.md) and [Contributing Guidelines](https://github.com/ABI-CTT-Group/digitaltwins-platform#contributing). Pull request templates are provided to help developers describe their contribution, mention the issues related to the pull request, and describe their testing environment. 
 
 ## License
-The DigitalTWINS platform API is fully open source and distributed under the very permissive Apache License 2.0. See [LICENSE](https://github.com/ABI-CTT-Group/digitaltwins-api/blob/main/LICENSE) for more information.
+The DigitalTWINS platform API is fully open source and distributed under the very permissive Apache License 2.0. See [LICENSE](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/LICENSE) for more information.
 
 ## Team
 - Chinchien Lin (12L, CTT, BBRG)
@@ -286,4 +286,4 @@ We gratefully acknowledge the valuable contributions from:
 - Gen3 team at the Centre for Translational Data Science at the University of Chicago
 - Members of the SPARC Data and Resource Center (DRC).
 
-<img src='https://raw.githubusercontent.com/ABI-CTT-Group/digitaltwins-api/main/docs/acknowledgements.jpg' width='500' alt="acknowledgements.jpg">
+<img src='https://raw.githubusercontent.com/ABI-CTT-Group/digitaltwins-platform/main/services/api/docs/acknowledgements.jpg' width='500' alt="acknowledgements.jpg">

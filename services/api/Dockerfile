@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-WORKDIR /digitaltwins-api
+WORKDIR /api
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -31,14 +31,14 @@ RUN pip install --no-cache-dir -e .
 EXPOSE 8000
 
 # Run the app
-#WORKDIR /digitaltwins-api
+#WORKDIR /api
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # building image
-# sudo docker build -t digitaltwins-api .
+# sudo docker build -t api .
 # running container
-# sudo docker run --rm -d -p 8010:8000 digitaltwins-api
+# sudo docker run --rm -d -p 8010:8000 api
 
 # print docker image folder strcutre
-# sudo docker run --rm digitaltwins-api ls -l /digitaltwins-api
-# sudo docker run --rm digitaltwins-api ls -lR /digitaltwins-api
+# sudo docker run --rm api ls -l /api
+# sudo docker run --rm api ls -lR /api

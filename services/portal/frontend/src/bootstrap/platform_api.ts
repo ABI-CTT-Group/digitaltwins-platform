@@ -1,13 +1,13 @@
 /**
- * Datasets uploaded to the platform directly (digitaltwins-api REST, CLI), which
+ * Datasets uploaded to the platform directly (platform API REST, CLI), which
  * no portal record produced: listing platform workflows, deleting platform
  * workflows / tools, and deploying any registered script workflow's DAG.
- * Portal-built ones keep using the portal backend otherwise.
+ * Portal-built ones keep using the builder otherwise.
  */
 import { dtApi } from "./http";
 import type { PlatformLink, WorkflowResponse } from "@/models/types";
 
-/** A ``workflows`` row of GET /digitaltwins-api/datasets (keys camelCased by the interceptor). */
+/** A ``workflows`` row of GET /api/datasets (keys camelCased by the interceptor). */
 interface PlatformWorkflowDataset {
   datasetUuid: string;
   datasetName?: string;

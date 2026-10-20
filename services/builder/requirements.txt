@@ -1,0 +1,31 @@
+# The builder's runtime dependencies (app/). Pinned to the versions its tests run against;
+# it shares no code with the platform API, so it does not inherit the API's requirements.
+
+# web app
+fastapi==0.116.1
+uvicorn[standard]
+python-multipart==0.0.20
+python-dotenv==1.2.2
+
+# portal schema (SQLAlchemy ORM over psycopg2)
+sqlalchemy==2.0.44
+psycopg2-binary==2.9.11
+
+# calls the platform API as the user (services/tool_handoff.py), Keycloak, MinIO
+httpx==0.28.1
+requests==2.32.3
+urllib3==2.3.0
+python-keycloak==3.9.0
+python-jose[cryptography]==3.3.0
+boto3==1.42.78
+
+# SPARC datasets, FHIR annotations, plugin docker-compose parsing
+sparc-me==3.0.2
+# sparc-me's spreadsheet stack, pinned to the tested set: unpinned, the resolver picks
+# pandas 3 + styleframe 3, which fails on import (openpyxl.styles).
+openpyxl==3.1.5
+pandas==2.3.3
+styleframe==4.2
+fhir-cda==1.2.5
+digitaltwins-on-fhir==1.4.0
+pyyaml==6.0.2
