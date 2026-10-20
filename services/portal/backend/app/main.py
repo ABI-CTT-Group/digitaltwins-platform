@@ -1,22 +1,17 @@
 # terminial-> venv/Scripts/activate.bat
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request, Response, Depends
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from pathlib import Path
-import io
-from app.router import dashboard, clinical_report_viewer, workflow_tool_plugin, workflow_router
+from app.router import dashboard, workflow_tool_plugin, workflow_router
 from contextlib import asynccontextmanager
 from app.database.database import init_db
 from dotenv import load_dotenv
 import os
 from app.builder.logger import configure_logging, get_logger
 from datetime import datetime
-from app.models.dashboard import LoginRequest, DashBoardSignInResponse
-from app.client.digitaltwins_api import DigitalTWINSAPIClient
 from typing import Optional
-from httpx import HTTPStatusError
-from app.utils.auth import get_current_user
 
 configure_logging()
 logger = get_logger(__name__)
@@ -193,7 +188,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="DigitalTWINS Portal API", verison="1.0.0", lifespan=lifespan)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 app.include_router(dashboard.router)
-app.include_router(clinical_report_viewer.router)
 app.include_router(workflow_tool_plugin.router)
 
 app.include_router(workflow_router.router)
@@ -234,176 +228,9 @@ async def root():
     return {"message": "DigitalTWINS Portal API", "version": "1.0.0"}
 
 
-@app.get("/api/test")
-async def test():
-    blob_content = b"This is the content of the blob."
-    blob_stream = io.BytesIO(blob_content)
-
-    # Create the response
-    response = Response(content=blob_stream.getvalue())
-
-    # Set the headers to indicate the file type and disposition
-    response.headers["Content-Type"] = "application/octet-stream"
-    response.headers["Content-Disposition"] = "attachment; filename=blob_file.txt"
-
-    # Add the string data to the response headers
-    response.headers["x-file-name"] = "This is a custom string."
-
-    return response
-
-
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow()}
-
-
-@app.post("/api/login", response_model=DashBoardSignInResponse)
-async def sign_in(data: LoginRequest, response: Response):
-    username = data.username
-    password = data.password
-    dtp_client = DigitalTWINSAPIClient(username=username, password=password)
-    try:
-        res = await dtp_client.post("/login")
-        tokens = res.json()
-        response.set_cookie(
-            key="refresh_token",
-            value=tokens.get("refresh_token"),
-            httponly=True,
-            secure=True,
-            samesite="strict",
-            max_age=tokens.get("refresh_expires_in", 1800),
-        )
-
-        return {"access_token": tokens.get("access_token")}
-    except Exception as e:
-        logger.error(e)
-        raise HTTPException(status_code=401, detail=str(e))
-
-
-@app.post("/api/refresh")
-async def refresh(request: Request, response: Response):
-    refresh_token: Optional[str] = request.cookies.get("refresh_token")
-    if not refresh_token:
-        raise HTTPException(status_code=401, detail="Refresh token missing")
-    dtp_client = DigitalTWINSAPIClient(token=refresh_token)
-    try:
-        res = await dtp_client.post("/token")
-        tokens = res.json()
-        response.set_cookie(
-            key="refresh_token",
-            value=tokens.get("refresh_token"),
-            httponly=True,
-            secure=True,
-            samesite="strict",
-            max_age=tokens.get("refresh_expires_in", 1800),
-        )
-
-        return {"access_token": tokens.get("access_token")}
-    except HTTPStatusError as e:
-        if e.response.status_code == 401:
-            raise HTTPException(status_code=401, detail="Refresh token invalid")
-        else:
-            logger.error(e)
-            raise HTTPException(status_code=502, detail="Upstream service error")
-    except Exception as e:
-        logger.error(e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@app.post("/api/auth/test")
-async def auth_test(request: Request, user_info=Depends(get_current_user)):
-    authorization = request.headers.get("authorization", "")
-    _, _, token = authorization.partition(" ")
-    return {
-        "authenticated": True,
-        "access_token": token,
-        "user": user_info,
-    }
-
-
-@app.get("/api/auth/keycloak-status")
-async def keycloak_status():
-    """Check Keycloak server connectivity and configuration"""
-    from app.client.keycloak import get_keycloak_client
-    import requests
-    
-    try:
-        keycloak_client = get_keycloak_client()
-        server_url = keycloak_client.server_url.rstrip('/')
-        realm = keycloak_client.realm_name
-        
-        # Try to fetch the public key to test connectivity
-        try:
-            public_key = keycloak_client.get_public_key()
-            return {
-                "status": "connected",
-                "server_url": server_url,
-                "realm": realm,
-                "client_id": keycloak_client.client_id,
-                "message": "Keycloak server is reachable and configured correctly"
-            }
-        except Exception as e:
-            # Try a simple HTTP request to test basic connectivity
-            try:
-                certs_url = f"{server_url}/realms/{realm}/.well-known/openid-configuration"
-                resp = requests.get(certs_url, verify=False, timeout=5)
-                return {
-                    "status": "connection_error",
-                    "server_url": server_url,
-                    "realm": realm,
-                    "client_id": keycloak_client.client_id,
-                    "error": str(e),
-                    "http_status": resp.status_code if resp else "no_response",
-                    "message": "Server responds but key fetch failed"
-                }
-            except Exception as e2:
-                return {
-                    "status": "unreachable",
-                    "server_url": server_url,
-                    "realm": realm,
-                    "client_id": keycloak_client.client_id,
-                    "error": str(e2),
-                    "message": "Cannot reach Keycloak server - check URL and network"
-                }
-    except Exception as e:
-        return {
-            "status": "error",
-            "error": str(e),
-            "message": "Failed to initialize Keycloak client"
-        }
-
-
-@app.post("/api/auth/login-keycloak")
-async def login_test(data: LoginRequest, response: Response):
-    """Login endpoint that authenticates with Keycloak and returns real JWT token"""
-    from app.client.keycloak import get_keycloak_client
-    
-    username = data.username
-    password = data.password
-    
-    try:
-        keycloak_client = get_keycloak_client()
-        # Authenticate with Keycloak using username and password
-        token_response = keycloak_client.authenticate_with_credentials(username, password)
-        
-        # Set refresh token in HTTP-only cookie
-        refresh_token = token_response.get("refresh_token")
-        if refresh_token:
-            response.set_cookie(
-                key="refresh_token",
-                value=refresh_token,
-                httponly=True,
-                secure=True,
-                samesite="strict",
-                max_age=token_response.get("refresh_expires_in", 1800),
-            )
-        
-        logger.info(f"Keycloak login successful for user: {username}")
-        return {"access_token": token_response.get("access_token")}
-    
-    except Exception as e:
-        logger.error(f"Keycloak login failed for user {username}: {e}")
-        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
 
 
 if __name__ == '__main__':
