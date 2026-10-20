@@ -29,7 +29,7 @@ from pathlib import Path
 from digitaltwins import UploadClient
 from digitaltwins.client import UploadError
 
-DEFAULT_URL = "http://localhost/digitaltwins-api"
+DEFAULT_URL = "http://localhost/api"
 
 
 def parse_args(argv=None):

@@ -144,7 +144,7 @@ def run_commit_and_push(upload_id: str, api_token: Optional[str] = None, deploy_
 
 def public_base() -> str:
     """Public URL of this API, used for FHIR endpoint URLs."""
-    return os.getenv("DIGITALTWINS_API_PUBLIC_URL", "http://localhost/digitaltwins-api")
+    return os.getenv("DIGITALTWINS_API_PUBLIC_URL", "http://localhost/api")
 
 
 def _replace_fhir_resources(conn, dataset_uuid: str, fhir_json: Dict[str, Any]) -> None:

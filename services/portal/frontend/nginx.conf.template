@@ -26,7 +26,7 @@ server {
 
     # Every proxy_pass goes through a `set` variable so the upstream name is
     # resolved per request via Docker's DNS, not once at startup. A literal
-    # host is pinned to its startup IP: recreate portal-backend and /api/ keeps
+    # host is pinned to its startup IP: recreate portal-backend and /api/portal/ keeps
     # hitting the old address, which Docker may have reassigned to another
     # container. Caveat: with a variable, nginx no longer rewrites the location
     # prefix for you — see the explicit `rewrite` in /minio/.
@@ -47,11 +47,11 @@ server {
     }
 
     # Plugin / workflow source upload. Body cap is MAX_UPLOAD_MB (default 20480m).
-    # Must precede the generic /api/ block; regex match wins anyway, but order keeps it explicit.
+    # Must precede the generic /api/portal/ block; regex match wins anyway, but order keeps it explicit.
     # Cap is configurable via MAX_UPLOAD_MB at startup so operators can dial
-    # it up/down without touching code. (Measurement uploads go to
-    # /digitaltwins-api, routed by the platform gateway, not through here.)
-    location ~ ^/api/(tools|workflow)/upload-source$ {
+    # it up/down without touching code. (Measurement uploads go to the
+    # platform API at /api, routed by the platform gateway, not through here.)
+    location ~ ^/api/portal/(tools|workflow)/upload-source$ {
         set $up_backend portal-backend;
         proxy_pass http://$up_backend:${BACKEND_PORT};
         proxy_set_header Host $host;
@@ -67,7 +67,7 @@ server {
 
     # SSE live build/deploy logs — must NOT be buffered or the terminal
     # output arrives in one delayed burst instead of streaming.
-    location ~ ^/api/tools/(builds|deploy)/[^/]+/logs/stream$ {
+    location ~ ^/api/portal/tools/(builds|deploy)/[^/]+/logs/stream$ {
         set $up_backend portal-backend;
         proxy_pass http://$up_backend:${BACKEND_PORT};
         proxy_http_version 1.1;
@@ -80,8 +80,8 @@ server {
         proxy_read_timeout 86400;
     }
 
-    # Proxy API requests to portal-backend
-    location /api/ {
+    # Proxy portal-backend requests (the rest of /api/ is the platform API, routed by the gateway)
+    location /api/portal/ {
         set $up_backend portal-backend;
         proxy_pass http://$up_backend:${BACKEND_PORT};
         proxy_set_header Host $host;

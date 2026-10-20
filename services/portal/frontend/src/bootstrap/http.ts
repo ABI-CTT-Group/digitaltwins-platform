@@ -21,8 +21,8 @@ function handleSessionLost(msg: string) {
 }
 
 // =============== init ===============
-// All API requests go through nginx reverse proxy at /api (same-origin, no CORS)
-axios.defaults.baseURL = "/api";
+// Portal-backend requests go through the nginx reverse proxy at /api/portal (same-origin, no CORS)
+axios.defaults.baseURL = "/api/portal";
 
 // ============== case converter (snake_case ↔ camelCase) ==============
 // Two-way bridge so frontend uses camelCase consistently while the backend
@@ -166,12 +166,12 @@ function addRefreshSubscriber(cb: (token: string) => void) {
 attachInterceptors(axios);
 
 /**
- * The platform REST API (digitaltwins-api), reached at /digitaltwins-api with
- * the same Keycloak token. Same case conversion as /api, except that FHIR
+ * The platform REST API (digitaltwins-api), reached at /api with the same
+ * Keycloak token. Same case conversion as /api/portal, except that FHIR
  * `descriptions` trees pass through untouched: they are fhir-cda's own
  * camelCase shape (including `_auto` markers) end to end.
  */
-export const dtApiAxios = axios.create({ baseURL: "/digitaltwins-api" });
+export const dtApiAxios = axios.create({ baseURL: "/api" });
 attachInterceptors(dtApiAxios, new Set(["descriptions"]));
 
 function makeHttp(instance: AxiosInstance): IHttp {

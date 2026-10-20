@@ -1,5 +1,4 @@
-import http from "./http";
-import axios from "axios";
+import { dtApi as http, dtApiAxios } from "./http";
 import { DashboardCategory, DashboardWorkflow, AssayDetails, AssayLaunch, AssayDataset, SeekAssayDetails, AssayGuiContext } from "@/models/types";
 
 export async function useDashboardProgrammes() {
@@ -59,7 +58,7 @@ export async function useDashboardSubmitAssayResults(seekId: string) {
 }
 
 export async function useDashboardDownloadAssayWorkspace(seekId: string) {
-    const res = await axios.get("/dashboard/assay-download", { 
+    const res = await dtApiAxios.get("/dashboard/assay-download", { 
         params: { seek_id: seekId }, 
         responseType: 'blob' 
     });

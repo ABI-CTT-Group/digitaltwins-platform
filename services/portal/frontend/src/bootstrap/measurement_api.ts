@@ -1,7 +1,7 @@
 /**
  * Measurement API client — backed by the platform REST API (digitaltwins-api).
  *
- * Measurement ingest lives in digitaltwins-api (`/digitaltwins-api/datasets/...`).
+ * Measurement ingest lives in digitaltwins-api (`/api/datasets/...`).
  * This module adapts it to the `MeasurementResponse` shape the views already use,
  * so a measurement is one of:
  *

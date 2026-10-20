@@ -7,7 +7,7 @@
 import { dtApi } from "./http";
 import type { PlatformLink, WorkflowResponse } from "@/models/types";
 
-/** A ``workflows`` row of GET /digitaltwins-api/datasets (keys camelCased by the interceptor). */
+/** A ``workflows`` row of GET /api/datasets (keys camelCased by the interceptor). */
 interface PlatformWorkflowDataset {
   datasetUuid: string;
   datasetName?: string;

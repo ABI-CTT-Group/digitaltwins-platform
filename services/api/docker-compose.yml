@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: [ "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/digitaltwins-api" ]
+    command: [ "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api" ]
     ports:
       - "8010:8000"
     environment:
@@ -54,7 +54,7 @@ services:
       # FHIR annotation push (HAPI FHIR on the platform network) and the public
       # base of this API, used for the FHIR endpoint URLs of dataset files
       FHIR_ENDPOINT: ${FHIR_ENDPOINT:-http://hapi-fhir:8080/fhir}
-      DIGITALTWINS_API_PUBLIC_URL: ${DIGITALTWINS_API_PUBLIC_URL:-http://localhost/digitaltwins-api}
+      DIGITALTWINS_API_PUBLIC_URL: ${DIGITALTWINS_API_PUBLIC_URL:-http://localhost/api}
     networks:
       - digitaltwins-platform
     volumes:

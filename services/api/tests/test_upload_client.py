@@ -127,10 +127,10 @@ class _RecordingSession:
 def test_login_exchanges_credentials_once_and_uses_bearer_afterwards():
     session = _RecordingSession()
 
-    client = UploadClient.login("https://platform.example/digitaltwins-api/", "alice", "<REDACTED>", session=session)
+    client = UploadClient.login("https://platform.example/api/", "alice", "<REDACTED>", session=session)
 
     [(method, url, kwargs)] = session.calls
-    assert url == "https://platform.example/digitaltwins-api/login"
+    assert url == "https://platform.example/api/login"
     assert kwargs["auth"] == ("alice", "<REDACTED>")
     assert client.headers == {"Authorization": "Bearer issued-token"}
 

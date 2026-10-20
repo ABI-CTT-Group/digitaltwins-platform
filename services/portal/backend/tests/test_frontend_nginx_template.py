@@ -31,6 +31,17 @@ class FrontendNginxTemplateTest(unittest.TestCase):
             "template needs `resolver 127.0.0.11 ...` for per-request lookups",
         )
 
+    def test_only_api_portal_reaches_portal_backend(self):
+        # /api/ belongs to the platform API (the gateway routes it); portal-backend serves /api/portal/.
+        text = re.sub(r"#.*", "", TEMPLATE.read_text())
+        backend = [spec.strip() for spec, body in re.findall(r"location\s+([^{]+)\{([^}]*)\}", text)
+                   if "$up_backend" in body]
+        self.assertEqual(backend, [
+            r"~ ^/api/portal/(tools|workflow)/upload-source$",
+            r"~ ^/api/portal/tools/(builds|deploy)/[^/]+/logs/stream$",
+            "/api/portal/",
+        ])
+
     def test_every_proxy_pass_goes_through_a_variable(self):
         targets = _directives("proxy_pass")
         self.assertTrue(targets)

@@ -23,7 +23,7 @@ from digitaltwins.measurements.tree import build_tree
 
 FIXTURE = Path(__file__).parent / "data" / "example_sds_dataset"
 UPLOADER = {"username": "alice", "token": "t", "claims": {"realm_access": {"roles": ["researcher"]}}}
-PUBLIC = "https://platform.example/digitaltwins-api"
+PUBLIC = "https://platform.example/api"
 
 
 @pytest.fixture

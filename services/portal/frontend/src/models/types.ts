@@ -208,14 +208,14 @@ export interface ToolResponse {
     fhirFailureMessage?: string
     // A tool uploaded to the platform directly (REST API), with no portal build: listed read-only.
     platformOnly?: boolean
-    // A gui SDS workflow's tool (GET /api/workflow/gui-tools): built, approved and deleted with its workflow.
+    // A gui SDS workflow's tool (GET /api/portal/workflow/gui-tools): built, approved and deleted with its workflow.
     kind?: "workflow"
     workflowName?: string
 }
 
 export type HandoffStatus = "uploading" | "awaiting_reauth" | "committing" | "completed" | "failed"
 
-/** GET /api/tools/plugin/{id}/approval/status */
+/** GET /api/portal/tools/plugin/{id}/approval/status */
 export interface ToolApprovalStatus {
     buildId?: string
     handoffStatus: HandoffStatus | null

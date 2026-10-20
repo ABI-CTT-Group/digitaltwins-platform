@@ -20,3 +20,9 @@ def _paths():
 
 def test_removed_routes_are_gone():
     assert not REMOVED & _paths()
+
+
+def test_every_api_route_is_under_api_portal():
+    # The gateway routes /api/portal/ here and the rest of /api/ to the platform API.
+    stray = sorted(p for p in _paths() if p.startswith("/api") and not p.startswith("/api/portal/"))
+    assert stray == []

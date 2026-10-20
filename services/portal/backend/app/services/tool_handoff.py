@@ -33,7 +33,7 @@ ACTIVE = ("uploading", "committing", "awaiting_reauth")
 
 
 def make_http() -> httpx.Client:
-    """digitaltwins-api over the internal network (same settings as app.client.digitaltwins_api)."""
+    """digitaltwins-api over the internal network."""
     base = os.getenv("DIGITALTWINS_API_BASE_URL", "http://digitaltwins-api").rstrip("/")
     return httpx.Client(base_url=f"{base}:{os.getenv('DIGITALTWINS_API_PORT', '8000')}", timeout=httpx.Timeout(120.0))
 

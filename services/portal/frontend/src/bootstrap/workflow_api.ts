@@ -46,7 +46,7 @@ export async function useWorkflowBuild(workflowId: string, auth?: TransientAuth)
     return buildRes;
 }
 
-/** POST /api/workflow/probe-source — see `useProbeToolSource`. */
+/** POST /api/portal/workflow/probe-source — see `useProbeToolSource`. */
 export async function useProbeWorkflowSource(
     req: ProbeSourceRequest,
 ): Promise<ProbeSourceResponse> {

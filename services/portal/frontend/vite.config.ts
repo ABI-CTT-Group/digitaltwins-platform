@@ -139,16 +139,17 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 80,
     proxy: {
-      '/api': {
+      // portal-backend; listed first, as the first matching prefix wins.
+      '/api/portal': {
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
       // Platform REST API (digitaltwins-api, published on 8010); the gateway
       // strips the prefix the same way.
-      '/digitaltwins-api': {
+      '/api': {
         target: 'http://localhost:8010',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/digitaltwins-api/, ''),
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     }
   },

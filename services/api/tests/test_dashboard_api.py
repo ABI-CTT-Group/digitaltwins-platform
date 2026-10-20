@@ -482,3 +482,19 @@ def test_no_route_repeats_the_public_prefix():
     # The /api prefix lives outside the app (gateway + uvicorn --root-path); a route under /api would be
     # stripped twice.
     assert [r.path for r in app.routes if r.path.startswith("/api")] == []
+
+
+# ── SEEK tags → types ─────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("tag", ["script", "gui", "notebook"])
+def test_each_workflow_type_is_recognised(tag):
+    assert dashboard.get_workflow_type(["tool", tag.upper()]) == tag
+
+
+def test_conflicting_workflow_types_are_an_error():
+    assert dashboard.get_workflow_type(["tool", "script", "notebook"]) == "error"
+
+
+def test_no_workflow_type_is_other():
+    assert dashboard.get_workflow_type(["workflow"]) == "other"
