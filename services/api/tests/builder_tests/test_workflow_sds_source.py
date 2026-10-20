@@ -30,7 +30,7 @@ class WorkflowSdsSourceTest(unittest.TestCase):
         self.root = make_sds_workflow(Path(tempfile.mkdtemp()) / "workflow_convert")
 
     def test_upload_source_accepts_an_sds_workflow_zip(self):
-        r = self.client.post("/api/portal/workflow/upload-source", headers=bearer("researcher"),
+        r = self.client.post("/api/builder/workflow/upload-source", headers=bearer("researcher"),
                              files={"file": ("w.zip", _zip(self.root), "application/zip")})
         self.assertEqual(r.status_code, 200, r.text)
         self.assertTrue(r.json()["has_cwl"])
@@ -38,7 +38,7 @@ class WorkflowSdsSourceTest(unittest.TestCase):
 
     def test_upload_source_rejects_an_sds_package_without_a_workflow_cwl(self):
         (self.root / "primary" / "workflow_convert.cwl").unlink()
-        r = self.client.post("/api/portal/workflow/upload-source", headers=bearer("researcher"),
+        r = self.client.post("/api/builder/workflow/upload-source", headers=bearer("researcher"),
                              files={"file": ("w.zip", _zip(self.root), "application/zip")})
         self.assertEqual(r.status_code, 400)
         self.assertIn("primary/workflow_*.cwl", r.json()["detail"])
@@ -50,7 +50,7 @@ class WorkflowSdsSourceTest(unittest.TestCase):
             db.add(wf)
             db.commit()
             wf_id = wf.id
-        r = self.client.get(f"/api/portal/workflow/{wf_id}/cwl", headers=bearer("viewer"))
+        r = self.client.get(f"/api/builder/workflow/{wf_id}/cwl", headers=bearer("viewer"))
         self.assertEqual(r.status_code, 200, r.text)
         self.assertEqual(r.json()["cwl_file"], "workflow_convert.cwl")
         self.assertEqual(r.json()["tool_cwls"], [{"cwl_file": "tool_convert.cwl", "content": TOOL}])
@@ -65,7 +65,7 @@ class WorkflowSdsSourceTest(unittest.TestCase):
             db.add(wf)
             db.commit()
             wf_id = wf.id
-        r = self.client.get(f"/api/portal/workflow/{wf_id}/cwl", headers=bearer("viewer"))
+        r = self.client.get(f"/api/builder/workflow/{wf_id}/cwl", headers=bearer("viewer"))
         self.assertEqual(r.status_code, 200, r.text)
         self.assertFalse(r.json()["is_sds"])
 

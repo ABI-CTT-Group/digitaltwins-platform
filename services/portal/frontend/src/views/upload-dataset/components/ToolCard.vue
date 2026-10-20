@@ -75,7 +75,7 @@ const type = computed(() => typeTag(tool.value.label))
 const handoffActive = computed(() => ['uploading', 'awaiting_reauth', 'committing'].includes(tool.value.handoffStatus ?? ''))
 
 // While an approval is under way, poll it: each poll relays a fresh token to
-// the portal backend, which resumes a handoff paused by an expired one.
+// the builder, which resumes a handoff paused by an expired one.
 let approvalTimer: ReturnType<typeof setInterval> | undefined
 const stopApprovalPoll = () => { if (approvalTimer) clearInterval(approvalTimer); approvalTimer = undefined }
 watch(handoffActive, (active) => {

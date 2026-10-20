@@ -1,4 +1,4 @@
-"""GET /api/portal/workflow/gui-tool: the bundle /tool-view mounts for a SEEK workflow.
+"""GET /api/builder/workflow/gui-tool: the bundle /tool-view mounts for a SEEK workflow.
 
 The platform API's dashboard asks this when it launches a gui assay; the portal owns the build registry.
 
@@ -36,7 +36,7 @@ def client():
 
 
 def _lookup(client, seek_id="95", token="viewer"):
-    return client.get("/api/portal/workflow/gui-tool", params={"workflow_seek_id": seek_id},
+    return client.get("/api/builder/workflow/gui-tool", params={"workflow_seek_id": seek_id},
                       headers=bearer(token) if token else {})
 
 

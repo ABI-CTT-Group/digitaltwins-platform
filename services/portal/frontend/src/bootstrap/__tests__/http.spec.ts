@@ -5,10 +5,10 @@ vi.mock("@/bootstrap/keycloak", () => ({ getAccessToken: vi.fn(), getKeycloak: v
 import axios from "axios";
 import { dtApiAxios } from "@/bootstrap/http";
 
-// The gateway sends /api/portal/ to the builder and the rest of /api/ to the platform API.
+// The gateway sends /api/builder/ to the builder and the rest of /api/ to the platform API.
 describe("http base URLs", () => {
-  it("sends the default client to the portal backend", () => {
-    expect(axios.defaults.baseURL).toBe("/api/portal");
+  it("sends the default client to the builder", () => {
+    expect(axios.defaults.baseURL).toBe("/api/builder");
   });
 
   it("sends dtApi to the platform API", () => {

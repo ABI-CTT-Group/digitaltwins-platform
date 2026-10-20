@@ -2,7 +2,7 @@
  * Datasets uploaded to the platform directly (platform API REST, CLI), which
  * no portal record produced: listing platform workflows, deleting platform
  * workflows / tools, and deploying any registered script workflow's DAG.
- * Portal-built ones keep using the portal backend otherwise.
+ * Portal-built ones keep using the builder otherwise.
  */
 import { dtApi } from "./http";
 import type { PlatformLink, WorkflowResponse } from "@/models/types";

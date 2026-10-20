@@ -31,15 +31,15 @@ class FrontendNginxTemplateTest(unittest.TestCase):
             "template needs `resolver 127.0.0.11 ...` for per-request lookups",
         )
 
-    def test_only_api_portal_reaches_the_builder(self):
-        # /api/ belongs to the platform API (the gateway routes it); the builder serves /api/portal/.
+    def test_only_api_builder_reaches_the_builder(self):
+        # /api/ belongs to the platform API (the gateway routes it); the builder serves /api/builder/.
         text = re.sub(r"#.*", "", TEMPLATE.read_text())
         backend = [spec.strip() for spec, body in re.findall(r"location\s+([^{]+)\{([^}]*)\}", text)
                    if "$up_builder" in body]
         self.assertEqual(backend, [
-            r"~ ^/api/portal/(tools|workflow)/upload-source$",
-            r"~ ^/api/portal/tools/(builds|deploy)/[^/]+/logs/stream$",
-            "/api/portal/",
+            r"~ ^/api/builder/(tools|workflow)/upload-source$",
+            r"~ ^/api/builder/tools/(builds|deploy)/[^/]+/logs/stream$",
+            "/api/builder/",
         ])
 
     def test_the_builder_upstream_is_the_builder_service(self):

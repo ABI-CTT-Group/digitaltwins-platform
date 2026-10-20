@@ -1,4 +1,4 @@
-"""The routes the builder serves. /api/ belongs to the platform API; the portal owns only /api/portal/.
+"""The routes the builder serves. /api/ belongs to the platform API; the builder owns only /api/builder/.
 
 Run from `services/api/` (never inside the live container):
     python -m pytest tests/builder_tests/test_route_prefixes.py
@@ -22,7 +22,9 @@ def test_removed_routes_are_gone():
     assert not REMOVED & _paths()
 
 
-def test_every_api_route_is_under_api_portal():
-    # The gateway routes /api/portal/ here and the rest of /api/ to the platform API.
-    stray = sorted(p for p in _paths() if p.startswith("/api") and not p.startswith("/api/portal/"))
+def test_every_route_is_under_api_builder():
+    # The gateway routes /api/builder/ here and the rest of /api/ to the platform API. Besides
+    # those, the builder serves only its health checks and FastAPI's docs.
+    own = {"/", "/health", "/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"}
+    stray = sorted(p for p in _paths() - own if not p.startswith("/api/builder/"))
     assert stray == []

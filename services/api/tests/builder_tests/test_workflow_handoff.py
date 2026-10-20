@@ -56,11 +56,11 @@ class WorkflowHandoffTest(unittest.TestCase):
             db.commit()
 
     def _approve(self, token="researcher", **body):
-        return self.client.post(f"/api/portal/workflow/{self.wf_id}/approval",
+        return self.client.post(f"/api/builder/workflow/{self.wf_id}/approval",
                                 json={"seek_project_id": 11, **body}, headers=bearer(token))
 
     def _status(self, token="researcher"):
-        return self.client.get(f"/api/portal/workflow/{self.wf_id}/approval/status", headers=bearer(token))
+        return self.client.get(f"/api/builder/workflow/{self.wf_id}/approval/status", headers=bearer(token))
 
     def _workflow(self):
         with SessionLocal() as db:
@@ -155,7 +155,7 @@ class WorkflowHandoffTest(unittest.TestCase):
         self.assertEqual(self._approve().status_code, 409)
 
     def test_the_legacy_approval_refuses_sds_workflows(self):
-        r = self.client.get(f"/api/portal/workflow/{self.wf_id}/approval", headers=bearer("researcher"))
+        r = self.client.get(f"/api/builder/workflow/{self.wf_id}/approval", headers=bearer("researcher"))
         self.assertEqual(r.status_code, 409)
 
     def test_a_viewer_cannot_approve(self):
@@ -165,7 +165,7 @@ class WorkflowHandoffTest(unittest.TestCase):
         self._approve()
         uuid_ = self._workflow().uuid
 
-        r = self.client.delete(f"/api/portal/workflow/{self.wf_id}", headers=bearer("researcher"))
+        r = self.client.delete(f"/api/builder/workflow/{self.wf_id}", headers=bearer("researcher"))
 
         self.assertTrue(r.json()["status"], r.json())
         self.assertEqual((self.api.deleted, self.api.delete_params), ([uuid_], [{"delete_tools": "true"}]))
@@ -175,7 +175,7 @@ class WorkflowHandoffTest(unittest.TestCase):
         self._approve()
         self.api.fail_delete = True
 
-        r = self.client.delete(f"/api/portal/workflow/{self.wf_id}", headers=bearer("researcher"))
+        r = self.client.delete(f"/api/builder/workflow/{self.wf_id}", headers=bearer("researcher"))
 
         self.assertFalse(r.json()["status"])
         self.assertIsNotNone(self._workflow())
@@ -188,7 +188,7 @@ class WorkflowHandoffTest(unittest.TestCase):
         orig, workflow_router.minio = workflow_router.minio, bucket
         self.addCleanup(setattr, workflow_router, "minio", orig)
 
-        r = self.client.delete(f"/api/portal/workflow/{self.wf_id}", headers=bearer("researcher"))
+        r = self.client.delete(f"/api/builder/workflow/{self.wf_id}", headers=bearer("researcher"))
 
         self.assertTrue(r.json()["status"], r.json())
         self.assertEqual(bucket.deleted, ["convert_ab12cd34/a.cwl", "convert_ab12cd34/b.cwl"])
@@ -197,7 +197,7 @@ class WorkflowHandoffTest(unittest.TestCase):
     def test_a_token_the_platform_rejects_says_to_sign_in_again(self):
         self._approve()
 
-        r = self.client.delete(f"/api/portal/workflow/{self.wf_id}", headers=bearer("researcher#2"))
+        r = self.client.delete(f"/api/builder/workflow/{self.wf_id}", headers=bearer("researcher#2"))
 
         self.assertFalse(r.json()["status"])
         self.assertIn("sign in again", r.json()["message"])

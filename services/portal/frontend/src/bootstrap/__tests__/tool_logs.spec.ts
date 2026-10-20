@@ -11,8 +11,8 @@ afterEach(() => vi.unstubAllGlobals());
 // Build/deploy logs bypass axios (plain fetch for streaming), so they spell out the builder's prefix.
 describe("tool logs", () => {
   it.each([
-    ["build", "/api/portal/tools/builds/b1/logs"],
-    ["deploy", "/api/portal/tools/deploy/b1/logs"],
+    ["build", "/api/builder/tools/builds/b1/logs"],
+    ["deploy", "/api/builder/tools/deploy/b1/logs"],
   ] as const)("fetches %s logs from the builder", async (kind, url) => {
     const fetch = vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve("log") });
     vi.stubGlobal("fetch", fetch);

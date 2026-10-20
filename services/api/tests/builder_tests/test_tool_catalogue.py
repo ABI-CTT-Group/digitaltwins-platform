@@ -40,7 +40,7 @@ class CatalogueTest(test_tool_handoff.HandoffTest):
         workflow_tool_plugin.get_minio_client = self._orig_client
 
     def _components(self):
-        r = self.client.get("/api/portal/tools/metadata", headers=bearer("viewer"))
+        r = self.client.get("/api/builder/tools/metadata", headers=bearer("viewer"))
         self.assertEqual(r.status_code, 200, r.text)
         return {c["id"]: c for c in r.json()["components"]}
 
@@ -74,7 +74,7 @@ class CatalogueTest(test_tool_handoff.HandoffTest):
     # -- delete --------------------------------------------------------------
 
     def _delete(self):
-        r = self.client.delete(f"/api/portal/tools/plugin/{self.plugin_id}", headers=bearer("researcher"))
+        r = self.client.delete(f"/api/builder/tools/plugin/{self.plugin_id}", headers=bearer("researcher"))
         self.assertEqual(r.status_code, 200, r.text)
         return r.json()
 
@@ -115,7 +115,7 @@ class CatalogueTest(test_tool_handoff.HandoffTest):
     def test_resaving_the_annotation_keeps_one_row(self):
         # The wizard re-posts the annotation when the user goes Back and Next again.
         for note in ("first", "second"):
-            r = self.client.post(f"/api/portal/tools/plugin/{self.plugin_id}/annotation",
+            r = self.client.post(f"/api/builder/tools/plugin/{self.plugin_id}/annotation",
                                  json={"fhir_note": note, "sparc_note": ""}, headers=bearer("researcher"))
             self.assertEqual(r.status_code, 200, r.text)
 

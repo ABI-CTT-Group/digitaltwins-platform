@@ -18,7 +18,7 @@ class WorkflowCreateTest(unittest.TestCase):
         self.client = make_workflow_client()
 
     def _create(self, body):
-        return self.client.post("/api/portal/workflow/create", json=body, headers=bearer("researcher"))
+        return self.client.post("/api/builder/workflow/create", json=body, headers=bearer("researcher"))
 
     def _gui(self, r):
         self.assertEqual(r.status_code, 200, r.text)

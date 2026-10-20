@@ -21,8 +21,8 @@ function handleSessionLost(msg: string) {
 }
 
 // =============== init ===============
-// Portal-backend requests go through the nginx reverse proxy at /api/portal (same-origin, no CORS)
-axios.defaults.baseURL = "/api/portal";
+// Builder requests go through the nginx reverse proxy at /api/builder (same-origin, no CORS)
+axios.defaults.baseURL = "/api/builder";
 
 // ============== case converter (snake_case ↔ camelCase) ==============
 // Two-way bridge so frontend uses camelCase consistently while the backend
@@ -167,7 +167,7 @@ attachInterceptors(axios);
 
 /**
  * The platform REST API (the `api` service), reached at /api with the same
- * Keycloak token. Same case conversion as /api/portal, except that FHIR
+ * Keycloak token. Same case conversion as /api/builder, except that FHIR
  * `descriptions` trees pass through untouched: they are fhir-cda's own
  * camelCase shape (including `_auto` markers) end to end.
  */

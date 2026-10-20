@@ -82,7 +82,7 @@ class ToolSourceEndpointsTest(unittest.TestCase):
         with zipfile.ZipFile(buf, "w") as z:
             for p in self.root.rglob("*"):
                 z.write(p, p.relative_to(self.root.parent).as_posix())
-        r = self.client.post("/api/portal/tools/upload-source", headers=bearer("researcher"),
+        r = self.client.post("/api/builder/tools/upload-source", headers=bearer("researcher"),
                              files={"file": ("source.zip", buf.getvalue(), "application/zip")})
         self.assertEqual(r.status_code, 200, r.text)
         body = r.json()
@@ -99,7 +99,7 @@ class ToolSourceEndpointsTest(unittest.TestCase):
             db.add(plugin)
             db.commit()
             plugin_id = plugin.id
-        r = self.client.get(f"/api/portal/tools/plugin/{plugin_id}/cwl", headers=bearer("viewer"))
+        r = self.client.get(f"/api/builder/tools/plugin/{plugin_id}/cwl", headers=bearer("viewer"))
         self.assertEqual(r.status_code, 200, r.text)
         self.assertEqual(r.json(), {"cwl_file": "tool_viewer.cwl", "content": CWL})
 

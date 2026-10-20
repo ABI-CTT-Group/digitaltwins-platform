@@ -140,7 +140,7 @@ export default defineConfig({
     port: 80,
     proxy: {
       // the builder; listed first, as the first matching prefix wins.
-      '/api/portal': {
+      '/api/builder': {
         target: 'http://localhost:8000',
         changeOrigin: true,
       },

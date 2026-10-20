@@ -53,7 +53,7 @@ from builder.services import tool_handoff, workflow_handoff
 
 configure_logging()
 logger = get_logger(__name__)
-router = APIRouter(prefix="/api/portal/workflow", dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/api/builder/workflow", dependencies=[Depends(get_current_user)])
 WRITER = Depends(require_any_role("admin", "researcher"))
 ADMIN = Depends(require_any_role("admin"))  # running plugin backends (docker on the host socket) needs admin
 deployer = PluginDeployer()
@@ -245,7 +245,7 @@ async def get_metadata_json(db: Session = Depends(get_db)):
         if is_local:
             path = ""
         else:
-            path = f"{http_protocol}://{host}/api/portal/workflow/{latest_build.expose_name}/primary"
+            path = f"{http_protocol}://{host}/api/builder/workflow/{latest_build.expose_name}/primary"
 
         components.append({
             "uuid": workflow.uuid or "",
@@ -500,7 +500,7 @@ async def execute_build_post(
         db: Session = Depends(get_db)):
     """Trigger a workflow build, optionally with transient secrets in body.
 
-    See ``/api/portal/tools/plugin/{id}/build`` for the token handling contract.
+    See ``/api/builder/tools/plugin/{id}/build`` for the token handling contract.
     """
     return _trigger_workflow_build(workflow_id, background_tasks, db, transient=req)
 
@@ -510,7 +510,7 @@ async def probe_source(req: ProbeSourceRequest):
     """Probe a git URL for workflow source metadata.
 
     Token / cleanup / failure-shape contract identical to the plugin-side
-    probe (see ``/api/portal/tools/probe-source``).
+    probe (see ``/api/builder/tools/probe-source``).
     """
     spec = SourceSpec(
         source_type=req.source_type,
@@ -624,7 +624,7 @@ def workflow_approval_status(workflow_id: str, background: BackgroundTasks, user
 async def get_workflow_approval(workflow_id: str, db: Session = Depends(get_db)):
     workflow, latest_build = get_latest_build_record(workflow_id, "workflow", db)
     if workflow.is_sds:
-        raise HTTPException(status_code=409, detail="SDS workflow packages are approved with POST /api/portal/workflow/{id}/approval")
+        raise HTTPException(status_code=409, detail="SDS workflow packages are approved with POST /api/builder/workflow/{id}/approval")
     dataset_path = Path(latest_build.dataset_path)
     # TODO 1: Upload dataset to Digitaltwins Platform,and get the uuid
     # dataset_uuid = upload_dataset(dataset_path)

@@ -26,7 +26,7 @@ server {
 
     # Every proxy_pass goes through a `set` variable so the upstream name is
     # resolved per request via Docker's DNS, not once at startup. A literal
-    # host is pinned to its startup IP: recreate the builder and /api/portal/ keeps
+    # host is pinned to its startup IP: recreate the builder and /api/builder/ keeps
     # hitting the old address, which Docker may have reassigned to another
     # container. Caveat: with a variable, nginx no longer rewrites the location
     # prefix for you — see the explicit `rewrite` in /minio/.
@@ -47,11 +47,11 @@ server {
     }
 
     # Plugin / workflow source upload. Body cap is MAX_UPLOAD_MB (default 20480m).
-    # Must precede the generic /api/portal/ block; regex match wins anyway, but order keeps it explicit.
+    # Must precede the generic /api/builder/ block; regex match wins anyway, but order keeps it explicit.
     # Cap is configurable via MAX_UPLOAD_MB at startup so operators can dial
     # it up/down without touching code. (Measurement uploads go to the
     # platform API at /api, routed by the platform gateway, not through here.)
-    location ~ ^/api/portal/(tools|workflow)/upload-source$ {
+    location ~ ^/api/builder/(tools|workflow)/upload-source$ {
         set $up_builder builder;
         proxy_pass http://$up_builder:${BUILDER_PORT};
         proxy_set_header Host $host;
@@ -67,7 +67,7 @@ server {
 
     # SSE live build/deploy logs — must NOT be buffered or the terminal
     # output arrives in one delayed burst instead of streaming.
-    location ~ ^/api/portal/tools/(builds|deploy)/[^/]+/logs/stream$ {
+    location ~ ^/api/builder/tools/(builds|deploy)/[^/]+/logs/stream$ {
         set $up_builder builder;
         proxy_pass http://$up_builder:${BUILDER_PORT};
         proxy_http_version 1.1;
@@ -81,7 +81,7 @@ server {
     }
 
     # Proxy builder requests (the rest of /api/ is the platform API, routed by the gateway)
-    location /api/portal/ {
+    location /api/builder/ {
         set $up_builder builder;
         proxy_pass http://$up_builder:${BUILDER_PORT};
         proxy_set_header Host $host;

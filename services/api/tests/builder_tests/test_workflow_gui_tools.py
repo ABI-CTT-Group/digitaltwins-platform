@@ -49,7 +49,7 @@ class LauncherMetadataTest(unittest.TestCase):
         self.client = make_hub_client()
 
     def _components(self):
-        r = self.client.get("/api/portal/tools/metadata", headers=bearer("viewer"))
+        r = self.client.get("/api/builder/tools/metadata", headers=bearer("viewer"))
         self.assertEqual(r.status_code, 200, r.text)
         return [c for c in r.json()["components"] if c.get("kind") == "workflow"]
 
@@ -98,7 +98,7 @@ class BuildLogsTest(unittest.TestCase):
     def test_a_workflow_build_log_is_served_after_it_left_memory(self):
         client = make_hub_client()
         build_id, _ = add_build(add_workflow(), build_logs="npm run build:plugin\nok")
-        r = client.get(f"/api/portal/tools/builds/{build_id}/logs", headers=bearer("viewer"))
+        r = client.get(f"/api/builder/tools/builds/{build_id}/logs", headers=bearer("viewer"))
         self.assertEqual((r.status_code, r.text), (200, "npm run build:plugin\nok"))
 
 
@@ -106,10 +106,10 @@ class WorkflowMetadataTest(unittest.TestCase):
     def test_an_uploaded_build_is_served_under_the_portal_prefix(self):
         client = make_hub_client()
         _, expose = add_build(add_workflow(), s3_path="workflows/x")
-        r = client.get("/api/portal/workflow/metadata", headers=bearer("viewer"))
+        r = client.get("/api/builder/workflow/metadata", headers=bearer("viewer"))
         self.assertEqual(r.status_code, 200, r.text)
         [c] = [c for c in r.json()["components"] if c["expose"] == expose]
-        self.assertEqual(c["path"], f"http://localhost/api/portal/workflow/{expose}/primary")
+        self.assertEqual(c["path"], f"http://localhost/api/builder/workflow/{expose}/primary")
 
 
 class GuiToolListingTest(unittest.TestCase):
@@ -117,7 +117,7 @@ class GuiToolListingTest(unittest.TestCase):
         self.client = make_hub_client()
 
     def _rows(self):
-        r = self.client.get("/api/portal/workflow/gui-tools", headers=bearer("viewer"))
+        r = self.client.get("/api/builder/workflow/gui-tools", headers=bearer("viewer"))
         self.assertEqual(r.status_code, 200, r.text)
         return r.json()
 
@@ -186,7 +186,7 @@ class WorkflowToolDeployTest(unittest.TestCase):
          workflow_router.get_minio_client) = self._orig
 
     def _deploy(self, wf_id, token="admin"):
-        return self.client.get(f"/api/portal/workflow/{wf_id}/deploy", headers=bearer(token))
+        return self.client.get(f"/api/builder/workflow/{wf_id}/deploy", headers=bearer(token))
 
     def test_only_admins_deploy(self):
         wf_id = add_workflow(has_backend=True)
@@ -225,7 +225,7 @@ class WorkflowToolDeployTest(unittest.TestCase):
     def test_a_rebuild_shuts_down_the_backend_first(self):
         with_backend, without = add_workflow(has_backend=True), add_workflow()
         for wf_id in (with_backend, without):
-            r = self.client.post(f"/api/portal/workflow/{wf_id}/build", json={}, headers=bearer("researcher"))
+            r = self.client.post(f"/api/builder/workflow/{wf_id}/build", json={}, headers=bearer("researcher"))
             self.assertEqual(r.status_code, 200, r.text)
         self.assertEqual(self.shut_down, [with_backend])
 
@@ -239,7 +239,7 @@ class WorkflowToolDeployTest(unittest.TestCase):
         workflow_router.minio = FakeBucket()
         workflow_router.get_minio_client = lambda bucket=None: tool_builds
 
-        r = self.client.delete(f"/api/portal/workflow/{wf_id}", headers=bearer("researcher"))
+        r = self.client.delete(f"/api/builder/workflow/{wf_id}", headers=bearer("researcher"))
 
         self.assertTrue(r.json()["status"], r.text)
         self.assertEqual(self.shut_down, [wf_id])

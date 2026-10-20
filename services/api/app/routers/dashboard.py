@@ -59,7 +59,7 @@ def _fetch_gui_tool(workflow_seek_id, token: str) -> Optional[dict]:
         return None
     base = os.getenv("BUILDER_URL", "http://builder:8000").rstrip("/")
     try:
-        res = requests.get(f"{base}/api/portal/workflow/gui-tool", params={"workflow_seek_id": workflow_seek_id},
+        res = requests.get(f"{base}/api/builder/workflow/gui-tool", params={"workflow_seek_id": workflow_seek_id},
                            headers={"Authorization": f"Bearer {token}"}, timeout=15)
     except requests.RequestException as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Builder unreachable: {e}")

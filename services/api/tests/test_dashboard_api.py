@@ -437,7 +437,7 @@ def portal(monkeypatch):
 def test_fetch_gui_tool_asks_the_builder_as_the_user(portal):
     portal.response = _Response(200, GUI_TOOL)
     assert dashboard._fetch_gui_tool(95, "tok") == GUI_TOOL
-    assert portal.calls == [("http://builder.test:8000/api/portal/workflow/gui-tool",
+    assert portal.calls == [("http://builder.test:8000/api/builder/workflow/gui-tool",
                              {"workflow_seek_id": 95}, {"Authorization": "Bearer tok"})]
 
 
