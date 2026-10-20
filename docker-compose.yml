@@ -26,11 +26,11 @@ services:
     # Standalone, these are unset and it falls back to SQLite on the plugin_database
     # volume, which stays mounted as the migration source and rollback path.
     environment:
-      - PORTAL_DB_HOST=database
-      - PORTAL_DB_PORT=5432
-      - PORTAL_DB_NAME=${POSTGRES_DB:-digitaltwins}
-      - PORTAL_DB_USER=portal
-      - PORTAL_DB_PASSWORD=${PORTAL_DB_PASSWORD:?PORTAL_DB_PASSWORD must be set}
+      - BUILDER_DB_HOST=database
+      - BUILDER_DB_PORT=5432
+      - BUILDER_DB_NAME=${POSTGRES_DB:-digitaltwins}
+      - BUILDER_DB_USER=portal
+      - BUILDER_DB_PASSWORD=${BUILDER_DB_PASSWORD:?BUILDER_DB_PASSWORD must be set}
     depends_on:
       database:
         condition: service_healthy

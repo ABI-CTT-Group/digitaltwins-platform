@@ -1,6 +1,6 @@
 """CLI: one-off copy of the portal's SQLite database into the platform Postgres.
 
-Runs inside the builder container with the PORTAL_DB_* variables set
+Runs inside the builder container with the BUILDER_DB_* variables set
 (the target is the app's own engine). The SQLite file is opened read-only.
 
 What it does, in a single target transaction:
@@ -104,7 +104,7 @@ def main(argv: list[str] | None = None) -> None:
 
     from builder.models.db_model import engine as target
     if target.dialect.name != "postgresql":
-        _fail("target is not Postgres — set PORTAL_DB_HOST and the other PORTAL_DB_* variables", 1)
+        _fail("target is not Postgres — set BUILDER_DB_HOST and the other BUILDER_DB_* variables", 1)
     sqlite_path = Path(args.sqlite_path).resolve()
     if not sqlite_path.is_file():
         _fail(f"SQLite file not found: {sqlite_path}", 1)

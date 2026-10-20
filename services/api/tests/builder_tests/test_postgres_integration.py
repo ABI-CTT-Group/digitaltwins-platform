@@ -1,11 +1,11 @@
 """
 Postgres integration tests for the portal database layer.
 
-Skipped unless PORTAL_TEST_DB_HOST is set. Each test class creates a throwaway
+Skipped unless BUILDER_TEST_DB_HOST is set. Each test class creates a throwaway
 database on that server (so the role needs CREATEDB) and drops it afterwards.
 
 Run from `services/api/`, e.g. against the platform `database` service:
-    PORTAL_TEST_DB_HOST=database PORTAL_TEST_DB_USER=admin PORTAL_TEST_DB_PASSWORD=<REDACTED> \
+    BUILDER_TEST_DB_HOST=database BUILDER_TEST_DB_USER=admin BUILDER_TEST_DB_PASSWORD=<REDACTED> \
         python -m pytest tests/builder_tests/test_postgres_integration.py
 """
 import os
@@ -36,15 +36,15 @@ PORTAL_TABLES = set(Base.metadata.tables)
 def _server_url(database: str) -> URL:
     return URL.create(
         "postgresql+psycopg2",
-        host=os.environ["PORTAL_TEST_DB_HOST"],
-        port=int(os.getenv("PORTAL_TEST_DB_PORT", "5432")),
+        host=os.environ["BUILDER_TEST_DB_HOST"],
+        port=int(os.getenv("BUILDER_TEST_DB_PORT", "5432")),
         database=database,
-        username=os.getenv("PORTAL_TEST_DB_USER", "postgres"),
-        password=os.getenv("PORTAL_TEST_DB_PASSWORD"),
+        username=os.getenv("BUILDER_TEST_DB_USER", "postgres"),
+        password=os.getenv("BUILDER_TEST_DB_PASSWORD"),
     )
 
 
-@unittest.skipUnless(os.getenv("PORTAL_TEST_DB_HOST"), "PORTAL_TEST_DB_HOST not set")
+@unittest.skipUnless(os.getenv("BUILDER_TEST_DB_HOST"), "BUILDER_TEST_DB_HOST not set")
 class PostgresTestCase(unittest.TestCase):
     """Gives each test a fresh database and an engine configured like the app's."""
 
@@ -54,11 +54,11 @@ class PostgresTestCase(unittest.TestCase):
         with self.admin.connect() as conn:
             conn.execute(text(f'CREATE DATABASE "{self.db_name}"'))
         with mock.patch.dict(os.environ, {
-            "PORTAL_DB_HOST": os.environ["PORTAL_TEST_DB_HOST"],
-            "PORTAL_DB_PORT": os.getenv("PORTAL_TEST_DB_PORT", "5432"),
-            "PORTAL_DB_NAME": self.db_name,
-            "PORTAL_DB_USER": os.getenv("PORTAL_TEST_DB_USER", "postgres"),
-            "PORTAL_DB_PASSWORD": os.getenv("PORTAL_TEST_DB_PASSWORD", ""),
+            "BUILDER_DB_HOST": os.environ["BUILDER_TEST_DB_HOST"],
+            "BUILDER_DB_PORT": os.getenv("BUILDER_TEST_DB_PORT", "5432"),
+            "BUILDER_DB_NAME": self.db_name,
+            "BUILDER_DB_USER": os.getenv("BUILDER_TEST_DB_USER", "postgres"),
+            "BUILDER_DB_PASSWORD": os.getenv("BUILDER_TEST_DB_PASSWORD", ""),
         }):
             from builder.models.db_model import _build_engine
             self.engine = _build_engine()
@@ -96,10 +96,10 @@ class InitDbTest(PostgresTestCase):
         try:
             with self.engine.begin() as conn:
                 conn.execute(text(f"CREATE SCHEMA {PORTAL_DB_SCHEMA} AUTHORIZATION {role}"))
-            with mock.patch.dict(os.environ, {"PORTAL_DB_USER": role, "PORTAL_DB_PASSWORD": password,
-                                              "PORTAL_DB_HOST": os.environ["PORTAL_TEST_DB_HOST"],
-                                              "PORTAL_DB_PORT": os.getenv("PORTAL_TEST_DB_PORT", "5432"),
-                                              "PORTAL_DB_NAME": self.db_name}):
+            with mock.patch.dict(os.environ, {"BUILDER_DB_USER": role, "BUILDER_DB_PASSWORD": password,
+                                              "BUILDER_DB_HOST": os.environ["BUILDER_TEST_DB_HOST"],
+                                              "BUILDER_DB_PORT": os.getenv("BUILDER_TEST_DB_PORT", "5432"),
+                                              "BUILDER_DB_NAME": self.db_name}):
                 from builder.models.db_model import _build_engine
                 role_engine = _build_engine()
             init_db(bind=role_engine)

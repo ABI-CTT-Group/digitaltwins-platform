@@ -19,16 +19,16 @@ DEPLOYMENT_ONE_BUILD = "ck_plugin_deployments_one_build"
 
 
 def database_url() -> URL:
-    """Postgres from the PORTAL_DB_* variables when PORTAL_DB_HOST is set, else SQLite at DATABASE_PATH."""
-    if not os.getenv("PORTAL_DB_HOST"):
+    """Postgres from the BUILDER_DB_* variables when BUILDER_DB_HOST is set, else SQLite at DATABASE_PATH."""
+    if not os.getenv("BUILDER_DB_HOST"):
         return URL.create("sqlite", database=os.getenv("DATABASE_PATH", "./plugin_registry.db"))
     return URL.create(
         "postgresql+psycopg2",
-        host=os.environ["PORTAL_DB_HOST"],
-        port=int(os.getenv("PORTAL_DB_PORT", "5432")),
-        database=os.getenv("PORTAL_DB_NAME", "digitaltwins"),
-        username=os.getenv("PORTAL_DB_USER", "portal"),
-        password=os.getenv("PORTAL_DB_PASSWORD"),
+        host=os.environ["BUILDER_DB_HOST"],
+        port=int(os.getenv("BUILDER_DB_PORT", "5432")),
+        database=os.getenv("BUILDER_DB_NAME", "digitaltwins"),
+        username=os.getenv("BUILDER_DB_USER", "portal"),
+        password=os.getenv("BUILDER_DB_PASSWORD"),
     )
 
 

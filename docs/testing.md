@@ -77,5 +77,5 @@ These four checks are required by the repo ruleset "CI required checks" (Setting
 
 ## Safety rules
 
-- **Never run the builder tests (`services/api/tests/builder_tests/`) inside the live `builder` container,** or in any shell where `PORTAL_DB_HOST` is set. They drop and recreate every table. `tests/builder_tests/__init__.py` refuses to load when `PORTAL_DB_HOST` is set, and it always points SQLite at a temporary file.
+- **Never run the builder tests (`services/api/tests/builder_tests/`) inside the live `builder` container,** or in any shell where `BUILDER_DB_HOST` is set. They drop and recreate every table. `tests/builder_tests/__init__.py` refuses to load when `BUILDER_DB_HOST` is set, and it always points SQLite at a temporary file.
 - Don't point the API integration tests at a production database. They need `CREATEDB` rights on whatever `POSTGRES_*` names.

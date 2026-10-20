@@ -1,4 +1,4 @@
-"""The test package refuses to load when PORTAL_DB_HOST is set: tool_app.py drops and
+"""The test package refuses to load when BUILDER_DB_HOST is set: tool_app.py drops and
 recreates every table, which would wipe the live portal schema.
 
 Run from `services/api/`:
@@ -15,17 +15,17 @@ TESTS_DIR = BACKEND_ROOT / "tests"  # where `builder_tests` imports from; BACKEN
 
 
 def import_tests(**env):
-    base = {k: v for k, v in os.environ.items() if k != "PORTAL_DB_HOST"}
+    base = {k: v for k, v in os.environ.items() if k != "BUILDER_DB_HOST"}
     return subprocess.run([sys.executable, "-c", "import builder_tests"], cwd=TESTS_DIR,
                           env={**base, "PYTHONPATH": str(BACKEND_ROOT), **env}, capture_output=True, text=True)
 
 
 class LiveDbGuardTest(unittest.TestCase):
     def test_refuses_to_load_when_portal_db_host_is_set(self):
-        r = import_tests(PORTAL_DB_HOST="database")
+        r = import_tests(BUILDER_DB_HOST="database")
 
         self.assertNotEqual(r.returncode, 0)
-        self.assertIn("PORTAL_DB_HOST", r.stderr)
+        self.assertIn("BUILDER_DB_HOST", r.stderr)
 
     def test_loads_without_portal_db_host(self):
         r = import_tests()
@@ -36,7 +36,7 @@ class LiveDbGuardTest(unittest.TestCase):
         # Test modules that import builder.main before tool_app.py sets DATABASE_PATH used to bind
         # the engine to ./plugin_registry.db, which the suite's drop_all() then wiped.
         registry = TESTS_DIR / "plugin_registry.db"
-        base = {k: v for k, v in os.environ.items() if k not in ("PORTAL_DB_HOST", "DATABASE_PATH")}
+        base = {k: v for k, v in os.environ.items() if k not in ("BUILDER_DB_HOST", "DATABASE_PATH")}
         base["PYTHONPATH"] = str(BACKEND_ROOT)
         for env in (base, {**base, "DATABASE_PATH": str(registry)}):
             r = subprocess.run(

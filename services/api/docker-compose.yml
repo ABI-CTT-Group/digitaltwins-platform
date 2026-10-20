@@ -8,7 +8,7 @@ services:
     ports:
       - "8010:8000"
     environment:
-      HOSTNAME: ${PORTAL_BACKEND_HOST:-localhost}
+      HOSTNAME: ${PLATFORM_DOMAIN:-localhost}
       # keycloak
       KEYCLOAK_BASE_URL: ${KEYCLOAK_BASE_URL:-http://keycloak:8080/auth}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-digitaltwins}

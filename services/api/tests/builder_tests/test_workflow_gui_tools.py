@@ -3,9 +3,11 @@
 Run from `services/api/`:
     python -m pytest tests/builder_tests/test_workflow_gui_tools.py
 """
+import os
 import unittest
 import uuid
 from datetime import datetime, timedelta
+from unittest import mock
 
 from builder_tests.tool_app import bearer, make_hub_client  # noqa: I001  (sets DATABASE_PATH first)
 from builder.models.db_model import BuildStatus, PluginDeployment, SessionLocal, Workflow, WorkflowBuild
@@ -103,13 +105,23 @@ class BuildLogsTest(unittest.TestCase):
 
 
 class WorkflowMetadataTest(unittest.TestCase):
-    def test_an_uploaded_build_is_served_under_the_portal_prefix(self):
+    def test_an_uploaded_build_is_served_under_the_builder_prefix(self):
         client = make_hub_client()
         _, expose = add_build(add_workflow(), s3_path="workflows/x")
-        r = client.get("/api/builder/workflow/metadata", headers=bearer("viewer"))
+        with mock.patch.dict(os.environ):
+            os.environ.pop("PLATFORM_DOMAIN", None)
+            r = client.get("/api/builder/workflow/metadata", headers=bearer("viewer"))
         self.assertEqual(r.status_code, 200, r.text)
         [c] = [c for c in r.json()["components"] if c["expose"] == expose]
         self.assertEqual(c["path"], f"http://localhost/api/builder/workflow/{expose}/primary")
+
+    def test_the_url_names_the_platform_domain(self):
+        client = make_hub_client()
+        _, expose = add_build(add_workflow(), s3_path="workflows/x")
+        with mock.patch.dict(os.environ, {"PLATFORM_DOMAIN": "platform.example", "SSL": "true"}):
+            r = client.get("/api/builder/workflow/metadata", headers=bearer("viewer"))
+        [c] = [c for c in r.json()["components"] if c["expose"] == expose]
+        self.assertEqual(c["path"], f"https://platform.example/api/builder/workflow/{expose}/primary")
 
 
 class GuiToolListingTest(unittest.TestCase):

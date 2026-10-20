@@ -60,7 +60,7 @@ def test_the_builder_gets_none_of_the_apis_credentials(builder):
 
 
 def test_the_builder_connects_as_the_portal_role_not_the_superuser(builder):
-    assert builder["environment"]["PORTAL_DB_USER"] == "portal"
+    assert builder["environment"]["BUILDER_DB_USER"] == "portal"
 
 
 def test_each_service_builds_its_own_image_target(api, builder):
@@ -102,7 +102,7 @@ def test_the_builder_image_has_no_api_code():
 def _loaded_after_import(module, tmp_path):
     env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(API_ROOT / "src"), str(API_ROOT)]),
            "DATABASE_PATH": str(tmp_path / "registry.db"), "POSTGRES_ENABLED": "false"}
-    env.pop("PORTAL_DB_HOST", None)
+    env.pop("BUILDER_DB_HOST", None)
     r = subprocess.run([sys.executable, "-c", f"import sys, {module}; print(' '.join(sys.modules))"],
                        cwd=tmp_path, env=env, capture_output=True, text=True)
     assert r.returncode == 0, r.stderr

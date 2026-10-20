@@ -1,6 +1,6 @@
 """
 Tests for choosing the portal database from the environment: SQLite unless
-PORTAL_DB_HOST is set, then Postgres built from the PORTAL_DB_* variables.
+BUILDER_DB_HOST is set, then Postgres built from the BUILDER_DB_* variables.
 
 Run from `services/api/`:
     python -m pytest tests/builder_tests/test_db_config.py
@@ -32,11 +32,11 @@ class DatabaseUrlTest(unittest.TestCase):
 
     def test_postgres_when_portal_db_host_set(self):
         env = {
-            "PORTAL_DB_HOST": "database",
-            "PORTAL_DB_PORT": "5432",
-            "PORTAL_DB_NAME": "digitaltwins",
-            "PORTAL_DB_USER": "portal",
-            "PORTAL_DB_PASSWORD": "p@ss:/w#rd",
+            "BUILDER_DB_HOST": "database",
+            "BUILDER_DB_PORT": "5432",
+            "BUILDER_DB_NAME": "digitaltwins",
+            "BUILDER_DB_USER": "portal",
+            "BUILDER_DB_PASSWORD": "p@ss:/w#rd",
         }
         with mock.patch.dict(os.environ, env, clear=True):
             url = database_url()
