@@ -140,7 +140,7 @@ Please see the [documentation for workshop 1](https://github.com/ABI-CTT-Group/d
 ```python
 from digitaltwins import UploadClient
 
-client = UploadClient.login("https://<platform-host>/digitaltwins-api", "<username>", "<password>")
+client = UploadClient.login("https://<platform-host>/api", "<username>", "<password>")
 session = client.upload_dataset("path/to/my_dataset", category="measurements", fhir="auto")
 print(session["dataset_uuid"], session.get("fhir_status"))
 ```
@@ -177,7 +177,7 @@ The portal's tool wizard builds a tool from source (git or a local folder), and 
 ```bash
 curl -H "Authorization: Bearer <token>" \
   -F "files=@tool_dicom_to_nifti.zip" \
-  "https://<platform-host>/digitaltwins-api/datasets?category=tools&tool_type=script&seek_project_id=<id>&fhir=auto"
+  "https://<platform-host>/api/datasets?category=tools&tool_type=script&seek_project_id=<id>&fhir=auto"
 # -> {"message": "...", "dataset_uuid": "...", "seek_id": 42, "fhir_status": "pending"}
 ```
 
@@ -229,7 +229,7 @@ The `workflows` category is also used by assay workspace outputs. A workflow def
 ```bash
 curl -H "Authorization: Bearer <token>" \
   -F "files=@workflow_image_conversion.zip" \
-  "https://<platform-host>/digitaltwins-api/datasets?category=workflows&workflow_type=script&seek_project_id=<id>&fhir=auto"
+  "https://<platform-host>/api/datasets?category=workflows&workflow_type=script&seek_project_id=<id>&fhir=auto"
 # -> {"message": "...", "dataset_uuid": "...", "seek_id": 43, "fhir_status": "pending",
 #     "tools": [{"step_id": "dicom_to_nifti", "dataset_uuid": "...", "seek_id": 41}, ...]}
 ```

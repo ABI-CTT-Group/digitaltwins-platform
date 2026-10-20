@@ -9,7 +9,7 @@
 
 ## 0. TL;DR
 
-`portal-frontend`'s nginx serves **only what the portal owns**: the SPA, `/api/` → portal-backend, `/tools/` → the public MinIO bucket, and the dynamically generated `/plugin/*` routes.
+`portal-frontend`'s nginx serves **only what the portal owns**: the SPA, `/api/portal/` → portal-backend, `/tools/` → the public MinIO bucket, and the dynamically generated `/plugin/*` routes.
 
 - **HTTP only.** There is no SSL template and no `entry.sh` anymore. TLS terminates at the platform gateway (`digitaltwins-platform/services/nginx`), which proxies everything it doesn't recognise back to `portal-frontend` via `location /`.
 - **Standalone is a development inner loop**, not a deployment target. Real deployments go through the platform.
@@ -131,7 +131,7 @@ The platform builds this repo as a git submodule and adds its own edge:
 ```
 browser → gateway (digitaltwins-platform/services/nginx, owns 80/443 + TLS)
             ├── /seek/ /jupyter/ /auth/ /airflow/ /minio/
-            └── /  →  portal-frontend  (this repo: SPA, /api/, /tools/, /plugin/*)
+            └── /  →  portal-frontend  (this repo: SPA, /api/portal/, /tools/, /plugin/*)
 ```
 
 Gateway config is bind-mounted, so operators change a route and `nginx -s reload` — no image rebuild. See `digitaltwins-platform/services/nginx/README.md`.
@@ -175,6 +175,6 @@ It refuses to run if the target already has portal rows, and it copies everythin
 | Rendered `default.conf` has `proxy_set_header Host ;` — empty values | `NGINX_ENVSUBST_FILTER` missing or its `$` not escaped as `$$` in compose | Restore the filter |
 | Backend emits `http://` URLs on an HTTPS deployment | `SSL` not set to `true`, or still using the dead `USE_SSL` key | Set `SSL=true` and rebuild portal-backend |
 | Plugin URLs return 404 | Plugin `include` line missing, or `nginx_plugin_configs` not mounted | Check the template's last line and the compose volume list |
-| 502 from `/api/` | portal-backend not ready, or on a non-default port | `docker compose ps portal-backend`; check `BACKEND_PORT` |
+| 502 from `/api/portal/` | portal-backend not ready, or on a non-default port | `docker compose ps portal-backend`; check `BACKEND_PORT` |
 | SSE build logs arrive in one delayed burst instead of streaming | A proxy hop is buffering — most likely the gateway's fallback `location /` | Confirm `proxy_buffering off` in `services/nginx/snippets/portal-fallback.conf` |
 | Uploads fail with **413** at the edge | The gateway's fallback is capping the body | The edge must be transparent (`client_max_body_size 0`); the real cap belongs to portal-frontend's `MAX_UPLOAD_MB` |

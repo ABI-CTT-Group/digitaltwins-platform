@@ -117,8 +117,9 @@ the limit means and can return a coherent error.
 
 ## What is not yours
 
-`/`, `/api/`, `/tools/`, `/plugin/*` belong to the **portal** (nginx inside the
-`portal-frontend` container). `portal-fallback.conf` forwards them there.
+`/`, `/api/portal/`, `/tools/`, `/plugin/*` belong to the **portal** (nginx inside the
+`portal-frontend` container). `portal-fallback.conf` forwards them there (and `/api/portal/` in
+`platform-routes.conf` takes the same hop, `portal-proxy.conf`). The rest of `/api/` is the platform API.
 
 - **Never hand-write a `/plugin/...` route.** portal-backend generates those into a
   shared volume and reloads portal-frontend's nginx. Writing one here means something

@@ -221,10 +221,46 @@ Once successfully deployed, the following services and default credentials are a
 | **SEEK**           | `/seek/` | *Via Keycloak* or `<Created User>` | `<Created Pass>` | Catalogue Service                         |
 | **Airflow**        | `/airflow/` | *Via Keycloak* | — | Workflow Management (SSO via Keycloak `admin`) |
 | **Keycloak**       | `/auth/` | `admin` | `admin` | IAM Service (Admin Console)               |
-| **REST API**       | `/digitaltwins-api/` | — | — | Docs at `http://{IP}/digitaltwins-api/docs` |
+| **REST API**       | `/api/`  | — | — | Docs at `http://{IP}/api/docs`; the portal backend's own API is `/api/portal/` |
 | **Minio**          | `/minio/` | *Via Keycloak* or `minioadmin` | `minioadmin` | Storage Web GUI (SSO via Keycloak `admin`) |
 | **Orthanc 1**      | `/orthanc-1/` | *Via Keycloak* | — | PACS Service 1                            |
 | **Orthanc 2**      | `/orthanc-2/` | *Via Keycloak* | — | PACS Service 2                            |
 | **JupyterHub**     | `/jupyter/` | *Via Keycloak* | — | Notebook Service                          |
 | **HAPI FHIR**      | `/fhir/` | — | — | EHR Service REST API                      |
 | **Postgres**       | `N/A`    | — | — | Internal database (optional pgAdmin runs separately via `services/postgres/docker-compose.yml`) |
+
+## 9. Upgrading: `/digitaltwins-api` → `/api`
+
+The platform API moved from `/digitaltwins-api` to `/api`, and its service was renamed from
+`digitaltwins-api` to `api`. The portal backend's own endpoints moved from `/api/tools/...` and
+`/api/workflow/...` to `/api/portal/tools/...` and `/api/portal/workflow/...`. The old paths no longer
+work: there is no redirect. See [the ADR](decisions/2026-10-20-api-prefix-and-portal-builder-split.md).
+
+An existing deployment upgrades once, from the repository root:
+
+1. **Regenerate `.env`.** The `DIGITALTWINS_API_*` variables are now `API_*`, and
+   `API_PUBLIC_URL` ends in `/api`:
+   ```bash
+   util/gen-env.sh -e env -s secrets.env
+   ```
+   On a remote Airflow compute node, regenerate its env too
+   (`util/generate-compute-env.sh <portal_vlan_ip> > compute.env`) and restart its worker.
+   Any DAG code of your own that reads `DIGITALTWINS_API_BASE_URL` or `DIGITALTWINS_API_PORT` must
+   switch to `API_BASE_URL` / `API_PORT`.
+2. **Rebuild and restart.** `--remove-orphans` removes the old `digitaltwins-api` container. Then
+   reload the gateway's routes:
+   ```bash
+   sudo docker compose build api portal-backend portal-frontend
+   sudo docker compose up -d --remove-orphans
+   docker exec ${PROJECT_NAME}-gateway nginx -t && docker exec ${PROJECT_NAME}-gateway nginx -s reload
+   ```
+   JupyterHub restarts with the stack and registers the API under its new service name. Its
+   startup also revokes the old `digitaltwins-api` service's token.
+3. **Re-push stale FHIR links.** Measurement datasets pushed before the move link their files under
+   `/digitaltwins-api/...` in HAPI. Re-push them, checking the list first:
+   ```bash
+   sudo docker compose exec api python -m digitaltwins.cli.repush_fhir_urls --dry-run
+   sudo docker compose exec api python -m digitaltwins.cli.repush_fhir_urls
+   ```
+   Each re-push downloads the dataset from MinIO again and gives its HAPI resources new ids.
+   Datasets never pushed, or whose push failed, get the new links on their next push.

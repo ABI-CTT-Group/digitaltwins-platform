@@ -42,7 +42,7 @@ See [the ADR](decisions/2026-10-05-link-assay-to-workflow-via-auto-created-sop.m
 
 Register a script workflow dataset. When an admin registers or approves it, its
 DAG is deployed to Airflow automatically. Otherwise an admin deploys it from the
-portal's Workflows page (`/catalogue/workflows`, *Deploy DAG*) or with `POST /digitaltwins-api/workflows/{dataset_uuid}/deploy`.
+portal's Workflows page (`/catalogue/workflows`, *Deploy DAG*) or with `POST /api/workflows/{dataset_uuid}/deploy`.
 The DAG must name itself after its deploy folder (`dag_id=Path(__file__).parent.name`).
 See [Writing and deploying a script workflow DAG](workflow-dag-authoring.md) and the
 example dataset in `examples/workflow/workflow_image_conversion/`.

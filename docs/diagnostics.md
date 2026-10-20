@@ -210,14 +210,14 @@ docker compose logs --tail=30 database | grep -iE "shutdown|restart|fatal|too ma
 ```
 Fix: wait for SEEK to boot; recreate services scoped, never blanket.
 
-**(b) 502 on `/api/...` with SEEK up — portal-frontend cached a stale backend IP.**
-`/api/dashboard/programmes` etc. route through `location /` → **portal-frontend**,
-whose *internal* nginx proxies `/api/` to portal-backend via a LITERAL `proxy_pass`
+**(b) 502 on `/api/portal/...` with SEEK up — portal-frontend cached a stale backend IP.**
+`/api/portal/tools/...` etc. route through `location /api/portal/` → **portal-frontend**,
+whose *internal* nginx proxies `/api/portal/` to portal-backend via a LITERAL `proxy_pass`
 resolved once at startup. If portal-backend restarts it gets a new Docker IP and the
 frontend keeps dialing the dead one → 502. Tell-tale in the **portal-frontend** log:
 ```
 docker compose logs --tail=40 portal-frontend | grep -iE "unreachable|refused|error|502"
-#  -> connect() failed (113: Host is unreachable) ... upstream: "http://<old-ip>:8000/api/..."
+#  -> connect() failed (113: Host is unreachable) ... upstream: "http://<old-ip>:8000/api/portal/..."
 docker inspect $(docker compose ps -q portal-backend) \
   --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'   # its ACTUAL ip now (differs)
 ```

@@ -12,8 +12,8 @@ already be fine.
 
 ## 1. Edge exposure (gateway routes)
 
-The browser/app only ever talks to the portal's own `/api/...`; the portal
-**backend** reaches HAPI/MinIO internally on the docker network. So several
+The browser/app only ever talks to `/api/...` (the platform API, and the portal's
+own `/api/portal/...`); the platform API and portal **backend** reaches HAPI/MinIO internally on the docker network. So several
 gateway routes are admin-only or redundant and should not hang off the public
 edge. Edit `services/nginx/snippets/platform-routes.conf`, then
 `docker exec ${PROJECT_NAME}-gateway nginx -t && nginx -s reload` (no rebuild).

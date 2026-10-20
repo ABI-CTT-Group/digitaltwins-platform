@@ -43,12 +43,12 @@ Everything else in this document is the detail behind those four steps.
 │  │   portal HTML     │    │  <script src="MinIO/.../name.umd.js">│   │
 │  │   (Vue SPA)       │    │  dynamically loaded at runtime  ◄(A) │   │
 │  └────────┬──────────┘    └───────────────────┬──────────────────┘   │
-│           │ /api/…                             │ /plugin/<name>/…     │
+│           │ /api/portal/…                      │ /plugin/<name>/…     │
 └───────────▼────────────────────────────────────▼─────────────────────┘
             │                                    │
     ┌───────┴────────────────────────────────────┴────────┐
     │                 nginx (portal-frontend)              │
-    │   /api/           →  portal-backend:8000            │
+    │   /api/portal/    →  portal-backend:8000            │
     │   /plugin/<name>/ →  <plugin-container>:<port> ◄(D) │
     │   include /etc/nginx/conf.d/plugins/*.conf          │
     └───────┬─────────────────────────────────┬───────────┘

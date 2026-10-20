@@ -110,7 +110,7 @@ An assay run starts one DAG run per input sample, with `dag_run.conf`:
 
 1. **Register the workflow.** Use the portal's *Upload workflow* page, which
    needs approval, or call
-   `POST /digitaltwins-api/datasets?category=workflows&workflow_type=script&seek_project_id=<id>`.
+   `POST /api/datasets?category=workflows&workflow_type=script&seek_project_id=<id>`.
 2. **The DAG is deployed.**
    - **Registered or approved by an admin:** this happens automatically right
      after the registration completes. That includes the portal, the REST API
@@ -118,7 +118,7 @@ An assay run starts one DAG run per input sample, with `dag_run.conf`:
    - **Registered by a researcher:** the workflow's card on the portal's
      Workflows page (`/catalogue/workflows`) shows
      `deploy · pending` until an admin uses *Deploy DAG* on the card, or calls
-     `POST /digitaltwins-api/workflows/{dataset_uuid}/deploy`. The same action
+     `POST /api/workflows/{dataset_uuid}/deploy`. The same action
      redeploys a workflow or retries a failed deploy.
 
    Either way, the platform:
