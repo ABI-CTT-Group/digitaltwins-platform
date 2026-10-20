@@ -1,7 +1,7 @@
 # Move the portal backend into the API's codebase as a separate `builder` service
 
 - **Date:** 2026-10-20
-- **Status:** Accepted. Supersedes, in part, [2026-10-20-api-prefix-and-portal-builder-split](2026-10-20-api-prefix-and-portal-builder-split.md): its rejected Option D is chosen here, and `/api/portal` becomes `/api/builder`.
+- **Status:** Accepted; superseded in part by [2026-10-21-builder-as-its-own-service](2026-10-21-builder-as-its-own-service.md): the builder now lives in its own folder, `services/builder`, with its own Dockerfile, requirements and CI job. Supersedes, in part, [2026-10-20-api-prefix-and-portal-builder-split](2026-10-20-api-prefix-and-portal-builder-split.md): its rejected Option D is chosen here, and `/api/portal` becomes `/api/builder`.
 
 ## Context
 
