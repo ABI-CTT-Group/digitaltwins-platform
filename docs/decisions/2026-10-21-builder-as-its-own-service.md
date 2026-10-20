@@ -55,5 +55,9 @@ Option B.
 ## Consequences
 
 - Each service builds, pins and tests on its own. A change to one doesn't rebuild or retest the other, except through the compose files both read.
+- **Keep the two images separate. The reason isn't tidiness, and it isn't the security boundary either:** the boundary is the separate container, with the socket mount and a minimal environment, and that would hold with one image too. The reasons:
+  - With one image, every API release would also recreate the builder. Every builder restart stops all plugin backends, and they stay down until an admin redeploys them.
+  - The API would carry the builder's git, Node and Docker tooling.
+  - Both would have to share one resolved dependency set, which has already conflicted once (`pandas`/`styleframe`).
 - Five required CI checks again: the ruleset needs "builder unit tests" in place of "portal-backend unit tests" before this merges.
 - The security position is unchanged from the 2026-10-20 decision: builds are still not sandboxed, and the builder still holds the host Docker socket. The follow-ups recorded there still apply.
