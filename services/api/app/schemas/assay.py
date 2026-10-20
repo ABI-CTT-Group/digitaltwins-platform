@@ -31,3 +31,19 @@ class AssayDataModel(BaseModel):
     outputs: Optional[List[AssayOutputModel]] = []
     # Also link the workflow to the assay in SEEK (through an SOP) before saving.
     link_workflow: bool = False
+
+
+class AssayWorkflowDetails(BaseModel):
+    uuid: str
+    seek_id: str
+    inputs: list
+    outputs: list
+
+
+class AssayDetails(BaseModel):
+    """The portal dashboard's assay config dialog, as it saves it."""
+    uuid: str
+    seek_id: str
+    workflow: AssayWorkflowDetails
+    number_of_participants: List[int]
+    is_assay_ready_to_launch: bool
