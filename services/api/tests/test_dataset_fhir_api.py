@@ -29,7 +29,7 @@ PUBLIC = "https://platform.example/api"
 @pytest.fixture
 def env(platform_db, minio_bucket, tmp_path, monkeypatch, hapi):
     monkeypatch.setenv("DATASET_STAGING_DIR", str(tmp_path / "staging"))
-    monkeypatch.setenv("DIGITALTWINS_API_PUBLIC_URL", PUBLIC)
+    monkeypatch.setenv("API_PUBLIC_URL", PUBLIC)
     monkeypatch.setattr(dataset_uploads, "INGEST_CATEGORIES", {minio_bucket})
     return {"db": platform_db, "bucket": minio_bucket, "hapi": hapi}
 

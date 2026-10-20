@@ -27,7 +27,7 @@ The dataset can live **anywhere on the host**. You just give its path.
 
    > **Windows:** double-click the **`.bat`**. Double-clicking a `.ps1` only opens it in an editor. If a script isn't executable on macOS or Linux, run `chmod +x services/api/scripts/import-dataset.*`. Without `--category`, every script asks for the category before copying (and, for a tool or workflow, its type and SEEK project ID).
 
-   The script finds the running `digitaltwins-api` container and copies the dataset into it. It shows a live progress bar if [`pv`](https://www.ivarch.com/programs/pv.shtml) is installed (`apt install pv` / `brew install pv`); otherwise it prints the size. Then it runs the importer inside the container (`python -m digitaltwins.cli.import_dataset`).
+   The script finds the running `api` container and copies the dataset into it. It shows a live progress bar if [`pv`](https://www.ivarch.com/programs/pv.shtml) is installed (`apt install pv` / `brew install pv`); otherwise it prints the size. Then it runs the importer inside the container (`python -m digitaltwins.cli.import_dataset`).
 
 2. **Sign in** when prompted. You need the realm role **admin** or **researcher**, the same as for uploading through the portal or the REST API. On a stock deployment you are asked for your username and password. If the Keycloak device flow is enabled for the API client, you are shown a link to open in your browser instead.
 
@@ -99,5 +99,5 @@ import-dataset.(sh|command|ps1) <FOLDER_OR_ZIP> --category measurements|models|t
 ## Prerequisites (one-time, ops)
 
 - Operators have the `admin` or `researcher` realm role. Tool and workflow importers must also be members of the SEEK project they import into.
-- The stack is up (`docker compose up -d`). The importer runs inside the `digitaltwins-api` container.
+- The stack is up (`docker compose up -d`). The importer runs inside the `api` container.
 - Optional: enable the **device flow** on the Keycloak client used by the API (`KEYCLOAK_CLIENT_ID`) to sign in through the browser instead of typing a password. It is off in the stock realm.

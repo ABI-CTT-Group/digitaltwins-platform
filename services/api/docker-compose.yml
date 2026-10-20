@@ -1,5 +1,5 @@
 services:
-  digitaltwins-api:
+  api:
     build:
       context: .
       dockerfile: Dockerfile
@@ -44,7 +44,7 @@ services:
       AIRFLOW_DAG_DEPLOY_TIMEOUT: ${AIRFLOW_DAG_DEPLOY_TIMEOUT:-120}
       # JupyterHub
       JUPYTERHUB_PUBLIC_URL: ${JUPYTERHUB_PUBLIC_URL:-http://localhost/jupyter}
-      # Token of the hub's digitaltwins-api service; the hub registers the same value.
+      # Token of the hub's api service; the hub registers the same value.
       JUPYTERHUB_API_TOKEN: ${JUPYTERHUB_API_TOKEN:?JUPYTERHUB_API_TOKEN is required}
       # portal-backend, which the dashboard asks for an assay's gui tool
       PORTAL_BACKEND_URL: ${PORTAL_BACKEND_URL:-http://portal-backend:8000}
@@ -54,11 +54,11 @@ services:
       # FHIR annotation push (HAPI FHIR on the platform network) and the public
       # base of this API, used for the FHIR endpoint URLs of dataset files
       FHIR_ENDPOINT: ${FHIR_ENDPOINT:-http://hapi-fhir:8080/fhir}
-      DIGITALTWINS_API_PUBLIC_URL: ${DIGITALTWINS_API_PUBLIC_URL:-http://localhost/api}
+      API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost/api}
     networks:
       - digitaltwins-platform
     volumes:
-      - ./configs.ini:/digitaltwins-api/configs.ini
+      - ./configs.ini:/api/configs.ini
       - dataset_staging:/dataset_staging
       - ../airflow/dags:/airflow-dags
     healthcheck:

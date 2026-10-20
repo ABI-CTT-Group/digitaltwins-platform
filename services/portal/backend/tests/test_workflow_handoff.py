@@ -1,4 +1,4 @@
-"""Approval hands an SDS workflow build to digitaltwins-api as the user; delete removes it there.
+"""Approval hands an SDS workflow build to the platform API as the user; delete removes it there.
 
 Run from `backend/`:
     python -m unittest tests.test_workflow_handoff

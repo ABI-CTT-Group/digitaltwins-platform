@@ -8,7 +8,7 @@
 # Default ports = the portal services the worker reaches directly over the VLAN
 # (see util/compute-node-README.md):
 #   8003 postgres · 8005 redis · 8002 airflow execution API · 8011 minio (S3) ·
-#   8010 digitaltwins-api
+#   8010 api
 # Only Keycloak is reached over the gateway's already-public 443, so it needs no
 # rule here.
 # NOTE: on OpenStack/cloud the SECURITY GROUP is a separate firewall layer below

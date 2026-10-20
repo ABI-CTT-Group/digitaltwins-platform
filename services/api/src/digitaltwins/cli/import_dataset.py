@@ -1,4 +1,4 @@
-"""Import a measurement, model, tool or workflow dataset from inside the digitaltwins-api container.
+"""Import a measurement, model, tool or workflow dataset from inside the api container.
 
     python -m digitaltwins.cli.import_dataset <folder|zip> --category measurements [--name N] [--fhir auto] [--move]
     python -m digitaltwins.cli.import_dataset <folder|zip> --category tools \

@@ -1,6 +1,6 @@
 """CLI: one-off purge of portal tool data from before the platform handoff.
 
-Approving a tool now hands its build to digitaltwins-api: platform Postgres,
+Approving a tool now hands its build to the platform API: platform Postgres,
 MinIO ``tools/<dataset_uuid>/``, SEEK, and an ActivityDefinition identified by
 that UUID (docs/decisions/2026-10-01-unified-tool-dataset-ingest.md). What the
 portal wrote before that is removed:

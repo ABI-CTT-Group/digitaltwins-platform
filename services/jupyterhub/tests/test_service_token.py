@@ -1,4 +1,4 @@
-"""The digitaltwins-api service token: required, and previously configured ones are revoked.
+"""The api service token: required, and previously configured ones are revoked.
 
 Runs ``jupyterhub_config.py`` the way the hub does (``get_config()`` in its working
 directory) against a database built with the hub's own ORM. Run inside the hub image:
@@ -39,10 +39,10 @@ def load_config():
     return c
 
 
-def make_db(path):
+def make_db(path, service="api"):
     """A hub database holding the tokens a deployment that ran with the old default would have."""
     db = orm.new_session_factory(f"sqlite:///{path}")()
-    api = orm.Service(name="digitaltwins-api")
+    api = orm.Service(name=service)
     other = orm.Service(name="other-service")
     alice = orm.User(name="alice")
     # Tokens belong to an OAuth client; a running hub always has its own, "jupyterhub".
@@ -71,7 +71,7 @@ def tokens(path):
 
 def test_the_service_gets_the_token_from_the_environment(hub_dir):
     [service] = load_config().JupyterHub.services
-    assert service["name"] == "digitaltwins-api"
+    assert service["name"] == "api"
     assert service["api_token"] == "new-service-token"
 
 
@@ -81,8 +81,10 @@ def test_a_missing_token_is_an_error_not_a_default(hub_dir, monkeypatch):
         load_config()
 
 
-def test_previously_configured_service_tokens_are_revoked(hub_dir):
-    make_db(hub_dir / "jupyterhub.sqlite")
+# The service was called digitaltwins-api before; its config token must not outlive the rename.
+@pytest.mark.parametrize("service", ["api", "digitaltwins-api"])
+def test_previously_configured_service_tokens_are_revoked(hub_dir, service):
+    make_db(hub_dir / "jupyterhub.sqlite", service)
     load_config()
     assert tokens(hub_dir / "jupyterhub.sqlite") == {
         "old-public-token": False,

@@ -574,7 +574,7 @@ class WorkflowApprovalRequest(BaseModel):
 @router.post("/{workflow_id}/approval", status_code=202)
 def approve_workflow(workflow_id: str, background: BackgroundTasks, body: Optional[WorkflowApprovalRequest] = None,
                      user: dict = WRITER, db: Session = Depends(get_db)):
-    """Hand the latest completed build of an SDS workflow to digitaltwins-api as the calling user.
+    """Hand the latest completed build of an SDS workflow to the platform API as the calling user.
 
     The API registers the workflow and each of its tools in SEEK and stores them
     under new dataset UUIDs; once that commits, a previously approved version
@@ -596,7 +596,7 @@ def approve_workflow(workflow_id: str, background: BackgroundTasks, body: Option
     try:
         workflow_handoff.start(db, workflow, latest, user, seek_project_id, body.fhir)
     except tool_handoff.NeedsReauth:
-        raise HTTPException(status_code=401, detail="digitaltwins-api rejected the token")
+        raise HTTPException(status_code=401, detail="The platform API rejected the token")
     except tool_handoff.ApiError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
     background.add_task(workflow_handoff.run, latest.build_id)
@@ -701,7 +701,7 @@ async def delete_plugin(workflow_id: str, user: dict = WRITER, db: Session = Dep
         logger.info(f"Deleting plugin {workflow_id}")
         if workflow is not None:
 
-            # An approved SDS workflow lives in the platform: digitaltwins-api removes it with its tools
+            # An approved SDS workflow lives in the platform: the platform API removes it with its tools
             # (Postgres, MinIO, SEEK, FHIR). Done first, so a failure keeps the workflow.
             if workflow_handoff.in_platform(workflow):
                 api = tool_handoff.Api(tool_handoff.make_http(), lambda: user["token"])
@@ -755,8 +755,8 @@ async def delete_plugin(workflow_id: str, user: dict = WRITER, db: Session = Dep
         logger.info(f"Deleting workflow {workflow_id} successfully.")
         return {"status": True, "message": "Workflow deleted successfully."}
     except tool_handoff.NeedsReauth:
-        logger.info("Deleting plugin failed: digitaltwins-api rejected the token")
-        return {"status": False, "message": "digitaltwins-api rejected the token; sign in again"}
+        logger.info("Deleting plugin failed: the platform API rejected the token")
+        return {"status": False, "message": "The platform API rejected the token; sign in again"}
     except Exception as e:
         logger.info("Deleting plugin failed due to exception {}".format(e))
         return {"status": False, "message": str(e)}

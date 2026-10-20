@@ -189,7 +189,7 @@ export async function useToolApprovalStatus(id: string) {
   return http.get<ToolApprovalStatus>(`/tools/plugin/${id}/approval/status`);
 }
 
-/** SEEK projects the signed-in user can see (digitaltwins-api). */
+/** SEEK projects the signed-in user can see (platform API). */
 export async function useSeekProjects(): Promise<SeekProject[]> {
   const res = await dtApi.get<{ projects: Array<{ id: string | number; title?: string; attributes?: { title?: string } }> }>(
     "/projects",

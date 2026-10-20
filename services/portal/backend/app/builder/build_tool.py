@@ -28,7 +28,7 @@ from app.utils.builder_utils import (
 logger = get_logger(__name__)
 
 # Test builds (Build & Test step) are served from this public bucket; the
-# approved build is ingested by digitaltwins-api into ``tools/<dataset_uuid>/``.
+# approved build is ingested by the platform API into ``tools/<dataset_uuid>/``.
 TOOL_BUILDS_BUCKET = "tool-builds"
 
 
@@ -207,7 +207,7 @@ class PluginBuilder:
                     copy_item(item, code_dir)
 
             if not layout.is_sds:
-                # digitaltwins-api needs exactly one primary/tool_*.cwl.
+                # The platform API needs exactly one primary/tool_*.cwl.
                 cwl = layout.cwl
                 primary_dir = dataset_dir / "primary"
                 primary_dir.mkdir(exist_ok=True)

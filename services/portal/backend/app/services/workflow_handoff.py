@@ -1,4 +1,4 @@
-"""Hand an approved SDS workflow build to digitaltwins-api, as the approving user.
+"""Hand an approved SDS workflow build to the platform API, as the approving user.
 
 Same session protocol and token relay as :mod:`app.services.tool_handoff`. The
 API ingests the package as a workflow dataset plus a tool dataset per tool

@@ -28,7 +28,7 @@ async def get_current_user(authorization: str = Header(None)):
     try:
         keycloak_client = get_keycloak_client()
         user_info = keycloak_client.get_user_info(token)
-        # The raw token lets a request act as the user downstream (e.g. the tool handoff to digitaltwins-api).
+        # The raw token lets a request act as the user downstream (e.g. the tool handoff to the platform API).
         return {**user_info, "token": token}
     except Exception as e:
         logger.error(f"Authentication failed: {e}")

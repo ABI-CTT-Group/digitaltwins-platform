@@ -116,7 +116,7 @@ class PluginBuild(Base):
     s3_path = Column(String, nullable=True)
     expose_name = Column(String, nullable=True)
     dataset_path = Column(String, nullable=True)
-    # Approval hands the build to digitaltwins-api (app/services/tool_handoff.py).
+    # Approval hands the build to the platform API (app/services/tool_handoff.py).
     handoff_status = Column(String, nullable=True)  # uploading|awaiting_reauth|committing|completed|failed
     upload_id = Column(String, nullable=True)       # the API's upload session
     dataset_uuid = Column(String, nullable=True)    # the platform dataset, once committed
@@ -181,7 +181,7 @@ class Workflow(Base):
     local_archive_path = Column(String, nullable=True)
     workflow_type = Column(String, nullable=True)  # script|notebook|gui; NULL on rows registered before 2026-10-02
     # Set by a successful build from the source layout (app/builder/workflow_layout.py); NULL until built.
-    # An SDS package is approved through digitaltwins-api (see docs/decisions/2026-10-02-workflow-type-independent-of-sds.md).
+    # An SDS package is approved through the platform API (see docs/decisions/2026-10-02-workflow-type-independent-of-sds.md).
     is_sds = Column(Boolean, nullable=True)
     seek_project_id = Column(Integer, nullable=True)
     # A gui SDS workflow builds its tool's frontend like a GUI tool (Plugin); folders are relative to code/.
@@ -214,7 +214,7 @@ class WorkflowBuild(Base):
     s3_path = Column(String, nullable=True)
     expose_name = Column(String, nullable=True)
     dataset_path = Column(String, nullable=True)
-    # Approval hands the build to digitaltwins-api (app/services/workflow_handoff.py).
+    # Approval hands the build to the platform API (app/services/workflow_handoff.py).
     handoff_status = Column(String, nullable=True)  # uploading|awaiting_reauth|committing|completed|failed
     upload_id = Column(String, nullable=True)       # the API's upload session
     dataset_uuid = Column(String, nullable=True)    # the platform dataset, once committed

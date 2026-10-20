@@ -4,7 +4,7 @@ Static checks on portal-frontend's nginx template.
 nginx resolves a literal `proxy_pass http://portal-backend:8000` once, at
 startup. When portal-backend is recreated with a new IP, portal-frontend keeps
 proxying /api/ to the stale address — which Docker may have handed to another
-container (it went to digitaltwins-api, so every /api/ call 404'd). Every
+container (it went to the platform API, so every /api/ call 404'd). Every
 upstream must therefore go through a `set` variable plus a `resolver`, so the
 name is looked up per request (same convention as the platform gateway).
 

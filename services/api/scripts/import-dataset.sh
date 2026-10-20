@@ -10,7 +10,7 @@
 #   ./scripts/import-dataset.sh /path/to/mytool --category tools --tool-type script --seek-project-id 1
 #   ./scripts/import-dataset.sh /path/to/myworkflow --category workflows --workflow-type script --seek-project-id 1
 #
-# The script copies it into the running digitaltwins-api container (with a
+# The script copies it into the running api container (with a
 # progress bar if `pv` is installed), then runs the importer. You'll sign in
 # (admin or researcher). Without --category, it asks for the category first.
 set -euo pipefail
@@ -24,8 +24,8 @@ fi
 SRC="${SRC%/}"
 [ -e "$SRC" ] || { echo "  ✗ No such path: $SRC" >&2; exit 1; }
 
-CID="$(docker ps -q --filter "label=com.docker.compose.service=digitaltwins-api" | head -n1)"
-[ -n "$CID" ] || { echo "  ✗ The digitaltwins-api container is not running." >&2; exit 1; }
+CID="$(docker ps -q --filter "label=com.docker.compose.service=api" | head -n1)"
+[ -n "$CID" ] || { echo "  ✗ The api container is not running." >&2; exit 1; }
 
 # --category is required; ask for it (and a tool's or workflow's options) before the copy.
 case " $* " in

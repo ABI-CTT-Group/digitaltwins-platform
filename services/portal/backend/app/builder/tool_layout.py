@@ -3,7 +3,7 @@
 A tool arrives either as source code (one ``.cwl`` at the root) or as an
 already-packaged SDS dataset (``dataset_description.xlsx`` at the root, the
 source in ``code/`` and the CWL as ``primary/tool_*.cwl`` — the same rule as
-digitaltwins-api's ``find_tool_cwl``).
+the platform API's ``find_tool_cwl``).
 """
 from dataclasses import dataclass
 from pathlib import Path

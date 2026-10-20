@@ -166,7 +166,7 @@ function addRefreshSubscriber(cb: (token: string) => void) {
 attachInterceptors(axios);
 
 /**
- * The platform REST API (digitaltwins-api), reached at /api with the same
+ * The platform REST API (the `api` service), reached at /api with the same
  * Keycloak token. Same case conversion as /api/portal, except that FHIR
  * `descriptions` trees pass through untouched: they are fhir-cda's own
  * camelCase shape (including `_auto` markers) end to end.

@@ -4,22 +4,22 @@ A Python tool for interacting with the 12 LABOURS DigitalTWINS (Digital Translat
 ![Python 3](https://img.shields.io/badge/Python->=3.9-blue)
 [![Contributors][contributors-shield]][contributors-url]
 [![Stargazers][stars-shield]][stars-url]
-[![GitHub issues-closed](https://img.shields.io/github/issues-closed/ABI-CTT-Group/digitaltwins-api.svg)](https://GitHub.com/ABI-CTT-Group/digitaltwins-api/issues?q=is%3Aissue+is%3Aclosed)
+[![GitHub issues-closed](https://img.shields.io/github/issues-closed/ABI-CTT-Group/digitaltwins-platform.svg)](https://github.com/ABI-CTT-Group/digitaltwins-platform/issues?q=is%3Aissue+is%3Aclosed)
 [![apache License][license-shield]][license-url]
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 [![PyPI version fury.io](https://badge.fury.io/py/digitaltwins.svg)](https://pypi.python.org/pypi/digitaltwins)
 <!--* [![Issues][issues-shield]][issues-url] -->
 <!--* [![DOI](https://zenodo.org/badge/XXXX.svg)](https://zenodo.org/badge/latestdoi/XXXXX) -->
 
-[contributors-shield]: https://img.shields.io/github/contributors/ABI-CTT-Group/digitaltwins-api.svg?style=flat-square
-[contributors-url]: https://github.com/ABI-CTT-Group/digitaltwins-api/graphs/contributors
-[stars-shield]: https://img.shields.io/github/stars/ABI-CTT-Group/digitaltwins-api.svg?style=flat-square
-[stars-url]: https://github.com/ABI-CTT-Group/digitaltwins-api/stargazers
-[issues-shield]: https://img.shields.io/github/issues/ABI-CTT-Group/digitaltwins-api.svg?style=flat-square
-[issues-url]: https://github.com/ABI-CTT-Group/digitaltwins-api/issues
-[license-shield]: https://img.shields.io/github/license/ABI-CTT-Group/digitaltwins-api.svg?style=flat-square
-[license-url]: https://github.com/ABI-CTT-Group/digitaltwins-api/blob/master/LICENSE
-[lines-of-code-shield]: https://img.shields.io/tokei/lines/github/ABI-CTT-Group/digitaltwins-api
+[contributors-shield]: https://img.shields.io/github/contributors/ABI-CTT-Group/digitaltwins-platform.svg?style=flat-square
+[contributors-url]: https://github.com/ABI-CTT-Group/digitaltwins-platform/graphs/contributors
+[stars-shield]: https://img.shields.io/github/stars/ABI-CTT-Group/digitaltwins-platform.svg?style=flat-square
+[stars-url]: https://github.com/ABI-CTT-Group/digitaltwins-platform/stargazers
+[issues-shield]: https://img.shields.io/github/issues/ABI-CTT-Group/digitaltwins-platform.svg?style=flat-square
+[issues-url]: https://github.com/ABI-CTT-Group/digitaltwins-platform/issues
+[license-shield]: https://img.shields.io/github/license/ABI-CTT-Group/digitaltwins-platform.svg?style=flat-square
+[license-url]: https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/LICENSE
+[lines-of-code-shield]: https://img.shields.io/tokei/lines/github/ABI-CTT-Group/digitaltwins-platform
 
 ## Table of contents
 * [Introduction](#introduction)
@@ -109,8 +109,8 @@ The DigitalTWINS platform Python API is called `digitaltwins`. It is designed to
    Clone the source code repository from github, e.g.:
    
    ```commandline
-   git clone https://github.com/ABI-CTT-Group/digitaltwins-api.git
-   cd digitaltwins-api
+   git clone https://github.com/ABI-CTT-Group/digitaltwins-platform.git
+   cd digitaltwins-platform/services/api
    ```
    
 2. **Setting up a virtual environment (optional but recommended)**
@@ -131,7 +131,7 @@ The DigitalTWINS platform Python API is called `digitaltwins`. It is designed to
    
 ## Using the DigitalTWINS platform
 
-Please see the [documentation for workshop 1](https://github.com/ABI-CTT-Group/digitaltwins-api/blob/main/tutorials/workshop_1_describing_and_storing_data.md), which describes how to use the 12 LABOURS DigitalTWINS platform and its API.
+Please see the [documentation for workshop 1](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/workshop_1_describing_and_storing_data.md), which describes how to use the 12 LABOURS DigitalTWINS platform and its API.
 
 ### Uploading a measurement dataset from a script
 
@@ -253,13 +253,13 @@ curl -H "Authorization: Bearer <token>" \
   - A tool dataset that a workflow still runs can't be deleted on its own (`409`).
 
 ## Reporting Issues
-To report an issue or suggest a new feature, please use the [issues page](https://github.com/ABI-CTT-Group/digitaltwins-api/issues). Issue templates are provided to allow users to report bugs, and documentation or feature requests. Please check existing issues before submitting a new one.
+To report an issue or suggest a new feature, please use the [issues page](https://github.com/ABI-CTT-Group/digitaltwins-platform/issues). Issue templates are provided to allow users to report bugs, and documentation or feature requests. Please check existing issues before submitting a new one.
 
 ## Contributing
-Fork this repository and submit a pull request to contribute. Before doing so, please read our [Code of Conduct](https://github.com/ABI-CTT-Group/digitaltwins-api/blob/master/CODE_OF_CONDUCT.md) and [Contributing Guidelines](https://github.com/ABI-CTT-Group/digitaltwins-api/blob/master/CONTRIBUTING.md). Pull request templates are provided to help developers describe their contribution, mention the issues related to the pull request, and describe their testing environment. 
+Fork this repository and submit a pull request to contribute. Before doing so, please read our [Code of Conduct](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/CODE_OF_CONDUCT.md) and [Contributing Guidelines](https://github.com/ABI-CTT-Group/digitaltwins-platform#contributing). Pull request templates are provided to help developers describe their contribution, mention the issues related to the pull request, and describe their testing environment. 
 
 ## License
-The DigitalTWINS platform API is fully open source and distributed under the very permissive Apache License 2.0. See [LICENSE](https://github.com/ABI-CTT-Group/digitaltwins-api/blob/main/LICENSE) for more information.
+The DigitalTWINS platform API is fully open source and distributed under the very permissive Apache License 2.0. See [LICENSE](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/LICENSE) for more information.
 
 ## Team
 - Chinchien Lin (12L, CTT, BBRG)
@@ -286,4 +286,4 @@ We gratefully acknowledge the valuable contributions from:
 - Gen3 team at the Centre for Translational Data Science at the University of Chicago
 - Members of the SPARC Data and Resource Center (DRC).
 
-<img src='https://raw.githubusercontent.com/ABI-CTT-Group/digitaltwins-api/main/docs/acknowledgements.jpg' width='500' alt="acknowledgements.jpg">
+<img src='https://raw.githubusercontent.com/ABI-CTT-Group/digitaltwins-platform/main/services/api/docs/acknowledgements.jpg' width='500' alt="acknowledgements.jpg">

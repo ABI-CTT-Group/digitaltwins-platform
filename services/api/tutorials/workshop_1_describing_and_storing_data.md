@@ -39,34 +39,34 @@ Guided Jupyter Notebook tutorials have been developed describing how to use the 
 </thead>
 <tbody>
   <tr>
-    <td><a href="https://github.com/ABI-CTT-Group/digitaltwins-api/blob/main/tutorials/tutorial_1_getting_started.md">
+    <td><a href="https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/tutorial_1_getting_started.md">
     1
     </a></td>
     <td> Getting started with the 12 LABOURS DigitalTWINS platform.</td>
   </tr>
   <tr>
-    <td><a href="https://github.com/ABI-CTT-Group/digitaltwins-api/blob/main/tutorials/tutorial_2_finding_and_downloading_platform_datasets.ipynb">
+    <td><a href="https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/tutorial_2_finding_and_downloading_platform_datasets.ipynb">
     2
     </a></td>
-    <td> Finding and downloading datasets from the DigitalTWINS platform using the digitaltwins-api.</td>
+    <td> Finding and downloading datasets from the DigitalTWINS platform using the platform API.</td>
   </tr>
   <tr>
-    <td><a href="https://github.com/ABI-CTT-Group/digitaltwins-api/blob/main/tutorials/tutorial_3_loading_and_exploring_sds_datasets.ipynb">
+    <td><a href="https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/tutorial_3_loading_and_exploring_sds_datasets.ipynb">
     3
     </a></td>
     <td> Loading and exploring SDS datasets locally using sparc-me.</td>
   </tr>
   <tr>
-    <td><a href="https://github.com/ABI-CTT-Group/digitaltwins-api/blob/main/tutorials/tutorial_4_creating_sds_datasets.ipynb">
+    <td><a href="https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/tutorial_4_creating_sds_datasets.ipynb">
     4
     </a></td>
     <td> Creating SDS datasets locally using sparc-me.</td>
   </tr> 
   <tr>
-    <td><a href="https://github.com/ABI-CTT-Group/digitaltwins-api/blob/main/tutorials/tutorial_5_uploading_datasets.ipynb">
+    <td><a href="https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/tutorial_5_uploading_datasets.ipynb">
     5
     </a></td>
-    <td> Uploading datasets to the DigitalTWINS platform using the digitaltwins-api.</td>
+    <td> Uploading datasets to the DigitalTWINS platform using the platform API.</td>
   </tr>
   
 </tbody>

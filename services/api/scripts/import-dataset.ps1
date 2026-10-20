@@ -6,7 +6,7 @@
 #   .\scripts\import-dataset.ps1 C:\data\mydataset.zip --category measurements --name X --fhir auto
 #   .\scripts\import-dataset.ps1 C:\data\mymodel --category models --fhir auto
 #   .\scripts\import-dataset.ps1 C:\data\mytool --category tools --tool-type script --seek-project-id 1
-# It copies the dataset into the running digitaltwins-api container, then runs
+# It copies the dataset into the running api container, then runs
 # the importer. Sign in (admin or researcher) via your browser when prompted.
 param(
   [Parameter(Position = 0)] [string] $Source,
@@ -18,8 +18,8 @@ if (-not $Source) { $Source = Read-Host "Dataset folder or .zip (full path)" }
 $Source = $Source.TrimEnd('\', '/')
 if (-not (Test-Path $Source)) { Write-Host "  X No such path: $Source"; Read-Host "Press Enter to close"; exit 1 }
 
-$cid = (docker ps -q --filter "label=com.docker.compose.service=digitaltwins-api" | Select-Object -First 1)
-if (-not $cid) { Write-Host "  X The digitaltwins-api container is not running."; Read-Host "Press Enter to close"; exit 1 }
+$cid = (docker ps -q --filter "label=com.docker.compose.service=api" | Select-Object -First 1)
+if (-not $cid) { Write-Host "  X The api container is not running."; Read-Host "Press Enter to close"; exit 1 }
 
 # --category is required; ask for it (and a tool's or workflow's options) before the copy.
 if (-not $Rest) { $Rest = @() }

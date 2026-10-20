@@ -1,5 +1,5 @@
 /**
- * Datasets uploaded to the platform directly (digitaltwins-api REST, CLI), which
+ * Datasets uploaded to the platform directly (platform API REST, CLI), which
  * no portal record produced: listing platform workflows, deleting platform
  * workflows / tools, and deploying any registered script workflow's DAG.
  * Portal-built ones keep using the portal backend otherwise.

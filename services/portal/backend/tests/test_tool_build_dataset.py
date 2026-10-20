@@ -1,4 +1,4 @@
-"""The built SPARC folder is what digitaltwins-api ingests: exactly one CWL, as primary/tool_<stem>.cwl.
+"""The built SPARC folder is what the platform API ingests: exactly one CWL, as primary/tool_<stem>.cwl.
 
 Run from `backend/`:
     python -m unittest tests.test_tool_build_dataset

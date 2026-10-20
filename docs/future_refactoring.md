@@ -2,7 +2,7 @@
 
 This document tracks technical debt, refactoring tasks, and improvements that were identified but skipped in previous iterations. They are documented here for future consideration.
 
-## REST API (`digitaltwins-api`)
+## REST API (`api`)
 
 The following items were identified during the REST API restructuring (`docs/artifacts/2026-08-21-140800-rest-api-refactor`):
 

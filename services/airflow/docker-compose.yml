@@ -66,7 +66,7 @@ x-airflow-common:
     AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:?set AIRFLOW__CORE__FERNET_KEY in secrets.env}
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     # Scan the dags folder for new files every 30 s (default 300), so a DAG deployed through
-    # digitaltwins-api's POST /workflows/{uuid}/deploy loads within its wait.
+    # The platform API's POST /workflows/{uuid}/deploy loads within its wait.
     AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL: '30'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/airflow/execution/'
@@ -87,8 +87,8 @@ x-airflow-common:
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
     # The following line can be used to set a custom config file, stored in the local config folder
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
-    DIGITALTWINS_API_BASE_URL: ${DIGITALTWINS_API_BASE_URL}
-    DIGITALTWINS_API_PORT: ${DIGITALTWINS_API_PORT}
+    API_BASE_URL: ${API_BASE_URL}
+    API_PORT: ${API_PORT}
     AIRFLOW_ENDPOINT: ${AIRFLOW_ENDPOINT}
     AIRFLOW_USERNAME: ${AIRFLOW_USERNAME}
     AIRFLOW_PASSWORD: ${AIRFLOW_PASSWORD}

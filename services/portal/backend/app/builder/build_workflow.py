@@ -47,7 +47,7 @@ class WorkflowBuilder:
 
             layout = detect_workflow_layout(project_dir)
             if layout.is_sds:
-                # digitaltwins-api ingests the package as it is (its metadata, primary/ CWLs and code/).
+                # The platform API ingests the package as it is (its metadata, primary/ CWLs and code/).
                 for item in layout.root.iterdir():
                     copy_item(item, dataset_dir)  # skips .git, node_modules, dist, build
                 logger.info(f"Copied SDS workflow package {layout.root} to {dataset_dir}")
@@ -102,7 +102,7 @@ class WorkflowBuilder:
     def build_gui_tool(self, package_root: Path, dataset_dir: Path, workflow: Dict[str, Any], expose_name: str) -> str:
         """Build a gui SDS workflow's tool frontend into ``primary/<tool stem>/`` of the dataset; returns the stem.
 
-        digitaltwins-api copies that folder into the tool dataset's primary/ on approval. The build runs in a
+        The platform API copies that folder into the tool dataset's primary/ on approval. The build runs in a
         scratch copy of code/, so the source (for a local upload, its staging folder) is never modified.
         """
         tool_cwls = sorted(p for p in (package_root / "primary").glob("tool_*.cwl") if p.is_file())

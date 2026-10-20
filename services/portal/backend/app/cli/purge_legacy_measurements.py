@@ -1,6 +1,6 @@
 """CLI: one-off purge of legacy portal measurements.
 
-Measurement ingest moved to digitaltwins-api (datasets in platform Postgres,
+Measurement ingest moved to the platform API (datasets in platform Postgres,
 MinIO ``measurements/<dataset_uuid>/``, FHIR identifiers = platform UUIDs). The
 measurements the portal uploaded before that are discarded, not migrated. For
 every row of ``portal.measurements`` this removes:
@@ -13,7 +13,7 @@ FHIR: digitaltwins-on-fhir tags only the Compositions with the dataset
 identifier (the row's slug ``uuid``); Patients carry the patient uuid from the
 annotation and the other resources derived identifiers. So the graph is
 collected from those roots by following references and deleted referrers
-first. (digitaltwins-api's ``delete_dataset_fhir_resources`` does the same.)
+first. (The platform API's ``delete_dataset_fhir_resources`` does the same.)
 
 Reads the tables with raw SQL (the ORM models are gone). Safe to re-run: once
 the tables are dropped it does nothing. Delete this CLI in the next release.

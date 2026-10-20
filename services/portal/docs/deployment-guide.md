@@ -90,7 +90,7 @@ SSL=false
 BACKEND_PORT=8000
 
 # Upload ceiling, in MB. Rendered into client_max_body_size on the tools / workflow
-# upload-source location. (Measurement uploads go to digitaltwins-api, which has
+# upload-source location. (Measurement uploads go to the platform API, which has
 # its own MAX_UPLOAD_MB.)
 MAX_UPLOAD_MB=20480
 ```

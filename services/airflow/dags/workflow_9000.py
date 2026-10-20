@@ -4,7 +4,7 @@ workflow_9000 — the "CPU Burn Assay" workflow, launched from the portal.
 Unlike cpu_burn_primes (a standalone DAG triggered straight from the Airflow UI),
 this is a real `workflow_<seek_id>` DAG: assays.py's run_assay() triggers it once
 PER discovered sample, passing dag_run.conf built from that sample's real,
-registered dataset row (see `services/api/digitaltwins-api/app/routers/assays.py`
+registered dataset row (see `services/api/app/routers/assays.py`
 _trigger_dag / _discover_samples). workflow_seek_id (9000) is not a real SEEK
 Workflow object and is never validated by SEEK -- it only has to match the number
 in this file's dag_id, which is all assays.py needs to find it.
@@ -21,7 +21,7 @@ What it does, end to end:
      daemonic-process-can't-fork-children constraint as cpu_burn_primes, so
      workers are spawned with `subprocess`, not `multiprocessing`.
   3. Writes the merged, sorted list of primes found to primes.txt, uploaded via
-     plain boto3 (not the digitaltwins-api package -- that is not guaranteed
+     plain boto3 (not the digitaltwins package -- that is not guaranteed
      importable inside Airflow's own environment) to every path in
      dag_run.conf['output_prefixes'] (one per configured assay output; in
      practice there is exactly one, "primes_output", for this assay).

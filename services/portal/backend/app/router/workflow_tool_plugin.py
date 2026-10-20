@@ -253,7 +253,7 @@ def delete_plugin(plugin_id: str, user: dict = WRITER, db: Session = Depends(get
                     detail=f"Cannot delete plugin. It is used in workflows: {', '.join(workflow_names)}",
                 )
 
-            # The approved version lives in the platform: digitaltwins-api removes its
+            # The approved version lives in the platform: the platform API removes its
             # Postgres rows, MinIO objects, SEEK workflow and FHIR. Done first, so a
             # failure leaves the tool intact rather than orphaning that dataset.
             # (Legacy ``sparc-tool-`` placeholders were never in the platform.)
@@ -655,7 +655,7 @@ class ApprovalRequest(BaseModel):
 @router.post("/plugin/{plugin_id}/approval", status_code=202)
 def approve_plugin(plugin_id: str, background: BackgroundTasks, body: Optional[ApprovalRequest] = None,
                    user: dict = WRITER, db: Session = Depends(get_db)):
-    """Hand the latest completed build to digitaltwins-api as the calling user.
+    """Hand the latest completed build to the platform API as the calling user.
 
     The API registers the tool in SEEK and stores it (Postgres + MinIO) under a
     new dataset UUID; once that commits, a previously approved version is
@@ -676,7 +676,7 @@ def approve_plugin(plugin_id: str, background: BackgroundTasks, body: Optional[A
     try:
         tool_handoff.start(db, plugin, latest, user, seek_project_id, body.fhir)
     except tool_handoff.NeedsReauth:
-        raise HTTPException(status_code=401, detail="digitaltwins-api rejected the token")
+        raise HTTPException(status_code=401, detail="The platform API rejected the token")
     except tool_handoff.ApiError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
     background.add_task(tool_handoff.run, latest.build_id)

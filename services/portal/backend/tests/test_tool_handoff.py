@@ -1,4 +1,4 @@
-"""Approval hands the built tool to digitaltwins-api (chunked session) as the user, with token relay.
+"""Approval hands the built tool to the platform API (chunked session) as the user, with token relay.
 
 Run from `backend/`:
     python -m unittest tests.test_tool_handoff
@@ -21,7 +21,7 @@ CWL = "cwlVersion: v1.2\nclass: CommandLineTool\ninputs:\n  src: Directory\noutp
 
 
 class FakeApi:
-    """digitaltwins-api's /datasets/uploads + /datasets surface, in memory.
+    """The platform API's /datasets/uploads + /datasets surface, in memory.
 
     ``valid`` holds the tokens it accepts; ``expire_after`` invalidates every
     token once that many parts have been received (a 300 s token running out).

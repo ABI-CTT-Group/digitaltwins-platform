@@ -1,7 +1,7 @@
 """
 Tests for the one-off purge of legacy portal measurements (their MinIO prefixes,
 HAPI FHIR resources, staged dataset dirs and the two portal tables). Measurement
-ingest moved to digitaltwins-api; these rows are discarded, not migrated.
+ingest moved to the platform API; these rows are discarded, not migrated.
 
 Run from `backend/`:
     python -m unittest tests.test_purge_legacy_measurements

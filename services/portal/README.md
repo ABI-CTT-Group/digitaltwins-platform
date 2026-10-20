@@ -111,9 +111,9 @@ In the registration form (*Catalogue → Tools* or *Catalogue → Workflows*), t
 ## Importing a dataset from the server
 
 Dataset ingest (measurements, models, tools and workflows) lives in the platform
-REST API (digitaltwins-api); the portal's Upload pages are clients of it. To import
+REST API (`api`); the portal's Upload pages are clients of it. To import
 a prepared dataset from the server terminal instead, use the importer that ships
-with digitaltwins-api: `services/api/scripts/import-dataset.(sh|command|ps1|bat)`.
+with the platform API: `services/api/scripts/import-dataset.(sh|command|ps1|bat)`.
 See its guide: `services/api/docs/import-dataset.md`.
 
 ---

@@ -1,5 +1,5 @@
 /**
- * Model API client — model datasets in digitaltwins-api.
+ * Model API client — model datasets in the platform API.
  *
  * Models upload through the same chunked sessions as measurements
  * (`ChunkedUploader` with `category: 'models'`) and share their lifecycle, so

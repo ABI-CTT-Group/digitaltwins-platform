@@ -34,7 +34,7 @@ def get_minio_downloader():
 
 
 def get_jupyterhub():
-    """JupyterHub as the digitaltwins-api service: starts users' servers and writes into their workspaces."""
+    """JupyterHub as the api service: starts users' servers and writes into their workspaces."""
     from digitaltwins.jupyterhub.hub import JupyterHub
 
     return JupyterHub()

@@ -3,7 +3,7 @@
 A workflow arrives either as source (a ``.cwl`` at the root, whose steps the
 Annotation step maps onto portal tools) or as an SDS package
 (``dataset_description.xlsx`` at the root, one ``primary/workflow_*.cwl`` and the
-``primary/tool_*.cwl`` its steps run), which digitaltwins-api ingests as a
+``primary/tool_*.cwl`` its steps run), which the platform API ingests as a
 workflow dataset (see docs/decisions/2026-10-02-portal-sds-workflow-approval.md).
 The API's ``load_workflow`` checks the rest of the package at finalize.
 """

@@ -144,7 +144,7 @@ DATASET_UUID=$(curl -s "${CURL_OPTS[@]}" -H "Authorization: Bearer $TOKEN" \
 [ -n "$DATASET_UUID" ] || { echo "populate-cpu-burn-assay: dataset registration failed" >&2; exit 1; }
 echo "  dataset_uuid=$DATASET_UUID"
 
-echo "== configuring the assay (digitaltwins-api Postgres record) =="
+echo "== configuring the assay (platform API Postgres record) =="
 CONFIG_BODY=$(jq -n --argjson assay_seek_id "$ASSAY_ID" --arg dataset_uuid "$DATASET_UUID" '{
   assay_seek_id: $assay_seek_id,
   workflow_seek_id: 9000,

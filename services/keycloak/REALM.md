@@ -30,7 +30,7 @@ Each is a confidential OIDC client unless noted; its secret comes from a
 
 | clientId | Type / flows | Secret var | Used by (service) | Purpose |
 |---|---|---|---|---|
-| **`api`** | confidential · authcode + directgrant + **svcacct** | `KEYCLOAK_CLIENT_SECRET` | `digitaltwins-api` (`auth.py`), portal backend (`keycloak.py`), Airflow DAGs, compute-worker | The core **platform service client**. The API/portal authenticate users and the DAGs use client-credentials as this client. Redirect: `http://localhost/*`. |
+| **`api`** | confidential · authcode + directgrant + **svcacct** | `KEYCLOAK_CLIENT_SECRET` | `api` (`auth.py`), portal backend (`keycloak.py`), Airflow DAGs, compute-worker | The core **platform service client**. The API/portal authenticate users and the DAGs use client-credentials as this client. Redirect: `http://localhost/*`. |
 | **`portal-frontend`** | **public** · authcode | — (public) | Portal SPA (browser) | Browser-side login for the portal UI. Redirect: `${PLATFORM_PROTOCOL}://${PLATFORM_DOMAIN}/*`. |
 | **`airflow`** | confidential · authcode + directgrant | `AIRFLOW_KEYCLOAK_CLIENT_SECRET` | Airflow UI (`webserver_config.py`) | **Airflow web UI SSO.** Has the `realm roles → realm_access.roles` mapper so `airflow_*` roles reach the token. Redirect: `.../airflow/auth/oauth-authorized/keycloak`. |
 | **`minio`** | confidential · authcode + directgrant | `MINIO_KEYCLOAK_CLIENT_SECRET` | MinIO (`services/minio`) | MinIO console SSO. Mapper puts realm roles into the **`policy`** claim (MinIO maps that claim → its access policy). Redirect: `.../minio/oauth_callback`. |
@@ -73,7 +73,7 @@ The two sides must match — that's the whole point of using one variable.
 | `PLATFORM_ADMIN_PASSWORD` | (the `admin` **user** password) | Not a client secret — the seeded `admin` user's password. |
 
 > **Not in the realm:** `AIRFLOW_PASSWORD` is *not* a Keycloak secret. It's the
-> local Airflow (FAB) admin password the `digitaltwins-api` uses for
+> local Airflow (FAB) admin password the `api` service uses for
 > `/auth/token`. See the airflow auth notes below.
 
 ---
@@ -133,7 +133,7 @@ Airflow role re-synced on each login (`AUTH_ROLES_SYNC_AT_LOGIN = True`).
   change live via `kcadm`/console.
 - **Missing secret ⇒ build stops.** `gen-realm.sh` errors on any unresolved
   `${..._SECRET}` / `${..._PASSWORD}`. Set every var in `secrets.env` first.
-- **Airflow API auth is separate from Keycloak.** `digitaltwins-api` gets its
+- **Airflow API auth is separate from Keycloak.** The `api` service gets its
   Airflow token via **username/password** against Airflow's `/auth/token`, which
   validates a **local FAB user** — *not* Keycloak. That user is (re)created by
   `_AIRFLOW_WWW_USER_CREATE: 'true'` with password `${AIRFLOW_PASSWORD}`. If it's

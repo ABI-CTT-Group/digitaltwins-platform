@@ -3,7 +3,7 @@
 Covers the six rules from the PLAN classification table plus the truncation
 behaviour for oversize .txt files.
 
-Run from the digitaltwins-api root:
+Run from services/api:
     python -m pytest tests/test_measurement_classifier.py -q
 """
 from __future__ import annotations

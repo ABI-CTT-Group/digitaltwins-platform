@@ -154,7 +154,9 @@ c.JupyterHub.admin_access = True
 # ---------------------------------------------------------------------------
 # Services
 # ---------------------------------------------------------------------------
-_API_SERVICE = 'digitaltwins-api'
+_API_SERVICE = 'api'
+# The service's name before it was renamed; its config tokens are dropped too.
+_LEGACY_API_SERVICE = 'digitaltwins-api'
 
 # The hub adds configured service tokens to its database but never removes ones no longer
 # configured, so a rotated token — including the public default this one used to have —
@@ -169,8 +171,8 @@ if os.path.exists(_hub_db):
     with _db:
         _db.execute(
             "DELETE FROM api_tokens WHERE note = 'from config'"
-            " AND service_id IN (SELECT id FROM services WHERE name = ?)",
-            (_API_SERVICE,),
+            " AND service_id IN (SELECT id FROM services WHERE name IN (?, ?))",
+            (_API_SERVICE, _LEGACY_API_SERVICE),
         )
     _db.close()
 

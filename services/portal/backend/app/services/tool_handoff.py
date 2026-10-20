@@ -1,4 +1,4 @@
-"""Hand an approved tool build to digitaltwins-api, as the approving user.
+"""Hand an approved tool build to the platform API, as the approving user.
 
 The built SPARC folder is uploaded through the API's resumable session protocol
 (``/datasets/uploads``, ``commit_mode=on_finalize``). The API registers the tool
@@ -33,9 +33,9 @@ ACTIVE = ("uploading", "committing", "awaiting_reauth")
 
 
 def make_http() -> httpx.Client:
-    """digitaltwins-api over the internal network."""
-    base = os.getenv("DIGITALTWINS_API_BASE_URL", "http://digitaltwins-api").rstrip("/")
-    return httpx.Client(base_url=f"{base}:{os.getenv('DIGITALTWINS_API_PORT', '8000')}", timeout=httpx.Timeout(120.0))
+    """The platform API over the internal network."""
+    base = os.getenv("API_BASE_URL", "http://api").rstrip("/")
+    return httpx.Client(base_url=f"{base}:{os.getenv('API_PORT', '8000')}", timeout=httpx.Timeout(120.0))
 
 
 class TokenRelay:
@@ -77,7 +77,7 @@ class ApiError(RuntimeError):
 
 
 class Api:
-    """digitaltwins-api calls, each made with the current token from ``token()``."""
+    """Platform API calls, each made with the current token from ``token()``."""
 
     def __init__(self, http: httpx.Client, token: Callable[[], Optional[str]]):
         self.http, self.token = http, token

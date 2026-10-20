@@ -1,7 +1,7 @@
 /**
  * Chunked-upload orchestrator for measurement (and model) datasets.
  *
- * Drives the digitaltwins-api upload session from the browser: create session ->
+ * Drives the platform API's upload session from the browser: create session ->
  * fan out part PUTs with bounded concurrency -> finalize (stages the dataset for
  * annotation + Approval). Supports pause/resume
  * and cancel, and persists a small index to localStorage so an unfinished
@@ -25,7 +25,7 @@ import type { LocalSource } from './upload_source';
 import type { MeasurementResponse } from '@/models/types';
 
 /**
- * Client-side part size. MUST match digitaltwins-api's UPLOAD_PART_SIZE_BYTES
+ * Client-side part size. MUST match the platform API's UPLOAD_PART_SIZE_BYTES
  * (default 8 MiB). Manifest `parts` counts are derived from this, so it has to
  * agree with the server.
  */
