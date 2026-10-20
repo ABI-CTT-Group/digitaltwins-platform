@@ -27,7 +27,6 @@ jobs:
     timeout-minutes: 5
     outputs:
       api: ${{ steps.filter.outputs.api }}
-      portal_backend: ${{ steps.filter.outputs.portal_backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
       jupyterhub: ${{ steps.filter.outputs.jupyterhub }}
       code: ${{ steps.filter.outputs.code }}
@@ -50,17 +49,16 @@ jobs:
           printf 'Changed files:\n%s\n' "$files"
           has() { grep -qE "$1" <<<"$files" && echo true || echo false; }
           all=$(has '^(Makefile|\.github/workflows/)')
-          api=$(has '^services/(api|postgres)/')
+          # The api suite also covers the builder (services/api/builder), whose tests read the
+          # portal-frontend nginx template and the root compose file.
+          api=$(has '^services/(api|postgres)/|^services/portal/frontend/nginx\.conf\.template$|^docker-compose\.yml$')
           frontend=$(has '^services/portal/frontend/')
-          # One portal-backend test reads the frontend's nginx.conf.template.
-          portal_backend=$(has '^services/portal/(backend|frontend)/')
           jupyterhub=$(has '^services/jupyterhub/')
-          [ "$all" = true ] && api=true frontend=true portal_backend=true jupyterhub=true
+          [ "$all" = true ] && api=true frontend=true jupyterhub=true
           code=false
-          for v in $api $frontend $portal_backend $jupyterhub; do [ "$v" = true ] && code=true; done
+          for v in $api $frontend $jupyterhub; do [ "$v" = true ] && code=true; done
           {
             echo "api=$api"
-            echo "portal_backend=$portal_backend"
             echo "frontend=$frontend"
             echo "jupyterhub=$jupyterhub"
             echo "code=$code"
@@ -78,18 +76,6 @@ jobs:
         with:
           persist-credentials: false
       - run: make test-api
-
-  portal-backend:
-    name: portal-backend unit tests
-    needs: changes
-    if: needs.changes.outputs.portal_backend == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - run: make test-portal-backend
 
   frontend:
     name: frontend unit tests

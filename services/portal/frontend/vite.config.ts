@@ -139,7 +139,7 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 80,
     proxy: {
-      // portal-backend; listed first, as the first matching prefix wins.
+      // the builder; listed first, as the first matching prefix wins.
       '/api/portal': {
         target: 'http://localhost:8000',
         changeOrigin: true,

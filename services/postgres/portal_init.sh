@@ -1,5 +1,5 @@
 #!/bin/bash
-# Creates the portal-backend role and the `portal` schema it owns in the main platform
+# Creates the builder's `portal` role and the `portal` schema it owns in the main platform
 # database. The role gets no other privileges: it cannot create schemas or touch the
 # API's tables in `public`.
 #

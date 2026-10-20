@@ -16,7 +16,7 @@ import {
 
 beforeEach(() => vi.resetAllMocks());
 
-// The dashboard is served by the platform API (/api/dashboard), not portal-backend.
+// The dashboard is served by the platform API (/api/dashboard), not the builder.
 describe("dashboard api", () => {
   it("reads through the platform API", async () => {
     dtApi.get.mockResolvedValue([]);

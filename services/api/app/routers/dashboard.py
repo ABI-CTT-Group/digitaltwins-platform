@@ -2,7 +2,7 @@
 Dashboard Router.
 
 The portal's study dashboard: SEEK's programme tree, the assay config dialog and assay launch,
-reshaped for the frontend (moved here from portal-backend). SEEK reads go through the caller's
+reshaped for the frontend (moved here from the portal backend). SEEK reads go through the caller's
 Querier; assay operations call the assays routes in-process, through the module so tests can
 replace them.
 """
@@ -54,20 +54,20 @@ def _relationship_ids(resource: dict, relationship: str) -> list:
 
 
 def _fetch_gui_tool(workflow_seek_id, token: str) -> Optional[dict]:
-    """The gui tool bundle portal-backend serves for a SEEK workflow, asked as the user; None when it has none."""
+    """The gui tool bundle the builder serves for a SEEK workflow, asked as the user; None when it has none."""
     if workflow_seek_id in (None, ""):
         return None
-    base = os.getenv("PORTAL_BACKEND_URL", "http://portal-backend:8000").rstrip("/")
+    base = os.getenv("BUILDER_URL", "http://builder:8000").rstrip("/")
     try:
         res = requests.get(f"{base}/api/portal/workflow/gui-tool", params={"workflow_seek_id": workflow_seek_id},
                            headers={"Authorization": f"Bearer {token}"}, timeout=15)
     except requests.RequestException as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Portal backend unreachable: {e}")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Builder unreachable: {e}")
     if res.status_code == 404:
         return None
     if res.status_code != 200:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY,
-                            detail=f"Portal backend answered {res.status_code} for the GUI tool")
+                            detail=f"Builder answered {res.status_code} for the GUI tool")
     return res.json()
 
 

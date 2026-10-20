@@ -1,4 +1,4 @@
-# Portal nginx. Serves only what the portal owns: the SPA, portal-backend, the
+# Portal nginx. Serves only what the portal owns: the SPA, the builder, the
 # public tools bucket, and the dynamically generated plugin routes.
 #
 # Platform-level routes (/seek, /jupyter, /auth, /airflow) and TLS live in the
@@ -9,7 +9,7 @@
 #
 # Rendered by the official nginx image's entrypoint (envsubst over
 # /etc/nginx/templates/*.template). NGINX_ENVSUBST_FILTER in docker-compose.yml
-# restricts substitution to BACKEND_PORT / MAX_UPLOAD_MB.
+# restricts substitution to BUILDER_PORT / MAX_UPLOAD_MB.
 
 # WebSocket upgrade mapping (shared by all plugin proxies)
 map $http_upgrade $connection_upgrade {
@@ -26,7 +26,7 @@ server {
 
     # Every proxy_pass goes through a `set` variable so the upstream name is
     # resolved per request via Docker's DNS, not once at startup. A literal
-    # host is pinned to its startup IP: recreate portal-backend and /api/portal/ keeps
+    # host is pinned to its startup IP: recreate the builder and /api/portal/ keeps
     # hitting the old address, which Docker may have reassigned to another
     # container. Caveat: with a variable, nginx no longer rewrites the location
     # prefix for you — see the explicit `rewrite` in /minio/.
@@ -52,8 +52,8 @@ server {
     # it up/down without touching code. (Measurement uploads go to the
     # platform API at /api, routed by the platform gateway, not through here.)
     location ~ ^/api/portal/(tools|workflow)/upload-source$ {
-        set $up_backend portal-backend;
-        proxy_pass http://$up_backend:${BACKEND_PORT};
+        set $up_builder builder;
+        proxy_pass http://$up_builder:${BUILDER_PORT};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -68,8 +68,8 @@ server {
     # SSE live build/deploy logs — must NOT be buffered or the terminal
     # output arrives in one delayed burst instead of streaming.
     location ~ ^/api/portal/tools/(builds|deploy)/[^/]+/logs/stream$ {
-        set $up_backend portal-backend;
-        proxy_pass http://$up_backend:${BACKEND_PORT};
+        set $up_builder builder;
+        proxy_pass http://$up_builder:${BUILDER_PORT};
         proxy_http_version 1.1;
         proxy_set_header Connection '';
         proxy_set_header Host $host;
@@ -80,10 +80,10 @@ server {
         proxy_read_timeout 86400;
     }
 
-    # Proxy portal-backend requests (the rest of /api/ is the platform API, routed by the gateway)
+    # Proxy builder requests (the rest of /api/ is the platform API, routed by the gateway)
     location /api/portal/ {
-        set $up_backend portal-backend;
-        proxy_pass http://$up_backend:${BACKEND_PORT};
+        set $up_builder builder;
+        proxy_pass http://$up_builder:${BUILDER_PORT};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

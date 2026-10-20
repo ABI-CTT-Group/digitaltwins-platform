@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: api
     command: [ "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api" ]
     ports:
       - "8010:8000"
@@ -46,8 +47,8 @@ services:
       JUPYTERHUB_PUBLIC_URL: ${JUPYTERHUB_PUBLIC_URL:-http://localhost/jupyter}
       # Token of the hub's api service; the hub registers the same value.
       JUPYTERHUB_API_TOKEN: ${JUPYTERHUB_API_TOKEN:?JUPYTERHUB_API_TOKEN is required}
-      # portal-backend, which the dashboard asks for an assay's gui tool
-      PORTAL_BACKEND_URL: ${PORTAL_BACKEND_URL:-http://portal-backend:8000}
+      # the builder (docker-compose.builder.yml), which the dashboard asks for an assay's gui tool
+      BUILDER_URL: ${BUILDER_URL:-http://builder:8000}
       # dataset upload sessions (chunked parts, staged datasets, FHIR build cache)
       DATASET_STAGING_DIR: /dataset_staging
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-20480}

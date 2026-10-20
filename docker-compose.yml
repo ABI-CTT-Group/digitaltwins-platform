@@ -15,11 +15,13 @@ services:
       file: ./services/nginx/docker-compose.yml
       service: gateway
 
-  portal-backend:
+  # The portal's tool/workflow builder (code in services/api/builder). It holds the host Docker
+  # socket, so it is its own service with its own minimal environment, apart from the API.
+  builder:
     extends:
-      file: ./services/portal/docker-compose.yml
-      service: portal-backend
-    # Under the platform the portal keeps its tables in the `portal` schema of the
+      file: ./services/api/docker-compose.builder.yml
+      service: builder
+    # Under the platform the builder keeps its tables in the `portal` schema of the
     # shared Postgres (see docs/decisions/2026-09-28-portal-database-in-platform-postgres.md).
     # Standalone, these are unset and it falls back to SQLite on the plugin_database
     # volume, which stays mounted as the migration source and rollback path.
@@ -40,6 +42,8 @@ services:
     extends:
       file: ./services/portal/docker-compose.yml
       service: portal-frontend
+    depends_on:
+      - builder
   hapi-fhir:
     extends:
       file: ./services/hapi-fhir/docker-compose.yml

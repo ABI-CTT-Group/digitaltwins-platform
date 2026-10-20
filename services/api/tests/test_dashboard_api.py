@@ -1,6 +1,6 @@
 """The portal's study dashboard: SEEK's programme tree, assay config and launch, reshaped for the frontend.
 
-Served at /api/dashboard (moved here from portal-backend). Responses are snake_case: the frontend's
+Served at /api/dashboard (moved here from the portal backend). Responses are snake_case: the frontend's
 http client camelCases them.
 """
 import pytest
@@ -94,7 +94,7 @@ def client(seek, monkeypatch):
         get_uploader: lambda: "uploader",
     }
     app.dependency_overrides.update(overrides)
-    # gui launches ask portal-backend for the tool; tests that care replace this.
+    # gui launches ask the builder for the tool; tests that care replace this.
     monkeypatch.setattr(dashboard, "_fetch_gui_tool", lambda workflow_seek_id, token: None)
     yield TestClient(app, root_path="/api")
     for dep in overrides:
@@ -409,7 +409,7 @@ def test_assay_download_needs_an_assay(client):
     assert client.get("/dashboard/assay-download").status_code == 400
 
 
-# ── Asking portal-backend for the gui tool ────────────────────────────
+# ── Asking the builder for the gui tool ───────────────────────────────
 
 
 class _Response:
@@ -422,7 +422,7 @@ class _Response:
 
 @pytest.fixture
 def portal(monkeypatch):
-    monkeypatch.setenv("PORTAL_BACKEND_URL", "http://portal-backend:8000")
+    monkeypatch.setenv("BUILDER_URL", "http://builder.test:8000")
     calls = []
 
     def get(url, params=None, headers=None, timeout=None):
@@ -434,11 +434,18 @@ def portal(monkeypatch):
     return portal
 
 
-def test_fetch_gui_tool_asks_the_portal_as_the_user(portal):
+def test_fetch_gui_tool_asks_the_builder_as_the_user(portal):
     portal.response = _Response(200, GUI_TOOL)
     assert dashboard._fetch_gui_tool(95, "tok") == GUI_TOOL
-    assert portal.calls == [("http://portal-backend:8000/api/portal/workflow/gui-tool",
+    assert portal.calls == [("http://builder.test:8000/api/portal/workflow/gui-tool",
                              {"workflow_seek_id": 95}, {"Authorization": "Bearer tok"})]
+
+
+def test_fetch_gui_tool_defaults_to_the_builder_service(portal, monkeypatch):
+    monkeypatch.delenv("BUILDER_URL")
+    portal.response = _Response(404)
+    dashboard._fetch_gui_tool(95, "tok")
+    assert portal.calls[0][0].startswith("http://builder:8000/")
 
 
 def test_fetch_gui_tool_without_a_tool_is_none(portal):
@@ -461,7 +468,7 @@ def test_fetch_gui_tool_when_the_portal_fails_is_502(portal):
 
 def test_fetch_gui_tool_when_the_portal_is_unreachable_is_502(portal, monkeypatch):
     def unreachable(*a, **kw):
-        raise requests.ConnectionError("no route to portal-backend")
+        raise requests.ConnectionError("no route to the builder")
 
     monkeypatch.setattr(dashboard.requests, "get", unreachable)
     with pytest.raises(HTTPException) as exc:

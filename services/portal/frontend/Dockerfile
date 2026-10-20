@@ -42,7 +42,7 @@ COPY --from=builder /app/build /usr/share/nginx/html
 # three vars the template actually uses, so nginx's own $host / $scheme survive.
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 
-# portal-backend writes plugin route configs here through the nginx_plugin_configs
+# The builder writes plugin route configs here through the nginx_plugin_configs
 # volume. nginx.conf's own `include conf.d/*.conf` does not match a subdirectory,
 # so these are pulled in solely by the explicit include inside the server block.
 RUN mkdir -p /etc/nginx/conf.d/plugins

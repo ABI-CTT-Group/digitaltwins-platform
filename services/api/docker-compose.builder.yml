@@ -1,0 +1,89 @@
+# The builder: the portal's tool/workflow builder (code in builder/, image target `builder`).
+# It is the only service with the host Docker socket and runs untrusted plugin builds, so its
+# environment is explicit and minimal: never add the API's credentials here (POSTGRES_*,
+# JUPYTERHUB_*, AIRFLOW_*, SEEK_*); tests/test_service_separation.py enforces that.
+# docs/decisions/2026-10-20-merge-portal-backend-into-api-codebase.md
+#
+# Not included by the root compose file: the root defines `builder` by extending this one and adds
+# the database settings and dependency (the `database` service lives in the root project).
+services:
+  builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/api
+      - DATABASE_PATH=/data/plugin_registry.db
+      - DATASET_DIR_TOOL=/portal_workspace/tools
+      - DATASET_DIR_WORKFLOW=/portal_workspace/workflows
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio:9000}
+      - MINIO_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
+      - MINIO_PORT=${MINIO_PORT:-8004}
+      # Pass-through vars consumed by PLUGIN compose files, not by this backend.
+      # PluginDeployer shells out to `docker compose` from inside this container
+      # with os.environ as the interpolation source, and compose looks for a .env
+      # in the plugin's own project dir — never in clinical-dashboard/.env. So a
+      # `${VAR}` in any plugin compose resolves against THIS block, and a missing
+      # name degrades silently to the plugin's `:-` default rather than erroring.
+      # These names are the plugin-facing contract; keep them even though the
+      # backend's own code reads the MINIO_ACCESS_KEY/MINIO_SECRET_KEY above.
+      #
+      # Corollary: every name in this block occupies a slot in the interpolation
+      # namespace of every third-party plugin's compose file. SSL below is already
+      # a bare, generic word — don't add more of them (HOST, PORT, DEBUG, ENV...)
+      # or a plugin author's unrelated ${VAR} will silently resolve to ours.
+      - MINIO_SERVER_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
+      - MINIO_SERVER_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
+      - PROJECT_NAME=${PROJECT_NAME:-digitaltwins-platform}
+      # Public scheme of the portal — decides whether generated URLs (workflow
+      # metadata, MinIO presigned links) say http:// or https://. The key is SSL
+      # because that is what every .env has always shipped; the backend used to
+      # read USE_SSL, which nothing ever set, so the flag was permanently false.
+      - SSL=${SSL:-false}
+      - FHIR_ENDPOINT=${FHIR_ENDPOINT:-hapi-fhir:8080/fhir}
+      - API_BASE_URL=${API_BASE_URL:-http://api}
+      - API_PORT=${API_PORT:-8000}
+      - PORTAL_BACKEND_HOST=${PORTAL_BACKEND_HOST:-localhost}
+      - PORTAL_KEYCLOAK_BASE_URL=${PORTAL_KEYCLOAK_BASE_URL:-https://130.216.216.243:8009}
+      # Internal Keycloak address for token checks (unset standalone: falls back to the one above).
+      - KEYCLOAK_BASE_URL=${KEYCLOAK_BASE_URL:-}
+      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-api}
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-xxxxxx}
+      - KEYCLOAK_VERIFY_SSL=${KEYCLOAK_VERIFY_SSL:-false}
+      - KEYCLOAK_CA_CERT=${KEYCLOAK_CA_CERT:-}
+      # Nginx plugin config (shared volume with portal-frontend)
+      - NGINX_PLUGINS_CONF_DIR=/nginx-plugins-conf
+      - NGINX_CONTAINER_NAME=${PROJECT_NAME}-portal-frontend
+    volumes:
+      - portal_datasets:/api/data
+      # /portal_workspace holds tool + workflow staging in two subdirs
+      # (tools/, workflows/), keyed off the DATASET_DIR_* env vars above.
+      # (measurements/ is legacy: measurement ingest moved to the platform API.) It was a Windows host bind mount, but
+      # Docker Desktop's gRPC-FUSE hangs under SPARC dataset creation for
+      # large plugins (thousands of small files — VolView/itk pipelines).
+      # Switched to a named volume so SPARC writes stay inside the Linux VM's
+      # ext4. The source of truth for datasets is MinIO; the local copy here
+      # is just build staging + cleanup target on plugin/workflow delete.
+      - portal_workspace:/portal_workspace
+      - plugin_database:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - nginx_plugin_configs:/nginx-plugins-conf
+    restart: unless-stopped
+    # Give the lifespan shutdown hook time to batch-kill all plugin backends
+    # before Docker SIGKILLs the builder itself.
+    stop_grace_period: 60s
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - digitaltwins-platform
+    depends_on:
+      - minio

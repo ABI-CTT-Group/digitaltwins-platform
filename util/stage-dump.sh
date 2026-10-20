@@ -29,7 +29,7 @@ NETWORK="${NETWORK:-$PROJECT}"
 DB_C="${DB_C:-${PROJECT}-database-1}"          # shared Postgres (digitaltwins, ...)
 SEEKDB_C="${SEEKDB_C:-${PROJECT}-db-1}"        # SEEK MySQL
 SEEK_C="${SEEK_C:-${PROJECT}-seek-1}"
-PORTAL_BE_C="${PORTAL_BE_C:-${PROJECT}-portal-backend-1}"
+BUILDER_C="${BUILDER_C:-${PROJECT}-builder-1}"
 MINIO_C="${MINIO_C:-${PROJECT}-minio-1}"
 HAPI_PG_C="${HAPI_PG_C:-hapi-fhir-postgres}"   # separate pg on some layouts; "" to skip
 ORTHANC_VOLS="${ORTHANC_VOLS:-${PROJECT}_orthanc_1_data ${PROJECT}_orthanc_2_data}"
@@ -84,7 +84,7 @@ docker cp "$SEEK_C:/seek/filestore/." "$OUT/seek_filestore/"
 
 # 5. Portal plugin registry (SQLite) ------------------------------------------
 echo "== plugin registry =="
-docker cp "$PORTAL_BE_C:/data/plugin_registry.db" "$OUT/plugin_registry.db"
+docker cp "$BUILDER_C:/data/plugin_registry.db" "$OUT/plugin_registry.db"
 
 # 6. MinIO buckets ------------------------------------------------------------
 # The minio/mc image is minimal (no awk/sed/ls), so enumerate buckets on the
