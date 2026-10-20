@@ -158,8 +158,8 @@ Two things are always true on arm64:
   `orthanc-auth-service` publish **amd64 only**. The compose files already pin
   them with `platform: linux/amd64`, so they run — but *emulated*, which is
   CPU-heavy and slow. Give the machine plenty of headroom (≈8 CPU / 16 GB). The
-  portal backend itself builds **natively** on arm64 (the Docker apt repo in its
-  Dockerfile uses `$(dpkg --print-architecture)`).
+  builder image (`services/api/Dockerfile`, target `builder`) builds **natively** on arm64
+  (its Docker apt repo uses `$(dpkg --print-architecture)`).
 
 Emulation needs a translation layer — the one setup difference between the two
 hosts:
@@ -411,7 +411,7 @@ instead of stopping nginx from starting. Routes are defined in
 | `/orthanc-1/`       | `orthanc-1:8042`          | **Yes** — `ENABLE_KEYCLOAK=true` (orthanc auth plugin). | rewrite (strips `/orthanc-1/`) |
 | `/orthanc-2/`       | `orthanc-2:8042`          | **Yes** — `ENABLE_KEYCLOAK=true`. | rewrite (strips `/orthanc-2/`) |
 | `/api/`             | `api:8000`                | **Yes** — validates Keycloak tokens (resource server, `api` client). | rewrite (strips `/api/`) |
-| `/api/portal/`      | `portal-frontend`         | **Yes** — portal-backend validates the `api` client token. | passthrough |
+| `/api/builder/`     | `portal-frontend`         | **Yes** — the builder validates the `api` client token. | passthrough |
 
 - **passthrough** routes forward the URI unchanged; the app is *told* it lives
   under the prefix by the setting shown. A 404/redirect-to-`/` there is an app

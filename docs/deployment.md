@@ -40,10 +40,9 @@ export KC_HOSTNAME_STRICT_HTTPS=false
 ```
 
 (For a real deployment, use `https` + your domain instead.) You no longer set the
-Keycloak/auth URLs (`KC_HOSTNAME`, `KEYCLOAK_PUBLIC_URL`, `PORTAL_KEYCLOAK_BASE_URL`,
-`ORTHANC_KEYCLOAK_URL`) by hand — they, plus `AIRFLOW_UID` / `NGINX_MODE` / `SSL`,
+Keycloak/auth URLs (`KC_HOSTNAME`, `KEYCLOAK_PUBLIC_URL`, `ORTHANC_KEYCLOAK_URL`) by hand — they, plus `AIRFLOW_UID` / `NGINX_MODE` / `SSL`,
 are **derived automatically** from `PLATFORM_PROTOCOL` + `PLATFORM_DOMAIN`, so the
-four auth URLs can never drift out of sync.
+three auth URLs can never drift out of sync.
 
 Fill in every value in `secrets.env` (e.g. generate `JUPYTERHUB_CRYPT_KEY` with
 `openssl rand -hex 32`). Then generate `.env`:
@@ -221,7 +220,7 @@ Once successfully deployed, the following services and default credentials are a
 | **SEEK**           | `/seek/` | *Via Keycloak* or `<Created User>` | `<Created Pass>` | Catalogue Service                         |
 | **Airflow**        | `/airflow/` | *Via Keycloak* | — | Workflow Management (SSO via Keycloak `admin`) |
 | **Keycloak**       | `/auth/` | `admin` | `admin` | IAM Service (Admin Console)               |
-| **REST API**       | `/api/`  | — | — | Docs at `http://{IP}/api/docs`; the portal backend's own API is `/api/portal/` |
+| **REST API**       | `/api/`  | — | — | Docs at `http://{IP}/api/docs`; the builder (the portal's tool/workflow builder) is `/api/builder/` |
 | **Minio**          | `/minio/` | *Via Keycloak* or `minioadmin` | `minioadmin` | Storage Web GUI (SSO via Keycloak `admin`) |
 | **Orthanc 1**      | `/orthanc-1/` | *Via Keycloak* | — | PACS Service 1                            |
 | **Orthanc 2**      | `/orthanc-2/` | *Via Keycloak* | — | PACS Service 2                            |
@@ -229,17 +228,24 @@ Once successfully deployed, the following services and default credentials are a
 | **HAPI FHIR**      | `/fhir/` | — | — | EHR Service REST API                      |
 | **Postgres**       | `N/A`    | — | — | Internal database (optional pgAdmin runs separately via `services/postgres/docker-compose.yml`) |
 
-## 9. Upgrading: `/digitaltwins-api` → `/api`
+## 9. Upgrading: `/digitaltwins-api` → `/api`, `portal-backend` → `builder`
 
 The platform API moved from `/digitaltwins-api` to `/api`, and its service was renamed from
-`digitaltwins-api` to `api`. The portal backend's own endpoints moved from `/api/tools/...` and
-`/api/workflow/...` to `/api/portal/tools/...` and `/api/portal/workflow/...`. The old paths no longer
-work: there is no redirect. See [the ADR](decisions/2026-10-20-api-prefix-and-portal-builder-split.md).
+`digitaltwins-api` to `api`. The portal backend moved into the API's codebase (`services/api/builder`)
+and runs as the `builder` service; its endpoints moved from `/api/tools/...` and `/api/workflow/...`
+to `/api/builder/tools/...` and `/api/builder/workflow/...`. The old paths no longer work: there is
+no redirect. See the ADRs [2026-10-20-api-prefix-and-portal-builder-split](decisions/2026-10-20-api-prefix-and-portal-builder-split.md)
+and [2026-10-20-merge-portal-backend-into-api-codebase](decisions/2026-10-20-merge-portal-backend-into-api-codebase.md).
 
 An existing deployment upgrades once, from the repository root:
 
-1. **Regenerate `.env`.** The `DIGITALTWINS_API_*` variables are now `API_*`, and
-   `API_PUBLIC_URL` ends in `/api`:
+1. **Rename one secret, keeping its value.** In `secrets.env`, rename `PORTAL_DB_PASSWORD` to
+   `BUILDER_DB_PASSWORD`. Keep the value: it is the password of the existing `portal` database
+   role, and a new value would lock the builder out of its tables.
+2. **Regenerate `.env`.** The `DIGITALTWINS_API_*` variables are now `API_*`, `API_PUBLIC_URL`
+   ends in `/api`, `PORTAL_DB_*` is now `BUILDER_DB_*`, `BACKEND_PORT` / `PORTAL_BACKEND_URL` are
+   `BUILDER_PORT` / `BUILDER_URL`, and `PORTAL_BACKEND_HOST` / `PORTAL_KEYCLOAK_BASE_URL` are gone
+   (`PLATFORM_DOMAIN` / `KEYCLOAK_PUBLIC_URL` carry the same values):
    ```bash
    util/gen-env.sh -e env -s secrets.env
    ```
@@ -247,16 +253,18 @@ An existing deployment upgrades once, from the repository root:
    (`util/generate-compute-env.sh <portal_vlan_ip> > compute.env`) and restart its worker.
    Any DAG code of your own that reads `DIGITALTWINS_API_BASE_URL` or `DIGITALTWINS_API_PORT` must
    switch to `API_BASE_URL` / `API_PORT`.
-2. **Rebuild and restart.** `--remove-orphans` removes the old `digitaltwins-api` container. Then
-   reload the gateway's routes:
+3. **Rebuild and restart.** `--remove-orphans` removes the old `digitaltwins-api` and
+   `portal-backend` containers. Stopping `portal-backend` stops every plugin backend it started and
+   marks it down, as any restart of it always has; the builder does not start them again, so
+   redeploy the ones you need from the Tool Hub (admin) afterwards. Then reload the gateway's routes:
    ```bash
-   sudo docker compose build api portal-backend portal-frontend
+   sudo docker compose build api builder portal-frontend
    sudo docker compose up -d --remove-orphans
    docker exec ${PROJECT_NAME}-gateway nginx -t && docker exec ${PROJECT_NAME}-gateway nginx -s reload
    ```
    JupyterHub restarts with the stack and registers the API under its new service name. Its
    startup also revokes the old `digitaltwins-api` service's token.
-3. **Re-push stale FHIR links.** Measurement datasets pushed before the move link their files under
+4. **Re-push stale FHIR links.** Measurement datasets pushed before the move link their files under
    `/digitaltwins-api/...` in HAPI. Re-push them, checking the list first:
    ```bash
    sudo docker compose exec api python -m digitaltwins.cli.repush_fhir_urls --dry-run

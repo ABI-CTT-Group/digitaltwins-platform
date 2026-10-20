@@ -172,7 +172,7 @@ A tool dataset is an SDS folder. `primary/` holds exactly one `tool_<name>.cwl`,
 
 The upload is registered in SEEK first, as a Workflow tagged `tool` + `<tool_type>` in the SEEK project you name, and as you. You must be a member of that project. SEEK parses the CWL's inputs and outputs. The Workflow's title is the upload's name when one is given (the `name` of a resumable session, as typed in the portal), otherwise the CWL `label`, otherwise the CWL file stem. The same applies to workflow datasets; the tools a workflow registers for its steps keep their CWL `label`. The dataset is then stored in the MinIO `tools` bucket and in Postgres. The dataset's `seek_id` and `tool_type` link it to that Workflow.
 
-The portal's tool wizard builds a tool from source (git or a local folder), and on Approval it hands the build to this same pipeline.
+The portal's tool wizard builds a tool from source (git or a local folder), and on Approval it hands the build to this same pipeline. The wizard is served by the builder, a separate service whose code also lives here (`builder/`); see [docs/builder.md](docs/builder.md).
 
 ```bash
 curl -H "Authorization: Bearer <token>" \

@@ -13,14 +13,14 @@ already be fine.
 ## 1. Edge exposure (gateway routes)
 
 The browser/app only ever talks to `/api/...` (the platform API, and the portal's
-own `/api/portal/...`); the platform API and portal **backend** reaches HAPI/MinIO internally on the docker network. So several
+builder at `/api/builder/...`); the platform API and the builder reach HAPI/MinIO internally on the docker network. So several
 gateway routes are admin-only or redundant and should not hang off the public
 edge. Edit `services/nginx/snippets/platform-routes.conf`, then
 `docker exec ${PROJECT_NAME}-gateway nginx -t && nginx -s reload` (no rebuild).
 
 - [ ] **Remove `/fhir/`** — HAPI is served **unauthenticated**; an open
   read/write clinical-data API at the edge is a real exposure. Nothing app-side
-  uses it (the backend talks to `hapi-fhir:8080` internally).
+  uses it (the API and the builder talk to `hapi-fhir:8080` internally).
 - [ ] **Remove `/minio/`** — this is the MinIO **console** (admin UI, port 9001)
   behind default creds. No app path uses it; there is already no edge route to
   MinIO's S3 API (9000).
@@ -67,7 +67,7 @@ Set every one of these to a strong value in `secrets.env` (never leave a
 
 - [ ] Real CA-signed cert in place (`data/fullchain.pem`/`privkey.pem`), not
   self-signed; `PLATFORM_PROTOCOL=https`, `NGINX_MODE=ssl`.
-- [ ] **`KEYCLOAK_VERIFY_SSL`** (portal backend) — currently `false` to tolerate
+- [ ] **`KEYCLOAK_VERIFY_SSL`** (builder) — currently `false` to tolerate
   self-signed certs; set **`true`** in production with a real cert.
 - [ ] Cert **renewal** process in place (Let's Encrypt / provider) — certs expire.
 

@@ -22,7 +22,7 @@ This was audited against each service's actual config (not assumed) on 2026-09-0
 
 ## Summary by shape
 
-- **Open to any realm user, login-wise** (content/privilege still varies): `/seek`, `/airflow`, `/api` (dataset writes: `admin`/`researcher`), `/` and `/api/portal` (portal).
+- **Open to any realm user, login-wise** (content/privilege still varies): `/seek`, `/airflow`, `/api` (dataset writes: `admin`/`researcher`), `/` (portal) and `/api/builder` (the portal's builder).
 - **Hard-gated by Keycloak group at login**: `/grafana` (`grafana-admin`/`-editor`/`-viewer`), `/jupyter` (`admin`/`researcher`).
 - **Likely permission-gated rather than login-gated, not fully verified live**: `/minio`, `/orthanc-1`/`/orthanc-2`.
 - **No authentication at all**: `/fhir`.

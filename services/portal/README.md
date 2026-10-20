@@ -101,7 +101,7 @@ In the registration form (*Catalogue → Tools* or *Catalogue → Workflows*), t
 
 ### Local upload constraints
 
-- **Total size cap: 500 MB.** Both nginx and the backend reject anything bigger.
+- **Total size cap: 500 MB.** Both nginx and the builder reject anything bigger.
 - The following directories are auto-skipped in both modes (folder / pre-made zip): `node_modules`, `.git`, `dist`, `build`. If you zip a project with a third-party tool, you do **not** need to manually clean these — they are filtered server-side on extract too.
 - `package.json` is searched recursively; the shallowest match (outside the blacklist) provides the `version` / `author` autofill. Project root detection unwraps single-folder GitHub-style zips automatically.
 - A `.zip` that you downloaded straight from GitHub ("Source code (zip)") works as-is — no need to unzip first.

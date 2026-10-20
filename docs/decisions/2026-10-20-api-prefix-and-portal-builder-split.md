@@ -1,7 +1,7 @@
 # Serve the platform API at /api; move the portal builder to /api/portal
 
 - **Date:** 2026-10-20
-- **Status:** Accepted
+- **Status:** Accepted. Superseded in part by [2026-10-20-merge-portal-backend-into-api-codebase](2026-10-20-merge-portal-backend-into-api-codebase.md): the builder moved into the API's codebase as the `builder` service (Option D below), at `/api/builder`.
 
 ## Context
 
