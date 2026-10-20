@@ -15,8 +15,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from urllib.parse import quote
 from app.database.database import get_db
-from app.models.db_model import Workflow, WorkflowBuild
-from app.utils.workflow_tool_utils import served_workflow_build, workflow_bundle_path
+from app.router.workflow_router import resolve_gui_tool
 
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent.parent
@@ -472,22 +471,6 @@ NO_GUI_TOOL_MESSAGE = ("This assay's workflow has no launchable GUI tool. Build 
                        "or link the assay to a workflow that has one.")
 
 
-def _resolve_gui_tool(db: Session, workflow_seek_id) -> Optional[dict]:
-    """The bundle /tool-view mounts for a SEEK workflow: the portal's gui workflow registered against that id,
-    served as the Tool Hub serves it. None when no such build exists (REST/CLI gui uploads stay non-launchable)."""
-    if workflow_seek_id in (None, ""):
-        return None
-    workflow = (db.query(Workflow).join(WorkflowBuild, WorkflowBuild.workflow_id == Workflow.id)
-                .filter(WorkflowBuild.seek_id == str(workflow_seek_id), Workflow.workflow_type == "gui").first())
-    if workflow is None:
-        return None
-    build = served_workflow_build(db, workflow)
-    path = workflow_bundle_path(build) if build else None
-    if not path:
-        return None
-    return {"name": build.tool_name, "path": path, "expose": build.expose_name}
-
-
 @router.get("/assay-launch")
 async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None), client: DigitalTWINSAPIClient = Depends(get_client),
                                                 db: Session = Depends(get_db)):
@@ -520,7 +503,7 @@ async def launch_dashboard_assay_detail_by_uuid(seek_id: str = Query(None), clie
             }
         if workflow_type == "gui":
             # The tool runs in the browser: /tool-view loads the assay's inputs through /assay-gui-context.
-            if _resolve_gui_tool(db, configs.get("workflow_seek_id")) is None:
+            if resolve_gui_tool(db, configs.get("workflow_seek_id")) is None:
                 return {"message": NO_GUI_TOOL_MESSAGE}
             return {
                 "type": "gui",
@@ -547,7 +530,7 @@ async def get_assay_gui_context(seek_id: str = Query(...), client: DigitalTWINSA
     try:
         a_res = await client.get(f"/assays/{seek_id}", {"get_configs": True})
         configs = a_res.json().get("assay", {}).get("configs") or {}
-        tool = _resolve_gui_tool(db, configs.get("workflow_seek_id"))
+        tool = resolve_gui_tool(db, configs.get("workflow_seek_id"))
         if tool is None:
             raise HTTPException(status_code=404, detail=NO_GUI_TOOL_MESSAGE)
         gui_inputs = (await client.get(f"/assays/{seek_id}/gui-inputs")).json()

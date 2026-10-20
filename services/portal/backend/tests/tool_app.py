@@ -1,4 +1,4 @@
-"""Test app for the /api/tools router: SQLite tables, fake Keycloak tokens.
+"""Test app for the /api/portal/tools router: SQLite tables, fake Keycloak tokens.
 
 Import this before any ``app.*`` module: it points DATABASE_PATH at a fresh
 SQLite file. Tokens: ``admin``, ``admin2``, ``researcher`` and ``viewer`` (valid,
@@ -45,7 +45,7 @@ def make_client():
 
 
 def make_workflow_client():
-    """The /api/workflow router on the same SQLite tables and fake Keycloak."""
+    """The /api/portal/workflow router on the same SQLite tables and fake Keycloak."""
     from app.router import workflow_router  # imported late: it builds MinIO / FHIR clients at import
 
     auth.get_keycloak_client = lambda: FakeKeycloak()
@@ -57,7 +57,7 @@ def make_workflow_client():
 
 
 def make_hub_client():
-    """Both the /api/tools and /api/workflow routers, as the Tool Hub uses them, on fresh SQLite tables."""
+    """Both the /api/portal/tools and /api/portal/workflow routers, as the Tool Hub uses them, on fresh SQLite tables."""
     from app.router import workflow_router  # imported late: it builds MinIO / FHIR clients at import
 
     auth.get_keycloak_client = lambda: FakeKeycloak()

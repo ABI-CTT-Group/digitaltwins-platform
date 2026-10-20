@@ -57,7 +57,7 @@ configure_logging()
 logger = get_logger(__name__)
 # Every endpoint needs a valid Keycloak token; writes need admin|researcher and
 # running plugin backends (docker on the host socket) needs admin.
-router = APIRouter(prefix="/api/tools", dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/api/portal/tools", dependencies=[Depends(get_current_user)])
 WRITER = Depends(require_any_role("admin", "researcher"))
 ADMIN = Depends(require_any_role("admin"))
 builder = PluginBuilder()

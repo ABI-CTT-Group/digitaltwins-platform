@@ -141,11 +141,11 @@ class HandoffTest(unittest.TestCase):
             return build.build_id
 
     def _approve(self, token="researcher", **body):
-        return self.client.post(f"/api/tools/plugin/{self.plugin_id}/approval",
+        return self.client.post(f"/api/portal/tools/plugin/{self.plugin_id}/approval",
                                 json={"seek_project_id": 11, **body}, headers=bearer(token))
 
     def _status(self, token="researcher"):
-        return self.client.get(f"/api/tools/plugin/{self.plugin_id}/approval/status", headers=bearer(token))
+        return self.client.get(f"/api/portal/tools/plugin/{self.plugin_id}/approval/status", headers=bearer(token))
 
     def _rows(self, build_id=None):
         with SessionLocal() as db:
@@ -251,7 +251,7 @@ class HandoffTest(unittest.TestCase):
         self.assertEqual(self._approve().status_code, 409)
 
     def test_a_seek_project_is_required(self):
-        r = self.client.post(f"/api/tools/plugin/{self.plugin_id}/approval", json={}, headers=bearer("researcher"))
+        r = self.client.post(f"/api/portal/tools/plugin/{self.plugin_id}/approval", json={}, headers=bearer("researcher"))
         self.assertEqual(r.status_code, 400)
         self.assertIn("seek_project_id", r.json()["detail"])
 
@@ -286,7 +286,7 @@ class HandoffTest(unittest.TestCase):
             "uuid": dataset_uuid, "input": [{"id": "src", "resourceType": "ImagingStudy"}],
             "output": [{"id": "nifti", "resourceType": "Observation", "code": "1", "system": "s"}]}}
 
-        r = self.client.get(f"/api/tools/plugin/{self.plugin_id}/annotation", headers=bearer("viewer"))
+        r = self.client.get(f"/api/portal/tools/plugin/{self.plugin_id}/annotation", headers=bearer("viewer"))
 
         self.assertEqual(r.status_code, 200, r.text)
         self.assertEqual(json.loads(r.json()["fhir_note"]), {
