@@ -25,7 +25,7 @@ INTERNAL = "http://keycloak:8080/auth"
 
 class KeycloakServerUrlTest(unittest.TestCase):
     def _server_url(self, **env):
-        with mock.patch.dict(os.environ, {"KEYCLOAK_CLIENT_SECRET": "", **env}, clear=False):
+        with mock.patch.dict(os.environ, env, clear=False):
             for name in ("KEYCLOAK_BASE_URL", "KEYCLOAK_PUBLIC_URL"):
                 if name not in env:
                     os.environ.pop(name, None)

@@ -18,8 +18,9 @@ REPO_ROOT = SERVICE_ROOT.parents[1]
 DOCKER_SOCK = "/var/run/docker.sock"
 
 # The API's credentials and handles the builder never needs. Plugin builds inherit the builder's
-# environment, so any of these there would be readable by plugin code.
-API_ONLY = re.compile(r"^(POSTGRES_|JUPYTERHUB_|AIRFLOW_|SEEK_)|^API_PUBLIC_URL$")
+# environment, so any of these there would be readable by plugin code. The builder only verifies
+# tokens with the realm's public key, so the `api` client's secret has no use there either.
+API_ONLY = re.compile(r"^(POSTGRES_|JUPYTERHUB_|AIRFLOW_|SEEK_)|^(API_PUBLIC_URL|KEYCLOAK_CLIENT_SECRET)$")
 
 
 def _service(path, name):
