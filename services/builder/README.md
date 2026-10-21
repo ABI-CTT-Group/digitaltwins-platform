@@ -11,7 +11,7 @@ The builder is the portal's tool and workflow builder: the Tool Hub's register, 
 | `app/engine/` | Build and deploy: source acquisition, Vite patching, `npm`/`yarn` builds, SPARC datasets, `docker compose` deploys, nginx plugin routes, live logs |
 | `app/services/` | Approval handoff: uploads a build to the platform API as the user |
 | `app/models/`, `app/database/` | SQLAlchemy models of the `portal` schema, and its numbered SQL migrations (`app/database/migrations/`) |
-| `app/client/` | Keycloak, MinIO and HAPI FHIR clients |
+| `app/client/` | Keycloak, MinIO and HAPI FHIR clients. `keycloak_verifier.py` is a verbatim copy of the API's; change both together |
 | `app/cli/` | One-off commands, run in the builder container: `python -m app.cli.<name>` |
 | `tests/` | Unit tests (`make test-builder`) |
 | `requirements.txt`, `requirements-test.txt` | Its dependencies, pinned to the versions the tests run against |
@@ -38,14 +38,15 @@ The builder and the API talk over HTTP, as the calling user:
 |---|---|
 | `BUILDER_DB_HOST`, `BUILDER_DB_PORT`, `BUILDER_DB_NAME`, `BUILDER_DB_USER`, `BUILDER_DB_PASSWORD` | Postgres (`portal` role and schema). With `BUILDER_DB_HOST` unset, SQLite at `DATABASE_PATH` |
 | `PLATFORM_DOMAIN`, `SSL` | Public host and scheme in generated URLs and the CORS origin |
-| `KEYCLOAK_BASE_URL`, falling back to `KEYCLOAK_PUBLIC_URL` | Where token signatures are checked |
+| `KEYCLOAK_BASE_URL`, falling back to `KEYCLOAK_PUBLIC_URL` | Where the realm's issuer and signing keys are fetched to check tokens. Only tokens issued to the `portal-frontend` and `api` clients are accepted ([ADR](../../docs/decisions/2026-10-21-one-keycloak-token-verifier.md)) |
+| `KEYCLOAK_CA_CERT`, `KEYCLOAK_VERIFY_SSL` | A CA bundle to trust for Keycloak's TLS certificate; `KEYCLOAK_VERIFY_SSL=false` turns verification off (default: on) |
 | `BUILDER_PORT` | The port portal-frontend's nginx proxies `/api/builder/` to |
 
 Plugin compose files interpolate against the builder's environment. `MINIO_SERVER_*`, `PROJECT_NAME` and `SSL` are the names plugins may rely on.
 
 ## Database migrations
 
-On Postgres, the builder applies `app/database/migrations/NNNN_<name>.sql` at startup and records each one in `portal.schema_migrations`. The runner is a verbatim copy of the platform API's, `services/api/src/digitaltwins/postgres/migration_runner.py`. `tests/test_migration_runner.py` fails if the two differ, so change both together. Why: [ADR 2026-10-21-builder-numbered-sql-migrations](../../docs/decisions/2026-10-21-builder-numbered-sql-migrations.md).
+On Postgres, the builder applies `app/database/migrations/NNNN_<name>.sql` at startup and records each one in `portal.schema_migrations`. The runner is a verbatim copy of the platform API's, `services/api/src/digitaltwins/postgres/migration_runner.py`. `tests/test_shared_with_api.py` fails if the two differ, so change both together. Why: [ADR 2026-10-21-builder-numbered-sql-migrations](../../docs/decisions/2026-10-21-builder-numbered-sql-migrations.md).
 
 To change the schema:
 

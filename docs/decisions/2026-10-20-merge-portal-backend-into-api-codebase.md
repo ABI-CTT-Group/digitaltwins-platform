@@ -76,7 +76,7 @@ Details decided with it:
 - **Unchanged and still unsafe: builds are not sandboxed.** Anything that can start a build can reach the host Docker daemon. The follow-up is to run builds against an isolated daemon (a Docker-in-Docker sidecar, rootless Docker or a daemonless builder), or to move to Option 3.
 - **Two follow-ups for consistency, not done here:**
   - one migration runner for both `public` and `portal`: done in [2026-10-21-builder-numbered-sql-migrations](2026-10-21-builder-numbered-sql-migrations.md)
-  - one Keycloak verifier
+  - one Keycloak verifier: done in [2026-10-21-one-keycloak-token-verifier](2026-10-21-one-keycloak-token-verifier.md)
 - **Breaking for deployments.**
   - Rename `PORTAL_DB_PASSWORD` to `BUILDER_DB_PASSWORD` in `secrets.env`, keeping its value, then regenerate `.env`.
   - Rebuild, then `up -d --remove-orphans`. Removing `portal-backend` stops the plugin backends it started; they must be redeployed.
