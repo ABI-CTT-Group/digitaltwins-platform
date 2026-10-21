@@ -47,8 +47,8 @@ test-api: cache-dirs
 
 # Also mounted, read-only: the portal-frontend nginx template (a test checks which locations reach
 # the builder), the root and API compose files (tests check the builder's environment and the
-# Docker socket mount there; they hold no secrets) and the API's migration runner (the builder's
-# copy must match it).
+# Docker socket mount there; they hold no secrets) and the API's migration runner and Keycloak
+# verifier (the builder's copies must match them).
 test-builder: cache-dirs
 	$(RUN) -v $(CURDIR)/services/builder:/w:ro -w /w $(PY311_IMAGE) sh -c \
 	  'uv venv -q --allow-existing /cache/builder/venv && uv pip install -q --python /cache/builder/venv -r requirements-test.txt'
@@ -57,6 +57,7 @@ test-builder: cache-dirs
 	  -v $(CURDIR)/docker-compose.yml:/w/docker-compose.yml:ro \
 	  -v $(CURDIR)/services/api/docker-compose.yml:/w/services/api/docker-compose.yml:ro \
 	  -v $(CURDIR)/services/api/src/digitaltwins/postgres/migration_runner.py:/w/services/api/src/digitaltwins/postgres/migration_runner.py:ro \
+	  -v $(CURDIR)/services/api/src/digitaltwins/core/keycloak_verifier.py:/w/services/api/src/digitaltwins/core/keycloak_verifier.py:ro \
 	  -w /w/services/builder $(PY311_IMAGE) \
 	  /cache/builder/venv/bin/python -m pytest -p no:cacheprovider $(PYTEST_ARGS)
 

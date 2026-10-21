@@ -21,6 +21,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app.models.db_model import Base, engine  # noqa: E402
 from app.router import workflow_tool_plugin  # noqa: E402
 from app.utils import auth  # noqa: E402
+from app.client.keycloak_verifier import InvalidToken  # noqa: E402
 
 ROLES = {"admin": ["admin"], "admin2": ["admin"], "researcher": ["researcher"], "viewer": []}
 
@@ -31,7 +32,7 @@ class FakeKeycloak:
     def get_user_info(self, token):
         user = token.split("#")[0]
         if user not in ROLES:
-            raise ValueError("Signature has expired")
+            raise InvalidToken("Signature has expired")
         return {"username": user, "roles": ROLES[user]}
 
 
