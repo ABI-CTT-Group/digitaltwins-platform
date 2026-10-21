@@ -75,7 +75,7 @@ Details decided with it:
   - The API image is no larger or more privileged than before.
 - **Unchanged and still unsafe: builds are not sandboxed.** Anything that can start a build can reach the host Docker daemon. The follow-up is to run builds against an isolated daemon (a Docker-in-Docker sidecar, rootless Docker or a daemonless builder), or to move to Option 3.
 - **Two follow-ups for consistency, not done here:**
-  - one migration runner for both `public` and `portal`
+  - one migration runner for both `public` and `portal`: done in [2026-10-21-builder-numbered-sql-migrations](2026-10-21-builder-numbered-sql-migrations.md)
   - one Keycloak verifier
 - **Breaking for deployments.**
   - Rename `PORTAL_DB_PASSWORD` to `BUILDER_DB_PASSWORD` in `secrets.env`, keeping its value, then regenerate `.env`.
