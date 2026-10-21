@@ -11,6 +11,7 @@ import psycopg2
 import pytest
 
 from conftest import load_baseline
+from digitaltwins.postgres import migration_runner
 from digitaltwins.postgres.migrate import MIGRATIONS_DIR, apply_migrations, discover
 
 
@@ -121,6 +122,20 @@ def test_concurrent_runners_apply_each_migration_once(scratch_db, tmp_path):
     assert errors == []
     assert sorted(results) == [[], ["0001", "0002"]]
     assert _applied(scratch_db()) == ["0001", "0002"]
+
+
+@pytest.mark.integration
+def test_the_runner_records_migrations_in_the_schema_it_is_given(scratch_db, tmp_path):
+    # The builder runs the same runner (a copy) against its own `portal` schema.
+    _write(tmp_path, "0001_create.sql", "CREATE TABLE app.t1 (id int);")
+    conn = scratch_db()
+    with conn.cursor() as cur:
+        cur.execute("CREATE SCHEMA app")
+    conn.commit()
+
+    assert migration_runner.apply_migrations(conn, tmp_path, schema="app", lock_key=1) == ["0001"]
+    assert _fetch(conn, "SELECT version, name FROM app.schema_migrations") == [("0001", "0001_create.sql")]
+    assert not _table_exists(conn, "schema_migrations")
 
 
 @pytest.mark.integration
