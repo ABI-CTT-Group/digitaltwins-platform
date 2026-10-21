@@ -1,43 +1,48 @@
-"""require_upload_role: realm role admin|researcher required, via Bearer or Basic."""
+"""The API's Keycloak auth: realm role admin|researcher required, via Bearer or Basic.
+
+Tokens are checked by the shared verifier against a stand-in realm on the loopback
+(see test_keycloak_verifier.py).
+"""
 import base64
 import sys
 import time
 from pathlib import Path
 
+import jwt
 import pytest
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
-from jose import jwt
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.routers import auth
+from digitaltwins.core.keycloak_verifier import KeycloakVerifier
+from test_keycloak_verifier import ISSUER, REALM, FakeRealm, _rsa_key
 
-_KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-_PRIVATE_PEM = _KEY.private_bytes(
-    serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
-).decode()
-_PUBLIC_PEM = _KEY.public_key().public_bytes(
-    serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
-).decode()
+_REALM = None
 
 
-def _token(roles, expires_in=300):
-    claims = {
-        "preferred_username": "alice",
-        "realm_access": {"roles": roles},
-        "exp": int(time.time()) + expires_in,
-    }
-    return jwt.encode(claims, _PRIVATE_PEM, algorithm="RS256")
+def _token(roles=None, expires_in=300, azp="portal-frontend", **extra):
+    now = int(time.time())
+    claims = {"iss": ISSUER, "azp": azp, "typ": "Bearer", "preferred_username": "alice",
+              "iat": now, "exp": now + expires_in, **extra}
+    if roles is not None:
+        claims["realm_access"] = {"roles": roles}
+    return jwt.encode(claims, _REALM.keys["k1"], algorithm="RS256", headers={"kid": "k1"})
 
 
 @pytest.fixture
-def client(monkeypatch):
-    monkeypatch.setattr(auth, "KEYCLOAK_ALGORITHM", "RS256")
-    monkeypatch.setattr(auth, "get_keycloak_public_key", lambda: _PUBLIC_PEM)
+def realm(monkeypatch):
+    global _REALM
+    _REALM = FakeRealm()
+    _REALM.keys["k1"] = _rsa_key()
+    monkeypatch.setattr(auth, "get_verifier", lambda: KeycloakVerifier(_REALM.base_url, REALM, auth.ALLOWED_CLIENTS))
+    yield _REALM
+    _REALM.stop()
 
+
+@pytest.fixture
+def client(realm):
     app = FastAPI()
 
     @app.get("/protected")
@@ -68,14 +73,34 @@ def test_bearer_without_upload_role_is_forbidden(client):
 
 
 def test_token_without_realm_access_is_forbidden(client):
-    token = jwt.encode({"preferred_username": "bob", "exp": int(time.time()) + 300},
-                       _PRIVATE_PEM, algorithm="RS256")
-    assert client.get("/protected", headers=_bearer(token)).status_code == 403
+    assert client.get("/protected", headers=_bearer(_token())).status_code == 403
 
 
 def test_expired_token_is_unauthorized(client):
     r = client.get("/protected", headers=_bearer(_token(["admin"], expires_in=-60)))
     assert r.status_code == 401
+
+
+def test_a_token_from_another_client_is_unauthorized(client):
+    r = client.get("/protected", headers=_bearer(_token(["admin"], azp="grafana")))
+    assert r.status_code == 401
+
+
+@pytest.mark.parametrize("client_id", sorted(auth.ALLOWED_CLIENTS))
+def test_the_portal_and_api_clients_are_accepted(client, client_id):
+    assert client.get("/protected", headers=_bearer(_token(["admin"], azp=client_id))).status_code == 200
+
+
+def test_a_rejected_token_gets_a_generic_401(client):
+    r = client.get("/protected", headers=_bearer(_token(["admin"], azp="grafana")))
+    assert r.json()["detail"] == "Invalid or expired token"
+    assert r.headers["WWW-Authenticate"] == "Bearer"
+
+
+def test_keycloak_unreachable_is_503(client, realm):
+    token = _token(["admin"])
+    realm.stop()
+    assert client.get("/protected", headers=_bearer(token)).status_code == 503
 
 
 def test_missing_credentials_is_unauthorized(client):
@@ -88,7 +113,7 @@ def _basic(user="alice", password="<REDACTED>"):
 
 
 def test_basic_auth_uses_roles_from_the_issued_token(client, monkeypatch):
-    monkeypatch.setattr(auth, "get_token", lambda *a, **k: {"access_token": _token(["researcher"])})
+    monkeypatch.setattr(auth, "get_token", lambda *a, **k: {"access_token": _token(["researcher"], azp="api")})
     assert client.get("/protected", headers=_basic()).status_code == 200
 
 

@@ -1,6 +1,7 @@
 """
 IAM by Keycloak
 """
+import logging
 import requests
 import os
 
@@ -8,9 +9,12 @@ from fastapi import APIRouter
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from jose import jwt as jose_jwt, JWTError
 
 from dotenv import load_dotenv
+
+from digitaltwins.core import keycloak_verifier
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -18,38 +22,42 @@ load_dotenv()
 # Keycloak configs
 KEYCLOAK_BASE_URL = os.getenv("KEYCLOAK_BASE_URL")
 KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM")
-KEYCLOAK_ALGORITHM = os.getenv("KEYCLOAK_ALGORITHM")
 KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID")
 KEYCLOAK_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET")
 
 keycloak_realm_url = f"{KEYCLOAK_BASE_URL}/realms/{KEYCLOAK_REALM}"
 keycloak_token_url = f"{keycloak_realm_url}/protocol/openid-connect/token"
-# keycloak_introspect_url = f"{keycloak_token_url}/introspect"
 
-# Cache the public key to avoid fetching it on every request
-_cached_public_key: str | None = None
+# Clients whose access tokens the API accepts: the portal ("portal-frontend") and the API's own
+# client ("api": Basic auth, /login, the CLI and scripts). Tokens are verified locally rather than
+# introspected: portal tokens don't name "api" in their audience, so Keycloak refuses to introspect
+# them for the api client. docs/decisions/2026-10-21-one-keycloak-token-verifier.md
+ALLOWED_CLIENTS = frozenset({"portal-frontend", "api"})
+
+_verifier = None
 
 
-def get_keycloak_public_key() -> str:
-    """Fetch and cache the Keycloak realm public key."""
-    global _cached_public_key
-    if _cached_public_key is None:
-        try:
-            r = requests.get(keycloak_realm_url, verify=False, timeout=10)
-            r.raise_for_status()
-            raw_key = r.json().get("public_key")
-            _cached_public_key = f"-----BEGIN PUBLIC KEY-----\n{raw_key}\n-----END PUBLIC KEY-----"
-        except requests.RequestException as exc:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Unable to reach Keycloak realm: {exc}",
-            ) from exc
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="Keycloak returned a non-JSON realm document.",
-            ) from exc
-    return _cached_public_key
+def get_verifier() -> keycloak_verifier.KeycloakVerifier:
+    global _verifier
+    if _verifier is None:
+        _verifier = keycloak_verifier.from_env(ALLOWED_CLIENTS)
+    return _verifier
+
+
+def verify_access_token(token: str) -> dict:
+    """The token's claims, else 401 (not a valid token for the API) or 503 (Keycloak unreachable)."""
+    try:
+        return get_verifier().verify(token)
+    except keycloak_verifier.KeycloakUnavailable as exc:
+        logger.error("Keycloak unavailable: %s", exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Keycloak is unavailable")
+    except keycloak_verifier.InvalidToken as exc:
+        logger.info("Rejected access token: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 def auth_basic(credentials: HTTPBasicCredentials = Depends(HTTPBasic())):
@@ -61,63 +69,15 @@ def auth_basic(credentials: HTTPBasicCredentials = Depends(HTTPBasic())):
             detail=result
         )
     else:
-        claims = jose_jwt.decode(
-            result["access_token"],
-            get_keycloak_public_key(),
-            algorithms=[KEYCLOAK_ALGORITHM],
-            options={"verify_aud": False},
-        )
+        claims = verify_access_token(result["access_token"])
         return {"username": credentials.username, "token": result["access_token"], "claims": claims}
 
 
 def auth_bearer(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
     token = credentials.credentials
-    # Verify the JWT locally using the Keycloak realm public key.
-    # Introspection is intentionally avoided here: the frontend issues tokens via the
-    # public client "portal-frontend", whose tokens don't include the "api" client in
-    # their audience.  Keycloak therefore rejects introspection requests from the "api"
-    # confidential client with INTROSPECT_TOKEN_ERROR / invalid_token.
-    # Local verification works for any token issued by this Keycloak realm, regardless
-    # of which client originally issued it.
-    try:
-        public_key_pem = get_keycloak_public_key()
-        payload = jose_jwt.decode(
-            token,
-            public_key_pem,
-            algorithms=[KEYCLOAK_ALGORITHM],
-            options={"verify_aud": False},
-        )
-        username = payload.get("preferred_username") or payload.get("username") or "unknown"
-        return {"username": username, "token": token, "claims": payload}
-    except JWTError as e:
-        # Public key may have rotated — clear cache and retry once
-        global _cached_public_key
-        _cached_public_key = None
-        print(f"[auth] Bearer token verification failed (will retry with fresh key): {e}")
-        try:
-            public_key_pem = get_keycloak_public_key()
-            payload = jose_jwt.decode(
-                token,
-                public_key_pem,
-                algorithms=[KEYCLOAK_ALGORITHM],
-                options={"verify_aud": False},
-            )
-            username = payload.get("preferred_username") or payload.get("username") or "unknown"
-            return {"username": username, "token": token, "claims": payload}
-        except JWTError as e2:
-            print(f"[auth] Bearer token verification failed: {e2}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=str(e2),
-            )
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[auth] Bearer token verification error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
-        )
+    payload = verify_access_token(token)
+    username = payload.get("preferred_username") or payload.get("username") or "unknown"
+    return {"username": username, "token": token, "claims": payload}
 
 
 def validate_credentials(
