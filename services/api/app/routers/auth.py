@@ -124,8 +124,6 @@ def validate_credentials(
         basic_credentials: HTTPBasicCredentials = Depends(HTTPBasic(auto_error=False)),
         bearer_credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False))
 ):
-    print(f"basic_credentials: {basic_credentials}")
-    print(f"bearer_credentials: {bearer_credentials}")
     if basic_credentials:
         username = auth_basic(basic_credentials)
         return username

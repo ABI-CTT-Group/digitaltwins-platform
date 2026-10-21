@@ -107,3 +107,16 @@ def test_other_roles_are_forbidden_where_admin_is_required(client, roles):
     r = client.get("/admin-only", headers=_bearer(_token(["offline_access", *roles])))
     assert r.status_code == 403
     assert "admin" in r.json()["detail"]
+
+
+def test_credentials_never_reach_the_log(client, monkeypatch, capsys, caplog):
+    monkeypatch.setattr(auth, "get_token", lambda *a, **k: {"access_token": _token(["researcher"])})
+    token = _token(["admin"])
+
+    client.get("/protected", headers=_basic(password="hunter-two-marker"))
+    client.get("/protected", headers=_bearer(token))
+
+    out = capsys.readouterr()
+    logged = out.out + out.err + caplog.text
+    assert "hunter-two-marker" not in logged
+    assert token not in logged
