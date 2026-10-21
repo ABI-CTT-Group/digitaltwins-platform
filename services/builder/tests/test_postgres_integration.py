@@ -26,11 +26,40 @@ from sqlalchemy import create_engine, inspect, text  # noqa: E402
 from sqlalchemy.engine import URL  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
-from app.database.database import init_db, migrate_add_missing_columns  # noqa: E402
+from app.database.database import init_db  # noqa: E402
 from app.models.db_model import Base, PORTAL_DB_SCHEMA, Plugin, PluginBuild, PluginDeployment  # noqa: E402
 from tests.test_db_constraints import add_plugin_with_deployment  # noqa: E402
 
-PORTAL_TABLES = set(Base.metadata.tables)
+PORTAL_TABLES = set(Base.metadata.tables) | {"schema_migrations"}
+SCHEMA_2026_09_28 = Path(__file__).resolve().parent / "fixtures" / "portal_2026_09_28.sql"
+
+
+def schema_snapshot(engine):
+    """The parts of the portal schema the models describe: what create_all and the migrations must agree on.
+
+    Columns are keyed by name, since a column added to an existing table goes last.
+    """
+    insp = inspect(engine)
+    tables = {}
+    for name in Base.metadata.tables:
+        tables[name] = {
+            "columns": {c["name"]: (str(c["type"]), c["nullable"], c["default"]) for c in insp.get_columns(name)},
+            "primary_key": insp.get_pk_constraint(name)["constrained_columns"],
+            "foreign_keys": sorted((fk["name"], tuple(fk["constrained_columns"]), fk["referred_table"],
+                                    tuple(fk["referred_columns"]), fk["options"].get("ondelete"))
+                                   for fk in insp.get_foreign_keys(name)),
+            "unique": sorted((u["name"], tuple(u["column_names"])) for u in insp.get_unique_constraints(name)),
+            "checks": sorted((c["name"], c["sqltext"]) for c in insp.get_check_constraints(name)),
+            "indexes": sorted((i["name"], tuple(i["column_names"]), i["unique"]) for i in insp.get_indexes(name)),
+        }
+    enums = {}
+    with engine.connect() as conn:
+        for type_name, label in conn.execute(text(
+                "SELECT t.typname, e.enumlabel FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid "
+                "JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = :schema "
+                "ORDER BY t.typname, e.enumsortorder"), {"schema": PORTAL_DB_SCHEMA}):
+            enums.setdefault(type_name, []).append(label)
+    return {"tables": tables, "enums": enums}
 
 
 def _server_url(database: str) -> URL:
@@ -111,17 +140,6 @@ class InitDbTest(PostgresTestCase):
                 conn.execute(text(f'DROP DATABASE IF EXISTS "{self.db_name}" WITH (FORCE)'))
                 conn.execute(text(f"DROP ROLE {role}"))
 
-    def test_missing_columns_are_added_back(self):
-        init_db(bind=self.engine)
-        with self.engine.begin() as conn:
-            conn.execute(text("ALTER TABLE plugins DROP COLUMN local_archive_path"))
-            conn.execute(text("ALTER TABLE plugin_deployments DROP COLUMN up"))
-        migrate_add_missing_columns(bind=self.engine)
-        insp = inspect(self.engine)
-        self.assertIn("local_archive_path", {c["name"] for c in insp.get_columns("plugins")})
-        self.assertIn("up", {c["name"] for c in insp.get_columns("plugin_deployments")})
-
-
     def test_an_existing_label_enum_gains_new_values(self):
         # Databases created before the Notebook label have plugin_label = ('GUI', 'Script').
         with self.engine.begin() as conn:
@@ -131,6 +149,93 @@ class InitDbTest(PostgresTestCase):
         with self.engine.connect() as conn:
             labels = conn.execute(text("SELECT unnest(enum_range(NULL::plugin_label))::text")).scalars().all()
         self.assertEqual(labels, ["GUI", "Script", "Notebook"])
+
+
+class MigrationsTest(PostgresTestCase):
+    """init_db applies app/database/migrations/ on Postgres; 0001 also catches up schemas built since 2026-09-28."""
+
+    def _execute(self, sql, params=None):
+        with self.engine.begin() as conn:
+            return conn.execute(text(sql), params or {})
+
+    def _applied(self):
+        return self._execute("SELECT version FROM portal.schema_migrations ORDER BY version").scalars().all()
+
+    def _fresh_snapshot(self):
+        """The schema init_db builds from nothing; leaves the database empty again."""
+        init_db(bind=self.engine)
+        snapshot = schema_snapshot(self.engine)
+        self._execute(f"DROP SCHEMA {PORTAL_DB_SCHEMA} CASCADE")
+        return snapshot
+
+    def _load_2026_09_28(self):
+        with self.engine.begin() as conn:
+            conn.exec_driver_sql(SCHEMA_2026_09_28.read_text())
+
+    def test_the_migrations_build_the_schema_the_models_describe(self):
+        with self.engine.begin() as conn:
+            conn.execute(text(f"CREATE SCHEMA {PORTAL_DB_SCHEMA}"))
+        Base.metadata.create_all(self.engine)
+        from_models = schema_snapshot(self.engine)
+        self._execute(f"DROP SCHEMA {PORTAL_DB_SCHEMA} CASCADE")
+
+        init_db(bind=self.engine)
+
+        self.assertEqual(schema_snapshot(self.engine), from_models)
+        self.assertEqual(self._applied(), ["0001"])
+
+    def test_a_second_start_changes_nothing(self):
+        init_db(bind=self.engine)
+        before = schema_snapshot(self.engine)
+        init_db(bind=self.engine)
+        self.assertEqual(schema_snapshot(self.engine), before)
+        self.assertEqual(self._applied(), ["0001"])
+
+    def test_a_schema_the_old_startup_code_built_is_only_recorded(self):
+        # Before numbered migrations, init_db ran create_all (plus catch-up code) on every start.
+        with self.engine.begin() as conn:
+            conn.execute(text(f"CREATE SCHEMA {PORTAL_DB_SCHEMA}"))
+        Base.metadata.create_all(self.engine)
+        before = schema_snapshot(self.engine)
+        init_db(bind=self.engine)
+        self.assertEqual(schema_snapshot(self.engine), before)
+        self.assertEqual(self._applied(), ["0001"])
+
+    def test_the_2026_09_28_schema_catches_up_and_keeps_its_rows(self):
+        fresh = self._fresh_snapshot()
+        self._load_2026_09_28()
+        self._execute("INSERT INTO plugins (id, name, version, repository_url, source_type, label, has_backend, "
+                      "frontend_folder, frontend_build_command) "
+                      "VALUES ('p1', 'n', '1', 'r', 'github', 'GUI', true, 'f', 'npm run build')")
+        self._execute("INSERT INTO plugin_builds (id, plugin_id, build_id, status) VALUES ('b1', 'p1', 'bk1', 'ok')")
+        self._execute("INSERT INTO plugin_deployments (id, plugin_id, build_id, deploy_id, status) "
+                      "VALUES ('d1', 'p1', 'bk1', 'dep1', 'up')")
+        self._execute("INSERT INTO workflows (id, name, version, repository_url, source_type) "
+                      "VALUES ('w1', 'n', '1', 'r', 'github')")
+        self._execute("INSERT INTO measurements (id, name, status) VALUES ('m1', 'n', 'completed')")
+
+        init_db(bind=self.engine)
+
+        self.assertEqual(schema_snapshot(self.engine), fresh)
+        self.assertEqual(self._applied(), ["0001"])
+        self.assertEqual(self._execute("SELECT deploy_id FROM plugin_deployments").scalars().all(), ["dep1"])
+        # Untyped rows predate the SDS marker: not SDS.
+        self.assertEqual(self._execute("SELECT is_sds FROM workflows").scalars().all(), [False])
+        # Tables the models no longer define are left alone.
+        self.assertEqual(self._execute("SELECT id FROM measurements").scalars().all(), ["m1"])
+
+    def test_workflows_typed_before_is_sds_are_marked_sds_once(self):
+        # From 2026-10-02 until is_sds existed, a set workflow_type marked an SDS package.
+        self._load_2026_09_28()
+        self._execute("ALTER TABLE workflows ADD COLUMN workflow_type VARCHAR")
+        self._execute("INSERT INTO workflows (id, name, version, repository_url, source_type, workflow_type) "
+                      "VALUES ('sds', 'n', '1', 'r', 'github', 'script'), ('root', 'n', '1', 'r', 'github', NULL)")
+
+        init_db(bind=self.engine)
+        self._execute("UPDATE workflows SET workflow_type = 'gui' WHERE id = 'root'")
+        init_db(bind=self.engine)
+
+        self.assertEqual(dict(self._execute("SELECT id, is_sds FROM workflows").all()), {"sds": True, "root": False})
 
 
 class ForeignKeyTest(PostgresTestCase):

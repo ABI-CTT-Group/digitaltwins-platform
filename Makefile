@@ -46,8 +46,9 @@ test-api: cache-dirs
 	  /cache/api/venv/bin/python -m pytest -m "not integration" -p no:cacheprovider $(PYTEST_ARGS)
 
 # Also mounted, read-only: the portal-frontend nginx template (a test checks which locations reach
-# the builder) and the root and API compose files (tests check the builder's environment and the
-# Docker socket mount there; they hold no secrets).
+# the builder), the root and API compose files (tests check the builder's environment and the
+# Docker socket mount there; they hold no secrets) and the API's migration runner (the builder's
+# copy must match it).
 test-builder: cache-dirs
 	$(RUN) -v $(CURDIR)/services/builder:/w:ro -w /w $(PY311_IMAGE) sh -c \
 	  'uv venv -q --allow-existing /cache/builder/venv && uv pip install -q --python /cache/builder/venv -r requirements-test.txt'
@@ -55,6 +56,7 @@ test-builder: cache-dirs
 	  -v $(CURDIR)/services/portal/frontend/nginx.conf.template:/w/services/portal/frontend/nginx.conf.template:ro \
 	  -v $(CURDIR)/docker-compose.yml:/w/docker-compose.yml:ro \
 	  -v $(CURDIR)/services/api/docker-compose.yml:/w/services/api/docker-compose.yml:ro \
+	  -v $(CURDIR)/services/api/src/digitaltwins/postgres/migration_runner.py:/w/services/api/src/digitaltwins/postgres/migration_runner.py:ro \
 	  -w /w/services/builder $(PY311_IMAGE) \
 	  /cache/builder/venv/bin/python -m pytest -p no:cacheprovider $(PYTEST_ARGS)
 
