@@ -28,7 +28,7 @@ Each suite runs in a pinned toolchain image: tag plus digest, at the same Python
    - API: `services/api/requirements-test.txt`
    - Builder: `services/builder/requirements-test.txt`
    - Frontend: `yarn.lock`, installed into a cached `node_modules`. Your own `node_modules` is never used or changed.
-2. **Test, with `--network none`.** Only the service's own directory is mounted, never the repo root. (`make test-builder` also mounts four files read-only: the portal-frontend nginx template and the root and API `docker-compose.yml`, which the builder's template and service-separation tests check, and the API's `migration_runner.py`, which the builder's copy must match. None holds secrets.) The tests can't reach live Postgres, MinIO, Keycloak and so on, and they can't see `.env` or `secrets.env`.
+2. **Test, with `--network none`.** Only the service's own directory is mounted, never the repo root. (`make test-builder` also mounts five files read-only: the portal-frontend nginx template and the root and API `docker-compose.yml`, which the builder's template and service-separation tests check, and the API's `migration_runner.py` and `keycloak_verifier.py`, which the builder's copies must match. None holds secrets.) The tests can't reach live Postgres, MinIO, Keycloak and so on, and they can't see `.env` or `secrets.env`.
 
 Containers run as your user, so no root-owned files end up in the tree. Because the tests don't run as root, `test_workflow_dag.py`'s root-only `chown` test is skipped.
 
@@ -56,7 +56,7 @@ On a PR, only the suites whose files changed run. "Changed" means the whole PR's
 
 | Change touches | Jobs that run |
 |---|---|
-| `services/api/`, `services/postgres/` | api (and builder, for `services/api/docker-compose.yml` and `services/api/src/digitaltwins/postgres/migration_runner.py`) |
+| `services/api/`, `services/postgres/` | api (and builder, for `services/api/docker-compose.yml`, `services/api/src/digitaltwins/postgres/migration_runner.py` and `services/api/src/digitaltwins/core/keycloak_verifier.py`) |
 | `services/builder/`, root `docker-compose.yml` | builder |
 | `services/portal/frontend/nginx.conf.template` | frontend and builder |
 | the rest of `services/portal/frontend/` | frontend |

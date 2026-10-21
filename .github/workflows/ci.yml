@@ -52,9 +52,9 @@ jobs:
           all=$(has '^(Makefile|\.github/workflows/)')
           api=$(has '^services/(api|postgres)/')
           # The builder's tests also read the portal-frontend nginx template, the root and API
-          # compose files (the Docker socket and environment split) and the API's migration runner
-          # (the builder's copy must match it).
-          builder=$(has '^services/builder/|^services/portal/frontend/nginx\.conf\.template$|^docker-compose\.yml$|^services/api/docker-compose\.yml$|^services/api/src/digitaltwins/postgres/migration_runner\.py$')
+          # compose files (the Docker socket and environment split) and the API's migration runner and
+          # Keycloak verifier (the builder's copies must match them).
+          builder=$(has '^services/builder/|^services/portal/frontend/nginx\.conf\.template$|^docker-compose\.yml$|^services/api/docker-compose\.yml$|^services/api/src/digitaltwins/postgres/migration_runner\.py$|^services/api/src/digitaltwins/core/keycloak_verifier\.py$')
           frontend=$(has '^services/portal/frontend/')
           jupyterhub=$(has '^services/jupyterhub/')
           [ "$all" = true ] && api=true builder=true frontend=true jupyterhub=true

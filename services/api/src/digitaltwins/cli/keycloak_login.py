@@ -2,8 +2,8 @@
 password in the terminal) with a password-grant fallback, plus the upload-role gate.
 
 Ported from the portal backend's ``cli/keycloak_login``; configured with the
-API's ``KEYCLOAK_*`` env vars. Tokens are verified against the realm public key,
-as the API's Bearer auth does.
+API's ``KEYCLOAK_*`` env vars. Tokens are verified with the same shared verifier
+and clients as the API's Bearer auth.
 """
 import getpass
 import json
@@ -14,10 +14,14 @@ import urllib.parse
 import urllib.request
 from typing import Dict, Optional, Tuple
 
-from jose import jwt
+from digitaltwins.core import keycloak_verifier
 
 # Same realm roles as the API's require_upload_role.
 UPLOAD_ROLES = {"admin", "researcher"}
+# Same clients as the API's Bearer auth (app/routers/auth.py).
+ALLOWED_CLIENTS = frozenset({"portal-frontend", "api"})
+
+_verifier = None
 
 
 def _realm_url() -> str:
@@ -49,12 +53,14 @@ def _post_form(url: str, data: Dict[str, str]):
 
 
 def verify_token(token: str) -> Dict:
-    """Verify ``token`` against the realm public key; return its claims."""
-    with urllib.request.urlopen(_realm_url(), timeout=10) as resp:
-        raw_key = json.loads(resp.read().decode())["public_key"]
-    pem = f"-----BEGIN PUBLIC KEY-----\n{raw_key}\n-----END PUBLIC KEY-----"
-    return jwt.decode(token, pem, algorithms=[os.getenv("KEYCLOAK_ALGORITHM", "RS256")],
-                      options={"verify_aud": False})
+    """Verify ``token`` with the shared Keycloak verifier; return its claims.
+
+    Raises ``keycloak_verifier.InvalidToken`` or ``KeycloakUnavailable``.
+    """
+    global _verifier
+    if _verifier is None:
+        _verifier = keycloak_verifier.from_env(ALLOWED_CLIENTS)
+    return _verifier.verify(token)
 
 
 def require_upload_role(claims: Dict) -> str:

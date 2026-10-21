@@ -58,7 +58,7 @@ Option B.
 - **The runner:**
   - `services/api/src/digitaltwins/postgres/migration_runner.py` holds `discover` and `apply_migrations(conn, migrations_dir, schema, lock_key)`. `migrate.py` keeps its functions as wrappers for `public`.
   - The builder's copy is `services/builder/app/database/migration_runner.py`.
-  - `tests/test_migration_runner.py` checks that the copy matches byte for byte. `make test-builder` mounts the API's file, and CI runs the builder job when that file changes.
+  - `tests/test_shared_with_api.py` checks that the copy matches byte for byte. `make test-builder` mounts the API's file, and CI runs the builder job when that file changes.
 - **The builder's migrations:**
   - They live in `services/builder/app/database/migrations/NNNN_<name>.sql` and are recorded in `portal.schema_migrations`.
   - They run under the builder's own advisory-lock key (`"dtpm"`), so the API's and the builder's runs don't wait for each other.

@@ -16,7 +16,7 @@ boto3==1.42.78
 openpyxl==3.1.5
 
 # keycloak auth
-python-jose[cryptography]==3.3.0
+PyJWT[crypto]==2.15.1
 
 # sparc dataset structure (SDS)
 sparc-me

@@ -25,6 +25,31 @@ def test_role_gate_accepts_upload_roles(roles):
     assert keycloak_login.require_upload_role(claims) == "alice"
 
 
+def test_the_cli_verifies_tokens_with_the_shared_verifier(monkeypatch):
+    import time
+    import jwt
+    from digitaltwins.core.keycloak_verifier import InvalidToken
+    from test_keycloak_verifier import ISSUER, REALM, FakeRealm, _rsa_key
+
+    realm = FakeRealm()
+    realm.keys["k1"] = _rsa_key()
+    monkeypatch.setenv("KEYCLOAK_BASE_URL", realm.base_url)
+    monkeypatch.setenv("KEYCLOAK_REALM", REALM)
+    monkeypatch.setattr(keycloak_login, "_verifier", None)
+
+    def token(azp):
+        now = int(time.time())
+        claims = {"iss": ISSUER, "azp": azp, "typ": "Bearer", "iat": now, "exp": now + 300}
+        return jwt.encode(claims, realm.keys["k1"], algorithm="RS256", headers={"kid": "k1"})
+
+    try:
+        assert keycloak_login.verify_token(token("api"))["azp"] == "api"
+        with pytest.raises(InvalidToken):
+            keycloak_login.verify_token(token("grafana"))
+    finally:
+        realm.stop()
+
+
 def test_role_gate_rejects_other_users():
     claims = {"preferred_username": "bob", "realm_access": {"roles": ["viewer"]}}
     with pytest.raises(PermissionError, match="bob"):

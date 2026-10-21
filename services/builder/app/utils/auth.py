@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException, status, Header
 from typing import Callable
 from app.client.keycloak import get_keycloak_client
+from app.client.keycloak_verifier import InvalidToken, KeycloakUnavailable
 import logging
 
 logger = logging.getLogger(__name__)
@@ -30,8 +31,11 @@ async def get_current_user(authorization: str = Header(None)):
         user_info = keycloak_client.get_user_info(token)
         # The raw token lets a request act as the user downstream (e.g. the tool handoff to the platform API).
         return {**user_info, "token": token}
-    except Exception as e:
-        logger.error(f"Authentication failed: {e}")
+    except KeycloakUnavailable as e:
+        logger.error(f"Keycloak unavailable: {e}")
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Keycloak is unavailable")
+    except InvalidToken as e:
+        logger.info(f"Rejected access token: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
