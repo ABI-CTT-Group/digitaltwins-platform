@@ -1,7 +1,7 @@
 import os
 import json
 from typing import Optional, Dict, List
-from keycloak import KeycloakOpenID, KeycloakAdmin
+from keycloak import KeycloakOpenID
 from jose import jwt, JWTError
 import logging
 import urllib3
@@ -13,14 +13,13 @@ class KeycloakClient:
     """Keycloak authentication and authorization client"""
 
     def __init__(self):
-        # Server-side calls (realm public key, admin API) prefer Keycloak's internal
+        # Server-side calls (the realm public key) prefer Keycloak's internal
         # address; KEYCLOAK_PUBLIC_URL is the public one, which may not resolve
         # to Keycloak from inside this container (e.g. http://localhost/auth).
         # The trailing slash keeps a context path such as /auth when python-keycloak urljoins its paths.
         self.server_url = (os.getenv('KEYCLOAK_BASE_URL') or os.getenv('KEYCLOAK_PUBLIC_URL') or '').rstrip('/') + '/'
         self.realm_name = os.getenv('KEYCLOAK_REALM', 'digitaltwins')
         self.client_id = os.getenv('KEYCLOAK_CLIENT_ID', 'api')
-        self.client_secret = os.getenv('KEYCLOAK_CLIENT_SECRET', '')
         self.verify_ssl = os.getenv('KEYCLOAK_VERIFY_SSL', 'false').lower() == 'true'
         self.ca_cert = os.getenv('KEYCLOAK_CA_CERT', '').strip()
         verify_value = self.ca_cert if self.ca_cert else self.verify_ssl
@@ -42,29 +41,9 @@ class KeycloakClient:
             'realm_name': self.realm_name,
             'verify': verify_value,
         }
-        # Only add client_secret_key if it's not empty
-        if self.client_secret:
-            oidc_kwargs['client_secret_key'] = self.client_secret
-        
         self.oidc = KeycloakOpenID(**oidc_kwargs)
         if hasattr(self.oidc, "connection") and hasattr(self.oidc.connection, "verify"):
             self.oidc.connection.verify = verify_value
-        
-        # Admin client initialization
-        self.admin = None
-        if self.client_secret:
-            try:
-                self.admin = KeycloakAdmin(
-                    server_url=self.server_url,
-                    client_id=self.client_id,
-                    client_secret_key=self.client_secret,
-                    realm_name=self.realm_name,
-                    verify=verify_value,
-                )
-                if hasattr(self.admin, "connection") and hasattr(self.admin.connection, "verify"):
-                    self.admin.connection.verify = verify_value
-            except Exception as e:
-                logger.warning(f"Failed to initialize admin client: {e}")
         
         # Cache for public key
         self._public_key = None
@@ -145,32 +124,6 @@ class KeycloakClient:
         except Exception as e:
             logger.error(f"Failed to get token info: {e}")
             raise
-
-    def authenticate_with_credentials(self, username: str, password: str) -> Dict:
-        """Authenticate user with username and password (Resource Owner Password Credentials flow)"""
-        try:
-            logger.info(f"Attempting to authenticate with Keycloak - User: {username}, Client: {self.client_id}, Server: {self.server_url}")
-            
-            # Resource Owner Password Credentials flow
-            # Works for both public and confidential clients
-            token_response = self.oidc.token(
-                grant_type='password',
-                username=username,
-                password=password,
-                scope='openid email profile roles'
-            )
-            
-            logger.info(f"Successfully authenticated user: {username}")
-            return token_response
-        except Exception as e:
-            error_msg = str(e)
-            logger.error(f"Failed to authenticate user {username}: {error_msg}")
-            logger.error(f"Error type: {type(e).__name__}")
-            # Provide more detailed error info
-            if "RemoteDisconnected" in error_msg or "Connection aborted" in error_msg:
-                logger.error(f"Connection error - check if Keycloak server is running at {self.server_url}")
-            # Re-raise with more context
-            raise Exception(f"Keycloak authentication failed: {error_msg}")
 
 
 # Global instance

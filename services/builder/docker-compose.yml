@@ -1,7 +1,7 @@
 # The builder: the portal's tool/workflow builder (app/).
 # It is the only service with the host Docker socket and runs untrusted plugin builds, so its
 # environment is explicit and minimal: never add the API's credentials here (POSTGRES_*,
-# JUPYTERHUB_*, AIRFLOW_*, SEEK_*); tests/test_service_separation.py enforces that.
+# JUPYTERHUB_*, AIRFLOW_*, SEEK_*, KEYCLOAK_CLIENT_SECRET); tests/test_service_separation.py enforces that.
 # docs/decisions/2026-10-21-builder-as-its-own-service.md
 #
 # Not included by the root compose file: the root defines `builder` by extending this one and adds
@@ -52,7 +52,6 @@ services:
       - KEYCLOAK_BASE_URL=${KEYCLOAK_BASE_URL:-}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-digitaltwins}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-api}
-      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-xxxxxx}
       - KEYCLOAK_VERIFY_SSL=${KEYCLOAK_VERIFY_SSL:-false}
       - KEYCLOAK_CA_CERT=${KEYCLOAK_CA_CERT:-}
       # Nginx plugin config (shared volume with portal-frontend)

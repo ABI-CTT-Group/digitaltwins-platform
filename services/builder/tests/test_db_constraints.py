@@ -108,12 +108,6 @@ class WorkflowDeploymentTest(unittest.TestCase):
         session.commit()
         self.assertEqual(session.query(PluginDeployment).count(), 0)
 
-    def test_the_postgres_migration_leaves_sqlite_alone(self):
-        from app.database.database import migrate_plugin_deployments_for_workflows
-        engine = create_engine("sqlite://")
-        Base.metadata.create_all(engine)
-        migrate_plugin_deployments_for_workflows(engine)  # must not raise
-
 
 if __name__ == "__main__":
     unittest.main()

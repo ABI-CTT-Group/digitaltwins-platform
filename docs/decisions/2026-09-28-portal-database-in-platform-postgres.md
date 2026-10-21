@@ -1,7 +1,7 @@
 # Move the portal database from SQLite into the platform Postgres
 
 - **Date:** 2026-09-28
-- **Status:** Accepted
+- **Status:** Accepted; superseded in part by [2026-10-21-builder-numbered-sql-migrations](2026-10-21-builder-numbered-sql-migrations.md): the builder now migrates the `portal` schema with numbered SQL files instead of `create_all` and catch-up columns.
 
 ## Context
 
