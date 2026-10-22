@@ -93,9 +93,9 @@ upstreams are involved:
 
 | | What it is | How we consume it |
 |---|---|---|
-| [FAIRDOM-SEEK](https://github.com/seek4science/seek) (`fairdom/seek` on Docker Hub) | The upstream Rails application | Indirectly, through LDH. We only use FAIRDOM's Solr image, `fairdom/seek-solr:8.11`, directly |
+| [FAIRDOM-SEEK](https://github.com/seek4science/seek) (`fairdom/seek` on Docker Hub) | The upstream Rails application | Indirectly, through LDH. We only use FAIRDOM's Solr image, `fairdom/seek-solr:8.11.4`, directly |
 | [nfdi4health/ldh](https://github.com/nfdi4health/ldh) (`ghcr.io/nfdi4health/ldh`) | A downstream distribution of the SEEK codebase with NFDI4Health changes, maintained by SEEK's core developers. We run `v0.3.6`, which reports SEEK `1.18.3` | The `seek` and `seek-worker` image, pinned by `LDH_RELEASE` in `.env` |
-| [nfdi4health/ldh-deployment](https://github.com/nfdi4health/ldh-deployment) | A deployment kit with no application code: a compose file for MySQL, LDH and Solr, plus nginx configs, backup/restore scripts and `.env` templates | Forked to `ABI-CTT-Group/ldh-deployment` and mounted as the submodule `services/seek/ldh-deployment` |
+| [nfdi4health/ldh-deployment](https://github.com/nfdi4health/ldh-deployment) | A deployment kit with no application code: a compose file for MySQL, LDH and Solr, plus nginx configs, backup/restore scripts and `.env` templates | Forked to `ABI-CTT-Group/ldh-deployment` and mounted as the submodule `services/seek/ldh-deployment`, tracking the fork's `abi` branch |
 
 Our fork adds the Keycloak integration (`keycloak_jwt_auth.rb`,
 `keycloak_oidc.rb`, the provisioning check script) and the matching
@@ -116,13 +116,27 @@ Consequences:
 - **Keep Solr compatible with the SEEK version inside LDH** whenever you bump
   `LDH_RELEASE`.
 - **Upstream changes arrive through two separate channels**: application changes
-  through `LDH_RELEASE`, and compose, nginx and script changes by syncing the fork
-  with `nfdi4health/ldh-deployment`. To see how far the fork has drifted, run
-  `gh api repos/ABI-CTT-Group/ldh-deployment/compare/nfdi4health:main...main --jq '.ahead_by, .behind_by'`.
+  through `LDH_RELEASE`, and compose, nginx and script changes through the fork.
+  The fork's `main` is kept identical to upstream; update it with
+  `gh repo sync ABI-CTT-Group/ldh-deployment -b main` and never commit to it. Our
+  changes live on `abi`, the fork's default branch, which is protected
+  (PRs only, no force-push). To take upstream changes, merge `main` into `abi`
+  through a PR, then bump the submodule pointer. To see how far `abi` is behind
+  upstream, run
+  `gh api repos/ABI-CTT-Group/ldh-deployment/compare/abi...main --jq '.ahead_by'`.
 - **For security fixes, watch releases on `nfdi4health/ldh`, not on FAIRDOM-SEEK.**
   A SEEK release (announced on the FAIRDOM Slack) only reaches us once
   NFDI4Health merges it into an LDH release. `ldh-deployment` has no releases,
   so its changes show up only as commits to `main`.
+- **SEEK has its own MySQL (`mysql:8.4`)**, unlike the rest of the platform,
+  which shares Postgres. We follow upstream here; see
+  [the ADR](decisions/2026-10-23-seek-database-mysql-8.4.md). Back up the
+  `seek_db` volume separately.
+- **Upstream's `exporter` service** (`fmeineke/ldh-exp`, export to NFDI4Health's
+  Health Study Hub) is behind the `exporter` compose profile and doesn't start by
+  default. Start it with `docker compose --profile exporter up -d exporter`.
+- **Don't use upstream's `update.sh`.** It assumes a standalone deployment; in
+  the platform, follow [Upgrading LDH](#upgrading-ldh) below.
 
 ### Upgrading LDH
 
@@ -158,6 +172,12 @@ INSERT INTO seek.schema_migrations (version) VALUES ('20250212145346');
 Upstream's [patch notes](https://github.com/nfdi4health/ldh-deployment/blob/main/patches/patch20261001.md)
 cover a related failure in `Fix doorkeeper foreign keys`. We didn't hit that
 one.
+
+**Changing the MySQL or Solr image:** back up first, as in step 1. A newer
+MySQL upgrades the data directory in place on its first start (the `db` log
+shows `Server upgrade from … completed`), and older versions can't read it
+afterwards. After a Solr change, rebuild the search index with
+`docker compose exec seek bundle exec rake seek:reindex_all`.
 
 ## Where the pieces live
 
