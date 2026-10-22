@@ -59,6 +59,8 @@ assert_sql_has_data() {  # $1=file  $2=label
 }
 
 # 1. digitaltwins DB ----------------------------------------------------------
+# Includes the builder's `portal` schema, which the dump hands to the `portal`
+# role, so that role must already exist here (services/postgres/portal_init.sh).
 if [ -f "$IN/digitaltwins.sql" ]; then
   echo "== restore digitaltwins DB =="
   assert_sql_has_data "$IN/digitaltwins.sql" "digitaltwins"
@@ -101,6 +103,8 @@ if [ -d "$IN/minio" ]; then
 fi
 
 # 5. Portal plugin registry ---------------------------------------------------
+# The live registry came across in step 1 (the `portal` schema of the
+# digitaltwins DB); this is the builder's old SQLite copy, kept as its rollback path.
 if [ -f "$IN/plugin_registry.db" ]; then
   echo "== restore plugin registry (restarts the builder) =="
   docker cp "$IN/plugin_registry.db" "$BUILDER_C:/data/plugin_registry.db"
