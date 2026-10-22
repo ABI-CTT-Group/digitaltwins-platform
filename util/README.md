@@ -476,8 +476,9 @@ it survives the two layouts differing — which they do:
   A DB copy is impossible across engines, so Keycloak is **not** handled here —
   migrate realms/users via a Keycloak realm export/import instead.
 - **HAPI FHIR** may have its **own Postgres** on one box and live in the
-  **shared Postgres** on the other. A logical `pg_dump` restores fine across
-  that (and across major versions, e.g. 13 → 16).
+  **shared Postgres** on the other. `stage-dump.sh` dumps it from whichever it
+  finds, and a logical `pg_dump` restores fine across that (and across major
+  versions, e.g. 13 → 16).
 
 ### Scripts
 
@@ -705,7 +706,7 @@ non-obvious and was learned the hard way.
 - MinIO mirror failures **abort** the dump (`set -e`, no `|| true`) — a partial
   object set must never pass silently.
 - A **missing volume/container** is a **skip with a message** (Orthanc, plugin
-  configs, HAPI-on-shared-pg). That's intentional for legitimately-absent things,
+  configs, HAPI when neither its own pg nor a `hapi` DB in the shared pg exists). That's intentional for legitimately-absent things,
   but it's also how a wrong `PROJECT`/name yields a quiet partial — so when a box
   differs, set the overrides rather than trusting the skips.
 

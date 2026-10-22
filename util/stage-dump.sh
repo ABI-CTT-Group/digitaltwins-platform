@@ -60,15 +60,20 @@ docker exec "$DB_C" sh -c \
   > "$OUT/digitaltwins.sql"
 assert_sql_has_data "$OUT/digitaltwins.sql" "digitaltwins"
 
-# 2. HAPI FHIR DB (its own Postgres on staging; folded into shared pg on portal)
+# 2. HAPI FHIR DB (its own Postgres on older layouts; the `hapi` DB in the shared pg now)
 if [ -n "$HAPI_PG_C" ] && docker ps --format '{{.Names}}' | grep -qx "$HAPI_PG_C"; then
   echo "== hapi DB (from $HAPI_PG_C) =="
   docker exec "$HAPI_PG_C" sh -c \
     'pg_dump -U "$POSTGRES_USER" --clean --if-exists "${POSTGRES_DB:-hapi}"' \
     > "$OUT/hapi.sql"
   assert_sql_has_data "$OUT/hapi.sql" "hapi"
+elif docker exec "$DB_C" sh -c 'psql -U "$POSTGRES_USER" -d postgres -lqtA' | cut -d'|' -f1 | grep -qx hapi; then
+  echo "== hapi DB (from shared $DB_C) =="
+  docker exec "$DB_C" sh -c 'pg_dump -U "$POSTGRES_USER" --clean --if-exists hapi' \
+    > "$OUT/hapi.sql"
+  assert_sql_has_data "$OUT/hapi.sql" "hapi"
 else
-  echo "== hapi: no container '$HAPI_PG_C'; skipping (set HAPI_PG_C to override) =="
+  echo "== hapi: no container '$HAPI_PG_C' and no hapi DB in $DB_C; skipping (set HAPI_PG_C to override) =="
 fi
 
 # 3. SEEK MySQL ---------------------------------------------------------------
