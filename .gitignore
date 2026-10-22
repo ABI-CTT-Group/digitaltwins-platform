@@ -172,6 +172,9 @@ cython_debug/
 .idea/
 .ollamassist/
 
+# VS Code
+.vscode/
+
 /my_workspace/
 
 # Git worktrees

@@ -1,3 +1,4 @@
 [submodule "services/seek/ldh-deployment"]
 	path = services/seek/ldh-deployment
 	url = https://github.com/ABI-CTT-Group/ldh-deployment.git
+	branch = abi

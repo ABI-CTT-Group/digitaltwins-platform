@@ -86,6 +86,79 @@ SEEK enforces its own per-item sharing at its web UI, independent of the platfor
   the source's public/private choices and its user accounts. Review the imported
   sharing state (and prune source users) rather than assuming your local posture.
 
+## Which SEEK we run
+
+We run the **NFDI4Health Local Data Hub (LDH)**, not stock FAIRDOM-SEEK. Three
+upstreams are involved:
+
+| | What it is | How we consume it |
+|---|---|---|
+| [FAIRDOM-SEEK](https://github.com/seek4science/seek) (`fairdom/seek` on Docker Hub) | The upstream Rails application | Indirectly, through LDH. We only use FAIRDOM's Solr image, `fairdom/seek-solr:8.11`, directly |
+| [nfdi4health/ldh](https://github.com/nfdi4health/ldh) (`ghcr.io/nfdi4health/ldh`) | A downstream distribution of the SEEK codebase with NFDI4Health changes, maintained by SEEK's core developers. We run `v0.3.6`, which reports SEEK `1.18.3` | The `seek` and `seek-worker` image, pinned by `LDH_RELEASE` in `.env` |
+| [nfdi4health/ldh-deployment](https://github.com/nfdi4health/ldh-deployment) | A deployment kit with no application code: a compose file for MySQL, LDH and Solr, plus nginx configs, backup/restore scripts and `.env` templates | Forked to `ABI-CTT-Group/ldh-deployment` and mounted as the submodule `services/seek/ldh-deployment` |
+
+Our fork adds the Keycloak integration (`keycloak_jwt_auth.rb`,
+`keycloak_oidc.rb`, the provisioning check script) and the matching
+`docker-compose.yml` and `.env.tpl` changes.
+
+We fork only `ldh-deployment`, not `ldh`, because we don't change LDH's
+application code. Our Keycloak initializers are mounted read-only into the stock
+image at `/seek/config/initializers/`, so taking a new LDH release only requires
+bumping `LDH_RELEASE`. The trade-off is that the initializers depend on SEEK's
+internals, which aren't a stable interface: re-run the provisioning check after
+every bump.
+
+Consequences:
+
+- **`fairdom/seek:<tag>` is not a drop-in replacement** for the LDH image. It
+  lacks the NFDI4Health changes and is versioned independently. To find the SEEK
+  version inside an LDH tag, read `config/version.yml` in the image.
+- **Keep Solr compatible with the SEEK version inside LDH** whenever you bump
+  `LDH_RELEASE`.
+- **Upstream changes arrive through two separate channels**: application changes
+  through `LDH_RELEASE`, and compose, nginx and script changes by syncing the fork
+  with `nfdi4health/ldh-deployment`. To see how far the fork has drifted, run
+  `gh api repos/ABI-CTT-Group/ldh-deployment/compare/nfdi4health:main...main --jq '.ahead_by, .behind_by'`.
+- **For security fixes, watch releases on `nfdi4health/ldh`, not on FAIRDOM-SEEK.**
+  A SEEK release (announced on the FAIRDOM Slack) only reaches us once
+  NFDI4Health merges it into an LDH release. `ldh-deployment` has no releases,
+  so its changes show up only as commits to `main`.
+
+### Upgrading LDH
+
+The image's entrypoint does not migrate the database, so bumping `LDH_RELEASE`
+needs these steps:
+
+1. Stop the stack and back up the `${PROJECT_NAME}_seek_db`, `_seek_filestore`
+   and `_seek_solr` volumes.
+2. Set `LDH_RELEASE` in `.env`, then start only `db` and `solr`:
+   `docker compose up -d --wait db solr`.
+3. Migrate: `docker compose run --rm --no-deps seek docker/upgrade.sh`.
+4. Start the rest (`docker compose up -d`) and run both checks in
+   `services/seek/ldh-deployment/test/`: `keycloak_provisioning_check.rb`
+   (API-token account provisioning) and `keycloak_oidc_check.rb` (browser
+   login's server-side calls to Keycloak). Then log in to `/seek` through
+   Keycloak in a browser.
+
+One-off `rake` or `rails runner` commands in a fresh `seek` container need
+`cp docker/database.docker.mysql.yml config/database.yml` first. Without it,
+they silently use the image's default SQLite database. `docker compose exec`
+into the running `seek` container doesn't need this.
+
+**Known issue, `v0.3.2` → `v0.3.6`:** step 3 fails with
+`Mysql2::Error: Duplicate column name 'title'`. `v0.3.2`'s `schema.rb` already
+contains `snapshots.title` and `description`, so a database created with
+`db:setup` has the columns but no record of migration `20250212145346`. Mark
+that migration as applied, then rerun step 3:
+
+```sql
+INSERT INTO seek.schema_migrations (version) VALUES ('20250212145346');
+```
+
+Upstream's [patch notes](https://github.com/nfdi4health/ldh-deployment/blob/main/patches/patch20261001.md)
+cover a related failure in `Fix doorkeeper foreign keys`. We didn't hit that
+one.
+
 ## Where the pieces live
 
 | Piece | Location |
