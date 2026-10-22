@@ -63,10 +63,12 @@ Plan: [implementation_plan.md](implementation_plan.md). ADR:
 | Search (`/seek/search`, bearer) | 200 with results |
 | `seek`, `workers`, `db` and `api` logs since the upgrade | No errors |
 
-## Remaining
+## Outcome
 
-- Merge PR #9 into `abi` with **"Create a merge commit"**. It needs one approval
-  or an admin bypass.
-- Bump the platform's submodule pointer to the `abi` tip after the merge.
+- PR #9 was merged into `abi` as merge commit `41d4b24` (parents `d78fbf8` and
+  `6edaa23`). Upstream `main` is now an ancestor of `abi`, which is 0 commits
+  behind upstream.
+- `41d4b24` has the same tree as `6edaa23`, so the running SEEK needed no
+  change. The platform's submodule pointer moved to `41d4b24`, the `abi` tip.
 - Rollback, if ever needed: restore the `*_bak_mysql80_20261023` volumes and
   set the submodule back to `d78fbf8`. MySQL 8.0 can't read 8.4 data.
