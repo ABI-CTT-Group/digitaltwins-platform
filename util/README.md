@@ -500,10 +500,20 @@ portal **plugin registry** · gateway **plugin route configs**
 (`nginx_plugin_configs`) · **JupyterHub per-user volumes** (`jupyterhub_user_*`) ·
 Orthanc DICOM volumes.
 
-> **Plugin registry:** the builder keeps it in the `portal` schema of the
-> `digitaltwins` DB, so it travels inside `digitaltwins.sql`. The
-> `plugin_registry.db` the scripts also copy is the builder's old SQLite file,
-> kept only as its rollback path; the builder doesn't read it under the platform.
+> **Plugin registry:** since 2026-09-28 the builder keeps it in the `portal`
+> schema of the `digitaltwins` DB, so from a source on or after that date it
+> travels inside `digitaltwins.sql`, and the `plugin_registry.db` the scripts
+> also copy is only the builder's old SQLite file (its rollback path; the builder
+> doesn't read it under the platform). A source *installed* on or after that date
+> has no such file, and `stage-dump.sh` skips it; with no SQLite file and no
+> `portal` tables in the dump, it stops with `FATAL`. From a source **older than 2026-09-28**,
+> `plugin_registry.db` is the live registry: `portal-restore.sh` migrates it into
+> Postgres automatically (dry run first), when the dump has no `portal` tables
+> and the target's are empty. If that migration fails, the restore carries on
+> and repeats a `WARN` at the end with the command to rerun. A source that
+> upgraded but never migrated its SQLite file is skipped; the restore prints the
+> command to run by hand:
+> `docker exec <builder> python -m app.cli.migrate_sqlite_to_postgres --sqlite-path /data/plugin_registry.db`.
 
 > **Plugin images are still not covered** — a plugin (e.g. `surfaceannotator`)
 > also needs its docker **image** present on the target. `docker save` it from

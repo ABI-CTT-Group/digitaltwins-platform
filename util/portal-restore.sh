@@ -103,12 +103,46 @@ if [ -d "$IN/minio" ]; then
 fi
 
 # 5. Portal plugin registry ---------------------------------------------------
-# The live registry came across in step 1 (the `portal` schema of the
-# digitaltwins DB); this is the builder's old SQLite copy, kept as its rollback path.
+# From a source on or after 2026-09-28 the live registry came across in step 1
+# (the `portal` schema of the digitaltwins DB) and this is the builder's old
+# SQLite copy, kept as its rollback path. From an OLDER source this file IS the
+# live registry, which the builder ignores under the platform (BUILDER_DB_HOST is
+# set), so it is migrated into the portal schema here: only when the dump has no
+# portal tables (an older source) and the target's are empty (the CLI refuses
+# otherwise). A failed migration warns rather than aborts, like step 10: the copy
+# is one transaction, the file stays in /data for a rerun by hand, and the
+# warning is repeated at the end.
+REGISTRY_WARN=""
 if [ -f "$IN/plugin_registry.db" ]; then
   echo "== restore plugin registry (restarts the builder) =="
   docker cp "$IN/plugin_registry.db" "$BUILDER_C:/data/plugin_registry.db"
   docker restart "$BUILDER_C" >/dev/null
+  MIGRATE=(python -m app.cli.migrate_sqlite_to_postgres --sqlite-path /data/plugin_registry.db)
+  # Rows in the tables the CLI copies, from the builder's own models; a missing table counts as empty.
+  COUNT_ROWS='
+from sqlalchemy import func, inspect, select
+from app.models.db_model import Base, engine
+insp = inspect(engine)
+with engine.connect() as c:
+    print(sum(c.execute(select(func.count()).select_from(t)).scalar_one() for t in Base.metadata.sorted_tables if insp.has_table(t.name)))'
+  if grep -q '^CREATE TABLE portal\.plugins ' "$IN/digitaltwins.sql" 2>/dev/null; then
+    echo "  the source's registry came across in digitaltwins.sql (post-2026-09-28 source); not migrating plugin_registry.db"
+    echo "  (if the source never migrated its SQLite registry, run: docker exec $BUILDER_C ${MIGRATE[*]})"
+  elif ! rows=$(docker exec "$BUILDER_C" python -c "$COUNT_ROWS"); then
+    REGISTRY_WARN="could not count the target's portal tables (error above): plugin registry NOT migrated. Run: docker exec $BUILDER_C ${MIGRATE[*]}"
+  elif [ "$rows" != 0 ]; then
+    echo "  the target's portal tables already hold $rows row(s); not migrating plugin_registry.db"
+  else
+    echo "  pre-2026-09-28 source: migrating plugin_registry.db into the portal schema (dry run first)"
+    if docker exec "$BUILDER_C" "${MIGRATE[@]}" --dry-run && docker exec "$BUILDER_C" "${MIGRATE[@]}"; then
+      # Restart again so the builder's startup reconcile sees the migrated deployments,
+      # as the restart above does for a registry that came in step 1.
+      docker restart "$BUILDER_C" >/dev/null
+    else
+      REGISTRY_WARN="plugin registry NOT migrated (error above): the target's registry is EMPTY. Fix the cause, then run: docker exec $BUILDER_C ${MIGRATE[*]}"
+    fi
+  fi
+  [ -z "$REGISTRY_WARN" ] || echo "  WARN: $REGISTRY_WARN"
 fi
 
 # 6. Orthanc DICOM (stop container, replace volume, start) --------------------
@@ -202,3 +236,4 @@ portal-restore: done.
 
 
 EOF
+[ -z "$REGISTRY_WARN" ] || echo "WARN (step 5): $REGISTRY_WARN"
