@@ -8,7 +8,8 @@
 #
 # Covers:  digitaltwins DB (incl. the builder's `portal` schema = the plugin
 #          registry), HAPI FHIR DB, SEEK (mysql + filestore), MinIO buckets,
-#          the old SQLite plugin registry, gateway plugin route configs,
+#          the SQLite plugin registry (the live one on a source older than
+#          2026-09-28), gateway plugin route configs,
 #          JupyterHub per-user volumes, Orthanc DICOM volumes.
 # Does NOT cover:  Keycloak (H2 here vs Postgres on the portal — migrate via a
 #          realm export/import instead), Airflow metadata (runtime state), and
@@ -89,9 +90,11 @@ rm -rf "$OUT/seek_filestore"; mkdir -p "$OUT/seek_filestore"
 docker cp "$SEEK_C:/seek/filestore/." "$OUT/seek_filestore/"
 
 # 5. Portal plugin registry (SQLite) ------------------------------------------
-# The live registry is the `portal` schema of the digitaltwins DB, already in
-# step 1's dump. This file is the builder's pre-Postgres SQLite copy, kept as its
-# rollback path (docs/decisions/2026-09-28-portal-database-in-platform-postgres.md).
+# Since 2026-09-28 the live registry is the `portal` schema of the digitaltwins
+# DB, already in step 1's dump, and this file is the builder's pre-Postgres SQLite
+# copy, kept as its rollback path (docs/decisions/2026-09-28-portal-database-in-platform-postgres.md).
+# On an older source this file IS the live registry; portal-restore.sh migrates it
+# into the target's `portal` schema.
 echo "== plugin registry =="
 docker cp "$BUILDER_C:/data/plugin_registry.db" "$OUT/plugin_registry.db"
 
