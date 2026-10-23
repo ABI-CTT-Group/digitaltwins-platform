@@ -6,8 +6,9 @@
 # down, volumes mounted read-only) and writes all archives under OUT
 # (default /tmp/dtwins-migrate). Pair it with portal-restore.sh on the target.
 #
-# Covers:  digitaltwins DB, HAPI FHIR DB, SEEK (mysql + filestore), MinIO
-#          buckets, portal plugin registry, gateway plugin route configs,
+# Covers:  digitaltwins DB (incl. the builder's `portal` schema = the plugin
+#          registry), HAPI FHIR DB, SEEK (mysql + filestore), MinIO buckets,
+#          the old SQLite plugin registry, gateway plugin route configs,
 #          JupyterHub per-user volumes, Orthanc DICOM volumes.
 # Does NOT cover:  Keycloak (H2 here vs Postgres on the portal — migrate via a
 #          realm export/import instead), Airflow metadata (runtime state), and
@@ -60,15 +61,20 @@ docker exec "$DB_C" sh -c \
   > "$OUT/digitaltwins.sql"
 assert_sql_has_data "$OUT/digitaltwins.sql" "digitaltwins"
 
-# 2. HAPI FHIR DB (its own Postgres on staging; folded into shared pg on portal)
+# 2. HAPI FHIR DB (its own Postgres on older layouts; the `hapi` DB in the shared pg now)
 if [ -n "$HAPI_PG_C" ] && docker ps --format '{{.Names}}' | grep -qx "$HAPI_PG_C"; then
   echo "== hapi DB (from $HAPI_PG_C) =="
   docker exec "$HAPI_PG_C" sh -c \
     'pg_dump -U "$POSTGRES_USER" --clean --if-exists "${POSTGRES_DB:-hapi}"' \
     > "$OUT/hapi.sql"
   assert_sql_has_data "$OUT/hapi.sql" "hapi"
+elif docker exec "$DB_C" sh -c 'psql -U "$POSTGRES_USER" -d postgres -lqtA' | cut -d'|' -f1 | grep -qx hapi; then
+  echo "== hapi DB (from shared $DB_C) =="
+  docker exec "$DB_C" sh -c 'pg_dump -U "$POSTGRES_USER" --clean --if-exists hapi' \
+    > "$OUT/hapi.sql"
+  assert_sql_has_data "$OUT/hapi.sql" "hapi"
 else
-  echo "== hapi: no container '$HAPI_PG_C'; skipping (set HAPI_PG_C to override) =="
+  echo "== hapi: no container '$HAPI_PG_C' and no hapi DB in $DB_C; skipping (set HAPI_PG_C to override) =="
 fi
 
 # 3. SEEK MySQL ---------------------------------------------------------------
@@ -83,6 +89,9 @@ rm -rf "$OUT/seek_filestore"; mkdir -p "$OUT/seek_filestore"
 docker cp "$SEEK_C:/seek/filestore/." "$OUT/seek_filestore/"
 
 # 5. Portal plugin registry (SQLite) ------------------------------------------
+# The live registry is the `portal` schema of the digitaltwins DB, already in
+# step 1's dump. This file is the builder's pre-Postgres SQLite copy, kept as its
+# rollback path (docs/decisions/2026-09-28-portal-database-in-platform-postgres.md).
 echo "== plugin registry =="
 docker cp "$BUILDER_C:/data/plugin_registry.db" "$OUT/plugin_registry.db"
 

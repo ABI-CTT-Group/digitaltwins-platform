@@ -59,6 +59,8 @@ assert_sql_has_data() {  # $1=file  $2=label
 }
 
 # 1. digitaltwins DB ----------------------------------------------------------
+# Includes the builder's `portal` schema, which the dump hands to the `portal`
+# role, so that role must already exist here (services/postgres/portal_init.sh).
 if [ -f "$IN/digitaltwins.sql" ]; then
   echo "== restore digitaltwins DB =="
   assert_sql_has_data "$IN/digitaltwins.sql" "digitaltwins"
@@ -101,6 +103,8 @@ if [ -d "$IN/minio" ]; then
 fi
 
 # 5. Portal plugin registry ---------------------------------------------------
+# The live registry came across in step 1 (the `portal` schema of the
+# digitaltwins DB); this is the builder's old SQLite copy, kept as its rollback path.
 if [ -f "$IN/plugin_registry.db" ]; then
   echo "== restore plugin registry (restarts the builder) =="
   docker cp "$IN/plugin_registry.db" "$BUILDER_C:/data/plugin_registry.db"
@@ -163,8 +167,9 @@ docker compose restart seek workers >/dev/null 2>&1 || docker restart "$SEEK_C" 
 echo "== re-stamp SEEK site_base_host + features + admin =="
 ENV_FILE="$BASE_DIR/.env"
 if [ -f "$ENV_FILE" ]; then
-  PROT=$(grep -E '^PLATFORM_PROTOCOL=' "$ENV_FILE" | cut -d= -f2-)
-  DOM=$(grep  -E '^PLATFORM_DOMAIN='   "$ENV_FILE" | cut -d= -f2-)
+  # `|| true`: under pipefail a missing key would exit here, before the WARN below.
+  PROT=$(grep -E '^PLATFORM_PROTOCOL=' "$ENV_FILE" | cut -d= -f2- || true)
+  DOM=$(grep  -E '^PLATFORM_DOMAIN='   "$ENV_FILE" | cut -d= -f2- || true)
   # SEEK was just restarted — wait until Rails answers before poking it.
   for _ in $(seq 1 30); do
     docker exec "$SEEK_C" sh -c 'cd /seek && RAILS_ENV=production bundle exec rails runner "exit 0"' >/dev/null 2>&1 && break
@@ -182,7 +187,8 @@ fi
 REALM_TEMPLATE="services/keycloak/digitaltwins-realm.json.template"
 # The admin's pinned "id" is the line immediately before its
 # "username": "${PLATFORM_ADMIN_USERNAME}" placeholder in the users[] block.
-ADMIN_SUB=$(grep -A1 '"id":' "$REALM_TEMPLATE" 2>/dev/null | grep -B1 'PLATFORM_ADMIN_USERNAME' | grep '"id":' | head -1 | sed -E 's/.*"id": *"([^"]+)".*/\1/')
+# `|| true`: as above — a missing template or no match must reach the WARN, not exit.
+ADMIN_SUB=$(grep -A1 '"id":' "$REALM_TEMPLATE" 2>/dev/null | grep -B1 'PLATFORM_ADMIN_USERNAME' | grep '"id":' | head -1 | sed -E 's/.*"id": *"([^"]+)".*/\1/' || true)
 if [ -n "$ADMIN_SUB" ]; then
   ./util/promote-seek-admin.sh "$ADMIN_SUB" \
     || echo "  WARN: promote-seek-admin failed — the platform admin may not be a SEEK server admin; run: ./util/promote-seek-admin.sh $ADMIN_SUB"

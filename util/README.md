@@ -476,8 +476,9 @@ it survives the two layouts differing — which they do:
   A DB copy is impossible across engines, so Keycloak is **not** handled here —
   migrate realms/users via a Keycloak realm export/import instead.
 - **HAPI FHIR** may have its **own Postgres** on one box and live in the
-  **shared Postgres** on the other. A logical `pg_dump` restores fine across
-  that (and across major versions, e.g. 13 → 16).
+  **shared Postgres** on the other. `stage-dump.sh` dumps it from whichever it
+  finds, and a logical `pg_dump` restores fine across that (and across major
+  versions, e.g. 13 → 16).
 
 ### Scripts
 
@@ -495,9 +496,14 @@ env vars if yours differ.
 ### What's covered
 
 `digitaltwins` DB · HAPI FHIR DB · SEEK (MySQL + filestore) · MinIO buckets ·
-portal **plugin registry** (`plugin_registry.db`) · gateway **plugin route
-configs** (`nginx_plugin_configs`) · **JupyterHub per-user volumes**
-(`jupyterhub_user_*`) · Orthanc DICOM volumes.
+portal **plugin registry** · gateway **plugin route configs**
+(`nginx_plugin_configs`) · **JupyterHub per-user volumes** (`jupyterhub_user_*`) ·
+Orthanc DICOM volumes.
+
+> **Plugin registry:** the builder keeps it in the `portal` schema of the
+> `digitaltwins` DB, so it travels inside `digitaltwins.sql`. The
+> `plugin_registry.db` the scripts also copy is the builder's old SQLite file,
+> kept only as its rollback path; the builder doesn't read it under the platform.
 
 > **Plugin images are still not covered** — a plugin (e.g. `surfaceannotator`)
 > also needs its docker **image** present on the target. `docker save` it from
@@ -610,6 +616,11 @@ util/sync-dags.sh <source> <target>
 - **Overwrite:** `portal-restore.sh` replaces the target's `digitaltwins`,
   `hapi`, `seek`, MinIO, plugin registry and Orthanc data. Intended for a fresh
   target; don't run it over data you want to keep.
+- **`portal` role:** the `digitaltwins` dump hands the `portal` schema to the
+  `portal` role, so the role must exist on the target first. A fresh install
+  creates it; on an older target, run
+  `docker compose exec database bash /docker-entrypoint-initdb.d/05_portal.sh`
+  once before restoring.
 - **Orthanc** restore briefly **stops** the target's `orthanc-1/2` containers to
   swap their volumes.
 - **Plugin images:** the plugin *registry* comes across, but a registered
@@ -705,7 +716,7 @@ non-obvious and was learned the hard way.
 - MinIO mirror failures **abort** the dump (`set -e`, no `|| true`) — a partial
   object set must never pass silently.
 - A **missing volume/container** is a **skip with a message** (Orthanc, plugin
-  configs, HAPI-on-shared-pg). That's intentional for legitimately-absent things,
+  configs, HAPI when neither its own pg nor a `hapi` DB in the shared pg exists). That's intentional for legitimately-absent things,
   but it's also how a wrong `PROJECT`/name yields a quiet partial — so when a box
   differs, set the overrides rather than trusting the skips.
 
