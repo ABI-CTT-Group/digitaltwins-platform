@@ -504,7 +504,9 @@ Orthanc DICOM volumes.
 > schema of the `digitaltwins` DB, so from a source on or after that date it
 > travels inside `digitaltwins.sql`, and the `plugin_registry.db` the scripts
 > also copy is only the builder's old SQLite file (its rollback path; the builder
-> doesn't read it under the platform). From a source **older than 2026-09-28**,
+> doesn't read it under the platform). A source *installed* on or after that date
+> has no such file, and `stage-dump.sh` skips it; with no SQLite file and no
+> `portal` tables in the dump, it stops with `FATAL`. From a source **older than 2026-09-28**,
 > `plugin_registry.db` is the live registry: `portal-restore.sh` migrates it into
 > Postgres automatically (dry run first), when the dump has no `portal` tables
 > and the target's are empty. If that migration fails, the restore carries on
