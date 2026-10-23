@@ -301,6 +301,7 @@ Fill in the two input files under `/mnt/install_src/data/` (copy the repo's
   ```bash
   REMOTE_COMPUTE=false              # true → also merge remote-compute.override.yml (publish Redis on the VLAN for a remote worker)
   AIRFLOW_VAR_COMPUTE_QUEUE=default # 'remote' routes workflow DAGs to a remote compute node
+  AIRFLOW_WORKER_GPU=auto           # true → also merge services/airflow/gpu.override.yml (worker gets the host GPU); auto = when the NVIDIA Container Toolkit is installed
   ```
 - **`data/secrets.env`** — every password/key (this is where "set up all your
   passwords" now happens). Generate strong values with `openssl rand -hex 32`.
@@ -366,7 +367,7 @@ This step (all automatic):
 - installs + enables the `digitaltwins-platform.service` systemd unit, so a reboot
   reconverges the stack automatically (mirrors the compute node's worker unit).
 
-`COMPOSE_FILE` is rendered into `.env` (by `gen-env.sh`, from `REMOTE_COMPUTE`),
+`COMPOSE_FILE` is rendered into `.env` (by `gen-env.sh`, from `REMOTE_COMPUTE` and `AIRFLOW_WORKER_GPU`),
 so `docker compose` run from `~/digitaltwins-platform` picks up the right file set
 automatically — no `~/.bashrc` entry and no re-login needed. **Do not export
 `COMPOSE_FILE` in your shell:** a shell value overrides the one in `.env` and will
