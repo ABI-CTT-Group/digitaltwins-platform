@@ -29,10 +29,10 @@ OFFLINE := --network none
 # The frontend's node_modules comes from the cache, so the host's node_modules is never used or changed.
 FE := -v $(CURDIR)/services/portal/frontend:/w -v $(CACHE)/frontend/node_modules:/w/node_modules -w /w
 
-.PHONY: test test-api test-builder test-frontend test-jupyterhub frontend-deps cache-dirs \
+.PHONY: test test-api test-builder test-frontend test-jupyterhub test-util frontend-deps cache-dirs \
 	lint lint-python lint-frontend gitleaks
 
-test: test-api test-builder test-frontend test-jupyterhub
+test: test-api test-builder test-frontend test-jupyterhub test-util
 
 # Created up front so docker doesn't create missing mount points as root.
 cache-dirs:
@@ -73,6 +73,14 @@ test-jupyterhub: cache-dirs
 	$(RUN) --entrypoint pip $(HUB_IMAGE) install -q --disable-pip-version-check --upgrade --target /cache/hub/site pytest==8.4.2
 	$(RUN) $(OFFLINE) -e PYTHONPATH=/cache/hub/site -v $(CURDIR)/services/jupyterhub:/w -w /w --entrypoint python \
 	  $(HUB_IMAGE) -m pytest -p no:cacheprovider -ra tests $(PYTEST_ARGS)
+
+# Shell tests for util/ (which compose files gen-env.sh merges). Also mounted, read-only: the two
+# Airflow compose files the test checks for the GPU reservation. Neither holds secrets.
+test-util: cache-dirs
+	$(RUN) $(OFFLINE) -v $(CURDIR)/util:/w/util:ro \
+	  -v $(CURDIR)/services/airflow/docker-compose.yml:/w/services/airflow/docker-compose.yml:ro \
+	  -v $(CURDIR)/services/airflow/gpu.override.yml:/w/services/airflow/gpu.override.yml:ro \
+	  -w /w $(PY311_IMAGE) bash util/tests/test_compose_file.sh
 
 # Static checks; report-only in CI for now. Runs both, fails if either finds problems.
 # ruff is pinned to the bug-class rules (pyflakes + syntax/statement errors), not style.

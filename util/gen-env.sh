@@ -92,16 +92,15 @@ cat <<EOF > services/nginx/snippets/minio-discovery.json
 EOF
 
 # Which compose files the stack merges — base always; add the remote-compute
-# override when this deploy drives a remote worker. Emitted into .env so BOTH the
-# systemd unit (docker compose up -d at boot, from its WorkingDirectory) and
-# operators' manual `docker compose` commands read the SAME value — no .bashrc,
-# no scattered -f flags. Flip REMOTE_COMPUTE in the env inputs file (or export
+# override when this deploy drives a remote worker, and the GPU override when the
+# Airflow worker gets the host's GPU. Emitted into .env so BOTH the systemd unit
+# (docker compose up -d at boot, from its WorkingDirectory) and operators' manual
+# `docker compose` commands read the SAME value — no .bashrc, no scattered -f
+# flags. Set REMOTE_COMPUTE / AIRFLOW_WORKER_GPU in the env inputs file (or
 # COMPOSE_FILE directly) to change it.
-if [ "${REMOTE_COMPUTE:-false}" = "true" ]; then
-  : "${COMPOSE_FILE:=docker-compose.yml:services/airflow/remote-compute.override.yml}"
-else
-  : "${COMPOSE_FILE:=docker-compose.yml}"
-fi
+# shellcheck source=util/lib/compose-file.sh
+. "$(dirname "$0")/lib/compose-file.sh"
+resolve_compose_file
 
 # DAG queue routing — DAGs read Variable.get("compute_queue", "default"); Airflow maps
 # AIRFLOW_VAR_* env vars to Variables. Default local; set AIRFLOW_VAR_COMPUTE_QUEUE=remote

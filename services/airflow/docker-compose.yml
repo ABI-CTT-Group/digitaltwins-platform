@@ -252,16 +252,8 @@ services:
     # tensors and fails with "unable to allocate shared memory ... No space
     # left on device".
     shm_size: '16gb'
-    # Expose the host GPU to nnUNet inference tasks. Only the worker executes
-    # task code, so this stays off the x-airflow-common anchor — the scheduler,
-    # apiserver, triggerer and dag-processor have no use for a GPU.
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [ gpu ]
+    # The host GPU for nnUNet inference is added by gpu.override.yml, which
+    # util/gen-env.sh merges only when AIRFLOW_WORKER_GPU resolves to true.
     healthcheck:
       # yamllint disable rule:line-length
       test:

@@ -1,0 +1,20 @@
+---
+# Gives the Airflow worker the host's NVIDIA GPU, for nnUNet inference tasks.
+#
+# Only the worker executes task code, so the scheduler, apiserver, triggerer and
+# dag-processor don't get a GPU. Docker refuses to start a container whose GPU
+# reservation it can't satisfy, so this lives outside the base compose file.
+#
+# util/gen-env.sh adds it to COMPOSE_FILE in .env when AIRFLOW_WORKER_GPU resolves
+# to true (default `auto`: when the host has the NVIDIA Container Toolkit).
+# See docs/decisions/2026-10-23-airflow-worker-gpu-opt-in.md.
+
+services:
+  airflow-worker:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]

@@ -30,6 +30,7 @@ jobs:
       builder: ${{ steps.filter.outputs.builder }}
       frontend: ${{ steps.filter.outputs.frontend }}
       jupyterhub: ${{ steps.filter.outputs.jupyterhub }}
+      util: ${{ steps.filter.outputs.util }}
       code: ${{ steps.filter.outputs.code }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -57,7 +58,8 @@ jobs:
           builder=$(has '^services/builder/|^services/portal/frontend/nginx\.conf\.template$|^docker-compose\.yml$|^services/api/docker-compose\.yml$|^services/api/src/digitaltwins/postgres/migration_runner\.py$|^services/api/src/digitaltwins/core/keycloak_verifier\.py$')
           frontend=$(has '^services/portal/frontend/')
           jupyterhub=$(has '^services/jupyterhub/')
-          [ "$all" = true ] && api=true builder=true frontend=true jupyterhub=true
+          util=$(has '^util/|^services/airflow/(docker-compose|gpu\.override)\.yml$')
+          [ "$all" = true ] && api=true builder=true frontend=true jupyterhub=true util=true
           code=false
           for v in $api $builder $frontend $jupyterhub; do [ "$v" = true ] && code=true; done
           {
@@ -65,6 +67,7 @@ jobs:
             echo "builder=$builder"
             echo "frontend=$frontend"
             echo "jupyterhub=$jupyterhub"
+            echo "util=$util"
             echo "code=$code"
           } | tee -a "$GITHUB_OUTPUT"
 
@@ -116,6 +119,18 @@ jobs:
         with:
           persist-credentials: false
       - run: make test-jupyterhub
+
+  util:
+    name: util unit tests
+    needs: changes
+    if: needs.changes.outputs.util == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: make test-util
 
   # Report-only: continue-on-error is on the steps so the job stays green while findings still show.
   lint:

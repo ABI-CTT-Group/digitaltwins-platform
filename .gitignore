@@ -209,3 +209,6 @@ services/airflow/logs/*
 
 # Local E2E login (username, password); never commit
 e2e-creds.txt
+
+# util/lib holds sourced shell helpers (e.g. compose-file.sh), not Python packaging output.
+!util/lib/

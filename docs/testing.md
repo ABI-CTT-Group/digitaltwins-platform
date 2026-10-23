@@ -5,11 +5,12 @@ The unit tests run through one root `Makefile`. You get the same results locally
 You need Docker and GNU make. You don't need Python, Node, uv or a virtualenv on the host.
 
 ```bash
-make test                  # all four unit suites
+make test                  # all five unit suites
 make test-api              # services/api                (pytest, Python 3.11)
 make test-builder          # services/builder            (pytest, Python 3.11)
 make test-frontend         # services/portal/frontend    (vitest, Node 20)
 make test-jupyterhub       # services/jupyterhub         (pytest, hub image)
+make test-util             # util/                       (bash, Python 3.11 image)
 make lint                  # ruff + eslint + vue-tsc (report-only in CI)
 make gitleaks              # secret scan of origin/main..HEAD
 ```
@@ -61,6 +62,7 @@ On a PR, only the suites whose files changed run. "Changed" means the whole PR's
 | `services/portal/frontend/nginx.conf.template` | frontend and builder |
 | the rest of `services/portal/frontend/` | frontend |
 | `services/jupyterhub/` | jupyterhub |
+| `util/`, `services/airflow/docker-compose.yml`, `services/airflow/gpu.override.yml` | util |
 | `Makefile`, `.github/workflows/` | all suites |
 | anything else (e.g. docs) | no tests |
 
@@ -74,6 +76,8 @@ These checks block merging:
 - `frontend unit tests`
 - `jupyterhub unit tests`
 - `gitleaks (PR commits)`
+
+`util unit tests` runs too, but isn't a required check.
 
 `lint (report-only)` shows its findings as annotations but never fails.
 
