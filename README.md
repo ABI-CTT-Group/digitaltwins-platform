@@ -11,6 +11,7 @@
 
 ## Table of contents
 * [Introduction](#introduction)
+* [Architecture](#architecture)
 * [Deploying the DigitalTWINS platform](#deploying-the-digitaltwins-platform)
 * [Reporting issues](#reporting-issues)
 * [Contributing](#contributing)
@@ -43,7 +44,68 @@ These efforts are aimed at **supporting an ecosystem** to:
 
 **If you find the DigitalTWINS platform useful, please add a GitHub Star to support developments!**
 
-![architecture diagram](docs/images/architecture_diagram.png)
+## Architecture
+
+The platform runs as one Docker Compose project. An nginx gateway is the single
+public entry point and routes by path to each service, and Keycloak provides
+single sign-on across all of them.
+
+```mermaid
+flowchart TB
+    user(["User"])
+
+    subgraph platform["DigitalTWINS platform"]
+        gateway["Gateway<br/>nginx"]
+        sso["Single sign-on<br/>Keycloak"]
+        portal["Web portal"]
+        api["DigitalTWINS API"]
+
+        subgraph analyse["Run and build analyses"]
+            workflows["Workflow engine<br/>Airflow"]
+            notebooks["Interactive notebooks<br/>JupyterHub"]
+            builder["Tool and workflow builder"]
+            guitools["GUI tools and plugins<br/>run in the portal"]
+        end
+
+        subgraph data["Store and describe data"]
+            direction TB
+            catalogue["Data catalogue<br/>SEEK"]
+            records["Clinical metadata<br/>FHIR"]
+            imaging["Medical imaging<br/>PACS"]
+            files["File storage<br/>MinIO"]
+            database["Database<br/>PostgreSQL"]
+        end
+    end
+
+    user --> gateway
+    gateway -.->|sign in| sso
+    gateway --> portal
+    gateway --> api
+    portal --> api
+    portal --> builder
+    builder -->|deploys| guitools
+    api --> analyse
+    api --> data
+    analyse --> data
+```
+
+| Service | Role | Path |
+|---|---|---|
+| Portal (`portal-frontend`) | Web portal for researchers, clinicians and admins | `/` |
+| API (`api`) | DigitalTWINS REST API and `digitaltwins` Python package | `/api` |
+| Builder (`builder`) | Builds and deploys portal tools, workflows and plugins | `/api/builder` |
+| Airflow | Workflow execution (DAGs on Celery workers) | `/airflow` |
+| JupyterHub | Interactive analysis, one notebook server per user | `/jupyter` |
+| Keycloak | Identity and access management (OIDC) | `/auth` |
+| SEEK | Data catalogue | `/seek` |
+| MinIO | Object storage (S3) | `/minio` |
+| HAPI FHIR | Clinical metadata (FHIR R4) | `/fhir` |
+| PACS (Orthanc) | Medical imaging (DICOM) | `/orthanc-1`, `/orthanc-2` |
+| PostgreSQL | Shared database for the API, builder, Airflow, Keycloak and HAPI FHIR | internal |
+| Gateway (nginx) | TLS and path routing | all |
+
+See [docs/architecture.md](docs/architecture.md) for the service and container
+diagrams, data stores and Keycloak clients.
 
 ## Deploying the DigitalTWINS platform
 
