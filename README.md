@@ -142,3 +142,4 @@ We gratefully acknowledge the valuable contributions from:
   - Nathalie Giraudon, Claire Rye, Jun Huh, and Nick Jones
 - Gen3 team at the Centre for Translational Data Science at the University of Chicago
 - Members of the SPARC Data and Resource Center (DRC).
+- The Heidelberg Institute for Theoretical Studies (HITS)
