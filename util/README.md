@@ -46,7 +46,7 @@ a `data/.env` or place a `data/digitaltwins-realm.json`.
   - [Procedure](#procedure)
   - [Caveats](#caveats)
   - [How it works & gotchas](#how-it-works--gotchas-for-maintainers)
-- [Working with the submodules (portal / api / seek)](#working-with-the-submodules-portal--api--seek)
+- [Working with the submodule (seek)](#working-with-the-submodule-seek)
 - [Files in `/mnt/install_src` (reference)](#files-in-mntinstall_src-reference)
 - [Observability (separate, optional)](#observability-separate-optional)
 - [Notes / gotchas](#notes--gotchas)
@@ -55,7 +55,7 @@ The install source is assumed mounted at `/mnt/install_src`, laid out as:
 
 ```
 /mnt/install_src/
-├── clean_src/digitaltwins-platform/     # this repo checkout (submodules included)
+├── clean_src/digitaltwins-platform/     # this repo checkout (SEEK submodule included)
 ├── data/
 │   ├── env                              # non-secret host config (you fill in)
 │   ├── secrets.env                      # all passwords/keys (you fill in)
@@ -73,8 +73,8 @@ The install source is assumed mounted at `/mnt/install_src`, laid out as:
 
 Populate `clean_src/digitaltwins-platform/` with a **recursive** clone. The repos
 are public, so this needs no auth over HTTPS (the box's only GitHub block is
-SSH); `--recursive` pulls the three submodules (portal / api / seek) at their
-pinned commits:
+SSH); `--recursive` pulls the one submodule, SEEK (`services/seek/ldh-deployment`), at
+its pinned commit. The portal and API code live in this repo:
 
 ```bash
 cd /mnt/install_src/clean_src
@@ -83,8 +83,8 @@ git clone --recursive \
 ```
 
 > **After any `git pull` in `clean_src`, re-run `git submodule update --init
-> --recursive`** — a pull moves the submodule pointers but does **not** check out
-> their new commits.
+> --recursive`** — a pull moves the submodule pointer but does **not** check out
+> its new commit.
 
 ---
 
@@ -383,7 +383,8 @@ the localhost/http build). Every route below is served by the edge **gateway**
 Quick smoke test: `/` (portal), `/seek`, `/jupyter`, `/auth`, `/airflow`.
 
 **Pre-canned realm users** (from the realm template — change/remove for
-production): `admin` (password = your `PLATFORM_ADMIN_PASSWORD`), and the
+production): the platform admin `${PLATFORM_ADMIN_USERNAME}` (default `admin1`;
+password = your `PLATFORM_ADMIN_PASSWORD`), and the
 plaintext test users `clinician`/`clinician`, `researcher`/`researcher`,
 `test1`/`test1`, `test2`/`test2`.
 
@@ -771,7 +772,7 @@ of these, what survives a VM rebuild, and how to dump data onto the volume first
 
 | File | Purpose |
 |---|---|
-| `clean_src/` | this repo + its 3 submodules (the deployment source). |
+| `clean_src/` | this repo + its SEEK submodule (the deployment source). |
 | `data/env`, `data/secrets.env` | your host config + secrets → rendered into `.env`. Never commit these. |
 | `data/<domain>.fullchain.pem`/`.privkey.pem` | per-domain TLS cert/key; symlink the chosen one to `fullchain.pem`/`privkey.pem`. |
 | `data/public_keys/*.pub` | operator SSH keys, authorised by step 5. |

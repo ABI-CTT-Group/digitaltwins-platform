@@ -130,32 +130,25 @@ the limit means and can return a coherent error.
 
 ---
 
-## Known gaps: none of the four platform routes work yet
+## Path prefixes
 
-**This is not a regression.** These four locations were inherited verbatim from the
-portal's old SSL template, where they were equally dead — and they were missing
-outright from the HTTP template, so nobody ever hit them in local dev.
+A route only works if the app behind it knows it is mounted under a prefix. A `404`,
+or a redirect that escapes to `/`, usually means the request *did* reach the app, and
+the app thinks it lives at the root. Each app is told its prefix by one setting, and
+all of them are live:
 
-The reason is the same in all four cases: **every one of these apps is configured to
-live at the root path**, and every one is reached today through its own published host
-port. Proxying is fine — a `404`, or a redirect to `/hub/...`, means the request *did*
-reach the app. The app just doesn't know it's mounted under a prefix.
+| Route | App setting |
+|---|---|
+| `/seek/` | `RAILS_RELATIVE_URL_ROOT: "/seek"` on `seek` and `workers` in `services/seek/ldh-deployment/docker-compose.yml` |
+| `/airflow/` | `AIRFLOW__API__BASE_URL=<protocol>://<domain>/airflow`, rendered into `.env` and passed in `services/airflow/docker-compose.yml` |
+| `/jupyter/` | `c.JupyterHub.base_url = '/jupyter/'` in `services/jupyterhub/jupyterhub_config.py` |
+| `/auth/` | `KC_HTTP_RELATIVE_PATH=/auth` in `services/keycloak/docker-compose.yml` |
+| `/fhir/` | none: HAPI FHIR serves `/fhir` natively |
 
-| Route | Today | To make it work | Direct access meanwhile |
-|---|---|---|---|
-| `/seek/` | 404 | `RAILS_RELATIVE_URL_ROOT: "/seek"` in `services/seek/ldh-deployment/docker-compose.yml` (on both `seek` and `workers`) | `:8001` |
-| `/airflow/` | 502 / broken UI | `AIRFLOW__API__BASE_URL=http://<host>/airflow` (Airflow 3; `AIRFLOW__WEBSERVER__BASE_URL` on 2.x) | `:8002` |
-| `/jupyter/` | 302 to `/hub/...` | `c.JupyterHub.base_url = '/jupyter/'` in `services/jupyterhub/jupyterhub_config.py` | `:8016` |
-| `/auth/` | 404 | Change `KC_HOSTNAME`, `KEYCLOAK_PUBLIC_URL`, **and** this route together — see below | `:8009` |
-
-`/jupyter/`'s upstream was also simply wrong: the old route pointed at
-`jupyterlab:8888`, a service that is commented out of the root compose `include` and
-has never run here. It now points at `jupyterhub:8000`.
+Changing one of these prefixes means editing the app's setting and **restarting that
+service**; `nginx -s reload` alone is not enough, because the setting lives in the app.
 
 ⚠️ **Keycloak is the dangerous one.** `KC_HOSTNAME` pins the issuer baked into every
-token (`iss=http://localhost:8009`), and JupyterHub and the builder use
-`KEYCLOAK_PUBLIC_URL`. Move one without the other and every login fails.
-
-Note how cheap each of these fixes now is: one line here, `nginx -s reload`, plus one
-setting on the app. Before this gateway existed, touching the route side of that meant
-rebuilding the portal's frontend image.
+token, and JupyterHub and the builder use `KEYCLOAK_PUBLIC_URL`. Both are
+derived from `PLATFORM_PROTOCOL` and `PLATFORM_DOMAIN` by `util/gen-env.sh`; move the
+`/auth/` route without regenerating them and every login fails.

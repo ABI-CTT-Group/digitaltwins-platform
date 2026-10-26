@@ -70,7 +70,7 @@ The two sides must match — that's the whole point of using one variable.
 | `JUPYTERHUB_CLIENT_SECRET` | `jupyterhub` | |
 | `GRAFANA_OAUTH_SECRET` | `grafana` | |
 | `ORTHANC_KEYCLOAK_CLIENT_SECRET` | `admin-cli` | Consumed by `services/pacs` Orthanc auth services. |
-| `PLATFORM_ADMIN_PASSWORD` | (the `admin` **user** password) | Not a client secret — the seeded `admin` user's password. |
+| `PLATFORM_ADMIN_PASSWORD` | (the platform admin **user** password) | Not a client secret — the password of the seeded platform admin user, `${PLATFORM_ADMIN_USERNAME}` (default `admin1`). |
 
 > **Not in the realm:** `AIRFLOW_PASSWORD` is *not* a Keycloak secret. It's the
 > local Airflow (FAB) admin password the `api` service uses for
@@ -98,13 +98,13 @@ The two sides must match — that's the whole point of using one variable.
 
 ## Seeded users
 
-Passwords are in the realm import (redacted on export); the `admin` user's
+Passwords are in the realm import (redacted on export); the platform admin's
 password is `${PLATFORM_ADMIN_PASSWORD}`. Interactive users get their
 Airflow role re-synced on each login (`AUTH_ROLES_SYNC_AT_LOGIN = True`).
 
 | User | realmRoles | Groups | Purpose |
 |---|---|---|---|
-| `admin` | `airflow_admin`, `consoleAdmin`, `default-roles-*` | all | Primary admin; airflow admin. |
+| `${PLATFORM_ADMIN_USERNAME}` (default `admin1`) | `airflow_admin`, `consoleAdmin`, `default-roles-*` | all | Platform admin, the same identity as SEEK's server admin and Airflow's admin user; Airflow admin. |
 | `test1` | all `airflow_*` + defaults | all | Test/superuser. |
 | `test2` | defaults | `/researcher` | Test researcher. |
 | `clinician` | (via group) | `/clinician` | Sample clinician. |
