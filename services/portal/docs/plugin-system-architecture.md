@@ -64,9 +64,9 @@ Everything else in this document is the detail behind those four steps.
      write  write  write
        │      │    │
   ┌────▼───┐ ┌▼────────────┐ ┌───────▼──────────────┐
-  │ MinIO  │ │   SQLite    │ │  nginx_plugin_       │
-  │ tools/ │ │ plugin_     │ │  configs volume      │
-  │(public)│ │ registry.db │ │  /conf.d/plugins/    │
+  │ MinIO  │ │  Postgres   │ │  nginx_plugin_       │
+  │ tools/ │ │  `portal`   │ │  configs volume      │
+  │(public)│ │  schema     │ │  /conf.d/plugins/    │
   │  UMD   │ │ Plugin /    │ │  <expose>.conf       │
   │bundles │ │ PluginBuild │ │  (read by nginx      │
   │  ◄(A)  │ │ Deployment  │ │   include directive) │
@@ -84,7 +84,7 @@ The **four persistence planes**:
 | **1. Plugin frontend assets** | MinIO `tools` bucket (public) | UMD JS, CSS, HTML for the plugin's Vue app, wrapped in a SPARC dataset |
 | **2. Plugin backend runtime** | Docker (on `digitaltwins` network) | The running plugin backend container |
 | **3. Routing config** | `nginx_plugin_configs` volume | One `.conf` per plugin, loaded by `include` in portal-frontend's nginx |
-| **4. Registry** | SQLite `plugin_registry.db` (Docker volume `plugin_database`) | `Plugin`, `PluginBuild`, `PluginDeployment` rows — the portal's memory of what's installed |
+| **4. Registry** | The `portal` schema in the platform Postgres (`database` service). SQLite on the `plugin_database` volume only when the builder runs standalone | `Plugin`, `PluginBuild`, `PluginDeployment` rows — the portal's memory of what's installed |
 
 ---
 
@@ -100,7 +100,7 @@ Triggered by POST to the plugin register/build endpoint. Input: git URL **or** l
 6. **Create SPARC dataset** — copies `code/` (source) and `primary/` (dist output) into a sparc-me dataset folder. Why: SPARC is the lab's interoperability format; we reuse it instead of inventing another layout.
 7. **Upload dataset to MinIO `tools/<expose_name>/`** — public bucket, so the browser can later request `http(s)://<host>:<minio_port>/tools/<expose>/primary/<name>.umd.js` with no auth.
 8. **Clean up** the temp clone.
-9. **Write row to SQLite** — `Plugin` row (metadata), `PluginBuild` row (build_logs, s3_path, expose_name, dataset_path, status=COMPLETED).
+9. **Write rows to the registry** — `Plugin` row (metadata), `PluginBuild` row (build_logs, s3_path, expose_name, dataset_path, status=COMPLETED).
 
 After this, the plugin is **installed** (listed in the portal) but not yet **deployed** (no backend running, no nginx route).
 
@@ -139,7 +139,7 @@ The URL `http(s)://<host>/plugin/<expose>/…` is now live.
 ## 5. Runtime flow — user opens a plugin
 
 1. Browser is already on `https://test.digitaltwins.auckland.ac.nz/` (portal HTML, served by nginx from `/usr/share/nginx/html`).
-2. User clicks the plugin card. The portal's Vue router renders `<RemoteComponentApp src=".../<expose>.umd.js" expose="<expose_name>" />` ([RemoteComponentApp.vue](../../frontend/src/components/RemoteComponentApp.vue)).
+2. User clicks the plugin card. The portal's Vue router renders `<RemoteComponentApp src=".../<expose>.umd.js" expose="<expose_name>" />` ([RemoteComponentApp.vue](../frontend/src/components/RemoteComponentApp.vue)).
 3. `RemoteComponentApp.vue` appends a `<script>` tag with `src="https://<host>:<minio_port>/tools/<expose>/primary/<name>.umd.js"` to `document.head`.
 4. The UMD bundle loads and registers itself on `window[expose_name]`.
 5. The Vue component from `window[expose_name]` is mounted via `<component :is="remoteApp" />`.
@@ -160,7 +160,7 @@ No portal rebuild, no nginx image rebuild — the plugin showed up because of a 
 | Generated nginx `.conf` in a shared volume (instead of rebuilding the nginx image) | Zero-downtime plugin install. `nginx -s reload` only re-reads configs; the portal frontend never restarts. |
 | Docker compose `-p <expose_name>` | Scopes the plugin's volumes/networks/containers under the expose name so we can delete them cleanly with `down --rmi all --volumes` and a volume prefix filter. |
 | SPARC dataset as the build artifact | Interoperability with the rest of the lab's tooling; the same format is used for workflows and datasets elsewhere on the platform. |
-| SQLite registry (not just "read Docker / MinIO") | We need to store plugin metadata (title, description, icon, keywords, annotation mappings) that doesn't live in Docker or MinIO. Also lets us list plugins without expensive directory walks. |
+| A database registry (not just "read Docker / MinIO") | We need to store plugin metadata (title, description, icon, keywords, annotation mappings) that doesn't live in Docker or MinIO. Also lets us list plugins without expensive directory walks. |
 | `PLUGIN_ROUTE_PREFIX` injected at **build** time to frontend, at **deploy** time to backend | Frontend must bake it into JS (Vite env). Backend only reads it at runtime if it cares (e.g. to build self-referential URLs). |
 
 ---
@@ -251,7 +251,7 @@ After this the plugin is fully gone — no containers, no files, no route, no DB
 | `builder` (platform: `services/builder/docker-compose.yml`) | Runs builder/deployer; needs `/var/run/docker.sock`, `nginx_plugin_configs` volume |
 | `portal-frontend` | nginx host; mounts `nginx_plugin_configs` at `/etc/nginx/conf.d/plugins`; `container_name: digitaltwins-platform-portal-frontend` so the builder can `docker exec` it |
 | `minio` + `minio-init` | Creates the 5 buckets; sets public read on `tools` |
-| Volumes: `nginx_plugin_configs`, `plugin_database`, `portal_datasets`, `minio_data` | Shared state that must survive container restarts |
+| Volumes: `nginx_plugin_configs`, `portal_datasets`, `minio_data`, and `plugin_database` (SQLite fallback and migration source) | Shared state that must survive container restarts |
 
 ---
 
@@ -287,9 +287,9 @@ No. Both templates contain the same `include /etc/nginx/conf.d/plugins/*.conf;` 
 | Plugin card shows but clicking it loads blank | Open browser devtools → Network. Is the UMD JS fetched? (200 from MinIO?) Is `window[expose]` defined after load? |
 | UMD loads but API calls 404 | `docker compose exec portal-frontend cat /etc/nginx/conf.d/plugins/<expose>.conf` — does the file exist? Is `include plugins/*.conf` still in the rendered `default.conf`? |
 | API calls 502 | Plugin container isn't on `digitaltwins` network, or service name in `internal_host` doesn't match. `docker network inspect digitaltwins`. |
-| Plugin install fails at build step | Check `PluginBuild.build_logs` in SQLite or backend logs. Usually vite config patch failed or `npm install` failed. |
+| Plugin install fails at build step | Check `PluginBuild.build_logs` in the registry (`portal` schema) or the builder logs. Usually vite config patch failed or `npm install` failed. |
 | Plugin install fails at deploy step | Check `PluginDeployment.status` / logs. Usually the plugin's compose file is missing the `digitaltwins` external network declaration. |
-| Delete "succeeded" but plugin card still visible | Registry row not cascade-deleted. Check `Plugin` table in SQLite. |
+| Delete "succeeded" but plugin card still visible | Registry row not cascade-deleted. Check the `Plugin` table in the registry (`portal` schema). |
 
 ---
 

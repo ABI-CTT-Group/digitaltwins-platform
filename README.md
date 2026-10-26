@@ -3,7 +3,7 @@
 ![License](https://img.shields.io/github/license/ABI-CTT-Group/digitaltwins-platform)
 
 ![Docker](https://img.shields.io/badge/docker-enabled-blue)
-![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![Python](https://img.shields.io/badge/python-3.11-blue)
 
 ![Contributors](https://img.shields.io/github/contributors/ABI-CTT-Group/digitaltwins-platform?color=brightgreen)
 ![GitHub stars](https://img.shields.io/github/stars/ABI-CTT-Group/digitaltwins-platform?style=social)
@@ -13,6 +13,9 @@
 * [Introduction](#introduction)
 * [Architecture](#architecture)
 * [Deploying the DigitalTWINS platform](#deploying-the-digitaltwins-platform)
+* [Populating data](#populating-data)
+* [Documentation](#documentation)
+* [Development and testing](#development-and-testing)
 * [Reporting issues](#reporting-issues)
 * [Contributing](#contributing)
 * [License](#license)
@@ -109,22 +112,56 @@ diagrams, data stores and Keycloak clients.
 
 ## Deploying the DigitalTWINS platform
 
-See [util/README.md](util/README.md) for the full install runbook (connected or
-airgapped), and [docs/development.md](docs/development.md) for ongoing development
-in a shared environment.
+The platform targets **Ubuntu 24.04 (amd64)** with **Docker Engine and the Compose v2
+plugin**. An NVIDIA GPU is optional and is used by the Airflow worker when present.
+It runs on `http://localhost` for development or on a domain over https.
+
+| To... | Follow |
+|---|---|
+| Install on a host with Internet access, step by step | [docs/deployment.md](docs/deployment.md) |
+| Install on an airgapped or production host with the Ansible playbooks | [util/README.md](util/README.md) |
+| Build a whole system, including observability and remote compute nodes | [util/BUILD-FULL-SYSTEM.md](util/BUILD-FULL-SYSTEM.md) |
+| Run it on macOS or another arm64 host (development only) | [Installing on a Mac or other arm64 host](util/README.md#installing-on-a-mac-or-other-arm64-host) |
+| Harden a deployment for production | [docs/production.md](docs/production.md) |
+| Get code changes into a running deployment | [docs/development.md](docs/development.md) |
 
 ## Populating data
 
-See [Populating_data](docs/populating_data.md)
+See [Populating data](docs/populating_data.md) for creating research objects in the
+data catalogue, linking assays to workflows, deploying workflows and importing
+datasets.
+
+## Documentation
+
+- [docs/README.md](docs/README.md): index of every guide (deploy, operate, use,
+  develop, reference).
+- [docs/architecture.md](docs/architecture.md): service and container diagrams,
+  data stores and Keycloak clients.
+- [services/api/README.md](services/api/README.md): the `digitaltwins` Python
+  package for uploading, querying and downloading datasets.
+- [docs/decisions/](docs/decisions/): Architecture Decision Records.
+
+## Development and testing
+
+Run the unit tests and linters before opening a pull request. They need only Docker
+and GNU make:
+
+```bash
+make test   # all unit-test suites, in pinned containers
+make lint   # ruff, eslint and vue-tsc
+```
+
+See [docs/testing.md](docs/testing.md) for single suites, integration tests and CI,
+and [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute.
 
 ## Reporting issues
 To report an issue or suggest a new feature, please use the [issues page](https://github.com/ABI-CTT-Group/digitaltwins-platform/issues). Issue templates are provided to allow users to report bugs, and documentation or feature requests. Please check existing issues before submitting a new one.
 
 ## Contributing
-Fork this repository and submit a pull request to contribute. Before doing so, please read our [Code of Conduct](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/master/CODE_OF_CONDUCT.md) and [Contributing Guidelines](https://github.com/ABI-CTT-Group/digitaltwins-platform#contributing). Pull request templates are provided to help developers describe their contribution, mention the issues related to the pull request, and describe their testing environment. Run the unit tests with `make test` before opening a pull request; see [docs/testing.md](docs/testing.md). 
+Fork this repository and submit a pull request to contribute. Before doing so, please read our [Code of Conduct](CODE_OF_CONDUCT.md) and [Contributing Guidelines](CONTRIBUTING.md). A pull request template is provided to help developers describe their contribution, mention the issues related to the pull request, and describe how they tested it. Run the unit tests with `make test` before opening a pull request; see [docs/testing.md](docs/testing.md).
 
 ## License
-The DigitalTWINS platform API is fully open source and distributed under the very permissive Apache License 2.0. See [LICENSE](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/LICENSE) for more information.
+The DigitalTWINS platform is fully open source and distributed under the very permissive Apache License 2.0. See [LICENSE](LICENSE) for more information.
 
 ## Team
 

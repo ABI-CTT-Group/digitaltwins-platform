@@ -383,7 +383,8 @@ the localhost/http build). Every route below is served by the edge **gateway**
 Quick smoke test: `/` (portal), `/seek`, `/jupyter`, `/auth`, `/airflow`.
 
 **Pre-canned realm users** (from the realm template — change/remove for
-production): `admin` (password = your `PLATFORM_ADMIN_PASSWORD`), and the
+production): the platform admin `${PLATFORM_ADMIN_USERNAME}` (default `admin1`;
+password = your `PLATFORM_ADMIN_PASSWORD`), and the
 plaintext test users `clinician`/`clinician`, `researcher`/`researcher`,
 `test1`/`test1`, `test2`/`test2`.
 

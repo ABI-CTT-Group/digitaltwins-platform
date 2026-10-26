@@ -1,232 +1,224 @@
-# Deploying the Digital Twins Platform
+# Deploying the DigitalTWINS platform
 
-This document describes how to deploy the Digital Twins Platform from the [deployment repository](https://github.com/ABI-CTT-Group/digitaltwins-platform). It provides a concise quick-start and expanded steps for each service (Keycloak, Airflow, SEEK, etc.), configuration tips, default credentials, and common troubleshooting commands.
+This guide installs the platform by hand on a host **with Internet access**, either
+for local development on `http://localhost` or on a domain over https. It runs the
+same steps, in the same order, as the install playbook
+[`util/airgap_build_step3.yml`](../util/airgap_build_step3.yml).
+
+> [!NOTE]
+> For an **airgapped** or production host, use the playbook instead: see
+> [`util/README.md`](../util/README.md). To build a whole system with observability
+> and remote compute, start at
+> [`util/BUILD-FULL-SYSTEM.md`](../util/BUILD-FULL-SYSTEM.md). Before going live,
+> work through the [production checklist](production.md).
+
+**Requirements:** Ubuntu 24.04 (amd64), Docker Engine with the Compose v2 plugin
+(`docker compose`), and git. An NVIDIA GPU is optional (see `AIRFLOW_WORKER_GPU`
+below). To install Docker and add yourself to the `docker` group, follow
+[Installing on a connected machine](../util/README.md#installing-on-a-connected-machine).
+macOS and arm64 hosts work for development only; see
+[Installing on a Mac or other arm64 host](../util/README.md#installing-on-a-mac-or-other-arm64-host).
+
+Run every command below from the repository root.
 
 ---
 
-## 1. Clone the Repository
+## 1. Clone the repository
 
-Begin by cloning the recursive repository to your local machine:
+SEEK is a git submodule, so clone recursively:
 
 ```bash
 git clone --recursive https://github.com/ABI-CTT-Group/digitaltwins-platform.git
 cd digitaltwins-platform
 ```
 
-## 2. Environment Configuration
+In an existing clone, run `git submodule update --init --recursive` after each pull.
 
-Set up the necessary environment variables and configuration files for all components.
+## 2. Configure
 
-### 2.1 Main Environment File
+### 2.1 Fill in `env` and `secrets.env`
 
 > [!IMPORTANT]
-> `.env` is **generated**, not hand-edited. `.env.template` is now a `${VAR}`
-> template — copying it directly would leave literal `${...}` placeholders. Fill
-> in two small input files and run the generator instead.
+> `.env` is **generated**, not hand-edited. `.env.template` is a `${VAR}` template:
+> copying it would leave literal `${...}` placeholders. Fill in the two input files
+> below and run the generator instead.
 
 ```bash
 cp env.template env                    # non-secret host config
-cp secrets.env.template secrets.env    # all passwords/keys
+cp secrets.env.template secrets.env    # every password and key
 ```
 
-Edit `env` for your deployment. For a **local developer setup (localhost, no
-SSL)**, uncomment the localhost block:
+Edit `env`:
+
+- **Protocol and domain.** For a local developer setup (http, no TLS), comment out
+  the https block and uncomment the localhost block:
+  ```bash
+  export PLATFORM_PROTOCOL=http
+  export PLATFORM_DOMAIN=localhost
+  export KC_HOSTNAME_STRICT=false
+  export KC_HOSTNAME_STRICT_HTTPS=false
+  ```
+  For a real deployment keep `https` and set `PLATFORM_DOMAIN` to your domain. The
+  Keycloak URLs (`KC_HOSTNAME`, `KEYCLOAK_PUBLIC_URL`, `ORTHANC_KEYCLOAK_URL`),
+  `NGINX_MODE` and `SSL` are derived from these two values, so they can't drift
+  apart.
+- **Platform admin.** `PLATFORM_ADMIN_USERNAME` (default `admin1`) and
+  `PLATFORM_ADMIN_EMAIL` name one admin identity used by Keycloak, SEEK and Airflow.
+  Its password is `PLATFORM_ADMIN_PASSWORD` in `secrets.env`.
+- **GPU.** `AIRFLOW_WORKER_GPU=auto` gives the Airflow worker the host's NVIDIA GPU
+  when the NVIDIA Container Toolkit is installed. Set `true` or `false` to force it.
+
+Fill in **every** value in `secrets.env`, e.g. with `openssl rand -hex 32`
+(`AIRFLOW__CORE__FERNET_KEY` needs a Fernet key; the file shows how to make one).
+Keep `secrets.env` private: it is git-ignored.
+
+### 2.2 Generate `.env` and the Keycloak realm
 
 ```bash
-export PLATFORM_PROTOCOL=http
-export PLATFORM_DOMAIN=localhost
-export KC_HOSTNAME_STRICT=false
-export KC_HOSTNAME_STRICT_HTTPS=false
+util/gen-env.sh -e env -s secrets.env     # renders .env; fails loudly on any unset variable
+util/gen-realm.sh -e env -s secrets.env   # renders services/keycloak/import/digitaltwins-realm.json
 ```
 
-(For a real deployment, use `https` + your domain instead.) You no longer set the
-Keycloak/auth URLs (`KC_HOSTNAME`, `KEYCLOAK_PUBLIC_URL`, `ORTHANC_KEYCLOAK_URL`) by hand — they, plus `AIRFLOW_UID` / `NGINX_MODE` / `SSL`,
-are **derived automatically** from `PLATFORM_PROTOCOL` + `PLATFORM_DOMAIN`, so the
-three auth URLs can never drift out of sync.
+`gen-env.sh` also renders `services/nginx/snippets/minio-discovery.json` from
+`PLATFORM_DOMAIN`, which MinIO's single sign-on needs, and writes `COMPOSE_FILE`
+into `.env` (adding the GPU and remote-compute overrides when enabled). Don't export
+`COMPOSE_FILE` in your shell: it would override the value in `.env`.
 
-Fill in every value in `secrets.env` (e.g. generate `JUPYTERHUB_CRYPT_KEY` with
-`openssl rand -hex 32`). Then generate `.env`:
+Keycloak imports the realm **on its first boot only**. To change it later, edit the
+live realm in the admin console or recreate Keycloak's data; see
+[REALM.md](../services/keycloak/REALM.md).
+
+### 2.3 SEEK's database settings
+
+SEEK keeps its own MySQL, configured in
+`services/seek/ldh-deployment/docker-compose.env`. Create it from the `MYSQL_*`
+values in `secrets.env`:
 
 ```bash
-util/gen-env.sh -e env -s secrets.env     # renders .env; fails loudly on any unset var
+set -a; . ./secrets.env; set +a
+cat > services/seek/ldh-deployment/docker-compose.env <<EOF
+MYSQL_HOST=db
+MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+MYSQL_DATABASE=seek
+MYSQL_USER=seek
+MYSQL_PASSWORD=${MYSQL_PASSWORD}
+EOF
+chmod 600 services/seek/ldh-deployment/docker-compose.env
 ```
 
-> [!NOTE]
-> Running `gen-env.sh` also dynamically generates `services/nginx/snippets/minio-discovery.json` using your specified `PLATFORM_DOMAIN`. This is required for MinIO SSO to function correctly on remote deployments (circumventing Docker hairpin NAT issues).
+### 2.4 TLS certificate (https only)
 
-> [!NOTE]
-> The full airgap / production install — Ansible playbooks, image bundling,
-> gateway routes, and cross-system data transfer — is documented in
-> [`util/README.md`](../util/README.md).
-
-### 2.2 SEEK Configuration
-
-Copy the SEEK deployment configuration template:
+Put the certificate chain and key for `PLATFORM_DOMAIN` where the gateway reads them:
 
 ```bash
-cp ./services/seek/ldh-deployment/docker-compose.env.tpl ./services/seek/ldh-deployment/docker-compose.env
+install -m 0644 /path/to/fullchain.pem services/nginx/certs/server.crt
+install -m 0600 /path/to/privkey.pem  services/nginx/certs/server.key
 ```
 
-## 3. Initialise the IAM Service (Keycloak)
+[`util/issue-cert.sh`](../util/issue-cert.sh) and
+[`util/renew-cert.sh`](../util/renew-cert.sh) obtain and renew Let's Encrypt
+certificates. To test a domain whose DNS doesn't point at this host, add it to
+`/etc/hosts`.
 
-> [!NOTE]
-> Choose **one** of the following methods to configure Keycloak based on whether you are doing a fresh manual setup or importing from an existing configuration.
-
-### Method 1: Manual Configuration
-
-1. Start Keycloak: 
-   ```bash
-   sudo docker compose up -d keycloak
-   ```
-2. *[TODO: Insert manual configuration steps here]*
-3. Stop Keycloak: 
-   ```bash
-   sudo docker compose down
-   ```
-
-### Method 2: Auto-Configuration from an Existing Realm
-
-**Step A. Export Realm from an Existing Deployment**
-
-1. Run the export command:
-   ```bash
-   sudo docker compose run --rm keycloak export --realm <YOUR_REALM> --dir /opt/keycloak/data/export --users realm_file
-   ```
-2. Copy the export files to your host machine:
-   ```bash
-   sudo docker compose run --rm --user root --entrypoint /bin/sh -v $(pwd)/export:/backup keycloak -c "cp -r /opt/keycloak/data/export/* /backup/"
-   ```
-   > [!NOTE]
-   > A realm file will be created on your host, e.g., `$(pwd)/export/digitaltwins-realm.json`.
-
-**Step B. Import Realm to the new deployment**
-
-1. Place the exported realm file in the correct directory: `./services/keycloak/import/digitaltwins-realm.json`.
-2. Start Keycloak with the import option:
-   ```bash
-   sudo docker compose up -d keycloak
-   ```
-3. Retrieve your Keycloak client secret:
-   1. Log in to the Keycloak admin console at `http://localhost:8009`. *(Check your username and password in the `.env` file if you changed them; defaults are `admin`/`admin`)*.
-   2. Navigate to **Manage realm** > `digitaltwins` > **Clients** > choose `api` from the client list > **Credentials** > copy the **Client Secret**.
-   3. Update the `<YOUR_KEYCLOAK_CLIENT_SECRET>` placeholder in your `.env` file with the copied client secret.
-
-## 4. Initialise Workflow Service (Airflow)
-
-1. Initialize the Airflow database (this runs the necessary database migrations):
-   ```bash
-   sudo docker compose up airflow-init
-   ```
-
-2. **Enable Keycloak SSO for Airflow** (required to log in with your Keycloak account):
-
-   > [!NOTE]
-   > `services/airflow/config/airflow.cfg` is pre-configured with `FabAuthManager` and
-   > `services/airflow/config/webserver_config.py` provides the Keycloak OAuth2 settings.
-   > The steps below only require Keycloak-side role assignment.
-
-   1. Confirm `auth_manager` is set to FabAuthManager in `./services/airflow/config/airflow.cfg`:
-      ```ini
-      auth_manager = airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
-      ```
-
-   2. Assign the `airflow_admin` realm role to the Keycloak `admin` user:
-      1. Log in to the Keycloak admin console at `http://localhost/auth` (or the port if not behind the gateway) with `admin` / `admin`.
-      2. Navigate to **Manage realm** → `digitaltwins` → **Users** → click `admin`.
-      3. Go to the **Role mapping** tab → **Assign role** → filter by **realm roles** → select `airflow_admin` → **Assign**.
-
-   3. Restart the Airflow API server to pick up the new config:
-      ```bash
-      sudo docker compose restart airflow-apiserver
-      ```
-
-   4. Navigate to `http://localhost/airflow` — you should see a **Sign in with Keycloak** button.
-      Log in with your Keycloak credentials (`admin` / `admin`).
-
-## 5. Initialise Catalogue Service (SEEK)
-
-### 5.1 SEEK's Database Setup
-
-Edit `./services/seek/ldh-deployment/docker-compose.env` and replace `<root-password>` and `<db-password>` with secure passwords. 
-
-> [!TIP]
-> Optionally, you can use the `openssl` command to generate random secure passwords and save them automatically directly to the `.env` file:
-> ```bash
-> cat ./services/seek/ldh-deployment/docker-compose.env | sed "s|<db-password>|$(openssl rand -base64 21)|" | sed "s|<root-password>|$(openssl rand -base64 21)|" > ./services/seek/ldh-deployment/docker-compose.env
-> ```
-
-### 5.2 Initial Launch & Admin Setup
-
-1. **Launch SEEK**:
-   ```bash
-   sudo docker compose -f services/seek/ldh-deployment/docker-compose.yml --env-file ./.env up
-   ```
-
-2. **Set up Server Admin Account**:
-   1. Navigate to `http://localhost:8001`.
-   2. Create your first account (the first registered user is automatically assigned as a server admin by default).
-   3. Log in and create your profile.
-
-3. **Custom Configuration (Browser)**:
-   - **Enable Features** (Go to *Server admin > Enable/disable features*):
-     - [x] Omniauth enabled
-     - [x] Programmes enabled
-     - [x] Workflows enabled
-     - [x] GA4GH TRS API enabled
-   - *(Optional)* **Branding and Customization** (Go to *Server admin > Branding and customization*).
-   - **Site Settings** (Go to *Server admin > Settings*):
-     - set **Site base Hostname** to `http://localhost:8001`.
-
-4. **Enable "Git" Support (Command Line)**:
-   1. Enter the SEEK container:
-      ```bash
-      sudo docker exec -it <container_name> bash
-      ```
-      > [!NOTE]
-      > `<container_name>` might be something analogous to `seek-seek-1`.
-   2. Start the Rails console:
-      ```bash
-      bundle exec rails console
-      ```
-   3. In the Rails console, enable Git support and exit:
-      ```ruby
-      Seek::Config.git_support_enabled = true
-      # Seek::Config.save
-      exit
-      ```
-   4. Exit the container terminal.
-
-## 6. Build all images
+## 3. Build the images
 
 ```bash
-sudo docker compose build
+docker compose build
 ```
 
-## 7. Launch the Entire Platform
+## 4. Initialise Airflow
 
-Run the following command from the repository root to start all services in detached mode:
+`airflow-init` migrates Airflow's database and creates its admin user (the platform
+admin):
 
 ```bash
-sudo docker compose up -d
+docker compose up airflow-init
+docker compose down
 ```
 
-## 8. Service Access & Default Credentials
+## 5. Bootstrap SEEK
 
-Once successfully deployed, the following services and default credentials are available:
+Start SEEK on its own, create the platform admin as SEEK's server admin, and turn on
+the features the platform needs (single sign-on, programmes, workflows, the GA4GH
+TRS API and git support):
 
-| Service            | URL Path | Username | Password | Notes                                     |
-|:-------------------|:---------| :--- | :--- |:------------------------------------------|
-| **Portal**         | `/`      | *Via Keycloak* | — | Main entry point                          |
-| **SEEK**           | `/seek/` | *Via Keycloak* or `<Created User>` | `<Created Pass>` | Catalogue Service                         |
-| **Airflow**        | `/airflow/` | *Via Keycloak* | — | Workflow Management (SSO via Keycloak `admin`) |
-| **Keycloak**       | `/auth/` | `admin` | `admin` | IAM Service (Admin Console)               |
-| **REST API**       | `/api/`  | — | — | Docs at `http://{IP}/api/docs`; the builder (the portal's tool/workflow builder) is `/api/builder/` |
-| **Minio**          | `/minio/` | *Via Keycloak* or `minioadmin` | `minioadmin` | Storage Web GUI (SSO via Keycloak `admin`) |
-| **Orthanc 1**      | `/orthanc-1/` | *Via Keycloak* | — | PACS Service 1                            |
-| **Orthanc 2**      | `/orthanc-2/` | *Via Keycloak* | — | PACS Service 2                            |
-| **JupyterHub**     | `/jupyter/` | *Via Keycloak* | — | Notebook Service                          |
-| **HAPI FHIR**      | `/fhir/` | — | — | EHR Service REST API                      |
-| **Postgres**       | `N/A`    | — | — | Internal database (optional pgAdmin runs separately via `services/postgres/docker-compose.yml`) |
+```bash
+set -a; . ./env; . ./secrets.env; set +a
+docker compose up -d seek
+```
+
+Wait a minute or two for SEEK's first-boot migrations to finish
+(`docker compose logs -f seek`), then:
+
+```bash
+util/create-admin-user.sh "$PLATFORM_ADMIN_USERNAME" "$PLATFORM_ADMIN_PASSWORD" "$PLATFORM_ADMIN_EMAIL"
+SEEK_SITE_BASE_URL="${PLATFORM_PROTOCOL}://${PLATFORM_DOMAIN}/seek" util/enable-features.sh
+docker compose down
+```
+
+If `create-admin-user.sh` fails because the `users` table doesn't exist yet, SEEK is
+still migrating: wait and run it again.
+
+## 6. Launch the platform
+
+```bash
+docker compose up -d
+```
+
+Then compile SEEK's web assets for the `/seek` path. The SEEK image ships them built
+for the root path, so without this step SEEK's pages load without styles or scripts:
+
+```bash
+docker compose exec seek bundle exec rake assets:precompile
+docker compose exec seek bundle exec rake tmp:clear
+docker compose restart seek workers portal-frontend
+```
+
+Run these three commands again whenever the SEEK image changes or the SEEK container
+is recreated (see [SEEK `/seek` asset precompile](../util/README.md#seek-seek-asset-precompile)).
+
+To start the platform at boot, the playbook installs the
+[`digitaltwins-platform.service`](../digitaltwins-platform.service) systemd unit; set
+its `WorkingDirectory` to your clone if you install it by hand.
+
+## 7. Add workflows
+
+A new install has no workflow DAGs. A script workflow registered as a dataset is
+deployed to Airflow automatically when an admin registers or approves it; see
+[Populating data](populating_data.md) and
+[Writing and deploying a script workflow DAG](workflow-dag-authoring.md). To copy
+the DAGs of another deployment, use `util/sync-dags.sh`. New DAGs start paused:
+un-pause them in the Airflow UI before launching an assay that uses them.
+
+## 8. Service access and credentials
+
+Open `http://localhost` or `https://<PLATFORM_DOMAIN>`. Every service is reached
+through the gateway:
+
+| Service | Path | Sign in with | Notes |
+|:--|:--|:--|:--|
+| Portal | `/` | Keycloak | Main entry point |
+| REST API | `/api/` | Keycloak bearer token | Interactive docs at `/api/docs`; the portal's builder is at `/api/builder/` |
+| SEEK | `/seek/` | Keycloak, or the platform admin's local SEEK account | Data catalogue |
+| Airflow | `/airflow/` | Keycloak | Workflow runs; Keycloak users with the `airflow_admin` role are Airflow admins |
+| JupyterHub | `/jupyter/` | Keycloak | Only members of the `admin` and `researcher` groups |
+| Keycloak | `/auth/` | see below | Identity and access management |
+| MinIO console | `/minio/` | Keycloak, or `minioadmin` / `MINIO_ROOT_PASSWORD` | Object storage |
+| Orthanc 1 and 2 | `/orthanc-1/`, `/orthanc-2/` | Keycloak | PACS |
+| HAPI FHIR | `/fhir/` | none | No authentication; see the [production checklist](production.md) |
+
+**Accounts:**
+
+| Account | Username | Password | Where it works |
+|:--|:--|:--|:--|
+| Platform admin | `PLATFORM_ADMIN_USERNAME` (default `admin1`) | `PLATFORM_ADMIN_PASSWORD` | Keycloak realm `digitaltwins` (so every service above), SEEK server admin, Airflow admin |
+| Keycloak administrator | `admin` | `KC_BOOTSTRAP_ADMIN_PASSWORD` | Keycloak admin console (`/auth/admin/`, `master` realm) |
+| Test users | `clinician`, `researcher`, `test1`, `test2` | same as the username | Keycloak realm `digitaltwins`. **Disable or remove them before production.** |
+
+For each Keycloak client, role and group, see
+[REALM.md](../services/keycloak/REALM.md). For who can reach which path, see
+[gateway-pathway-access.md](gateway-pathway-access.md). To check on a running
+platform, see [diagnostics.md](diagnostics.md).
 
 ## 9. Upgrading: `/digitaltwins-api` → `/api`, `portal-backend` → `builder`
 
