@@ -34,3 +34,35 @@ The following items were identified during the REST API restructuring (`docs/art
 ### [ ] 7. CORS Hardening
 * **Description**: Review and restrict the Cross-Origin Resource Sharing (CORS) policy.
 * **Why skipped**: Left as-is for the initial refactor.
+
+## Repository layout
+
+Found while writing [codemap.md](codemap.md) (`docs/artifacts/2026-10-28-133109-repo-learnability`). The docs now explain these, but nothing was moved or renamed.
+
+### [ ] 1. Inactive service folders
+* **Description**: `services/jupyterlab/`, `services/pacs_pretend_external/` and `services/irods/` (only a `.gitkeep`) aren't wired into the root `docker-compose.yml`. `services/api/docker/` and some services in `services/portal/docker-compose.yml` are left over from before those repos were merged in. Remove them, or move them under an `archive/` folder.
+* **Why skipped**: The learnability work was docs-only.
+
+### [ ] 2. Flat `util/` folder
+* **Description**: `util/` holds about 70 scripts in one folder, indexed in [util/SCRIPTS.md](../util/SCRIPTS.md). Group them into subfolders (install, seek, keycloak, backup, sync), updating the Ansible playbooks, docs and the systemd unit that call them.
+* **Why skipped**: Moving them breaks paths in playbooks and on running hosts.
+
+### [ ] 3. Old names in code and comments
+* **Description**: Names from before the portal and preprocessor were merged in are still around: `clinical-dashboard` in a comment in `services/builder/docker-compose.yml`, a comment in `services/airflow/compute-worker/docker-compose.yml`, and the `preprocessor` DAG URL that `services/api/src/digitaltwins/airflow/workflow.py` still calls. Check whether that code path is live, then remove or rename.
+* **Why skipped**: The learnability work was docs-only, and the DAG URL is code.
+
+### [ ] 4. Empty root `tests/` folder
+* **Description**: `tests/` holds only a `.gitkeep`. Use it for end-to-end tests, or remove it.
+* **Why skipped**: There are no end-to-end tests yet.
+
+### [ ] 5. util scripts that look dead or duplicated
+* **Description**: Found while writing [util/SCRIPTS.md](../util/SCRIPTS.md). Check each one, then remove it or document why it stays:
+  * `realm_exporter` duplicates `export_realm_and_users`.
+  * `get_token`, `get_token2` and `get_token3` hardcode an old test domain.
+  * `patch_keycloak_realm.py` looks superseded by `gen-realm.sh`.
+  * `fix_api_role.py` and `fix_admin_cli.py` look like one-off fixes.
+  * `grant_api_permissions.rb` and `rollback_api_permissions.rb` belong to the removed API-service-account model.
+  * `grant_project_access.rb` overlaps `add-seek-project-member.sh`.
+  * `docker_archive_volumes.sh` and `docker_restore_volumes.sh` overlap `stage-dump.sh` and `portal-restore.sh`.
+  * `util/legacy-buildout-utils.md` is out of date about `generate-compute-env.sh` and `ufw_for_remote_compute.sh`.
+* **Why skipped**: The learnability work was docs-only.
