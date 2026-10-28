@@ -569,7 +569,7 @@ async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = 
 
 
 @router.get("/plugin/build/{build_id}/deploys", response_model=List[PluginDeployResponse])
-async def get_plugin_builds(build_id: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+async def get_build_deploys(build_id: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     # Check if plugin exists
     build_record = db.query(PluginBuild).filter(PluginBuild.build_id == build_id).first()  # type: ignore
     if build_record is None:
