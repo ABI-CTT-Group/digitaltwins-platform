@@ -1,7 +1,6 @@
 # terminial-> venv/Scripts/activate.bat
 import uvicorn
 from fastapi import FastAPI, Request, Response
-from fastapi.middleware.cors import CORSMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from pathlib import Path
 from app.router import workflow_tool_plugin, workflow_router
@@ -84,7 +83,6 @@ def _cleanup_orphan_staging(max_age_hours: float = 24):
     referenced by any Plugin/Workflow record. Called at startup to bound disk usage
     when users upload but never complete the wizard."""
     import time
-    from pathlib import Path
     from app.models.db_model import SessionLocal, Plugin, Workflow
     from app.utils.utils import force_rmtree
 

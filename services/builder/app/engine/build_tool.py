@@ -1,16 +1,12 @@
 import os
 import re
-import subprocess
 import shutil
 import platform
-import uuid
 import json
 from pathlib import Path
 from typing import Optional, Dict, Any
-from urllib.parse import quote
 from dotenv import dotenv_values
 
-from app.utils.utils import force_rmtree
 
 from sparc_me import Dataset
 from .logger import get_logger

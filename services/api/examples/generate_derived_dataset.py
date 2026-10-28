@@ -1,7 +1,6 @@
 """
 Example for generating a SDS derived dataset
 """
-import os
 from pathlib import Path
 from sparc_me import Dataset
 

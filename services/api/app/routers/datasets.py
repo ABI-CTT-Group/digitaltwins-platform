@@ -10,7 +10,6 @@ import logging
 import os
 import shutil
 import tempfile
-import traceback
 import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Any, List, Literal, Optional

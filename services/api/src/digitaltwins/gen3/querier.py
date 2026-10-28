@@ -80,16 +80,16 @@ class Querier(object):
             response = self._querier.query(query_string, variables)
             data = response.get("data")
             return data
-        except Gen3AuthError as e:
+        except Gen3AuthError:
             time.sleep(2)
             count = count + 1
             print("Connection failed.")
             return self.graphql_query(query_string, variables=variables, count=count)
-        except HTTPError as e:
+        except HTTPError:
             print("Connection failed.")
             raise HTTPError("HTTP connection error: Please make sure you have access to the remote server. then "
                                   "try again!")
-        except ConnectionError as e:
+        except ConnectionError:
             print("Connection failed.")
             raise ConnectionError("HTTP connection error: Please make sure you have access to the remote server. then "
                                   "try again!")
@@ -101,12 +101,12 @@ class Querier(object):
         :return: List of programs
         :rtype: list
         """
-        query_string = f"""
-        {{
-            program{{
+        query_string = """
+        {
+            program{
                 name
-            }}
-        }}
+            }
+        }
         """
         data = self.graphql_query(query_string)
         programs = data.get('program')
@@ -143,18 +143,18 @@ class Querier(object):
 
     def get_datasets(self, program=None, project=None):
         if program is None and project is None:
-            query_string = f"""
-            {{
-                program{{
+            query_string = """
+            {
+                program{
                     name
-                    projects{{
+                    projects{
                         name
-                        experiments{{
+                        experiments{
                             submitter_id
-                        }}
-                    }}
-                }}
-            }}
+                        }
+                    }
+                }
+            }
             """
         if program and project is None:
             query_string = f"""

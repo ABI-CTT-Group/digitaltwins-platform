@@ -321,7 +321,7 @@ class MetadataConvertor(object):
             # Linux
             with open(schema_file, 'r') as yml:
                 schema = yaml.safe_load(yml)
-        except Exception as e:
+        except Exception:
             # Windows
             with open(schema_file, 'rt', encoding='utf8') as yml:
                 schema = yaml.safe_load(yml)

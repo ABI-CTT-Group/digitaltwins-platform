@@ -4,7 +4,6 @@ Health Check Router.
 This module provides an endpoint to check the health status of the API.
 """
 from fastapi import APIRouter
-import os
 
 router = APIRouter()
 
