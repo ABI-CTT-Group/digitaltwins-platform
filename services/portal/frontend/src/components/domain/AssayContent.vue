@@ -236,7 +236,7 @@ const handleDatasetSelected = async (value: string, inputName:string, inputCateg
         workflowInputDatasetSamples.value[inputName].selectedDatasetSampleTypes = sampleTypes;
     }
     
-    assayDetails.value!.workflow.inputs.find(data => {
+    assayDetails.value!.workflow.inputs?.forEach(data => {
         if (data.datasetSelectedUuid === value && data.input.name === inputName) {
             data.sampleSelectedType = "";
         }

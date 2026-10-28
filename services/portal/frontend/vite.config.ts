@@ -6,7 +6,7 @@ import glslify from "rollup-plugin-glslify";
 import { VitePWA } from "vite-plugin-pwa";
 
 // Utilities
-import { defineConfig } from "vite";
+import { defineConfig, type PluginOption } from "vite";
 import { fileURLToPath, URL } from "node:url";
 
 const filesNeedToExclude = ["src/ts"];
@@ -40,7 +40,7 @@ export default defineConfig({
       exclude: "node_modules/**",
       // Compress shader by default using logic from rollup-plugin-glsl
       compress: true,
-    }),
+    }) as PluginOption, // its rollup Plugin type differs from the copy of rollup vite bundles
     // PWA — keeps the DigitalTWINS Portal installable / full-screen
     // (standalone display) via the web app manifest below, but the service
     // worker does NO caching. It precaches nothing and serves every request
@@ -157,6 +157,7 @@ export default defineConfig({
     port: 3000,
   },
   // Unit tests (yarn test): components mount with a real Vuetify (src/testing/vuetify.ts).
+  // @ts-expect-error vitest adds `test` to its own nested vite 7, not the vite 6 imported here
   test: {
     environment: "jsdom",
     include: ["src/**/__tests__/**/*.spec.ts"],

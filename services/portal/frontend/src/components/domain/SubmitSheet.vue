@@ -1,6 +1,6 @@
 <template>
     <v-dialog
-        v-model="dialog!"
+        v-model="dialog"
         width="auto"
     >
         <v-sheet
@@ -58,7 +58,7 @@ defineProps({
     submitState:String
 })
 
-const dialog = defineModel("submitDialog")
+const dialog = defineModel<boolean>("submitDialog")
 
 
 </script>

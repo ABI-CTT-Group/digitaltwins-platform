@@ -7,7 +7,7 @@
     :fetch-list="useToolHub"
     :disabled="dockerComposeBusy"
     :is-pending="(items) => items.some(t => t.status === 'building' || t.deployStatus === 'deploying' ||
-      ['uploading', 'awaiting_reauth', 'committing'].includes(t.handoffStatus))"
+      ['uploading', 'awaiting_reauth', 'committing'].includes(t.handoffStatus ?? ''))"
     :filter-fn="registrationFilterFn"
     @register="handleRegister"
   >

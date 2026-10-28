@@ -39,6 +39,7 @@
 
 <script setup lang="ts" generic="T extends { id: string; status?: string }">
 import { ref, watch, onBeforeMount, onUnmounted } from 'vue';
+import type { Ref } from 'vue';
 import Fuse from 'fuse.js';
 import Search from './Search.vue';
 import Refresh from './Refresh.vue';
@@ -82,8 +83,8 @@ const emit = defineEmits<{
 }>();
 
 // ---- state ----------------------------------------------------------------
-const allItems = ref<T[]>([]) as { value: T[] };
-const displayItems = ref<T[]>([]) as { value: T[] };
+const allItems = ref<T[]>([]) as Ref<T[]>;
+const displayItems = ref<T[]>([]) as Ref<T[]>;
 const search = ref('');
 const isStatusPending = ref(false);
 let refreshInterval: number | undefined;
