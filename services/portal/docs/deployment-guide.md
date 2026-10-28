@@ -1,5 +1,10 @@
 # Clinical Dashboard — Deployment Guide (Portal Frontend Nginx)
 
+> **Historical.** This guide describes the old "Clinical Dashboard" repository and the
+> `DigitalTWINS-Portal` submodule, neither of which exists any more: the portal now lives in
+> `services/portal`, and its backend is the builder in `services/builder`. It is kept for history.
+> To deploy the platform, follow [docs/deployment.md](../../../docs/deployment.md), which supersedes it.
+
 **Audience:** Ops / platform team running `clinical-dashboard`, either standalone or as the `DigitalTWINS-Portal` submodule inside `digitaltwins-platform`.
 
 **Date:** 2026-07-13

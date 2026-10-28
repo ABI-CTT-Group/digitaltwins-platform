@@ -25,6 +25,7 @@ A Python tool for interacting with the 12 LABOURS DigitalTWINS (Digital Translat
 * [Introduction](#introduction)
 * [Installing the DigitalTWINS platform API](#installing-the-digitaltwins-platform-api)
 * [Using the DigitalTWINS platform](#using-the-digitaltwins-platform)
+* [Developing this package](#developing-this-package)
 * [Reporting Issues](#reporting-issues)
 * [Contributing](#contributing)
 * [License](#license)
@@ -128,6 +129,8 @@ The DigitalTWINS platform Python API is called `digitaltwins`. It is designed to
    ```
    python -m pip install -r requirements-dev.txt
    ```
+
+   To run the tests, you don't need this virtual environment: see [Developing this package](#developing-this-package).
    
 ## Using the DigitalTWINS platform
 
@@ -251,6 +254,79 @@ curl -H "Authorization: Bearer <token>" \
   - `GET /datasets/<uuid>/workflow-tools` lists those tool datasets (name, SEEK id, steps) without deleting anything.
   - With `true`, the tools are deleted after the workflow, together with their SEEK Workflows and ActivityDefinitions.
   - A tool dataset that a workflow still runs can't be deleted on its own (`409`).
+
+## Developing this package
+
+This folder is both the `digitaltwins` Python package and the platform's REST API, the `api` service:
+a FastAPI app that uvicorn serves under `/api`.
+
+### Code map
+
+| Path | What it is |
+|---|---|
+| `app/main.py` | The FastAPI app (`app.main:app`). When `POSTGRES_ENABLED` is true, startup applies pending migrations and fails any ingest job a previous process left mid-flight. It then registers the routers |
+| `app/routers/` | One module per area: `datasets`, `dataset_uploads`, `dataset_fhir`, `assays`, `workflows`, `tools`, `models`, `dashboard`, the SEEK hierarchy (`programs`, `projects`, `investigations`, `studies`), `auth` and `health`. Shared dependencies are in `dependencies.py` |
+| `app/schemas/` | Pydantic request models |
+| `src/digitaltwins/<area>/` | The library the routers call. `core/` (the `Querier`, `Uploader`, `Downloader` and `Deleter` facades, and the Keycloak token verifier); `measurements/` (upload sessions, chunk store, staging, ingest jobs, FHIR); `models/`, `tools/` and `workflows/` (ingest pipelines; `workflows/` also checks and deploys DAGs); `seek/`, `minio/`, `postgres/`, `airflow/` and `jupyterhub/` (clients); `cli/` (the importer and maintenance commands). `irods/` and `gen3/` are inactive |
+| `src/digitaltwins/client.py` | `UploadClient`, the resumable upload client |
+| `src/digitaltwins/postgres/migrations/` | Numbered SQL migrations for the `public` schema |
+| `tests/` | The pytest suite. `tests/conftest.py` holds the shared fixtures and the in-memory SEEK and HAPI FHIR fakes |
+| `scripts/import-dataset.*` | Wrappers that run the importer in the API container ([guide](docs/import-dataset.md)) |
+| `docs/source/` | Sphinx sources for Read the Docs |
+| `examples/`, `tutorials/` | Example scripts and workshop material |
+| `docker/` | Old standalone compose files for Postgres and Orthanc. Nothing uses them |
+| `Dockerfile`, `docker-compose.yml` | The `api` image (Python 3.11) and service; the root compose includes the service |
+
+### Connects to
+
+| Peer | How |
+|---|---|
+| Postgres | `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` (the superuser) |
+| MinIO | `MINIO_ENDPOINT`, `MINIO_SERVER_ACCESS_KEY`, `MINIO_SERVER_SECRET_KEY` |
+| Keycloak | `KEYCLOAK_BASE_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`. It accepts tokens issued to the `portal-frontend` and `api` clients |
+| SEEK | `SEEK_BASE_URL`, as the calling user: the user's token is forwarded |
+| HAPI FHIR | `FHIR_ENDPOINT`. `API_PUBLIC_URL` is the base of the file URLs written into FHIR resources |
+| Airflow | The REST API at `AIRFLOW_ENDPOINT` / `AIRFLOW_API_URL`, as `AIRFLOW_USERNAME`. DAG folders are written into `services/airflow/dags`, bind-mounted at `/airflow-dags` (`AIRFLOW_DAGS_DIR`) |
+| JupyterHub | `JUPYTERHUB_API_TOKEN` (required), `JUPYTERHUB_PUBLIC_URL`, and `JUPYTERHUB_INTERNAL_URL` (defaulted in code) |
+| builder | `BUILDER_URL`, to ask which tool backs a GUI assay |
+| Volumes | `dataset_staging` (`DATASET_STAGING_DIR`): upload chunks and staged datasets |
+
+### Run & test
+
+```bash
+make test-api                                                      # from the repository root
+make test-api PYTEST_ARGS="-q tests/test_models_api.py -k delete"  # part of the suite
+```
+
+`make test-api` runs pytest on Python 3.11 in a pinned container, offline, mounting only this folder
+and `services/postgres` (read-only: the tests load its baseline schema). It skips the tests marked
+`integration`, which need a live Postgres or MinIO; [docs/testing.md](../../docs/testing.md) explains
+how to run those against throwaway services.
+
+Under the platform, rebuild and restart with `docker compose build api && docker compose up -d api`.
+The interactive API docs are at `/api/docs` through the gateway, or on host port 8010.
+
+### Gotchas
+
+- **No route may start with `/api`.** The gateway strips `/api`, and uvicorn runs with
+  `--root-path /api`.
+- **Router order matters.** `dataset_uploads` is registered before `datasets`, or
+  `/datasets/{dataset_uuid}` would capture `/datasets/uploads`.
+- **A failed migration stops the API from starting.**
+- `docker-compose.yml` bind-mounts `./configs.ini`, which isn't in the repository and which no code
+  reads. When it doesn't exist, Docker creates an empty, root-owned directory in its place.
+- The Airflow image installs this package from PyPI, not from this folder.
+
+### Related ADRs
+
+- [Numbered SQL migrations for the platform `public` schema](../../docs/decisions/2026-09-28-platform-schema-migrations.md)
+- [Unify measurement dataset ingest in digitaltwins-api](../../docs/decisions/2026-09-28-unified-dataset-ingest-in-digitaltwins-api.md)
+- [Unify tool dataset ingest](../../docs/decisions/2026-10-01-unified-tool-dataset-ingest.md)
+- [Ingest workflow datasets together with their tools](../../docs/decisions/2026-10-02-workflow-dataset-ingest.md)
+- [Model dataset ingest](../../docs/decisions/2026-10-12-model-dataset-ingest.md)
+- [Deploy script workflow DAGs from the platform](../../docs/decisions/2026-10-13-deploy-script-workflow-dags.md)
+- [Serve the platform API at /api](../../docs/decisions/2026-10-20-api-prefix-and-portal-builder-split.md)
+- [One Keycloak token verifier](../../docs/decisions/2026-10-21-one-keycloak-token-verifier.md)
 
 ## Reporting Issues
 To report an issue or suggest a new feature, please use the [issues page](https://github.com/ABI-CTT-Group/digitaltwins-platform/issues). Issue templates are provided to allow users to report bugs, and documentation or feature requests. Please check existing issues before submitting a new one.
