@@ -1,21 +1,16 @@
 import asyncio
 import os
 import json
-import uvicorn
 import zipfile
-from fastapi import APIRouter, FastAPI, Depends, HTTPException, BackgroundTasks, Request, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.responses import StreamingResponse, JSONResponse, PlainTextResponse
 from app.database.database import get_db
 from sqlalchemy.orm import Session
-from sqlalchemy import select
 from datetime import datetime
-from typing import List, Dict, Any, Literal, Optional
-from contextlib import asynccontextmanager
+from typing import List, Literal, Optional
 from pydantic import BaseModel
 import uuid
 import threading
-import logging
-import requests
 from app.models.db_model import (
     Plugin, PluginCreate, PluginBuild, PluginResponse,
     PluginBuildResponse, BuildStatus,
@@ -36,7 +31,6 @@ from app.client.minio import get_minio_client
 from pathlib import Path
 from botocore.exceptions import ClientError
 from app.utils.workflow_tool_utils import (
-    get_build_record_or_404,
     get_latest_build_record,
     served_workflow_build,
     workflow_bundle_path,
@@ -48,7 +42,6 @@ from app.utils.builder_utils import (
     resolve_project_root,
 )
 from app.engine.log_stream import log_registry
-from uuid import UUID
 from app.services import tool_handoff
 from app.utils.auth import get_current_user, require_any_role
 from app.utils.utils import force_rmtree
@@ -576,7 +569,7 @@ async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = 
 
 
 @router.get("/plugin/build/{build_id}/deploys", response_model=List[PluginDeployResponse])
-async def get_plugin_builds(build_id: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+async def get_build_deploys(build_id: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     # Check if plugin exists
     build_record = db.query(PluginBuild).filter(PluginBuild.build_id == build_id).first()  # type: ignore
     if build_record is None:

@@ -13,9 +13,9 @@ import psycopg2
 
 from dotenv import load_dotenv
 
-load_dotenv()
-
 from ..utils.config_loader import is_truthy
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 

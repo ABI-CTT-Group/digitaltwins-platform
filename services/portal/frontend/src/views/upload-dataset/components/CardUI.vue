@@ -69,7 +69,7 @@ export interface UCardMenuItem {
   onClick: () => void;
 }
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
     title: string;
     kind?: string;

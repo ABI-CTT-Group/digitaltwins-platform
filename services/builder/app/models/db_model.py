@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker, relationship
 from pydantic import BaseModel, model_validator
 from enum import Enum as PyEnum
 from datetime import datetime
-from typing import Optional, Literal, List, Any
+from typing import Optional, Literal, List
 
 # Under the platform the tables live in this schema of the shared Postgres; it is
 # selected via search_path so the models stay schema-agnostic (and SQLite-compatible).

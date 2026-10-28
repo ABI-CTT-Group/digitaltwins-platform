@@ -10,7 +10,6 @@ import { AxiosError } from 'axios';
 import type {
   CheckNameResponse,
   BuildResponse,
-  ToolDeployResponse,
 } from '@/models/types';
 
 // ---------------------------------------------------------------------------

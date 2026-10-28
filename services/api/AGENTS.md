@@ -34,7 +34,7 @@ The code map, connections and config are in [README.md](README.md#developing-thi
   FHIR) and the `seek` fixture (in-memory SEEK `Writer`). For tokens, `tests/test_keycloak_verifier.py`
   has a stand-in realm (`FakeRealm`) that `tests/test_auth_roles.py` reuses.
 - Live-service fixtures: `scratch_db`, `platform_db` (baseline plus migrations, with `POSTGRES_*`
-  pointed at it), `minio_bucket`, `s3`, and `tool_bucket` (in `tests/test_datasets_workflows_api.py`).
+  pointed at it), `minio_bucket`, `s3`, and `tool_bucket`, all in `tests/conftest.py`.
   A test that uses one must carry `@pytest.mark.integration`, or collection fails. `make test-api`
   deselects those tests and runs the rest offline.
 - `make test-api` mounts this folder and `services/postgres` only. A test that needs another file

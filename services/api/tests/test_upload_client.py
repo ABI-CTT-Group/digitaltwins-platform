@@ -12,7 +12,6 @@ from app.routers import auth, dataset_uploads
 from digitaltwins import UploadClient, tools
 from digitaltwins.client import UploadError
 from digitaltwins.measurements import pipeline
-from test_datasets_workflows_api import tool_bucket  # noqa: F401  (fixture)
 
 FIXTURE = Path(__file__).parent / "data" / "example_sds_dataset"
 FIXTURE_ZIP = Path(__file__).parent / "data" / "example_sds_dataset.zip"

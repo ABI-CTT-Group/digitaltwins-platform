@@ -1,6 +1,6 @@
 <template>
     <v-dialog
-        v-model="dialog!"
+        v-model="dialog"
         width="auto"
     >
         <v-sheet
@@ -54,12 +54,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onBeforeMount} from 'vue';
-const props = defineProps({
+defineProps({
     submitState:String
 })
 
-const dialog = defineModel("submitDialog")
+const dialog = defineModel<boolean>("submitDialog")
 
 
 </script>

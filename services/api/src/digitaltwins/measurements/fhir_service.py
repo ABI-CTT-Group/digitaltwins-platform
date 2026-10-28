@@ -215,7 +215,7 @@ class HapiRest:
             r.raise_for_status()
             bundle = r.json()
             found += [e["resource"] for e in bundle.get("entry", [])]
-            url = next((l["url"] for l in bundle.get("link", []) if l.get("relation") == "next"), None)
+            url = next((link["url"] for link in bundle.get("link", []) if link.get("relation") == "next"), None)
             query = None  # the next link carries the paging state
         return found
 

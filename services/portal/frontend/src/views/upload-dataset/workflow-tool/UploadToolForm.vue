@@ -76,10 +76,10 @@ import BaseInformationStep from '../components/BaseInformationStep.vue';
 import BaseBuildStep from '../components/BaseBuildStep.vue';
 import BaseCompleteStep from '../components/BaseCompleteStep.vue';
 import BaseAnnotateStep from '../components/BaseAnnotateStep.vue';
-import type { ToolResponse, BaseInformationStep as BaseInfoStepType, AnnotateTool, TransientAuth} from '@/models/types';
+import type { ToolResponse, ToolInformationStep, AnnotateTool, TransientAuth} from '@/models/types';
 import { useCreateTool, useWorkflowToolBuild, useCreateToolAnnotation } from '@/bootstrap/tool_api'
 import { useLogConsole } from '@/composables/useLogConsole';
-import { ref, watch } from "vue";
+import { ref } from "vue";
 
 const { openConsole } = useLogConsole();
 const emit = defineEmits(['finished'])
@@ -90,7 +90,7 @@ const tool = ref<ToolResponse>()
 // it anywhere; rebuilds (later) prompt the user to re-enter it.
 const pendingAuth = ref<TransientAuth | undefined>(undefined)
 
-const handleSubmit = async (data: BaseInfoStepType, auth?: TransientAuth)=>{
+const handleSubmit = async (data: ToolInformationStep, auth?: TransientAuth)=>{
     tool.value = await useCreateTool(data)
     pendingAuth.value = auth
     step.value += 1;
@@ -98,7 +98,7 @@ const handleSubmit = async (data: BaseInfoStepType, auth?: TransientAuth)=>{
 
 const handleAnnotation = async (id:string, data:AnnotateTool) =>{
 
-    const res = await useCreateToolAnnotation(id, {
+    await useCreateToolAnnotation(id, {
         fhirNote: JSON.stringify(data),
         sparcNote: ""
     })

@@ -56,10 +56,10 @@ const props = defineProps({
 })
 const description = ref('Downloading dataset from Digital Twins Platform')
 
-const dialog = defineModel("downloadDialog")
+const dialog = defineModel<boolean>("downloadDialog")
 
 
-watch(()=>props.downloadZipProgressValue,(newVal, oldVal)=>{
+watch(()=>props.downloadZipProgressValue,(newVal)=>{
     if(newVal==100){
         description.value = "Successfully download the dataset"
     }else{

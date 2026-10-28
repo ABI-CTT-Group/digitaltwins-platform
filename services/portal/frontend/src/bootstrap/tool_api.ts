@@ -4,7 +4,6 @@ import {
   IAnnotation,
   CheckNameResponse,
   ToolResponse,
-  BuildResponse,
   ToolDeployResponse,
   ToolMinIOMetadata,
   ExcuteBuildResponse,

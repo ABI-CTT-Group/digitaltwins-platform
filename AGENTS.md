@@ -39,7 +39,7 @@ Everything runs in pinned containers and needs only Docker and GNU make. CI call
 |---|---|
 | `make test` | All unit-test suites |
 | `make test-api` / `test-builder` / `test-frontend` / `test-jupyterhub` / `test-util` | One suite; add `PYTEST_ARGS="-k name"` to narrow a Python suite |
-| `make lint` | ruff, eslint and vue-tsc (report-only in CI) |
+| `make lint` | ruff, eslint and vue-tsc; must pass (a required check in CI) |
 | `make docs-check` | Doc links, the code map, `util/SCRIPTS.md` and agent pointer files; checks tracked files only, so `git add` new files first |
 | `make gitleaks` | Secret scan of this branch's commits |
 

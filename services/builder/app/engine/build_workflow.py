@@ -147,12 +147,7 @@ class WorkflowBuilder:
         error_message = None
         repo_url = workflow.get("repo_url")
         branch = workflow.get("branch", "main")
-        workflow_id = workflow.get("id")
         workflow_name = workflow.get("name", "unknown")
-        version = workflow.get("version", "1.0.0")
-        created_at = workflow.get("created_at", "unknown")
-        author = workflow.get("author", "unknown")
-        description = workflow.get("description", "No description provided")
         metadata = workflow.get("metadata", {})
         source_type = workflow.get("source_type", "github")
         local_archive_path = workflow.get("local_archive_path")
@@ -161,7 +156,6 @@ class WorkflowBuilder:
         auth_username = workflow.get("auth_username")
         verify_ssl = workflow.get("verify_ssl", True)
         tmp_source_dir = None
-        config = {}
 
         try:
             workflow_unique_expose_name = unique_name(workflow_name)

@@ -175,7 +175,7 @@ class MetadataConvertor(object):
                         try:
                             if data.get(key):
                                 continue
-                        except:
+                        except Exception:
                             print("test")
 
                         value = metadata_dict.get(key)
@@ -321,7 +321,7 @@ class MetadataConvertor(object):
             # Linux
             with open(schema_file, 'r') as yml:
                 schema = yaml.safe_load(yml)
-        except Exception as e:
+        except Exception:
             # Windows
             with open(schema_file, 'rt', encoding='utf8') as yml:
                 schema = yaml.safe_load(yml)
@@ -375,7 +375,7 @@ class MetadataConvertor(object):
                 try:
                     record = mappings[mappings['element'] == element]
                     metadata_sparc.loc[idx, metadata_sparc.columns[0]] = record.iloc[0]["gen3_element_" + target_version]
-                except:
+                except Exception:
                     continue
 
             metadata_sparc = metadata_sparc.dropna()

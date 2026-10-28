@@ -2,27 +2,21 @@ import asyncio
 import os
 import json
 import mimetypes
-import uvicorn
 import zipfile
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, FastAPI, Depends, HTTPException, BackgroundTasks, Request, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, UploadFile, File
 from fastapi.responses import StreamingResponse, JSONResponse
 from app.database.database import get_db
 from sqlalchemy.orm import Session
-from sqlalchemy import select
 
-from typing import List, Dict, Any, Literal, Optional
-from contextlib import asynccontextmanager
+from typing import List, Optional
 from pydantic import BaseModel
 import threading
 import uuid
-import requests
 from app.models.db_model import (
     Plugin,
-    Workflow, WorkflowBuild, WorkflowAnnotation, WorkflowBase,
-    WorkflowResponse, WorkflowCreate, WorkflowAnnotationCreate,
+    Workflow, WorkflowBuild, WorkflowAnnotation, WorkflowResponse, WorkflowCreate, WorkflowAnnotationCreate,
     WorkflowAnnotationResponse, WorkflowBuildResponse, BuildStatus,
-    SessionLocal,
     DeployStatus, PluginDeployment,
     ProbeSourceRequest, BuildTriggerRequest,
 )
@@ -34,20 +28,17 @@ from app.engine.build_workflow import WorkflowBuilder
 from app.engine.deploy_tool import PluginDeployer
 from app.engine.source_acquirer import SourceAcquirer, SourceSpec, CloneError
 from app.engine.workflow_layout import detect_workflow_layout, inspect_workflow_source, read_workflow_cwl
-from app.utils.workflow_tool_utils import get_build_record_or_404, get_latest_build_record, served_workflow_build, workflow_bundle_path, latest_deployment, run_deployment, shut_down_workflow_backends
+from app.utils.workflow_tool_utils import get_latest_build_record, served_workflow_build, workflow_bundle_path, latest_deployment, run_deployment, shut_down_workflow_backends
 from app.utils.builder_utils import (
     execute_build_in_background,
     extract_uploaded_archive,
     resolve_project_root,
 )
 
-import json
 
 from pathlib import Path
-from uuid import UUID
 from app.utils.utils import force_rmtree, is_empty
 from fhir_cda import Annotator
-from pprint import pprint
 from app.utils.auth import get_current_user, require_any_role
 from app.services import tool_handoff, workflow_handoff
 
@@ -239,7 +230,6 @@ async def get_metadata_json(db: Session = Depends(get_db)):
         if not latest_build or not latest_build.expose_name:
             continue
 
-        build_ts = int(latest_build.created_at.timestamp()) if latest_build.created_at else 0
         is_local = latest_build.s3_path is None
 
         if is_local:

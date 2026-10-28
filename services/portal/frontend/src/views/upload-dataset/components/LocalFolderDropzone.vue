@@ -398,7 +398,7 @@ async function handleZipFile(file: File) {
     return;
   }
 
-  let JSZipMod: typeof import('jszip').default;
+  let JSZipMod: typeof import('jszip');
   try {
     JSZipMod = (await import('jszip')).default;
   } catch (err) {

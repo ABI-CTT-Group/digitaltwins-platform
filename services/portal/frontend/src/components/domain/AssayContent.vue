@@ -20,7 +20,7 @@
         <div class="d-flex flex-row ma-2 input">
             <span class="assay-form-subtitle w-25 accent-input">Inputs: </span>
             <div class="w-75">
-                <div class="w-75 d-flex flex-row mt-4" v-for="data in assayDetails!.workflow.inputs">
+                <div class="w-75 d-flex flex-row mt-4" v-for="data in assayDetails!.workflow.inputs" :key="data.input.name">
                     <span class="w-25">{{ capitalize(data.input.name.replaceAll("_", " ")) }}:</span>
                     <div class="w-50 mx-1">
                         <v-select
@@ -53,7 +53,7 @@
         <div class="d-flex flex-row ma-2 output">
             <span class="assay-form-subtitle w-25 accent-output">Outputs: </span>
             <div class="w-75">
-                <div class="w-75 d-flex flex-row mt-4" v-for="data in assayDetails!.workflow.outputs">
+                <div class="w-75 d-flex flex-row mt-4" v-for="data in assayDetails!.workflow.outputs" :key="data.output.name">
                     <span class="w-25">{{ capitalize(data.output.name.replaceAll("_", " ")) }}:</span>
                     <div class="w-50 mx-1">
                         <v-text-field
@@ -96,7 +96,7 @@
 
 <script setup lang="ts">
 
-import { ref, computed, watch, onMounted, onBeforeMount } from 'vue';
+import { ref, computed, onMounted, onBeforeMount } from 'vue';
 import { storeToRefs } from 'pinia';
 import {AssayDetails} from '@/models/types';
 import { useDashboardGetDatasets, useDashboardSelectedDatasetSampleTypes, useDashboardWorkflowDetail, useDashboardWorkflows } from '@/bootstrap/dashboard_api';
@@ -119,7 +119,6 @@ interface IRenderWorkflowInputDatasetSamples {
 
 const formRef = ref();
 const cohortsParticipants = ref<string>("");
-const datasetRenderItems = ref<string[]>();
 
 const assayDetails = defineModel<AssayDetails>();
 // The assay's SEEK tag (gui / notebook / script) and projects: only workflows of that
@@ -237,7 +236,7 @@ const handleDatasetSelected = async (value: string, inputName:string, inputCateg
         workflowInputDatasetSamples.value[inputName].selectedDatasetSampleTypes = sampleTypes;
     }
     
-    assayDetails.value!.workflow.inputs.find(data => {
+    assayDetails.value!.workflow.inputs?.forEach(data => {
         if (data.datasetSelectedUuid === value && data.input.name === inputName) {
             data.sampleSelectedType = "";
         }

@@ -36,7 +36,7 @@ class MetadataUploader(object):
                              f"persists, please contact the developers".format(count=count))
         try:
             self._submission.submit_record(program, project, record)
-        except Gen3AuthError as e:
+        except Gen3AuthError:
             time.sleep(2)
             self.submit(program, project, record, count + 1)
 

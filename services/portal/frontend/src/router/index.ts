@@ -2,8 +2,6 @@
 import {
   createRouter,
   createWebHistory,
-  createWebHashHistory,
-  RouteRecordRaw,
 } from "vue-router";
 import { useAuthStore } from "@/store/auth_store";
 import { isAuthenticated } from "@/bootstrap/keycloak";

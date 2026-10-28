@@ -1,10 +1,11 @@
 import os
 
 from dotenv import load_dotenv
-load_dotenv()
 
 from ..postgres.querier import Querier as PostgresQuerier
 from ..gen3.querier import Querier as Gen3Querier
+
+load_dotenv()
 
 
 class QuerierFactory:

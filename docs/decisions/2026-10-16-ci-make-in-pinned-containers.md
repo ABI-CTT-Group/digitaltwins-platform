@@ -56,7 +56,7 @@ Each image matches the Python or Node version of its service's production Docker
 The GitHub workflow:
 - Runs on PRs to `main` (drafts skipped), on pushes to `main` and on manual dispatch.
 - Runs only the suites a change touches. A first job computes the changed paths, and skipped jobs count as passing for required checks.
-- Blocks on the unit suites and on a gitleaks scan of the PR's commits. Lint and type-check are report-only.
+- Blocks on the unit suites and on a gitleaks scan of the PR's commits. Lint and type-check are report-only. (Lint became a required check on 2026-10-28: [2026-10-28-lint-required-check.md](2026-10-28-lint-required-check.md).)
 
 ## Consequences
 

@@ -7,16 +7,6 @@
 
 import starlette.requests
 
-# Raise the multipart upload limit (default is 1000 files / 1000 fields).
-_original_form = starlette.requests.Request.form
-
-
-def _patched_form(self, *, max_files=10_000, max_fields=10_000, max_part_size=1024 * 1024):
-    return _original_form(self, max_files=max_files, max_fields=max_fields, max_part_size=max_part_size)
-
-
-starlette.requests.Request.form = _patched_form  # type: ignore[method-assign]
-
 import os
 from contextlib import asynccontextmanager
 
@@ -31,6 +21,16 @@ from .routers import (
     health, auth, datasets, dataset_fhir, dataset_uploads, assays,
     programs, projects, investigations, studies, workflows, tools, models, dashboard
 )
+
+# Raise the multipart upload limit (default is 1000 files / 1000 fields).
+_original_form = starlette.requests.Request.form
+
+
+def _patched_form(self, *, max_files=10_000, max_fields=10_000, max_part_size=1024 * 1024):
+    return _original_form(self, max_files=max_files, max_fields=max_fields, max_part_size=max_part_size)
+
+
+starlette.requests.Request.form = _patched_form  # type: ignore[method-assign]
 
 
 @asynccontextmanager

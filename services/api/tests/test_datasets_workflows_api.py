@@ -2,7 +2,6 @@
 stored and linked to them, everything registered in SEEK (faked) — all or nothing."""
 import io
 import sys
-import uuid
 import zipfile
 from pathlib import Path
 
@@ -82,22 +81,6 @@ def notebook_files():
         "code/tool_select/select.ipynb": b"{}",
         "code/notes.txt": b"workflow-only\n",
     }
-
-
-@pytest.fixture
-def tool_bucket(s3, minio_bucket):
-    """A second throwaway bucket for the tool datasets (``minio_bucket`` holds the workflows)."""
-    bucket = f"dt-test-{uuid.uuid4().hex[:10]}"
-    try:
-        yield bucket
-    finally:
-        try:
-            for page in s3.get_paginator("list_objects_v2").paginate(Bucket=bucket):
-                for obj in page.get("Contents", []):
-                    s3.delete_object(Bucket=bucket, Key=obj["Key"])
-            s3.delete_bucket(Bucket=bucket)
-        except s3.exceptions.ClientError:
-            pass  # never created
 
 
 @pytest.fixture

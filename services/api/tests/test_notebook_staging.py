@@ -6,15 +6,9 @@ sample-type subset of each measurement input with filtered SDS metadata, whole m
 inputs); ``stage_notebook_assay`` writes the entries that are missing.
 """
 import io
-import sys
-from pathlib import Path
 
 import openpyxl
 import pytest
-
-project_root = Path(__file__).resolve().parent.parent
-if str(project_root) not in sys.path:
-    sys.path.append(str(project_root))
 
 from digitaltwins.jupyterhub.hub import HubError, HubTimeout, JupyterHub
 from digitaltwins.jupyterhub.staging import Entry, plan_files, stage_notebook_assay, workflow_uuid_by_seek_id

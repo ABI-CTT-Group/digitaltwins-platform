@@ -26,9 +26,9 @@ import 'vue-toastification/dist/index.css';
 export function registerPlugins(app: App) {
   loadFonts();
   pinia.use(piniaPluginPersistedstate);
-  ; (window as any).Vue = Vue;
-  ; (window as any).Pinia = { createPinia, defineStore, storeToRefs, getActivePinia };
-  ; (window as any).Vuetify = Object.assign(vuetify, { useTheme, useDisplay });
-  ; (window as any).VueToastification = { default: Toast, createToastInterface, useToast, TYPE, POSITION };
+  (window as any).Vue = Vue;
+  (window as any).Pinia = { createPinia, defineStore, storeToRefs, getActivePinia };
+  (window as any).Vuetify = Object.assign(vuetify, { useTheme, useDisplay });
+  (window as any).VueToastification = { default: Toast, createToastInterface, useToast, TYPE, POSITION };
   app.use(IntroJs).use(vuetify).use(router).use(pinia).use(ElementPlus).use(Toast);
 }

@@ -7,7 +7,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --fix --ignore-path .gitignore",
-    "lint:check": "eslint . --ignore-path .gitignore",
+    "lint:check": "eslint . --ignore-path .gitignore --max-warnings 0",
     "type-check": "vue-tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
   },

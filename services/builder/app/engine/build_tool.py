@@ -1,16 +1,12 @@
 import os
 import re
-import subprocess
 import shutil
 import platform
-import uuid
 import json
 from pathlib import Path
 from typing import Optional, Dict, Any
-from urllib.parse import quote
 from dotenv import dotenv_values
 
-from app.utils.utils import force_rmtree
 
 from sparc_me import Dataset
 from .logger import get_logger
@@ -544,14 +540,9 @@ class PluginBuilder:
         plugin_name = plugin.get("name", "unknown")
         version = plugin.get("version", "1.0.0")
         label = plugin.get("label", "GUI")
-        created_at = plugin.get("created_at", "unknown")
-        author = plugin.get("author", "unknown")
-        description = plugin.get("description", "No description provided")
         has_backend = plugin.get("has_backend", True)
         frontend_folder = plugin.get("frontend_folder", "unknown")
         frontend_build_command = plugin.get("frontend_build_command", "npm run build")
-        backend_folder = plugin.get("backend_folder", "unknown")
-        backend_deploy_command = plugin.get("backend_deploy_command")
         source_type = plugin.get("source_type", "github")
         local_archive_path = plugin.get("local_archive_path")
         # Transient secrets supplied per-build (NEVER persisted to DB per
@@ -563,7 +554,6 @@ class PluginBuilder:
         auth_username = plugin.get("auth_username")
         verify_ssl = plugin.get("verify_ssl", True)
         tmp_source_dir = None
-        config = {}
 
         try:
             plugin_unique_expose_name = unique_name(plugin_name)
@@ -610,7 +600,7 @@ class PluginBuilder:
                 if config_file.exists():
                     logger.info(f"Reading config from {config_file}")
                     with open(config_file, "r") as f:
-                        config = json.loads(f.read())
+                        json.loads(f.read())  # a malformed file fails the build
                 else:
                     logger.warning(f"No config.portal.json found in {project_dir}")
 

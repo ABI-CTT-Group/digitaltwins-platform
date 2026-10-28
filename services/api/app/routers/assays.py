@@ -411,7 +411,8 @@ def _reconcile_manifest(dataset_dir: str) -> None:
         return
 
     files = sorted(p.relative_to(primary).as_posix() for p in primary.rglob("*") if p.is_file())
-    folder = lambda rel: rel.rsplit("/", 1)[0]
+    def folder(rel):
+        return rel.rsplit("/", 1)[0]
 
     import openpyxl
     wb = openpyxl.load_workbook(manifest)
@@ -503,7 +504,8 @@ async def configure_assay(
     the assay in SEEK through an SOP; that link is undone if the save fails. A
     workflow from none of the assay's projects is refused (400).
     """
-    undo_link = lambda: None
+    def undo_link():
+        pass
     if assay_data.link_workflow:
         require_upload_role(credentials)
         try:

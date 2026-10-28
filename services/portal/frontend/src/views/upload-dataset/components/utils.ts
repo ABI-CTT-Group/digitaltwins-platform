@@ -114,7 +114,7 @@ export const noWorkflowCwlMessage = (where: string) =>
   `or one primary/workflow_*.cwl in an SDS package (${SDS_MARKER} at the root).`;
 
 export const getRepoRootCWLContent = (repositoryUrl: string) => {
-  return new Promise<{ cwlFile: string, content: any }>((resolve, reject) => {
+  return new Promise<{ cwlFile: string, content: any }>((resolve) => {
     getRepoContents(repositoryUrl).then(async (res) => {
       const folders = res!.data as GitContent[];
       let cwlFile = "";

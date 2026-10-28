@@ -1,6 +1,5 @@
 """SDS metadata of a script assay's output dataset: prefixed subject/sample ids, and a
 manifest that names the files the run actually produced."""
-import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch

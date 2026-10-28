@@ -1,14 +1,7 @@
 """Launching a notebook assay: ``POST /assays/{id}/run`` stages ``assay_<id>/`` in the user's
 JupyterHub server and returns its URL. It does not need Airflow, which script assays still do.
 """
-import sys
-from pathlib import Path
-
 import pytest
-
-project_root = Path(__file__).resolve().parent.parent
-if str(project_root) not in sys.path:
-    sys.path.append(str(project_root))
 
 from fastapi.testclient import TestClient
 
