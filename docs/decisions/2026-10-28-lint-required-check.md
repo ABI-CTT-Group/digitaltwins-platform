@@ -28,12 +28,17 @@ three tools to 0.
 ### Option C: Require the whole lint job (ruff, eslint and vue-tsc)
 - Pros: one check, the same as `make lint` locally; keeps `main` at 0.
 - Cons: a frontend dependency bump can break vue-tsc (the duplicate vite and rollup copies already
-  need two workarounds in `vite.config.ts`), and eslint warnings fail it as well as errors.
+  need two workarounds in `vite.config.ts`). eslint exits 0 on warnings by default, so blocking on
+  them needs `--max-warnings 0`, and then an unused variable fails the check.
 
 ## Decision
 
 Option C. The job's name is now `lint` (it was `lint (report-only)`), and its steps no longer have
 `continue-on-error`. The frontend step runs even when the Python step fails, so one run reports both.
+The frontend's `lint:check` script runs eslint with `--max-warnings 0`, so warnings block too: all 22
+were `no-unused-vars` (dead code and leftover imports), and without the flag they would pile up
+unseen again. `_`-prefixed arguments are already exempt, and a one-off can use
+`// eslint-disable-next-line <rule> -- <reason>`.
 `lint` is added to the "CI required checks" ruleset after this change merges, so open PRs that still
 run the old workflow aren't left waiting for a check they never report.
 

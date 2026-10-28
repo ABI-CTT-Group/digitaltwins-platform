@@ -116,6 +116,7 @@ Then run `make test-frontend` and `make lint-frontend`, which should be 0. Commi
 ## Step 8: make lint a required check (added on request, same PR)
 
 - `.github/workflows/ci.yml`: rename the job `lint (report-only)` → `lint`, drop `continue-on-error`, and run the frontend step with `if: ${{ !cancelled() }}` so both steps report.
+- `services/portal/frontend/package.json`: `lint:check` gets `--max-warnings 0`, because eslint exits 0 on warnings by default and they would pile up again.
 - Remove "report-only" for lint from `AGENTS.md`, `CONTRIBUTING.md`, the `Makefile` comment, `docs/testing.md` (add `lint` to the required list; there are now six) and the PR template.
 - Add ADR `docs/decisions/2026-10-28-lint-required-check.md`, and a pointer to it in the 2026-10-16 CI ADR, which said lint is report-only.
 - Ruleset "CI required checks": add `lint` **after** this PR merges. Open PRs that still run the old workflow never report a `lint` check, so they would be blocked. This is a repo-settings change and needs your go-ahead.
