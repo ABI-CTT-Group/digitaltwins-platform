@@ -6,6 +6,11 @@ services, and hands everything else to the portal.
 **The config is a set of bind-mounted plain files. Changing a route needs no image
 rebuild and no container restart.** That is the whole point of this directory.
 
+## Status
+
+Active. The root `docker-compose.yml` `extends` the `gateway` service from this folder's
+`docker-compose.yml`. It is a stock `nginx` image: no Dockerfile, no build.
+
 ---
 
 ## Change a route, an upstream, a timeout, a body size
@@ -152,3 +157,48 @@ service**; `nginx -s reload` alone is not enough, because the setting lives in t
 token, and JupyterHub and the builder use `KEYCLOAK_PUBLIC_URL`. Both are
 derived from `PLATFORM_PROTOCOL` and `PLATFORM_DOMAIN` by `util/gen-env.sh`; move the
 `/auth/` route without regenerating them and every login fails.
+
+---
+
+## Connects to
+
+Every upstream is looked up by service name on the platform network, at request time.
+
+| Route | Upstream |
+|---|---|
+| `/seek/` | `seek:3000` |
+| `/airflow/` | `airflow-apiserver:8080` |
+| `/jupyter/` | `jupyterhub:8000` |
+| `/auth/` | `keycloak:8080` |
+| `/fhir/` | `hapi-fhir:8080` |
+| `/minio/` | `minio:9001`, the console |
+| `/minio-discovery.json` | A file in `snippets/`, written by `util/gen-env.sh` (see [services/minio](../minio/README.md)) |
+| `/orthanc-1/`, `/orthanc-2/` | `orthanc-1:8042`, `orthanc-2:8042` |
+| `/api/` | `api:8000`, prefix stripped |
+| `/api/builder/`, and everything not listed here | `portal-frontend:80` (`snippets/portal-proxy.conf`) |
+| `/grafana/` | `k3s-node:81`, Grafana on the host; `k3s-node` is `NODE_IP` (`extra_hosts`) |
+
+The gateway also answers to `PLATFORM_DOMAIN` on the platform network (a network alias), so
+containers that call the public hostname reach it, and through it Keycloak. Certbot on the host
+writes ACME challenges into `acme/`, which the port-80 server serves (`util/renew-cert.sh`).
+
+## Configuration
+
+Set in the root `.env`:
+
+| Variable | Use |
+|---|---|
+| `NGINX_MODE` | `http` or `ssl`: which server shell is mounted |
+| `SSL` | Read by the builder, not the gateway; see the table above |
+| `PLATFORM_DOMAIN` | The gateway's network alias |
+| `NODE_IP` | The host address behind `/grafana/` (`util/gen-env.sh` detects it) |
+| `PROJECT_NAME` | Prefix of the container name, `${PROJECT_NAME}-gateway` |
+
+## Run & test
+
+No automated tests. `nginx -t` (above) is the check before every reload. `make test-builder` tests
+portal-frontend's nginx template, not this one.
+
+## Related ADRs
+
+- [Serve the platform API at /api](../../docs/decisions/2026-10-20-api-prefix-and-portal-builder-split.md)

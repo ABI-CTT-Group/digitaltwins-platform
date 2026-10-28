@@ -2,6 +2,11 @@
 
 The builder is the portal's tool and workflow builder: the Tool Hub's register, build, approve and deploy steps. It used to be the portal backend (`services/portal/backend`, service `portal-backend`). It runs as the `builder` service, separate from the platform API (`services/api`), and shares no code with it. Why it is separate: [ADR 2026-10-21-builder-as-its-own-service](../../docs/decisions/2026-10-21-builder-as-its-own-service.md).
 
+## Status
+
+Active. The root `docker-compose.yml` defines `builder` by extending this folder's
+`docker-compose.yml`, and adds the `BUILDER_DB_*` settings and the dependency on `database`.
+
 ## Layout
 
 | Path | What |
@@ -31,6 +36,19 @@ The builder and the API talk over HTTP, as the calling user:
 
 - The builder's approval handoff uploads builds to the API (`API_BASE_URL`/`API_PORT`).
 - The API's dashboard asks the builder which tool backs a GUI assay (`BUILDER_URL`, `GET /api/builder/workflow/gui-tool`).
+
+## Connects to
+
+| Peer | How |
+|---|---|
+| Postgres | The `portal` schema, as the `portal` role (`BUILDER_DB_*`). With `BUILDER_DB_HOST` unset, SQLite at `DATABASE_PATH` on the `plugin_database` volume |
+| MinIO | `MINIO_ENDPOINT`, with `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` set from `MINIO_SERVER_*`. Buckets `tools`, `tool-builds` and `workflows` |
+| api | Approval handoff to `API_BASE_URL`:`API_PORT`; the API calls back at `BUILDER_URL` (above) |
+| Keycloak | Token checks against `KEYCLOAK_BASE_URL`, or `KEYCLOAK_PUBLIC_URL` |
+| HAPI FHIR | `FHIR_ENDPOINT`: deleting a workflow deletes its `PlanDefinition` |
+| portal-frontend | Its nginx proxies `/api/builder/` here on `BUILDER_PORT`. The builder writes plugin routes into the shared `nginx_plugin_configs` volume (`NGINX_PLUGINS_CONF_DIR`) and reloads that nginx with `docker exec` (`NGINX_CONTAINER_NAME`) |
+| Host Docker daemon | `/var/run/docker.sock`: plugin backend deploys and the nginx reload |
+| Volumes | `portal_datasets` (`/app/data`), `portal_workspace` (`/portal_workspace`, build staging in `tools/` and `workflows/`), `plugin_database` (`/data`) |
 
 ## Configuration
 
@@ -63,3 +81,23 @@ Under the platform: `docker compose up -d builder`, from the repository root. To
 Restarting the builder stops every plugin backend it started and marks it down. Redeploy them afterwards.
 
 Tests: `make test-builder`, from the repository root (see `docs/testing.md`). Never run them inside the live `builder` container: they drop and recreate every table.
+
+## Gotchas
+
+- **Every route must start with `/api/builder/`.** The gateway sends the rest of `/api/` to the
+  platform API. `tests/test_route_prefixes.py` checks this.
+- **Every variable in the builder's environment is visible to plugin compose files.** A generic name
+  such as `HOST` or `PORT` would silently fill a plugin author's unrelated `${HOST}`. Don't add more
+  of them (see the comment in `docker-compose.yml`).
+- **Never hand-write a `/plugin/...` nginx route.** The builder generates them; see
+  [services/nginx](../nginx/README.md#what-is-not-yours).
+- The Postgres schema and role are still called `portal`, from when this was the portal backend.
+
+## Related ADRs
+
+- [The builder as its own service](../../docs/decisions/2026-10-21-builder-as-its-own-service.md)
+- [Move the portal backend into the API's codebase as a separate `builder` service](../../docs/decisions/2026-10-20-merge-portal-backend-into-api-codebase.md)
+- [The builder migrates the `portal` schema with the API's numbered SQL runner](../../docs/decisions/2026-10-21-builder-numbered-sql-migrations.md)
+- [One Keycloak token verifier for the API, its CLI and the builder](../../docs/decisions/2026-10-21-one-keycloak-token-verifier.md)
+- [Move the portal database into the platform Postgres](../../docs/decisions/2026-09-28-portal-database-in-platform-postgres.md)
+- [Build a gui workflow's tool in the portal](../../docs/decisions/2026-10-02-build-gui-workflow-tools.md)

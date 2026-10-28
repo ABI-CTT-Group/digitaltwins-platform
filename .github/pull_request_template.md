@@ -14,6 +14,7 @@ e.g. Closes #123
 
 ## Checklist
 - [ ] Docs updated (README, `docs/`, service READMEs) where behaviour changed
+- [ ] `docs/codemap.md`, `util/SCRIPTS.md` or the service's `AGENTS.md` updated if structure or conventions changed (`make docs-check` passes)
 - [ ] ADR added in `docs/decisions/` if this makes a significant design decision
 - [ ] No secrets in the diff (the gitleaks pre-commit hook passes)
 - [ ] Affected Docker images rebuilt and restarted when testing

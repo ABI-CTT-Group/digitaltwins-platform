@@ -66,6 +66,11 @@ Agents working in this repository follow [AGENTS.md](AGENTS.md): planning and
 summary documents go to timestamped folders in `docs/artifacts/`, and ADRs go in the
 same pull request as the code they describe.
 
+`AGENTS.md` is the single source of agent instructions. `CLAUDE.md`, `GEMINI.md`,
+`.github/copilot-instructions.md` and `.agents/rules/main.md` only point to it, and
+`make docs-check` fails if one of them holds anything else. Edit `AGENTS.md`, or a
+service's own `AGENTS.md`, to change what agents are told.
+
 ## License
 
 By contributing, you agree that your contributions are licensed under the

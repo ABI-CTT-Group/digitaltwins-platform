@@ -2,9 +2,9 @@
 
 ## 2026-05-08 — Local-source rebuild no longer wipes its own staging dir
 
-Fixed a latent bug in the build pipeline where every successful or failed local-source build deleted the staging directory the plugin was registered against. Step 7 of [`build_tool.py`](../backend/app/builder/build_tool.py) and step 4 of [`build_workflow.py`](../backend/app/builder/build_workflow.py) — plus their outer `except Exception:` cleanup — unconditionally called `remove_tmp_folder(tmp_source_dir, ...)`. For `source_type='github'` the cloned dir is one-shot and safe to reap; for `source_type='local'` the dir referenced by `Plugin.local_archive_path` / `Workflow.local_archive_path` IS the canonical source code, created at upload time and meant to live for the record's lifetime. After the first build the dir was gone, every rebuild failed with `"Local staging dir not found: /app/tmp/upload_xxxx/..."`.
+Fixed a latent bug in the build pipeline where every successful or failed local-source build deleted the staging directory the plugin was registered against. Step 7 of [`build_tool.py`](../../builder/app/engine/build_tool.py) and step 4 of [`build_workflow.py`](../../builder/app/engine/build_workflow.py) — plus their outer `except Exception:` cleanup — unconditionally called `remove_tmp_folder(tmp_source_dir, ...)`. For `source_type='github'` the cloned dir is one-shot and safe to reap; for `source_type='local'` the dir referenced by `Plugin.local_archive_path` / `Workflow.local_archive_path` IS the canonical source code, created at upload time and meant to live for the record's lifetime. After the first build the dir was gone, every rebuild failed with `"Local staging dir not found: /app/tmp/upload_xxxx/..."`.
 
-The cleanup is now skipped for `source_type='local'` in both the success and failure paths. The staging dir's reap moved to plugin/workflow deletion in [`workflow_tool_plugin.py`](../backend/app/router/workflow_tool_plugin.py) and [`workflow_router.py`](../backend/app/router/workflow_router.py) — `delete_plugin` / `delete_workflow` now `force_rmtree` the `local_archive_path` alongside the dataset cleanup, so staging dirs are bound to the record's lifecycle rather than each build's.
+The cleanup is now skipped for `source_type='local'` in both the success and failure paths. The staging dir's reap moved to plugin/workflow deletion in [`workflow_tool_plugin.py`](../../builder/app/router/workflow_tool_plugin.py) and [`workflow_router.py`](../../builder/app/router/workflow_router.py) — `delete_plugin` / `delete_workflow` now `force_rmtree` the `local_archive_path` alongside the dataset cleanup, so staging dirs are bound to the record's lifecycle rather than each build's.
 
 **No action required for portal operators.** Restart `portal-backend` to pick up the fix.
 
@@ -34,12 +34,12 @@ Removed the long-deprecated dev-mount source path from the plugin and workflow b
 **Breaking changes for direct API callers / external integrators:**
 
 - `POST /api/tools/create` and `POST /api/workflow/create` with a `source_type` value other than `"github"` or `"local"` now fail-fast with `ValueError` (previously fell through to a dead dev-mount branch that would `RuntimeError` on the missing `/plugins/...` path). This only affects callers that bypass the Pydantic `Literal["github", "local"]` validator — e.g., callers writing directly to the DB or to unvalidated internal call sites.
-- The build response dict no longer includes an `is_local` key. The internal `build_record` writer ([`builder_utils.py`](../backend/app/utils/builder_utils.py)) and the `/api/.../metadata` endpoints never read this key (they recompute from `latest_build.s3_path is None`); no in-tree consumer is affected. External consumers reading the build response directly should switch to `s3_path is None` if they need an equivalent signal.
-- The `is_git_url` helper in [`backend/app/utils/builder_utils.py`](../backend/app/utils/builder_utils.py) has been removed.
+- The build response dict no longer includes an `is_local` key. The internal `build_record` writer ([`builder_utils.py`](../../builder/app/utils/builder_utils.py)) and the `/api/.../metadata` endpoints never read this key (they recompute from `latest_build.s3_path is None`); no in-tree consumer is affected. External consumers reading the build response directly should switch to `s3_path is None` if they need an equivalent signal.
+- The `is_git_url` helper in [`services/builder/app/utils/builder_utils.py`](../../builder/app/utils/builder_utils.py) has been removed.
 
 **No frontend impact** — `clinical-dashboard/frontend/` had zero references to `is_local` or `is_git_url`, and the production registration form's `githubRepoRegex` already rejected non-git URLs.
 
-See [`../plan/03-PLAN-deprecate-dev-mount.md`](../plan/03-PLAN-deprecate-dev-mount.md) for the full context.
+See `../plan/03-PLAN-deprecate-dev-mount.md` for the full context.
 
 ## 2026-05-07 — Workflow `/workflows/...` MinIO direct-link removed
 
@@ -56,7 +56,7 @@ Replaced the legacy direct-MinIO URL for workflow build artifacts with a backend
 
 **Internal Vue frontend is unaffected** — `frontend/src/bootstrap/workflow_api.ts` does not consume the metadata endpoint, and the local-source CWL viewer (`/api/workflow/{id}/cwl`) reads from the staging directory, not MinIO.
 
-See [`../plan/02-PLAN-workflow-router-minio-proxy.md`](../plan/02-PLAN-workflow-router-minio-proxy.md) for the full design and rationale.
+See `../plan/02-PLAN-workflow-router-minio-proxy.md` for the full design and rationale.
 
 ## 2026-05-07 — Plugin state isolation
 
@@ -76,4 +76,4 @@ Fixed cross-plugin data leakage caused by all plugins sharing the portal's singl
 
 **Recommended rebuild** to pick up the secondary safeguard (`<expose>__` store-id prefix). Plugin authors can trigger a rebuild from the portal's plugin list page; the bundle URL's `?v=<build_ts>` cache-buster will advance automatically and clients pick up the new bundle on next mount with no `Ctrl+Shift+R` needed. Already-deployed plugins keep working without a rebuild.
 
-See [`../plan/01-PLAN-plugin-state-isolation.md`](../plan/01-PLAN-plugin-state-isolation.md) for the full design and rationale.
+See `../plan/01-PLAN-plugin-state-isolation.md` for the full design and rationale.
