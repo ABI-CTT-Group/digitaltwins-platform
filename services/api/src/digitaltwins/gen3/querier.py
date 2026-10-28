@@ -8,9 +8,9 @@ from gen3.auth import Gen3Auth, Gen3AuthError
 from requests.exceptions import ConnectionError, HTTPError
 
 from dotenv import load_dotenv
-load_dotenv()
-
 import urllib3
+
+load_dotenv()
 urllib3.disable_warnings()
 
 
@@ -411,4 +411,5 @@ class Querier(object):
 
 
 
-from digitaltwins.core.dataset import Dataset
+# At the bottom on purpose: core/dataset.py imports Querier from this module.
+from digitaltwins.core.dataset import Dataset  # noqa: E402

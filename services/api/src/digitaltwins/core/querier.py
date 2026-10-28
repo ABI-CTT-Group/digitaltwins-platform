@@ -3,10 +3,11 @@ import yaml
 import os
 
 from dotenv import load_dotenv
-load_dotenv()
 
 from .. import tools
 from ..utils.config_loader import is_truthy
+
+load_dotenv()
 
 class Querier(object):
 

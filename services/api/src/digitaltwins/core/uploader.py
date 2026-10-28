@@ -9,13 +9,14 @@ import psycopg2
 import openpyxl
 
 from dotenv import load_dotenv
-load_dotenv()
 
 from ..utils.config_loader import is_truthy
 
 from ..postgres.uploader import Uploader as PostgresUploader
 from ..irods.uploader import Uploader as IRODSUploader
 from ..minio.uploader import Uploader as MinioUploader
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 

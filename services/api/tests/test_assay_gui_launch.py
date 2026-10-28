@@ -5,14 +5,7 @@
 ``GET /assays/{id}/input-files/{bucket}/{key}`` streams one such object, and refuses keys
 outside the assay's input datasets.
 """
-import sys
-from pathlib import Path
-
 import pytest
-
-project_root = Path(__file__).resolve().parent.parent
-if str(project_root) not in sys.path:
-    sys.path.append(str(project_root))
 
 from fastapi.testclient import TestClient
 

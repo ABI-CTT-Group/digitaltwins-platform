@@ -11,9 +11,9 @@ from digitaltwins import MetadataUploader
 from digitaltwins.irods.irods import IRODS
 
 from dotenv import load_dotenv
-load_dotenv()
-
 import urllib3
+
+load_dotenv()
 urllib3.disable_warnings()
 
 

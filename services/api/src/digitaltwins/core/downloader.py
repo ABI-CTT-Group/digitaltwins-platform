@@ -2,11 +2,12 @@ import os
 import shutil
 
 from dotenv import load_dotenv
-load_dotenv()
 
 from ..utils.config_loader import is_truthy
 
 from digitaltwins import Querier
+
+load_dotenv()
 
 
 class Downloader(object):

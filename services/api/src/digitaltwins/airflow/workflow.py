@@ -7,9 +7,10 @@ from requests.auth import HTTPBasicAuth
 from requests import RequestException
 
 from dotenv import load_dotenv
-load_dotenv()
 
 from digitaltwins import Querier
+
+load_dotenv()
 
 
 class Workflow(object):
