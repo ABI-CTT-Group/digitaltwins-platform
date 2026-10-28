@@ -136,7 +136,7 @@ jobs:
           persist-credentials: false
       - run: make test-util
 
-  # Report-only for now, like lint: continue-on-error keeps the job green while findings still show.
+  # Report-only for now: continue-on-error keeps the job green while findings still show.
   docs:
     name: docs check (report-only)
     needs: changes
@@ -150,9 +150,9 @@ jobs:
       - run: make docs-check
         continue-on-error: true
 
-  # Report-only: continue-on-error is on the steps so the job stays green while findings still show.
+  # Required check. The frontend step runs even when the Python step fails, so both report findings.
   lint:
-    name: lint (report-only)
+    name: lint
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
@@ -162,9 +162,8 @@ jobs:
         with:
           persist-credentials: false
       - run: make lint-python RUFF_FORMAT=github
-        continue-on-error: true
       - run: make lint-frontend
-        continue-on-error: true
+        if: ${{ !cancelled() }}
 
   # Scans only this PR's commits: the public history predates the pre-commit hook.
   gitleaks:

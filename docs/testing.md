@@ -11,7 +11,7 @@ make test-builder          # services/builder            (pytest, Python 3.11)
 make test-frontend         # services/portal/frontend    (vitest, Node 20)
 make test-jupyterhub       # services/jupyterhub         (pytest, hub image)
 make test-util             # util/                       (bash, Python 3.11 image)
-make lint                  # ruff + eslint + vue-tsc (report-only in CI)
+make lint                  # ruff + eslint + vue-tsc (a required check in CI)
 make docs-check            # doc links, code map, util/SCRIPTS.md, agent pointer files
 make gitleaks              # secret scan of origin/main..HEAD
 ```
@@ -112,13 +112,14 @@ These checks block merging:
 - `builder unit tests`
 - `frontend unit tests`
 - `jupyterhub unit tests`
+- `lint` (ruff, eslint and vue-tsc; runs when api, builder, frontend or jupyterhub code changes)
 - `gitleaks (PR commits)`
 
 `util unit tests` runs too, but isn't a required check.
 
-`lint (report-only)` shows its findings as annotations but never fails. `docs check (report-only)` works the same way: read its log for broken links or missing map entries.
+`docs check (report-only)` never fails: read its log for broken links or missing map entries.
 
-These five checks are required by the repo ruleset "CI required checks" (Settings → Rules). The ruleset matches checks by job `name:` in `.github/workflows/ci.yml`. If you rename a job, update the ruleset in the same change, or every PR will wait for a check that never reports.
+These six checks are required by the repo ruleset "CI required checks" (Settings → Rules). The ruleset matches checks by job `name:` in `.github/workflows/ci.yml`. If you rename a job, update the ruleset in the same change, or every PR will wait for a check that never reports.
 
 ## Safety rules
 

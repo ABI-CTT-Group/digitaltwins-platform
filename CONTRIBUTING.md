@@ -24,7 +24,7 @@ existing issues first. Never paste passwords, tokens or the contents of `.env` /
 3. **Test.** Run the unit tests and the linters before you push:
    ```bash
    make test   # all five unit-test suites, in pinned containers
-   make lint   # ruff, eslint and vue-tsc (report-only in CI)
+   make lint   # ruff, eslint and vue-tsc (a required check in CI)
    ```
    You need only Docker and GNU make. See [docs/testing.md](docs/testing.md) for
    running one suite, the integration tests, and the safety rules (never run the

@@ -9,7 +9,7 @@ e.g. Closes #123
 
 ## How it was tested
 - [ ] `make test` passes
-- [ ] `make lint` (report-only) has no new findings
+- [ ] `make lint` passes
 - Other testing, e.g. the deployment you tried it on (connected / airgapped, http / https):
 
 ## Checklist

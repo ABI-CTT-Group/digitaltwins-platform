@@ -82,7 +82,7 @@ test-util: cache-dirs
 	  -v $(CURDIR)/services/airflow/gpu.override.yml:/w/services/airflow/gpu.override.yml:ro \
 	  -w /w $(PY311_IMAGE) bash -c 'rc=0; for t in util/tests/test_*.sh; do bash "$$t" || rc=1; done; exit $$rc'
 
-# Static checks; report-only in CI for now. Runs both, fails if either finds problems.
+# Static checks; a required check in CI. Runs both, fails if either finds problems.
 # ruff is pinned to the bug-class rules (pyflakes + syntax/statement errors), not style.
 lint:
 	$(MAKE) -k lint-python lint-frontend

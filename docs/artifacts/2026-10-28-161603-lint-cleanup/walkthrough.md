@@ -21,6 +21,7 @@ and CI runs lint report-only.
 | 5 | portal eslint: `:key` (the CWL input/output name) on 6 `v-for`s; 4 extra semicolons in `bootstrap/index.ts` (the `window.Vue`/`Pinia`/... globals stay); an unused slot prop; unused imports and bindings; `argsIgnorePattern: '^_'` and `ignoreRestSiblings` in `.eslintrc.js`. |
 | 6 | portal vue-tsc: `RegistryView` refs cast to `Ref<T[]>` (this also clears 6 errors in the `*OverallView` pages); `.find` used as a loop → `?.forEach`; typed `defineModel<boolean>`; the `jszip` type; `?? ''` for a nullable status; `ToolInformationStep` in `UploadToolForm`; `as PluginOption` on `glslify(...)`. |
 | 7 | 5 leftovers added to `docs/future_refactoring.md` ("Lint cleanup leftovers"). |
+| 8 | CI: the `lint (report-only)` job is now `lint`, without `continue-on-error`; the frontend step runs even when the Python step fails. Docs no longer call lint report-only. ADR [2026-10-28-lint-required-check.md](../../decisions/2026-10-28-lint-required-check.md). `lint` is added to the "CI required checks" ruleset after merge. |
 
 ## Decisions made during implementation
 
