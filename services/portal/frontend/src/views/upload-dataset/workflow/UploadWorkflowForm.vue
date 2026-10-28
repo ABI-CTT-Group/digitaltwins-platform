@@ -76,7 +76,7 @@ import BaseCompleteStep from '../components/BaseCompleteStep.vue';
 import BaseBuildStep from '../components/BaseBuildStep.vue';
 import type { WorkflowInformationStep, WorkflowResponse, IAnnotation, TransientAuth} from '@/models/types';
 import { useCreateWorkflow, useCreateWorkflowAnnotation, useWorkflowBuild } from '@/bootstrap/workflow_api'
-import { ref, watch } from "vue";
+import { ref } from "vue";
 
 const emit = defineEmits(['finished'])
 const step = ref(0);

@@ -71,7 +71,7 @@ const props = withDefaults(
     disabled: false,
     accent: '#5fd6e8',
     pollInterval: 5000,
-    isPending: (items: T[]) => false,
+    isPending: () => false,
     filterFn: undefined,
   },
 );

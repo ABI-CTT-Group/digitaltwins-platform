@@ -29,7 +29,7 @@
                             </template>
                         </Dialog>
                     </template>
-                    <template #dialog-description="{ item }">
+                    <template #dialog-description>
                         <div class="d-flex justify-center w-100 pa-3">
                             <div class="w-100">
                                 <CWLWorkflowViewer :workflow="workflowData"/>
@@ -51,17 +51,11 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import { useDashboardWorkflows } from "@/bootstrap/dashboard_api";
-import { DashboardWorkflow } from "@/models/types";
 import Dialog from '@/components/common/Dialog.vue';
 import CWLWorkflowViewer from '@/components/domain/workflow/CWLWorkflowViewer.vue';
 import CatalogueColumn from './components/CatalogueColumn.vue';
 import BackLink from '@/components/common/BackLink.vue';
 
-const dashboardWorkflows = ref<DashboardWorkflow[]>();
-const getDashboardWorkflows = async () => {
-    dashboardWorkflows.value = await useDashboardWorkflows();
-};
 const workflowData = ref({});
 
 // TODO: switch to API once /dashboard/workflows returns full set

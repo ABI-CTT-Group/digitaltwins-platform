@@ -54,8 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onBeforeMount} from 'vue';
-const props = defineProps({
+defineProps({
     submitState:String
 })
 

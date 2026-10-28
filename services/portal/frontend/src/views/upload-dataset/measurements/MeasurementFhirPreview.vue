@@ -57,7 +57,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import BackLink from '@/components/common/BackLink.vue';
 // @ts-ignore - vue-toastification ships without type declarations
 import { useToast } from 'vue-toastification';
@@ -68,7 +68,6 @@ import {
 import { clearExportFields } from './components/clearExportFields';
 
 const route = useRoute();
-const router = useRouter();
 const toast = useToast();
 
 const measurementId = String(route.params.id);

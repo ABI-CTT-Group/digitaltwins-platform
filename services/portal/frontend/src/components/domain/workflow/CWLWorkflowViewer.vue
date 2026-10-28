@@ -49,7 +49,7 @@ function parseWorkflow(cwl: any) {
   const parsedNodes: any[] = []
   const parsedEdges: any[] = []
 
-  Object.entries(cwl.inputs || {}).forEach(([key, val]: any, idx) => {
+  Object.entries(cwl.inputs || {}).forEach(([key]: any, idx) => {
     parsedNodes.push({
       id: key,
       type: "input",

@@ -59,7 +59,7 @@ const description = ref('Downloading dataset from Digital Twins Platform')
 const dialog = defineModel("downloadDialog")
 
 
-watch(()=>props.downloadZipProgressValue,(newVal, oldVal)=>{
+watch(()=>props.downloadZipProgressValue,(newVal)=>{
     if(newVal==100){
         description.value = "Successfully download the dataset"
     }else{

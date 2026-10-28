@@ -79,7 +79,7 @@ import BaseAnnotateStep from '../components/BaseAnnotateStep.vue';
 import type { ToolResponse, BaseInformationStep as BaseInfoStepType, AnnotateTool, TransientAuth} from '@/models/types';
 import { useCreateTool, useWorkflowToolBuild, useCreateToolAnnotation } from '@/bootstrap/tool_api'
 import { useLogConsole } from '@/composables/useLogConsole';
-import { ref, watch } from "vue";
+import { ref } from "vue";
 
 const { openConsole } = useLogConsole();
 const emit = defineEmits(['finished'])
@@ -98,7 +98,7 @@ const handleSubmit = async (data: BaseInfoStepType, auth?: TransientAuth)=>{
 
 const handleAnnotation = async (id:string, data:AnnotateTool) =>{
 
-    const res = await useCreateToolAnnotation(id, {
+    await useCreateToolAnnotation(id, {
         fhirNote: JSON.stringify(data),
         sparcNote: ""
     })

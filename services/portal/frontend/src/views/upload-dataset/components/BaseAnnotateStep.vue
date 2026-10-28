@@ -81,7 +81,7 @@
             <div v-if="s.toolFhirNote">
               <h4 class="my-2 label-amber">Tool Inputs</h4>
               <div class="w-100 d-flex flex-row flex-wrap">
-                <div v-for="input in s.toolFhirNote.inputs" class="d-flex flex-column justify-start w-33">
+                <div v-for="input in s.toolFhirNote.inputs" :key="input.name" class="d-flex flex-column justify-start w-33">
                   <span class="mx-2">{{ input.name }} *</span>
                   <v-text-field
                     class="mt-4 mx-2"
@@ -99,7 +99,7 @@
             <div v-if="s.toolFhirNote">
               <h4 class="my-2 label-amber">Tool Outputs</h4>
               <div class="w-100 d-flex flex-row flex-wrap">
-                <div v-for="output in s.toolFhirNote.outputs" class="d-flex flex-column justify-start w-33">
+                <div v-for="output in s.toolFhirNote.outputs" :key="output.name" class="d-flex flex-column justify-start w-33">
                   <span class="mx-2">{{ output.name }} *</span>
                   <v-text-field
                     class="mt-4 mx-2"
@@ -140,7 +140,7 @@
 
           <h4 class="my-2">Tool Inputs</h4>
           <div class="w-100 d-flex flex-row flex-wrap">
-            <div v-for="input in annotateTool.inputs" class="d-flex flex-column justify-start w-33">
+            <div v-for="input in annotateTool.inputs" :key="input.name" class="d-flex flex-column justify-start w-33">
               <span class="mx-2">{{ input.name }}</span>
               <v-select class="mt-4 mx-2" v-model="input.resource" :items="fhirResources" label="FHIR Resource" required clearable />
             </div>
@@ -148,7 +148,7 @@
 
           <h4 class="my-2">Tool Outputs</h4>
           <div class="w-100 d-flex flex-row flex-wrap">
-            <div v-for="output in annotateTool.outputs" class="d-flex flex-column justify-start w-33">
+            <div v-for="output in annotateTool.outputs" :key="output.name" class="d-flex flex-column justify-start w-33">
               <span class="mx-2">{{ output.name }}</span>
               <v-select class="mt-4 mx-2" v-model="output.resource" :items="fhirResources" :rules="notEmptyRules" label="FHIR Resource" required clearable />
               <div v-if="output.resource === 'Observation'">
