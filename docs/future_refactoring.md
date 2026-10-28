@@ -66,3 +66,27 @@ Found while writing [codemap.md](codemap.md) (`docs/artifacts/2026-10-28-133109-
   * `docker_archive_volumes.sh` and `docker_restore_volumes.sh` overlap `stage-dump.sh` and `portal-restore.sh`.
   * `util/legacy-buildout-utils.md` is out of date about `generate-compute-env.sh` and `ufw_for_remote_compute.sh`.
 * **Why skipped**: The learnability work was docs-only.
+
+## Lint cleanup leftovers
+
+Found while making `make lint` pass. The cleanup kept behaviour unchanged, so these were noted rather than changed.
+
+### [ ] 1. Unused portal components and a stale lockfile
+* **Description**: `services/portal/frontend/src/components/domain/DownloadSheet.vue` and `SubmitSheet.vue` aren't imported anywhere. `services/portal/frontend/package-lock.json` is stale: the image and `make test-frontend` install from `yarn.lock` only, and yarn warns about the second lockfile. Remove all three.
+* **Why skipped**: Deleting files is outside a behaviour-neutral lint cleanup.
+
+### [ ] 2. Duplicate vite and rollup copies in the portal
+* **Description**: The portal installs vite 6.4.1, but vitest 3.2.7 brings its own vite 7.3.6, and the hoisted rollup (4.61, from workbox) differs from the one vite bundles (4.53). `vite.config.ts` works around the type clashes with an `as PluginOption` cast on `glslify(...)` and a `@ts-expect-error` on the `test` key. Align the versions (upgrade vite, or add `resolutions` in `package.json` and update `yarn.lock`), then remove both workarounds; the `@ts-expect-error` fails type-check once it's no longer needed.
+* **Why skipped**: It's a dependency change with its own risk.
+
+### [ ] 3. Broad exception handlers in `gen3/metadata_convertor.py`
+* **Description**: Two former bare `except:` clauses are now `except Exception:`. The one around `data.get(key)` can't raise and prints `"test"`; remove it. The one around the mapping lookup should catch `(IndexError, KeyError)` only.
+* **Why skipped**: Narrowing changes which errors propagate.
+
+### [ ] 4. Imports of names `digitaltwins` no longer exports
+* **Description**: `services/api/src/digitaltwins/core/uploader_gen3.py` imports `MetadataConvertor` and `MetadataUploader` from `digitaltwins`, and some files in `services/api/examples/` and the tutorials import `Auth`, `MetadataUploader`, `QuerierFactory` or `Connection`. Those exports are commented out in `digitaltwins/__init__.py`, so this code fails on import. Fix the imports or remove the code.
+* **Why skipped**: Gen3 and these examples look unused; that needs checking first.
+
+### [ ] 5. A promise that never rejects
+* **Description**: `getRepoRootCWLContent` in `services/portal/frontend/src/views/upload-dataset/components/utils.ts` never calls `reject`, so a failing `getRepoContents` leaves the caller waiting forever. Reject on error.
+* **Why skipped**: It changes behaviour; the lint cleanup only dropped the unused parameter.
