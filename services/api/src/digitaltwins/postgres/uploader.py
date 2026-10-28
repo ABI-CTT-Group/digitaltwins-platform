@@ -74,7 +74,6 @@ class Uploader(object):
         sql = r"SELECT assay_uuid FROM assay WHERE assay_seek_id=%s"
         self._cur.execute(sql, (assay_seek_id,))
         record = self._cur.fetchone()
-        column_names = [desc[0] for desc in self._cur.description]
 
         if record:
             # delete assay

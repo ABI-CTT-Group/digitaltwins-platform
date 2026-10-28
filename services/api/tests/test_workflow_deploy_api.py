@@ -18,7 +18,7 @@ from app.routers import auth, datasets
 from digitaltwins import tools, workflows
 from digitaltwins.workflows import deploy
 from test_dataset_uploads_workflows_api import _files as _session_parts, _upload
-from test_datasets_workflows_api import _folder_parts, gui_files, script_files, tool_bucket  # noqa: F401
+from test_datasets_workflows_api import _folder_parts, gui_files, script_files
 
 ADMIN = {"username": "alice", "token": "t", "claims": {"realm_access": {"roles": ["admin"]}}}
 RESEARCHER = {"username": "rita", "token": "t", "claims": {"realm_access": {"roles": ["researcher"]}}}
@@ -76,7 +76,7 @@ def _now(seconds=0):
 
 
 @pytest.fixture
-def client(platform_db, minio_bucket, tool_bucket, seek, hapi, s3, tmp_path, monkeypatch):  # noqa: F811
+def client(platform_db, minio_bucket, tool_bucket, seek, hapi, s3, tmp_path, monkeypatch):
     monkeypatch.setenv("DATASET_STAGING_DIR", str(tmp_path / "staging"))
     monkeypatch.setenv("AIRFLOW_DAGS_DIR", str(tmp_path / "dags"))
     monkeypatch.setenv("AIRFLOW_ENDPOINT", "http://airflow.test/airflow")

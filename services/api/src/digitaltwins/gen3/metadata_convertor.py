@@ -175,7 +175,7 @@ class MetadataConvertor(object):
                         try:
                             if data.get(key):
                                 continue
-                        except:
+                        except Exception:
                             print("test")
 
                         value = metadata_dict.get(key)
@@ -375,7 +375,7 @@ class MetadataConvertor(object):
                 try:
                     record = mappings[mappings['element'] == element]
                     metadata_sparc.loc[idx, metadata_sparc.columns[0]] = record.iloc[0]["gen3_element_" + target_version]
-                except:
+                except Exception:
                     continue
 
             metadata_sparc = metadata_sparc.dropna()

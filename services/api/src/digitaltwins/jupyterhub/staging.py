@@ -113,12 +113,15 @@ def filter_metadata(name: str, data: bytes, pairs: Set[Tuple[str, str]], staged:
     """
     subjects = {sub for sub, _ in pairs}
     if name == "subjects.xlsx":
-        keep = lambda row: row.get("subject id") in subjects
+        def keep(row):
+            return row.get("subject id") in subjects
     elif name == "samples.xlsx":
-        keep = lambda row: (row.get("subject id"), row.get("sample id")) in pairs
+        def keep(row):
+            return (row.get("subject id"), row.get("sample id")) in pairs
     else:
-        keep = lambda row: bool(row.get("filename")) and (
-            not row["filename"].startswith("primary/") or row["filename"] in staged)
+        def keep(row):
+            return bool(row.get("filename")) and (
+                not row["filename"].startswith("primary/") or row["filename"] in staged)
 
     wb = openpyxl.load_workbook(io.BytesIO(data))
     ws = wb.active

@@ -109,7 +109,8 @@ def _parse_transposed_excel(file_path: str, mapping: Optional[dict] = None) -> l
 
     record = {}
     for row in rows[1:]:
-        if not row: continue
+        if not row:
+            continue
         
         # 'Metadata element' is in col 0
         raw_key = row[0]

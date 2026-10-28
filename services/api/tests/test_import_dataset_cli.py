@@ -10,7 +10,6 @@ from digitaltwins.cli import import_dataset, keycloak_login
 from digitaltwins.measurements import jobs, sessions
 from digitaltwins.measurements.staging import dataset_dir
 from digitaltwins.measurements.tree import build_tree
-from test_datasets_workflows_api import tool_bucket  # noqa: F401  (fixture)
 
 FIXTURE = Path(__file__).parent / "data" / "example_sds_dataset"
 FIXTURE_ZIP = Path(__file__).parent / "data" / "example_sds_dataset.zip"

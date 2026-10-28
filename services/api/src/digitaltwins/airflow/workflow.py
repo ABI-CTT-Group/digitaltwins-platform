@@ -61,11 +61,9 @@ class Workflow(object):
 
         # get dag_url
         workflow_seek_id = assay_params.get('workflow_seek_id')
-        dag_url = f"{self._airflow_api_url}/dags/{workflow_seek_id}/dagRuns"
         dag_url_ui = f"{self._airflow_endpoint}/dags/{workflow_seek_id}/grid"
 
         if self._airflow_version == "2":
-            subject_uuid = None
             params = {
                 # "subject_uuid": subject_uuid,
                 "assay_seek_id": assay_seek_id,

@@ -230,7 +230,6 @@ async def get_metadata_json(db: Session = Depends(get_db)):
         if not latest_build or not latest_build.expose_name:
             continue
 
-        build_ts = int(latest_build.created_at.timestamp()) if latest_build.created_at else 0
         is_local = latest_build.s3_path is None
 
         if is_local:

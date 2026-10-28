@@ -11,13 +11,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.main import create_app
 from app.routers import auth
 from digitaltwins import tools, workflows
-from test_datasets_workflows_api import script_files, tool_bucket  # noqa: F401  (fixture)
+from test_datasets_workflows_api import script_files
 
 UPLOADER = {"username": "alice", "token": "t", "claims": {"realm_access": {"roles": ["researcher"]}}}
 
 
 @pytest.fixture
-def client(platform_db, minio_bucket, tool_bucket, seek, hapi, tmp_path, monkeypatch):  # noqa: F811
+def client(platform_db, minio_bucket, tool_bucket, seek, hapi, tmp_path, monkeypatch):
     monkeypatch.setenv("DATASET_STAGING_DIR", str(tmp_path / "staging"))
     monkeypatch.setattr(workflows, "CATEGORY", minio_bucket)
     monkeypatch.setattr(tools, "CATEGORY", tool_bucket)

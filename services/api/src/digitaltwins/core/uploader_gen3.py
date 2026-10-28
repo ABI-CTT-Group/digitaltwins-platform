@@ -90,9 +90,7 @@ class Uploader(object):
         irods.upload(dataset_dir)
 
     def _verify_dataset(self, dataset_dir):
-        if dataset_dir.is_dir():
-            dataset_name = dataset_dir.name
-        else:
+        if not dataset_dir.is_dir():
             raise NotADirectoryError("Dataset directory not found")
 
         # check if dataset exists

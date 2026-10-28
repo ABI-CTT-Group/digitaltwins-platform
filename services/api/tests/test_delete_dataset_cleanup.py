@@ -12,7 +12,6 @@ from app.main import create_app
 from app.routers import auth
 from digitaltwins.measurements import jobs, sessions
 from digitaltwins.measurements.staging import dataset_dir, staging_root
-from test_datasets_workflows_api import tool_bucket  # noqa: F401  (fixture)
 
 FIXTURE = Path(__file__).parent / "data" / "example_sds_dataset"
 UPLOADER = {"username": "alice", "token": "t", "claims": {"realm_access": {"roles": ["admin"]}}}
