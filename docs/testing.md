@@ -12,6 +12,7 @@ make test-frontend         # services/portal/frontend    (vitest, Node 20)
 make test-jupyterhub       # services/jupyterhub         (pytest, hub image)
 make test-util             # util/                       (bash, Python 3.11 image)
 make lint                  # ruff + eslint + vue-tsc (report-only in CI)
+make docs-check            # doc links, code map, util/SCRIPTS.md, agent pointer files
 make gitleaks              # secret scan of origin/main..HEAD
 ```
 
@@ -20,6 +21,41 @@ To run part of a Python suite, pass pytest arguments:
 ```bash
 make test-api PYTEST_ARGS="-q tests/test_models_api.py -k delete"
 ```
+
+## Where the tests are
+
+| Suite | Tests live in | Runner | Make target | CI job |
+|---|---|---|---|---|
+| API | `services/api/tests/test_*.py`, shared fixtures in `conftest.py` | pytest | `test-api` | `api unit tests` |
+| Builder | `services/builder/tests/test_*.py`, SQL fixtures in `tests/fixtures/` | pytest | `test-builder` | `builder unit tests` |
+| Portal frontend | `services/portal/frontend/src/**/__tests__/*.spec.ts`, next to the code they test | vitest | `test-frontend` | `frontend unit tests` |
+| JupyterHub | `services/jupyterhub/tests/` | pytest, in the hub image | `test-jupyterhub` | `jupyterhub unit tests` |
+| util | `util/tests/test_*.sh` | bash | `test-util` | `util unit tests` |
+| Docs | `util/check_docs.py`, tested by `util/tests/test_check_docs.sh` | Python | `docs-check` | `docs check (report-only)` |
+| PACS (manual) | `services/pacs/tests/` | Python scripts against a running Orthanc | none | none |
+
+There are no automated tests for the Airflow DAGs, the nginx configs, the Keycloak realm template, SEEK, MinIO, HAPI FHIR or PostgreSQL init scripts, and no end-to-end tests. The root `tests/` folder is an empty placeholder.
+
+## Writing a test
+
+- **API:** add `services/api/tests/test_<area>.py`. Most unit tests stub outside services with `monkeypatch` or mocks. A test that needs a real Postgres or MinIO must use one of the live-service fixtures below and carry `@pytest.mark.integration`, or collection fails. The suite runs with `--strict-markers`, so a mistyped marker fails too.
+- **Builder:** add `services/builder/tests/test_<area>.py`. The package's `tests/__init__.py` points the database at a temporary SQLite file and refuses to load when `BUILDER_DB_HOST` is set. Some tests read files outside the builder (see "How a run works"); if yours needs another one, mount it read-only in the `test-builder` target and add it to the builder CI filter.
+- **Portal frontend:** put `<Name>.spec.ts` in a `__tests__/` folder beside the component or module. `yarn test` runs `vitest run` with the `test` block in `vite.config.ts`, which only picks up `src/**/__tests__/**/*.spec.ts` and mounts components with a real Vuetify (helpers in `src/testing/`).
+- **util:** add `util/tests/test_<name>.sh`, ending with a non-zero exit on failure. `make test-util` runs every `test_*.sh` in that folder. Build temporary fixtures with `mktemp -d`, as `test_compose_file.sh` does.
+
+## Manual tests (PACS)
+
+`services/pacs/tests/` holds Python scripts that upload, pull, download and de-identify DICOM against a running Orthanc. They read `ORTHANC_URL`, `ORTHANC_USER` and `ORTHANC_PASSWORD`, and default to a local development Orthanc. They aren't in `make test` or CI. Run them only against a development stack: they write studies to whatever Orthanc they're pointed at.
+
+## Docs check
+
+`make docs-check` runs `util/check_docs.py` on the repo's tracked files. It fails when:
+- a relative link in a Markdown file doesn't resolve (it skips `docs/artifacts/`, which is history, and `TEMPLATE.md` files);
+- a folder in `services/` isn't named in [codemap.md](codemap.md);
+- an entry in `util/` isn't listed in [util/SCRIPTS.md](../util/SCRIPTS.md);
+- an agent pointer file (`CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.agents/rules/*.md`) holds more than its pointer to `AGENTS.md` ([ADR](decisions/2026-10-28-agents-md-single-source.md)).
+
+Only tracked files are checked, piped into the container as a tar so `.env` and `secrets.env` never reach it. `git add` a new file before running the check.
 
 ## How a run works
 
@@ -63,8 +99,9 @@ On a PR, only the suites whose files changed run. "Changed" means the whole PR's
 | the rest of `services/portal/frontend/` | frontend |
 | `services/jupyterhub/` | jupyterhub |
 | `util/`, `services/airflow/docker-compose.yml`, `services/airflow/gpu.override.yml` | util |
-| `Makefile`, `.github/workflows/` | all suites |
-| anything else (e.g. docs) | no tests |
+| any `*.md` file, anything in `services/` or `util/` | docs |
+| `Makefile`, `.github/workflows/` | all suites, and docs |
+| anything else | no tests |
 
 Gitleaks runs on every PR. It scans only the PR's own commits, not the full history.
 
@@ -79,7 +116,7 @@ These checks block merging:
 
 `util unit tests` runs too, but isn't a required check.
 
-`lint (report-only)` shows its findings as annotations but never fails.
+`lint (report-only)` shows its findings as annotations but never fails. `docs check (report-only)` works the same way: read its log for broken links or missing map entries.
 
 These five checks are required by the repo ruleset "CI required checks" (Settings → Rules). The ruleset matches checks by job `name:` in `.github/workflows/ci.yml`. If you rename a job, update the ruleset in the same change, or every PR will wait for a check that never reports.
 

@@ -31,6 +31,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       jupyterhub: ${{ steps.filter.outputs.jupyterhub }}
       util: ${{ steps.filter.outputs.util }}
+      docs: ${{ steps.filter.outputs.docs }}
       code: ${{ steps.filter.outputs.code }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -59,7 +60,9 @@ jobs:
           frontend=$(has '^services/portal/frontend/')
           jupyterhub=$(has '^services/jupyterhub/')
           util=$(has '^util/|^services/airflow/(docker-compose|gpu\.override)\.yml$')
-          [ "$all" = true ] && api=true builder=true frontend=true jupyterhub=true util=true
+          # Links can point at any file, and new services/ or util/ entries must be in the maps.
+          docs=$(has '\.md$|^services/|^util/')
+          [ "$all" = true ] && api=true builder=true frontend=true jupyterhub=true util=true docs=true
           code=false
           for v in $api $builder $frontend $jupyterhub; do [ "$v" = true ] && code=true; done
           {
@@ -68,6 +71,7 @@ jobs:
             echo "frontend=$frontend"
             echo "jupyterhub=$jupyterhub"
             echo "util=$util"
+            echo "docs=$docs"
             echo "code=$code"
           } | tee -a "$GITHUB_OUTPUT"
 
@@ -131,6 +135,20 @@ jobs:
         with:
           persist-credentials: false
       - run: make test-util
+
+  # Report-only for now, like lint: continue-on-error keeps the job green while findings still show.
+  docs:
+    name: docs check (report-only)
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: make docs-check
+        continue-on-error: true
 
   # Report-only: continue-on-error is on the steps so the job stays green while findings still show.
   lint:
