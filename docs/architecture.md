@@ -17,6 +17,14 @@ Three views follow, from least to most detailed:
 - **[Container view](#container-view):** every container each compose project
   starts, and how they connect inside the project.
 
+See also:
+
+- [codemap.md](codemap.md): where each service's code lives, and the settings
+  services must agree on.
+- [request-flows.md](request-flows.md): sign-in, dataset upload, assay launch
+  and plugin deploy, step by step through the code.
+- [glossary.md](glossary.md): the platform's terms.
+
 ## Overview
 
 Users reach the platform through one gateway and sign in once with single
