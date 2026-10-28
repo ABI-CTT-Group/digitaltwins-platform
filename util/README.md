@@ -20,6 +20,8 @@ a `data/.env` or place a `data/digitaltwins-realm.json`.
 > env vars, DAGs, images…) additionally needs — see
 > [`../docs/development.md`](../docs/development.md).
 
+For a one-line description of every script in this folder, see [SCRIPTS.md](SCRIPTS.md).
+
 ## Contents
 
 - [Getting the code into `clean_src`](#getting-the-code-into-clean_src)
