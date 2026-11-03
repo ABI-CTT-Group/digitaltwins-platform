@@ -58,3 +58,23 @@ still have alerts against `yarn.lock`, and later batches handle those.
 - `docker compose build portal-frontend`: builds with `--frozen-lockfile`. After restarting `portal-frontend`, the
   service is healthy and `/`, `/api/health` and `/sw.js` return 200. The app's entry bundle hash doesn't change, so no
   code that ships to the browser changed.
+
+## PR 3: pytest 8.4.2 → 9.0.3
+
+**Change**
+- `pytest==9.0.3` in `services/api/requirements-test.txt` and `services/builder/requirements-test.txt`.
+- The `Makefile` `test-jupyterhub` target installed `pytest==8.4.2` into the JupyterHub test image too. Dependabot
+  doesn't scan the Makefile, but it's the same vulnerable version, so I bumped it with the others. The JupyterHub image
+  runs Python 3.12; pytest 9 needs 3.10 or later.
+- No Docker image installs these test requirements, so there's nothing to rebuild.
+
+**Alerts closed (2):** #423 (API) and #458 (builder), "pytest has vulnerable tmpdir handling". The plan estimated 3;
+only 2 were open.
+
+**Verification**
+- Red: on pytest 8.4.2, `make test-api test-builder test-jupyterhub PYTEST_ARGS="-W error::pytest.PytestRemovedIn9Warning"`
+  passed. No test used anything pytest 9 removes.
+- Green: `make test` with each suite on `pytest-9.0.3` (confirmed in the session header): API 391 passed / 1 skipped,
+  builder 221 passed / 11 skipped, jupyterhub 5 passed. Those counts, and the warning counts, match `main`. Frontend
+  and util pass too.
+- `make lint` and `make docs-check`: pass.
