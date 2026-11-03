@@ -108,3 +108,63 @@ only 2 were open.
   bundle return 200. The bundle hash changed (`index-CJ4o-C4T.js` → `index-Bo9DUbwr.js`) because the image is now
   built from the lockfile. Comparing the stale local install with `yarn.lock`, only build and dev tools differ (vite,
   rollup, browserslist data, vue-tsc and their helpers); no runtime library does.
+
+## PR 4: refresh frontend packages that ship to the browser
+
+**Change**
+- In `services/portal/frontend/yarn.lock`, removed the entries for axios, lodash, lodash-es, js-yaml, defu, fflate,
+  follow-redirects, form-data, nanoid, postcss, source-map-js, vue and vue's core `@vue/*` packages (compiler-core,
+  compiler-dom, compiler-sfc, compiler-ssr, reactivity, runtime-core, runtime-dom, server-renderer, shared), then
+  re-ran `yarn install`. `package.json` didn't change.
+- New versions, each the newest inside its existing range:
+
+  | Package | Old | New |
+  |---|---|---|
+  | axios | 1.13.2 | 1.21.0 |
+  | vue and `@vue/*` | 3.5.25 | 3.5.44 |
+  | lodash, lodash-es | 4.17.21 | 4.18.1 |
+  | js-yaml | 4.1.1 | 4.3.2 |
+  | nanoid | 3.3.11 | 3.3.20 |
+  | postcss | 8.5.6 | 8.5.32 |
+  | defu | 6.1.4 | 6.1.7 |
+  | fflate | 0.7.4, 0.8.2 | 0.7.5, 0.8.3 |
+  | follow-redirects | 1.15.11 | 1.16.2 |
+  | form-data | 4.0.5 | 4.0.6 |
+
+  source-map-js moved to the 1.2.2 copy that was already in the lockfile.
+- axios 1.21.0 adds `https-proxy-agent` 5 (with `agent-base` 6) and `proxy-from-env` 2 as dependencies. These are
+  Node-only: axios's `browser` field swaps its Node HTTP adapter for an empty module, so they don't reach the bundle.
+
+**Choosing axios 1.21.0 over the minimum fix (1.20.0)**
+- I kept the same approach as PR 2: newest within the range. 1.21.0 was published 2026-10-27.
+- I read the release notes from 1.13.3 to 1.21.0. The one breaking change, in 1.21.0, is that header defaults built
+  from custom class instances become literal headers. The portal sets no header defaults, only `axios.defaults.baseURL`
+  and `axios.create({ baseURL })` in `src/bootstrap/http.ts`.
+- The other behaviour changes in that span don't affect how the portal uses axios in the browser (XHR adapter,
+  interceptors that set `Authorization` and rewrite `config.data` and `config.params`, and retry by re-sending the
+  original config after a 401):
+  - fetch-adapter body limits (1.16.0);
+  - Node proxy and redirect handling (1.15 to 1.18);
+  - XHR navigation aborts now reject with ECONNABORTED (1.20.0);
+  - trailing slashes in base URLs are collapsed (1.19.0).
+
+**Alerts closed (59):** #141–143, 161–165, 168–191, 194–197, 200–204, 207, 208, 213–216, 218–221, 402–407, 442, 444.
+
+**Verification**
+- Red/green: the lockfile classifier matched the 59 alerts above on `main` and none of them after the change. What
+  remains in `yarn.lock` belongs to PR 5 (xlsx) and PR 7 (vitest, @vitest/mocker, tinypool), plus deepmerge and
+  minimatch #513.
+- `make test`: API 391, builder 221, frontend 34 files and 164 tests, jupyterhub and util all pass. The frontend test
+  cache had axios 1.21.0 and vue 3.5.44. `make lint` and `make docs-check` pass.
+- Image: built on `main` after the `.dockerignore` fix. A builder-stage probe shows axios 1.21.0, vue and
+  `@vue/server-renderer` 3.5.44, lodash-es 4.18.1, js-yaml 4.3.2, nanoid 3.3.20 and postcss 8.5.32. After rebuilding
+  and restarting `portal-frontend`, it's healthy and serves a new entry bundle, `index-BW-tXSSc.js`.
+- Headless browser (Playwright 1.48.2 in a throwaway container, against the local deployment):
+  - The home page draws the 3D heart, and the heart chunk loads with 200.
+  - Keycloak sign-in works.
+  - `/catalogue/tools`, `/catalogue/workflows`, `/catalogue/measurements` and `/catalogue/models` made 12 API calls,
+    all 2xx, all carrying an `Authorization` header (checked for presence, never read).
+  - In the workflow assembler, opening a workflow draws the CWL graph (15 nodes, 14 edges).
+  - Dropping `services/api/tests/data/example_sds_dataset/` into a new measurement upload filled in the name and the
+    two sample types from `samples.xlsx`. The test then pressed Cancel, and the server still had 0 open uploads.
+  - No console errors and no failed requests.
