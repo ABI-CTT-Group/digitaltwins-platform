@@ -35,6 +35,10 @@ The following items were identified during the REST API restructuring (`docs/art
 * **Description**: Review and restrict the Cross-Origin Resource Sharing (CORS) policy.
 * **Why skipped**: Left as-is for the initial refactor.
 
+### [ ] 8. `GET /datasets/{uuid}/sample-types` fails for a dataset with no samples
+* **Description**: `get_dataset_sample_types` in `services/api/src/digitaltwins/postgres/querier.py` builds `... WHERE sample_uuid IN ()` when the dataset has no samples. Postgres rejects that, so the endpoint returns 500 instead of an empty list. Return `[]` early for no samples, and pass the UUIDs as query parameters instead of formatting them into the SQL string.
+* **Why skipped**: Found during the Dependabot work (`docs/artifacts/2026-11-03-151012-dependabot-alerts`); it predates it, and that work only changed dependency pins.
+
 ## Repository layout
 
 Found while writing [codemap.md](codemap.md) (`docs/artifacts/2026-10-28-133109-repo-learnability`). The docs now explain these, but nothing was moved or renamed.

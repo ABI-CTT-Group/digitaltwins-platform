@@ -216,3 +216,67 @@ only 2 were open.
 **Consequence to know:** building the portal (the image, and `make frontend-deps` in CI) now also needs
 `cdn.sheetjs.com`. Airgapped hosts load frozen images and don't build, so they're not affected. Dependabot won't
 propose `xlsx` updates; the ADR says how to check for new releases.
+
+## PR 6: Python runtime pins (python-multipart, urllib3, requests)
+
+**Change**
+- In `services/api/requirements-prod.txt`, `services/api/requirements-dev.txt` and `services/builder/requirements.txt`:
+  python-multipart 0.0.20 → 0.0.31, urllib3 2.3.0 → 2.8.0, and requests 2.32.3 → 2.33.0. Each is the lowest version
+  that clears every open alert for that package. The `requirements-test.txt` files inherit them through `-r`. The API's
+  dev file leaves `requests` unpinned, as before.
+- Lowest fix, not latest: the user chose this after reviewing the newer releases. urllib3 2.8.0 is already the latest.
+  requests 2.34.2 adds type hints and minor bug fixes. python-multipart 0.0.33 (released 2026-10-31) changes
+  `parse_options_header` and encoded-field decoding. Neither fixes an open alert, so they're left for a later update.
+- New unit test `test_part_filenames_keep_their_folder_paths` in `services/api/tests/test_datasets_oneshot_api.py`
+  (see "Review" below).
+
+**Review of the changes in between**
+- **python-multipart 0.0.21–0.0.31.** Our code never imports it. It's reached only through Starlette 0.47.3's form
+  parser, which uses `MultipartParser`, `QuerystringParser` and `parse_options_header`.
+  - 0.0.22 drops directory paths from filenames, but only in python-multipart's own `File` class, which Starlette
+    doesn't use. `POST /datasets` depends on each part's `filename` keeping its path from the dataset root, and the
+    only tests of that were integration tests. The new unit test guards it in `make test-api`. It passes on 0.0.20
+    and on 0.0.31.
+  - 0.0.27 and 0.0.28 add limits per part: 8 headers, 4,224 bytes per header line, and a 256-byte boundary. Browser
+    parts have 2 headers and about 40-byte boundaries. The portal names its upload part `source.zip`, and the API's
+    own multipart client (`seek/writer.py`) uses `<stem>.crate.zip`.
+  - 0.0.30 treats only `&` as a field separator in URL-encoded forms. Nothing sends URL-encoded forms to the API or
+    builder.
+  - 0.0.21 drops Python 3.8 and 3.9; both images run Python 3.11.
+- **urllib3 2.4–2.8.** The behaviour changes are in HTTPS-proxy TLS settings, `Retry`, strict host parsing and the
+  decompression API. Our code calls urllib3 directly only for `disable_warnings()` (the gen3 modules) and uses no
+  proxy. botocore allows `urllib3<3`.
+- **requests 2.32.4–2.33.0.** Security fixes for netrc lookup and `extract_zipped_paths`, which we don't call, plus
+  dropped Python 3.8 and 3.9.
+
+**Alerts closed (83):** every open python-multipart, urllib3 and requests alert, across the API's prod, dev and test
+requirements and the builder's requirements and test requirements.
+
+**Verification**
+- Red: the open alerts matched the 0.0.20, 2.3.0 and 2.32.3 pins. Green: comparing each pin with every open pip alert's
+  patched version leaves only pydicom (#237, #421), which stays open by plan.
+- `make test`: API 392 passed / 1 skipped (1 new), builder 221 / 11 skipped, with the same warning counts as `main`;
+  frontend 35 files / 167 tests, jupyterhub 5 and util pass. `make lint` and `make docs-check` pass.
+- Rebuilt and restarted `api` and `builder` only. Both are healthy, and each runs python-multipart 0.0.31,
+  urllib3 2.8.0 and requests 2.33.0 (starlette 0.47.3, boto3 1.42.78, botocore 1.42.97).
+- Live multipart, through the gateway with a signed-in token. These checks leave nothing behind: each reaches the
+  app's own validation and is rejected before anything is stored.
+  - Builder `POST /api/builder/workflow/upload-source`: a valid zip with no `.cwl` is unzipped, then rejected with
+    400 ("No .cwl file found…"); a file that isn't a zip is rejected with 400.
+  - API `POST /api/datasets?category=measurements` with a part named `example/notes/readme.txt` reaches SDS
+    validation and is rejected with 400 ("Missing dataset_description.xlsx…").
+  - The plan called for a real dataset upload and plugin registration. These rejection paths exercise the same parser
+    without creating SEEK, MinIO or database records.
+- Live outbound calls:
+  - SEEK, through requests: `/programs`, `/projects`, `/investigations`, `/tools`, `/workflows`, `/models` and
+    `/datasets` all returned 200.
+  - MinIO, through boto3 and urllib3: a dataset's `dataset_description.xlsx` streamed with 200.
+  - FHIR: `/datasets/{uuid}/fhir/tree` and `fhir/annotation` returned 200 where a dataset has an annotation, and 404
+    where it doesn't.
+- Headless browser: sign-in, the four catalogue pages (17 API calls, all 2xx, all with `Authorization`), the workflow
+  canvas (15 nodes, 14 edges) and the folder drop all work. No console errors and no failed requests.
+
+**Found, not fixed (existing bug):** `GET /datasets/{uuid}/sample-types` returns 500 for a dataset with no samples.
+`get_dataset_sample_types` in `services/api/src/digitaltwins/postgres/querier.py` builds `... WHERE sample_uuid IN ()`,
+which Postgres rejects. It uses only psycopg2, and this PR doesn't touch it. The user chose to log it as
+`docs/future_refactoring.md` REST API item 8 rather than fix it in this work.

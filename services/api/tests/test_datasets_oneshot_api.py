@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.main import create_app
 from app.routers import auth, dataset_uploads, datasets
+from app.routers.dependencies import get_uploader
 
 FIXTURE = Path(__file__).parent / "data" / "example_sds_dataset"
 FIXTURE_ZIP = Path(__file__).parent / "data" / "example_sds_dataset.zip"
@@ -176,3 +177,30 @@ def test_category_is_offered_as_a_dropdown_in_the_api_docs():
     [category] = [p for p in upload["parameters"] if p["name"] == "category"]
 
     assert category["schema"]["enum"] == ["measurements", "models", "tools", "workflows"]
+
+
+def test_part_filenames_keep_their_folder_paths(tmp_path, monkeypatch):
+    # A browser folder upload puts each file's path from the dataset root in the part's
+    # filename. The multipart parser (python-multipart, through Starlette) must pass it on
+    # unchanged, or every file lands at the top level and SDS validation fails.
+    monkeypatch.setenv("DATASET_STAGING_DIR", str(tmp_path / "staging"))
+    received = {}
+
+    def ingest(dataset_root, category, fhir, fhir_descriptions):
+        received["root"] = dataset_root.name
+        received["files"] = sorted(p.relative_to(dataset_root).as_posix()
+                                   for p in dataset_root.rglob("*") if p.is_file())
+        return {"dataset_uuid": "u"}
+
+    monkeypatch.setattr(datasets, "_ingest_measurements", ingest)
+    app = create_app()
+    app.dependency_overrides[auth.validate_credentials] = lambda: UPLOADER
+    app.dependency_overrides[get_uploader] = lambda: None
+    parts = [("files", ("example/dataset_description.xlsx", b"d", "application/octet-stream")),
+             ("files", ("example/primary/sub-1/sam-1/scan.nii", b"n", "application/octet-stream"))]
+
+    r = TestClient(app).post("/datasets", params={"category": "measurements"}, files=parts)
+
+    assert r.status_code == 200, r.text
+    assert received == {"root": "example",
+                        "files": ["dataset_description.xlsx", "primary/sub-1/sam-1/scan.nii"]}
