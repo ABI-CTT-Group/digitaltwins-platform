@@ -6,7 +6,7 @@ import glslify from "rollup-plugin-glslify";
 import { VitePWA } from "vite-plugin-pwa";
 
 // Utilities
-import { defineConfig, type PluginOption } from "vite";
+import { defineConfig } from "vite";
 import { fileURLToPath, URL } from "node:url";
 
 const filesNeedToExclude = ["src/ts"];
@@ -40,7 +40,7 @@ export default defineConfig({
       exclude: "node_modules/**",
       // Compress shader by default using logic from rollup-plugin-glsl
       compress: true,
-    }) as PluginOption, // its rollup Plugin type differs from the copy of rollup vite bundles
+    }),
     // PWA — keeps the DigitalTWINS Portal installable / full-screen
     // (standalone display) via the web app manifest below, but the service
     // worker does NO caching. It precaches nothing and serves every request

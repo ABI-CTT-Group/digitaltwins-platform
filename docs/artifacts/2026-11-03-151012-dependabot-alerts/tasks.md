@@ -19,15 +19,16 @@ after the previous PR merges.
 - [x] Write the walkthrough section
 - [x] Sync artifacts to docs/artifacts/
 - [x] Commit, push and open the PR
-- [ ] Merge; confirm the 86 `package-lock.json` alerts closed
+- [x] Merge (#372); confirm the 86 `package-lock.json` alerts closed (284 → 198)
 
 ## PR 2: refresh frontend dev and build tools within their ranges
-- [ ] Red: list the vulnerable `yarn.lock` entries
-- [ ] Remove those entries and re-run `yarn install` in the pinned node container; review `git diff yarn.lock`
-- [ ] Gates: `make test`, `make lint`, `make docs-check`, `docker compose build portal-frontend`
-- [ ] Rebuild and restart `portal-frontend`; the portal loads
-- [ ] Write the walkthrough section; update this list
-- [ ] Sync artifacts to docs/artifacts/
+- [x] Red: list the vulnerable `yarn.lock` entries
+- [x] Remove those entries and re-run `yarn install` in the pinned node container; review `git diff yarn.lock`
+- [x] Remove the `as PluginOption` cast the rollup alignment made unnecessary; update `docs/future_refactoring.md` item 2
+- [x] Gates: `make test`, `make lint`, `make docs-check`, `docker compose build portal-frontend`
+- [x] Rebuild and restart `portal-frontend`; the portal loads
+- [x] Write the walkthrough section; update this list
+- [x] Sync artifacts to docs/artifacts/
 - [ ] Commit, push and open the PR (on approval)
 - [ ] Merge; confirm the alerts closed
 
@@ -84,7 +85,7 @@ after the previous PR merges.
 - [ ] Merge; confirm the alerts closed
 
 ## Wrap-up
-- [ ] Re-list the open alerts; expect only pydicom and deepmerge
+- [ ] Re-list the open alerts; expect only pydicom, deepmerge and minimatch #513 (new on 2026-11-03, no in-range fix)
 - [ ] Record what stays open, and why, in the walkthrough
 - [ ] Check whether any ADR is needed beyond the xlsx one
 - [ ] Sync artifacts to docs/artifacts/
