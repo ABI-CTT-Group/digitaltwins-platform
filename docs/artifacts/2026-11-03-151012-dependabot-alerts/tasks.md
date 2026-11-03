@@ -62,17 +62,20 @@ after the previous PR merges.
 - [x] Probe the image for the new versions; rebuild and restart `portal-frontend`; smoke-test (headless browser) sign-in, the dataset list, upload-dataset and the workflow canvas
 - [x] Write the walkthrough section; update this list
 - [x] Sync artifacts to docs/artifacts/
-- [ ] Commit, push and open the PR (on approval)
-- [ ] Merge; confirm the alerts closed
+- [x] Commit, push and open the PR (#378)
+- [x] Merge; confirm the alerts closed (153 → 94)
 
 ## PR 5: xlsx from the SheetJS CDN 0.20.3
-- [ ] Write the ADR `docs/decisions/2026-11-03-xlsx-from-sheetjs-cdn.md`
-- [ ] Sync artifacts to docs/artifacts/
-- [ ] Point `xlsx` at the CDN tarball in `package.json`; `yarn install`
-- [ ] Gates: `make test` (sampleTypes spec), `make lint`, `make docs-check`
-- [ ] Rebuild and restart `portal-frontend`; drop a dataset that contains `samples.xlsx`
-- [ ] Write the walkthrough section; update this list
-- [ ] Sync artifacts to docs/artifacts/
+- [x] Red: the classifier matches #356 and #357 on `xlsx` 0.18.5
+- [x] Add `sampleTypes.spec.ts` (none existed): writes a real `.xlsx` and reads it back; passes on 0.18.5
+- [x] Write the ADR `docs/decisions/2026-11-04-xlsx-from-sheetjs-cdn.md`
+- [x] Sync artifacts to docs/artifacts/
+- [x] Point `xlsx` at the CDN tarball in `package.json`; `yarn install`
+- [x] Check that yarn enforces the tarball hash pinned in `yarn.lock`
+- [x] Gates: `make test` (the new spec passes on 0.20.3), `make lint`, `make docs-check`
+- [x] Rebuild and restart `portal-frontend`; drop a dataset that contains `samples.xlsx`
+- [x] Write the walkthrough section; update this list
+- [x] Sync artifacts to docs/artifacts/
 - [ ] Commit, push and open the PR (on approval)
 - [ ] Merge; confirm the alerts closed
 

@@ -168,3 +168,44 @@ only 2 were open.
   - Dropping `services/api/tests/data/example_sds_dataset/` into a new measurement upload filled in the name and the
     two sample types from `samples.xlsx`. The test then pressed Cancel, and the server still had 0 open uploads.
   - No console errors and no failed requests.
+
+## PR 5: xlsx from the SheetJS CDN 0.20.3
+
+**Change**
+- `services/portal/frontend/package.json`: `"xlsx": "^0.18.5"` became
+  `"xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"`. SheetJS stopped publishing to npm at 0.18.5
+  (March 2022), so no npm range reaches a fix. `yarn install` replaced the `xlsx` entry in `yarn.lock`. 0.20.3 has no
+  dependencies, so its 8 helper packages (adler-32, cfb, codepage, crc-32, frac, ssf, wmf, word) left the lockfile.
+- ADR: [2026-11-04-xlsx-from-sheetjs-cdn.md](../../decisions/2026-11-04-xlsx-from-sheetjs-cdn.md). It covers the
+  options: the CDN tarball, accepting the risk, another library, or committing the tarball. The plan named it
+  `2026-11-03-…`; the ADR README says the filename carries the creation date, so it's dated 2026-11-04.
+- New `src/views/upload-dataset/measurements/components/__tests__/sampleTypes.spec.ts`. The plan assumed this spec
+  existed; it didn't. It writes a real `.xlsx` with SheetJS and reads it back through `readSampleTypesFromFiles`
+  (de-duplication, the root file preferred over a nested copy, a missing column). jsdom's `File` has no
+  `arrayBuffer()`, so the test gives each file one.
+- The only consumer, `sampleTypes.ts`, didn't change: `XLSX.read` and `utils.sheet_to_json` work the same in 0.20.3.
+
+**How the version is pinned**
+- Yarn 1 writes no `integrity` line for a URL dependency. It pins the tarball's SHA-1 in the `resolved` URL's
+  `#…` fragment (`992725af…`, which matches the downloaded tarball). Changing that fragment made
+  `yarn install --frozen-lockfile` fail with "Integrity check failed", so a changed tarball can't slip in.
+
+**Alerts closed (2):** #356 (prototype pollution, fixed in 0.19.3) and #357 (ReDoS, fixed in 0.20.2).
+
+**Verification**
+- Red: the lockfile classifier matched #356 and #357 on `xlsx` 0.18.5. The new spec passed on 0.18.5 (the baseline).
+- Green: the classifier matches no `xlsx` alert, and the spec passes on 0.20.3.
+- `make test`: API 391, builder 221, frontend 35 files and 167 tests (3 new), jupyterhub and util all pass.
+  `make lint` (vue-tsc type-checks against 0.20.3's own types) and `make docs-check` pass.
+- Image: after rebuilding and restarting `portal-frontend`, it's healthy, serves a new entry bundle
+  (`index-DRoTvx6t.js`), and the lazy `xlsx-*.js` chunk reports `version="0.20.3"`. `/`, `/api/health` and `/sw.js`
+  return 200.
+- The served chunk, run in Node against `services/api/tests/data/example_sds_dataset/samples.xlsx`, reads the two
+  sample types.
+- Headless browser: after Keycloak sign-in, dropping that folder into a new measurement upload filled in the name
+  and the description with both sample types. The `xlsx` chunk loaded with 200, and there were no console errors or
+  failed requests. The test pressed Cancel, never Next, so nothing was uploaded.
+
+**Consequence to know:** building the portal (the image, and `make frontend-deps` in CI) now also needs
+`cdn.sheetjs.com`. Airgapped hosts load frozen images and don't build, so they're not affected. Dependabot won't
+propose `xlsx` updates; the ADR says how to check for new releases.
