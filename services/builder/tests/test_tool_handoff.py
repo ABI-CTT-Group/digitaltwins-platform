@@ -4,6 +4,7 @@ Run from `services/builder/`:
     python -m pytest tests/test_tool_handoff.py
 """
 import json
+import logging
 import tempfile
 import unittest
 import uuid
@@ -232,6 +233,28 @@ class HandoffTest(unittest.TestCase):
         self.assertEqual(build.handoff_status, "failed")
         self.assertIn("not a member", build.handoff_error)
         self.assertIsNone(plugin.uuid)
+
+    def test_approval_and_its_handoff_are_logged(self):
+        with self.assertLogs("app", "INFO") as logs:
+            self._approve()
+
+        dataset_uuid = self._rows()[1].dataset_uuid
+        messages = [r.getMessage() for r in logs.records]
+        self.assertIn(f"Registration tools approval requested: plugin_id={self.plugin_id} build_id={self.build_id} "
+                      f"seek_project_id=11 user=researcher", messages)
+        self.assertIn(f"Registration tools handoff completed: build_id={self.build_id} dataset_uuid={dataset_uuid}",
+                      messages)
+
+    def test_a_failed_commit_is_logged_with_its_reason(self):
+        self.api.fail_commit = "SEEK registration failed; nothing was stored: not a member"
+
+        with self.assertLogs("app", "INFO") as logs:
+            self._approve()
+
+        [record] = [r for r in logs.records if "handoff failed" in r.getMessage()]
+        self.assertEqual(record.levelno, logging.ERROR)
+        self.assertEqual(record.getMessage(), f"Registration tools handoff failed: build_id={self.build_id} "
+                                              f"reason=SEEK registration failed; nothing was stored: not a member")
 
     def test_a_failed_handoff_can_be_approved_again(self):
         self.api.fail_commit = "boom"

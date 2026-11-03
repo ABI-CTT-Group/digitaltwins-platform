@@ -150,7 +150,7 @@ async def upload_tool_source(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail="Uploaded file is not a valid zip archive")
 
         meta = inspect_tool_source(staging, want_cwl=False)
-        logger.info(f"Tool source uploaded: upload_id={staging.name}, meta={meta}")
+        logger.info(f"Registration tools upload: upload_id={staging.name} meta={meta}")
 
         return {
             "upload_id": staging.name,
@@ -168,8 +168,8 @@ async def upload_tool_source(file: UploadFile = File(...)):
                 logger.warning(f"Failed to remove temp zip {tmp_zip}: {e}")
 
 
-@router.post("/create", response_model=PluginResponse, dependencies=[WRITER])
-async def create_tool_plugin(plugin: PluginCreate, db: Session = Depends(get_db)):
+@router.post("/create", response_model=PluginResponse)
+async def create_tool_plugin(plugin: PluginCreate, user: dict = WRITER, db: Session = Depends(get_db)):
     data = plugin.model_dump()
     upload_id = data.pop("upload_id", None)
     local_archive_path = None
@@ -201,11 +201,13 @@ async def create_tool_plugin(plugin: PluginCreate, db: Session = Depends(get_db)
     db.add(db_plugin)
     db.commit()
     db.refresh(db_plugin)
+    logger.info("Registration tools create: plugin_id=%s name=%s user=%s", db_plugin.id, db_plugin.name, user.get("username"))
     return db_plugin
 
 
-@router.post("/plugin/{plugin_id}/annotation", response_model=PluginAnnotationResponse, dependencies=[WRITER])
-async def create_tool_annotation(plugin_id: str, annotation: PluginAnnotationCreate, db: Session = Depends(get_db)):
+@router.post("/plugin/{plugin_id}/annotation", response_model=PluginAnnotationResponse)
+async def create_tool_annotation(plugin_id: str, annotation: PluginAnnotationCreate, user: dict = WRITER,
+                                 db: Session = Depends(get_db)):
     plugin = db.query(Plugin).filter(Plugin.id == plugin_id).first()  # type: ignore
     if plugin is None:
         raise HTTPException(status_code=404, detail="Plugin not found")
@@ -220,6 +222,7 @@ async def create_tool_annotation(plugin_id: str, annotation: PluginAnnotationCre
 
     db.commit()
     db.refresh(db_annotation)
+    logger.info("Registration tools annotate: plugin_id=%s user=%s", plugin.id, user.get("username"))
     return db_annotation
 
 
@@ -399,11 +402,12 @@ async def execute_build(
     return _trigger_plugin_build(plugin_id, background_tasks, db, transient=None)
 
 
-@router.post("/plugin/{plugin_id}/build", dependencies=[WRITER])
+@router.post("/plugin/{plugin_id}/build")
 async def execute_build_post(
         plugin_id: str,
         req: BuildTriggerRequest = Body(default_factory=BuildTriggerRequest),
         background_tasks: BackgroundTasks = None,
+        user: dict = WRITER,
         db: Session = Depends(get_db)):
     """Trigger a plugin build, optionally with transient secrets in the body.
 
@@ -412,7 +416,10 @@ async def execute_build_post(
     ``verify_ssl: false`` for self-signed certs). Token / auth_username /
     verify_ssl are NEVER persisted — every rebuild requires re-supply.
     """
-    return _trigger_plugin_build(plugin_id, background_tasks, db, transient=req)
+    started = _trigger_plugin_build(plugin_id, background_tasks, db, transient=req)
+    logger.info("Registration tools build requested: plugin_id=%s build_id=%s user=%s",
+                plugin_id, started["build_id"], user.get("username"))
+    return started
 
 
 @router.post("/probe-source", dependencies=[WRITER])
@@ -672,6 +679,8 @@ def approve_plugin(plugin_id: str, background: BackgroundTasks, body: Optional[A
         raise HTTPException(status_code=401, detail="The platform API rejected the token")
     except tool_handoff.ApiError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
+    logger.info("Registration tools approval requested: plugin_id=%s build_id=%s seek_project_id=%s user=%s",
+                plugin.id, latest.build_id, seek_project_id, user.get("username"))
     background.add_task(tool_handoff.run, latest.build_id)
     return tool_handoff.status_view(latest)
 

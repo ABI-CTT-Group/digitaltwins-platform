@@ -15,7 +15,7 @@ if str(BACKEND_ROOT) not in sys.path:
 os.environ.setdefault("DATABASE_PATH", str(BACKEND_ROOT / "tmp" / "test_plugin_registry.db"))
 (BACKEND_ROOT / "tmp").mkdir(parents=True, exist_ok=True)
 
-from app.engine.tool_layout import detect_tool_layout  # noqa: E402
+from app.engine.tool_layout import cwl_parse_error, detect_tool_layout, read_tool_cwl  # noqa: E402
 
 CWL = "cwlVersion: v1.2\nclass: CommandLineTool\ninputs: []\noutputs: []\n"
 
@@ -81,6 +81,44 @@ class SdsLayoutTest(unittest.TestCase):
         layout = detect_tool_layout(self.root)
         self.assertTrue(layout.is_sds)
         self.assertEqual(layout.root, self.root / "tool_convert")
+
+
+DUPLICATE_KEY = CWL.replace("inputs: []", "inputs:\n  src: File\n  src: Directory")
+
+
+class CwlParseErrorTest(unittest.TestCase):
+    def test_a_valid_cwl_has_no_error(self):
+        self.assertIsNone(cwl_parse_error(CWL))
+
+    def test_a_duplicated_key_is_an_error_naming_the_key_and_line(self):
+        error = cwl_parse_error(DUPLICATE_KEY)
+        self.assertIn("duplicate key 'src'", error)
+        self.assertIn("line 5", error)
+
+    def test_malformed_yaml_is_an_error(self):
+        self.assertIsNotNone(cwl_parse_error("inputs: [src\n"))
+
+    def test_reading_an_invalid_tool_cwl_logs_it_and_still_returns_it(self):
+        root = make_sds(Path(tempfile.mkdtemp()))
+        (root / "primary" / "tool_convert.cwl").write_text(DUPLICATE_KEY)
+
+        with self.assertLogs("app.engine.tool_layout", "WARNING") as logs:
+            cwl = read_tool_cwl(root)
+
+        self.assertEqual(cwl, {"cwl_file": "tool_convert.cwl", "content": DUPLICATE_KEY})
+        self.assertTrue(logs.records[0].getMessage().startswith("Invalid CWL tool_convert.cwl: duplicate key 'src'"))
+
+    def test_reading_a_valid_tool_cwl_logs_nothing(self):
+        root = make_sds(Path(tempfile.mkdtemp()))
+        with self.assertNoLogs("app.engine.tool_layout", "WARNING"):
+            read_tool_cwl(root)
+
+    def test_reading_an_invalid_root_cwl_logs_it(self):
+        src = Path(tempfile.mkdtemp())
+        (src / "convert.cwl").write_text(DUPLICATE_KEY)
+        with self.assertLogs("app.engine.tool_layout", "WARNING") as logs:
+            read_tool_cwl(src)
+        self.assertIn("Invalid CWL convert.cwl", logs.records[0].getMessage())
 
 
 if __name__ == "__main__":

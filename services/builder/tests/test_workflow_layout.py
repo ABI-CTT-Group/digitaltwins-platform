@@ -68,6 +68,21 @@ class WorkflowLayoutTest(unittest.TestCase):
         # A list, not a dict keyed by filename: the frontend interceptor camelCases object keys.
         self.assertEqual(cwl["tool_cwls"], [{"cwl_file": "tool_convert.cwl", "content": TOOL}])
 
+    def test_reading_logs_an_invalid_workflow_or_tool_cwl(self):
+        bad = TOOL.replace("outputs: {nifti: File}", "outputs:\n  nifti: File\n  nifti: File")
+        (self.root / "primary" / "tool_convert.cwl").write_text(bad)
+
+        with self.assertLogs("app.engine.workflow_layout", "WARNING") as logs:
+            cwl = read_workflow_cwl(self.root)
+
+        self.assertEqual(cwl["tool_cwls"], [{"cwl_file": "tool_convert.cwl", "content": bad}])
+        [record] = logs.records
+        self.assertTrue(record.getMessage().startswith("Invalid CWL tool_convert.cwl: duplicate key 'nifti'"))
+
+    def test_reading_valid_cwls_logs_nothing(self):
+        with self.assertNoLogs("app.engine.workflow_layout", "WARNING"):
+            read_workflow_cwl(self.root)
+
     def test_reading_a_root_cwl_source_is_unchanged(self):
         src = Path(tempfile.mkdtemp())
         (src / "flow.cwl").write_text(WORKFLOW)

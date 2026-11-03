@@ -7,17 +7,20 @@ Annotation step maps onto portal tools) or as an SDS package
 workflow dataset (see docs/decisions/2026-10-02-portal-sds-workflow-approval.md).
 The API's ``load_workflow`` checks the rest of the package at finalize.
 """
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from app.engine.tool_layout import SDS_MARKER
+from app.engine.tool_layout import SDS_MARKER, log_invalid_cwl
 from app.utils.builder_utils import (
     _ARCHIVE_BLACKLIST_NAMES,
     inspect_uploaded_source,
     read_root_cwl,
     resolve_project_root,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -61,14 +64,19 @@ def read_workflow_cwl(project_dir: Path) -> Optional[Dict[str, Any]]:
     """``read_root_cwl`` for workflows; an SDS package also returns its tool CWLs (a list: see the frontend's camelCasing)."""
     root = resolve_project_root(Path(project_dir))
     if not (root / SDS_MARKER).is_file():
-        return read_root_cwl(root)
+        result = read_root_cwl(root)
+        log_invalid_cwl(result, logger)
+        return result
     try:
         cwl = sds_workflow_cwl(root)
     except RuntimeError:
         return None
     tools = sorted(p for p in (root / "primary").glob("tool_*.cwl") if p.is_file())
-    return {
+    result = {
         "cwl_file": cwl.name,
         "content": cwl.read_text(encoding="utf-8"),
         "tool_cwls": [{"cwl_file": p.name, "content": p.read_text(encoding="utf-8")} for p in tools],
     }
+    for each in [result, *result["tool_cwls"]]:
+        log_invalid_cwl(each, logger)
+    return result

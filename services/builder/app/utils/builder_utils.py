@@ -289,6 +289,8 @@ def execute_build_in_background(
         builder: Union[PluginBuilder, WorkflowBuilder],
         Build: Type[Union[PluginBuild, WorkflowBuild]],
         background_tasks: BackgroundTasks = None):
+    category = "workflows" if Build is WorkflowBuild else "tools"
+
     def run_build():
         job_key = f"build:{build_id}"
         try:
@@ -330,8 +332,14 @@ def execute_build_in_background(
                     build_record.build_logs = log_registry.full_text(job_key)
                     build_record.updated_at = datetime.now()
                     session.commit()
+            if result["success"]:
+                logger.info("Registration %s build completed: build_id=%s", category, build_id)
+            else:
+                logger.error("Registration %s build failed: build_id=%s reason=%s",
+                             category, build_id, result["error_message"])
 
         except Exception as e:
+            logger.exception("Registration %s build failed: build_id=%s reason=%s", category, build_id, e)
             log_registry.finish(job_key, "failed")
             # Update build record with error
             with SessionLocal() as session:

@@ -5,9 +5,12 @@ already-packaged SDS dataset (``dataset_description.xlsx`` at the root, the
 source in ``code/`` and the CWL as ``primary/tool_*.cwl`` — the same rule as
 the platform API's ``find_tool_cwl``).
 """
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+import yaml
 
 from app.utils.builder_utils import (
     _ARCHIVE_BLACKLIST_NAMES,
@@ -17,6 +20,37 @@ from app.utils.builder_utils import (
 )
 
 SDS_MARKER = "dataset_description.xlsx"
+
+logger = logging.getLogger(__name__)
+
+
+class _StrictLoader(yaml.SafeLoader):
+    """SafeLoader that rejects a repeated mapping key, as the portal's js-yaml does (PyYAML keeps the last)."""
+
+    def construct_mapping(self, node, deep=False):
+        seen = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if key in seen:
+                raise yaml.constructor.ConstructorError(None, None, f"duplicate key {key!r}", key_node.start_mark)
+            seen.add(key)
+        return super().construct_mapping(node, deep)
+
+
+def cwl_parse_error(text: str) -> Optional[str]:
+    """Why ``text`` is not valid YAML (on one line), or ``None`` when it parses."""
+    try:
+        yaml.load(text, Loader=_StrictLoader)
+    except Exception as exc:
+        return " ".join(str(exc).split())
+    return None
+
+
+def log_invalid_cwl(cwl: Optional[Dict[str, Any]], log: logging.Logger = logger) -> None:
+    """Warn when a read CWL (``{"cwl_file", "content"}``) will not parse; reading it still succeeds."""
+    error = cwl_parse_error(cwl["content"]) if cwl else None
+    if error:
+        log.warning("Invalid CWL %s: %s", cwl["cwl_file"], error)
 
 
 @dataclass(frozen=True)
@@ -72,9 +106,12 @@ def read_tool_cwl(project_dir: Path) -> Optional[Dict[str, str]]:
     """``read_root_cwl`` for tools: an SDS package's CWL is its primary/tool_*.cwl."""
     root = resolve_project_root(Path(project_dir))
     if not (root / SDS_MARKER).is_file():
-        return read_root_cwl(root)
-    try:
-        cwl = sds_tool_cwl(root)
-    except RuntimeError:
-        return None
-    return {"cwl_file": cwl.name, "content": cwl.read_text(encoding="utf-8")}
+        result = read_root_cwl(root)
+    else:
+        try:
+            cwl = sds_tool_cwl(root)
+        except RuntimeError:
+            return None
+        result = {"cwl_file": cwl.name, "content": cwl.read_text(encoding="utf-8")}
+    log_invalid_cwl(result)
+    return result

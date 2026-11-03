@@ -249,6 +249,7 @@ def run(build_id: str, build_cls=PluginBuild, complete=None) -> None:
         if build_id in _running:
             return
         _running.add(build_id)
+    category = "tools" if build_cls is PluginBuild else "workflows"
     try:
         with SessionLocal() as db:
             build = db.query(build_cls).filter(build_cls.build_id == build_id).one()
@@ -268,14 +269,18 @@ def run(build_id: str, build_cls=PluginBuild, complete=None) -> None:
                 if session["status"] == "failed":
                     build.handoff_status, build.handoff_error = "failed", session.get("failure_message")
                     db.commit()
+                    logger.error("Registration %s handoff failed: build_id=%s reason=%s",
+                                 category, build_id, build.handoff_error)
                 else:
                     (complete or _tool_complete)(db, api, build, session["dataset_uuid"])
+                    logger.info("Registration %s handoff completed: build_id=%s dataset_uuid=%s",
+                                category, build_id, session["dataset_uuid"])
                 relay.drop(build_id)
             except NeedsReauth:
                 build.handoff_status = "awaiting_reauth"
                 db.commit()
             except Exception as exc:
-                logger.exception("Handoff failed for build %s", build_id)
+                logger.exception("Registration %s handoff failed: build_id=%s reason=%s", category, build_id, exc)
                 build.handoff_status, build.handoff_error = "failed", str(exc)
                 db.commit()
                 relay.drop(build_id)

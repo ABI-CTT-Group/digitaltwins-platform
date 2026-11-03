@@ -3,6 +3,7 @@
 Run from `services/builder/`:
     python -m pytest tests/test_workflow_build_executor.py
 """
+import logging
 import unittest
 import uuid
 
@@ -56,6 +57,46 @@ class WorkflowBuildExecutorTest(unittest.TestCase):
             build = db.query(WorkflowBuild).filter(WorkflowBuild.build_id == self.build_id).one()
             self.assertEqual((build.tool_name, build.bundle_path),
                              ("tool_convert", "tool-builds/convert_ab12/primary"))
+
+    def _build(self):
+        with SessionLocal() as db:
+            build = db.query(WorkflowBuild).filter(WorkflowBuild.build_id == self.build_id).one()
+            db.expunge(build)
+            return build
+
+    def test_a_completed_build_is_logged(self):
+        ok = {"success": True, "s3_path": None, "dataset_path": "/d", "expose_name": "convert_ab12", "is_sds": True}
+        with self.assertLogs("app.utils.builder_utils", "INFO") as logs:
+            self._run(ok)
+
+        self.assertIn(f"Registration workflows build completed: build_id={self.build_id}",
+                      [r.getMessage() for r in logs.records])
+
+    def test_a_failed_build_saves_and_logs_its_reason(self):
+        with self.assertLogs("app.utils.builder_utils", "INFO") as logs:
+            self._run({"success": False, "error_message": "npm run build exited 1"})
+
+        self.assertEqual(self._build().error_messages, "npm run build exited 1")
+        [record] = [r for r in logs.records if r.levelno == logging.ERROR]
+        self.assertEqual(record.getMessage(),
+                         f"Registration workflows build failed: build_id={self.build_id} reason=npm run build exited 1")
+
+    def test_a_crashing_build_saves_its_reason_and_logs_the_traceback(self):
+        class Crash:
+            def build(self, data):
+                raise RuntimeError("disk full")
+
+        tasks = BackgroundTasks()
+        execute_build_in_background(self.build_id, {}, Crash(), WorkflowBuild, tasks)
+        with self.assertLogs("app.utils.builder_utils", "ERROR") as logs:
+            for task in tasks.tasks:
+                task.func(*task.args, **task.kwargs)
+
+        build = self._build()
+        self.assertEqual((build.status, build.error_messages), (BuildStatus.FAILED.value, "disk full"))
+        [record] = logs.records
+        self.assertEqual(record.getMessage(), f"Registration workflows build failed: build_id={self.build_id} reason=disk full")
+        self.assertIsNotNone(record.exc_info)
 
 
 if __name__ == "__main__":
