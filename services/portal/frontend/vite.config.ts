@@ -157,7 +157,6 @@ export default defineConfig({
     port: 3000,
   },
   // Unit tests (yarn test): components mount with a real Vuetify (src/testing/vuetify.ts).
-  // @ts-expect-error vitest adds `test` to its own nested vite 7, not the vite 6 imported here
   test: {
     environment: "jsdom",
     include: ["src/**/__tests__/**/*.spec.ts"],

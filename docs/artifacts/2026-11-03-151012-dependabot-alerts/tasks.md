@@ -95,20 +95,23 @@ after the previous PR merges.
 - [x] Commit, push and open the PR (#380)
 - [x] Log the existing `sample-types` 500 in `docs/future_refactoring.md` (REST API item 8)
 - [x] Sync artifacts to docs/artifacts/
-- [ ] Merge; confirm the alerts closed
+- [x] Merge; confirm the alerts closed (92 → 9)
 
 ## PR 7: vitest 3 → 4
-- [ ] Read the vitest 4 migration guide; check mocks, `server.deps.inline` and the pool settings
-- [ ] Bump `vitest`; `yarn install`
-- [ ] Remove the `@ts-expect-error` in `vite.config.ts` if the nested vite 7 goes away; update `docs/future_refactoring.md` item 2
-- [ ] Gates: `make test` (same counts as on `main`), `make lint`, `make docs-check`, `docker compose build portal-frontend`
-- [ ] Write the walkthrough section; update this list
-- [ ] Sync artifacts to docs/artifacts/
+- [x] Red: the classifier matches vitest #393, @vitest/mocker #392 and #504, and tinypool #440 and #441
+- [x] Read the vitest 4 migration guide; check mocks, `server.deps.inline` and the pool settings
+- [x] Bump `vitest`; `yarn install`
+- [x] Work around the Yarn 1 "could not find a copy of vite to link" error: share vitest's vite range with the portal's vite entry
+- [x] Remove the `@ts-expect-error` in `vite.config.ts` if the nested vite 7 goes away; update `docs/future_refactoring.md` item 2
+- [x] Gates: `make test` (same counts as on `main`), `make lint`, `make docs-check`, `docker compose build portal-frontend`
+- [x] Probe the image's builder stage; rebuild and recreate `portal-frontend`
+- [x] Write the walkthrough section; update this list
+- [x] Sync artifacts to docs/artifacts/
 - [ ] Commit, push and open the PR (on approval)
 - [ ] Merge; confirm the alerts closed
 
 ## Wrap-up
 - [ ] Re-list the open alerts; expect only pydicom, deepmerge and minimatch #513 (new on 2026-11-03, no in-range fix)
-- [ ] Record what stays open, and why, in the walkthrough
-- [ ] Check whether any ADR is needed beyond the xlsx one
+- [x] Record what stays open, and why, in the walkthrough
+- [x] Check whether any ADR is needed beyond the xlsx one (none: the other batches made no design choice; the Yarn lockfile workaround is recorded in `docs/future_refactoring.md`)
 - [ ] Sync artifacts to docs/artifacts/

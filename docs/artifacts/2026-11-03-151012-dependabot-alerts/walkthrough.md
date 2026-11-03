@@ -280,3 +280,60 @@ requirements and the builder's requirements and test requirements.
 `get_dataset_sample_types` in `services/api/src/digitaltwins/postgres/querier.py` builds `... WHERE sample_uuid IN ()`,
 which Postgres rejects. It uses only psycopg2, and this PR doesn't touch it. The user chose to log it as
 `docs/future_refactoring.md` REST API item 8 rather than fix it in this work.
+
+## PR 7: vitest 3 → 4
+
+**Change**
+- `services/portal/frontend/package.json`: `"vitest": "^3.2.4"` → `"^4.1.12"`. The newest vitest, 5.1.0 (2026-11-02), needs
+  Node 22.12 or later, but the test image and the portal's build image run Node 20. vitest 4.1.12 supports Node 20 and
+  accepts vite 6.
+- `yarn.lock`: vitest 3.2.7 and its `@vitest/*` packages, `vite-node`, `tinypool`, `tinyspy`, and the nested vite 7.3.7
+  (with its esbuild 0.28) are gone. vitest 4.1.12 and its packages are in. The portal's vite stays 6.4.5, and shared
+  packages (debug, postcss, rollup, magic-string, tinyglobby) keep their versions. `es-module-lexer`, `std-env` and
+  `tinyexec` moved, but only vitest uses them.
+- `vite.config.ts`: removed the `@ts-expect-error` on the `test` key. It was there because vitest 3 brought its own
+  vite 7, and with one vite type-check now flags it as unused. `docs/future_refactoring.md` "Lint cleanup leftovers"
+  item 2 is marked done.
+
+**A Yarn 1 install bug, and the fix**
+- After the bump, `yarn install` failed with "Invariant Violation: could not find a copy of vite to link in
+  node_modules/vitest/node_modules", even with an empty `node_modules` and the old vitest entries removed. vitest 4
+  lists `vite` as both a dependency (`^6.0.0 || ^7.0.0 || ^8.0.0`) and a peer dependency. Yarn 1 resolved the dependency
+  to the newest vite (8.x), tried to nest it under vitest, and its linker can't nest a package that's also a peer.
+- Fix, the same as `yarn-deduplicate` does: in `yarn.lock`, vitest's range shares the portal's existing vite entry
+  (`"vite@^6.0.0 || ^7.0.0 || ^8.0.0", vite@^6.3.5:` → 6.4.5). The install then succeeds, a `--frozen-lockfile`
+  re-install accepts it, and there's one vite. `docs/future_refactoring.md` records that the two must stay on one entry.
+
+**Review of the vitest 4 migration guide against our setup**
+- Config: we use only `environment`, `include`, `setupFiles` and `server.deps.inline`, which are all still supported.
+  We don't use pool options, `workspace`, coverage, snapshots or browser mode. The default `exclude` change doesn't
+  matter, because `include` limits tests to `src/**/__tests__/**/*.spec.ts`.
+- Mocks: `vi.restoreAllMocks` (its only use, in `volviewParams.spec.ts`) now restores only `vi.spyOn` spies, and that
+  file uses only those. A `vi.fn` called with `new` now needs a `function` or `class` implementation; no test failed on
+  that. We don't use `getMockName`, `invocationCallOrder` or `settledResults`.
+
+**Alerts closed (5):** vitest #393, @vitest/mocker #392 and #504, and tinypool #440 and #441 (the two critical
+alerts). vitest 4 no longer uses tinypool.
+
+**Verification**
+- Red: the lockfile classifier matched the 5 alerts on vitest 3.2.7, @vitest/mocker 3.2.7 and tinypool 1.1.1. Green:
+  only deepmerge #511 and minimatch #513 remain in `yarn.lock`, and both stay open by plan.
+- `make test`: frontend 35 files and 167 tests on vitest 4.1.12 (the same as on vitest 3), API 392, builder 221,
+  jupyterhub and util all pass. `make lint` passes once the unused `@ts-expect-error` is removed; before that,
+  type-check failed with TS2578, as expected. `make docs-check` passes.
+- Image: a builder-stage probe of the portal image (`yarn install --frozen-lockfile`) has vitest 4.1.12,
+  @vitest/mocker 4.1.12, a single vite 6.4.5 with no nested copies, and no tinypool. After rebuilding and recreating
+  `portal-frontend`, it's healthy and serves the same `index-DRoTvx6t.js`. vitest isn't bundled and vite didn't
+  change, so the browser code is identical. `/`, `/api/health` and `/sw.js` return 200.
+
+## What stays open, and why
+
+After PR 7 merges, 4 alerts (3 packages) should remain open, down from 284. Each is left open on purpose:
+
+| Alert | Package | Why it stays open |
+|---|---|---|
+| #237, #421 (high) | pydicom 2.4.4 (API prod and test requirements) | fhir-cda 1.2.5 pins `pydicom==2.4.4` exactly. The advisory is a path traversal in FileSet/DICOMDIR handling; fhir-cda only calls `dcmread` on single files, so the vulnerable code isn't reached. Revisit when fhir-cda allows pydicom 2.4.5 or later. |
+| #511 (low) | deepmerge 4.3.1 (portal, dev only) | No fixed version has been released. |
+| #513 (medium) | minimatch (portal, dev only) | Published 2026-11-03. Only minimatch 11.0.1 and later fix it, and only dev tools (eslint, glob and others) pull it in, on the 3.x to 10.x ranges. It needs those parents to move to minimatch 11, or a backport. |
+
+The final count is confirmed on GitHub after PR 7 merges.
