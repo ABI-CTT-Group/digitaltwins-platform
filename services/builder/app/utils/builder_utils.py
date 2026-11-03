@@ -325,7 +325,7 @@ def execute_build_in_background(
                             build_record.bundle_path = result["bundle_path"]
                     else:
                         build_record.status = BuildStatus.FAILED.value
-                        build_record.error = result["error_message"]
+                        build_record.error_messages = result["error_message"]
 
                     build_record.build_logs = log_registry.full_text(job_key)
                     build_record.updated_at = datetime.now()
@@ -338,7 +338,7 @@ def execute_build_in_background(
                 build_record = session.query(Build).filter(Build.build_id == build_id).first()
                 if build_record:
                     build_record.status = BuildStatus.FAILED.value
-                    build_record.error_message = str(e)
+                    build_record.error_messages = str(e)
                     build_record.build_logs = log_registry.full_text(job_key)
                     build_record.updated_at = datetime.now()
                     session.commit()
