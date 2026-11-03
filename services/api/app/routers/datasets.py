@@ -439,6 +439,7 @@ async def upload_dataset(
 
     if result.get("fhir_status") == "pending":
         background.add_task(jobs.run_fhir_push_job, result["dataset_uuid"])
+    logger.info("Registration %s upload: dataset_uuid=%s user=%s", category, result["dataset_uuid"], _creds.get("username"))
     return {"message": "Dataset uploaded successfully.", **result}
 
 

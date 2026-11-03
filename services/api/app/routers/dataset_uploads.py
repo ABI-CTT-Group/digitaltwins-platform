@@ -15,6 +15,7 @@ their commit stores and registers each tool, then the workflow. Model sessions
 are checked by ``validate_model_structure``; their optional FHIR annotation is
 ``{"model": {...}}``, pushed as a Device.
 """
+import logging
 import shutil
 import zipfile
 from typing import Any, Dict, List, Literal, Optional
@@ -47,6 +48,7 @@ from digitaltwins.workflows.validation import load_workflow
 from .auth import has_admin_role, require_upload_role, validate_credentials
 
 router = APIRouter(prefix="/datasets/uploads", tags=["dataset uploads"])
+logger = logging.getLogger(__name__)
 
 # Categories ingested through sessions with SPARC validation and FHIR. Model,
 # tool and workflow datasets (``models.CATEGORY``, ``tools.CATEGORY``,
@@ -174,6 +176,8 @@ def create_upload(body: SessionCreate, conn=Depends(get_conn), _creds: dict = De
     except (ChunkStoreError, ValueError) as exc:
         sessions.delete_session(conn, upload_id)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    logger.info("Registration %s upload session: upload_id=%s name=%s user=%s",
+                body.category, upload_id, body.name, _creds.get("username"))
     return {"upload_id": upload_id, "max_part_size": PART_SIZE}
 
 
@@ -264,9 +268,13 @@ def finalize_upload(
 
     if session["commit_mode"] == "on_approve":
         sessions.update_session(conn, upload_id, status="staged")
+        logger.info("Registration %s finalize: upload_id=%s status=staged user=%s",
+                    session["category"], upload_id, _creds.get("username"))
         return {"upload_id": upload_id, "status": "staged", "warnings": warnings}
 
     sessions.update_session(conn, upload_id, status="processing")
+    logger.info("Registration %s finalize: upload_id=%s status=processing user=%s",
+                session["category"], upload_id, _creds.get("username"))
     background.add_task(jobs.run_commit_and_push, upload_id, _creds["token"], has_admin_role(_creds))
     return JSONResponse(
         status_code=status.HTTP_202_ACCEPTED,
@@ -280,19 +288,24 @@ def approve_upload(
     conn=Depends(get_conn), _creds: dict = Depends(require_upload_role),
 ):
     """Commit a staged session (the portal's Approval), or retry a failed commit."""
-    _require_status(_session_or_404(conn, upload_id), "staged", "failed")
+    session = _session_or_404(conn, upload_id)
+    _require_status(session, "staged", "failed")
     sessions.update_session(conn, upload_id, status="processing", failure_stage=None, failure_message=None)
     background.add_task(jobs.run_commit_and_push, upload_id, _creds["token"], has_admin_role(_creds))
+    logger.info("Registration %s approval requested: upload_id=%s user=%s",
+                session["category"], upload_id, _creds.get("username"))
     return {"upload_id": upload_id, "status": "processing"}
 
 
 @router.delete("/{upload_id}")
 def cancel_upload(upload_id: str, conn=Depends(get_conn), _creds: dict = Depends(require_upload_role)):
     """Cancel a session that is not committed: drop its parts, staged files and row."""
-    _require_status(_session_or_404(conn, upload_id), "receiving", "staged", "failed")
+    session = _session_or_404(conn, upload_id)
+    _require_status(session, "receiving", "staged", "failed")
     _chunk_store().cleanup(upload_id)
     shutil.rmtree(dataset_dir(upload_id), ignore_errors=True)
     sessions.delete_session(conn, upload_id)
+    logger.info("Registration %s cancel: upload_id=%s user=%s", session["category"], upload_id, _creds.get("username"))
     return {"upload_id": upload_id, "deleted": True}
 
 
@@ -341,6 +354,7 @@ def put_staged_annotation(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     sessions.update_session(conn, upload_id, fhir_mode="descriptions", fhir_descriptions=body.descriptions)
+    logger.info("Registration %s annotate: upload_id=%s user=%s", session["category"], upload_id, _creds.get("username"))
     return {"descriptions": body.descriptions}
 
 
