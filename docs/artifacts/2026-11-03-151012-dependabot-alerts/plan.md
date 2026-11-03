@@ -72,6 +72,12 @@ Facts checked before planning:
   `pytest.warns(None)`.
 - **Gates:** `make test-api test-builder` pass with the same counts as on `main`.
 
+### Inserted before PR 4: portal image ignored yarn.lock (own PR, `fix/frontend-dockerignore`)
+- Found while verifying PR 4: with no `.dockerignore`, the Dockerfile's `COPY . .` overwrote the clean
+  `yarn install` with the build host's local `node_modules`, so lockfile changes never reached the image on such hosts.
+- Add `services/portal/frontend/.dockerignore` (`node_modules`, `build`, `dist`) plus a vitest guard spec. It merges
+  first; PR 4 waits on it (its work is stashed).
+
 ### PR 4: refresh frontend packages that ship to the browser (medium risk)
 - Inside existing ranges: axios 1.13.2 → ≥1.20.0, lodash and lodash-es → ≥4.18.0 (from element-plus), js-yaml
   → ≥4.3.2, defu → ≥6.1.5, fflate (0.7.x, 0.8.x), follow-redirects, form-data, nanoid → ≥3.3.12, postcss → ≥8.5.23,
