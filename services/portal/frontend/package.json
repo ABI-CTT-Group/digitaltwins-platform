@@ -35,7 +35,7 @@
     "vue-toastification": "^2.0.0-rc.5",
     "vuetify": "^3.9.2",
     "webfontloader": "^1.0.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@babel/types": "^7.21.4",

@@ -95,13 +95,14 @@ Facts checked before planning:
 - `package.json`: `"xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"`, then `yarn install` to update
   `yarn.lock`. The only consumer is `src/views/upload-dataset/measurements/components/sampleTypes.ts:76`; the
   `XLSX.read` and `sheet_to_json` API it uses doesn't change.
-- **ADR** `docs/decisions/2026-11-03-xlsx-from-sheetjs-cdn.md`:
+- **ADR** `docs/decisions/2026-11-04-xlsx-from-sheetjs-cdn.md` (the filename carries the creation date):
   - Context: npm's xlsx stopped at 0.18.5, which has 2 high CVEs.
   - Options considered: CDN tarball, accepting the risk, or switching to another library.
   - Decision: CDN tarball, with the integrity hash pinned in `yarn.lock`.
   - Consequence: image builds also need to reach `cdn.sheetjs.com`. `util/airgap.sh` blocks egress only after the
     build, so the airgap flow isn't affected.
-- **Gates:** the `sampleTypes` spec passes in `make test-frontend`, plus `make lint` and `make docs-check` (for the
+- **Gates:** a new `sampleTypes` spec (there was none) that writes a real `.xlsx` and reads it back passes on
+  0.18.5 before the change and on 0.20.3 after it in `make test-frontend`, plus `make lint` and `make docs-check` (for the
   new ADR). Rebuild `portal-frontend` and drop a dataset folder containing `samples.xlsx` to check the sample types
   are filled in.
 
