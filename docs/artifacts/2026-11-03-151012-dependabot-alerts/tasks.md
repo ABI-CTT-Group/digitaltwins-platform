@@ -51,17 +51,17 @@ after the previous PR merges.
 - [x] Correct the PR 2 walkthrough claim that relied on the bundle hash
 - [x] Write the walkthrough section; update the plan and this list
 - [x] Sync artifacts to docs/artifacts/
-- [ ] Commit, push and open the PR (on approval)
-- [ ] Merge, then un-stash and finish PR 4
+- [x] Commit, push and open the PR (#377)
+- [x] Merge, then un-stash and finish PR 4
 
 ## PR 4: refresh frontend packages that ship to the browser (incl. vue 3.5.42)
-- [ ] Red: list the vulnerable `yarn.lock` entries
-- [ ] Review the axios 1.13 → 1.20 changelog against our axios interceptors
-- [ ] Remove those entries and re-run `yarn install`; review `git diff yarn.lock`
-- [ ] Gates: `make test`, `make lint`, `make docs-check`
-- [ ] Rebuild and restart `portal-frontend`; smoke-test sign-in, the dataset list, upload-dataset and the workflow canvas
-- [ ] Write the walkthrough section; update this list
-- [ ] Sync artifacts to docs/artifacts/
+- [x] Red: list the vulnerable `yarn.lock` entries
+- [x] Review the axios 1.13 → 1.20 changelog against our axios interceptors
+- [x] Remove those entries and re-run `yarn install`; review `git diff yarn.lock`
+- [x] Gates: `make test`, `make lint`, `make docs-check`
+- [x] Probe the image for the new versions; rebuild and restart `portal-frontend`; smoke-test (headless browser) sign-in, the dataset list, upload-dataset and the workflow canvas
+- [x] Write the walkthrough section; update this list
+- [x] Sync artifacts to docs/artifacts/
 - [ ] Commit, push and open the PR (on approval)
 - [ ] Merge; confirm the alerts closed
 
