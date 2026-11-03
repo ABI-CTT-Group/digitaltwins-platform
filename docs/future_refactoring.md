@@ -71,8 +71,8 @@ Found while writing [codemap.md](codemap.md) (`docs/artifacts/2026-10-28-133109-
 
 Found while making `make lint` pass. The cleanup kept behaviour unchanged, so these were noted rather than changed.
 
-### [ ] 1. Unused portal components and a stale lockfile
-* **Description**: `services/portal/frontend/src/components/domain/DownloadSheet.vue` and `SubmitSheet.vue` aren't imported anywhere. `services/portal/frontend/package-lock.json` is stale: the image and `make test-frontend` install from `yarn.lock` only, and yarn warns about the second lockfile. Remove all three.
+### [ ] 1. Unused portal components
+* **Description**: `services/portal/frontend/src/components/domain/DownloadSheet.vue` and `SubmitSheet.vue` aren't imported anywhere. Remove both.
 * **Why skipped**: Deleting files is outside a behaviour-neutral lint cleanup.
 
 ### [ ] 2. Duplicate vite and rollup copies in the portal
