@@ -92,7 +92,9 @@ after the previous PR merges.
 - [x] Rebuild and restart `api` and `builder`; live-check uploads (through validation rejection, so nothing is stored) and MinIO, SEEK and FHIR calls
 - [x] Write the walkthrough section; update this list
 - [x] Sync artifacts to docs/artifacts/
-- [ ] Commit, push and open the PR (on approval)
+- [x] Commit, push and open the PR (#380)
+- [x] Log the existing `sample-types` 500 in `docs/future_refactoring.md` (REST API item 8)
+- [x] Sync artifacts to docs/artifacts/
 - [ ] Merge; confirm the alerts closed
 
 ## PR 7: vitest 3 → 4

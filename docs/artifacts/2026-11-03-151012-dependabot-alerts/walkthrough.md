@@ -278,4 +278,5 @@ requirements and the builder's requirements and test requirements.
 
 **Found, not fixed (existing bug):** `GET /datasets/{uuid}/sample-types` returns 500 for a dataset with no samples.
 `get_dataset_sample_types` in `services/api/src/digitaltwins/postgres/querier.py` builds `... WHERE sample_uuid IN ()`,
-which Postgres rejects. It uses only psycopg2, and this PR doesn't touch it.
+which Postgres rejects. It uses only psycopg2, and this PR doesn't touch it. The user chose to log it as
+`docs/future_refactoring.md` REST API item 8 rather than fix it in this work.
