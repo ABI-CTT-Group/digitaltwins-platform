@@ -70,7 +70,7 @@ test-frontend: frontend-deps
 # The hub test loads jupyterhub_config.py with the hub's own packages, so it runs in the hub image.
 test-jupyterhub: cache-dirs
 	docker build -q -t $(HUB_IMAGE) services/jupyterhub >/dev/null
-	$(RUN) --entrypoint pip $(HUB_IMAGE) install -q --disable-pip-version-check --upgrade --target /cache/hub/site pytest==8.4.2
+	$(RUN) --entrypoint pip $(HUB_IMAGE) install -q --disable-pip-version-check --upgrade --target /cache/hub/site pytest==9.0.3
 	$(RUN) $(OFFLINE) -e PYTHONPATH=/cache/hub/site -v $(CURDIR)/services/jupyterhub:/w -w /w --entrypoint python \
 	  $(HUB_IMAGE) -m pytest -p no:cacheprovider -ra tests $(PYTEST_ARGS)
 

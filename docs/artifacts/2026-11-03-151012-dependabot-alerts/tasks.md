@@ -29,15 +29,16 @@ after the previous PR merges.
 - [x] Rebuild and restart `portal-frontend`; the portal loads
 - [x] Write the walkthrough section; update this list
 - [x] Sync artifacts to docs/artifacts/
-- [ ] Commit, push and open the PR (on approval)
-- [ ] Merge; confirm the alerts closed
+- [x] Commit, push and open the PR (#374)
+- [x] Merge; confirm the alerts closed (199 → 155)
 
 ## PR 3: pytest 8.4.2 → 9.0.3
-- [ ] Red: run on 8.4.2 with `-W error::pytest.PytestRemovedIn9Warning`
-- [ ] Bump `requirements-test.txt` in the API and builder
-- [ ] Gates: `make test-api test-builder` (same counts as on `main`), `make lint`, `make docs-check`
-- [ ] Write the walkthrough section; update this list
-- [ ] Sync artifacts to docs/artifacts/
+- [x] Red: run on 8.4.2 with `-W error::pytest.PytestRemovedIn9Warning`
+- [x] Bump `requirements-test.txt` in the API and builder
+- [x] Bump the `pytest==8.4.2` the Makefile installs for `test-jupyterhub`
+- [x] Gates: `make test-api test-builder` (same counts as on `main`), `make lint`, `make docs-check`
+- [x] Write the walkthrough section; update this list
+- [x] Sync artifacts to docs/artifacts/
 - [ ] Commit, push and open the PR (on approval)
 - [ ] Merge; confirm the alerts closed
 
