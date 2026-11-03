@@ -11,6 +11,7 @@ push, retry and re-push alike); clients poll ``fhir_status`` via
 point at; it requires a token but no particular role.
 """
 import json
+import logging
 import mimetypes
 
 from botocore.exceptions import ClientError
@@ -32,6 +33,7 @@ from .auth import require_upload_role, validate_credentials
 from .dataset_uploads import AnnotationBody, get_conn
 
 router = APIRouter(prefix="/datasets/{dataset_uuid}", tags=["dataset fhir"])
+logger = logging.getLogger(__name__)
 
 
 def _dataset_or_404(conn, dataset_uuid: str) -> dict:
@@ -96,33 +98,40 @@ def get_annotation(dataset_uuid: str, conn=Depends(get_conn), _creds: dict = Dep
     return {"descriptions": descriptions}
 
 
+def _annotate(conn, dataset_uuid: str, dataset: dict, descriptions: dict) -> dict:
+    """Stamp and store ``descriptions`` for the dataset; return what was stored."""
+    if dataset["category"] == models.CATEGORY:
+        try:
+            stamped = model_fhir.build_descriptions(dataset_uuid, dataset["dataset_name"] or "", descriptions)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        pipeline.save_annotation(conn, dataset_uuid, stamped)
+        return stamped
+    try:
+        root = pipeline.local_dataset(conn, dataset_uuid)
+        if dataset["workflow_type"]:
+            # Stores the tools' descriptions on them and the workflow's on it.
+            return annotate_workflow(conn, root, dataset["workflow_type"], dataset_uuid, descriptions)
+        if dataset["category"] == tools.CATEGORY:
+            stamped = tool_fhir.build_descriptions(root, dataset_uuid, dataset["dataset_name"] or "", descriptions)
+        else:
+            pipeline.check_descriptions_match(descriptions, root)
+            stamped = _stamped(conn, dataset_uuid, descriptions)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    pipeline.save_annotation(conn, dataset_uuid, stamped)
+    return stamped
+
+
 @router.put("/fhir/annotation")
 def put_annotation(
     dataset_uuid: str, body: AnnotationBody,
     conn=Depends(get_conn), _creds: dict = Depends(require_upload_role),
 ):
     dataset = _dataset_or_404(conn, dataset_uuid)
-    if dataset["category"] == models.CATEGORY:
-        try:
-            stamped = model_fhir.build_descriptions(dataset_uuid, dataset["dataset_name"] or "", body.descriptions)
-        except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-        pipeline.save_annotation(conn, dataset_uuid, stamped)
-        return {"descriptions": stamped}
-    try:
-        root = pipeline.local_dataset(conn, dataset_uuid)
-        if dataset["workflow_type"]:
-            # Stores the tools' descriptions on them and the workflow's on it.
-            stamped = annotate_workflow(conn, root, dataset["workflow_type"], dataset_uuid, body.descriptions)
-            return {"descriptions": stamped}
-        if dataset["category"] == tools.CATEGORY:
-            stamped = tool_fhir.build_descriptions(root, dataset_uuid, dataset["dataset_name"] or "", body.descriptions)
-        else:
-            pipeline.check_descriptions_match(body.descriptions, root)
-            stamped = _stamped(conn, dataset_uuid, body.descriptions)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    pipeline.save_annotation(conn, dataset_uuid, stamped)
+    stamped = _annotate(conn, dataset_uuid, dataset, body.descriptions)
+    logger.info("Registration %s annotate: dataset_uuid=%s user=%s",
+                dataset["category"], dataset_uuid, _creds.get("username"))
     return {"descriptions": stamped}
 
 
@@ -141,6 +150,8 @@ def push_fhir(
         )
     jobs.set_fhir_status(conn, dataset_uuid, "pending")
     background.add_task(jobs.run_fhir_push_job, dataset_uuid)
+    logger.info("Registration %s FHIR push requested: dataset_uuid=%s user=%s",
+                dataset["category"], dataset_uuid, _creds.get("username"))
     return {"dataset_uuid": dataset_uuid, "fhir_status": "pending"}
 
 

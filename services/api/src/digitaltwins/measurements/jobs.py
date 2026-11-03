@@ -105,7 +105,7 @@ def run_commit_job(upload_id: str, api_token: Optional[str] = None) -> None:
         try:
             result = _commit(session, root, api_token)
         except Exception as exc:
-            logger.exception("Commit failed for upload %s", upload_id)
+            logger.exception("Registration %s commit failed: upload_id=%s reason=%s", session["category"], upload_id, exc)
             sessions.update_session(
                 conn, upload_id, status="failed", failure_stage="commit", failure_message=str(exc)
             )
@@ -117,7 +117,8 @@ def run_commit_job(upload_id: str, api_token: Optional[str] = None) -> None:
         )
         if result.descriptions is not None:
             set_fhir_status(conn, result.dataset_uuid, "pending")
-        logger.info("Committed upload %s as dataset %s", upload_id, result.dataset_uuid)
+        logger.info("Registration %s commit: upload_id=%s dataset_uuid=%s",
+                    session["category"], upload_id, result.dataset_uuid)
     finally:
         conn.close()
 
@@ -181,6 +182,8 @@ def _push_workflow(conn, dataset_uuid: str, descriptions: Dict[str, Any]) -> Non
                                      tool_descriptions)
             _push_tool(tool_uuid, tool_descriptions)
         except Exception as exc:
+            logger.exception("Registration tools FHIR push failed: dataset_uuid=%s workflow_dataset_uuid=%s reason=%s",
+                             tool_uuid, dataset_uuid, exc)
             set_fhir_status(conn, tool_uuid, "failed", str(exc))
             raise
         set_fhir_status(conn, tool_uuid, "completed")
@@ -198,6 +201,7 @@ def run_fhir_push_job(dataset_uuid: str) -> None:
     its tools' ActivityDefinitions; a model's is its Device.
     """
     conn = _connect()
+    dataset = None
     try:
         set_fhir_status(conn, dataset_uuid, "pushing")
         try:
@@ -209,19 +213,19 @@ def run_fhir_push_job(dataset_uuid: str) -> None:
                 pipeline.store_fhir_json(dataset["category"], dataset_uuid, descriptions)
                 _push_workflow(conn, dataset_uuid, descriptions)
                 set_fhir_status(conn, dataset_uuid, "completed")
-                logger.info("Pushed FHIR for workflow dataset %s", dataset_uuid)
+                logger.info("Registration workflows FHIR push completed: dataset_uuid=%s", dataset_uuid)
                 return
             if dataset["category"] == tools.CATEGORY:
                 pipeline.store_fhir_json(dataset["category"], dataset_uuid, descriptions)
                 _push_tool(dataset_uuid, descriptions)
                 set_fhir_status(conn, dataset_uuid, "completed")
-                logger.info("Pushed FHIR for tool dataset %s", dataset_uuid)
+                logger.info("Registration tools FHIR push completed: dataset_uuid=%s", dataset_uuid)
                 return
             if dataset["category"] == models.CATEGORY:
                 device = model_fhir.push(descriptions, fhir_service.get_fhir_rest())
                 pipeline.store_fhir_json(dataset["category"], dataset_uuid, device)  # as HAPI stored it
                 set_fhir_status(conn, dataset_uuid, "completed")
-                logger.info("Pushed FHIR for model dataset %s", dataset_uuid)
+                logger.info("Registration models FHIR push completed: dataset_uuid=%s", dataset_uuid)
                 return
             root = pipeline.local_dataset(conn, dataset_uuid)
             descriptions = fhir_service.compute_endpoint_urls(descriptions, dataset_uuid, public_base())
@@ -230,12 +234,13 @@ def run_fhir_push_job(dataset_uuid: str) -> None:
             pipeline.store_fhir_json(dataset["category"], dataset_uuid, fhir_json)
             _replace_fhir_resources(conn, dataset_uuid, fhir_json)
         except Exception as exc:
-            logger.exception("FHIR push failed for dataset %s", dataset_uuid)
+            logger.exception("Registration %s FHIR push failed: dataset_uuid=%s reason=%s",
+                             dataset["category"] if dataset else "unknown", dataset_uuid, exc)
             set_fhir_status(conn, dataset_uuid, "failed", str(exc))
             return
         set_fhir_status(conn, dataset_uuid, "completed")
         shutil.rmtree(root, ignore_errors=True)  # local copy no longer needed
-        logger.info("Pushed FHIR for dataset %s", dataset_uuid)
+        logger.info("Registration %s FHIR push completed: dataset_uuid=%s", dataset["category"], dataset_uuid)
     finally:
         conn.close()
 

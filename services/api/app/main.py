@@ -17,6 +17,8 @@ from digitaltwins.measurements import jobs
 from digitaltwins.postgres import migrate
 from digitaltwins.utils.config_loader import is_truthy
 
+from .logging_setup import configure_logging
+from .request_logging import install_request_error_logging
 from .routers import (
     health, auth, datasets, dataset_fhir, dataset_uploads, assays,
     programs, projects, investigations, studies, workflows, tools, models, dashboard
@@ -66,6 +68,7 @@ def create_app() -> FastAPI:
 
     # initialise app settings
     app = initialise(app)
+    install_request_error_logging(app)
 
     # include routers
     app.include_router(health.router)
@@ -87,4 +90,5 @@ def create_app() -> FastAPI:
     return app
 
 
+configure_logging()
 app = create_app()

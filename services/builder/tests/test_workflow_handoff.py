@@ -89,6 +89,16 @@ class WorkflowHandoffTest(unittest.TestCase):
                           session["commit_mode"], session["name"]), ("workflows", "script", 11, "on_finalize", "Convert"))
         self.assertIn("convert_ab12cd34/primary/workflow_convert.cwl", {e["rel_path"] for e in session["manifest"]})
 
+    def test_approval_and_its_handoff_are_logged(self):
+        with self.assertLogs("app", "INFO") as logs:
+            self._approve()
+
+        messages = [r.getMessage() for r in logs.records]
+        self.assertIn(f"Registration workflows approval requested: workflow_id={self.wf_id} build_id={self.build_id} "
+                      f"seek_project_id=11 user=researcher", messages)
+        self.assertIn(f"Registration workflows handoff completed: build_id={self.build_id} "
+                      f"dataset_uuid={self._workflow().uuid}", messages)
+
     def test_the_step_annotations_become_workflow_and_tool_descriptions(self):
         self._annotate([{"step": "convert", **STEP}])
 

@@ -9,6 +9,7 @@ from app.database.database import init_db
 from dotenv import load_dotenv
 import os
 from app.engine.logger import configure_logging, get_logger
+from app.utils.request_logging import install_request_error_logging
 from datetime import datetime
 from typing import Optional
 
@@ -185,6 +186,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="DigitalTWINS Portal API", verison="1.0.0", lifespan=lifespan)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+install_request_error_logging(app)
 app.include_router(workflow_tool_plugin.router)
 
 app.include_router(workflow_router.router)

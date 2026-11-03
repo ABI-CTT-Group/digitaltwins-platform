@@ -86,7 +86,7 @@ async def upload_workflow_source(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail="Uploaded file is not a valid zip archive")
 
         meta = inspect_workflow_source(staging, want_cwl=True)
-        logger.info(f"Workflow source uploaded: upload_id={staging.name}, meta={meta}")
+        logger.info(f"Registration workflows upload: upload_id={staging.name} meta={meta}")
 
         if not meta["has_cwl"]:
             # cleanup before reporting back so we don't leak staging dirs on bad uploads
@@ -142,8 +142,8 @@ async def get_workflow_cwl(workflow_id: str, db: Session = Depends(get_db)):
     return {**result, "is_sds": detect_workflow_layout(staging).is_sds}
 
 
-@router.post("/create", dependencies=[WRITER], response_model=WorkflowResponse)
-async def create_tool_plugin(workflow: WorkflowCreate, db: Session = Depends(get_db)):
+@router.post("/create", response_model=WorkflowResponse)
+async def create_tool_plugin(workflow: WorkflowCreate, user: dict = WRITER, db: Session = Depends(get_db)):
     data = workflow.model_dump()
     upload_id = data.pop("upload_id", None)
     local_archive_path = None
@@ -173,11 +173,14 @@ async def create_tool_plugin(workflow: WorkflowCreate, db: Session = Depends(get
     db.add(db_workflow)
     db.commit()
     db.refresh(db_workflow)
+    logger.info("Registration workflows create: workflow_id=%s name=%s user=%s",
+                db_workflow.id, db_workflow.name, user.get("username"))
     return db_workflow
 
 
-@router.post("/{workflow_id}/annotation", dependencies=[WRITER], response_model=WorkflowAnnotationResponse)
-async def create_tool_annotation(workflow_id: str, annotation: WorkflowAnnotationCreate, db: Session = Depends(get_db)):
+@router.post("/{workflow_id}/annotation", response_model=WorkflowAnnotationResponse)
+async def create_tool_annotation(workflow_id: str, annotation: WorkflowAnnotationCreate, user: dict = WRITER,
+                                 db: Session = Depends(get_db)):
     workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()  # type: ignore
     if workflow is None:
         raise HTTPException(status_code=404, detail="Plugin not found")
@@ -204,6 +207,7 @@ async def create_tool_annotation(workflow_id: str, annotation: WorkflowAnnotatio
     db.add(db_annotation)
     db.commit()
     db.refresh(db_annotation)
+    logger.info("Registration workflows annotate: workflow_id=%s user=%s", workflow.id, user.get("username"))
     return db_annotation
 
 
@@ -482,17 +486,21 @@ async def execute_build(
     return _trigger_workflow_build(workflow_id, background_tasks, db, transient=None)
 
 
-@router.post("/{workflow_id}/build", dependencies=[WRITER])
+@router.post("/{workflow_id}/build")
 async def execute_build_post(
         workflow_id: str,
         req: BuildTriggerRequest = Body(default_factory=BuildTriggerRequest),
         background_tasks: BackgroundTasks = None,
+        user: dict = WRITER,
         db: Session = Depends(get_db)):
     """Trigger a workflow build, optionally with transient secrets in body.
 
     See ``/api/builder/tools/plugin/{id}/build`` for the token handling contract.
     """
-    return _trigger_workflow_build(workflow_id, background_tasks, db, transient=req)
+    started = _trigger_workflow_build(workflow_id, background_tasks, db, transient=req)
+    logger.info("Registration workflows build requested: workflow_id=%s build_id=%s user=%s",
+                workflow_id, started["build_id"], user.get("username"))
+    return started
 
 
 @router.post("/probe-source", dependencies=[WRITER])
@@ -589,6 +597,8 @@ def approve_workflow(workflow_id: str, background: BackgroundTasks, body: Option
         raise HTTPException(status_code=401, detail="The platform API rejected the token")
     except tool_handoff.ApiError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
+    logger.info("Registration workflows approval requested: workflow_id=%s build_id=%s seek_project_id=%s user=%s",
+                workflow.id, latest.build_id, seek_project_id, user.get("username"))
     background.add_task(workflow_handoff.run, latest.build_id)
     return tool_handoff.status_view(latest)
 
