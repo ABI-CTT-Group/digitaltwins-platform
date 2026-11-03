@@ -76,7 +76,10 @@ after the previous PR merges.
 - [x] Rebuild and restart `portal-frontend`; drop a dataset that contains `samples.xlsx`
 - [x] Write the walkthrough section; update this list
 - [x] Sync artifacts to docs/artifacts/
-- [ ] Commit, push and open the PR (on approval)
+- [x] Commit, push and open the PR (#379)
+- [x] Review the source with the user: the npm alternatives (`@e965/xlsx`, `read-excel-file`) were rejected; keep the official CDN
+- [x] Record the reason SheetJS left npm, and the rejected alternatives, in the ADR and walkthrough
+- [x] Sync artifacts to docs/artifacts/
 - [ ] Merge; confirm the alerts closed
 
 ## PR 6: Python runtime pins (python-multipart, urllib3, requests)

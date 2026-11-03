@@ -185,6 +185,13 @@ only 2 were open.
   `arrayBuffer()`, so the test gives each file one.
 - The only consumer, `sampleTypes.ts`, didn't change: `XLSX.read` and `utils.sheet_to_json` work the same in 0.20.3.
 
+**Reviewing the source after the PR opened**
+- The user asked whether `xlsx` could come from the default npm registry, since it's the only one of the portal's
+  lockfile entries that doesn't. Two registry options were checked: `@e965/xlsx`, a community copy whose code is
+  byte-identical to the official 0.20.3, and `read-excel-file`, a different library. The user rejected both: they
+  wanted official SheetJS releases and future official updates, not a single unaffiliated maintainer. The CDN URL
+  stays. The ADR now records why SheetJS left npm (SheetJS/sheetjs#2667) and why each alternative was rejected.
+
 **How the version is pinned**
 - Yarn 1 writes no `integrity` line for a URL dependency. It pins the tarball's SHA-1 in the `resolved` URL's
   `#…` fragment (`992725af…`, which matches the downloaded tarball). Changing that fragment made
