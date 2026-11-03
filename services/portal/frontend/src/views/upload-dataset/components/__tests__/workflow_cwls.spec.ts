@@ -7,7 +7,7 @@ vi.mock("@/views/upload-dataset/components/utils", async (importOriginal) => ({
 }));
 vi.mock("@/bootstrap/workflow_api", () => ({ useGetWorkflowLocalCwl: localCwl, useProbeWorkflowSource: probe }));
 
-import { loadWorkflowCwls } from "../workflow_cwls";
+import { loadWorkflowCwls, parseCwlText } from "../workflow_cwls";
 
 const WF = "class: Workflow\nsteps:\n  convert:\n    run: tool_convert.cwl\n";
 const TOOL = "class: CommandLineTool\ninputs:\n  src: File\n";
@@ -53,5 +53,15 @@ describe("loadWorkflowCwls", () => {
     expect(res.isSds).toBe(true);
     expect(probe).toHaveBeenCalledWith(expect.objectContaining({ sourceType: "github", token: "<REDACTED>" }));
     expect(getRepoContents).not.toHaveBeenCalled();
+  });
+});
+
+describe("parseCwlText", () => {
+  it("reports the YAML error, not the JSON fallback's, when a CWL repeats a key", () => {
+    expect(() => parseCwlText(`${TOOL}  src: Directory\n`)).toThrow(/duplicated mapping key/);
+  });
+
+  it("still reads a JSON CWL", () => {
+    expect(parseCwlText('{"class": "CommandLineTool"}')).toEqual({ class: "CommandLineTool" });
   });
 });

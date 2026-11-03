@@ -133,7 +133,8 @@
       <h3 class="step-heading">Tool FHIR Annotation</h3>
       <v-divider class="my-2 mb-5" :thickness="3" />
 
-      <div v-if="cwlObj">
+      <v-alert v-if="loadError" type="error" :text="loadError" class="mb-5" />
+      <div v-else-if="cwlObj">
         <v-form ref="form" class="px-5">
           <h3 class="step-heading">Tool: {{ annotateTool.name }}</h3>
           <v-divider class="my-2 mb-3" :thickness="2" />
@@ -246,16 +247,26 @@ async function _loadCwlViaBackendProbe(
   if (!res.data.cwlFile || !res.data.cwlContent) {
     throw new Error('No CWL file found at the root of the repository.');
   }
-  return { cwlFile: res.data.cwlFile, content: parseCwlText(res.data.cwlContent) };
+  return { cwlFile: res.data.cwlFile, content: parseToolCwl(res.data.cwlFile, res.data.cwlContent) };
+}
+
+/** Parse a tool's CWL text, naming the file in the error. */
+function parseToolCwl(cwlFile: string, text: string): any {
+  try {
+    return parseCwlText(text);
+  } catch (err: any) {
+    throw new Error(`Failed to parse ${cwlFile}: ${err?.message ?? err}`, { cause: err });
+  }
 }
 
 async function loadToolCwl(tool: ToolResponse): Promise<{ cwlFile: string; content: any }> {
   if (tool.sourceType === 'local') {
     const { cwlFile, content } = await useGetToolLocalCwl(tool.id);
-    return { cwlFile, content: parseCwlText(content) };
+    return { cwlFile, content: parseToolCwl(cwlFile, content) };
   }
   if (canUsePublicGithubPath(tool.sourceType, props.pendingAuth)) {
-    return getRepoRootCWLContent(tool.repositoryUrl);
+    const { cwlFile, content } = await getRepoRootCWLContent(tool.repositoryUrl);
+    return { cwlFile, content: parseToolCwl(cwlFile, content) };
   }
   return _loadCwlViaBackendProbe(tool.sourceType as Exclude<SourceType, 'local'>, tool.repositoryUrl);
 }
@@ -272,6 +283,7 @@ onMounted(async () => {
       else workflowTools.value = await useWorkflowTools();
       cwlObj.value = content;
     } catch (err: any) {
+      console.error('Failed to load workflow CWL', err);
       loadError.value = err?.message ?? String(err);
     } finally {
       loadingCwl.value = false;
@@ -279,9 +291,14 @@ onMounted(async () => {
   } else {
     const tool = props.data as ToolResponse | undefined;
     if (!tool) { console.warn('No tool info in annotation stepper.'); return; }
-    const { cwlFile, content } = await loadToolCwl(tool);
-    annotateTool.value.name = cwlFile.replace(/\.cwl$/, '');
-    cwlObj.value = content;
+    try {
+      const { cwlFile, content } = await loadToolCwl(tool);
+      annotateTool.value.name = cwlFile.replace(/\.cwl$/, '');
+      cwlObj.value = content;
+    } catch (err: any) {
+      console.error('Failed to load tool CWL', err);
+      loadError.value = err?.message ?? String(err);
+    }
   }
 });
 

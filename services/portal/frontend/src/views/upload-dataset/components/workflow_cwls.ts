@@ -10,7 +10,11 @@ export interface WorkflowCwls { isSds: boolean; content: any; tools: ParsedCwl[]
 
 export function parseCwlText(raw: string): any {
   try { return yaml.load(raw); }
-  catch { return JSON.parse(raw); }
+  catch (yamlErr) {
+    // YAML is a superset of JSON, so when both fail the YAML error is the one that explains why.
+    try { return JSON.parse(raw); }
+    catch { throw yamlErr; }
+  }
 }
 
 /** Public GitHub without a token is read from the browser; private GitHub and other hosts go through /probe-source. */

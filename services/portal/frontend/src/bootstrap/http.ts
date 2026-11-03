@@ -92,62 +92,85 @@ function attachInterceptors(instance: AxiosInstance, preserve: ReadonlySet<strin
     return config;
   });
 
-  // ============== response interceptors：handle 401 ==============
+  // ============== response interceptors：handle 401, then log what still fails ==============
   instance.interceptors.response.use(
     (res) => { res.data = deepCamelize(res.data); return res; },
-    async (err) => {
-      // not 401 -> reject
-      if (err.response?.status !== 401) return Promise.reject(err);
+    (err) => retryOn401(err).catch((finalErr) => {
+      logFailedRequest(finalErr);
+      return Promise.reject(finalErr);
+    }),
+  );
 
-      const originalRequest = err.config;
+  async function retryOn401(err: any): Promise<any> {
+    // not 401 -> reject
+    if (err.response?.status !== 401) return Promise.reject(err);
 
-      // Prevent infinite retry loops
-      if (originalRequest._retry) {
-        handleSessionLost("Still 401 after a token refresh → session lost");
+    const originalRequest = err.config;
+
+    // Prevent infinite retry loops
+    if (originalRequest._retry) {
+      handleSessionLost("Still 401 after a token refresh → session lost");
+      return Promise.reject(err);
+    }
+
+    // Try to refresh the token before giving up
+    if (!isRefreshing) {
+      isRefreshing = true;
+      const keycloak = getKeycloak();
+
+      try {
+        if (keycloak) {
+          await keycloak.updateToken(5);
+          const newToken = keycloak.token;
+          if (newToken) {
+            isRefreshing = false;
+            onTokenRefreshed(newToken);
+
+            // Retry original request with new token
+            originalRequest._retry = true;
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            return instance(originalRequest);
+          }
+        }
+        // No keycloak, or no token after refresh
+        isRefreshing = false;
+        handleSessionLost("Token expired or invalid and could not be renewed");
+        return Promise.reject(err);
+      } catch (refreshErr) {
+        isRefreshing = false;
+        refreshSubscribers = [];
+        handleSessionLost("Token refresh was rejected → session lost");
         return Promise.reject(err);
       }
-
-      // Try to refresh the token before giving up
-      if (!isRefreshing) {
-        isRefreshing = true;
-        const keycloak = getKeycloak();
-
-        try {
-          if (keycloak) {
-            await keycloak.updateToken(5);
-            const newToken = keycloak.token;
-            if (newToken) {
-              isRefreshing = false;
-              onTokenRefreshed(newToken);
-
-              // Retry original request with new token
-              originalRequest._retry = true;
-              originalRequest.headers.Authorization = `Bearer ${newToken}`;
-              return instance(originalRequest);
-            }
-          }
-          // No keycloak, or no token after refresh
-          isRefreshing = false;
-          handleSessionLost("Token expired or invalid and could not be renewed");
-          return Promise.reject(err);
-        } catch (refreshErr) {
-          isRefreshing = false;
-          refreshSubscribers = [];
-          handleSessionLost("Token refresh was rejected → session lost");
-          return Promise.reject(err);
-        }
-      }
-
-      // Another request is already refreshing — queue this one
-      return new Promise((resolve) => {
-        addRefreshSubscriber((newToken: string) => {
-          originalRequest._retry = true;
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
-          resolve(instance(originalRequest));
-        });
-      });
     }
-  );
+
+    // Another request is already refreshing — queue this one
+    return new Promise((resolve) => {
+      addRefreshSubscriber((newToken: string) => {
+        originalRequest._retry = true;
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        resolve(instance(originalRequest));
+      });
+    });
+  }
+}
+
+/**
+ * Log a request that failed for good (after any token refresh): warn for a 4xx, error for a 5xx or no
+ * response. A cancelled request is not logged, and an error is logged once even when a retried
+ * request fails again inside the outer one. The query string is left out.
+ */
+function logFailedRequest(err: any) {
+  if (axios.isCancel(err) || !err || typeof err !== "object" || err._logged) return;
+  err._logged = true;
+  const config = err.config ?? {};
+  const url = `${config.baseURL ?? ""}${config.url ?? ""}`.split("?")[0];
+  const status: number | undefined = err.response?.status;
+  const detail = err.response?.data?.detail ?? err.message;
+  const reason = typeof detail === "string" ? detail : JSON.stringify(detail);
+  const line = `[HTTP] ${(config.method ?? "get").toUpperCase()} ${url} -> ${status ?? "network error"}: ${reason}`;
+  if (status !== undefined && status < 500) console.warn(line);
+  else console.error(line);
 }
 
 // Shared across instances: one token refresh at a time, whichever instance hit the 401.

@@ -1,5 +1,4 @@
 ﻿import { CheckNameResponse, GitContent, SourceType } from '@/models/types';
-import yaml from "js-yaml";
 
 /**
  * Infer git provider from URL host. Used at URL-blur time to decide which
@@ -113,43 +112,19 @@ export const noWorkflowCwlMessage = (where: string) =>
   `No CWL found in the ${where}. Expected a .cwl at the root (source code), ` +
   `or one primary/workflow_*.cwl in an SDS package (${SDS_MARKER} at the root).`;
 
-export const getRepoRootCWLContent = (repositoryUrl: string) => {
-  return new Promise<{ cwlFile: string, content: any }>((resolve) => {
-    getRepoContents(repositoryUrl).then(async (res) => {
-      const folders = res!.data as GitContent[];
-      let cwlFile = "";
-      let cwlPath = "";
-      if (folders.some((item) => item.type == 'file' && item.name === SDS_MARKER)) {
-        const primary = (await getRepoContents(repositoryUrl, "primary")).data as GitContent[];
-        cwlFile = sdsToolCwls(primary.filter((item) => item.type == 'file').map((item) => item.name))[0] ?? "";
-        cwlPath = `primary/${cwlFile}`;
-      } else {
-        folders.forEach((item: GitContent) => {
-          if (item.type == 'file' && item.name.endsWith(".cwl")) {
-            cwlFile = item.name;
-            return;
-          }
-        })
-        cwlPath = cwlFile;
-      }
-      getRepoContents(repositoryUrl, cwlPath).then((res) => {
-        const contentBase64 = res.data.content;
-        const content = atob(contentBase64); // base64 → plain text
-        try {
-          // try to parse YAML format first
-          resolve({
-            cwlFile,
-            content: yaml.load(content)
-          });
-        } catch (err) {
-          console.warn("YAML parse failed, trying JSON...");
-          resolve({
-            cwlFile,
-            content: JSON.parse(content)
-          }); // if it is JSON format
-        }
-      })
-    })
-  })
-
+/** The tool's CWL file name and raw text from a public GitHub repo; rejects if it can't be fetched. */
+export const getRepoRootCWLContent = async (repositoryUrl: string): Promise<{ cwlFile: string, content: string }> => {
+  const folders = (await getRepoContents(repositoryUrl)).data as GitContent[];
+  let cwlFile = "";
+  let cwlPath = "";
+  if (folders.some((item) => item.type == 'file' && item.name === SDS_MARKER)) {
+    const primary = (await getRepoContents(repositoryUrl, "primary")).data as GitContent[];
+    cwlFile = sdsToolCwls(primary.filter((item) => item.type == 'file').map((item) => item.name))[0] ?? "";
+    cwlPath = `primary/${cwlFile}`;
+  } else {
+    cwlFile = folders.filter((item) => item.type == 'file' && item.name.endsWith(".cwl")).pop()?.name ?? "";
+    cwlPath = cwlFile;
+  }
+  const res = await getRepoContents(repositoryUrl, cwlPath);
+  return { cwlFile, content: atob(res.data.content) }; // base64 → plain text
 }
