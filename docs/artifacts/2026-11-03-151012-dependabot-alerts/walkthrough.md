@@ -58,6 +58,10 @@ still have alerts against `yarn.lock`, and later batches handle those.
 - `docker compose build portal-frontend`: builds with `--frozen-lockfile`. After restarting `portal-frontend`, the
   service is healthy and `/`, `/api/health` and `/sw.js` return 200. The app's entry bundle hash doesn't change, so no
   code that ships to the browser changed.
+- **Correction (found during PR 4):** that unchanged hash doesn't prove the claim. The image was being built from the
+  build host's stale local `node_modules`, not from `yarn.lock` (see "Fix: portal image ignored yarn.lock" below), so
+  the hash couldn't have changed whatever the lockfile said. The conclusion still holds for a different reason: PR 2
+  changed only dev and build tools.
 
 ## PR 3: pytest 8.4.2 → 9.0.3
 
@@ -78,3 +82,29 @@ only 2 were open.
   builder 221 passed / 11 skipped, jupyterhub 5 passed. Those counts, and the warning counts, match `main`. Frontend
   and util pass too.
 - `make lint` and `make docs-check`: pass.
+
+## Fix: portal image ignored yarn.lock (found during PR 4, shipped before it)
+
+**Problem**
+- `services/portal/frontend/Dockerfile` runs `COPY package.json yarn.lock`, then `yarn install --frozen-lockfile`, then
+  `COPY . .`. The folder had no `.dockerignore`, so on any build host with a local `node_modules` (a developer
+  machine, for example), `COPY . .` overwrote the clean install, and `yarn build` bundled whatever versions were on
+  that host. Docker doesn't read `.gitignore`. A clean checkout, as in CI or on a fresh server, wasn't affected.
+- How it showed up: after PR 4's lockfile refresh (axios 1.21.0, vue 3.5.44), the rebuilt image still served the same
+  bundle hash. A probe of the builder stage found axios 1.13.2 and vue 3.5.25: the stale local install.
+
+**Change**
+- Added `services/portal/frontend/.dockerignore` with `node_modules`, `build` and `dist`.
+- Added `src/__tests__/dockerignore.spec.ts`, which fails if those entries go missing. It runs in vitest's `node`
+  environment because it reads a file and needs no DOM.
+
+**Verification**
+- Red: the new spec failed with ENOENT. The builder-stage probe on `main` with no `.dockerignore` had vite 6.4.1, the
+  stale local version.
+- Green: the spec passes. The same probe with the `.dockerignore` has vite 6.4.5, as `yarn.lock` pins.
+- `make test`: API 391, builder 221, frontend 34 files and 164 tests (2 new), jupyterhub and util pass. `make lint`
+  and `make docs-check` pass.
+- After rebuilding and restarting `portal-frontend`, it's healthy, and `/`, `/api/health`, `/sw.js` and the new entry
+  bundle return 200. The bundle hash changed (`index-CJ4o-C4T.js` → `index-Bo9DUbwr.js`) because the image is now
+  built from the lockfile. Comparing the stale local install with `yarn.lock`, only build and dev tools differ (vite,
+  rollup, browserslist data, vue-tsc and their helpers); no runtime library does.

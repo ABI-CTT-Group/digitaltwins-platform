@@ -39,8 +39,20 @@ after the previous PR merges.
 - [x] Gates: `make test-api test-builder` (same counts as on `main`), `make lint`, `make docs-check`
 - [x] Write the walkthrough section; update this list
 - [x] Sync artifacts to docs/artifacts/
+- [x] Commit, push and open the PR (#375)
+- [x] Merge; confirm the alerts closed
+
+## Fix: portal image ignored yarn.lock (`fix/frontend-dockerignore`, inserted before PR 4)
+- [x] Red: probe the builder stage (stale local versions in the image); add a guard spec that fails
+- [x] Add `services/portal/frontend/.dockerignore`
+- [x] Green: the spec passes; the probe shows the lockfile versions
+- [x] Gates: `make test`, `make lint`, `make docs-check`
+- [x] Rebuild and restart `portal-frontend`; the portal serves the lockfile-built bundle
+- [x] Correct the PR 2 walkthrough claim that relied on the bundle hash
+- [x] Write the walkthrough section; update the plan and this list
+- [x] Sync artifacts to docs/artifacts/
 - [ ] Commit, push and open the PR (on approval)
-- [ ] Merge; confirm the alerts closed
+- [ ] Merge, then un-stash and finish PR 4
 
 ## PR 4: refresh frontend packages that ship to the browser (incl. vue 3.5.42)
 - [ ] Red: list the vulnerable `yarn.lock` entries

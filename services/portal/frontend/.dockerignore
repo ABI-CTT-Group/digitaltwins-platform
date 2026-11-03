@@ -1,0 +1,5 @@
+# The Dockerfile installs from yarn.lock, then runs `COPY . .`. Keep a host's local install and
+# build output out of the context, or they overwrite the clean install (src/__tests__/dockerignore.spec.ts).
+node_modules
+build
+dist
