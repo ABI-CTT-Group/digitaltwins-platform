@@ -75,8 +75,8 @@ Found while making `make lint` pass. The cleanup kept behaviour unchanged, so th
 * **Description**: `services/portal/frontend/src/components/domain/DownloadSheet.vue` and `SubmitSheet.vue` aren't imported anywhere. Remove both.
 * **Why skipped**: Deleting files is outside a behaviour-neutral lint cleanup.
 
-### [ ] 2. Duplicate vite and rollup copies in the portal
-* **Description**: The portal installs vite 6.4.1, but vitest 3.2.7 brings its own vite 7.3.6, and the hoisted rollup (4.61, from workbox) differs from the one vite bundles (4.53). `vite.config.ts` works around the type clashes with an `as PluginOption` cast on `glslify(...)` and a `@ts-expect-error` on the `test` key. Align the versions (upgrade vite, or add `resolutions` in `package.json` and update `yarn.lock`), then remove both workarounds; the `@ts-expect-error` fails type-check once it's no longer needed.
+### [ ] 2. Duplicate vite copies in the portal
+* **Description**: The portal installs vite 6.4.x, but vitest 3.2.7 brings its own vite 7.3.x. `vite.config.ts` works around the type clash with a `@ts-expect-error` on the `test` key. Align the versions (upgrade vite, or upgrade vitest so it shares the portal's vite), then remove the workaround; the `@ts-expect-error` fails type-check once it's no longer needed. (The matching rollup clash, and its `as PluginOption` cast on `glslify(...)`, went away when the Dependabot refresh brought every rollup copy to 4.67.)
 * **Why skipped**: It's a dependency change with its own risk.
 
 ### [ ] 3. Broad exception handlers in `gen3/metadata_convertor.py`

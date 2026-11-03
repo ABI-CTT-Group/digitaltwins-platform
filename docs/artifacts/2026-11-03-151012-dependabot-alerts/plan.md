@@ -133,6 +133,8 @@ Facts checked before planning:
 ## What stays open afterwards (documented in the walkthrough)
 - pydicom (high): blocked by fhir-cda's exact pin, and the vulnerable code isn't reachable. Left open on purpose.
 - deepmerge (low): dev-only, with no fix released.
+- minimatch #513 (medium, added 2026-11-03): only minimatch 11.0.1 and later fix it, and only dev tools (eslint, glob) pull
+  it in, on 3.x to 10.x. Left open until a backport lands or the parents move to minimatch 11.
 
 ## Critical files
 - `services/portal/frontend/{package.json,yarn.lock,package-lock.json,vite.config.ts}`
@@ -145,4 +147,4 @@ Facts checked before planning:
 - Live smoke tests after rebuilding a service: PR 2, 4 and 5 for `portal-frontend`; PR 6 for `api` and `builder`.
 - After each merge, re-run
   `gh api repos/ABI-CTT-Group/digitaltwins-platform/dependabot/alerts -f state=open` and confirm the expected alerts
-  closed. Target at the end: 2 open (pydicom and deepmerge).
+  closed. Target at the end: 3 open (pydicom, deepmerge and minimatch #513).
