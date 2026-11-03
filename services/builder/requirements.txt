@@ -4,7 +4,7 @@
 # web app
 fastapi==0.116.1
 uvicorn[standard]
-python-multipart==0.0.20
+python-multipart==0.0.31
 python-dotenv==1.2.2
 
 # portal schema (SQLAlchemy ORM over psycopg2)
@@ -13,8 +13,8 @@ psycopg2-binary==2.9.11
 
 # calls the platform API as the user (services/tool_handoff.py), Keycloak, MinIO
 httpx==0.28.1
-requests==2.32.3
-urllib3==2.3.0
+requests==2.33.0
+urllib3==2.8.0
 PyJWT[crypto]==2.15.1
 boto3==1.42.78
 

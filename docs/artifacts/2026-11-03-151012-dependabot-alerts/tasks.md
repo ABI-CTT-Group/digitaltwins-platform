@@ -80,16 +80,18 @@ after the previous PR merges.
 - [x] Review the source with the user: the npm alternatives (`@e965/xlsx`, `read-excel-file`) were rejected; keep the official CDN
 - [x] Record the reason SheetJS left npm, and the rejected alternatives, in the ADR and walkthrough
 - [x] Sync artifacts to docs/artifacts/
-- [ ] Merge; confirm the alerts closed
+- [x] Merge; confirm the alerts closed (94 → 92)
 
 ## PR 6: Python runtime pins (python-multipart, urllib3, requests)
-- [ ] Red: grep for the vulnerable pins
-- [ ] Review the python-multipart 0.0.21 to 0.0.31 changes against our upload and form endpoints
-- [ ] Bump the pins in the API prod and dev requirements and in the builder requirements
-- [ ] Gates: `make test`, `make lint`, `make docs-check`
-- [ ] Rebuild and restart `api` and `builder`; smoke-test a dataset upload, a plugin upload, and MinIO, SEEK and FHIR calls
-- [ ] Write the walkthrough section; update this list
-- [ ] Sync artifacts to docs/artifacts/
+- [x] Red: grep for the vulnerable pins
+- [x] Review the python-multipart 0.0.21 to 0.0.31 changes against our upload and form endpoints
+- [x] Review the urllib3 2.4 to 2.8 and requests 2.32.4 to 2.33.0 changes against our usage
+- [x] Add a unit test that part filenames keep their folder paths (passes on 0.0.20 and 0.0.31)
+- [x] Bump the pins in the API prod and dev requirements and in the builder requirements
+- [x] Gates: `make test`, `make lint`, `make docs-check`
+- [x] Rebuild and restart `api` and `builder`; live-check uploads (through validation rejection, so nothing is stored) and MinIO, SEEK and FHIR calls
+- [x] Write the walkthrough section; update this list
+- [x] Sync artifacts to docs/artifacts/
 - [ ] Commit, push and open the PR (on approval)
 - [ ] Merge; confirm the alerts closed
 
