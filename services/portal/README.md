@@ -26,7 +26,7 @@ docker compose up --build -d
 ---
 
 ### Step 1: Access the Study Dashboard in the DigitalTWINS Portal
-[Study Dashboard](http://130.216.216.26/dashboardstudy)  
+Open the Study Dashboard at `http://<platform-host>/study-dashboard`, where `<platform-host>` is the address of your deployment.
 
 Here you can find information about all **Programmes**, **Projects**, **Investigations**, **Studies**, and **Assays**.
 
