@@ -117,8 +117,6 @@ export function useAssayActions() {
         // stash the URL under Monitor so re-opening it uses the same path.
         store.setAssayExecute(seekId, "Monitor", res.data);
         window.open(res.data, "_blank");
-      } else if (res.type === "EP3 workflow launch") {
-        window.open(res.data, "_blank");
       }
     } catch (e: any) {
       toast.error(getApiErrorMessage(e, "Launch"));
