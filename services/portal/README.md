@@ -179,6 +179,6 @@ builder's tests, which check that template.
 
 - [Serve the platform API at /api; move the portal builder](../../docs/decisions/2026-10-20-api-prefix-and-portal-builder-split.md)
 - [Launch a gui assay in /tool-view and hand its input files to the tool](../../docs/decisions/2026-10-05-gui-assay-launch-input-handoff.md)
-- [One tag vocabulary for the dataset hub cards](../../docs/decisions/2026-10-12-card-tag-vocabulary.md)
+- [A status sentence and one next step on every hub card](../../docs/decisions/2026-11-06-card-status-sentence.md) (supersedes the [card tag vocabulary](../../docs/decisions/2026-10-12-card-tag-vocabulary.md))
 - [Accept SDS-packaged tools in the portal tool wizard](../../docs/decisions/2026-10-01-accept-sds-packages-in-tool-wizard.md)
 - [Relicense the portal under Apache 2.0](../../docs/decisions/2026-10-27-relicense-portal-apache-2.md)

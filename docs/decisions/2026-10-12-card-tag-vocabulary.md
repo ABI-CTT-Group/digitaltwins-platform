@@ -1,7 +1,7 @@
 # One tag vocabulary for the dataset hub cards
 
 - **Date:** 2026-10-12
-- **Status:** Accepted
+- **Status:** Superseded by [2026-11-06-card-status-sentence.md](2026-11-06-card-status-sentence.md)
 
 ## Context
 
