@@ -73,7 +73,9 @@ export async function useWorkflowTools(): Promise<ToolResponse[]> {
     (id) => `/tools/plugin/${id}/builds`,
     // Enrich with deploy status for GUI tools whose latest build completed
     async (tool, latestBuild) => {
-      const handoff = { handoffStatus: latestBuild.handoffStatus ?? null, handoffError: latestBuild.handoffError };
+      // The latest build's handoff, and why the build failed (the card's status line).
+      const handoff = { handoffStatus: latestBuild.handoffStatus ?? null, handoffError: latestBuild.handoffError,
+                        buildError: latestBuild.errorMessages };
       if (!tool.hasBackend || latestBuild.status !== 'completed') return handoff;
       try {
         const deploys = await http.get<ToolDeployResponse[]>(
@@ -86,6 +88,7 @@ export async function useWorkflowTools(): Promise<ToolResponse[]> {
           return {
             ...handoff,
             deployStatus: latestDeploy.status,
+            deployError: latestDeploy.error,
             latestDeployId: latestDeploy.deployId,
             // start/end so the log console can show deploy DURATION on reopen
             latestDeployCreatedAt: latestDeploy.createdAt,

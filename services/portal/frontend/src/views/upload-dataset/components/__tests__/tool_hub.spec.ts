@@ -63,6 +63,24 @@ describe("useToolHub", () => {
 
     const enrich = fetchWithLatestBuild.mock.calls[0][2];
     expect(await enrich({ id: "t1" }, { handoffStatus: "failed", handoffError: "SEEK 403", status: "completed" }))
-      .toEqual({ handoffStatus: "failed", handoffError: "SEEK 403" });
+      .toEqual({ handoffStatus: "failed", handoffError: "SEEK 403", buildError: undefined });
+  });
+
+  it("keeps why the latest build failed, for the card's status line", async () => {
+    get.mockResolvedValue([]);
+    await useToolHub();
+
+    const enrich = fetchWithLatestBuild.mock.calls[0][2];
+    expect(await enrich({ id: "t1" }, { status: "failed", errorMessages: "npm ERR! missing script" }))
+      .toMatchObject({ buildError: "npm ERR! missing script" });
+  });
+
+  it("keeps why the backend's last deploy failed", async () => {
+    get.mockResolvedValue([{ deployId: "d1", status: "failed", error: "port 8000 is already allocated", createdAt: "2026-11-06" }]);
+    await useToolHub();
+
+    const enrich = fetchWithLatestBuild.mock.calls[0][2];
+    expect(await enrich({ id: "t1", hasBackend: true }, { status: "completed", buildId: "b1" }))
+      .toMatchObject({ deployStatus: "failed", deployError: "port 8000 is already allocated" });
   });
 });

@@ -97,6 +97,8 @@ const props = withDefaults(
     /** Optional predicate (e.g. a status filter) applied on top of the search box.
      *  Pass a computed so a new reference flows through whenever the filter changes. */
     filterFn?: (item: T) => boolean;
+    /** Optional order (e.g. what needs you first), applied before the search ranks matches. */
+    sortFn?: (a: T, b: T) => number;
   }>(),
   {
     registerLabel: 'Register a new item',
@@ -106,6 +108,7 @@ const props = withDefaults(
     pollInterval: 5000,
     isPending: () => false,
     filterFn: undefined,
+    sortFn: undefined,
   },
 );
 
@@ -128,7 +131,8 @@ let refreshInterval: number | undefined;
 
 // ---- refresh / search -----------------------------------------------------
 const applyDisplay = () => {
-  const base = props.filterFn ? allItems.value.filter(props.filterFn) : allItems.value;
+  const filtered = props.filterFn ? allItems.value.filter(props.filterFn) : allItems.value;
+  const base = props.sortFn ? [...filtered].sort(props.sortFn) : filtered;
   if (!search.value) { displayItems.value = base; return; }
   const fuse = new Fuse(base, { keys: ['name'], threshold: 0.4 });
   displayItems.value = fuse.search(search.value).map((r) => r.item);
@@ -161,7 +165,7 @@ const load = async () => {
 };
 
 watch(search, () => applyDisplay());
-watch(() => props.filterFn, () => applyDisplay());
+watch(() => [props.filterFn, props.sortFn], () => applyDisplay());
 
 // ---- auto-polling ---------------------------------------------------------
 watch(isStatusPending, (pending) => {

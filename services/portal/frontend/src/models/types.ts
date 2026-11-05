@@ -184,7 +184,13 @@ export interface ToolResponse {
     description?: string
     author?: string
     status: string
+    // Why the latest build failed (its error messages), for the card's status line.
+    buildError?: string | null
     deployStatus?: string
+    // Why the backend's last deploy failed.
+    deployError?: string | null
+    // A FHIR annotation exists (optional); portal tools only.
+    hasAnnotation?: boolean
     latestBuildId?: string
     latestDeployId?: string
     // Latest build/deploy start+end timestamps — used by the log console to show
@@ -253,6 +259,7 @@ export interface ToolDeployResponse {
     buildId: string
     deployId: string
     status: string
+    error?: string | null
     createdAt: string
     updatedAt: string
 }
@@ -329,6 +336,10 @@ export interface WorkflowResponse {
     author?: string;
     status: string;
     latestBuildId?: string
+    // Why the latest build failed (its error messages), for the card's status line.
+    buildError?: string | null;
+    // A FHIR annotation exists (optional); portal workflows only.
+    hasAnnotation?: boolean;
     createdAt: string;
     updatedAt: string;
     sourceType?: SourceType;

@@ -2,14 +2,17 @@
   <CardUI
     :title="model.name"
     kind="Model"
-    accent="#b08fe8"
+    accent="var(--accent-models)"
     :menu-items="menuItems"
   >
     <template #description>{{ model.description || 'No description provided.' }}</template>
 
-    <template #meta>
-      <span class="aurora-chip" :style="{ '--chip': registration.color }" :title="registration.title">{{ registration.label }}</span>
-      <span v-if="model.createdAt" class="aurora-chip ms-auto">{{ formatDate(model.createdAt) }}</span>
+    <template #status><StatusLine :status="status" /></template>
+
+    <template v-if="status.action" #action>
+      <button type="button" class="aurora-btn aurora-btn--sm" @click.stop="runAction(status.action)">
+        {{ ACTION_LABELS[status.action] }}
+      </button>
     </template>
   </CardUI>
 </template>
@@ -17,8 +20,8 @@
 <script setup lang="ts">
 import { computed, toRef } from 'vue';
 import CardUI, { type UCardMenuItem } from '../../components/CardUI.vue';
-import { formatDate } from '../../components/utils';
-import { measurementRegistrationTag } from '../../components/cardTags';
+import StatusLine from '../../components/StatusLine.vue';
+import { ACTION_LABELS, datasetStatus, type CardAction } from '../../components/cardStatus';
 import type { MeasurementResponse } from '@/models/types';
 
 // Statuses are those of measurement_api's adapters: pending_upload (receiving),
@@ -37,30 +40,29 @@ const emit = defineEmits<{
 const model = toRef(props, 'model');
 const busy = computed(() => model.value.status === 'uploading');
 
-const registration = computed(() => measurementRegistrationTag(model.value));
+const status = computed(() => datasetStatus(model.value));
 
+const runAction = (action: CardAction) => {
+  const m = model.value;
+  if (action === 'approve' || action === 'approve-again') emit('approve', m);
+  else if (action === 'resume-upload') emit('resumeUpload', m.id);
+  else if (action === 'retry-fhir') emit('retryFhir', m.id);
+};
+
+// The status line's action is the card's button (approve, resume, retry FHIR); the menu holds the rest.
 const menuItems = computed<UCardMenuItem[]>(() => {
   const m = model.value;
   if (m.status === 'pending_upload') {
-    return [
-      { label: 'Resume upload', icon: 'mdi-play-circle-outline', onClick: () => emit('resumeUpload', m.id) },
-      { label: 'Cancel upload', icon: 'mdi-close-circle-outline', danger: true, onClick: onCancelUpload },
-    ];
+    return [{ label: 'Cancel upload', icon: 'mdi-close-circle-outline', danger: true, onClick: onCancelUpload }];
   }
+  const annotation: UCardMenuItem = { label: m.hasAnnotation ? 'Edit FHIR annotation' : 'Add FHIR annotation',
+    icon: 'mdi-pencil-outline', disabled: busy.value, onClick: () => emit('edit', m) };
   if (!m.uuid) {
-    // Staged or failed session: approve (commit), edit its FHIR draft, or drop it.
-    return [
-      { label: 'Approve (register model)', icon: 'mdi-cloud-upload-outline', disabled: busy.value, onClick: () => emit('approve', m) },
-      { label: 'Edit FHIR details', icon: 'mdi-pencil-outline', disabled: busy.value, onClick: () => emit('edit', m) },
-      { label: 'Cancel upload', icon: 'mdi-close-circle-outline', danger: true, disabled: busy.value, onClick: onCancelUpload },
-    ];
+    // Staged or failed session: annotate it (optional) or drop it.
+    return [annotation,
+      { label: 'Cancel upload', icon: 'mdi-close-circle-outline', danger: true, disabled: busy.value, onClick: onCancelUpload }];
   }
-  const items: UCardMenuItem[] = [
-    { label: m.hasAnnotation ? 'Edit FHIR details' : 'Publish to FHIR', icon: 'mdi-pencil-outline', disabled: busy.value, onClick: () => emit('edit', m) },
-  ];
-  if (m.status === 'fhir_failed') {
-    items.push({ label: 'Retry FHIR registration', icon: 'mdi-refresh', onClick: () => emit('retryFhir', m.id) });
-  }
+  const items: UCardMenuItem[] = [annotation];
   items.push({ label: 'Delete model', icon: 'mdi-trash-can-outline', danger: true, disabled: busy.value, onClick: () => emit('delete', m) });
   return items;
 });

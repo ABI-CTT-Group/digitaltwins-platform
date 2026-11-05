@@ -6,23 +6,13 @@
     accent="var(--accent-workflows)"
     :fetch-list="useWorkflowHub"
     :is-pending="(items) => items.some(w => w.status === 'building')"
-    :filter-fn="registrationFilterFn"
+    :filter-fn="hub.filterFn.value"
+    :sort-fn="hub.sortFn"
+    @refresh="hub.onRefresh"
     @register="handleRegister"
   >
     <template #filters>
-      <v-select
-        v-model="registrationFilter"
-        :items="registrationFilterOptions"
-        item-title="title"
-        item-value="value"
-        label="Registration status"
-        variant="outlined"
-        base-color="#5f7884"
-        color="#7fb2f0"
-        density="compact"
-        hide-details
-        style="width: 220px;"
-      />
+      <HubFilterChips v-model="hub.filter.value" :counts="hub.counts.value" />
     </template>
 
     <template #default="{ items }">
@@ -33,8 +23,8 @@
         :can-deploy="authStore.hasAdminRole"
         @delete="confirmDeleteWorkflow"
         @delete-platform="openPlatformDelete"
-        @submit-approve="(id) => handleWorkflowApproval(id)"
         @approve-platform="openApproval"
+        @retry-fhir="handleRetryFhir"
         @approval-done="onApprovalDone"
         @deploy-dag="handleDeployDag"
       />
@@ -56,14 +46,18 @@
 <script setup lang="ts">
 // @ts-ignore - vue-toastification is installed but missing type declarations
 import { useToast } from 'vue-toastification';
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import RegistryView from '../components/RegistryView.vue';
 import WorkflowCard from '../components/WorkflowCard.vue';
 import DeletePlatformDatasetDialog from '../components/DeletePlatformDatasetDialog.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
+import HubFilterChips from '../components/HubFilterChips.vue';
 import { useConfirm } from '../components/useConfirm';
+import { isInPlatform, workflowStatus } from '../components/cardStatus';
+import { useHubFilter } from '../components/hubFilter';
 import ToolApprovalDialog from '../components/ToolApprovalDialog.vue';
-import { useWorkflowHub, useWorkflowApproval, useDeleteWorkflow } from '@/bootstrap/workflow_api';
+import { useWorkflowHub, useDeleteWorkflow } from '@/bootstrap/workflow_api';
+import { useRetryToolFhir } from '@/bootstrap/tool_api';
 import { deployWorkflowDag } from '@/bootstrap/platform_api';
 import { useAuthStore } from '@/store/auth_store';
 import type { ToolApprovalStatus, WorkflowResponse } from '@/models/types';
@@ -73,30 +67,15 @@ const authStore = useAuthStore();
 const registryRef = ref<{ handleRefresh: () => Promise<void> }>();
 const emit = defineEmits(['register']);
 
-// Same "in platform" convention as Tools: uploaded straight to the platform, or a
-// real platform uuid vs. the `sparc-workflow-` placeholder a row gets before it's
-// actually registered.
-const isWorkflowInPlatform = (w: WorkflowResponse) =>
-  !!w.platformOnly || (!!w.uuid && !w.uuid.startsWith('sparc-workflow-'));
-
-const registrationFilterOptions = [
-  { title: 'All', value: 'all' },
-  { title: 'In platform', value: 'in-platform' },
-  { title: 'Not in platform', value: 'not-in-platform' },
-];
-const registrationFilter = ref<'all' | 'in-platform' | 'not-in-platform'>('all');
-const registrationFilterFn = computed(() => {
-  if (registrationFilter.value === 'all') return undefined;
-  const wantInPlatform = registrationFilter.value === 'in-platform';
-  return (w: WorkflowResponse) => isWorkflowInPlatform(w) === wantInPlatform;
-});
+// All · Needs you · In progress · In the platform, from each card's status line; what needs you first.
+const hub = useHubFilter((w: WorkflowResponse) => workflowStatus(w, { canDeploy: authStore.hasAdminRole }));
 
 const handleRegister = () => emit('register');
 
 const confirm = useConfirm();
 const confirmDeleteWorkflow = (w: WorkflowResponse) => confirm.ask({
   title: `Delete ${w.name}?`,
-  text: isWorkflowInPlatform(w)
+  text: isInPlatform(w, 'sparc-workflow-')
     ? 'The workflow is removed from the portal and from the platform, with the tool datasets its steps run. This can\'t be undone.'
     : 'The workflow is removed from the portal, with its builds. This can\'t be undone.',
   confirmLabel: 'Delete workflow',
@@ -144,17 +123,13 @@ const handleDeployDag = async (w: WorkflowResponse) => {
   await registryRef.value?.handleRefresh();
 };
 
-const handleWorkflowApproval = async (id: string) => {
+const handleRetryFhir = async (w: WorkflowResponse) => {
   try {
-    const res = await useWorkflowApproval(id);
-    if (res) {
-      toast.success('Workflow submitted for approval successfully.');
-    } else {
-      toast.error('Failed to submit workflow for approval.');
-    }
-  } catch (error) {
-    console.error('Error submitting workflow for approval:', error);
-    toast.error('An error occurred while submitting the workflow for approval.');
+    await useRetryToolFhir(w.uuid ?? w.id);
+    toast.success('Publishing the workflow to FHIR again.');
+  } catch (err: any) {
+    toast.error(`Retry FHIR failed: ${err?.response?.data?.detail ?? err?.message ?? 'unknown error'}`);
   }
+  await registryRef.value?.handleRefresh();
 };
 </script>
