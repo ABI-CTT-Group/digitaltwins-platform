@@ -365,7 +365,7 @@ const handleClose = () => emit('close');
 .no_data { height: 20dvh; }
 .step-heading {
   color: #5fd6e8;
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-weight: 500;
 }
 .label-amber { color: #ffb74d; }

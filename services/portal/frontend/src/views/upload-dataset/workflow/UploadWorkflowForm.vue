@@ -122,7 +122,7 @@ const handleCancel = ()=>{
   border-radius: 20px !important;
 }
 .wizard-title {
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-weight: 500;
   color: #fff;
 }

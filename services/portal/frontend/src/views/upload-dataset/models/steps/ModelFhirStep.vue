@@ -132,7 +132,7 @@ async function handleFinish() {
 <style scoped>
 .step-heading {
   color: #b08fe8;
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-weight: 500;
 }
 .step-sub { color: #9fb4bf; }

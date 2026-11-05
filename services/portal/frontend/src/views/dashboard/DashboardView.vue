@@ -89,13 +89,12 @@ watch(
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap');
 
 .dashboard {
   position: relative;
   min-height: 100%;
   padding: clamp(28px, 6vh, 72px) clamp(20px, 5vw, 80px) 64px;
-  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  font-family: var(--font-ui);
   color: #e9f2f5;
   /* Aurora background is provided once by .page-aurora in layouts/View.vue. */
 }

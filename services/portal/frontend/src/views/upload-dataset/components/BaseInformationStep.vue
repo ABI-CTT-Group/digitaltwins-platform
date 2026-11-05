@@ -498,7 +498,7 @@ async function handleSubmit() {
 <style scoped>
 .step-heading {
   color: #5fd6e8;
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-weight: 500;
 }
 </style>

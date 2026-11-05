@@ -212,7 +212,7 @@ onBeforeUnmount(() => {
 
 .log-header__title {
   color: #e9f2f5;
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
