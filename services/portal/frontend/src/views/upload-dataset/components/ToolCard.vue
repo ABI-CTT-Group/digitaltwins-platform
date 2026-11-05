@@ -159,7 +159,7 @@ const onRebuild = () => {
     // started — that pulls the real PENDING/BUILDING status from backend.
     emit("rebuild", tool.value.id)
 }
-const onSubmit = () => emit("submit-approve", tool.value.id)
+const onSubmit = () => emit("submit-approve", tool.value)
 // The hub confirms and deletes.
 const onDelete = () => emit("delete", tool.value)
 </script>

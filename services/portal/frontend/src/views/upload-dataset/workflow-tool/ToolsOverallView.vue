@@ -35,7 +35,7 @@
         @compose-down="(id) => handleExecuteDockerCompose(id, 'down')"
         @delete="confirmDeleteTool"
         @delete-platform="openPlatformDelete"
-        @submit-approve="(id) => handleToolApproval(id)"
+        @submit-approve="openApproval"
         @retry-fhir="handleRetryFhir"
         @approval-done="onApprovalDone"
         @view-logs="handleViewLogs"
@@ -49,7 +49,7 @@
 
   <ConfirmDialog v-if="confirm.request.value" v-model="confirm.open.value" v-bind="confirm.request.value" />
 
-  <ToolApprovalDialog v-model="approvalDialogOpen" :item="approvalTool" @done="onApprovalDone" />
+  <ApproveDialog v-model="approvalOpen" category="tools" :item="approvalTool" @finished="registryRef?.handleRefresh()" />
 
   <DeletePlatformDatasetDialog v-model="platformDeleteOpen" kind="tool" :item="platformDeleteItem"
                                @deleted="handleDeleteTool" />
@@ -69,7 +69,7 @@ import { useToast } from 'vue-toastification';
 import RegistryView from '../components/RegistryView.vue';
 import ToolCard from '../components/ToolCard.vue';
 import RebuildAuthDialog from '../components/RebuildAuthDialog.vue';
-import ToolApprovalDialog from '../components/ToolApprovalDialog.vue';
+import ApproveDialog from '../components/ApproveDialog.vue';
 import DeletePlatformDatasetDialog from '../components/DeletePlatformDatasetDialog.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import HubFilterChips from '../components/HubFilterChips.vue';
@@ -288,17 +288,11 @@ const handleExecuteDockerCompose = async (id: string, command: 'up' | 'down') =>
 
 // Approval hands the latest build to the platform (SEEK + Postgres + MinIO); the
 // dialog picks the SEEK project and follows the handoff's progress.
-const approvalDialogOpen = ref(false);
+const approvalOpen = ref(false);
 const approvalTool = ref<ToolResponse | null>(null);
-
-const handleToolApproval = async (id: string) => {
-  const items = (await useWorkflowTools().catch(() => [])) as ToolResponse[];
-  approvalTool.value = items.find((t) => t.id === id) ?? null;
-  if (!approvalTool.value) {
-    toast.error('Could not find the tool to approve.');
-    return;
-  }
-  approvalDialogOpen.value = true;
+const openApproval = (t: ToolResponse) => {
+  approvalTool.value = t;
+  approvalOpen.value = true;
 };
 
 const handleRetryFhir = async (t: ToolResponse) => {

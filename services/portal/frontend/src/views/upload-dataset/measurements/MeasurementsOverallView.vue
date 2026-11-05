@@ -38,9 +38,10 @@
 
   <ConfirmDialog v-if="confirm.request.value" v-model="confirm.open.value" v-bind="confirm.request.value" />
 
-  <ApprovalDialog
+  <ApproveDialog
     v-model="approvalOpen"
-    :measurement="approvalMeasurement"
+    category="measurements"
+    :item="approvalMeasurement"
     @finished="handleApprovalFinished"
   />
 </template>
@@ -52,7 +53,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import RegistryView from '../components/RegistryView.vue';
 import MeasurementCard from './components/MeasurementCard.vue';
-import ApprovalDialog from './components/ApprovalDialog.vue';
+import ApproveDialog from '../components/ApproveDialog.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import HubFilterChips from '../components/HubFilterChips.vue';
 import { useConfirm } from '../components/useConfirm';

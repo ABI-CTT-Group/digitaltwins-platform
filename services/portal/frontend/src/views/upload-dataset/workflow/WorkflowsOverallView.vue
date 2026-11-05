@@ -39,7 +39,7 @@
 
   <ConfirmDialog v-if="confirm.request.value" v-model="confirm.open.value" v-bind="confirm.request.value" />
 
-  <ToolApprovalDialog v-model="approvalOpen" kind="workflow" :item="approvalWorkflow" @done="onApprovalDone" />
+  <ApproveDialog v-model="approvalOpen" category="workflows" :item="approvalWorkflow" @finished="registryRef?.handleRefresh()" />
 
   <DeletePlatformDatasetDialog v-model="platformDeleteOpen" kind="workflow" :item="platformDeleteItem"
                                @deleted="registryRef?.handleRefresh()" />
@@ -59,7 +59,7 @@ import { isInPlatform, workflowStatus } from '../components/cardStatus';
 import { useHubFilter } from '../components/hubFilter';
 import { nextStep, registerRoute } from '../components/registrationSteps';
 import { useRouter } from 'vue-router';
-import ToolApprovalDialog from '../components/ToolApprovalDialog.vue';
+import ApproveDialog from '../components/ApproveDialog.vue';
 import { useWorkflowHub, useDeleteWorkflow } from '@/bootstrap/workflow_api';
 import { useRetryToolFhir } from '@/bootstrap/tool_api';
 import { deployWorkflowDag } from '@/bootstrap/platform_api';

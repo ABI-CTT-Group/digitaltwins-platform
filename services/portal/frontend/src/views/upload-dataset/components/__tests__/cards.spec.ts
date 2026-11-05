@@ -122,7 +122,7 @@ describe("ToolCard", () => {
     const w = mountTool(GUI_TOOL);
     expect(sentence(w)).toBe("Built — not in the platform yet");
     await action(w).trigger("click");
-    expect(w.emitted("submit-approve")?.[0]).toEqual(["t1"]);
+    expect(w.emitted("submit-approve")?.[0]).toEqual([GUI_TOOL]);
   });
 
   it("launches a GUI tool in the platform; its backend failure is a chip and Launch retries", async () => {
