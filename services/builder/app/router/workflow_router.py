@@ -211,7 +211,12 @@ async def create_tool_annotation(workflow_id: str, annotation: WorkflowAnnotatio
 @router.get("/", response_model=List[WorkflowResponse])
 async def get_plugins(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     workflows = db.query(Workflow).offset(skip).limit(limit).all()
-    return workflows
+    responses = []
+    for w in workflows:
+        response = WorkflowResponse.model_validate(w)
+        response.has_annotation = w.annotation is not None
+        responses.append(response)
+    return responses
 
 
 @router.get("/metadata")
@@ -293,11 +298,13 @@ async def get_gui_tools(db: Session = Depends(get_db)):
             "backend_deploy_command": "",
             "tool_metadata": {},
             "status": (served or latest).status,
+            "build_error": latest.error_messages,
             "latest_build_id": latest.build_id,
             "latest_build_created_at": _iso(latest.created_at),
             "latest_build_updated_at": _iso(latest.updated_at),
             "uuid": served.tool_dataset_uuid if served else None,
             "deploy_status": deploy.status if deploy else None,
+            "deploy_error": deploy.error if deploy else None,
             "latest_deploy_id": deploy.deploy_id if deploy else None,
             "latest_deploy_created_at": _iso(deploy.created_at) if deploy else None,
             "latest_deploy_updated_at": _iso(deploy.updated_at) if deploy else None,

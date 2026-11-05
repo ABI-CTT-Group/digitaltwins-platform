@@ -115,6 +115,7 @@ async def get_plugins(skip: int = 0, limit: int = 100, db: Session = Depends(get
     for p in plugins:
         response = PluginResponse.model_validate(p)
         response.workflow_ids = [w.id for w in p.workflows]
+        response.has_annotation = p.annotation is not None
         responses.append(response)
 
     return responses

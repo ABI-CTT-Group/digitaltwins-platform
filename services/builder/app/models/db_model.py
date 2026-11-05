@@ -281,6 +281,7 @@ class PluginResponse(PluginBase):
     plugin_metadata: Optional[dict] = None
     workflow_ids: Optional[List[str]] = None
     local_archive_path: Optional[str] = None
+    has_annotation: bool = False  # a FHIR annotation exists (optional; set by the list route)
     created_at: datetime
     updated_at: datetime
 
@@ -323,7 +324,7 @@ class PluginBuildResponse(BuildBase):
 class PluginDeployBase(BaseModel):
     deploy_id: Optional[str] = None
     status: Optional[str] = BuildStatus.PENDING.value
-    error_messages: Optional[str] = None
+    error: Optional[str] = None  # why the last deploy failed
 
 
 class PluginDeployResponse(PluginDeployBase):
@@ -455,6 +456,7 @@ class WorkflowResponse(WorkflowBase):
     local_archive_path: Optional[str] = None
     seek_project_id: Optional[int] = None
     is_sds: Optional[bool] = None  # set by the build; never accepted from the client
+    has_annotation: bool = False  # a FHIR annotation exists (optional; set by the list route)
     created_at: datetime
     updated_at: datetime
 
