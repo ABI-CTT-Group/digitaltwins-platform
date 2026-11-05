@@ -1,109 +1,75 @@
 <template>
-  <v-container class="d-flex align-center justify-center">
-    <v-card
-      class="pa-6 responsive-box d-flex flex-column align-center justify-center aurora-panel"
-      flat
-    >
-      <h2 class="w-100 text-center my-3 wizard-title">{{ isEdit ? 'Edit Annotation' : 'New Measurement Dataset' }}</h2>
-      <v-stepper v-model="step" alt-labels class="sheet-stepper">
-        <v-stepper-header>
-          <v-stepper-item title="Information" :value="1" color="#5fd6e8" :complete="step > 1" />
-          <v-divider />
-          <v-stepper-item title="Annotation" :value="2" color="#5fd6e8" :complete="step > 2" />
-        </v-stepper-header>
-
-        <v-stepper-window>
-          <v-stepper-window-item :value="1">
-            <v-card class="pa-4 step-pane" flat>
-              <InformationStep
-                :resume-measurement-id="resumeMeasurementId"
-                @created="handleCreated"
-                @cancel="handleCancel"
-              />
-            </v-card>
-          </v-stepper-window-item>
-
-          <v-stepper-window-item :value="2">
-            <v-card class="pa-4 step-pane" flat>
-              <AnnotationStep
-                v-if="measurement"
-                :measurement="measurement"
-                @saved="handleAnnotationSaved"
-                @cancel="handleCancel"
-              />
-            </v-card>
-          </v-stepper-window-item>
-        </v-stepper-window>
-      </v-stepper>
-    </v-card>
-  </v-container>
+  <WizardFrame :steps="['Upload', 'FHIR annotation (optional)']" :current="step === 'upload' ? 1 : 2">
+    <InformationStep
+      v-if="step === 'upload'"
+      ref="info"
+      :resume-measurement-id="id"
+      @created="handleCreated"
+      @cancel="cancel"
+    />
+    <AnnotationStep
+      v-else-if="measurement"
+      :measurement="measurement"
+      @saved="toHub"
+      @skip="toHub"
+      @cancel="toHub"
+    />
+    <p v-else-if="loadError" class="step-error" role="alert">
+      <v-icon icon="mdi-alert-circle-outline" size="18" /> {{ loadError }}
+    </p>
+    <v-progress-linear v-else indeterminate color="#5fd6e8" />
+  </WizardFrame>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+/**
+ * The measurement registration wizard: Upload → FHIR annotation (optional).
+ * `/catalogue/measurements/new` uploads; once the upload is staged the wizard moves to the dataset's own URL,
+ * `/catalogue/measurements/<id>/register?step=annotation`. `?step=upload` resumes a paused upload.
+ * The dataset is approved from its card afterwards.
+ */
+import { computed, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import InformationStep from './steps/InformationStep.vue';
 import AnnotationStep from './steps/AnnotationStep.vue';
+import { useGetMeasurement } from '@/bootstrap/measurement_api';
+import { describeApiError } from '../components/apiError';
+import { hubRoute, registerRoute } from '../components/registrationSteps';
+import { useLeaveGuard } from '../components/useLeaveGuard';
+import WizardFrame from '../components/WizardFrame.vue';
 import type { MeasurementResponse } from '@/models/types';
 
-// In edit mode the parent passes an existing measurement; we skip the
-// Information step and open Annotation directly so the user re-edits the
-// saved draft. In create mode both props are undefined and we start at step 1.
-const props = defineProps<{
-  measurement?: MeasurementResponse;
-  initialStep?: number;
-  resumeMeasurementId?: string;
-}>();
+const props = defineProps<{ id?: string }>();
+const route = useRoute();
+const router = useRouter();
 
-const emit = defineEmits(['finished']);
+const step = computed(() => (!props.id || route.query.step === 'upload' ? 'upload' : 'annotation'));
+const info = ref<{ dirty: boolean } | null>(null);
+const measurement = ref<MeasurementResponse>();
+const loadError = ref('');
+const left = ref(false);
 
-const isEdit = !!props.measurement;
-const step = ref(props.initialStep ?? 1);
-const measurement = ref<MeasurementResponse | undefined>(props.measurement);
+// An upload running, or a source chosen for one: leaving stops it.
+useLeaveGuard(() => step.value === 'upload' && !left.value && !!info.value?.dirty);
 
-const handleCreated = (created: MeasurementResponse) => {
-  measurement.value = created;
-  step.value = 2;
-};
-
-const handleAnnotationSaved = () => {
-  // Draft saved (no upload). Return to the registry list — the dataset now
-  // shows an Approval action in its card menu.
-  emit('finished');
-};
-
-const handleCancel = () => {
-  emit('finished');
-};
-</script>
-
-<style scoped>
-.responsive-box {
-  width: 90% !important;
-}
-@media (min-width: 2100px) {
-  .responsive-box {
-    width: 75% !important;
+watch([() => props.id, step], async ([id, current]) => {
+  if (!id || current !== 'annotation' || measurement.value?.id === id) return;
+  loadError.value = '';
+  try {
+    measurement.value = await useGetMeasurement(id);
+  } catch (err) {
+    loadError.value = describeApiError(err, 'Loading');
   }
-}
-.aurora-panel {
-  background: rgba(8, 18, 26, 0.55) !important;
-  border: 1px solid rgba(120, 200, 220, 0.16);
-  border-radius: 20px !important;
-}
-.wizard-title {
-  font-family: var(--font-title);
-  font-weight: 500;
-  color: #fff;
-}
-.sheet-stepper {
-  width: 95%;
-  min-height: 50vh;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-.step-pane {
-  background: rgba(255, 255, 255, 0.02) !important;
-  border: 1px solid rgba(120, 200, 220, 0.14);
-  border-radius: 14px !important;
-}
-</style>
+}, { immediate: true });
+
+const handleCreated = async (created: MeasurementResponse) => {
+  measurement.value = created;
+  left.value = true;
+  await router.replace(registerRoute('measurements', created.id, 'annotation'));
+  left.value = false;
+};
+
+const toHub = () => router.push(hubRoute('measurements'));
+// The step has already cancelled its upload.
+const cancel = async () => { left.value = true; await toHub(); };
+</script>

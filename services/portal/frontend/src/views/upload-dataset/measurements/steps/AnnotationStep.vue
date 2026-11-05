@@ -3,9 +3,9 @@
 
   <div class="annotate">
     <header class="annotate__head">
-      <p class="annotate__eyebrow">Step 2 · FHIR</p>
-      <h3 class="annotate__title">Annotate measurements</h3>
-      <p class="annotate__sub">Review the auto-classified resources, fine-tune codes and metadata, then save as a draft.</p>
+      <h3 class="annotate__title">FHIR annotation (optional)</h3>
+      <p class="annotate__sub">Review the auto-classified resources and fine-tune codes and metadata, or skip this and add it
+        later from the dataset's card. Approving publishes whatever annotation the dataset has.</p>
     </header>
 
     <v-progress-circular
@@ -114,6 +114,16 @@
         @click="emit('cancel')"
       />
       <v-btn
+        color="#9fb4bf"
+        text="Skip for now"
+        variant="outlined"
+        :min-width="150"
+        rounded="lg"
+        class="text-none ma-5"
+        :disabled="submitting"
+        @click="emit('skip')"
+      />
+      <v-btn
         color="#5fd6e8"
         text="Save annotation"
         variant="tonal"
@@ -148,6 +158,7 @@ import type {
 const props = defineProps<{ measurement: MeasurementResponse }>();
 const emit = defineEmits<{
   (e: 'saved'): void;
+  (e: 'skip'): void;
   (e: 'cancel'): void;
 }>();
 
@@ -278,14 +289,6 @@ async function handleSubmit() {
 <style scoped>
 .annotate { padding: 6px 6px 4px; }
 .annotate__head { margin-bottom: 22px; }
-.annotate__eyebrow {
-  margin: 0 0 6px;
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: #5fd6e8;
-}
 .annotate__title {
   margin: 0;
   font-family: var(--font-title);

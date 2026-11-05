@@ -58,6 +58,7 @@ import HubFilterChips from '../components/HubFilterChips.vue';
 import { useConfirm } from '../components/useConfirm';
 import { datasetStatus } from '../components/cardStatus';
 import { useHubFilter } from '../components/hubFilter';
+import { registerRoute } from '../components/registrationSteps';
 import { clearExportFields } from './components/clearExportFields';
 import {
   useMeasurement,
@@ -70,18 +71,13 @@ import type { MeasurementResponse } from '@/models/types';
 
 const toast = useToast();
 const router = useRouter();
-const emit = defineEmits<{
-  (e: 'register'): void;
-  (e: 'resume', id: string): void;
-  (e: 'edit', m: MeasurementResponse): void;
-}>();
 
 const registryRef = ref<{ handleRefresh: () => Promise<void> }>();
 
 const approvalOpen = ref(false);
 const approvalMeasurement = ref<MeasurementResponse | null>(null);
 
-const handleRegister = () => emit('register');
+const handleRegister = () => router.push({ name: 'RegisterMeasurement' });
 
 // Auto-polling kicks in while ANY measurement is still in-flight. We pick a
 // generous predicate (pending + uploading) so a row that's just been created
@@ -111,10 +107,10 @@ const confirmDelete = (m: MeasurementResponse) => confirm.ask({
   },
 });
 
-// Resume = open the form bound to this specific unfinished upload (resume mode):
+// Resume = open the wizard bound to this specific unfinished upload (resume mode):
 // name locked, no uniqueness check, dropped folder validated against the
 // server's authoritative manifest. See InformationStep.
-const handleResumeUpload = (id: string) => emit('resume', id);
+const handleResumeUpload = (id: string) => router.push(registerRoute('measurements', id, 'upload'));
 
 // pending_upload rows are aborted through /upload/cancel (drops tmp parts + row),
 // not the generic delete which assumes a fully-staged dataset.
@@ -152,11 +148,8 @@ const handleApprovalFinished = async () => {
   await registryRef.value?.handleRefresh();
 };
 
-const handleEdit = (m: MeasurementResponse) => {
-  // Re-enter the annotation form for this draft — index.vue owns the
-  // list/form toggle, so bubble it up.
-  emit('edit', m);
-};
+// Add or edit the draft's FHIR annotation in its wizard.
+const handleEdit = (m: MeasurementResponse) => router.push(registerRoute('measurements', m.id, 'annotation'));
 
 const handlePreview = (m: MeasurementResponse) => {
   router.push({ name: 'MeasurementFhirPreview', params: { id: m.id } });

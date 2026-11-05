@@ -30,7 +30,7 @@ import { ToolResponse } from '@/models/types';
 import { useToolApprovalStatus } from '@/bootstrap/tool_api'
 import CardUI, { type UCardMenuItem } from './CardUI.vue';
 import StatusLine from './StatusLine.vue';
-import { ACTION_LABELS, toolStatus, type CardAction } from './cardStatus';
+import { ACTION_LABELS, isInPlatform, toolStatus, type CardAction } from './cardStatus';
 
 const props = defineProps<{
   tool: ToolResponse
@@ -65,10 +65,10 @@ watch(handoffActive, (active) => {
 }, { immediate: true })
 onBeforeUnmount(stopApprovalPoll)
 
-const emit = defineEmits(["launch", "rebuild", "submit-approve", "retry-fhir", "compose-down", "delete", "delete-platform", "view-logs", "approval-done"])
+const emit = defineEmits(["launch", "rebuild", "continue", "edit-annotation", "submit-approve", "retry-fhir", "compose-down", "delete", "delete-platform", "view-logs", "approval-done"])
 
 const runAction = (action: CardAction) => {
-  if (action === 'build') onRebuild()
+  if (action === 'continue') emit("continue", tool.value)
   else if (action === 'view-logs') onViewLogs()
   else if (action === 'approve' || action === 'approve-again') onSubmit()
   else if (action === 'launch') onLaunch()
@@ -101,6 +101,11 @@ const menuItems = computed<UCardMenuItem[]>(() => {
   const items: UCardMenuItem[] = []
   if (isGui && tool.value.status === 'completed' && action !== 'launch') {
     items.push({ label: 'Launch', icon: 'mdi-rocket-launch-outline', onClick: onLaunch })
+  }
+  // The FHIR annotation is optional; it can be added or changed until the tool is in the platform.
+  if (!isInPlatform(tool.value, 'sparc-tool-')) {
+    items.push({ label: tool.value.hasAnnotation ? 'Edit FHIR annotation' : 'Add FHIR annotation', icon: 'mdi-pencil-outline',
+      onClick: () => emit("edit-annotation", tool.value) })
   }
   items.push({ label: 'Rebuild', icon: 'mdi-refresh', onClick: onRebuild })
   if (tool.value.deployStatus === 'completed' && isGui) {

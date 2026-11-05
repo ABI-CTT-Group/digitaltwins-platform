@@ -129,6 +129,20 @@ body {
 /* A problem on a card that is otherwise fine (e.g. "backend failed"); its reason is the title. */
 .aurora-chip--problem { --chip: var(--tone-failed); }
 
+/* A wizard step's inline error: why its last call failed, above the step's buttons. */
+.step-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 72ch;
+  margin: 0 auto 4px;
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--tone-failed);
+  overflow-wrap: anywhere;
+}
+
 /* Empty state text a hub passes into RegistryView's #empty slot. */
 .hub-empty {
   margin: 0;

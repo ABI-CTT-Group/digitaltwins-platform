@@ -3,7 +3,7 @@
     <v-card rounded="lg" flat class="overflow-hidden auth-dialog">
       <v-card-title class="d-flex align-center px-6 pt-6 pb-4 text-h5 dialog-title">
         <v-icon color="#5fd6e8" class="mr-3" size="32">mdi-shield-refresh-outline</v-icon>
-        Rebuild Access
+        {{ title }}
       </v-card-title>
 
       <v-card-text class="px-6 pb-6">
@@ -15,8 +15,7 @@
           class="mb-6 rounded-md text-body-2"
           icon="mdi-information-outline"
         >
-          Tokens are not persisted server-side. Every rebuild needs them re-supplied.
-          Leave blank if this repository is public.
+          {{ note }}
         </v-alert>
 
         <!-- Provider Chip area -->
@@ -130,11 +129,21 @@
 import { ref, computed, watch } from 'vue'
 import type { SourceType, TransientAuth } from '@/models/types'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: boolean
   sourceType?: SourceType | null
   busy?: boolean
-}>()
+  /** Rebuild asks by default; continuing a registration asks to read the repository again. */
+  title?: string
+  note?: string
+  /** The submit button's verb: "Build with Token", "Continue with Token". */
+  verb?: string
+}>(), {
+  sourceType: null,
+  title: 'Rebuild Access',
+  verb: 'Build',
+  note: 'Tokens are not persisted server-side. Every rebuild needs them re-supplied. Leave blank if this repository is public.',
+})
 
 const emit = defineEmits<{
   (e: 'update:modelValue', v: boolean): void
@@ -199,8 +208,8 @@ const canSubmit = computed(() => {
 const buildButtonLabel = computed(() => {
   if (_tokenRequired.value) return 'Token Required'
   if (_genericNeedsUsername.value) return 'Username Required'
-  if (token.value) return 'Build with Token'
-  return 'Build as Public'  // github + empty token
+  if (token.value) return `${props.verb} with Token`
+  return `${props.verb} as Public`  // github + empty token
 })
 
 const buildButtonColor = computed(() => {

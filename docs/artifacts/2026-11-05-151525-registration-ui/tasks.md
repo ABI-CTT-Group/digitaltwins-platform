@@ -34,13 +34,23 @@ Branch: `feat/registration-ui-status`.
 - Deviations from the plan, to pick up in PR3: a never-built tool offers **Build** (the Rebuild flow) instead of Continue registration; a never-built workflow offers nothing yet. "Add/Edit FHIR annotation" for tools and workflows waits for the wizard routes.
 
 ## PR3: wizard routes, resume drafts, inline errors, optional FHIR step
-- [ ] Routes (`new`, `:id/register`), hub `index.vue` as layout
-- [ ] `registrationSteps.ts` + Continue registration
-- [ ] Async `submit` props, `apiError.ts`, inline errors
-- [ ] SDS-only workflow source check; follow-up markers on non-SDS paths
-- [ ] Optional FHIR step with Skip; leave guard; token prompt on resume
-- [ ] ADR `sds-only-workflow-registration`
-- [ ] Green; live check; walkthrough
+Branch: `feat/registration-ui-wizard`. Picks up PR2's deviations (Build → Continue registration; never-built workflows; Add/Edit FHIR annotation for tools and workflows).
+- [x] Builder: saving a workflow's annotation again updates it in place, like a tool's (`test_hub_status_fields.py`, red first)
+- [x] `registrationSteps.ts` `nextStep` / `registerRoute` / `hubRoute` + spec; cards: Continue registration replaces Build; Add/Edit FHIR annotation for tools and SDS workflows before approval
+- [x] Routes: each hub `index.vue` is a layout; children `''`, `new`, `:id/register?step=`; roles on the parent (`catalogue_routes.spec.ts`)
+- [x] One tool and workflow wizard, `RegisterWizard.vue` (replaces `UploadToolForm`, `UploadWorkflowForm`, `BaseCompleteStep`): `new` creates once then `router.replace`s to `:id/register?step=annotation`; step 1 a read-only summary there; steps not clickable (`RegisterWizard.spec.ts`)
+- [x] Async `submit` props on `BaseInformationStep` / `BaseAnnotateStep` / `BaseBuildStep`; API errors inline (`apiError.ts` `describeApiError`, shared `.step-error`)
+- [x] SDS-only workflow check in `BaseInformationStep`; `follow-up: non-SDS workflows` markers on the non-SDS paths
+- [x] Optional FHIR step: "FHIR annotation (optional)" + Skip for now (tool, workflow, measurement; model renamed); a saved tool or SDS workflow annotation is filled in on edit
+- [x] Leave guard (`useLeaveGuard`: route leave + `beforeunload`) while step 1 has input or an upload runs
+- [x] Token prompt on resume (git sources) via `RebuildAuthDialog` (new `title` / `note` / `verb` props); step 1's token kept in tab memory only (`pendingAuth.ts`)
+- [x] Measurements and models: `new` / `:id/register?step=upload|annotation` routes (`dataset_wizards.spec.ts`)
+- [x] `WizardFrame.vue`: the three wizards' shared frame, with "Step n of m" on phones (found by the 360px screenshot)
+- [x] ADR `2026-11-06-sds-only-workflow-registration`; card-status ADR consequence updated; portal README user guide
+- [x] Green: `make test` (api 407, builder 260, frontend 267, util 5), `make lint`, `make docs-check`
+- [x] Rebuild and restart `builder`, `portal-frontend`; headless Firefox walk-through (stubbed items): Continue registration → annotation → Skip → build, token prompt, leave guard (dismiss stays, accept leaves), 360px
+- [x] Walkthrough (`walkthrough-pr3.md`); sync artifacts; gitleaks dir scan
+- TDD slips: the measurement step's Skip button and `WizardFrame` have no spec of their own (the wizard specs stub them).
 
 ## PR4: one Approve dialog
 - [ ] `ApproveDialog.vue`, `approveAdapters.ts` (+ specs; move ToolApprovalDialog cases)

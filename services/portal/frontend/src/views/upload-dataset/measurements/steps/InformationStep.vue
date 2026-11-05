@@ -332,6 +332,10 @@ onBeforeUnmount(() => {
   uploader.value?.stop();
 });
 
+// Something to lose by leaving: a chosen source, a typed name or an upload running (the wizard's leave guard).
+const dirty = computed(() => !!source.value || submitting.value || !!formData.name.trim());
+defineExpose({ dirty });
+
 const onPause = () => uploader.value?.pause();
 const onResume = () => uploader.value?.resume();
 

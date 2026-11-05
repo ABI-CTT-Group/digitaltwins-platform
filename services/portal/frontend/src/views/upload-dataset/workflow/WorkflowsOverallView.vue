@@ -24,6 +24,8 @@
         @delete="confirmDeleteWorkflow"
         @delete-platform="openPlatformDelete"
         @approve-platform="openApproval"
+        @continue="(wf: WorkflowResponse) => router.push(registerRoute('workflows', wf.id, nextStep(wf)))"
+        @edit-annotation="(wf: WorkflowResponse) => router.push(registerRoute('workflows', wf.id, 'annotation'))"
         @retry-fhir="handleRetryFhir"
         @approval-done="onApprovalDone"
         @deploy-dag="handleDeployDag"
@@ -55,6 +57,8 @@ import HubFilterChips from '../components/HubFilterChips.vue';
 import { useConfirm } from '../components/useConfirm';
 import { isInPlatform, workflowStatus } from '../components/cardStatus';
 import { useHubFilter } from '../components/hubFilter';
+import { nextStep, registerRoute } from '../components/registrationSteps';
+import { useRouter } from 'vue-router';
 import ToolApprovalDialog from '../components/ToolApprovalDialog.vue';
 import { useWorkflowHub, useDeleteWorkflow } from '@/bootstrap/workflow_api';
 import { useRetryToolFhir } from '@/bootstrap/tool_api';
@@ -65,12 +69,12 @@ import type { ToolApprovalStatus, WorkflowResponse } from '@/models/types';
 const toast = useToast();
 const authStore = useAuthStore();
 const registryRef = ref<{ handleRefresh: () => Promise<void> }>();
-const emit = defineEmits(['register']);
+const router = useRouter();
 
 // All · Needs you · In progress · In the platform, from each card's status line; what needs you first.
 const hub = useHubFilter((w: WorkflowResponse) => workflowStatus(w, { canDeploy: authStore.hasAdminRole }));
 
-const handleRegister = () => emit('register');
+const handleRegister = () => router.push({ name: 'RegisterWorkflow' });
 
 const confirm = useConfirm();
 const confirmDeleteWorkflow = (w: WorkflowResponse) => confirm.ask({

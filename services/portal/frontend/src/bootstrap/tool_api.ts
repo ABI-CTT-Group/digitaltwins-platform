@@ -62,6 +62,11 @@ export async function useCreateTool(plugin:ToolInformationStep) {
     return createToolResponse
 }
 
+/** One tool as registered in the builder (GET /api/builder/tools/plugin/{id}): the wizard reopens it. */
+export async function useGetTool(id: string): Promise<ToolResponse> {
+    return http.get<ToolResponse>(`/tools/plugin/${id}`)
+}
+
 export async function useCreateToolAnnotation(id:string, annotation:IAnnotation) {
     const createToolResponse = http.post<AnnotationResponse>(`/tools/plugin/${id}/annotation`, annotation)
     return createToolResponse

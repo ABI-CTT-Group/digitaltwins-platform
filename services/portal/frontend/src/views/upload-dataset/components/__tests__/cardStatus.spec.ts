@@ -8,9 +8,9 @@ const APPROVED = { ...TOOL, uuid: "a8d6da0e-1", handoffStatus: "completed" };
 const pick = (s: ReturnType<typeof toolStatus>) => [s.sentence, s.tone, s.group, s.action];
 
 describe("toolStatus", () => {
-  it("not built yet: build it", () => {
+  it("not built yet: continue its registration", () => {
     expect(pick(toolStatus({ ...TOOL, status: "pending", latestBuildId: undefined })))
-      .toEqual(["Not built yet", "needs", "needs", "build"]);
+      .toEqual(["Not built yet", "needs", "needs", "continue"]);
   });
 
   it("building (or queued): its logs", () => {
@@ -106,9 +106,9 @@ const WORKFLOW = { id: "w1", name: "seg", workflowType: "script", isSds: true, s
 const IN_PLATFORM = { ...WORKFLOW, uuid: "wf-1", handoffStatus: "completed", dagStatus: "deployed" };
 
 describe("workflowStatus", () => {
-  it("not built yet: no action until its wizard can be reopened", () => {
+  it("not built yet: continue its registration", () => {
     expect(pick(workflowStatus({ ...WORKFLOW, status: "pending", latestBuildId: undefined })))
-      .toEqual(["Not built yet", "needs", "needs", undefined]);
+      .toEqual(["Not built yet", "needs", "needs", "continue"]);
   });
 
   it("building, build failed", () => {

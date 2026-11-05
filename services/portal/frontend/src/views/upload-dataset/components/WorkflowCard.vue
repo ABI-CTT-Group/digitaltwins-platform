@@ -28,7 +28,7 @@ import { computed, onBeforeUnmount, toRef, watch } from 'vue'
 import { WorkflowResponse } from '@/models/types';
 import CardUI, { type UCardMenuItem } from './CardUI.vue';
 import StatusLine from './StatusLine.vue';
-import { ACTION_LABELS, workflowStatus, type CardAction } from './cardStatus';
+import { ACTION_LABELS, isInPlatform, workflowStatus, type CardAction } from './cardStatus';
 import { useWorkflowApprovalStatus } from '@/bootstrap/workflow_api';
 
 const props = defineProps<{
@@ -39,13 +39,14 @@ const props = defineProps<{
 
 const workflow = toRef(props, "workflow")
 
-const emit = defineEmits(["approve-platform", "approval-done", "retry-fhir", "delete", "delete-platform", "deploy-dag"])
+const emit = defineEmits(["continue", "edit-annotation", "approve-platform", "approval-done", "retry-fhir", "delete", "delete-platform", "deploy-dag"])
 
 const status = computed(() => workflowStatus(workflow.value, { canDeploy: props.canDeploy }))
 
 // Approve hands an SDS workflow to the platform; non-SDS workflows aren't supported yet (no action).
 const runAction = (action: CardAction) => {
-  if (action === 'approve' || action === 'approve-again') emit("approve-platform", workflow.value)
+  if (action === 'continue') emit("continue", workflow.value)
+  else if (action === 'approve' || action === 'approve-again') emit("approve-platform", workflow.value)
   else if (action === 'deploy-dag') emit("deploy-dag", workflow.value)
   else if (action === 'retry-fhir') emit("retry-fhir", workflow.value)
 }
@@ -56,7 +57,15 @@ const redeployItem = computed<UCardMenuItem[]>(() =>
     ? [{ label: 'Deploy DAG again', icon: 'mdi-rocket-launch-outline', onClick: () => emit("deploy-dag", workflow.value) }]
     : [])
 
+// The FHIR annotation is optional; it can be added or changed until an SDS workflow is in the platform.
+const annotationItem = computed<UCardMenuItem[]>(() =>
+  !isInPlatform(workflow.value, 'sparc-workflow-') && workflow.value.isSds !== false
+    ? [{ label: workflow.value.hasAnnotation ? 'Edit FHIR annotation' : 'Add FHIR annotation', icon: 'mdi-pencil-outline',
+      onClick: () => emit("edit-annotation", workflow.value) }]
+    : [])
+
 const menuItems = computed<UCardMenuItem[]>(() => [
+  ...annotationItem.value,
   ...redeployItem.value,
   // Uploaded via the REST API: the hub confirms the delete (and whether its tools go too).
   workflow.value.platformOnly

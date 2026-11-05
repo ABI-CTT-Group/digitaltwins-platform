@@ -2,7 +2,7 @@
   <v-alert
     v-show="showAlert"
     :text="alertText"
-    title="Required Fields Missing"
+    :title="alertTitle"
     type="error"
   />
   <div>
@@ -129,6 +129,9 @@
     </v-form>
 
     <v-divider class="mb-5" :thickness="3" />
+    <p v-if="submitError" class="step-error" role="alert">
+      <v-icon icon="mdi-alert-circle-outline" size="18" /> {{ submitError }}
+    </p>
     <div class="d-flex flex-row justify-center">
       <v-btn
         color="#9fb4bf"
@@ -142,7 +145,7 @@
       />
       <v-btn
         color="#5fd6e8"
-        :text="type === 'tool' ? 'Submit Tool' : 'Submit Workflow'"
+        text="Save and continue"
         variant="tonal"
         :min-width="150"
         rounded="lg"
@@ -161,6 +164,7 @@ import CommonInfoForm from './CommonInfoForm.vue';
 import LocalFolderDropzone from './LocalFolderDropzone.vue';
 import type { ToolInformationStep, WorkflowInformationStep, CheckNameResponse, TransientAuth, WorkflowType } from '@/models/types';
 import { useCheckName } from '@/bootstrap/api_helpers';
+import { describeApiError } from './apiError';
 import { useGitRepoInfo } from '@/composables/useGithubRepoInfo';
 import { useLocalFolderInfo } from '@/composables/useLocalFolderInfo';
 import {
@@ -171,15 +175,21 @@ import {
 } from '@/bootstrap/upload_source';
 
 // ---- props / emits --------------------------------------------------------
-const props = defineProps<{ type: 'workflow' | 'tool' }>();
-const emit = defineEmits(['cancel', 'submit']);
+const props = defineProps<{
+  type: 'workflow' | 'tool';
+  /** Creates the tool or workflow; a failure stays on this step with its reason. */
+  submit: (data: ToolInformationStep | WorkflowInformationStep, auth?: TransientAuth) => Promise<void>;
+}>();
+const emit = defineEmits(['cancel']);
 
 // ---- state ----------------------------------------------------------------
 const form = ref();
 const dropzone = ref<InstanceType<typeof LocalFolderDropzone> | null>(null);
 const policyCheckbox = ref(false);
 const showAlert = ref(false);
+const alertTitle = ref('Required Fields Missing');
 const alertText = ref('');
+const submitError = ref('');
 // Every tool and workflow needs its root CWL (a tool's describes it in SEEK and for workflows).
 const cwlCheck = ref(false);
 
@@ -247,7 +257,10 @@ const buildAuth = computed<TransientAuth | undefined>(() => {
   };
 });
 
-defineExpose({ buildAuth });
+// Unsaved input, for the wizard's leave guard.
+const dirty = computed(() => !!(formData.name || formData.repositoryUrl || formData.source || formData.description));
+
+defineExpose({ buildAuth, dirty });
 // Computed (not a mirror ref) so reactivity is bulletproof — Vue tracks the
 // nested property read on the underlying reactive `info` object directly.
 const foldersInRoot = computed(() => repoInfo.value.foldersInRoot);
@@ -436,11 +449,23 @@ function axiosWasCanceled(err: any): boolean {
   return err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || err?.name === 'AbortError';
 }
 
+// follow-up: non-SDS workflows. Only SDS workflow packages can be registered for now
+// (docs/decisions/2026-11-06-sds-only-workflow-registration.md).
+const NOT_SDS = "This folder isn't an SDS package (no dataset_description.xlsx). Only SDS workflow packages can be registered for now.";
+
 async function handleSubmit() {
   if (submitting.value) return;
+  submitError.value = '';
+  if (props.type === 'workflow' && !repoInfo.value.isSds) {
+    showAlert.value = true;
+    alertTitle.value = 'Not an SDS package';
+    alertText.value = NOT_SDS;
+    return;
+  }
   const ok = await validate();
   if (!ok) {
     showAlert.value = true;
+    alertTitle.value = 'Required Fields Missing';
     alertText.value =
       props.type === 'tool'
         ? 'Some required fields are missing. Please provide your source (GitHub URL or local folder), tool name, build command, and, if the tool includes a backend, fill in the frontend and backend folder details.'
@@ -477,18 +502,20 @@ async function handleSubmit() {
           frontendBuildCommand: formData.frontendBuildCommand,
         } : {}),
       };
-      // Auth is emitted separately so the wizard's BaseBuildStep can pass
-      // it into the build POST body. NEVER part of the create payload —
+      // Auth goes separately so the wizard's build step can pass it into
+      // the build POST body. NEVER part of the create payload —
       // PluginCreate / WorkflowCreate go to a different endpoint that
       // would (a) reject unknown fields and (b) not need them anyway.
-      emit('submit', workflowData, buildAuth.value);
+      await props.submit(workflowData, buildAuth.value);
     } else {
       // Strip the in-memory `source` blob from the emitted payload — useCreateTool
       // sends JSON, so a File[] / Blob in the body would otherwise be coerced to
       // an empty object and confuse the backend.
       const { source: _src, ...payload } = formData;
-      emit('submit', payload, buildAuth.value);
+      await props.submit(payload, buildAuth.value);
     }
+  } catch (err) {
+    submitError.value = describeApiError(err, 'Saving');
   } finally {
     submitting.value = false;
   }

@@ -2,6 +2,7 @@
 import {
   createRouter,
   createWebHistory,
+  type RouteLocationNormalized,
 } from "vue-router";
 import { useAuthStore } from "@/store/auth_store";
 import { isAuthenticated } from "@/bootstrap/keycloak";
@@ -18,6 +19,13 @@ import UploadWorkflowDataset from "@/views/upload-dataset/workflow/index.vue";
 import UploadMeasurementsDataset from "@/views/upload-dataset/measurements/index.vue";
 import MeasurementFhirPreview from "@/views/upload-dataset/measurements/MeasurementFhirPreview.vue";
 import UploadModelDataset from "@/views/upload-dataset/models/index.vue";
+import ToolsOverallView from "@/views/upload-dataset/workflow-tool/ToolsOverallView.vue";
+import WorkflowsOverallView from "@/views/upload-dataset/workflow/WorkflowsOverallView.vue";
+import MeasurementsOverallView from "@/views/upload-dataset/measurements/MeasurementsOverallView.vue";
+import ModelsOverallView from "@/views/upload-dataset/models/ModelsOverallView.vue";
+import RegisterWizard from "@/views/upload-dataset/components/RegisterWizard.vue";
+import UploadMeasurementForm from "@/views/upload-dataset/measurements/UploadMeasurementForm.vue";
+import UploadModelForm from "@/views/upload-dataset/models/UploadModelForm.vue";
 
 import ToolPluginView from "@/views/tool-plugin/tool-plugin-view.vue";
 
@@ -73,29 +81,49 @@ const routes = [
             redirect: { name: "CatalogueDashboardView" },
             meta: { requiresAuth: true },
             children:[
+              // Each hub is a layout: its list, a new item's wizard, and an existing item's wizard at a step
+              // (views/upload-dataset/components/registrationSteps.ts). Roles sit on the hub and cover all three.
               {
                 path: "/catalogue/tools",
-                name: "UploadToolDataset",
                 component: UploadToolDataset,
                 meta: { requiresAuth: true, requiresRoles: ['admin'] },
+                children: [
+                  { path: "", name: "UploadToolDataset", component: ToolsOverallView },
+                  { path: "new", name: "RegisterTool", component: RegisterWizard, props: { type: "tool" } },
+                  { path: ":id/register", name: "ContinueToolRegistration", component: RegisterWizard,
+                    props: (r: RouteLocationNormalized) => ({ type: "tool", id: r.params.id }) },
+                ],
               },
               {
                 path: "/catalogue/workflows",
-                name: "UploadWorkflowDataset",
                 component: UploadWorkflowDataset,
                 meta: { requiresAuth: true, requiresRoles: ['admin'] },
+                children: [
+                  { path: "", name: "UploadWorkflowDataset", component: WorkflowsOverallView },
+                  { path: "new", name: "RegisterWorkflow", component: RegisterWizard, props: { type: "workflow" } },
+                  { path: ":id/register", name: "ContinueWorkflowRegistration", component: RegisterWizard,
+                    props: (r: RouteLocationNormalized) => ({ type: "workflow", id: r.params.id }) },
+                ],
               },
               {
                 path: "/catalogue/measurements",
-                name: "UploadMeasurementsDataset",
                 component: UploadMeasurementsDataset,
                 meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'] },
+                children: [
+                  { path: "", name: "UploadMeasurementsDataset", component: MeasurementsOverallView },
+                  { path: "new", name: "RegisterMeasurement", component: UploadMeasurementForm },
+                  { path: ":id/register", name: "ContinueMeasurementRegistration", component: UploadMeasurementForm, props: true },
+                ],
               },
               {
                 path: "/catalogue/models",
-                name: "UploadModelDataset",
                 component: UploadModelDataset,
                 meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'] },
+                children: [
+                  { path: "", name: "UploadModelDataset", component: ModelsOverallView },
+                  { path: "new", name: "RegisterModel", component: UploadModelForm },
+                  { path: ":id/register", name: "ContinueModelRegistration", component: UploadModelForm, props: true },
+                ],
               },
               {
                 path: "/catalogue/measurements/:id/preview",

@@ -1,35 +1,16 @@
 <template>
-    <HubShell :title="heroDetail.title" :subtitle="heroDetail.subtitle" accent="var(--accent-workflows)">
-
-            <WorkflowsOverallView v-if="showOverall" @register="showOverall=false"/>
-            <UploadWorkflowForm v-else @finished="handleUploadFinished"/>
-    </HubShell>
+  <HubShell :title="hero.title" :subtitle="hero.subtitle" accent="var(--accent-workflows)">
+    <router-view />
+  </HubShell>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+import { useRoute } from 'vue-router';
 import HubShell from '../components/HubShell.vue';
-import UploadWorkflowForm from './UploadWorkflowForm.vue';
-import WorkflowsOverallView from './WorkflowsOverallView.vue';
-import { ref, computed } from 'vue';
-const showOverall = ref(true);
-const heroDetail = computed(()=>{
-    if(showOverall.value){
-        return {
-            title:'Workflows',
-            subtitle:'Register workflows that chain tools into the steps an assay runs.'
-        }
-    }else{
-        return {
-            title:'Register a workflow',
-            subtitle:'Add its source and details, annotate it for FHIR, then build it.'
-        }
-    }
-})
-const handleUploadFinished = () => {
-    showOverall.value = true;
-}
+
+const route = useRoute();
+const hero = computed(() => route.name === 'UploadWorkflowDataset'
+  ? { title: 'Workflows', subtitle: 'Register workflows that chain tools into the steps an assay runs.' }
+  : { title: 'Register a workflow', subtitle: 'Add its SDS package, annotate it for FHIR if you want, then build it.' });
 </script>
-
-<style scoped>
-
-</style>

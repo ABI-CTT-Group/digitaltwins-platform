@@ -49,6 +49,24 @@ class HasAnnotationTest(unittest.TestCase):
         self.assertIs(self._row("/api/builder/workflow/")["has_annotation"], True)
 
 
+class WorkflowAnnotationEditTest(unittest.TestCase):
+    """Add/Edit FHIR annotation from a card saves the workflow's one annotation again, as for tools."""
+
+    def setUp(self):
+        self.client = make_hub_client()
+
+    def test_saving_again_updates_the_annotation_in_place(self):
+        wf_id = add_workflow()
+        url = f"/api/builder/workflow/{wf_id}/annotation"
+        for note in ('{"steps": []}', '{"steps": [{"step": "segment"}]}'):
+            r = self.client.post(url, json={"fhir_note": note, "sparc_note": ""}, headers=bearer("researcher"))
+            self.assertEqual(r.status_code, 200, r.text)
+        with SessionLocal() as db:
+            rows = db.query(WorkflowAnnotation).filter(WorkflowAnnotation.workflow_id == wf_id).all()
+            self.assertEqual([a.fhir_note for a in rows], ['{"steps": [{"step": "segment"}]}'])
+        self.assertEqual(self.client.get(url, headers=bearer("viewer")).json()["fhir_note"], '{"steps": [{"step": "segment"}]}')
+
+
 class FailureReasonTest(unittest.TestCase):
     def setUp(self):
         self.client = make_hub_client()

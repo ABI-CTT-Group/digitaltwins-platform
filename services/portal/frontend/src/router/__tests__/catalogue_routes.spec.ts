@@ -32,6 +32,34 @@ describe("catalogue routes", () => {
     expect(router.resolve({ name }).meta.requiresRoles).toEqual(roles);
   });
 
+  // Each hub's wizard has its own URL: a new item, or an existing one at a step.
+  it.each([
+    ["RegisterTool", "/catalogue/tools/new"],
+    ["RegisterWorkflow", "/catalogue/workflows/new"],
+    ["RegisterMeasurement", "/catalogue/measurements/new"],
+    ["RegisterModel", "/catalogue/models/new"],
+  ])("serves the %s wizard at %s", (name, path) => {
+    expect(router.resolve({ name }).path).toBe(path);
+  });
+
+  it.each([
+    ["ContinueToolRegistration", "/catalogue/tools/t1/register?step=build"],
+    ["ContinueWorkflowRegistration", "/catalogue/workflows/t1/register?step=build"],
+    ["ContinueMeasurementRegistration", "/catalogue/measurements/t1/register?step=build"],
+    ["ContinueModelRegistration", "/catalogue/models/t1/register?step=build"],
+  ])("continues a registration with %s at %s", (name, path) => {
+    expect(router.resolve({ name, params: { id: "t1" }, query: { step: "build" } }).fullPath).toBe(path);
+  });
+
+  it.each([
+    ["RegisterTool", ["admin"]], ["ContinueToolRegistration", ["admin"]],
+    ["RegisterWorkflow", ["admin"]], ["ContinueWorkflowRegistration", ["admin"]],
+    ["RegisterMeasurement", ["admin", "researcher"]], ["ContinueMeasurementRegistration", ["admin", "researcher"]],
+    ["RegisterModel", ["admin", "researcher"]], ["ContinueModelRegistration", ["admin", "researcher"]],
+  ])("keeps the hub's roles on %s", (name, roles) => {
+    expect(router.resolve({ name, params: { id: "t1" } }).meta.requiresRoles).toEqual(roles);
+  });
+
   it("sends the bare /upload-dataset parent to the catalogue", async () => {
     await router.push("/upload-dataset");
     expect(router.currentRoute.value.path).toBe("/catalogue");
