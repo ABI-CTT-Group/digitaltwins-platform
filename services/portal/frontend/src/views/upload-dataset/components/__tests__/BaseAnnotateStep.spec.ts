@@ -25,7 +25,7 @@ const mountStep = (props: Record<string, unknown>) =>
 describe("BaseAnnotateStep", () => {
   it("says why a workflow's CWL could not be read, before it is known to be an SDS package", async () => {
     const workflow = { id: "w1", sourceType: "github", repositoryUrl: "https://github.com/acme/convert" };
-    const w = mount(BaseAnnotateStep, { props: { type: "workflow", data: workflow as any }, global: { plugins: [testVuetify()] } });
+    const w = mount(BaseAnnotateStep, { props: { type: "workflow", data: workflow as any, submit: vi.fn() }, global: { plugins: [testVuetify()] } });
     await flushPromises();
     expect(w.text()).toContain("API rate limit exceeded");
   });
@@ -77,5 +77,51 @@ describe("BaseAnnotateStep", () => {
 
     expect(w.text()).toContain("API rate limit exceeded");
     error.mockRestore();
+  });
+
+  describe("is optional", () => {
+    const CWL = { cwlFile: "tool_curator.cwl", content: "class: CommandLineTool\ninputs:\n  scan: File\noutputs: {}\n" };
+    const button = (w: ReturnType<typeof mount>, label: string) => w.findAll("button").find((b) => b.text() === label)!;
+    const mountTool = async (extra: Record<string, unknown> = {}) => {
+      vi.mocked(useGetToolLocalCwl).mockResolvedValue(CWL);
+      const w = mountStep({ type: "tool", data: { id: "t1", sourceType: "local" }, submit: vi.fn(async () => {}), ...extra });
+      await flushPromises();
+      return w;
+    };
+    const saved = (w: ReturnType<typeof mount>) => {
+      const [id, note] = ((w.props() as any).submit as ReturnType<typeof vi.fn>).mock.calls[0];
+      return { id, note: JSON.parse(note) };
+    };
+
+    it("skips without saving anything", async () => {
+      const w = await mountTool();
+      expect(w.text()).toContain("FHIR annotation (optional)");
+      await button(w, "Skip for now").trigger("click");
+      expect(w.emitted("skip")).toHaveLength(1);
+      expect((w.props() as any).submit).not.toHaveBeenCalled();
+    });
+
+    it("saves the annotation as the item's FHIR note", async () => {
+      const w = await mountTool();
+      await button(w, "Save annotation").trigger("click");
+      await flushPromises();
+      expect(saved(w)).toEqual({ id: "t1", note: { name: "tool_curator", inputs: [{ name: "scan", resource: "" }], outputs: [] } });
+    });
+
+    it("fills in the saved annotation to edit it", async () => {
+      const savedNote = JSON.stringify({ name: "tool_curator", inputs: [{ name: "scan", resource: "ImagingStudy" }], outputs: [] });
+      const w = await mountTool({ savedNote });
+      await button(w, "Save annotation").trigger("click");
+      await flushPromises();
+      expect(saved(w).note.inputs).toEqual([{ name: "scan", resource: "ImagingStudy" }]);
+    });
+
+    it("shows why saving failed, and stays on the step", async () => {
+      const w = await mountTool({ submit: vi.fn().mockRejectedValue({ response: { status: 500, data: { detail: "database is locked" } } }) });
+      await button(w, "Save annotation").trigger("click");
+      await flushPromises();
+      expect(w.text()).toContain("Saving the annotation failed: database is locked");
+      expect(w.emitted("skip")).toBeUndefined();
+    });
   });
 });

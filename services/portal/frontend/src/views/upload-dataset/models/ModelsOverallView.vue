@@ -9,7 +9,7 @@
     :filter-fn="hub.filterFn.value"
     :sort-fn="hub.sortFn"
     @refresh="hub.onRefresh"
-    @register="emit('register')"
+    @register="router.push({ name: 'RegisterModel' })"
   >
     <template #filters>
       <HubFilterChips v-model="hub.filter.value" :counts="hub.counts.value" />
@@ -20,10 +20,10 @@
         v-for="m in items"
         :key="m.id"
         :model="m"
-        @resume-upload="(id: string) => emit('resume', id)"
+        @resume-upload="(id: string) => router.push(registerRoute('models', id, 'upload'))"
         @cancel-upload="confirmCancelUpload"
         @approve="openApproval"
-        @edit="(model: MeasurementResponse) => emit('edit', model)"
+        @edit="(model: MeasurementResponse) => router.push(registerRoute('models', model.id, 'annotation'))"
         @retry-fhir="handleRetryFhir"
         @delete="openDelete"
       />
@@ -76,17 +76,16 @@ import HubFilterChips from '../components/HubFilterChips.vue';
 import { useConfirm } from '../components/useConfirm';
 import { datasetStatus } from '../components/cardStatus';
 import { useHubFilter } from '../components/hubFilter';
+import { registerRoute } from '../components/registrationSteps';
+import { describeApiError } from '../components/apiError';
+import { useRouter } from 'vue-router';
 import ModelCard from './components/ModelCard.vue';
 import { useModels } from '@/bootstrap/model_api';
 import { useMeasurementRetryFhir, useMeasurementSubmit, useUploadCancel } from '@/bootstrap/measurement_api';
 import type { MeasurementResponse } from '@/models/types';
 
 const toast = useToast();
-const emit = defineEmits<{
-  (e: 'register'): void;
-  (e: 'resume', id: string): void;
-  (e: 'edit', m: MeasurementResponse): void;
-}>();
+const router = useRouter();
 
 const registryRef = ref<{ handleRefresh: () => Promise<void> }>();
 const refresh = () => registryRef.value?.handleRefresh();
@@ -97,8 +96,6 @@ const hasPendingItem = (items: MeasurementResponse[]) =>
 
 // All · Needs you · In progress · In the platform, from each card's status line; what needs you first.
 const hub = useHubFilter((m: MeasurementResponse) => datasetStatus(m));
-
-const detail = (e: any) => e?.response?.data?.detail || e?.message || 'unknown error';
 
 const confirm = useConfirm();
 const confirmCancelUpload = (m: MeasurementResponse) => confirm.ask({
@@ -118,7 +115,7 @@ const handleRetryFhir = async (id: string) => {
     await useMeasurementRetryFhir(id);
     toast.success('Publishing the model to FHIR.');
   } catch (e) {
-    toast.error(`Retry FHIR failed: ${detail(e)}`);
+    toast.error(describeApiError(e, 'Retry FHIR'));
   } finally {
     await refresh();
   }
@@ -139,7 +136,7 @@ const handleApprove = async () => {
     toast.success('Registering the model.');
     approvalOpen.value = false;
   } catch (e) {
-    toast.error(`Approval failed: ${detail(e)}`);
+    toast.error(describeApiError(e, 'Approval'));
   } finally {
     approving.value = false;
     await refresh();

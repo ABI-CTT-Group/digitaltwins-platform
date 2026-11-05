@@ -11,7 +11,7 @@ import type { MeasurementResponse, ToolResponse, WorkflowResponse } from '@/mode
 export type Tone = 'steady' | 'running' | 'needs' | 'failed';
 export type HubGroup = 'needs' | 'progress' | 'platform' | 'other';
 export type CardAction =
-  | 'build' | 'view-logs' | 'approve' | 'approve-again' | 'launch' | 'deploy-dag' | 'retry-fhir' | 'resume-upload';
+  | 'continue' | 'view-logs' | 'approve' | 'approve-again' | 'launch' | 'deploy-dag' | 'retry-fhir' | 'resume-upload';
 
 export interface CardProblem { label: string; reason?: string }
 
@@ -28,7 +28,7 @@ export interface CardStatus {
 }
 
 export const ACTION_LABELS: Record<CardAction, string> = {
-  'build': 'Build',
+  'continue': 'Continue registration',
   'view-logs': 'View logs',
   'approve': 'Approve',
   'approve-again': 'Approve again',
@@ -55,12 +55,13 @@ type Built = Pick<ToolResponse, 'status' | 'latestBuildId' | 'platformOnly' | 'u
  * The states tools and workflows share, in order: approving, not built, building, build failed,
  * approval failed. Returns null once the item is built and not being approved.
  */
-function buildAndApproval(item: Built, inPlatform: boolean, { logs, build }: { logs: boolean; build: boolean }): CardStatus | null {
+function buildAndApproval(item: Built, inPlatform: boolean, { logs }: { logs: boolean }): CardStatus | null {
   if (HANDOFF_ACTIVE.includes(item.handoffStatus ?? '')) return status('Approving…', 'running', 'progress');
   if (item.handoffStatus === 'awaiting_reauth') return status('Approving… waiting for you to sign in again', 'needs', 'needs');
   if (item.platformOnly) return null;
   const viewLogs = logs ? { action: 'view-logs' as const } : {};
-  if (!item.latestBuildId) return status('Not built yet', 'needs', 'needs', build ? { action: 'build' } : {});
+  // Its wizard was closed before the build: reopen it where it stopped.
+  if (!item.latestBuildId) return status('Not built yet', 'needs', 'needs', { action: 'continue' });
   if (item.status === 'building' || item.status === 'pending') {
     return status(inPlatform ? 'In the platform — rebuilding…' : 'Building…', 'running', 'progress', viewLogs);
   }
@@ -108,7 +109,7 @@ export function toolStatus(t: ToolResponse & { buildError?: string | null; deplo
     return inPlatformStatus(t, backendProblems(t), launch, false);
   }
 
-  const early = buildAndApproval(t, inPlatform, { logs: true, build: true });
+  const early = buildAndApproval(t, inPlatform, { logs: true });
   if (early) return early;
   if (!inPlatform) return status('Built — not in the platform yet', 'needs', 'needs', { hint: APPROVE_HINT, action: 'approve' });
   return inPlatformStatus(t, backendProblems(t), launch);
@@ -123,11 +124,11 @@ export function workflowStatus(
   { canDeploy = false }: { canDeploy?: boolean } = {},
 ): CardStatus {
   const inPlatform = isInPlatform(w, 'sparc-workflow-');
-  // The Workflow Hub has no log console, and reopening a closed wizard comes with its own route.
-  const early = buildAndApproval(w, inPlatform, { logs: false, build: false });
+  // The Workflow Hub has no log console.
+  const early = buildAndApproval(w, inPlatform, { logs: false });
   if (early) return early;
   if (!inPlatform) {
-    // follow-up: non-SDS workflows, not supported for now (docs/decisions/2026-11-06-card-status-sentence.md).
+    // follow-up: non-SDS workflows, not supported for now (docs/decisions/2026-11-06-sds-only-workflow-registration.md).
     if (w.isSds !== true) return status('Not an SDS package — not supported yet', 'steady', 'other');
     return status('Built — not in the platform yet', 'needs', 'needs', { hint: APPROVE_HINT, action: 'approve' });
   }

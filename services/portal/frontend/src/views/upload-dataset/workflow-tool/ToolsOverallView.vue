@@ -30,6 +30,8 @@
         :disabled="dockerComposeBusy"
         @launch="(id) => handleLaunch(id)"
         @rebuild="(id) => handleRebuild(id)"
+        @continue="(t) => router.push(registerRoute('tools', t.id, nextStep(t)))"
+        @edit-annotation="(t) => router.push(registerRoute('tools', t.id, 'annotation'))"
         @compose-down="(id) => handleExecuteDockerCompose(id, 'down')"
         @delete="confirmDeleteTool"
         @delete-platform="openPlatformDelete"
@@ -74,6 +76,7 @@ import HubFilterChips from '../components/HubFilterChips.vue';
 import { useConfirm } from '../components/useConfirm';
 import { isInPlatform, toolStatus } from '../components/cardStatus';
 import { useHubFilter } from '../components/hubFilter';
+import { nextStep, registerRoute } from '../components/registrationSteps';
 import {
   useWorkflowTools,
   useToolHub,
@@ -118,9 +121,7 @@ const toast = useToast();
 const dockerComposeBusy = ref(false);
 const registryRef = ref<{ handleRefresh: () => Promise<void> }>();
 
-const emit = defineEmits(['register']);
-
-const handleRegister = () => emit('register');
+const handleRegister = () => router.push({ name: 'RegisterTool' });
 
 const handleLaunch = async (id: string) => {
   const metadata = await useToolMetadata();

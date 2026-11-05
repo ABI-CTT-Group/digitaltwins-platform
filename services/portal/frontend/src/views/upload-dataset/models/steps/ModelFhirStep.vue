@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h3 class="step-heading">FHIR (optional)</h3>
+    <h3 class="step-heading">FHIR annotation (optional)</h3>
     <v-divider class="my-2 mb-5" :thickness="3" />
 
     <div class="px-5">

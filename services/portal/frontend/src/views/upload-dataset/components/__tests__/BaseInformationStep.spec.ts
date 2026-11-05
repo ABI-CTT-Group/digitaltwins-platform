@@ -26,8 +26,8 @@ const stubs = {
   LocalFolderDropzone: { template: "<div />", methods: { setProgress() {} } },
 };
 // Source defaults to a local folder; these tests drive the git path (the mocked repo info).
-async function mountStep(type: "tool" | "workflow") {
-  const w = mount(BaseInformationStep, { props: { type }, global: { plugins: [testVuetify()], stubs } });
+async function mountStep(type: "tool" | "workflow", submit = vi.fn(async () => {})) {
+  const w = mount(BaseInformationStep, { props: { type, submit }, global: { plugins: [testVuetify()], stubs } });
   (w.vm as any).formData.sourceType = "github";
   await flushPromises();
   return w;
@@ -41,9 +41,9 @@ async function submit(w: Step) {
   const vm = w.vm as any;
   vm.formData.name = "convert";
   vm.cwlCheck = true;  // the source check passed
-  await w.findAll("button").find((b) => b.text().startsWith("Submit"))!.trigger("click");
+  await w.findAll("button").find((b) => b.text() === "Save and continue")!.trigger("click");
   await flushPromises();
-  return w.emitted("submit")?.[0]?.[0] as any;
+  return (w.props("submit") as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as any;
 }
 
 describe("BaseInformationStep", () => {
@@ -52,7 +52,7 @@ describe("BaseInformationStep", () => {
   });
 
   it("defaults the source to a local folder", () => {
-    const w = mount(BaseInformationStep, { props: { type: "tool" }, global: { plugins: [testVuetify()], stubs } });
+    const w = mount(BaseInformationStep, { props: { type: "tool", submit: vi.fn() }, global: { plugins: [testVuetify()], stubs } });
     expect((w.vm as any).formData.sourceType).toBe("local");
   });
 
@@ -64,6 +64,7 @@ describe("BaseInformationStep", () => {
   });
 
   it("sends the workflow type for any source", async () => {
+    repo.info.value = { foldersInRoot: [], isSds: true, cwlExists: true };
     const w = await mountStep("workflow");
     await pick(w, "notebook");
     expect(await submit(w)).toMatchObject({ workflowType: "notebook" });
@@ -99,11 +100,29 @@ describe("BaseInformationStep", () => {
       backendFolder: "backend", frontendBuildCommand: "npm run build:plugin" });
   });
 
-  it("asks nothing more of a root-.cwl gui workflow", async () => {
+  it("registers only SDS workflow packages for now", async () => {
     const w = await mountStep("workflow");
     await pick(w, "gui");
     expect(w.text()).not.toContain("has backend?");
-    expect(await submit(w)).not.toHaveProperty("hasBackend");
+    expect(await submit(w)).toBeUndefined();
+    expect(w.text()).toContain("This folder isn't an SDS package (no dataset_description.xlsx). "
+      + "Only SDS workflow packages can be registered for now.");
+  });
+
+  it("shows why the server refused it, and stays on the step", async () => {
+    const refused = vi.fn().mockRejectedValue({ response: { status: 400, data: { detail: "Plugin with this name already exists" } } });
+    const w = await mountStep("tool", refused);
+    await submit(w);
+    expect(refused).toHaveBeenCalledOnce();
+    expect(w.text()).toContain("Saving failed: Plugin with this name already exists");
+    expect(w.find("button[disabled]").exists()).toBe(false);
+  });
+
+  it("reports unsaved input to the wizard's leave guard", async () => {
+    const w = await mountStep("tool");
+    expect((w.vm as any).dirty).toBe(false);
+    (w.vm as any).formData.name = "convert";
+    expect((w.vm as any).dirty).toBe(true);
   });
 
   it("does not send a gui layout for another workflow type", async () => {

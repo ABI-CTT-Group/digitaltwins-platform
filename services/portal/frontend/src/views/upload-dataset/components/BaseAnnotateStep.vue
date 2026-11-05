@@ -15,7 +15,7 @@
   <v-alert v-else-if="type === 'workflow' && loadError" type="error" :text="loadError" class="mb-5" />
   <template v-else-if="isSdsWorkflow">
     <div>
-      <h3 class="step-heading">Workflow FHIR Annotation</h3>
+      <h3 class="step-heading">FHIR annotation (optional)</h3>
       <v-divider class="my-2 mb-5" :thickness="3" />
 
       <div v-if="sdsSteps.length">
@@ -51,6 +51,7 @@
     </div>
   </template>
 
+  <!-- follow-up: non-SDS workflows. Unreachable while only SDS workflows can be registered. -->
   <template v-else-if="type === 'workflow'">
     <div>
       <h3 class="step-heading">Workflow Annotation</h3>
@@ -130,7 +131,7 @@
        ────────────────────────────────────────────────── -->
   <template v-else>
     <div>
-      <h3 class="step-heading">Tool FHIR Annotation</h3>
+      <h3 class="step-heading">FHIR annotation (optional)</h3>
       <v-divider class="my-2 mb-5" :thickness="3" />
 
       <v-alert v-if="loadError" type="error" :text="loadError" class="mb-5" />
@@ -170,21 +171,27 @@
     </div>
   </template>
 
-  <!-- Shared action buttons -->
-  <div class="d-flex flex-row justify-center">
-    <v-btn color="#9fb4bf" text="close" variant="text" :width="200" rounded="lg" class="text-none ma-5" @click="handleClose" />
-    <v-btn color="#5fd6e8" text="Submit Annotation" variant="tonal" :width="200" rounded="lg" class="text-none ma-5" @click="handleAnnotationSubmit" />
+  <!-- Shared action buttons. The annotation is optional: Skip moves on without saving one. -->
+  <p class="step-sub step-note">Which FHIR resource each port becomes. You can add or change it later from the card, until it's approved.</p>
+  <p v-if="submitError" class="step-error" role="alert">
+    <v-icon icon="mdi-alert-circle-outline" size="18" /> {{ submitError }}
+  </p>
+  <div class="d-flex flex-row justify-center flex-wrap">
+    <v-btn color="#9fb4bf" text="Cancel" variant="text" :width="160" rounded="lg" class="text-none ma-3" :disabled="saving" @click="handleClose" />
+    <v-btn color="#9fb4bf" text="Skip for now" variant="outlined" :width="160" rounded="lg" class="text-none ma-3" :disabled="saving" @click="emit('skip')" />
+    <v-btn color="#5fd6e8" text="Save annotation" variant="tonal" :width="200" rounded="lg" class="text-none ma-3" :loading="saving" :disabled="saving" @click="handleAnnotationSubmit" />
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import type { WorkflowResponse, ToolResponse, WorkflowStepAnnotation, AnnotateTool, TransientAuth, SourceType } from '@/models/types';
 import { getRepoRootCWLContent } from '@/views/upload-dataset/components/utils';
 import { sdsWorkflowSteps, type SdsStepAnnotation } from '@/views/upload-dataset/components/sds_workflow';
 import NoData from '@/views/upload-dataset/components/NoData.vue';
 import { useWorkflowTools, useGetWorkflowToolAnnotation, useGetToolLocalCwl, useProbeToolSource } from '@/bootstrap/tool_api';
 import { canUsePublicGithubPath, loadWorkflowCwls, parseCwlText } from '@/views/upload-dataset/components/workflow_cwls';
+import { describeApiError } from './apiError';
 
 // ---- props / emits --------------------------------------------------------
 const props = defineProps<{
@@ -194,11 +201,17 @@ const props = defineProps<{
    *  private GitHub or any non-GitHub provider — backend re-clones with
    *  the token via /probe-source and inlines the CWL content. */
   pendingAuth?: TransientAuth | null;
+  /** The saved annotation's FHIR note (JSON), filled in to edit it. */
+  savedNote?: string | null;
+  /** Saves the annotation (the item's id and its FHIR note, as JSON); a failure stays on this step. */
+  submit: (id: string, fhirNote: string) => Promise<void>;
 }>();
-const emit = defineEmits(['close', 'annotation-submit']);
+const emit = defineEmits(['close', 'skip']);
 
 // ---- shared state ---------------------------------------------------------
 const showAlert = ref(false);
+const saving = ref(false);
+const submitError = ref('');
 const form = ref();
 const cwlObj = ref<any>(null);
 
@@ -282,6 +295,8 @@ onMounted(async () => {
       if (isSds) sdsSteps.value = sdsWorkflowSteps(content, tools);
       else workflowTools.value = await useWorkflowTools();
       cwlObj.value = content;
+      initPorts(content);
+      applySaved();
     } catch (err: any) {
       console.error('Failed to load workflow CWL', err);
       loadError.value = err?.message ?? String(err);
@@ -295,6 +310,8 @@ onMounted(async () => {
       const { cwlFile, content } = await loadToolCwl(tool);
       annotateTool.value.name = cwlFile.replace(/\.cwl$/, '');
       cwlObj.value = content;
+      initPorts(content);
+      applySaved();
     } catch (err: any) {
       console.error('Failed to load tool CWL', err);
       loadError.value = err?.message ?? String(err);
@@ -302,20 +319,46 @@ onMounted(async () => {
   }
 });
 
-// ---- watchers -------------------------------------------------------------
-watch(cwlObj, (newVal) => {
-  if (!newVal || isSdsWorkflow.value) return;
+// ---- ports ----------------------------------------------------------------
+/** One blank entry per port of the loaded CWL (an SDS workflow's steps come from sdsWorkflowSteps). */
+function initPorts(content: any) {
+  if (!content || isSdsWorkflow.value) return;
   if (props.type === 'workflow') {
-    annotateSteps.value = Object.entries(newVal.steps ?? {}).map(([name]) => ({
+    annotateSteps.value = Object.entries(content.steps ?? {}).map(([name]) => ({
       name, id: '', uuid: '',
     }));
   } else {
-    const inputs = newVal['inputs'] ?? {};
-    const outputs = newVal['outputs'] ?? {};
+    const inputs = content['inputs'] ?? {};
+    const outputs = content['outputs'] ?? {};
     annotateTool.value.inputs = Object.keys(inputs).map((k) => ({ name: k, resource: '' }));
     annotateTool.value.outputs = Object.keys(outputs).map((k) => ({ name: k, resource: '', code: '', system: '', unit: '' }));
   }
-}, { immediate: true });
+}
+
+type Port = { name: string };
+const mergePorts = (ports: Port[], saved?: Port[]) => {
+  for (const port of ports) {
+    const match = saved?.find((s) => s.name === port.name);
+    if (match) Object.assign(port, match);
+  }
+};
+
+/** Fill in the saved annotation, port by port (ports the CWL no longer has are dropped). */
+function applySaved() {
+  if (!props.savedNote) return;
+  let saved: any;
+  try { saved = JSON.parse(props.savedNote); } catch { return; }
+  if (props.type === 'tool') {
+    mergePorts(annotateTool.value.inputs, saved?.inputs);
+    mergePorts(annotateTool.value.outputs, saved?.outputs);
+  } else if (isSdsWorkflow.value) {
+    for (const step of sdsSteps.value) {
+      const match = (saved?.steps as SdsStepAnnotation[] | undefined)?.find((s) => s.step === step.step);
+      if (match) { mergePorts(step.inputs, match.inputs); mergePorts(step.outputs, match.outputs); }
+    }
+  }
+  // follow-up: non-SDS workflows. Their saved tool choices aren't filled in.
+}
 
 // ---- handlers -------------------------------------------------------------
 const handleToolSelect = async (val: string, step: any) => {
@@ -343,18 +386,19 @@ async function validate() {
 
 const handleAnnotationSubmit = async () => {
   const ok = await validate();
-  if (ok) {
-    showAlert.value = false;
-    if (props.type === 'workflow') {
-      emit('annotation-submit', (props.data as WorkflowResponse)!.id, {
-        sparcNote: '',
-        fhirNote: JSON.stringify(isSdsWorkflow.value ? { steps: sdsSteps.value } : annotateSteps.value),
-      });
-    } else {
-      emit('annotation-submit', (props.data as ToolResponse)!.id, annotateTool.value);
-    }
-  } else {
-    showAlert.value = true;
+  if (!ok) { showAlert.value = true; return; }
+  showAlert.value = false;
+  submitError.value = '';
+  const note = props.type === 'workflow'
+    ? JSON.stringify(isSdsWorkflow.value ? { steps: sdsSteps.value } : annotateSteps.value)
+    : JSON.stringify(annotateTool.value);
+  saving.value = true;
+  try {
+    await props.submit(props.data!.id, note);
+  } catch (err) {
+    submitError.value = describeApiError(err, 'Saving the annotation');
+  } finally {
+    saving.value = false;
   }
 };
 
@@ -370,6 +414,11 @@ const handleClose = () => emit('close');
 }
 .label-amber { color: #ffb74d; }
 .step-sub { color: #9fb4bf; }
+.step-note { max-width: 72ch; margin: 8px auto 4px; text-align: center; font-size: 0.875rem; }
+/* Ports three to a row; one per row on phones. */
+@media (max-width: 640px) {
+  .w-33 { width: 100% !important; }
+}
 
 /* Mocked / readonly FHIR fields: quiet inset values, not raised solo boxes. */
 :deep(.v-field--variant-solo) {

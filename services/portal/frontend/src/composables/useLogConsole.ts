@@ -4,9 +4,9 @@ import { ref } from 'vue';
  * Shared, app-level state for the build/deploy LogConsole modal.
  *
  * The console must be openable from BOTH the registration wizard
- * (UploadToolForm — first build) and the tool hub (ToolsOverallView —
- * rebuild / deploy / View-logs), which are mutually-exclusive `v-if`/`v-else`
- * views. Mounting <LogConsole> inside either one means the other can't open
+ * (RegisterWizard — first build) and the tool hub (ToolsOverallView —
+ * rebuild / deploy / View-logs), which are separate routes under the Tools hub
+ * layout. Mounting <LogConsole> inside either one means the other can't open
  * it. So the state lives here as a module-level singleton and a single
  * <LogConsole> is mounted once at the workflow-tool index.vue level.
  *

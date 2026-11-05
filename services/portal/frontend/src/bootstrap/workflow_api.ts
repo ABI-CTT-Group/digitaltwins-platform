@@ -37,6 +37,16 @@ export async function useCreateWorkflowAnnotation(id:string, annotation:IAnnotat
     return createAnnotationResponse
 }
 
+/** One workflow as registered in the builder: the wizard reopens it. */
+export async function useGetWorkflow(id: string): Promise<WorkflowResponse> {
+    return http.get<WorkflowResponse>(`/workflow/${id}`)
+}
+
+/** The workflow's saved FHIR annotation (404 when it has none). */
+export async function useGetWorkflowAnnotation(id: string): Promise<AnnotationResponse> {
+    return http.get<AnnotationResponse>(`/workflow/${id}/annotation`)
+}
+
 export async function useWorkflowBuild(workflowId: string, auth?: TransientAuth) {
     const buildRes = http.post<ExcuteBuildResponse>(
         `/workflow/${workflowId}/build`,

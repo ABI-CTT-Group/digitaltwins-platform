@@ -61,10 +61,25 @@ describe("WorkflowCard", () => {
     expect(w.emitted("delete")).toBeUndefined();
   });
 
+  it("continues the registration of a workflow that was never built", async () => {
+    const wf = { ...WORKFLOW, status: "pending", latestBuildId: undefined };
+    const w = mountWf(wf);
+    await action(w).trigger("click");
+    expect(w.emitted("continue")?.[0]).toEqual([wf]);
+  });
+
+  it("adds or edits an SDS workflow's FHIR annotation until it is in the platform", () => {
+    const w = mountWf(WORKFLOW);
+    menu(w).find((m) => m.label === "Add FHIR annotation")!.onClick();
+    expect(w.emitted("edit-annotation")?.[0]).toEqual([WORKFLOW]);
+    expect(labels(mountWf({ ...WORKFLOW, hasAnnotation: true }))).toEqual(["Edit FHIR annotation", "Delete workflow"]);
+    expect(labels(mountWf(APPROVED_WORKFLOW))).toEqual(["Delete workflow"]);
+  });
+
   it("asks the hub to delete a portal workflow", async () => {
     const w = mountWf(WORKFLOW);
-    expect(labels(w)).toEqual(["Delete workflow"]);
-    menu(w)[0].onClick();
+    expect(labels(w)).toEqual(["Add FHIR annotation", "Delete workflow"]);
+    menu(w)[1].onClick();
     await w.vm.$nextTick();
     expect(w.emitted("delete")?.[0]).toEqual([WORKFLOW]);
     expect(deleteWorkflow).not.toHaveBeenCalled();
@@ -120,11 +135,24 @@ describe("ToolCard", () => {
     expect(w.emitted("launch")?.[0]).toEqual(["t1"]);
   });
 
-  it("builds a tool that was never built", async () => {
-    const w = mountTool({ ...GUI_TOOL, status: "pending", latestBuildId: undefined });
+  it("continues the registration of a tool that was never built", async () => {
+    const tool = { ...GUI_TOOL, status: "pending", latestBuildId: undefined };
+    const w = mountTool(tool);
     expect(sentence(w)).toBe("Not built yet");
+    expect(action(w).text()).toBe("Continue registration");
     await action(w).trigger("click");
-    expect(w.emitted("rebuild")?.[0]).toEqual(["t1"]);
+    expect(w.emitted("continue")?.[0]).toEqual([tool]);
+  });
+
+  it("adds or edits a tool's FHIR annotation until it is in the platform", () => {
+    const w = mountTool(GUI_TOOL);
+    expect(labels(w)).toContain("Add FHIR annotation");
+    menu(w).find((m) => m.label === "Add FHIR annotation")!.onClick();
+    expect(w.emitted("edit-annotation")?.[0]).toEqual([GUI_TOOL]);
+    expect(labels(mountTool({ ...GUI_TOOL, hasAnnotation: true }))).toContain("Edit FHIR annotation");
+    expect(labels(mountTool({ ...GUI_TOOL, uuid: "a1", handoffStatus: "completed" }))).not.toContain("Edit FHIR annotation");
+    expect(labels(mountTool({ ...GUI_TOOL, uuid: "a1", handoffStatus: "completed", hasAnnotation: true })))
+      .not.toContain("Edit FHIR annotation");
   });
 
   it("opens the logs of a running or failed build", async () => {
@@ -136,14 +164,14 @@ describe("ToolCard", () => {
 
   it("keeps the portal tool menu, renamed, and asks the hub to delete", () => {
     const w = mountTool(GUI_TOOL);
-    expect(labels(w)).toEqual(["Launch", "Rebuild", "View logs", "Delete tool"]);
-    menu(w)[3].onClick();
+    expect(labels(w)).toEqual(["Launch", "Add FHIR annotation", "Rebuild", "View logs", "Delete tool"]);
+    menu(w)[4].onClick();
     expect(w.emitted("delete")?.[0]).toEqual([GUI_TOOL]);
     expect(deleteTool).not.toHaveBeenCalled();
 
     const running = mountTool({ ...GUI_TOOL, uuid: "a1", handoffStatus: "completed", deployStatus: "completed", latestDeployId: "d1" });
     expect(labels(running)).toEqual(["Rebuild", "Stop backend", "View logs", "Delete tool"]);
-    expect(labels(mountTool(TOOL))).toEqual(["Rebuild", "View logs", "Delete tool"]);
+    expect(labels(mountTool(TOOL))).toEqual(["Add FHIR annotation", "Rebuild", "View logs", "Delete tool"]);
   });
 
   it("offers only delete for a platform tool", () => {
