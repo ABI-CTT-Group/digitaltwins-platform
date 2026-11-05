@@ -1,4 +1,4 @@
-"""A gui SDS workflow's tool in the Tool Hub: launcher metadata, the listing, its backend deploy.
+"""A gui SDS workflow's tool in the Tool Hub: launcher metadata, the listing, stopping its backend.
 
 Run from `services/builder/`:
     python -m pytest tests/test_workflow_gui_tools.py
@@ -181,58 +181,22 @@ class GuiToolListingTest(unittest.TestCase):
         self.assertEqual((row["latest_deploy_id"], row["deploy_status"], row["has_backend"]), ("d1", "completed", True))
 
 
-class WorkflowToolDeployTest(unittest.TestCase):
+class WorkflowToolBackendTest(unittest.TestCase):
+    """Rebuild and delete stop a gui workflow's backend; Launch starts it (tests/test_backend_start.py)."""
+
     def setUp(self):
         self.client = make_hub_client()
-        self.deployed, self.shut_down = [], []
-        self._orig = (workflow_router.run_deployment, workflow_router.shut_down_workflow_backends,
+        self.shut_down = []
+        self._orig = (workflow_router.shut_down_workflow_backends,
                       workflow_router.execute_build_in_background, workflow_router.minio,
                       workflow_router.get_minio_client)
-        workflow_router.run_deployment = lambda deployer, deploy_id, d: self.deployed.append((deploy_id, d))
         workflow_router.shut_down_workflow_backends = lambda wf_id, deployer: self.shut_down.append(wf_id)
         workflow_router.execute_build_in_background = lambda **kwargs: None
 
     def tearDown(self):
-        (workflow_router.run_deployment, workflow_router.shut_down_workflow_backends,
+        (workflow_router.shut_down_workflow_backends,
          workflow_router.execute_build_in_background, workflow_router.minio,
          workflow_router.get_minio_client) = self._orig
-
-    def _deploy(self, wf_id, token="admin"):
-        return self.client.get(f"/api/builder/workflow/{wf_id}/deploy", headers=bearer(token))
-
-    def test_only_admins_deploy(self):
-        wf_id = add_workflow(has_backend=True)
-        add_build(wf_id)
-        self.assertEqual(self._deploy(wf_id, token="researcher").status_code, 403)
-
-    def test_deploy_runs_the_served_build_backend(self):
-        wf_id = add_workflow(has_backend=True)
-        build_id, expose = add_build(wf_id)
-        r = self._deploy(wf_id)
-        self.assertEqual(r.status_code, 200, r.text)
-        [(deploy_id, d)] = self.deployed
-        self.assertEqual((r.json()["deploy_id"], r.json()["build_id"]), (deploy_id, build_id))
-        self.assertEqual(d, {"expose_name": expose, "dataset_path": f"/portal_workspace/workflows/{expose}",
-                             "backend_folder": "backend"})
-        with SessionLocal() as db:
-            row = db.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).one()
-            self.assertEqual((row.workflow_build_id, row.build_id, row.plugin_id), (build_id, None, None))
-
-    def test_deploy_uses_the_approved_build(self):
-        wf_id = add_workflow(has_backend=True)
-        build_id, approved_expose = add_build(wf_id, age_minutes=10)
-        approve(wf_id, build_id)
-        add_build(wf_id)
-        self._deploy(wf_id)
-        self.assertEqual(self.deployed[0][1]["expose_name"], approved_expose)
-
-    def test_a_workflow_without_a_backend_or_a_bundle_is_not_deployed(self):
-        no_backend = add_workflow()
-        add_build(no_backend)
-        unbuilt = add_workflow(has_backend=True)
-        self.assertEqual(self._deploy(no_backend).status_code, 400)
-        self.assertEqual(self._deploy(unbuilt).status_code, 400)
-        self.assertEqual(self.deployed, [])
 
     def test_a_rebuild_shuts_down_the_backend_first(self):
         with_backend, without = add_workflow(has_backend=True), add_workflow()

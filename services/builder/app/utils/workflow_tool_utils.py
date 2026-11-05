@@ -1,3 +1,5 @@
+import threading
+import uuid
 import yaml
 from datetime import datetime
 from pathlib import Path
@@ -258,3 +260,124 @@ def latest_deployment(db: Session, build: WorkflowBuild) -> Optional[PluginDeplo
             .filter(PluginDeployment.workflow_build_id == build.build_id)
             .order_by(PluginDeployment.created_at.desc())
             .first())
+
+
+# ── Starting a GUI tool's backend on launch (docs/decisions/2026-11-05-start-gui-backends-on-launch.md) ──
+
+# Starts and deploys under way in this process, by expose name: "starting" | "deploying".
+# The builder runs as one uvicorn process, so a lock and a dict are enough.
+backend_jobs: dict = {}
+_backend_lock = threading.Lock()
+
+
+def spawn(fn, *args) -> None:
+    threading.Thread(target=fn, args=args, daemon=True).start()
+
+
+def _backend_target(db: Session, expose_name: str):
+    """The build behind /plugin/<expose_name>: (owner, build, deployment filter, deployment fields).
+
+    404 when no completed build has that expose name; owner None when its tool has no backend.
+    """
+    build = (db.query(PluginBuild)
+             .filter(PluginBuild.expose_name == expose_name, PluginBuild.status == BuildStatus.COMPLETED.value)
+             .first())
+    if build is not None:
+        plugin = build.plugin
+        owner = plugin if plugin.label == "GUI" and plugin.has_backend else None
+        return owner, build, PluginDeployment.build_id == build.build_id, {"plugin_id": plugin.id, "build_id": build.build_id}
+    build = (db.query(WorkflowBuild)
+             .filter(WorkflowBuild.expose_name == expose_name, WorkflowBuild.status == BuildStatus.COMPLETED.value)
+             .first())
+    if build is None:
+        raise HTTPException(status_code=404, detail="No built tool has this expose name")
+    workflow = db.query(Workflow).filter(Workflow.id == build.workflow_id).first()
+    owner = workflow if workflow is not None and workflow.has_backend else None
+    return owner, build, PluginDeployment.workflow_build_id == build.build_id, {"workflow_build_id": build.build_id}
+
+
+def start_deployment(deployer: PluginDeployer, record: PluginDeployment) -> dict:
+    """Run a completed deployment's containers again and route /plugin/<expose> to them; the caller commits."""
+    expose_name = record.route_prefix.replace("/plugin/", "") if record.route_prefix else ""
+    result = deployer.compose_up({"backend_dir": record.source_path, "expose_name": expose_name})
+    if result["success"]:
+        record.up = True
+        if record.route_prefix and record.internal_host:
+            deployer.generate_nginx_conf(
+                expose_name=expose_name,
+                internal_host=record.internal_host,
+                internal_port=record.internal_port or "8082",
+                has_websocket=record.has_websocket or False,
+            )
+            deployer.reload_nginx()
+    return result
+
+
+def _start_job(deployer: PluginDeployer, expose_name: str, deploy_id: str) -> None:
+    try:
+        with SessionLocal() as session:
+            record = session.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).one()
+            result = start_deployment(deployer, record)
+            if not result["success"]:
+                # The next launch redeploys it.
+                record.status = DeployStatus.FAILED.value
+                record.error = result.get("message")
+            record.updated_at = datetime.now()
+            session.commit()
+    finally:
+        backend_jobs.pop(expose_name, None)
+
+
+def _deploy_job(deployer: PluginDeployer, expose_name: str, deploy_id: str, deploy_dict: dict) -> None:
+    try:
+        run_deployment(deployer, deploy_id, deploy_dict)
+    finally:
+        backend_jobs.pop(expose_name, None)
+
+
+def backend_state(expose_name: str) -> dict:
+    """What /tool-view waits on: none | stopped | starting | deploying | running | failed."""
+    with SessionLocal() as db:
+        owner, _, row_filter, _ = _backend_target(db, expose_name)
+        if owner is None:
+            return {"state": "none", "error": None, "deploy_id": None}
+        row = db.query(PluginDeployment).filter(row_filter).first()
+        deploy_id = row.deploy_id if row else None
+        if expose_name in backend_jobs:
+            return {"state": backend_jobs[expose_name], "error": None, "deploy_id": deploy_id}
+        if row is None:
+            return {"state": "stopped", "error": None, "deploy_id": None}
+        if row.status == DeployStatus.FAILED.value:
+            return {"state": "failed", "error": row.error, "deploy_id": deploy_id}
+        state = "running" if row.status == DeployStatus.COMPLETED.value and row.up else "stopped"
+        return {"state": state, "error": None, "deploy_id": deploy_id}
+
+
+def start_backend(deployer: PluginDeployer, expose_name: str) -> dict:
+    """Make sure the backend behind /plugin/<expose_name> runs: start its deployment, else deploy the build."""
+    with _backend_lock:
+        if expose_name not in backend_jobs:
+            with SessionLocal() as db:
+                owner, build, row_filter, fields = _backend_target(db, expose_name)
+                if owner is None:
+                    return {"state": "none", "error": None, "deploy_id": None}
+                row = db.query(PluginDeployment).filter(row_filter).first()
+                if row is not None and row.status == DeployStatus.COMPLETED.value:
+                    if not (row.up and deployer.is_project_running(expose_name) == "running"):
+                        backend_jobs[expose_name] = "starting"
+                        spawn(_start_job, deployer, expose_name, row.deploy_id)
+                else:
+                    # Never deployed, failed, or cut short by a restart: deploy it, reusing its row.
+                    if row is None:
+                        row = PluginDeployment(deploy_id=str(uuid.uuid4()), **fields)
+                        db.add(row)
+                    row.status, row.error, row.up = DeployStatus.PENDING.value, None, False
+                    row.updated_at = datetime.now()
+                    db.commit()
+                    deploy_dict = {"expose_name": build.expose_name, "dataset_path": build.dataset_path,
+                                   "backend_folder": owner.backend_folder}
+                    logger.info("Deploying the backend of %s on launch", expose_name)
+                    backend_jobs[expose_name] = "deploying"
+                    spawn(_deploy_job, deployer, expose_name, row.deploy_id, deploy_dict)
+    return backend_state(expose_name)
+
