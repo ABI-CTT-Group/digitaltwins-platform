@@ -4,7 +4,7 @@ import { testVuetify } from "@/testing/vuetify";
 
 vi.mock("@/bootstrap/http", () => ({ default: {}, dtApi: {} }));
 vi.mock("@/bootstrap/tool_api", () => ({
-  useGetDockerComposeStatus: vi.fn(), useDeleteTool: vi.fn(), useToolApprovalStatus: vi.fn(),
+  useDeleteTool: vi.fn(), useToolApprovalStatus: vi.fn(),
 }));
 const { toastError, deleteWorkflow } = vi.hoisted(() => ({ toastError: vi.fn(), deleteWorkflow: vi.fn() }));
 vi.mock("vue-toastification", () => ({ useToast: () => ({ error: toastError, warning: vi.fn(), success: vi.fn() }) }));
@@ -208,13 +208,25 @@ describe("ToolCard", () => {
     expect(launch.attributes("disabled")).toBeUndefined();
   });
 
-  it("runs a workflow tool's backend like a tool's", () => {
+  it("only stops a workflow tool's backend, like a tool's: Launch starts it", () => {
     const tool = { ...WORKFLOW_TOOL, hasBackend: true, deployStatus: "completed", latestDeployId: "d1", latestBuildId: "b1" };
     const w = mount(ToolCard, { props: { tool: tool as any }, global: { plugins } });
 
-    expect(menu(w).map((m) => m.label)).toEqual(["Deploy backend", "Compose up", "Compose down", "View logs"]);
+    expect(menu(w).map((m) => m.label)).toEqual(["Stop backend", "View logs"]);
     menu(w)[0].onClick();
-    expect(w.emitted("deploy")?.[0]).toEqual(["w1", "workflow"]);
+    expect(w.emitted("compose-down")?.[0]).toEqual(["d1"]);
+
+    const gui = { ...TOOL, label: "GUI", hasBackend: true, deployStatus: "completed", latestDeployId: "d2" };
+    expect(menu(mount(ToolCard, { props: { tool: gui as any }, global: { plugins } })).map((m) => m.label))
+      .toEqual(["Rebuild tool", "Submit to approval", "Stop backend", "View logs", "Delete tool"]);
+  });
+
+  it("launches a GUI tool whose backend is down: /tool-view starts it", async () => {
+    const tool = { ...TOOL, label: "GUI", hasBackend: true, deployStatus: "completed", latestDeployId: "d1" };
+    const w = mount(ToolCard, { props: { tool: tool as any }, global: { plugins } });
+
+    await w.findAll("button").find((b) => b.text().includes("Launch"))!.trigger("click");
+    expect(w.emitted("launch")?.[0]).toEqual(["t1"]);
   });
 });
 

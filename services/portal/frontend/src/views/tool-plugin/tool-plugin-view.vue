@@ -22,7 +22,7 @@
     </div>
     <div v-else-if="loading" class="pa-12 d-flex flex-column align-center ga-4">
         <v-progress-circular indeterminate color="primary" />
-        <span>Loading the assay's inputs…</span>
+        <span>{{ loadingText }}</span>
     </div>
     <div v-else-if="app">
         <remote-component-app :src="app.path" :expose="app.expose" :context="context" @mounted="hideToken" />
@@ -39,10 +39,12 @@ import { getAccessToken } from '@/bootstrap/keycloak';
 import { buildVolViewQuery } from '@/utils/volviewParams';
 import { assayFileCookie, clearAssayFileCookie } from '@/utils/assayFileCookie';
 import { getApiErrorMessage } from '@/utils/common';
+import { BackendStartError, ensureBackend } from '@/bootstrap/tool_api';
 
 // Two ways in: the Tool Hub (persisted remoteApp store, no query) and a gui assay's
 // Launch button (/tool-view?assay=<seek id>, opened in a new tab), which loads the
-// assay's tool and input files from /dashboard/assay-gui-context.
+// assay's tool and input files from /dashboard/assay-gui-context. Either way the tool's
+// backend, if it has one, is started (or deployed) before the tool mounts.
 const route = useRoute();
 const router = useRouter();
 const { remoteApp } = useRemoteAppStore();
@@ -50,26 +52,38 @@ const assayId = typeof route.query.assay === 'string' ? route.query.assay : '';
 
 const app = ref<{ path: string; expose: string } | null>(assayId ? null : remoteApp);
 const context = ref<Record<string, unknown> | undefined>();
-const loading = ref(Boolean(assayId));
+const loading = ref(Boolean(app.value) || Boolean(assayId));
+const loadingText = ref(assayId ? "Loading the assay's inputs…" : 'Opening the tool…');
 const error = ref('');
 
 onMounted(async () => {
-    if (!assayId) return;
+    if (!loading.value) return;
     try {
-        const ctx = await useDashboardGetAssayGuiContext(assayId);
-        // VolView reads its inputs from the page query when it mounts, so set them before the
-        // plugin loads (replaceState is client-side only), and let its plain fetch authenticate
-        // through a cookie scoped to this assay's input-files path.
-        history.replaceState(history.state, '', `${route.path}${buildVolViewQuery(ctx)}`);
-        assayFileCookie(assayId, getAccessToken() ?? '');
-        context.value = { ...ctx, getAccessToken };
-        app.value = ctx.tool;
+        if (assayId) await loadAssay();
+        if (app.value?.expose) {
+            await ensureBackend(app.value.expose, (state) => {
+                loadingText.value = state === 'deploying'
+                    ? "Deploying the tool's backend (the first launch builds it, which can take a few minutes)…"
+                    : "Starting the tool's backend…";
+            });
+        }
     } catch (e) {
-        error.value = getApiErrorMessage(e, 'Launch');
+        error.value = e instanceof BackendStartError ? `Launch failed: ${e.message}` : getApiErrorMessage(e, 'Launch');
     } finally {
         loading.value = false;
     }
 });
+
+async function loadAssay() {
+    const ctx = await useDashboardGetAssayGuiContext(assayId);
+    // VolView reads its inputs from the page query when it mounts, so set them before the
+    // plugin loads (replaceState is client-side only), and let its plain fetch authenticate
+    // through a cookie scoped to this assay's input-files path.
+    history.replaceState(history.state, '', `${route.path}${buildVolViewQuery(ctx)}`);
+    assayFileCookie(assayId, getAccessToken() ?? '');
+    context.value = { ...ctx, getAccessToken };
+    app.value = ctx.tool;
+}
 
 onBeforeUnmount(() => {
     if (assayId) clearAssayFileCookie(assayId);
