@@ -69,6 +69,6 @@ has one case per row.
   platform uuid also marked its build `completed` (`tool_handoff.py`, `workflow_handoff.py`); approvals
   before handoffs existed gave only a `sparc-tool-` / `sparc-workflow-` placeholder, so those items read
   "Built — not in the platform yet" instead.
-- A never-built tool offers Build; a never-built workflow offers nothing until its wizard can be
-  reopened from the card.
+- A never-built tool or workflow offers Continue registration, which reopens its wizard at
+  `/catalogue/<hub>/<id>/register`, at the FHIR annotation step until it has one and at the build after.
 - A new state is added in `cardStatus.ts` and its spec, not in a card. `cardTags.ts` is gone.

@@ -97,7 +97,11 @@ Plugins and CWL workflows can be registered into the portal in **two ways**:
 | **Local folder / .zip** (default) | Private repo, in-progress code, or no GitHub at all | Drag a folder (or a `.zip` file) into the dropzone — uploaded directly to the portal |
 | **Git URL** | Code already lives on a **public** GitHub repo | Paste `https://github.com/<owner>/<repo>` — portal reads `package.json`, root folders, and `.cwl` from the GitHub API |
 
-In the registration form (*Catalogue → Tools* or *Catalogue → Workflows*), the **Source** radio at the top of the *Base Information* step starts on *Local Folder*; switch it to *Git URL* to register from a repository.
+In the registration wizard (*Catalogue → Tools* or *Catalogue → Workflows*, then *Register a tool* or *Register a workflow*), the **Source** radio at the top of the *Source* step starts on *Local Folder*; switch it to *Git URL* to register from a repository.
+
+The wizard has three steps: **Source**, **FHIR annotation (optional)** and **Build**. Saving the Source step creates the tool or workflow, and the wizard moves to its own address (`/catalogue/tools/<id>/register`), so you can close it and pick up where you stopped with **Continue registration** on its card. You can skip the FHIR annotation and add it later from the card's menu, until the item is approved. A repository's token is never stored: if you continue a registration later, the wizard asks for it again.
+
+Workflows must be **SDS packages** for now (`dataset_description.xlsx` at the root, `primary/workflow_*.cwl` and each step's `tool_*.cwl`). The wizard refuses a folder with only a root `.cwl`.
 
 ### Local upload constraints
 
@@ -180,5 +184,6 @@ builder's tests, which check that template.
 - [Serve the platform API at /api; move the portal builder](../../docs/decisions/2026-10-20-api-prefix-and-portal-builder-split.md)
 - [Launch a gui assay in /tool-view and hand its input files to the tool](../../docs/decisions/2026-10-05-gui-assay-launch-input-handoff.md)
 - [A status sentence and one next step on every hub card](../../docs/decisions/2026-11-06-card-status-sentence.md) (supersedes the [card tag vocabulary](../../docs/decisions/2026-10-12-card-tag-vocabulary.md))
+- [Register only SDS workflow packages in the portal, for now](../../docs/decisions/2026-11-06-sds-only-workflow-registration.md)
 - [Accept SDS-packaged tools in the portal tool wizard](../../docs/decisions/2026-10-01-accept-sds-packages-in-tool-wizard.md)
 - [Relicense the portal under Apache 2.0](../../docs/decisions/2026-10-27-relicense-portal-apache-2.md)

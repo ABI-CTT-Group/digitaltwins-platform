@@ -1,7 +1,7 @@
 # Portal workflows: the type is always asked; the build detects SDS packages
 
 - **Date:** 2026-10-02
-- **Status:** Accepted
+- **Status:** Accepted; keeping root-`.cwl` workflows in the portal wizard is superseded by [2026-11-06-sds-only-workflow-registration.md](2026-11-06-sds-only-workflow-registration.md)
 
 ## Context
 
