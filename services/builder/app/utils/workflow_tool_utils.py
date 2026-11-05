@@ -194,7 +194,7 @@ def run_deployment(deployer: PluginDeployer, deploy_id: str, deploy_dict: dict) 
             deploy_record = session.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()
             if deploy_record:
                 deploy_record.status = DeployStatus.FAILED.value
-                deploy_record.error_message = str(e)
+                deploy_record.error = str(e)
                 deploy_record.updated_at = datetime.now()
                 session.commit()
 

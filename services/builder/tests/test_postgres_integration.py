@@ -182,14 +182,14 @@ class MigrationsTest(PostgresTestCase):
         init_db(bind=self.engine)
 
         self.assertEqual(schema_snapshot(self.engine), from_models)
-        self.assertEqual(self._applied(), ["0001"])
+        self.assertEqual(self._applied(), ["0001", "0002"])
 
     def test_a_second_start_changes_nothing(self):
         init_db(bind=self.engine)
         before = schema_snapshot(self.engine)
         init_db(bind=self.engine)
         self.assertEqual(schema_snapshot(self.engine), before)
-        self.assertEqual(self._applied(), ["0001"])
+        self.assertEqual(self._applied(), ["0001", "0002"])
 
     def test_a_schema_the_old_startup_code_built_is_only_recorded(self):
         # Before numbered migrations, init_db ran create_all (plus catch-up code) on every start.
@@ -199,7 +199,7 @@ class MigrationsTest(PostgresTestCase):
         before = schema_snapshot(self.engine)
         init_db(bind=self.engine)
         self.assertEqual(schema_snapshot(self.engine), before)
-        self.assertEqual(self._applied(), ["0001"])
+        self.assertEqual(self._applied(), ["0001", "0002"])
 
     def test_the_2026_09_28_schema_catches_up_and_keeps_its_rows(self):
         fresh = self._fresh_snapshot()
@@ -217,12 +217,27 @@ class MigrationsTest(PostgresTestCase):
         init_db(bind=self.engine)
 
         self.assertEqual(schema_snapshot(self.engine), fresh)
-        self.assertEqual(self._applied(), ["0001"])
+        self.assertEqual(self._applied(), ["0001", "0002"])
         self.assertEqual(self._execute("SELECT deploy_id FROM plugin_deployments").scalars().all(), ["dep1"])
         # Untyped rows predate the SDS marker: not SDS.
         self.assertEqual(self._execute("SELECT is_sds FROM workflows").scalars().all(), [False])
         # Tables the models no longer define are left alone.
         self.assertEqual(self._execute("SELECT id FROM measurements").scalars().all(), ["m1"])
+
+    def test_duplicate_deployments_of_a_build_keep_only_the_newest(self):
+        # Before 0002, every Deploy click added a row for the same build.
+        self._load_2026_09_28()
+        self._execute("INSERT INTO plugins (id, name, version, repository_url, source_type, label, has_backend, "
+                      "frontend_folder, frontend_build_command) "
+                      "VALUES ('p1', 'n', '1', 'r', 'github', 'GUI', true, 'f', 'npm run build')")
+        self._execute("INSERT INTO plugin_builds (id, plugin_id, build_id, status) VALUES ('b1', 'p1', 'bk1', 'ok')")
+        self._execute("INSERT INTO plugin_deployments (id, plugin_id, build_id, deploy_id, status, created_at) VALUES "
+                      "('d1', 'p1', 'bk1', 'old', 'completed', '2026-11-03'), "
+                      "('d2', 'p1', 'bk1', 'new', 'completed', '2026-11-04')")
+
+        init_db(bind=self.engine)
+
+        self.assertEqual(self._execute("SELECT deploy_id FROM plugin_deployments").scalars().all(), ["new"])
 
     def test_workflows_typed_before_is_sds_are_marked_sds_once(self):
         # From 2026-10-02 until is_sds existed, a set workflow_type marked an SDS package.
