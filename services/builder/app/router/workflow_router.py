@@ -192,16 +192,14 @@ async def create_tool_annotation(workflow_id: str, annotation: WorkflowAnnotatio
             raise HTTPException(status_code=404, detail=f"Plugins not found: {missing_ids}")
         workflow.plugins = plugins
 
-    annotation_id = str(uuid.uuid4())
+    # One annotation per workflow: saving again (Edit FHIR annotation) updates it in place, as for tools.
+    db_annotation = db.query(WorkflowAnnotation).filter(WorkflowAnnotation.workflow_id == workflow.id).first()
+    if db_annotation is None:
+        db_annotation = WorkflowAnnotation(workflow_id=workflow.id, annotation_id=str(uuid.uuid4()))
+        db.add(db_annotation)
+    db_annotation.fhir_note = annotation.fhir_note
+    db_annotation.sparc_note = annotation.sparc_note
 
-    db_annotation = WorkflowAnnotation(
-        workflow_id=workflow.id,
-        annotation_id=annotation_id,
-        fhir_note=annotation.fhir_note,
-        sparc_note=annotation.sparc_note
-    )
-
-    db.add(db_annotation)
     db.commit()
     db.refresh(db_annotation)
     logger.info("Registration workflows annotate: workflow_id=%s user=%s", workflow.id, user.get("username"))
