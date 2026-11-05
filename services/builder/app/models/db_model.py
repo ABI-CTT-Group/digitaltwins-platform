@@ -136,10 +136,12 @@ class PluginDeployment(Base):
     id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
     plugin_id = Column(String, ForeignKey("plugins.id"), nullable=True)  # null for a gui workflow's tool
     # References the build's business key (what the deploy endpoint stores), not plugin_builds.id.
-    build_id = Column(String, ForeignKey("plugin_builds.build_id"), nullable=True)
-    workflow_build_id = Column(String, ForeignKey("workflow_builds.build_id"), nullable=True)
+    # One deployment per build: a redeploy reuses the row.
+    build_id = Column(String, ForeignKey("plugin_builds.build_id"), nullable=True, unique=True, index=True)
+    workflow_build_id = Column(String, ForeignKey("workflow_builds.build_id"), nullable=True, unique=True, index=True)
     deploy_id = Column(String, unique=True, index=True, nullable=False)
     status = Column(String, default=DeployStatus.PENDING.value, nullable=False)
+    error = Column(String, nullable=True)  # why the last deploy failed
     source_path = Column(String, nullable=True)
     up = Column(Boolean, default=False, nullable=True)
     # Nginx routing metadata

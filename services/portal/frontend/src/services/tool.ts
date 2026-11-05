@@ -16,8 +16,6 @@ export {
   useToolApprovalStatus,
   useSeekProjects,
   useToolHub,
-  useDeployTool,
   useDockerCompose,
-  useGetDockerComposeStatus,
   useGetWorkflowToolAnnotation,
 } from '@/bootstrap/tool_api';

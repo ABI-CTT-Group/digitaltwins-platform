@@ -146,8 +146,23 @@ export async function useToolHub(): Promise<ToolResponse[]> {
   });
 }
 
-export async function useDeployWorkflowTool(workflowId: string) {
-  return http.get(`/workflow/${workflowId}/deploy`);
+/** A GUI tool's backend, as the builder reports it (docs/decisions/2026-11-05-start-gui-backends-on-launch.md). */
+export type BackendState = "none" | "stopped" | "starting" | "deploying" | "running" | "failed";
+interface BackendStatus { state: BackendState; error?: string | null }
+
+export class BackendStartError extends Error {}
+
+/** Launch: start the backend behind /plugin/<expose> (deploying it if needed) and wait until it runs. */
+export async function ensureBackend(expose: string, onState: (state: BackendState) => void = () => {},
+                                    intervalMs = 2000): Promise<void> {
+  let status = await http.post<BackendStatus>(`/tools/backend/${expose}/start`);
+  while (status.state === "starting" || status.state === "deploying") {
+    onState(status.state);
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    status = await http.get<BackendStatus>(`/tools/backend/${expose}`);
+  }
+  if (status.state === "failed") throw new BackendStartError(status.error || "The tool's backend failed to start.");
+  if (status.state === "stopped") throw new BackendStartError("The tool's backend stopped while starting.");
 }
 
 export async function useToolMetadata() {
@@ -207,18 +222,8 @@ export async function useRetryToolFhir(uuid: string) {
   return dtApi.post(`/datasets/${uuid}/fhir/push`, {});
 }
 
-export async function useDeployTool(id:string) {
-  const res = http.get(`/tools/plugin/${id}/deploy`)
-  return res;
-}
-
 export async function useDockerCompose(deployId:string, command:"up"|"down") {
   const res = http.get(`/tools/plugin/deploy/${deployId}/execute`, {command})
-  return res;
-}
-
-export async function useGetDockerComposeStatus(deployId:string) {
-  const res = http.get<boolean>(`/tools/check/deploy/${deployId}/`)
   return res;
 }
 

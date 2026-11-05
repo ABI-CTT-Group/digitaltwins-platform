@@ -55,3 +55,8 @@ The builder holds the host Docker socket and runs third-party build and deploy c
 - On start, `_reconcile_plugin_state` in `app/main.py` matches deployments marked up against the
   running containers and rewrites or removes their nginx route files. On stop, the lifespan hook shuts
   every plugin backend down (`stop_grace_period: 60s`).
+- Nothing restarts those backends on start: launching a tool does. `/tool-view` calls
+  `POST /api/builder/tools/backend/<expose>/start` (`start_backend` in `app/utils/workflow_tool_utils.py`),
+  which starts the build's deployment or deploys the build, for any signed-in user. In-flight starts are
+  tracked in process memory under a lock, which relies on the builder running as one uvicorn process.
+  Each build has at most one `plugin_deployments` row (unique index); reuse it, never insert a second.

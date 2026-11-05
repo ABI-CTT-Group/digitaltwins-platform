@@ -47,7 +47,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue'
 import { ToolResponse } from '@/models/types';
-import { useGetDockerComposeStatus, useDeleteTool, useToolApprovalStatus } from '@/bootstrap/tool_api'
+import { useDeleteTool, useToolApprovalStatus } from '@/bootstrap/tool_api'
 import CardUI, { type UCardMenuItem } from './CardUI.vue';
 import { formatDate } from './utils';
 import { buildTag, handoffRegistrationTag, typeTag } from './cardTags';
@@ -114,21 +114,21 @@ const auroraStatus = (s?: string) => {
   }
 }
 
-const emit = defineEmits(["launch", "rebuild", "submit-approve", "deploy", "compose-up", "compose-down", "delete", "delete-platform", "view-logs", "approval-done"])
+const emit = defineEmits(["launch", "rebuild", "submit-approve", "compose-down", "delete", "delete-platform", "view-logs", "approval-done"])
 
 const hasViewLogs = computed(() =>
   !!(tool.value.latestDeployId || tool.value.latestBuildId)
 )
 
+const stopBackend: UCardMenuItem = { label: 'Stop backend', icon: 'mdi-stop-circle-outline',
+  onClick: () => emit("compose-down", tool.value.latestDeployId) }
+
 const menuItems = computed<UCardMenuItem[]>(() => {
-  // A gui workflow's tool: its workflow (Workflow Hub) rebuilds, approves and deletes it; only its backend runs here.
+  // A gui workflow's tool: its workflow (Workflow Hub) rebuilds, approves and deletes it.
+  // Launch starts a backend (/tool-view); the menu only stops it.
   if (tool.value.kind === 'workflow') {
     const items: UCardMenuItem[] = []
-    if (tool.value.hasBackend) items.push({ label: 'Deploy backend', icon: 'mdi-server-network', onClick: onDeploy })
-    if (tool.value.deployStatus === 'completed') {
-      items.push({ label: 'Compose up', icon: 'mdi-play-circle-outline', onClick: onDockerComposeUp })
-      items.push({ label: 'Compose down', icon: 'mdi-stop-circle-outline', onClick: onDockerComposeDown })
-    }
+    if (tool.value.deployStatus === 'completed') items.push(stopBackend)
     if (hasViewLogs.value) items.push({ label: 'View logs', icon: 'mdi-console-line', onClick: onViewLogs })
     return items
   }
@@ -141,12 +141,8 @@ const menuItems = computed<UCardMenuItem[]>(() => {
     { label: 'Rebuild tool', icon: 'mdi-refresh', onClick: onRebuild },
     { label: 'Submit to approval', icon: 'mdi-send-check-outline', onClick: onSubmit },
   ]
-  if (tool.value.hasBackend && isGui) {
-    items.push({ label: 'Deploy backend', icon: 'mdi-server-network', onClick: onDeploy })
-  }
   if (tool.value.deployStatus === 'completed' && isGui) {
-    items.push({ label: 'Compose up', icon: 'mdi-play-circle-outline', onClick: onDockerComposeUp })
-    items.push({ label: 'Compose down', icon: 'mdi-stop-circle-outline', onClick: onDockerComposeDown })
+    items.push(stopBackend)
   }
   if (hasViewLogs.value) {
     items.push({ label: 'View logs', icon: 'mdi-console-line', onClick: onViewLogs })
@@ -186,16 +182,10 @@ const onViewLogs = () => {
   }
 }
 
-const onLaunch = async () => {
+// A GUI tool's backend is started by /tool-view, which Launch opens.
+const onLaunch = () => {
     if(tool.value.label === "Script" || tool.value.label === "Notebook"){
         toast.warning(`${tool.value.label} tool cannot be launched. Please download it and run it locally.`);
-        return;
-    }
-    if (tool.value.hasBackend && !tool.value.latestDeployId && tool.value.deployStatus !== 'completed') {
-        toast.warning("Tool backend is not deployed yet. Please deploy the backend first.");
-        return;
-    }else if(!!tool.value.latestDeployId && !await useGetDockerComposeStatus(tool.value.latestDeployId).catch(() => false)){
-        toast.warning("Tool backend is not running. Please start the backend by 'Compose Up' first.");
         return;
     }
     emit("launch", tool.value.id)
@@ -209,12 +199,6 @@ const onRebuild = () => {
     emit("rebuild", tool.value.id)
 }
 const onSubmit = () => emit("submit-approve", tool.value.id)
-const onDeploy = () => {
-    tool.value.deployStatus = "deploying"
-    emit("deploy", tool.value.id, tool.value.kind)
-}
-const onDockerComposeUp = () => emit("compose-up", tool.value.latestDeployId)
-const onDockerComposeDown = () => emit("compose-down", tool.value.latestDeployId)
 const onDelete = async () => {
     isDeleting.value = true;
     const res:any = await useDeleteTool(tool.value.id)

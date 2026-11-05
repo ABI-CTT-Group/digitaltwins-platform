@@ -11,13 +11,11 @@ from sqlalchemy.orm import Session
 
 from typing import List, Optional
 from pydantic import BaseModel
-import threading
 import uuid
 from app.models.db_model import (
     Plugin,
     Workflow, WorkflowBuild, WorkflowAnnotation, WorkflowResponse, WorkflowCreate, WorkflowAnnotationCreate,
     WorkflowAnnotationResponse, WorkflowBuildResponse, BuildStatus,
-    DeployStatus, PluginDeployment,
     ProbeSourceRequest, BuildTriggerRequest,
 )
 from fastapi import Body
@@ -28,7 +26,7 @@ from app.engine.build_workflow import WorkflowBuilder
 from app.engine.deploy_tool import PluginDeployer
 from app.engine.source_acquirer import SourceAcquirer, SourceSpec, CloneError
 from app.engine.workflow_layout import detect_workflow_layout, inspect_workflow_source, read_workflow_cwl
-from app.utils.workflow_tool_utils import get_latest_build_record, served_workflow_build, workflow_bundle_path, latest_deployment, run_deployment, shut_down_workflow_backends
+from app.utils.workflow_tool_utils import get_latest_build_record, served_workflow_build, workflow_bundle_path, latest_deployment, shut_down_workflow_backends
 from app.utils.builder_utils import (
     execute_build_in_background,
     extract_uploaded_archive,
@@ -46,7 +44,6 @@ configure_logging()
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/builder/workflow", dependencies=[Depends(get_current_user)])
 WRITER = Depends(require_any_role("admin", "researcher"))
-ADMIN = Depends(require_any_role("admin"))  # running plugin backends (docker on the host socket) needs admin
 deployer = PluginDeployer()
 minio = get_minio_client("workflows")
 adapter = get_fhir_adapter()
@@ -333,29 +330,6 @@ async def get_gui_tool(workflow_seek_id: str = Query(...), db: Session = Depends
     if tool is None:
         raise HTTPException(status_code=404, detail="No launchable GUI tool for this workflow")
     return tool
-
-
-@router.get("/{workflow_id}/deploy", dependencies=[ADMIN])
-async def deploy_workflow_tool(workflow_id: str, background_tasks: BackgroundTasks = None,
-                               db: Session = Depends(get_db)):
-    """Deploy a gui workflow tool's backend, as for GUI tools, from the build whose bundle the Tool Hub launches."""
-    workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()  # type: ignore
-    if workflow is None:
-        raise HTTPException(status_code=404, detail="Workflow not found")
-    build = served_workflow_build(db, workflow)
-    if not workflow.has_backend or build is None:
-        raise HTTPException(status_code=400, detail="This workflow has no built gui tool with a backend")
-    deploy_dict = {"expose_name": build.expose_name, "dataset_path": build.dataset_path,
-                   "backend_folder": workflow.backend_folder}
-    deploy_id = str(uuid.uuid4())
-    db.add(PluginDeployment(workflow_build_id=build.build_id, deploy_id=deploy_id, status=DeployStatus.PENDING.value))
-    db.commit()
-    if background_tasks:
-        background_tasks.add_task(run_deployment, deployer, deploy_id, deploy_dict)
-    else:
-        threading.Thread(target=run_deployment, args=(deployer, deploy_id, deploy_dict)).start()
-    return {"build_id": build.build_id, "deploy_id": deploy_id, "status": DeployStatus.PENDING.value,
-            "message": "Deploy started in background"}
 
 
 @router.get("/{expose_name}/primary/{path:path}")

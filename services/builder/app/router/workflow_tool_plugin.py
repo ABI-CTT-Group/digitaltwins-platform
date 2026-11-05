@@ -10,7 +10,6 @@ from datetime import datetime
 from typing import List, Literal, Optional
 from pydantic import BaseModel
 import uuid
-import threading
 from app.models.db_model import (
     Plugin, PluginCreate, PluginBuild, PluginResponse,
     PluginBuildResponse, BuildStatus,
@@ -35,7 +34,9 @@ from app.utils.workflow_tool_utils import (
     served_workflow_build,
     workflow_bundle_path,
     shuttle_down_deployed_backend,
-    run_deployment)
+    backend_state,
+    start_backend,
+    start_deployment)
 from app.utils.builder_utils import (
     execute_build_in_background,
     extract_uploaded_archive,
@@ -538,43 +539,6 @@ def get_plugin_annotations(plugin_id: str, user: dict = Depends(get_current_user
         raise HTTPException(status_code=404, detail="Annotation not found")
     return annotation
 
-@router.get("/plugin/{plugin_id}/deploy", dependencies=[ADMIN])
-async def get_plugin_deploy(plugin_id: str, background_tasks: BackgroundTasks = None, db: Session = Depends(get_db)):
-    plugin, latest_build = get_latest_build_record(plugin_id, "plugin", db)
-    # Covert Plugin, PluginBuild object to dict for JSON serialization
-    plugin_dict = {
-        "expose_name": latest_build.expose_name,
-        "dataset_path": latest_build.dataset_path,
-        "backend_folder": plugin.backend_folder,
-        "backend_deploy_command": plugin.backend_deploy_command,
-    }
-    logger.info(f"Building plugin: {safe_dump(plugin_dict, indent=4)}")
-    deploy_id = str(uuid.uuid4())
-    db_deploy = PluginDeployment(
-        plugin_id=plugin.id,
-        build_id=latest_build.build_id,
-        deploy_id=deploy_id,
-        status=DeployStatus.PENDING.value,
-    )
-
-    db.add(db_deploy)
-    db.commit()
-    db.refresh(db_deploy)
-
-    if background_tasks:
-        background_tasks.add_task(run_deployment, deployer, deploy_id, plugin_dict)
-    else:
-        thread = threading.Thread(target=run_deployment, args=(deployer, deploy_id, plugin_dict))
-        thread.start()
-
-    return {
-        "build_id": latest_build.build_id,
-        "deploy_id": deploy_id,
-        "status": DeployStatus.PENDING.value,
-        "message": "Deploy started in background",
-    }
-
-
 @router.get("/plugin/build/{build_id}/deploys", response_model=List[PluginDeployResponse])
 async def get_build_deploys(build_id: str, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     # Check if plugin exists
@@ -595,23 +559,7 @@ async def execute_plugin_backend_by_docker(deploy_id: str, command: Literal["up"
         raise HTTPException(status_code=404, detail="Plugin Deploy record not found")
     if deploy_record.status == DeployStatus.COMPLETED.value:
         if command == "up":
-            expose_name = deploy_record.route_prefix.replace("/plugin/", "") if deploy_record.route_prefix else ""
-            result = deployer.compose_up({
-                "backend_dir": deploy_record.source_path,
-                "expose_name": expose_name,
-            })
-            if result["success"]:
-                deploy_record.up = True
-                # Ensure nginx config exists and reload
-                if deploy_record.route_prefix and deploy_record.internal_host:
-                    expose_name = deploy_record.route_prefix.replace("/plugin/", "")
-                    deployer.generate_nginx_conf(
-                        expose_name=expose_name,
-                        internal_host=deploy_record.internal_host,
-                        internal_port=deploy_record.internal_port or "8082",
-                        has_websocket=deploy_record.has_websocket or False,
-                    )
-                    deployer.reload_nginx()
+            if start_deployment(deployer, deploy_record)["success"]:
                 logger.info("Successfully executed docker compose up for plugin deployment")
         elif command == "down":
             expose_name = deploy_record.route_prefix.replace("/plugin/", "") if deploy_record.route_prefix else ""
@@ -639,12 +587,16 @@ async def execute_plugin_backend_by_docker(deploy_id: str, command: Literal["up"
         }
 
 
-@router.get("/check/deploy/{deploy_id}/")
-async def get_check_deploy(deploy_id: str, db: Session = Depends(get_db)):
-    deploy_record = db.query(PluginDeployment).filter(PluginDeployment.deploy_id == deploy_id).first()  # type: ignore
-    if deploy_record is None:
-        raise HTTPException(status_code=404, detail="Plugin Deploy record not found")
-    return deploy_record.up
+@router.post("/backend/{expose_name}/start")
+def post_start_backend(expose_name: str):
+    """Launch: make sure the tool's backend runs (start its deployment, else deploy its build). Any signed-in user."""
+    return start_backend(deployer, expose_name)
+
+
+@router.get("/backend/{expose_name}")
+def get_backend_state(expose_name: str):
+    """What /tool-view polls after a start: none | stopped | starting | deploying | running | failed."""
+    return backend_state(expose_name)
 
 
 class ApprovalRequest(BaseModel):

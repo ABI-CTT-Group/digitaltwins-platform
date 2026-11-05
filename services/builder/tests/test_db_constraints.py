@@ -109,5 +109,31 @@ class WorkflowDeploymentTest(unittest.TestCase):
         self.assertEqual(session.query(PluginDeployment).count(), 0)
 
 
+class OneDeploymentPerBuildTest(unittest.TestCase):
+    def test_a_tool_build_has_one_deployment(self):
+        session = make_fk_session()
+        plugin = add_plugin_with_deployment(session)
+        session.add(PluginDeployment(plugin_id=plugin.id, build_id="build-business-key", deploy_id="d2"))
+        with self.assertRaises(IntegrityError):
+            session.commit()
+
+    def test_a_workflow_build_has_one_deployment(self):
+        session = make_fk_session()
+        _, build = add_workflow_build(session)
+        session.add(PluginDeployment(workflow_build_id=build.build_id, deploy_id="d1"))
+        session.commit()
+        session.add(PluginDeployment(workflow_build_id=build.build_id, deploy_id="d2"))
+        with self.assertRaises(IntegrityError):
+            session.commit()
+
+    def test_a_deployment_keeps_its_error(self):
+        session = make_fk_session()
+        add_plugin_with_deployment(session)
+        session.query(PluginDeployment).one().error = "docker compose up failed"
+        session.commit()
+        session.expire_all()
+        self.assertEqual(session.query(PluginDeployment).one().error, "docker compose up failed")
+
+
 if __name__ == "__main__":
     unittest.main()

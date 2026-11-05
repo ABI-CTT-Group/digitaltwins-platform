@@ -1,4 +1,4 @@
-"""Keycloak on /api/builder/tools: any valid token reads, admin|researcher write, admin deploys.
+"""Keycloak on /api/builder/tools: any valid token reads, admin|researcher write, admin runs backend commands (Launch starts a backend for anyone).
 
 Run from `services/builder/`:
     python -m pytest tests/test_tools_auth.py
@@ -37,7 +37,7 @@ class ToolsAuthTest(unittest.TestCase):
                 self.assertNotIn(r.status_code, (401, 403), r.text)
 
     def test_deploy_and_debug_are_admin_only(self):
-        admin_only = ["/api/builder/tools/plugin/x/deploy", "/api/builder/tools/plugin/deploy/x/execute?command=up",
+        admin_only = ["/api/builder/tools/plugin/deploy/x/execute?command=up",
                       "/api/builder/tools/debug/nginx-config", "/api/builder/tools/test-build"]
         for path in admin_only:
             with self.subTest(path=path):
