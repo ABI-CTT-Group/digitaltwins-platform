@@ -1,9 +1,9 @@
 <template>
   <RegistryView
     ref="registryRef"
-    register-label="Register a new measurement dataset"
+    register-label="Register a measurement dataset"
     search-label="Search measurements"
-    accent="#62d3b0"
+    accent="var(--accent-measurements)"
     :fetch-list="useMeasurement"
     :is-pending="hasPendingItem"
     :filter-fn="registrationFilterFn"
@@ -17,11 +17,11 @@
         item-value="value"
         label="Registration status"
         variant="outlined"
-        base-color="#62d3b0"
+        base-color="#5f7884"
         color="#62d3b0"
         density="compact"
         hide-details
-        style="max-width: 240px;"
+        style="width: 220px;"
       />
     </template>
 
@@ -30,8 +30,8 @@
         v-for="m in items"
         :key="m.id"
         :measurement="m"
-        @delete="handleDelete"
-        @cancel-upload="handleCancelUpload"
+        @delete="confirmDelete"
+        @cancel-upload="confirmCancelUpload"
         @resume-upload="handleResumeUpload"
         @retry-fhir="handleRetryFhir"
         @approve="handleApprove"
@@ -40,7 +40,13 @@
         @export="handleExport"
       />
     </template>
+
+    <template #empty>
+      <p class="hub-empty">No measurement datasets yet. Register an SDS dataset so assays can use it as an input.</p>
+    </template>
   </RegistryView>
+
+  <ConfirmDialog v-if="confirm.request.value" v-model="confirm.open.value" v-bind="confirm.request.value" />
 
   <ApprovalDialog
     v-model="approvalOpen"
@@ -57,6 +63,8 @@ import { useRouter } from 'vue-router';
 import RegistryView from '../components/RegistryView.vue';
 import MeasurementCard from './components/MeasurementCard.vue';
 import ApprovalDialog from './components/ApprovalDialog.vue';
+import ConfirmDialog from '../components/ConfirmDialog.vue';
+import { useConfirm } from '../components/useConfirm';
 import { clearExportFields } from './components/clearExportFields';
 import {
   useMeasurement,
@@ -106,17 +114,19 @@ const registrationFilterFn = computed(() => {
   return (m: MeasurementResponse) => isMeasurementInPlatform(m) === wantInPlatform;
 });
 
-const handleDelete = async (id: string) => {
-  try {
-    await useDeleteMeasurement(id);
-    toast.success('Measurement deleted.');
-  } catch (e) {
-    console.error('Delete measurement failed:', e);
-    toast.error('Failed to delete measurement.');
-  } finally {
+const confirm = useConfirm();
+const confirmDelete = (m: MeasurementResponse) => confirm.ask({
+  title: `Delete ${m.name}?`,
+  text: isMeasurementInPlatform(m)
+    ? 'The dataset is removed from the platform, with its FHIR resources. This can\'t be undone.'
+    : 'The uploaded files and the FHIR annotation draft are discarded. This can\'t be undone.',
+  confirmLabel: 'Delete dataset',
+  action: async () => {
+    await useDeleteMeasurement(m.id);
+    toast.success('Measurement dataset deleted.');
     await registryRef.value?.handleRefresh();
-  }
-};
+  },
+});
 
 // Resume = open the form bound to this specific unfinished upload (resume mode):
 // name locked, no uniqueness check, dropped folder validated against the
@@ -125,17 +135,17 @@ const handleResumeUpload = (id: string) => emit('resume', id);
 
 // pending_upload rows are aborted through /upload/cancel (drops tmp parts + row),
 // not the generic delete which assumes a fully-staged dataset.
-const handleCancelUpload = async (id: string) => {
-  try {
-    await useUploadCancel(id);
+const confirmCancelUpload = (m: MeasurementResponse) => confirm.ask({
+  title: `Cancel the upload of ${m.name}?`,
+  text: 'The parts uploaded so far are discarded. To register this dataset later, upload it again.',
+  confirmLabel: 'Cancel upload',
+  dismissLabel: 'Keep it',
+  action: async () => {
+    await useUploadCancel(m.id);
     toast.success('Upload cancelled.');
-  } catch (e) {
-    console.error('Cancel upload failed:', e);
-    toast.error('Failed to cancel upload.');
-  } finally {
     await registryRef.value?.handleRefresh();
-  }
-};
+  },
+});
 
 const handleRetryFhir = async (id: string) => {
   try {

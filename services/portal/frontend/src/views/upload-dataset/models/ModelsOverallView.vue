@@ -1,9 +1,9 @@
 <template>
   <RegistryView
     ref="registryRef"
-    register-label="Register a new model"
+    register-label="Register a model"
     search-label="Search models"
-    accent="#b08fe8"
+    accent="var(--accent-models)"
     :fetch-list="useModels"
     :is-pending="hasPendingItem"
     :filter-fn="registrationFilterFn"
@@ -17,11 +17,11 @@
         item-value="value"
         label="Registration status"
         variant="outlined"
-        base-color="#b08fe8"
+        base-color="#5f7884"
         color="#b08fe8"
         density="compact"
         hide-details
-        style="max-width: 240px;"
+        style="width: 220px;"
       />
     </template>
 
@@ -31,14 +31,20 @@
         :key="m.id"
         :model="m"
         @resume-upload="(id: string) => emit('resume', id)"
-        @cancel-upload="handleCancelUpload"
+        @cancel-upload="confirmCancelUpload"
         @approve="openApproval"
         @edit="(model: MeasurementResponse) => emit('edit', model)"
         @retry-fhir="handleRetryFhir"
         @delete="openDelete"
       />
     </template>
+
+    <template #empty>
+      <p class="hub-empty">No models yet. Register a trained model so assays and inference workflows can use it.</p>
+    </template>
   </RegistryView>
+
+  <ConfirmDialog v-if="confirm.request.value" v-model="confirm.open.value" v-bind="confirm.request.value" />
 
   <v-dialog v-model="approvalOpen" max-width="560" :persistent="approving">
     <v-card flat class="pa-2">
@@ -50,18 +56,18 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn variant="text" color="#9fb4bf" class="text-none" :disabled="approving" @click="approvalOpen = false">Cancel</v-btn>
-        <v-btn
+        <button type="button" class="aurora-btn aurora-btn--ghost" :disabled="approving" @click="approvalOpen = false">Cancel</button>
+        <button
+          type="button"
           data-testid="approve"
-          color="#b08fe8"
-          variant="tonal"
-          class="text-none"
-          prepend-icon="mdi-cloud-upload"
-          :loading="approving"
+          class="aurora-btn aurora-btn--solid ms-2"
+          style="--accent: var(--accent-models)"
+          :disabled="approving"
           @click="handleApprove"
         >
+          <v-progress-circular v-if="approving" indeterminate size="14" width="2" />
           Approve & register
-        </v-btn>
+        </button>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -75,6 +81,8 @@ import { useToast } from 'vue-toastification';
 import { computed, ref } from 'vue';
 import RegistryView from '../components/RegistryView.vue';
 import DeletePlatformDatasetDialog from '../components/DeletePlatformDatasetDialog.vue';
+import ConfirmDialog from '../components/ConfirmDialog.vue';
+import { useConfirm } from '../components/useConfirm';
 import ModelCard from './components/ModelCard.vue';
 import { useModels } from '@/bootstrap/model_api';
 import { useMeasurementRetryFhir, useMeasurementSubmit, useUploadCancel } from '@/bootstrap/measurement_api';
@@ -109,16 +117,18 @@ const registrationFilterFn = computed(() => {
 
 const detail = (e: any) => e?.response?.data?.detail || e?.message || 'unknown error';
 
-const handleCancelUpload = async (id: string) => {
-  try {
-    await useUploadCancel(id);
+const confirm = useConfirm();
+const confirmCancelUpload = (m: MeasurementResponse) => confirm.ask({
+  title: `Cancel the upload of ${m.name}?`,
+  text: 'The parts uploaded so far are discarded. To register this model later, upload it again.',
+  confirmLabel: 'Cancel upload',
+  dismissLabel: 'Keep it',
+  action: async () => {
+    await useUploadCancel(m.id);
     toast.success('Upload cancelled.');
-  } catch (e) {
-    toast.error(`Cancel failed: ${detail(e)}`);
-  } finally {
     await refresh();
-  }
-};
+  },
+});
 
 const handleRetryFhir = async (id: string) => {
   try {
@@ -167,7 +177,7 @@ const handleDeleted = async () => {
 
 <style scoped>
 .dialog-title {
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-weight: 500;
 }
 </style>

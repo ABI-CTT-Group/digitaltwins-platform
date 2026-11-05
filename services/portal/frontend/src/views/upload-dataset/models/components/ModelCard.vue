@@ -3,7 +3,6 @@
     :title="model.name"
     kind="Model"
     accent="#b08fe8"
-    :is-deleting="isDeleting"
     :menu-items="menuItems"
   >
     <template #description>{{ model.description || 'No description provided.' }}</template>
@@ -16,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRef } from 'vue';
+import { computed, toRef } from 'vue';
 import CardUI, { type UCardMenuItem } from '../../components/CardUI.vue';
 import { formatDate } from '../../components/utils';
 import { measurementRegistrationTag } from '../../components/cardTags';
@@ -28,7 +27,7 @@ import type { MeasurementResponse } from '@/models/types';
 const props = defineProps<{ model: MeasurementResponse }>();
 const emit = defineEmits<{
   (e: 'resumeUpload', id: string): void;
-  (e: 'cancelUpload', id: string): void;
+  (e: 'cancelUpload', m: MeasurementResponse): void;
   (e: 'approve', m: MeasurementResponse): void;
   (e: 'edit', m: MeasurementResponse): void;
   (e: 'retryFhir', id: string): void;
@@ -36,7 +35,6 @@ const emit = defineEmits<{
 }>();
 
 const model = toRef(props, 'model');
-const isDeleting = ref(false);
 const busy = computed(() => model.value.status === 'uploading');
 
 const registration = computed(() => measurementRegistrationTag(model.value));
@@ -67,8 +65,6 @@ const menuItems = computed<UCardMenuItem[]>(() => {
   return items;
 });
 
-const onCancelUpload = () => {
-  isDeleting.value = true;
-  emit('cancelUpload', model.value.id);
-};
+// The hub confirms before cancelling.
+const onCancelUpload = () => emit('cancelUpload', model.value);
 </script>
