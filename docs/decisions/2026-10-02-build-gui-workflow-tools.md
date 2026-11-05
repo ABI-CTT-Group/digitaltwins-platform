@@ -70,7 +70,7 @@ The portal builds a gui SDS workflow's frontend during the workflow build. It us
   - into the workflow package at `primary/<tool_stem>/`
   - to `tool-builds/<expose>/primary/` for launching before approval
   - into the tool dataset's `primary/` on approval, copied by the API's `_assemble_tool`
-- **Backends work as for tools:** the build bakes in the route prefix, and Deploy backend and Compose up/down are admin actions. The deploy targets the build whose bundle Launch loads.
+- **Backends work as for tools:** the build bakes in the route prefix, and Deploy backend and Compose up/down are admin actions. The deploy targets the build whose bundle Launch loads. *(Superseded in part by [2026-11-05-start-gui-backends-on-launch](2026-11-05-start-gui-backends-on-launch.md): Launch now starts the backend.)*
 - **Launch and the backend actions live only on the Tool Hub card** for the workflow's tool, tagged "from workflow `<name>`".
 
 Details are in the spec: [docs/artifacts/2026-10-02-155146-gui-workflow-tool-build/spec.md](../artifacts/2026-10-02-155146-gui-workflow-tool-build/spec.md).

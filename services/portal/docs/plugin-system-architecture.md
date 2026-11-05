@@ -108,7 +108,7 @@ After this, the plugin is **installed** (listed in the portal) but not yet **dep
 
 ## 4. Deploy pipeline (`PluginDeployer` in `services/builder/app/engine/deploy_tool.py`)
 
-Runs after build for plugins with a backend folder. Steps:
+Runs for plugins with a backend folder the first time the tool is launched (see §5), or when its last deploy failed. Steps:
 
 1. **Locate backend folder** — `code/<backend_folder>/` inside the SPARC dataset.
 2. **Validate** — `docker-compose.yml` must exist in that folder, otherwise fail.
@@ -130,7 +130,7 @@ Runs after build for plugins with a backend folder. Steps:
    ```
    `<internal_host>` is the plugin container's service name on the `digitaltwins-platform` network; `<internal_port>` is its internal port (e.g. `8082`).
 5. **Reload nginx** — `docker exec <NGINX_CONTAINER_NAME> nginx -s reload`. Nginx picks up the new file via the `include /etc/nginx/conf.d/plugins/*.conf;` directive at the bottom of `nginx.conf.template`.
-6. **Write `PluginDeployment` row** with `route_prefix`, `internal_host`, `internal_port`, `has_websocket`, `status=COMPLETED`, `up=true`.
+6. **Write `PluginDeployment` row** with `route_prefix`, `internal_host`, `internal_port`, `has_websocket`, `status=COMPLETED`, `up=true`. Each build has one such row; a redeploy reuses it, and a failed deploy stores its reason in `error`.
 
 The URL `http(s)://<host>/plugin/<expose>/…` is now live.
 
@@ -139,12 +139,13 @@ The URL `http(s)://<host>/plugin/<expose>/…` is now live.
 ## 5. Runtime flow — user opens a plugin
 
 1. Browser is already on `https://test.digitaltwins.auckland.ac.nz/` (portal HTML, served by nginx from `/usr/share/nginx/html`).
-2. User clicks the plugin card. The portal's Vue router renders `<RemoteComponentApp src=".../<expose>.umd.js" expose="<expose_name>" />` ([RemoteComponentApp.vue](../frontend/src/components/RemoteComponentApp.vue)).
-3. `RemoteComponentApp.vue` appends a `<script>` tag with `src="https://<host>:<minio_port>/tools/<expose>/primary/<name>.umd.js"` to `document.head`.
-4. The UMD bundle loads and registers itself on `window[expose_name]`.
-5. The Vue component from `window[expose_name]` is mounted via `<component :is="remoteApp" />`.
-6. The plugin's own code makes API calls like `fetch(import.meta.env.VITE_PLUGIN_ROUTE_PREFIX + '/some-endpoint')`. Because `VITE_PLUGIN_ROUTE_PREFIX` was baked in at build time as `/plugin/<expose>`, the request goes to `https://<host>/plugin/<expose>/some-endpoint`.
-7. nginx matches `location /plugin/<expose>/ { proxy_pass http://<internal_host>:<internal_port>/; }` (loaded from `plugins/<expose>.conf`) and forwards to the plugin backend container.
+2. User clicks Launch on the plugin card, or on a gui assay. Both open `/tool-view`, which first calls `POST /api/builder/tools/backend/<expose>/start` and polls `GET /api/builder/tools/backend/<expose>` until the backend is `running` (or the tool has none). The builder runs `docker compose -p <expose> up -d` on the build's existing deployment, or the deploy pipeline (§4) when there is none. Any signed-in user can trigger this; an admin can stop a backend from the card's menu ([ADR](../../../docs/decisions/2026-11-05-start-gui-backends-on-launch.md)).
+3. The portal's Vue router renders `<RemoteComponentApp src=".../<expose>.umd.js" expose="<expose_name>" />` ([RemoteComponentApp.vue](../frontend/src/components/RemoteComponentApp.vue)).
+4. `RemoteComponentApp.vue` appends a `<script>` tag with `src="https://<host>:<minio_port>/tools/<expose>/primary/<name>.umd.js"` to `document.head`.
+5. The UMD bundle loads and registers itself on `window[expose_name]`.
+6. The Vue component from `window[expose_name]` is mounted via `<component :is="remoteApp" />`.
+7. The plugin's own code makes API calls like `fetch(import.meta.env.VITE_PLUGIN_ROUTE_PREFIX + '/some-endpoint')`. Because `VITE_PLUGIN_ROUTE_PREFIX` was baked in at build time as `/plugin/<expose>`, the request goes to `https://<host>/plugin/<expose>/some-endpoint`.
+8. nginx matches `location /plugin/<expose>/ { proxy_pass http://<internal_host>:<internal_port>/; }` (loaded from `plugins/<expose>.conf`) and forwards to the plugin backend container.
 
 No portal rebuild, no nginx image rebuild — the plugin showed up because of a MinIO upload, a `docker compose up`, a file written to a shared volume, and an `nginx -s reload`.
 
