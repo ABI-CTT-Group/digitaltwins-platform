@@ -53,7 +53,12 @@ Branch: `feat/registration-ui-wizard`. Picks up PR2's deviations (Build → Cont
 - TDD slips: the measurement step's Skip button and `WizardFrame` have no spec of their own (the wizard specs stub them).
 
 ## PR4: one Approve dialog
-- [ ] `ApproveDialog.vue`, `approveAdapters.ts` (+ specs; move ToolApprovalDialog cases)
-- [ ] Remove the three old approval UIs
-- [ ] ADR `optional-fhir-annotation`
-- [ ] Green; live check; walkthrough
+Branch: `feat/registration-ui-approve`.
+- [x] `approveAdapters.ts` (+ spec): tools and SDS workflows (handoff; always `fhir: true`; SEEK project; FHIR push followed), measurements and models (upload session); one progress shape; the FHIR hint per category
+- [x] `ApproveDialog.vue` (+ spec, ToolApprovalDialog cases moved): confirm → progress → done or failed; closable mid-way; waiting for sign-in; start error inline; title follows the phase
+- [x] Hubs and cards use it (the tool card's Approve emits the row); removed `ToolApprovalDialog.vue` (+ spec), `measurements/components/ApprovalDialog.vue`, `SubmitProgress.vue`, the Models hub's inline dialog
+- [x] One FHIR rule (reviewer's request, reverses D7): tools and workflows send `fhir: hasAnnotation`, so an unannotated item of any category isn't published to FHIR; hints and specs updated (spec and code changed together, not red first)
+- [x] ADR `2026-11-06-optional-fhir-annotation`; glossary "FHIR annotation"; portal README ADR link
+- [x] Green: `make test` (api 407, builder 260, frontend 286, util 5), `make lint`, `make docs-check`
+- [x] Rebuild and restart `portal-frontend`; headless Firefox with stubbed approval calls: workflow confirm (project picker, FHIR hint) → progress → done; measurement confirm at 360px
+- [x] Walkthrough (`walkthrough-pr4.md`); sync artifacts; gitleaks dir scan

@@ -36,31 +36,7 @@
 
   <ConfirmDialog v-if="confirm.request.value" v-model="confirm.open.value" v-bind="confirm.request.value" />
 
-  <v-dialog v-model="approvalOpen" max-width="560" :persistent="approving">
-    <v-card flat class="pa-2">
-      <v-card-title class="dialog-title">Approve & register?</v-card-title>
-      <v-card-text>
-        <strong>"{{ approvalModel?.name }}"</strong> is stored in MinIO and the platform database
-        <span v-if="approvalModel?.hasAnnotation">and published to FHIR as a Device</span>.
-        Assays and inference workflows can then use it by its dataset UUID.
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <button type="button" class="aurora-btn aurora-btn--ghost" :disabled="approving" @click="approvalOpen = false">Cancel</button>
-        <button
-          type="button"
-          data-testid="approve"
-          class="aurora-btn aurora-btn--solid ms-2"
-          style="--accent: var(--accent-models)"
-          :disabled="approving"
-          @click="handleApprove"
-        >
-          <v-progress-circular v-if="approving" indeterminate size="14" width="2" />
-          Approve & register
-        </button>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+  <ApproveDialog v-model="approvalOpen" category="models" :item="approvalModel" @finished="refresh" />
 
   <DeletePlatformDatasetDialog v-model="deleteOpen" kind="model" :item="deleteItem" @deleted="handleDeleted" />
 </template>
@@ -71,6 +47,7 @@ import { useToast } from 'vue-toastification';
 import { ref } from 'vue';
 import RegistryView from '../components/RegistryView.vue';
 import DeletePlatformDatasetDialog from '../components/DeletePlatformDatasetDialog.vue';
+import ApproveDialog from '../components/ApproveDialog.vue';
 import ConfirmDialog from '../components/ConfirmDialog.vue';
 import HubFilterChips from '../components/HubFilterChips.vue';
 import { useConfirm } from '../components/useConfirm';
@@ -81,7 +58,7 @@ import { describeApiError } from '../components/apiError';
 import { useRouter } from 'vue-router';
 import ModelCard from './components/ModelCard.vue';
 import { useModels } from '@/bootstrap/model_api';
-import { useMeasurementRetryFhir, useMeasurementSubmit, useUploadCancel } from '@/bootstrap/measurement_api';
+import { useMeasurementRetryFhir, useUploadCancel } from '@/bootstrap/measurement_api';
 import type { MeasurementResponse } from '@/models/types';
 
 const toast = useToast();
@@ -123,24 +100,9 @@ const handleRetryFhir = async (id: string) => {
 
 const approvalOpen = ref(false);
 const approvalModel = ref<MeasurementResponse | null>(null);
-const approving = ref(false);
 const openApproval = (m: MeasurementResponse) => {
   approvalModel.value = m;
   approvalOpen.value = true;
-};
-const handleApprove = async () => {
-  if (!approvalModel.value) return;
-  approving.value = true;
-  try {
-    await useMeasurementSubmit(approvalModel.value.id);
-    toast.success('Registering the model.');
-    approvalOpen.value = false;
-  } catch (e) {
-    toast.error(describeApiError(e, 'Approval'));
-  } finally {
-    approving.value = false;
-    await refresh();
-  }
 };
 
 const deleteOpen = ref(false);
@@ -154,10 +116,3 @@ const handleDeleted = async () => {
   await refresh();
 };
 </script>
-
-<style scoped>
-.dialog-title {
-  font-family: var(--font-title);
-  font-weight: 500;
-}
-</style>
