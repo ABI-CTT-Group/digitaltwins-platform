@@ -51,6 +51,8 @@
 
     <p v-if="$slots.description" class="ucard__desc"><slot name="description" /></p>
 
+    <div v-if="$slots.status" class="ucard__status"><slot name="status" /></div>
+
     <div class="ucard__foot">
       <div class="ucard__meta"><slot name="meta" /></div>
       <div v-if="$slots.action" class="ucard__cta"><slot name="action" /></div>
@@ -95,7 +97,7 @@ const run = (item: UCardMenuItem) => {
 
 <style scoped>
 /* Quiet by default: no shadow, no lift. The category accent marks only the top edge and the kind
-   label; status colour (later, the status line) is what draws the eye. */
+   label; the status line's colour is what draws the eye. */
 .ucard {
   --accent: var(--accent-tools);
   position: relative;
@@ -176,9 +178,10 @@ const run = (item: UCardMenuItem) => {
 }
 .ucard__more:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* Always two lines tall, so status lines line up across a row. */
 .ucard__desc {
   margin: 0;
-  flex: 1;
+  min-height: 3em;
   max-width: 60ch;
   font-size: 0.875rem;
   line-height: 1.5;
@@ -189,6 +192,8 @@ const run = (item: UCardMenuItem) => {
   overflow: hidden;
 }
 
+.ucard__status { padding-top: 2px; }
+
 .ucard__foot {
   margin-top: auto;
   display: flex;
@@ -198,6 +203,9 @@ const run = (item: UCardMenuItem) => {
   padding-top: 6px;
 }
 .ucard__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+/* A long chip (a workflow's name) ends in an ellipsis rather than wrapping. */
+.ucard__meta :slotted(.aurora-chip) { max-width: 100%; }
+.ucard__meta :slotted(.aurora-chip--clip) { display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ucard__cta { flex-shrink: 0; }
 
 /* Dropdown — teleported, but the wrapper is rendered by THIS component so the

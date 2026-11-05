@@ -36,7 +36,7 @@ describe("useWorkflowHub", () => {
     await useWorkflowHub();
 
     const enrich = helpers.fetchWithLatestBuild.mock.calls[0][2];
-    expect(await enrich({}, { handoffStatus: "failed", handoffError: "SEEK 403" }))
-      .toEqual({ handoffStatus: "failed", handoffError: "SEEK 403" });
+    expect(await enrich({}, { handoffStatus: "failed", handoffError: "SEEK 403", errorMessages: "cwltool: invalid" }))
+      .toEqual({ handoffStatus: "failed", handoffError: "SEEK 403", buildError: "cwltool: invalid" });
   });
 });

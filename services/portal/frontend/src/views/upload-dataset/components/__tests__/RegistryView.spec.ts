@@ -50,6 +50,12 @@ describe("RegistryView", () => {
     expect(view.find(".empty").text()).toBe("No tools yet.");
   });
 
+  it("orders the list with the hub's sort, before searching", async () => {
+    const view = mountView({ fetchList: async () => rows, sortFn: (x: Row, y: Row) => y.name.localeCompare(x.name) });
+    await flushPromises();
+    expect(view.findAll(".row").map((r) => r.text())).toEqual(["beta", "alpha"]);
+  });
+
   it("says nothing matches when a filter hides every item", async () => {
     const view = mountView({ fetchList: async () => rows, filterFn: () => false });
     await flushPromises();

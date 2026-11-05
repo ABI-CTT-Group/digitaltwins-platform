@@ -2,26 +2,17 @@
   <CardUI
     :title="measurement.name"
     kind="Measurement"
-    accent="#62d3b0"
+    accent="var(--accent-measurements)"
     :menu-items="menuItems"
   >
     <template #description>{{ measurement.description || 'No description provided.' }}</template>
 
-    <template #meta>
-      <span class="aurora-chip" :style="{ '--chip': registration.color }" :title="registration.title">{{ registration.label }}</span>
-      <span v-if="measurement.createdAt" class="aurora-chip ms-auto">{{ formatDate(measurement.createdAt) }}</span>
-    </template>
+    <template #status><StatusLine :status="status" /></template>
 
-    <template v-if="measurement.status === 'fhir_failed'" #action>
-      <button
-        type="button"
-        class="aurora-btn aurora-btn--sm"
-        style="--accent: #ffb74d"
-        :disabled="retrying"
-        @click.stop="onRetryFhir"
-      >
-        <v-progress-circular v-if="retrying" indeterminate size="13" width="2" color="#ffb74d" />
-        <v-icon v-else icon="mdi-refresh" size="15" /> Retry FHIR
+    <template v-if="status.action" #action>
+      <button type="button" class="aurora-btn aurora-btn--sm" :disabled="retrying" @click.stop="runAction(status.action)">
+        <v-progress-circular v-if="retrying" indeterminate size="13" width="2" />
+        {{ ACTION_LABELS[status.action] }}
       </button>
     </template>
   </CardUI>
@@ -30,8 +21,8 @@
 <script setup lang="ts">
 import { computed, ref, toRef } from 'vue';
 import CardUI, { type UCardMenuItem } from '../../components/CardUI.vue';
-import { formatDate } from '../../components/utils';
-import { measurementRegistrationTag } from '../../components/cardTags';
+import StatusLine from '../../components/StatusLine.vue';
+import { ACTION_LABELS, datasetStatus, type CardAction } from '../../components/cardStatus';
 import type { MeasurementResponse } from '@/models/types';
 
 const props = defineProps<{ measurement: MeasurementResponse }>();
@@ -49,42 +40,38 @@ const emit = defineEmits<{
 const retrying = ref(false);
 const measurement = toRef(props, 'measurement');
 
-// Button visibility matrix. MinIO is uploaded once status leaves
-// pending/submit_failed; `uploading` disables every action to prevent races.
+// The status line's action is the card's button (approve, resume, retry FHIR); the menu holds the rest.
+// The files reach the platform once status leaves pending/submit_failed; `uploading` disables every
+// action to prevent races. The FHIR annotation is optional, so a staged dataset approves without one.
 const busy = computed(() => measurement.value.status === 'uploading');
 const notUploaded = computed(
   () => measurement.value.status === 'pending' || measurement.value.status === 'submit_failed',
 );
-const showApproval = computed(() => !!measurement.value.hasAnnotation && notUploaded.value);
-const showEdit = computed(() => notUploaded.value);
-const showAnnotationActions = computed(() => !!measurement.value.hasAnnotation);
+const hasAnnotation = computed(() => !!measurement.value.hasAnnotation);
 
-const registration = computed(() => measurementRegistrationTag(measurement.value));
+const status = computed(() => datasetStatus(measurement.value));
+
+const runAction = (action: CardAction) => {
+  if (action === 'approve' || action === 'approve-again') onApprove();
+  else if (action === 'resume-upload') onResumeUpload();
+  else if (action === 'retry-fhir') onRetryFhir();
+};
 
 const menuItems = computed<UCardMenuItem[]>(() => {
-  // A pending_upload row is a placeholder for an in-flight chunked upload. The
-  // only meaningful action is to abort it — which must go through /upload/cancel
-  // (drops the tmp parts + row), not the generic delete.
+  // A pending_upload row is a placeholder for an in-flight chunked upload: resume it (the button)
+  // or abort it — which must go through /upload/cancel (drops the tmp parts + row), not the generic delete.
   if (measurement.value.status === 'pending_upload') {
-    return [
-      { label: 'Resume upload', icon: 'mdi-play-circle-outline', onClick: onResumeUpload },
-      { label: 'Cancel upload', icon: 'mdi-close-circle-outline', danger: true, onClick: onCancelUpload },
-    ];
+    return [{ label: 'Cancel upload', icon: 'mdi-close-circle-outline', danger: true, onClick: onCancelUpload }];
   }
 
   const items: UCardMenuItem[] = [];
-  if (showApproval.value) {
-    items.push({ label: 'Approval (upload to MinIO)', icon: 'mdi-cloud-upload-outline', disabled: busy.value, onClick: onApprove });
+  if (notUploaded.value) {
+    items.push({ label: hasAnnotation.value ? 'Edit FHIR annotation' : 'Add FHIR annotation', icon: 'mdi-pencil-outline',
+      disabled: busy.value, onClick: onEdit });
   }
-  if (showEdit.value) {
-    items.push({ label: 'Edit annotation', icon: 'mdi-pencil-outline', disabled: busy.value, onClick: onEdit });
-  }
-  if (showAnnotationActions.value) {
+  if (hasAnnotation.value) {
     items.push({ label: 'Preview fhir.json', icon: 'mdi-code-json', disabled: busy.value, onClick: onPreview });
     items.push({ label: 'Export annotation', icon: 'mdi-download-outline', disabled: busy.value, onClick: onExport });
-  }
-  if (measurement.value.status === 'fhir_failed') {
-    items.push({ label: 'Retry FHIR registration', icon: 'mdi-refresh', onClick: onRetryFhir });
   }
   items.push({ label: 'Delete measurement', icon: 'mdi-trash-can-outline', danger: true, disabled: busy.value, onClick: onDelete });
   return items;

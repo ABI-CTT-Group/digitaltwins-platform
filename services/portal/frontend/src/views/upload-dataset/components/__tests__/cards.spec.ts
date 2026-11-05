@@ -3,11 +3,8 @@ import { mount } from "@vue/test-utils";
 import { testVuetify } from "@/testing/vuetify";
 
 vi.mock("@/bootstrap/http", () => ({ default: {}, dtApi: {} }));
-const { toastError, deleteWorkflow, deleteTool } = vi.hoisted(() => ({ toastError: vi.fn(), deleteWorkflow: vi.fn(), deleteTool: vi.fn() }));
-vi.mock("@/bootstrap/tool_api", () => ({
-  useDeleteTool: deleteTool, useToolApprovalStatus: vi.fn(),
-}));
-vi.mock("vue-toastification", () => ({ useToast: () => ({ error: toastError, warning: vi.fn(), success: vi.fn() }) }));
+const { deleteWorkflow, deleteTool } = vi.hoisted(() => ({ deleteWorkflow: vi.fn(), deleteTool: vi.fn() }));
+vi.mock("@/bootstrap/tool_api", () => ({ useDeleteTool: deleteTool, useToolApprovalStatus: vi.fn() }));
 vi.mock("@/bootstrap/workflow_api", () => ({ useWorkflowApprovalStatus: vi.fn(), useDeleteWorkflow: deleteWorkflow }));
 
 import CardUI from "../CardUI.vue";
@@ -17,208 +14,163 @@ import MeasurementCard from "../../measurements/components/MeasurementCard.vue";
 import ModelCard from "../../models/components/ModelCard.vue";
 
 const plugins = [testVuetify()];
-const menu = (w: ReturnType<typeof mount>) => w.findComponent(CardUI).props("menuItems") as { label: string; onClick: () => void }[];
-/** The card's tags, in order. */
-const chips = (w: ReturnType<typeof mount>) => w.findAll(".aurora-chip").map((c) => c.text());
-const chip = (w: ReturnType<typeof mount>, label: string) => w.findAll(".aurora-chip").find((c) => c.text() === label)!;
+type Wrapper = ReturnType<typeof mount>;
+const menu = (w: Wrapper) => w.findComponent(CardUI).props("menuItems") as { label: string; onClick: () => void }[];
+const labels = (w: Wrapper) => menu(w).map((m) => m.label);
+const chips = (w: Wrapper) => w.findAll(".aurora-chip").map((c) => c.text());
+const sentence = (w: Wrapper) => w.find(".status__sentence").text();
+/** The card's one next-step button, if it has one. */
+const action = (w: Wrapper) => w.find(".ucard__cta button");
 
-const WORKFLOW = { id: "p1", name: "portal wf", version: "1", repositoryUrl: "", status: "completed", createdAt: "", updatedAt: "" };
-const PLATFORM_WORKFLOW = { ...WORKFLOW, id: "wf-1", uuid: "wf-1", name: "workflow_image_conversion", version: "", platformOnly: true,
-  workflowType: "script" };
-const TOOL = { id: "t1", name: "portal tool", label: "Script", status: "completed", createdAt: "", updatedAt: "" };
-const PLATFORM_TOOL = { ...TOOL, id: "t-9", uuid: "t-9", name: "tool_dicom_to_nifti", platformOnly: true };
-const WORKFLOW_TOOL = { ...TOOL, id: "w1", label: "GUI", kind: "workflow", workflowName: "workflow_volview",
+const WORKFLOW = { id: "p1", name: "portal wf", version: "1", repositoryUrl: "", status: "completed", latestBuildId: "b1",
+  workflowType: "script", isSds: true, createdAt: "", updatedAt: "" };
+const APPROVED_WORKFLOW = { ...WORKFLOW, uuid: "a8d6da0e-1", handoffStatus: "completed" };
+const PLATFORM_WORKFLOW = { ...WORKFLOW, id: "wf-1", uuid: "wf-1", name: "workflow_image_conversion", version: "",
+  platformOnly: true, latestBuildId: undefined };
+const TOOL = { id: "t1", name: "portal tool", label: "Script", status: "completed", latestBuildId: "b1", createdAt: "", updatedAt: "" };
+const GUI_TOOL = { ...TOOL, label: "GUI", hasBackend: true };
+const PLATFORM_TOOL = { ...TOOL, id: "t-9", uuid: "t-9", name: "tool_dicom_to_nifti", platformOnly: true, latestBuildId: undefined };
+const WORKFLOW_TOOL = { ...GUI_TOOL, id: "w1", hasBackend: false, kind: "workflow", workflowName: "workflow_volview",
   name: "tool_volview", uuid: "tool-v" };
 
 describe("WorkflowCard", () => {
-  it("offers only delete for a platform workflow, and shows where it came from", () => {
-    const w = mount(WorkflowCard, { props: { workflow: PLATFORM_WORKFLOW as any }, global: { plugins } });
+  const mountWf = (workflow: object, canDeploy = false) =>
+    mount(WorkflowCard, { props: { workflow: workflow as any, canDeploy }, global: { plugins } });
 
-    expect(menu(w).map((m) => m.label)).toEqual(["Delete workflow"]);
-    // Uploaded through the API: in platform like any other, and never built by the portal.
-    expect(chips(w)).toEqual(["in platform", "script"]);
+  it("says what state it is in and offers the next step", async () => {
+    const w = mountWf(WORKFLOW);
+    expect(sentence(w)).toBe("Built — not in the platform yet");
+    expect(action(w).text()).toBe("Approve");
+    await action(w).trigger("click");
+    expect(w.emitted("approve-platform")?.[0]).toEqual([WORKFLOW]);
+  });
+
+  it("keeps chips for facts and problems only", () => {
+    const wf = { ...APPROVED_WORKFLOW, author: "ann", createdAt: "2026-10-01T10:00:00", dagStatus: "failed", dagError: "ImportError" };
+    const w = mountWf(wf);
+    expect(chips(w)).toEqual(["script", "v1", "DAG deploy failed"]);
+    expect(w.findAll(".aurora-chip")[2].attributes("title")).toBe("ImportError");
+  });
+
+  it("offers only delete for a platform workflow", () => {
+    const w = mountWf(PLATFORM_WORKFLOW);
+    expect(sentence(w)).toBe("In the platform");
+    expect(labels(w)).toEqual(["Delete workflow"]);
     menu(w)[0].onClick();
     expect(w.emitted("delete-platform")?.[0]).toEqual([PLATFORM_WORKFLOW]);
     expect(w.emitted("delete")).toBeUndefined();
   });
 
-  it("tags a workflow approved into the platform, like the Tool Hub", () => {
-    const registration = (workflow: object) =>
-      chips(mount(WorkflowCard, { props: { workflow: workflow as any }, global: { plugins } }))[0];
-
-    expect(registration({ ...WORKFLOW, uuid: "a8d6da0e-1" })).toBe("in platform");
-    expect(registration(WORKFLOW)).toBe("draft");
-    // The legacy approval only gives the row a placeholder; it never reached the platform.
-    expect(registration({ ...WORKFLOW, uuid: "sparc-workflow-$x" })).toBe("draft");
-    expect(registration({ ...WORKFLOW, handoffStatus: "committing" })).toBe("registering…");
-  });
-
-  it("orders its tags registration, build, type, then descriptive ones", () => {
-    const wf = { ...WORKFLOW, workflowType: "gui", author: "ann", createdAt: "2026-10-01T10:00:00" };
-    const w = mount(WorkflowCard, { props: { workflow: wf as any }, global: { plugins } });
-
-    expect(chips(w).slice(0, 5)).toEqual(["draft", "build · completed", "gui", "v1", "ann"]);
-    expect(chips(w)).toHaveLength(6);
-  });
-
-  it("explains a failed approval or FHIR push on hover", () => {
-    const tag = (workflow: object, label: string) =>
-      chip(mount(WorkflowCard, { props: { workflow: workflow as any }, global: { plugins } }), label);
-
-    expect(tag({ ...WORKFLOW, handoffStatus: "failed", handoffError: "SEEK 403" }, "registration failed")
-      .attributes("title")).toBe("SEEK 403");
-    expect(tag({ ...WORKFLOW, uuid: "a1", fhirStatus: "failed", fhirFailureMessage: "HAPI 500" }, "in platform")
-      .attributes("title")).toBe("FHIR publishing failed: HAPI 500");
-  });
-
-  it("keeps the portal workflow menu, and asks the hub to delete", async () => {
-    const w = mount(WorkflowCard, { props: { workflow: WORKFLOW as any }, global: { plugins } });
-
-    expect(menu(w).map((m) => m.label)).toEqual(["Submit to approval", "Delete workflow"]);
-    menu(w)[1].onClick();
+  it("asks the hub to delete a portal workflow", async () => {
+    const w = mountWf(WORKFLOW);
+    expect(labels(w)).toEqual(["Delete workflow"]);
+    menu(w)[0].onClick();
     await w.vm.$nextTick();
-    // The hub confirms and deletes; the card calls nothing itself.
     expect(w.emitted("delete")?.[0]).toEqual([WORKFLOW]);
     expect(deleteWorkflow).not.toHaveBeenCalled();
     expect(w.find(".ucard--disabled").exists()).toBe(false);
   });
 
-  it("routes a portal SDS workflow to the platform approval", () => {
-    const sds = { ...WORKFLOW, workflowType: "script", isSds: true };
-    const w = mount(WorkflowCard, { props: { workflow: sds as any }, global: { plugins } });
-
-    menu(w)[0].onClick();
-    expect(w.emitted("approve-platform")?.[0]).toEqual([sds]);
-    expect(w.emitted("submit-approve")).toBeUndefined();
+  it("can't approve a legacy workflow that isn't an SDS package", () => {
+    const w = mountWf({ ...WORKFLOW, isSds: false });
+    expect(sentence(w)).toBe("Not an SDS package — not supported yet");
+    expect(action(w).exists()).toBe(false);
+    expect(labels(w)).toEqual(["Delete workflow"]);
   });
 
-  it("keeps the legacy approval for a portal workflow without a type", () => {
-    const w = mount(WorkflowCard, { props: { workflow: WORKFLOW as any }, global: { plugins } });
+  it("lets an admin deploy a script workflow's DAG: the button, then the menu to redeploy", async () => {
+    const notDeployed = mountWf({ ...APPROVED_WORKFLOW, dagStatus: null }, true);
+    expect(action(notDeployed).text()).toBe("Deploy DAG");
+    await action(notDeployed).trigger("click");
+    expect(notDeployed.emitted("deploy-dag")).toHaveLength(1);
+    expect(labels(notDeployed)).toEqual(["Delete workflow"]);
 
-    menu(w)[0].onClick();
-    expect(w.emitted("submit-approve")?.[0]).toEqual(["p1"]);
-    expect(w.emitted("approve-platform")).toBeUndefined();
+    const deployed = mountWf({ ...APPROVED_WORKFLOW, dagStatus: "deployed" }, true);
+    expect(action(deployed).exists()).toBe(false);
+    expect(labels(deployed)).toEqual(["Deploy DAG again", "Delete workflow"]);
+    expect(labels(mountWf({ ...APPROVED_WORKFLOW, dagStatus: "deployed" }))).toEqual(["Delete workflow"]);
   });
 
-  it("keeps the legacy approval for a typed workflow that is not an SDS package", () => {
-    const rootCwl = { ...WORKFLOW, workflowType: "gui", isSds: false };
-    const w = mount(WorkflowCard, { props: { workflow: rootCwl as any }, global: { plugins } });
-
-    menu(w)[0].onClick();
-    expect(w.emitted("submit-approve")?.[0]).toEqual(["p1"]);
-    expect(w.emitted("approve-platform")).toBeUndefined();
-  });
-});
-
-describe("WorkflowCard DAG deploy", () => {
-  const mountWf = (workflow: object, canDeploy = true) =>
-    mount(WorkflowCard, { props: { workflow: workflow as any, canDeploy }, global: { plugins } });
-
-  it("offers an admin Deploy DAG for a script workflow in the platform", () => {
-    const w = mountWf(PLATFORM_WORKFLOW);
-
-    expect(menu(w).map((m) => m.label)).toEqual(["Deploy DAG", "Delete workflow"]);
-    menu(w)[0].onClick();
-    expect(w.emitted("deploy-dag")?.[0]).toEqual([PLATFORM_WORKFLOW]);
-  });
-
-  it("offers it for a portal script workflow once it is approved into the platform", () => {
-    const approved = { ...WORKFLOW, uuid: "a8d6da0e-1", workflowType: "script", isSds: true };
-
-    expect(menu(mountWf(approved)).map((m) => m.label)).toEqual(["Submit to approval", "Deploy DAG", "Delete workflow"]);
-  });
-
-  it("does not offer it to a non-admin, for other workflow types, before registration, or while deploying", () => {
-    const labels = (workflow: object, canDeploy = true) => menu(mountWf(workflow, canDeploy)).map((m) => m.label);
-
-    expect(labels(PLATFORM_WORKFLOW, false)).not.toContain("Deploy DAG");
-    expect(labels({ ...PLATFORM_WORKFLOW, workflowType: "gui" })).not.toContain("Deploy DAG");
-    expect(labels({ ...WORKFLOW, workflowType: "script" })).not.toContain("Deploy DAG");
-    expect(labels({ ...WORKFLOW, workflowType: "script", uuid: "sparc-workflow-$x" })).not.toContain("Deploy DAG");
-    expect(labels({ ...PLATFORM_WORKFLOW, dagStatus: "deploying" })).not.toContain("Deploy DAG");
-  });
-
-  it("tags the deploy status after build, with the failure on hover", () => {
-    const wf = { ...WORKFLOW, uuid: "a8d6da0e-1", workflowType: "script", dagStatus: "failed", dagError: "ImportError" };
-    const w = mountWf(wf, false);
-
-    expect(chips(w).slice(0, 4)).toEqual(["in platform", "build · completed", "deploy · failed", "script"]);
-    expect(chip(w, "deploy · failed").attributes("title")).toBe("ImportError");
+  it("retries a failed FHIR push", async () => {
+    const wf = { ...APPROVED_WORKFLOW, fhirStatus: "failed", fhirFailureMessage: "HAPI 500" };
+    const w = mountWf(wf);
+    expect(w.find(".status__detail").text()).toBe("HAPI 500");
+    await action(w).trigger("click");
+    expect(w.emitted("retry-fhir")?.[0]).toEqual([wf]);
   });
 });
 
 describe("ToolCard", () => {
-  it("offers only delete for a platform tool", () => {
-    const w = mount(ToolCard, { props: { tool: PLATFORM_TOOL as any }, global: { plugins } });
+  const mountTool = (tool: object) => mount(ToolCard, { props: { tool: tool as any }, global: { plugins } });
 
-    expect(menu(w).map((m) => m.label)).toEqual(["Delete tool"]);
-    expect(chips(w)).toEqual(["in platform", "script"]);
+  it("approves a built tool from its button", async () => {
+    const w = mountTool(GUI_TOOL);
+    expect(sentence(w)).toBe("Built — not in the platform yet");
+    await action(w).trigger("click");
+    expect(w.emitted("submit-approve")?.[0]).toEqual(["t1"]);
+  });
+
+  it("launches a GUI tool in the platform; its backend failure is a chip and Launch retries", async () => {
+    const tool = { ...GUI_TOOL, uuid: "a1", handoffStatus: "completed", deployStatus: "failed", deployError: "port in use",
+      latestDeployId: "d1", version: "2" };
+    const w = mountTool(tool);
+    expect(sentence(w)).toBe("In the platform");
+    expect(chips(w)).toEqual(["gui", "v2", "backend failed"]);
+    await action(w).trigger("click");
+    expect(w.emitted("launch")?.[0]).toEqual(["t1"]);
+  });
+
+  it("builds a tool that was never built", async () => {
+    const w = mountTool({ ...GUI_TOOL, status: "pending", latestBuildId: undefined });
+    expect(sentence(w)).toBe("Not built yet");
+    await action(w).trigger("click");
+    expect(w.emitted("rebuild")?.[0]).toEqual(["t1"]);
+  });
+
+  it("opens the logs of a running or failed build", async () => {
+    const w = mountTool({ ...GUI_TOOL, status: "failed", buildError: "exit 1", latestBuildCreatedAt: "2026-11-06T10:00:00" });
+    expect(w.find(".status__detail").text()).toBe("exit 1");
+    await action(w).trigger("click");
+    expect(w.emitted("view-logs")?.[0][0]).toMatchObject({ kind: "build", jobId: "b1", initialStatus: "failed" });
+  });
+
+  it("keeps the portal tool menu, renamed, and asks the hub to delete", () => {
+    const w = mountTool(GUI_TOOL);
+    expect(labels(w)).toEqual(["Launch", "Rebuild", "View logs", "Delete tool"]);
+    menu(w)[3].onClick();
+    expect(w.emitted("delete")?.[0]).toEqual([GUI_TOOL]);
+    expect(deleteTool).not.toHaveBeenCalled();
+
+    const running = mountTool({ ...GUI_TOOL, uuid: "a1", handoffStatus: "completed", deployStatus: "completed", latestDeployId: "d1" });
+    expect(labels(running)).toEqual(["Rebuild", "Stop backend", "View logs", "Delete tool"]);
+    expect(labels(mountTool(TOOL))).toEqual(["Rebuild", "View logs", "Delete tool"]);
+  });
+
+  it("offers only delete for a platform tool", () => {
+    const w = mountTool(PLATFORM_TOOL);
+    expect(sentence(w)).toBe("In the platform");
+    expect(chips(w)).toEqual(["script"]);
+    expect(labels(w)).toEqual(["Delete tool"]);
     menu(w)[0].onClick();
     expect(w.emitted("delete-platform")?.[0]).toEqual([PLATFORM_TOOL]);
-    expect(w.emitted("delete")).toBeUndefined();
   });
 
-  it("keeps the portal tool menu, and asks the hub to delete", () => {
-    const w = mount(ToolCard, { props: { tool: TOOL as any }, global: { plugins } });
+  it("names a gui workflow's tool's workflow, which owns rebuild, approval and delete", () => {
+    const w = mountTool(WORKFLOW_TOOL);
+    expect(chips(w)).toEqual(["gui", "from workflow_volview"]);
+    expect(labels(w)).toEqual(["View logs"]);
+    expect(action(w).text()).toBe("Launch");
 
-    expect(menu(w).map((m) => m.label)).toEqual(["Rebuild tool", "Submit to approval", "Delete tool"]);
-    menu(w)[2].onClick();
-    expect(w.emitted("delete")?.[0]).toEqual([TOOL]);
-    expect(deleteTool).not.toHaveBeenCalled();
+    const backend = mountTool({ ...WORKFLOW_TOOL, hasBackend: true, deployStatus: "completed", latestDeployId: "d1" });
+    expect(labels(backend)).toEqual(["Stop backend", "View logs"]);
+    menu(backend)[0].onClick();
+    expect(backend.emitted("compose-down")?.[0]).toEqual(["d1"]);
   });
 
-  it("tags each tool type in one vocabulary", () => {
-    for (const [label, type] of [["GUI", "gui"], ["Script", "script"], ["Notebook", "notebook"]]) {
-      for (const tool of [{ ...TOOL, label }, { ...PLATFORM_TOOL, label }]) {
-        expect(chips(mount(ToolCard, { props: { tool: tool as any }, global: { plugins } }))).toContain(type);
-      }
-    }
-  });
-
-  it("orders its tags registration, build, deploy, type, then descriptive ones", () => {
-    const tool = { ...TOOL, label: "GUI", uuid: "a1", version: "2", author: "ann", hasBackend: true,
-      deployStatus: "completed", status: "completed" };
-    const w = mount(ToolCard, { props: { tool: tool as any }, global: { plugins } });
-
-    expect(chips(w)).toEqual(["in platform", "build · completed", "deploy · completed", "gui", "v2", "ann"]);
-  });
-
-  it("shows a running build and a running approval", () => {
-    const w = mount(ToolCard, { props: { tool: { ...TOOL, status: "building", handoffStatus: "uploading" } as any },
+  it("disables its button while the hub is busy", () => {
+    const w = mount(ToolCard, { props: { tool: { ...GUI_TOOL, uuid: "a1", handoffStatus: "completed" } as any, disabled: true },
       global: { plugins } });
-
-    expect(chips(w).slice(0, 2)).toEqual(["registering…", "build · building"]);
-    expect(w.text()).not.toContain("approving");
-  });
-
-  it("tags a gui workflow's tool with its workflow, which owns rebuild, approval and delete", () => {
-    const w = mount(ToolCard, { props: { tool: WORKFLOW_TOOL as any }, global: { plugins } });
-
-    expect(chips(w)).toEqual(["in platform", "build · completed", "gui", "from workflow workflow_volview"]);
-    expect(menu(w)).toEqual([]);
-    const launch = w.findAll("button").find((b) => b.text().includes("Launch"))!;
-    expect(launch.attributes("disabled")).toBeUndefined();
-  });
-
-  it("only stops a workflow tool's backend, like a tool's: Launch starts it", () => {
-    const tool = { ...WORKFLOW_TOOL, hasBackend: true, deployStatus: "completed", latestDeployId: "d1", latestBuildId: "b1" };
-    const w = mount(ToolCard, { props: { tool: tool as any }, global: { plugins } });
-
-    expect(menu(w).map((m) => m.label)).toEqual(["Stop backend", "View logs"]);
-    menu(w)[0].onClick();
-    expect(w.emitted("compose-down")?.[0]).toEqual(["d1"]);
-
-    const gui = { ...TOOL, label: "GUI", hasBackend: true, deployStatus: "completed", latestDeployId: "d2" };
-    expect(menu(mount(ToolCard, { props: { tool: gui as any }, global: { plugins } })).map((m) => m.label))
-      .toEqual(["Rebuild tool", "Submit to approval", "Stop backend", "View logs", "Delete tool"]);
-  });
-
-  it("launches a GUI tool whose backend is down: /tool-view starts it", async () => {
-    const tool = { ...TOOL, label: "GUI", hasBackend: true, deployStatus: "completed", latestDeployId: "d1" };
-    const w = mount(ToolCard, { props: { tool: tool as any }, global: { plugins } });
-
-    await w.findAll("button").find((b) => b.text().includes("Launch"))!.trigger("click");
-    expect(w.emitted("launch")?.[0]).toEqual(["t1"]);
+    expect(action(w).attributes("disabled")).toBeDefined();
   });
 });
 
@@ -228,51 +180,72 @@ const measurement = (status: string, extra: object = {}) =>
 describe("MeasurementCard", () => {
   const mountCard = (m: object) => mount(MeasurementCard, { props: { measurement: m as any }, global: { plugins } });
 
+  it("approves a staged dataset with or without an annotation", async () => {
+    for (const m of [measurement("pending"), measurement("pending", { hasAnnotation: true })]) {
+      const w = mountCard(m);
+      expect(sentence(w)).toBe("Ready to approve");
+      await action(w).trigger("click");
+      expect(w.emitted("approve")?.[0]).toEqual([m]);
+    }
+  });
+
+  it("adds an annotation, or edits, previews and exports one", () => {
+    expect(labels(mountCard(measurement("pending")))).toEqual(["Add FHIR annotation", "Delete measurement"]);
+    expect(labels(mountCard(measurement("pending", { hasAnnotation: true }))))
+      .toEqual(["Edit FHIR annotation", "Preview fhir.json", "Export annotation", "Delete measurement"]);
+  });
+
+  it("resumes a paused upload from its button; the menu cancels it", async () => {
+    const w = mountCard(measurement("pending_upload"));
+    expect(sentence(w)).toBe("Upload paused");
+    await action(w).trigger("click");
+    expect(w.emitted("resumeUpload")?.[0]).toEqual(["upload:m1"]);
+    expect(labels(w)).toEqual(["Cancel upload"]);
+  });
+
+  it("retries a failed FHIR push from its button", async () => {
+    const w = mountCard(measurement("fhir_failed", { uuid: "d1", failureMessage: "HAPI 500" }));
+    expect(sentence(w)).toBe("In the platform — FHIR publishing failed");
+    await action(w).trigger("click");
+    expect(w.emitted("retryFhir")?.[0]).toEqual(["upload:m1"]);
+  });
+
   it("asks the hub to delete, and stays as it is until the hub has deleted it", async () => {
     const w = mountCard(measurement("pending", { hasAnnotation: true }));
     menu(w).find((m) => m.label === "Delete measurement")!.onClick();
     await w.vm.$nextTick();
-    expect(w.emitted("delete")?.[0]).toEqual([measurement("pending", { hasAnnotation: true })]);
+    expect(w.emitted("delete")).toHaveLength(1);
     expect(w.find(".ucard--disabled").exists()).toBe(false);
   });
 
-  it("shows only the registration tag through the lifecycle", () => {
-    expect(chips(mountCard(measurement("pending_upload")))).toEqual(["upload paused"]);
-    expect(chips(mountCard(measurement("pending", { hasAnnotation: true })))).toEqual(["draft"]);
-    expect(chips(mountCard(measurement("uploading")))).toEqual(["registering…"]);
-    expect(chips(mountCard(measurement("completed", { uuid: "d1" })))).toEqual(["in platform"]);
-    expect(chips(mountCard(measurement("uploading", { uuid: "d1" })))).toEqual(["in platform"]);
-  });
-
-  it("explains a failure on hover instead of a stage tag", () => {
-    const failed = mountCard(measurement("submit_failed", { failureStage: "upload", failureMessage: "disk full" }));
-    expect(chips(failed)).toEqual(["registration failed"]);
-    expect(chip(failed, "registration failed").attributes("title")).toBe("disk full");
-
-    const fhir = mountCard(measurement("fhir_failed", { uuid: "d1", failureStage: "fhir_push", failureMessage: "HAPI 500" }));
-    expect(chips(fhir)).toEqual(["in platform"]);
-    expect(chip(fhir, "in platform").attributes("title")).toBe("FHIR publishing failed: HAPI 500");
-    expect(fhir.text()).toContain("Retry FHIR");
+  it("has no chips: its status line says it all", () => {
+    expect(chips(mountCard(measurement("completed", { uuid: "d1", createdAt: "2026-10-01T10:00:00" })))).toEqual([]);
   });
 });
 
 describe("ModelCard", () => {
   const mountCard = (m: object) => mount(ModelCard, { props: { model: m as any }, global: { plugins } });
 
-  it("uses the measurement vocabulary, with no FHIR tag", () => {
-    expect(chips(mountCard(measurement("pending_upload")))).toEqual(["upload paused"]);
-    expect(chips(mountCard(measurement("pending", { hasAnnotation: true })))).toEqual(["draft"]);
-    expect(chips(mountCard(measurement("uploading")))).toEqual(["registering…"]);
-    expect(chips(mountCard(measurement("completed", { uuid: "d1", hasAnnotation: true })))).toEqual(["in platform"]);
+  it("uses the same sentences and actions as a measurement", async () => {
+    const staged = mountCard(measurement("pending"));
+    expect(sentence(staged)).toBe("Ready to approve");
+    await action(staged).trigger("click");
+    expect(staged.emitted("approve")).toHaveLength(1);
+    expect(sentence(mountCard(measurement("uploading")))).toBe("Approving…");
+    expect(sentence(mountCard(measurement("completed", { uuid: "d1" })))).toBe("In the platform");
   });
 
-  it("explains a failure on hover, not inline", () => {
-    const failed = mountCard(measurement("submit_failed", { failureMessage: "disk full" }));
-    expect(chip(failed, "registration failed").attributes("title")).toBe("disk full");
-    expect(failed.text()).not.toContain("disk full");
+  it("adds or edits its FHIR annotation before and after approval", () => {
+    expect(labels(mountCard(measurement("pending")))).toEqual(["Add FHIR annotation", "Cancel upload"]);
+    expect(labels(mountCard(measurement("completed", { uuid: "d1", hasAnnotation: true }))))
+      .toEqual(["Edit FHIR annotation", "Delete model"]);
+    expect(labels(mountCard(measurement("completed", { uuid: "d1" })))).toEqual(["Add FHIR annotation", "Delete model"]);
+  });
 
-    const fhir = mountCard(measurement("fhir_failed", { uuid: "d1", failureMessage: "HAPI 500" }));
-    expect(chip(fhir, "in platform").attributes("title")).toBe("FHIR publishing failed: HAPI 500");
-    expect(fhir.text()).not.toContain("HAPI 500");
+  it("shows a failure's reason under the sentence", () => {
+    const w = mountCard(measurement("submit_failed", { failureMessage: "disk full" }));
+    expect(sentence(w)).toBe("Approval failed");
+    expect(w.find(".status__detail").text()).toBe("disk full");
+    expect(action(w).text()).toBe("Approve again");
   });
 });

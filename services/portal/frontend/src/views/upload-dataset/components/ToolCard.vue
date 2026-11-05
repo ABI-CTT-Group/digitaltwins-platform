@@ -1,43 +1,24 @@
 <template>
   <CardUI
     :title="tool.name"
-    :kind="kind"
-    :accent="accent"
+    kind="Tool"
     :is-disabled="!!disabled"
     :menu-items="menuItems"
   >
     <template #description>{{ tool.description || 'No description provided.' }}</template>
 
+    <template #status><StatusLine :status="status" /></template>
+
     <template #meta>
-      <span class="aurora-chip" :style="{ '--chip': registration.color }" :title="registration.title">{{ registration.label }}</span>
-      <span v-if="build" class="aurora-chip" :style="{ '--chip': build.color }">{{ build.label }}</span>
-      <span v-if="tool.deployStatus" class="aurora-chip" :style="{ '--chip': auroraStatus(tool.deployStatus) }">
-        deploy · {{ tool.deployStatus }}
-      </span>
-      <span v-if="type" class="aurora-chip">{{ type.label }}</span>
-      <span v-if="tool.kind === 'workflow'" class="aurora-chip" :style="{ '--chip': '#7fb2f0' }">
-        from workflow {{ tool.workflowName }}
-      </span>
+      <span v-if="type" class="aurora-chip">{{ type }}</span>
+      <span v-if="tool.kind === 'workflow'" class="aurora-chip aurora-chip--clip" :title="`from ${tool.workflowName}`">from {{ tool.workflowName }}</span>
       <span v-if="tool.version" class="aurora-chip">v{{ tool.version }}</span>
-      <span v-if="tool.author" class="aurora-chip">{{ tool.author }}</span>
-      <span v-if="tool.createdAt" class="aurora-chip">{{ formatDate(tool.createdAt) }}</span>
+      <span v-for="p in status.problems" :key="p.label" class="aurora-chip aurora-chip--problem" :title="p.reason">{{ p.label }}</span>
     </template>
 
-    <template #action>
-      <button v-if="isBuilding" type="button" class="aurora-btn aurora-btn--ghost aurora-btn--sm" disabled>
-        <v-progress-circular indeterminate size="13" width="2" :color="accent" /> Building
-      </button>
-      <button v-else-if="isDeploying" type="button" class="aurora-btn aurora-btn--ghost aurora-btn--sm" disabled>
-        <v-progress-circular indeterminate size="13" width="2" :color="accent" /> Deploying
-      </button>
-      <button
-        v-else
-        type="button"
-        class="aurora-btn aurora-btn--sm"
-        :disabled="disabled || tool.status != 'completed' || tool.platformOnly"
-        @click.stop="onLaunch"
-      >
-        <v-icon icon="mdi-rocket-launch-outline" size="15" /> Launch
+    <template v-if="status.action" #action>
+      <button type="button" class="aurora-btn aurora-btn--sm" :disabled="disabled" @click.stop="runAction(status.action)">
+        {{ ACTION_LABELS[status.action] }}
       </button>
     </template>
   </CardUI>
@@ -48,12 +29,8 @@ import { computed, onBeforeUnmount, toRef, watch } from 'vue'
 import { ToolResponse } from '@/models/types';
 import { useToolApprovalStatus } from '@/bootstrap/tool_api'
 import CardUI, { type UCardMenuItem } from './CardUI.vue';
-import { formatDate } from './utils';
-import { buildTag, handoffRegistrationTag, typeTag } from './cardTags';
-// @ts-ignore - vue-toastification is installed but missing type declarations
-import { useToast } from 'vue-toastification';
-
-const toast = useToast();
+import StatusLine from './StatusLine.vue';
+import { ACTION_LABELS, toolStatus, type CardAction } from './cardStatus';
 
 const props = defineProps<{
   tool: ToolResponse
@@ -62,14 +39,9 @@ const props = defineProps<{
 
 const tool = toRef(props, "tool")
 
-// Per-type identity colour — GUI tools aqua, scripts violet — so the rail,
-// eyebrow and Launch button all carry the tool's kind at a glance.
-const accent = computed(() => ({ Script: '#c792ea', Notebook: '#ffb74d' } as Record<string, string>)[tool.value.label] ?? '#5fd6e8')
-const kind = computed(() => ({ Script: 'Script', Notebook: 'Notebook' } as Record<string, string>)[tool.value.label] ?? 'Web GUI Tool')
-
-const registration = computed(() => handoffRegistrationTag(tool.value, 'sparc-tool-'))
-const build = computed(() => buildTag(tool.value))
-const type = computed(() => typeTag(tool.value.label))
+const status = computed(() => toolStatus(tool.value))
+// GUI / Script / Notebook, as a chip in the workflows' vocabulary (gui · script · notebook).
+const type = computed(() => tool.value.label?.toLowerCase())
 const handoffActive = computed(() => ['uploading', 'awaiting_reauth', 'committing'].includes(tool.value.handoffStatus ?? ''))
 
 // While an approval is under way, poll it: each poll relays a fresh token to
@@ -93,26 +65,15 @@ watch(handoffActive, (active) => {
 }, { immediate: true })
 onBeforeUnmount(stopApprovalPoll)
 
-const isBuilding = computed(() => tool.value.status == "building")
-const isDeploying = computed(() => {
-    if(!tool.value.hasBackend ) return false;
-    if(!tool.value.deployStatus) return false;
-    return tool.value.deployStatus == "deploying";
-})
+const emit = defineEmits(["launch", "rebuild", "submit-approve", "retry-fhir", "compose-down", "delete", "delete-platform", "view-logs", "approval-done"])
 
-// Aurora status palette — soft tonal chips keyed by lifecycle state.
-const auroraStatus = (s?: string) => {
-  switch (s) {
-    case "pending": return "#ffb74d"
-    case "building":
-    case "deploying": return "#5fd6e8"
-    case "failed": return "#ff6b6b"
-    case "completed": return "#6fd49a"
-    default: return "#9fb4bf"
-  }
+const runAction = (action: CardAction) => {
+  if (action === 'build') onRebuild()
+  else if (action === 'view-logs') onViewLogs()
+  else if (action === 'approve' || action === 'approve-again') onSubmit()
+  else if (action === 'launch') onLaunch()
+  else if (action === 'retry-fhir') emit("retry-fhir", tool.value)
 }
-
-const emit = defineEmits(["launch", "rebuild", "submit-approve", "compose-down", "delete", "delete-platform", "view-logs", "approval-done"])
 
 const hasViewLogs = computed(() =>
   !!(tool.value.latestDeployId || tool.value.latestBuildId)
@@ -134,15 +95,18 @@ const menuItems = computed<UCardMenuItem[]>(() => {
   if (tool.value.platformOnly) {
     return [{ label: 'Delete tool', icon: 'mdi-trash-can-outline', danger: true, onClick: () => emit("delete-platform", tool.value) }]
   }
+  // The status line's action is the card's button; the menu holds the rest.
   const isGui = tool.value.label === 'GUI'
-  const items: UCardMenuItem[] = [
-    { label: 'Rebuild tool', icon: 'mdi-refresh', onClick: onRebuild },
-    { label: 'Submit to approval', icon: 'mdi-send-check-outline', onClick: onSubmit },
-  ]
+  const action = status.value.action
+  const items: UCardMenuItem[] = []
+  if (isGui && tool.value.status === 'completed' && action !== 'launch') {
+    items.push({ label: 'Launch', icon: 'mdi-rocket-launch-outline', onClick: onLaunch })
+  }
+  items.push({ label: 'Rebuild', icon: 'mdi-refresh', onClick: onRebuild })
   if (tool.value.deployStatus === 'completed' && isGui) {
     items.push(stopBackend)
   }
-  if (hasViewLogs.value) {
+  if (hasViewLogs.value && action !== 'view-logs') {
     items.push({ label: 'View logs', icon: 'mdi-console-line', onClick: onViewLogs })
   }
   items.push({ label: 'Delete tool', icon: 'mdi-trash-can-outline', danger: true, onClick: onDelete })
@@ -180,14 +144,8 @@ const onViewLogs = () => {
   }
 }
 
-// A GUI tool's backend is started by /tool-view, which Launch opens.
-const onLaunch = () => {
-    if(tool.value.label === "Script" || tool.value.label === "Notebook"){
-        toast.warning(`${tool.value.label} tool cannot be launched. Please download it and run it locally.`);
-        return;
-    }
-    emit("launch", tool.value.id)
-}
+// Only GUI tools launch; /tool-view starts the backend.
+const onLaunch = () => emit("launch", tool.value.id)
 const onRebuild = () => {
     // No optimistic prop mutation here. The parent flow may open a dialog
     // (and the user might Cancel) or the build POST itself may fail, in

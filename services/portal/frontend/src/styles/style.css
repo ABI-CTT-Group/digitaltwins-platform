@@ -126,6 +126,8 @@ body {
   background: color-mix(in srgb, var(--chip) 13%, transparent);
   border: 1px solid color-mix(in srgb, var(--chip) 34%, transparent);
 }
+/* A problem on a card that is otherwise fine (e.g. "backend failed"); its reason is the title. */
+.aurora-chip--problem { --chip: var(--tone-failed); }
 
 /* Empty state text a hub passes into RegistryView's #empty slot. */
 .hub-empty {

@@ -2,19 +2,23 @@
   <CardUI
     :title="workflow.name"
     kind="Workflow"
-    accent="#7fb2f0"
+    accent="var(--accent-workflows)"
     :menu-items="menuItems"
   >
     <template #description>{{ workflow.description || 'No description provided.' }}</template>
 
+    <template #status><StatusLine :status="status" /></template>
+
     <template #meta>
-      <span class="aurora-chip" :style="{ '--chip': registration.color }" :title="registration.title">{{ registration.label }}</span>
-      <span v-if="build" class="aurora-chip" :style="{ '--chip': build.color }">{{ build.label }}</span>
-      <span v-if="deploy" class="aurora-chip" :style="{ '--chip': deploy.color }" :title="deploy.title">{{ deploy.label }}</span>
-      <span v-if="type" class="aurora-chip">{{ type.label }}</span>
+      <span v-if="workflow.workflowType" class="aurora-chip">{{ workflow.workflowType }}</span>
       <span v-if="workflow.version" class="aurora-chip">v{{ workflow.version }}</span>
-      <span v-if="workflow.author" class="aurora-chip">{{ workflow.author }}</span>
-      <span v-if="workflow.createdAt" class="aurora-chip ms-auto">{{ formatDate(workflow.createdAt) }}</span>
+      <span v-for="p in status.problems" :key="p.label" class="aurora-chip aurora-chip--problem" :title="p.reason">{{ p.label }}</span>
+    </template>
+
+    <template v-if="status.action" #action>
+      <button type="button" class="aurora-btn aurora-btn--sm" @click.stop="runAction(status.action)">
+        {{ ACTION_LABELS[status.action] }}
+      </button>
     </template>
   </CardUI>
 </template>
@@ -23,8 +27,8 @@
 import { computed, onBeforeUnmount, toRef, watch } from 'vue'
 import { WorkflowResponse } from '@/models/types';
 import CardUI, { type UCardMenuItem } from './CardUI.vue';
-import { formatDate } from './utils';
-import { buildTag, deployTag, handoffRegistrationTag, typeTag } from './cardTags';
+import StatusLine from './StatusLine.vue';
+import { ACTION_LABELS, workflowStatus, type CardAction } from './cardStatus';
 import { useWorkflowApprovalStatus } from '@/bootstrap/workflow_api';
 
 const props = defineProps<{
@@ -35,31 +39,30 @@ const props = defineProps<{
 
 const workflow = toRef(props, "workflow")
 
-const emit = defineEmits(["submit-approve", "approve-platform", "approval-done", "delete", "delete-platform", "deploy-dag"])
+const emit = defineEmits(["approve-platform", "approval-done", "retry-fhir", "delete", "delete-platform", "deploy-dag"])
 
-const registration = computed(() => handoffRegistrationTag(workflow.value, 'sparc-workflow-'))
-const build = computed(() => buildTag(workflow.value))
-const type = computed(() => typeTag(workflow.value.workflowType))
+const status = computed(() => workflowStatus(workflow.value, { canDeploy: props.canDeploy }))
 
-const deploy = computed(() => deployTag(workflow.value.dagStatus, workflow.value.dagError))
+// Approve hands an SDS workflow to the platform; non-SDS workflows aren't supported yet (no action).
+const runAction = (action: CardAction) => {
+  if (action === 'approve' || action === 'approve-again') emit("approve-platform", workflow.value)
+  else if (action === 'deploy-dag') emit("deploy-dag", workflow.value)
+  else if (action === 'retry-fhir') emit("retry-fhir", workflow.value)
+}
 
-// A script workflow in the platform has an Airflow DAG an admin can deploy (again).
-const inPlatform = computed(() => !!workflow.value.platformOnly
-  || (!!workflow.value.uuid && !workflow.value.uuid.startsWith('sparc-workflow-')))
-const deployItem = computed<UCardMenuItem[]>(() =>
-  props.canDeploy && workflow.value.workflowType === 'script' && inPlatform.value && workflow.value.dagStatus !== 'deploying'
-    ? [{ label: 'Deploy DAG', icon: 'mdi-rocket-launch-outline', onClick: () => emit("deploy-dag", workflow.value) }]
+// A deployed script workflow's DAG can be deployed again from the menu; the first deploy is the button.
+const redeployItem = computed<UCardMenuItem[]>(() =>
+  props.canDeploy && workflow.value.workflowType === 'script' && workflow.value.dagStatus === 'deployed'
+    ? [{ label: 'Deploy DAG again', icon: 'mdi-rocket-launch-outline', onClick: () => emit("deploy-dag", workflow.value) }]
     : [])
 
-const menuItems = computed<UCardMenuItem[]>(() => workflow.value.platformOnly
+const menuItems = computed<UCardMenuItem[]>(() => [
+  ...redeployItem.value,
   // Uploaded via the REST API: the hub confirms the delete (and whether its tools go too).
-  ? [...deployItem.value,
-    { label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: () => emit("delete-platform", workflow.value) }]
-  : [
-    { label: 'Submit to approval', icon: 'mdi-send-check-outline', onClick: workflow.value.isSds ? () => emit("approve-platform", workflow.value) : onSubmit },
-    ...deployItem.value,
-    { label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: onDelete },
-  ])
+  workflow.value.platformOnly
+    ? { label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: () => emit("delete-platform", workflow.value) }
+    : { label: 'Delete workflow', icon: 'mdi-trash-can-outline', danger: true, onClick: onDelete },
+])
 
 const ACTIVE = ['uploading', 'awaiting_reauth', 'committing']
 const handoffActive = computed(() => ACTIVE.includes(workflow.value.handoffStatus ?? ''))
@@ -85,7 +88,6 @@ watch(handoffActive, (active) => {
 }, { immediate: true })
 onBeforeUnmount(stopApprovalPoll)
 
-const onSubmit = () => emit("submit-approve", workflow.value.id)
 // The hub confirms and deletes.
 const onDelete = () => emit("delete", workflow.value)
 </script>

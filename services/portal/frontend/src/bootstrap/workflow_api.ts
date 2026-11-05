@@ -61,7 +61,8 @@ export async function useWorkflow(): Promise<WorkflowResponse[]> {
   return fetchWithLatestBuild<WorkflowResponse>(
     '/workflow/',
     (id) => `/workflow/${id}/builds`,
-    async (_w, latestBuild) => ({ handoffStatus: latestBuild.handoffStatus ?? null, handoffError: latestBuild.handoffError }),
+    async (_w, latestBuild) => ({ handoffStatus: latestBuild.handoffStatus ?? null, handoffError: latestBuild.handoffError,
+                                  buildError: latestBuild.errorMessages }),
   ) as Promise<WorkflowResponse[]>;
 }
 
@@ -75,6 +76,8 @@ export async function useWorkflowHub(): Promise<WorkflowResponse[]> {
   });
 }
 
+// follow-up: non-SDS workflows. The legacy approval of a workflow that isn't an SDS package; no card offers it
+// while only SDS workflows are supported.
 export async function useWorkflowApproval(workflowId:string) {
   const res = http.get(`/workflow/${workflowId}/approval`)
   return res;
