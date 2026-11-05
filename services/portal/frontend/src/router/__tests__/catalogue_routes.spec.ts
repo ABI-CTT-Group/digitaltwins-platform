@@ -22,6 +22,16 @@ describe("catalogue routes", () => {
       .toBe("/catalogue/measurements/m1/preview");
   });
 
+  // Researchers register measurements and models; tools and workflows are admin-only.
+  it.each([
+    ["UploadToolDataset", ["admin"]],
+    ["UploadWorkflowDataset", ["admin"]],
+    ["UploadMeasurementsDataset", ["admin", "researcher"]],
+    ["UploadModelDataset", ["admin", "researcher"]],
+  ])("lets only %s's roles in", (name, roles) => {
+    expect(router.resolve({ name }).meta.requiresRoles).toEqual(roles);
+  });
+
   it("sends the bare /upload-dataset parent to the catalogue", async () => {
     await router.push("/upload-dataset");
     expect(router.currentRoute.value.path).toBe("/catalogue");
