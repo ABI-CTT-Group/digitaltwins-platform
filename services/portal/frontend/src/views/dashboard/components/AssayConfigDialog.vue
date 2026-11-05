@@ -72,7 +72,7 @@ const onSave = async () => {
   margin-bottom: 16px;
 }
 .config-sheet__title {
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-weight: 500;
   font-size: 1.5rem;
   color: #fff;

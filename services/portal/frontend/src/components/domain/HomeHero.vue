@@ -38,7 +38,6 @@ defineEmits<{ (e: 'enter'): void; (e: 'how-it-works'): void }>();
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap');
 
 .hero { position: relative; overflow: hidden; padding: clamp(48px, 9vh, 96px) 20px clamp(40px, 7vh, 72px); text-align: center; }
 .hero__bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
@@ -47,7 +46,7 @@ defineEmits<{ (e: 'enter'): void; (e: 'how-it-works'): void }>();
 .hero__cta { pointer-events: auto; }
 
 .hero__eyebrow { margin: 0 0 14px; color: #7fe2f0; letter-spacing: 0.34em; font-size: 0.72rem; text-transform: uppercase; font-family: "Nunito", sans-serif; text-shadow: 0 0 14px rgba(95,214,232,.4); }
-.hero__title { margin: 0 auto; max-width: 22ch; font-family: 'Fraunces', Georgia, serif; font-weight: 500; font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.12; letter-spacing: -0.01em; color: #fff; text-shadow: 0 2px 36px rgba(0,0,0,.7), 0 0 28px rgba(95,214,232,.10); }
+.hero__title { margin: 0 auto; max-width: 22ch; font-family: var(--font-title); font-weight: 500; font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.12; letter-spacing: -0.01em; color: #fff; text-shadow: 0 2px 36px rgba(0,0,0,.7), 0 0 28px rgba(95,214,232,.10); }
 .hero__sub { margin: 16px auto 24px; max-width: 48ch; color: #b9cad1; font-size: clamp(0.95rem, 1.4vw, 1.08rem); line-height: 1.55; font-family: "Nunito", sans-serif; }
 .hero__cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .hero__btn { font-family: "Nunito", sans-serif; font-weight: 600; font-size: 0.92rem; border-radius: 9px; padding: 10px 22px; cursor: pointer; transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease; }

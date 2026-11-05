@@ -138,7 +138,7 @@ const downloadJson = () => {
 }
 .preview-title {
   color: #5fd6e8;
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-weight: 500;
 }
 .json-preview {

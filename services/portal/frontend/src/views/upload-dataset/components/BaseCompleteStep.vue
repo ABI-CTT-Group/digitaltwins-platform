@@ -47,7 +47,7 @@ const handleDone = () => {
   min-height: 40vh;
 }
 .step-title {
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-weight: 500;
   color: #fff;
 }

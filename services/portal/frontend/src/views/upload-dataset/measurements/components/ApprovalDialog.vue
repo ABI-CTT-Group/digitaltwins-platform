@@ -183,7 +183,7 @@ function close() {
   color: #e9f2f5;
 }
 .dialog-title {
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-weight: 500;
   color: #5fd6e8;
 }

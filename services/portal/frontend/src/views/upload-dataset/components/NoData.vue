@@ -9,7 +9,7 @@
 </template>
 
 <style scoped>
-.no-data { font-family: "Nunito", sans-serif; }
+.no-data { font-family: var(--font-ui); }
 .no-data h2 { color: #e9f2f5; font-weight: 600; }
 .no-data p { color: #7f97a1; }
 </style>

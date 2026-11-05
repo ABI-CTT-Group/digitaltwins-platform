@@ -1,8 +1,5 @@
 <template>
-  <div class="container d-flex justify-center" style="padding-top: 16px;">
-    <div class="w-100">
-      <BackLink to="CatalogueDashboardView" label="Catalogue" sticky class="mb-4" />
-      <Hero :title="heroDetail.title" :subtitle="heroDetail.subtitle" />
+  <HubShell :title="heroDetail.title" :subtitle="heroDetail.subtitle" accent="var(--accent-measurements)">
 
       <MeasurementsOverallView
         v-if="showOverall"
@@ -17,14 +14,12 @@
         :resume-measurement-id="resumeMeasurementId"
         @finished="handleUploadFinished"
       />
-    </div>
-  </div>
+  </HubShell>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import Hero from '@/components/domain/Hero.vue';
-import BackLink from '@/components/common/BackLink.vue';
+import HubShell from '../components/HubShell.vue';
 import MeasurementsOverallView from './MeasurementsOverallView.vue';
 import UploadMeasurementForm from './UploadMeasurementForm.vue';
 import type { MeasurementResponse } from '@/models/types';
@@ -41,13 +36,11 @@ const heroDetail = computed(() =>
   showOverall.value
     ? {
         title: 'Measurements',
-        subtitle:
-          'Register SPARC measurements datasets and annotate patients, observations, imaging studies, and document references.',
+        subtitle: 'Register SDS measurement datasets so assays can use them as inputs.',
       }
     : {
-        title: 'Upload & Annotate Measurements',
-        subtitle:
-          'Drag a folder or .zip, fine-tune the auto-detected annotation, and we will push it to MinIO + FHIR.',
+        title: 'Register a measurement dataset',
+        subtitle: 'Upload an SDS dataset and annotate it for FHIR. You approve it from its card afterwards.',
       },
 );
 

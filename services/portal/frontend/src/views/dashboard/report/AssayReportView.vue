@@ -130,7 +130,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap');
 
 .report {
   position: relative;
@@ -159,7 +158,7 @@ onMounted(async () => {
 .report__empty { color: #5f7884; }
 .report__empty-title {
   margin: 4px 0 0;
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-weight: 500;
   font-size: clamp(1.6rem, 3.4vw, 2.4rem);
   color: #e9f2f5;
@@ -185,7 +184,7 @@ onMounted(async () => {
 }
 .report__title {
   margin: 0;
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-weight: 500;
   font-size: clamp(2.2rem, 5vw, 3.4rem);
   line-height: 1.0;

@@ -1,7 +1,7 @@
 <template>
   <div
     class="ucard"
-    :class="{ 'ucard--disabled': isDisabled || isDeleting, 'ucard--busy': isDeleting }"
+    :class="{ 'ucard--disabled': isDisabled }"
     :style="{ '--accent': accent }"
   >
     <span class="ucard__rail" aria-hidden="true"></span>
@@ -74,13 +74,11 @@ withDefaults(
     title: string;
     kind?: string;
     accent?: string;
-    isDeleting?: boolean;
     isDisabled?: boolean;
     menuItems?: UCardMenuItem[];
   }>(),
   {
-    accent: "#5fd6e8",
-    isDeleting: false,
+    accent: "var(--accent-tools)",
     isDisabled: false,
     menuItems: () => [],
   },
@@ -96,8 +94,10 @@ const run = (item: UCardMenuItem) => {
 </script>
 
 <style scoped>
+/* Quiet by default: no shadow, no lift. The category accent marks only the top edge and the kind
+   label; status colour (later, the status line) is what draws the eye. */
 .ucard {
-  --accent: #5fd6e8;
+  --accent: var(--accent-tools);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -105,36 +105,32 @@ const run = (item: UCardMenuItem) => {
   width: 100%;
   min-height: 188px;
   padding: 20px 20px 18px;
-  border-radius: 16px;
-  border: 1px solid rgba(120, 200, 220, 0.14);
-  background: rgba(255, 255, 255, 0.028);
-  font-family: "Nunito", sans-serif;
-  color: #e9f2f5;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-family: var(--font-ui);
+  color: var(--text);
   overflow: hidden;
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 0.4s ease, background 0.4s ease;
+  transition: border-color 0.25s ease, background 0.25s ease;
 }
 .ucard__rail {
   position: absolute;
   top: 0;
-  left: 20px;
-  right: 20px;
+  left: 0;
+  right: 0;
   height: 2px;
-  border-radius: 2px;
   background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  opacity: 0.55;
+  transition: opacity 0.25s ease;
 }
-.ucard:hover {
-  transform: translateY(-4px);
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
-  background: rgba(255, 255, 255, 0.045);
+.ucard:hover,
+.ucard:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 34%, transparent);
+  background: rgba(255, 255, 255, 0.04);
 }
-.ucard:hover .ucard__rail { transform: scaleX(1); }
+.ucard:hover .ucard__rail,
+.ucard:focus-within .ucard__rail { opacity: 1; }
 .ucard--disabled { opacity: 0.5; pointer-events: none; }
-.ucard--busy .ucard__rail { transform: scaleX(1); animation: ucard-busy 1s ease-in-out infinite; }
-@keyframes ucard-busy { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 
 .ucard__head {
   display: flex;
@@ -142,19 +138,17 @@ const run = (item: UCardMenuItem) => {
   justify-content: space-between;
   gap: 12px;
 }
-.ucard__heading { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
+.ucard__heading { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
 .ucard__kind {
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
+  font-size: 0.8125rem;
+  font-weight: 600;
   color: var(--accent);
-  opacity: 0.9;
 }
 .ucard__name {
-  font-size: 1.12rem;
-  font-weight: 800;
+  font-size: 1.2rem;
+  font-weight: 650;
   line-height: 1.25;
+  letter-spacing: -0.005em;
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
@@ -168,26 +162,27 @@ const run = (item: UCardMenuItem) => {
   width: 32px;
   height: 32px;
   flex-shrink: 0;
-  border-radius: 9px;
-  border: 1px solid rgba(120, 200, 220, 0.18);
-  background: rgba(255, 255, 255, 0.03);
-  color: #a4bac4;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-dim);
   cursor: pointer;
-  transition: border-color 0.25s ease, color 0.25s ease, background 0.25s ease;
+  transition: border-color 0.2s ease, color 0.2s ease;
 }
 .ucard__more:hover,
 .ucard__more.is-open {
   border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  color: var(--text);
 }
+.ucard__more:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .ucard__desc {
   margin: 0;
   flex: 1;
-  font-size: 0.84rem;
+  max-width: 60ch;
+  font-size: 0.875rem;
   line-height: 1.5;
-  color: #9fb4bf;
+  color: var(--text-dim);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -206,13 +201,14 @@ const run = (item: UCardMenuItem) => {
 .ucard__cta { flex-shrink: 0; }
 
 /* Dropdown — teleported, but the wrapper is rendered by THIS component so the
-   scoped attribute (and these rules) still apply. */
+   scoped attribute (and these rules) still apply. It can't inherit the card's
+   --accent, so it stays neutral. */
 .ucard-menu {
   min-width: 210px;
   padding: 6px;
-  border-radius: 13px;
+  border-radius: 12px;
   background: rgba(8, 18, 26, 0.98);
-  border: 1px solid rgba(95, 214, 232, 0.2);
+  border: 1px solid var(--line);
   box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.8);
 }
 .ucard-menu__item {
@@ -222,21 +218,22 @@ const run = (item: UCardMenuItem) => {
   width: 100%;
   padding: 9px 11px;
   border: none;
-  border-radius: 9px;
+  border-radius: 8px;
   background: transparent;
-  color: #cddae0;
-  font-family: "Nunito", sans-serif;
-  font-size: 0.85rem;
-  font-weight: 600;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  font-weight: 500;
   text-align: left;
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease;
+  transition: background 0.15s ease;
 }
-.ucard-menu__item:hover:not(:disabled) { background: rgba(95, 214, 232, 0.1); color: #fff; }
+.ucard-menu__item:hover:not(:disabled),
+.ucard-menu__item:focus-visible { background: rgba(255, 255, 255, 0.06); outline: none; }
 .ucard-menu__item:disabled { opacity: 0.4; cursor: not-allowed; }
-.ucard-menu__icon { color: #7f97a1; transition: color 0.18s ease; }
-.ucard-menu__item:hover:not(:disabled) .ucard-menu__icon { color: #5fd6e8; }
-.ucard-menu__item.is-danger { color: #f0a6a6; }
-.ucard-menu__item.is-danger:hover:not(:disabled) { background: rgba(255, 107, 107, 0.12); color: #ff8585; }
-.ucard-menu__item.is-danger .ucard-menu__icon { color: #d98c8c; }
+.ucard-menu__icon { color: var(--text-faint); }
+.ucard-menu__item:hover:not(:disabled) .ucard-menu__icon { color: var(--text); }
+.ucard-menu__item.is-danger { color: var(--tone-failed); }
+.ucard-menu__item.is-danger .ucard-menu__icon { color: var(--tone-failed); }
+.ucard-menu__item.is-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--tone-failed) 12%, transparent); }
 </style>

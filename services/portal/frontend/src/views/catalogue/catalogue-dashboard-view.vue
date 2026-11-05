@@ -204,21 +204,15 @@ const navigate = async (card: CatalogueCard) => {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap');
 
 .catalogue {
-  --ink: #07131b;
+  /* --ink, --text*, --line and --surface come from :root (styles/style.css). */
   --aqua: #5fd6e8;
-  --text: #e9f2f5;
-  --text-dim: #a4bac4;
-  --text-faint: #5f7884;
-  --line: rgba(120, 200, 220, 0.14);
-  --surface: rgba(255, 255, 255, 0.028);
 
   position: relative;
   min-height: 100%;
   padding: clamp(28px, 6vh, 72px) clamp(20px, 5vw, 80px) 64px;
-  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  font-family: var(--font-ui);
   color: var(--text);
   /* Background (aurora glow + masked grid + breathing) is provided once by
      .page-aurora in layouts/View.vue, so every page shares the exact look. */
@@ -237,7 +231,7 @@ const navigate = async (card: CatalogueCard) => {
 }
 .masthead__title {
   margin: 0;
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-weight: 500;
   font-size: clamp(2.6rem, 6vw, 4.4rem);
   line-height: 0.98;
@@ -333,7 +327,7 @@ const navigate = async (card: CatalogueCard) => {
   border: 1px solid var(--line);
 }
 .hero__title {
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-weight: 500;
   font-size: clamp(1.5rem, 2.6vw, 2.05rem);
   line-height: 1.05;
@@ -493,7 +487,7 @@ const navigate = async (card: CatalogueCard) => {
   position: absolute;
   top: 18px;
   right: 22px;
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-size: 1.1rem;
   font-weight: 400;
   color: var(--text-faint);

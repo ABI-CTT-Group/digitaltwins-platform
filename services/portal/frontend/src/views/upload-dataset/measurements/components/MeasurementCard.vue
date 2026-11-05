@@ -3,7 +3,6 @@
     :title="measurement.name"
     kind="Measurement"
     accent="#62d3b0"
-    :is-deleting="isDeleting"
     :menu-items="menuItems"
   >
     <template #description>{{ measurement.description || 'No description provided.' }}</template>
@@ -37,8 +36,8 @@ import type { MeasurementResponse } from '@/models/types';
 
 const props = defineProps<{ measurement: MeasurementResponse }>();
 const emit = defineEmits<{
-  (e: 'delete', id: string): void;
-  (e: 'cancelUpload', id: string): void;
+  (e: 'delete', m: MeasurementResponse): void;
+  (e: 'cancelUpload', m: MeasurementResponse): void;
   (e: 'resumeUpload', id: string): void;
   (e: 'retryFhir', id: string): void;
   (e: 'approve', m: MeasurementResponse): void;
@@ -47,7 +46,6 @@ const emit = defineEmits<{
   (e: 'export', m: MeasurementResponse): void;
 }>();
 
-const isDeleting = ref(false);
 const retrying = ref(false);
 const measurement = toRef(props, 'measurement');
 
@@ -96,14 +94,9 @@ const onApprove = () => emit('approve', measurement.value);
 const onEdit = () => emit('edit', measurement.value);
 const onPreview = () => emit('preview', measurement.value);
 const onExport = () => emit('export', measurement.value);
-const onDelete = () => {
-  isDeleting.value = true;
-  emit('delete', measurement.value.id);
-};
-const onCancelUpload = () => {
-  isDeleting.value = true;
-  emit('cancelUpload', measurement.value.id);
-};
+// The hub confirms both before acting.
+const onDelete = () => emit('delete', measurement.value);
+const onCancelUpload = () => emit('cancelUpload', measurement.value);
 const onResumeUpload = () => emit('resumeUpload', measurement.value.id);
 const onRetryFhir = () => {
   retrying.value = true;

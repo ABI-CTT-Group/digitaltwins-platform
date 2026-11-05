@@ -1,9 +1,9 @@
 ﻿<template>
   <RegistryView
     ref="registryRef"
-    register-label="Register a new tool"
+    register-label="Register a tool"
     search-label="Search tools"
-    accent="#5fd6e8"
+    accent="var(--accent-tools)"
     :fetch-list="useToolHub"
     :disabled="dockerComposeBusy"
     :is-pending="(items) => items.some(t => t.status === 'building' || t.deployStatus === 'deploying' ||
@@ -19,11 +19,11 @@
         item-value="value"
         label="Registration status"
         variant="outlined"
-        base-color="#5fd6e8"
+        base-color="#5f7884"
         color="#5fd6e8"
         density="compact"
         hide-details
-        style="max-width: 240px;"
+        style="width: 220px;"
       />
     </template>
 
@@ -41,14 +41,20 @@
         @launch="(id) => handleLaunch(id)"
         @rebuild="(id) => handleRebuild(id)"
         @compose-down="(id) => handleExecuteDockerCompose(id, 'down')"
-        @delete="handleDeleteTool"
+        @delete="confirmDeleteTool"
         @delete-platform="openPlatformDelete"
         @submit-approve="(id) => handleToolApproval(id)"
         @approval-done="onApprovalDone"
         @view-logs="handleViewLogs"
       />
     </template>
+
+    <template #empty>
+      <p class="hub-empty">No tools yet. Register a tool to build it and use it in workflows and assays.</p>
+    </template>
   </RegistryView>
+
+  <ConfirmDialog v-if="confirm.request.value" v-model="confirm.open.value" v-bind="confirm.request.value" />
 
   <ToolApprovalDialog v-model="approvalDialogOpen" :item="approvalTool" @done="onApprovalDone" />
 
@@ -72,12 +78,15 @@ import ToolCard from '../components/ToolCard.vue';
 import RebuildAuthDialog from '../components/RebuildAuthDialog.vue';
 import ToolApprovalDialog from '../components/ToolApprovalDialog.vue';
 import DeletePlatformDatasetDialog from '../components/DeletePlatformDatasetDialog.vue';
+import ConfirmDialog from '../components/ConfirmDialog.vue';
+import { useConfirm } from '../components/useConfirm';
 import {
   useWorkflowTools,
   useToolHub,
   useToolMetadata,
   useWorkflowToolBuild,
   useDockerCompose,
+  useDeleteTool,
 } from '@/bootstrap/tool_api';
 import type { ToolApprovalStatus, ToolMinIOToolMetadata, ToolResponse, SourceType, TransientAuth } from '@/models/types';
 import { useRemoteAppStore } from '@/store/remote_store';
@@ -256,6 +265,21 @@ const onRebuildCancel = () => {
 const handleDeleteTool = async () => {
   await registryRef.value?.handleRefresh();
 };
+
+const confirm = useConfirm();
+const confirmDeleteTool = (t: ToolResponse) => confirm.ask({
+  title: `Delete ${t.name}?`,
+  text: isToolInPlatform(t)
+    ? 'The tool is removed from the portal and from the platform, with its builds and backend. This can\'t be undone.'
+    : 'The tool is removed from the portal, with its builds and backend. This can\'t be undone.',
+  confirmLabel: 'Delete tool',
+  action: async () => {
+    const res: any = await useDeleteTool(t.id);
+    if (res && res.status === false) throw new Error(res.message);
+    toast.success('Tool deleted.');
+    await handleDeleteTool();
+  },
+});
 
 // A tool uploaded via the REST API is deleted from the platform after a confirmation.
 const platformDeleteOpen = ref(false);

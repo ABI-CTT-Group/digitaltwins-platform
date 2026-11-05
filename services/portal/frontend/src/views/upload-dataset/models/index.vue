@@ -1,8 +1,5 @@
 <template>
-  <div class="container d-flex justify-center" style="padding-top: 16px;">
-    <div class="w-100">
-      <BackLink to="CatalogueDashboardView" label="Catalogue" sticky class="mb-4" />
-      <Hero :title="heroDetail.title" :subtitle="heroDetail.subtitle" />
+  <HubShell :title="heroDetail.title" :subtitle="heroDetail.subtitle" accent="var(--accent-models)">
 
       <ModelsOverallView
         v-if="showOverall"
@@ -16,14 +13,12 @@
         :resume-model-id="resumeModelId"
         @finished="handleFinished"
       />
-    </div>
-  </div>
+  </HubShell>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import Hero from '@/components/domain/Hero.vue';
-import BackLink from '@/components/common/BackLink.vue';
+import HubShell from '../components/HubShell.vue';
 import ModelsOverallView from './ModelsOverallView.vue';
 import UploadModelForm from './UploadModelForm.vue';
 import type { MeasurementResponse } from '@/models/types';
@@ -41,8 +36,8 @@ const heroDetail = computed(() =>
         subtitle: 'Register trained models (SDS datasets) so assays and inference workflows can use them.',
       }
     : {
-        title: 'Register a Model',
-        subtitle: 'Drag a folder or .zip of an SDS model dataset. It is staged for approval before it is stored.',
+        title: 'Register a model',
+        subtitle: 'Upload an SDS model dataset and add FHIR details if you want. You approve it from its card afterwards.',
       },
 );
 

@@ -3,7 +3,6 @@
     :title="tool.name"
     :kind="kind"
     :accent="accent"
-    :is-deleting="isDeleting"
     :is-disabled="!!disabled"
     :menu-items="menuItems"
   >
@@ -45,9 +44,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue'
+import { computed, onBeforeUnmount, toRef, watch } from 'vue'
 import { ToolResponse } from '@/models/types';
-import { useDeleteTool, useToolApprovalStatus } from '@/bootstrap/tool_api'
+import { useToolApprovalStatus } from '@/bootstrap/tool_api'
 import CardUI, { type UCardMenuItem } from './CardUI.vue';
 import { formatDate } from './utils';
 import { buildTag, handoffRegistrationTag, typeTag } from './cardTags';
@@ -62,7 +61,6 @@ const props = defineProps<{
 }>()
 
 const tool = toRef(props, "tool")
-const isDeleting = ref(false)
 
 // Per-type identity colour — GUI tools aqua, scripts violet — so the rail,
 // eyebrow and Launch button all carry the tool's kind at a glance.
@@ -199,14 +197,6 @@ const onRebuild = () => {
     emit("rebuild", tool.value.id)
 }
 const onSubmit = () => emit("submit-approve", tool.value.id)
-const onDelete = async () => {
-    isDeleting.value = true;
-    const res:any = await useDeleteTool(tool.value.id)
-
-    if(!res["status"]){
-      isDeleting.value = false;
-      toast.error("Error: " + res["message"])
-    }
-    emit("delete", res)
-}
+// The hub confirms and deletes.
+const onDelete = () => emit("delete", tool.value)
 </script>

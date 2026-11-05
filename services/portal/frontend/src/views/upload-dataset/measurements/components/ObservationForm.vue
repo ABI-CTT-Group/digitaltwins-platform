@@ -202,7 +202,7 @@ const addObservation = (patient: FhirCdaPatient) => {
   box-shadow: 0 0 10px color-mix(in srgb, var(--type) 70%, transparent);
 }
 .rform__name {
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-size: 1.12rem;
   font-weight: 500;
   color: #fff;

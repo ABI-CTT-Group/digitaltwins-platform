@@ -1,21 +1,13 @@
 <template>
-    <div class="container d-flex justify-center" style="padding-top: 16px;">
-        <div class="w-100">
-            <BackLink to="CatalogueDashboardView" label="Catalogue" sticky class="mb-4" />
-            <Hero
-                :title="heroDetail.title"
-                :subtitle="heroDetail.subtitle"/>
+    <HubShell :title="heroDetail.title" :subtitle="heroDetail.subtitle" accent="var(--accent-workflows)">
 
             <WorkflowsOverallView v-if="showOverall" @register="showOverall=false"/>
             <UploadWorkflowForm v-else @finished="handleUploadFinished"/>
-            
-        </div>
-    </div>
+    </HubShell>
 </template>
 
 <script setup lang="ts">
-import Hero from '@/components/domain/Hero.vue';
-import BackLink from '@/components/common/BackLink.vue';
+import HubShell from '../components/HubShell.vue';
 import UploadWorkflowForm from './UploadWorkflowForm.vue';
 import WorkflowsOverallView from './WorkflowsOverallView.vue';
 import { ref, computed } from 'vue';
@@ -24,12 +16,12 @@ const heroDetail = computed(()=>{
     if(showOverall.value){
         return {
             title:'Workflows',
-            subtitle:'Explore all tools, design workflows effortlessly using Web GUI or Script components.'
+            subtitle:'Register workflows that chain tools into the steps an assay runs.'
         }
     }else{
         return {
-            title:'Upload & Annotate Workflow',
-            subtitle:'Streamline your workflow creation and annotation in one intuitive interface.'
+            title:'Register a workflow',
+            subtitle:'Add its source and details, annotate it for FHIR, then build it.'
         }
     }
 })

@@ -25,7 +25,6 @@ defineProps({
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap');
 
 .page-hero {
   text-align: center;
@@ -34,7 +33,7 @@ defineProps({
 .page-hero__title {
   margin: 0 auto;
   max-width: 24ch;
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-weight: 500;
   font-size: clamp(1.8rem, 4vw, 2.8rem);
   line-height: 1.14;

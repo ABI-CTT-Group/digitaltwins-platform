@@ -3,7 +3,6 @@
     :title="workflow.name"
     kind="Workflow"
     accent="#7fb2f0"
-    :is-deleting="isDeleting"
     :menu-items="menuItems"
   >
     <template #description>{{ workflow.description || 'No description provided.' }}</template>
@@ -21,14 +20,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue'
+import { computed, onBeforeUnmount, toRef, watch } from 'vue'
 import { WorkflowResponse } from '@/models/types';
 import CardUI, { type UCardMenuItem } from './CardUI.vue';
 import { formatDate } from './utils';
 import { buildTag, deployTag, handoffRegistrationTag, typeTag } from './cardTags';
-import { useWorkflowApprovalStatus, useDeleteWorkflow } from '@/bootstrap/workflow_api';
-// @ts-ignore - vue-toastification is installed but missing type declarations
-import { useToast } from 'vue-toastification';
+import { useWorkflowApprovalStatus } from '@/bootstrap/workflow_api';
 
 const props = defineProps<{
   workflow: WorkflowResponse
@@ -36,9 +33,7 @@ const props = defineProps<{
   canDeploy?: boolean
 }>()
 
-const toast = useToast();
 const workflow = toRef(props, "workflow")
-const isDeleting = ref(false)
 
 const emit = defineEmits(["submit-approve", "approve-platform", "approval-done", "delete", "delete-platform", "deploy-dag"])
 
@@ -91,18 +86,6 @@ watch(handoffActive, (active) => {
 onBeforeUnmount(stopApprovalPoll)
 
 const onSubmit = () => emit("submit-approve", workflow.value.id)
-const onDelete = async () => {
-    isDeleting.value = true;
-    try {
-        const res: any = await useDeleteWorkflow(workflow.value.id)
-        if (!res["status"]) {
-            isDeleting.value = false;
-            toast.error("Error: " + res["message"])
-        }
-        emit("delete", res)
-    } catch (err: any) {
-        isDeleting.value = false;
-        toast.error("Error: " + (err?.message ?? err))
-    }
-}
+// The hub confirms and deletes.
+const onDelete = () => emit("delete", workflow.value)
 </script>

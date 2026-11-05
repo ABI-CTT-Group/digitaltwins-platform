@@ -1,10 +1,5 @@
 <template>
-    <div class="container d-flex justify-center" style="padding-top: 16px;">
-        <div class="w-100">
-            <BackLink to="CatalogueDashboardView" label="Catalogue" sticky class="mb-4" />
-            <Hero
-                :title="heroDetail.title"
-                :subtitle="heroDetail.subtitle"/>
+    <HubShell :title="heroDetail.title" :subtitle="heroDetail.subtitle" accent="var(--accent-tools)">
 
             <ToolsOverallView v-if="showOverall" @register="showOverall=false"/>
             <UploadToolForm v-else @finished="handleUploadFinished"/>
@@ -22,13 +17,11 @@
                 :ended-at="logConsole.endedAt.value"
                 :initial-status="logConsole.initialStatus.value"
             />
-        </div>
-    </div>
+    </HubShell>
 </template>
 
 <script setup lang="ts">
-import Hero from '@/components/domain/Hero.vue';
-import BackLink from '@/components/common/BackLink.vue';
+import HubShell from '../components/HubShell.vue';
 import UploadToolForm from './UploadToolForm.vue';
 import ToolsOverallView from './ToolsOverallView.vue';
 import LogConsole from '../components/LogConsole.vue';
@@ -40,12 +33,12 @@ const heroDetail = computed(()=>{
     if(showOverall.value){
         return {
             title:'Tools',
-            subtitle:'Browse all tools — create, upload, and build Web GUI or Script tools effortlessly, and preview results seamlessly.'
+            subtitle:'Register and build the tools that workflows and assays run.'
         }
     }else{
         return {
-            title:'Upload & Configure Tool',
-            subtitle:'From basic setup to build & preview — all in one simple interface.'
+            title:'Register a tool',
+            subtitle:'Add its source and details, annotate it for FHIR, then build it.'
         }
     }
 })

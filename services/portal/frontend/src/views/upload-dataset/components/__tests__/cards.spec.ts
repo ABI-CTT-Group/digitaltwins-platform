@@ -3,10 +3,10 @@ import { mount } from "@vue/test-utils";
 import { testVuetify } from "@/testing/vuetify";
 
 vi.mock("@/bootstrap/http", () => ({ default: {}, dtApi: {} }));
+const { toastError, deleteWorkflow, deleteTool } = vi.hoisted(() => ({ toastError: vi.fn(), deleteWorkflow: vi.fn(), deleteTool: vi.fn() }));
 vi.mock("@/bootstrap/tool_api", () => ({
-  useDeleteTool: vi.fn(), useToolApprovalStatus: vi.fn(),
+  useDeleteTool: deleteTool, useToolApprovalStatus: vi.fn(),
 }));
-const { toastError, deleteWorkflow } = vi.hoisted(() => ({ toastError: vi.fn(), deleteWorkflow: vi.fn() }));
 vi.mock("vue-toastification", () => ({ useToast: () => ({ error: toastError, warning: vi.fn(), success: vi.fn() }) }));
 vi.mock("@/bootstrap/workflow_api", () => ({ useWorkflowApprovalStatus: vi.fn(), useDeleteWorkflow: deleteWorkflow }));
 
@@ -71,27 +71,16 @@ describe("WorkflowCard", () => {
       .attributes("title")).toBe("FHIR publishing failed: HAPI 500");
   });
 
-  it("keeps the portal workflow menu", async () => {
+  it("keeps the portal workflow menu, and asks the hub to delete", async () => {
     const w = mount(WorkflowCard, { props: { workflow: WORKFLOW as any }, global: { plugins } });
 
     expect(menu(w).map((m) => m.label)).toEqual(["Submit to approval", "Delete workflow"]);
-    deleteWorkflow.mockResolvedValue({ status: true, message: "ok" });
-    await menu(w)[1].onClick();
-    expect(deleteWorkflow).toHaveBeenCalledWith("p1");
-    expect(w.emitted("delete")?.[0]).toEqual([{ status: true, message: "ok" }]);
-  });
-
-  it("shows the error and stops being busy when a workflow delete fails", async () => {
-    const w = mount(WorkflowCard, { props: { workflow: WORKFLOW as any }, global: { plugins } });
-    deleteWorkflow.mockResolvedValue({ status: false, message: "platform said no" });
-    await menu(w)[1].onClick();
-    expect(toastError).toHaveBeenCalledWith("Error: platform said no");
-    expect(w.findComponent(CardUI).props("isDeleting")).toBe(false);
-
-    deleteWorkflow.mockRejectedValue(new Error("403"));
-    await menu(w)[1].onClick();
-    expect(toastError).toHaveBeenCalledWith("Error: 403");
-    expect(w.findComponent(CardUI).props("isDeleting")).toBe(false);
+    menu(w)[1].onClick();
+    await w.vm.$nextTick();
+    // The hub confirms and deletes; the card calls nothing itself.
+    expect(w.emitted("delete")?.[0]).toEqual([WORKFLOW]);
+    expect(deleteWorkflow).not.toHaveBeenCalled();
+    expect(w.find(".ucard--disabled").exists()).toBe(false);
   });
 
   it("routes a portal SDS workflow to the platform approval", () => {
@@ -169,10 +158,13 @@ describe("ToolCard", () => {
     expect(w.emitted("delete")).toBeUndefined();
   });
 
-  it("keeps the portal tool menu", () => {
+  it("keeps the portal tool menu, and asks the hub to delete", () => {
     const w = mount(ToolCard, { props: { tool: TOOL as any }, global: { plugins } });
 
     expect(menu(w).map((m) => m.label)).toEqual(["Rebuild tool", "Submit to approval", "Delete tool"]);
+    menu(w)[2].onClick();
+    expect(w.emitted("delete")?.[0]).toEqual([TOOL]);
+    expect(deleteTool).not.toHaveBeenCalled();
   });
 
   it("tags each tool type in one vocabulary", () => {
@@ -235,6 +227,14 @@ const measurement = (status: string, extra: object = {}) =>
 
 describe("MeasurementCard", () => {
   const mountCard = (m: object) => mount(MeasurementCard, { props: { measurement: m as any }, global: { plugins } });
+
+  it("asks the hub to delete, and stays as it is until the hub has deleted it", async () => {
+    const w = mountCard(measurement("pending", { hasAnnotation: true }));
+    menu(w).find((m) => m.label === "Delete measurement")!.onClick();
+    await w.vm.$nextTick();
+    expect(w.emitted("delete")?.[0]).toEqual([measurement("pending", { hasAnnotation: true })]);
+    expect(w.find(".ucard--disabled").exists()).toBe(false);
+  });
 
   it("shows only the registration tag through the lifecycle", () => {
     expect(chips(mountCard(measurement("pending_upload")))).toEqual(["upload paused"]);

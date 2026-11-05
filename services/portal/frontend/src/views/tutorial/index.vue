@@ -108,7 +108,6 @@ const onCardClick = (item: SectionItem, event: Event) => {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap');
 
 .tutorial {
   --text: #e9f2f5;
@@ -119,7 +118,7 @@ const onCardClick = (item: SectionItem, event: Event) => {
 
   min-height: 100%;
   padding: clamp(28px, 6vh, 72px) clamp(20px, 5vw, 80px) 72px;
-  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  font-family: var(--font-ui);
   color: var(--text);
   /* transparent — sits on the shared aurora backdrop */
 }
@@ -145,7 +144,7 @@ const onCardClick = (item: SectionItem, event: Event) => {
 }
 .masthead__title {
   margin: 0;
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-weight: 500;
   font-size: clamp(2.4rem, 5.5vw, 4rem);
   line-height: 1;

@@ -1,9 +1,9 @@
 <template>
   <RegistryView
     ref="registryRef"
-    register-label="Register a new workflow"
+    register-label="Register a workflow"
     search-label="Search workflows"
-    accent="#7fb2f0"
+    accent="var(--accent-workflows)"
     :fetch-list="useWorkflowHub"
     :is-pending="(items) => items.some(w => w.status === 'building')"
     :filter-fn="registrationFilterFn"
@@ -17,11 +17,11 @@
         item-value="value"
         label="Registration status"
         variant="outlined"
-        base-color="#7fb2f0"
+        base-color="#5f7884"
         color="#7fb2f0"
         density="compact"
         hide-details
-        style="max-width: 240px;"
+        style="width: 220px;"
       />
     </template>
 
@@ -31,7 +31,7 @@
         :key="w.id"
         :workflow="w"
         :can-deploy="authStore.hasAdminRole"
-        @delete="handleDeleteWorkflow"
+        @delete="confirmDeleteWorkflow"
         @delete-platform="openPlatformDelete"
         @submit-approve="(id) => handleWorkflowApproval(id)"
         @approve-platform="openApproval"
@@ -39,7 +39,13 @@
         @deploy-dag="handleDeployDag"
       />
     </template>
+
+    <template #empty>
+      <p class="hub-empty">No workflows yet. Register an SDS workflow package to chain tools into an assay.</p>
+    </template>
   </RegistryView>
+
+  <ConfirmDialog v-if="confirm.request.value" v-model="confirm.open.value" v-bind="confirm.request.value" />
 
   <ToolApprovalDialog v-model="approvalOpen" kind="workflow" :item="approvalWorkflow" @done="onApprovalDone" />
 
@@ -54,8 +60,10 @@ import { computed, ref } from 'vue';
 import RegistryView from '../components/RegistryView.vue';
 import WorkflowCard from '../components/WorkflowCard.vue';
 import DeletePlatformDatasetDialog from '../components/DeletePlatformDatasetDialog.vue';
+import ConfirmDialog from '../components/ConfirmDialog.vue';
+import { useConfirm } from '../components/useConfirm';
 import ToolApprovalDialog from '../components/ToolApprovalDialog.vue';
-import { useWorkflowHub, useWorkflowApproval } from '@/bootstrap/workflow_api';
+import { useWorkflowHub, useWorkflowApproval, useDeleteWorkflow } from '@/bootstrap/workflow_api';
 import { deployWorkflowDag } from '@/bootstrap/platform_api';
 import { useAuthStore } from '@/store/auth_store';
 import type { ToolApprovalStatus, WorkflowResponse } from '@/models/types';
@@ -85,9 +93,20 @@ const registrationFilterFn = computed(() => {
 
 const handleRegister = () => emit('register');
 
-const handleDeleteWorkflow = async () => {
-  await registryRef.value?.handleRefresh();
-};
+const confirm = useConfirm();
+const confirmDeleteWorkflow = (w: WorkflowResponse) => confirm.ask({
+  title: `Delete ${w.name}?`,
+  text: isWorkflowInPlatform(w)
+    ? 'The workflow is removed from the portal and from the platform, with the tool datasets its steps run. This can\'t be undone.'
+    : 'The workflow is removed from the portal, with its builds. This can\'t be undone.',
+  confirmLabel: 'Delete workflow',
+  action: async () => {
+    const res: any = await useDeleteWorkflow(w.id);
+    if (res && res.status === false) throw new Error(res.message);
+    toast.success('Workflow deleted.');
+    await registryRef.value?.handleRefresh();
+  },
+});
 
 // A workflow uploaded via the REST API is deleted from the platform after a
 // confirmation that also asks whether its tool datasets go too.

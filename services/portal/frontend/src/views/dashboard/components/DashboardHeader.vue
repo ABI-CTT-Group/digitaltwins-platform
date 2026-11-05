@@ -109,7 +109,7 @@ const itemNoun = computed(() => {
 }
 .dash-header__title {
   margin: 0;
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-weight: 500;
   font-size: clamp(2rem, 4.4vw, 3.1rem);
   line-height: 1.02;

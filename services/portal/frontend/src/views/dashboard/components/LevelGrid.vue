@@ -108,7 +108,7 @@ defineEmits<{
 }
 .state__title {
   margin: 6px 0 0;
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-size: 1.2rem;
   color: #e9f2f5;
 }

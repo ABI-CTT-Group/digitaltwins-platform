@@ -288,7 +288,7 @@ async function handleSubmit() {
 }
 .annotate__title {
   margin: 0;
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-weight: 500;
   font-size: 1.7rem;
   line-height: 1.15;
@@ -321,7 +321,7 @@ async function handleSubmit() {
   color: #7f97a1;
 }
 .stat__value {
-  font-family: 'Fraunces', Georgia, serif;
+  font-family: var(--font-title);
   font-size: 1.7rem;
   font-weight: 500;
   line-height: 1.1;

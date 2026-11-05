@@ -44,7 +44,7 @@ const go = () => {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.03);
   color: #a4bac4;
-  font-family: "Hanken Grotesk", system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.85rem;
   font-weight: 600;
   letter-spacing: 0.01em;

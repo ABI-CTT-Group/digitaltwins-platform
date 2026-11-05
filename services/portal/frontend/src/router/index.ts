@@ -77,7 +77,7 @@ const routes = [
                 path: "/catalogue/tools",
                 name: "UploadToolDataset",
                 component: UploadToolDataset,
-                meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'] },
+                meta: { requiresAuth: true, requiresRoles: ['admin'] },
               },
               {
                 path: "/catalogue/workflows",

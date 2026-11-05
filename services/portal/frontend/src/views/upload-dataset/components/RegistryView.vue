@@ -1,49 +1,81 @@
 <template>
-  <v-container class="d-flex align-center justify-center">
-    <v-card
-      class="pa-6 responsive-box d-flex flex-column align-center justify-center aurora-panel"
-      flat
-    >
-      <!-- Register button -->
-      <div class="w-100 d-flex justify-start">
+  <div class="registry" :style="{ '--accent': accent }">
+    <div class="registry__bar">
+      <button
+        type="button"
+        class="aurora-btn aurora-btn--solid registry__register"
+        :style="{ '--accent': accent }"
+        :disabled="disabled"
+        @click="emit('register')"
+      >
+        <v-icon icon="mdi-plus" size="18" />
+        {{ registerLabel }}
+      </button>
+      <!-- Optional extra filters (e.g. a status dropdown), narrowing on top of the search box -->
+      <div v-if="$slots.filters" class="registry__filters">
+        <slot name="filters" />
+      </div>
+      <div class="registry__tools">
+        <v-text-field
+          v-model="search"
+          :label="searchLabel"
+          prepend-inner-icon="mdi-magnify"
+          variant="outlined"
+          density="compact"
+          :base-color="'var(--text-faint)'"
+          :color="accent"
+          clearable
+          hide-details
+          class="registry__search"
+        />
         <button
           type="button"
-          class="aurora-btn register-btn my-2"
-          :style="{ '--accent': accent }"
-          :disabled="disabled"
-          @click="emit('register')"
+          class="aurora-btn aurora-btn--ghost aurora-btn--sm"
+          :disabled="phase === 'loading'"
+          @click="load"
         >
-          <v-icon icon="mdi-plus-circle-outline" size="18" />
-          {{ registerLabel }}
+          <v-icon icon="mdi-refresh" size="16" /> Refresh
         </button>
       </div>
+    </div>
 
-      <!-- List panel -->
-      <div class="d-flex flex-column w-100 my-2 pa-5 rounded registry-container">
-        <Search :label="searchLabel" v-model:search="search" @search="handleSearch" :accent="accent" />
-        <!-- Optional extra filters (e.g. a status dropdown), narrowing on top of the search box -->
-        <div v-if="$slots.filters" class="d-flex w-100 px-2 pb-3">
-          <slot name="filters" />
-        </div>
-        <Refresh @refresh="handleRefresh" />
-        <div class="d-flex flex-grow-1">
-          <div v-if="displayItems.length > 0" class="ucard-grid pa-5">
-            <slot :items="displayItems" />
-          </div>
-          <NoData v-else />
-        </div>
-      </div>
-    </v-card>
-  </v-container>
+    <p v-if="pollFailed && phase === 'ready'" class="registry__notice" role="status">
+      <v-icon icon="mdi-cloud-off-outline" size="16" />
+      Couldn't refresh. Showing the list as it was a moment ago.
+    </p>
+
+    <div v-if="phase === 'loading'" class="registry__grid" role="status" aria-label="Loading">
+      <span class="registry__loading">Loading…</span>
+      <div v-for="n in 3" :key="n" class="registry__skeleton" aria-hidden="true" />
+    </div>
+
+    <div v-else-if="phase === 'error'" class="registry__state" role="alert">
+      <h2 class="registry__state-title">Couldn't load the list</h2>
+      <p class="registry__state-text">{{ loadError }}</p>
+      <button type="button" class="aurora-btn" @click="load">Try again</button>
+    </div>
+
+    <div v-else-if="allItems.length === 0" class="registry__state">
+      <slot name="empty">
+        <p class="registry__state-text">Nothing registered yet.</p>
+      </slot>
+    </div>
+
+    <div v-else-if="displayItems.length === 0" class="registry__state">
+      <p class="registry__state-text">Nothing matches your search or filter.</p>
+    </div>
+
+    <div v-else class="registry__grid">
+      <slot :items="displayItems" />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts" generic="T extends { id: string; status?: string }">
 import { ref, watch, onBeforeMount, onUnmounted } from 'vue';
 import type { Ref } from 'vue';
 import Fuse from 'fuse.js';
-import Search from './Search.vue';
-import Refresh from './Refresh.vue';
-import NoData from './NoData.vue';
+import { getApiErrorMessage } from '@/utils/common';
 
 // ---- props / emits --------------------------------------------------------
 const props = withDefaults(
@@ -56,7 +88,7 @@ const props = withDefaults(
     searchLabel?: string;
     /** Whether the register button is disabled */
     disabled?: boolean;
-    /** Per-page identity accent (hex) for the register button + search. */
+    /** The hub's category accent for the register button and search focus. */
     accent?: string;
     /** Auto-poll interval in milliseconds; 0 = disabled */
     pollInterval?: number;
@@ -70,7 +102,7 @@ const props = withDefaults(
     registerLabel: 'Register a new item',
     searchLabel: 'Search',
     disabled: false,
-    accent: '#5fd6e8',
+    accent: 'var(--accent-tools)',
     pollInterval: 5000,
     isPending: () => false,
     filterFn: undefined,
@@ -83,9 +115,14 @@ const emit = defineEmits<{
 }>();
 
 // ---- state ----------------------------------------------------------------
+// loading: the first fetch (or a retry after an error) is under way; error: it failed and there is
+// no list to show; ready: a list is shown. A failed poll keeps the last list and sets pollFailed.
+const phase = ref<'loading' | 'error' | 'ready'>('loading');
+const loadError = ref('');
+const pollFailed = ref(false);
 const allItems = ref<T[]>([]) as Ref<T[]>;
 const displayItems = ref<T[]>([]) as Ref<T[]>;
-const search = ref('');
+const search = ref<string | null>('');
 const isStatusPending = ref(false);
 let refreshInterval: number | undefined;
 
@@ -102,10 +139,26 @@ const handleRefresh = async () => {
   allItems.value = items;
   applyDisplay();
   isStatusPending.value = props.isPending(items);
+  pollFailed.value = false;
+  phase.value = 'ready';
   emit('refresh', items);
 };
 
-const handleSearch = () => applyDisplay();
+/** A fetch the user asked for (first load, Refresh, Try again): a failure with no list shows the error. */
+const load = async () => {
+  if (phase.value !== 'ready') phase.value = 'loading';
+  try {
+    await handleRefresh();
+  } catch (err) {
+    console.error('Registry load failed:', err);
+    if (phase.value === 'ready') {
+      pollFailed.value = true;
+    } else {
+      loadError.value = getApiErrorMessage(err, 'Loading');
+      phase.value = 'error';
+    }
+  }
+};
 
 watch(search, () => applyDisplay());
 watch(() => props.filterFn, () => applyDisplay());
@@ -114,7 +167,10 @@ watch(() => props.filterFn, () => applyDisplay());
 watch(isStatusPending, (pending) => {
   if (pending && !refreshInterval && props.pollInterval > 0) {
     refreshInterval = window.setInterval(() => {
-      handleRefresh().catch((err) => console.error('Registry refresh failed:', err));
+      handleRefresh().catch((err) => {
+        console.error('Registry refresh failed:', err);
+        pollFailed.value = true;
+      });
     }, props.pollInterval);
   } else if (!pending && refreshInterval) {
     clearInterval(refreshInterval);
@@ -122,55 +178,80 @@ watch(isStatusPending, (pending) => {
   }
 }, { immediate: true });
 
-onBeforeMount(handleRefresh);
+onBeforeMount(load);
 onUnmounted(() => { if (refreshInterval) clearInterval(refreshInterval); });
 
 // expose for parent to trigger refresh programmatically
-defineExpose({ handleRefresh });
+defineExpose({ handleRefresh: load });
 </script>
 
 <style scoped>
-.responsive-box { width: 90% !important; }
-@media (min-width: 2100px) {
-  .responsive-box { width: 75% !important; }
+.registry { font-family: var(--font-ui); color: var(--text); }
+
+.registry__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-bottom: 20px;
 }
-.aurora-panel {
-  background: rgba(8, 18, 26, 0.55) !important;
-  border: 1px solid rgba(120, 200, 220, 0.16);
-  border-radius: 20px !important;
+.registry__register { padding: 10px 18px; font-size: 0.9375rem; }
+.registry__filters { display: flex; align-items: center; gap: 8px; }
+/* Right-aligned on wide screens; when the bar wraps (phones) it takes the full row. */
+.registry__tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 300px;
+  max-width: 440px;
+  margin-left: auto;
 }
-.registry-container {
-  min-height: 50vh;
-  border: 1px solid rgba(120, 200, 220, 0.14);
-  background: rgba(255, 255, 255, 0.015);
+.registry__search { flex: 1; min-width: 0; }
+.registry__search :deep(.v-field__input) { color: var(--text); caret-color: var(--text); }
+
+.registry__notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  color: var(--tone-needs);
 }
-/* Deep, muted accent fill — a calm CTA rather than the bright solid button. */
-.register-btn {
-  padding: 10px 20px;
-  font-size: 0.9rem;
-  white-space: nowrap;
-  background: color-mix(in srgb, var(--accent) 20%, rgba(7, 19, 27, 0.92)) !important;
-  border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent) !important;
-  color: color-mix(in srgb, var(--accent) 86%, #ffffff) !important;
-  box-shadow: none !important;
-}
-.register-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 30%, rgba(7, 19, 27, 0.92)) !important;
-  border-color: color-mix(in srgb, var(--accent) 58%, transparent) !important;
-  color: #ffffff !important;
-  transform: translateY(-1px);
-}
-/* Elastic card grid — cards flex to fill the row and wrap; a lone card stays a
-   sensible width (left-aligned) rather than stretching across the panel.
-   align-self/align-content keep the grid (a flex item in a tall flex-grow
-   parent) from stretching vertically — otherwise the single row of cards
-   stretches to fill the panel height on tall/ultra-wide screens. */
-.ucard-grid {
+
+/* Elastic card grid — cards flex to fill the row and wrap; a lone card stays a sensible width. */
+.registry__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-  gap: clamp(16px, 1.6vw, 22px);
-  width: 100%;
-  align-self: flex-start;
-  align-content: flex-start;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: clamp(14px, 1.6vw, 20px);
 }
+.registry__loading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.registry__skeleton {
+  min-height: 188px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: linear-gradient(100deg, var(--surface) 30%, rgba(255, 255, 255, 0.06) 50%, var(--surface) 70%);
+  background-size: 300% 100%;
+  animation: registry-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes registry-shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .registry__skeleton { animation: none; }
+}
+
+.registry__state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 40px 0;
+  max-width: 60ch;
+}
+.registry__state-title { margin: 0; font-size: 1.2rem; font-weight: 600; color: var(--text); }
+.registry__state-text { margin: 0; font-size: 1rem; line-height: 1.55; color: var(--text-dim); }
 </style>

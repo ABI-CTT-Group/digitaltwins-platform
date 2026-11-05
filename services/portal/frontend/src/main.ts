@@ -6,6 +6,9 @@
 
 // Components
 import App from "./App.vue";
+// Self-hosted fonts: airgapped installs can't reach Google Fonts.
+import "@fontsource-variable/hanken-grotesk";
+import "@fontsource-variable/fraunces";
 import "@/styles/style.css";
 
 // Composables
