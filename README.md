@@ -161,7 +161,7 @@ To report an issue or suggest a new feature, please use the [issues page](https:
 Fork this repository and submit a pull request to contribute. Before doing so, please read our [Code of Conduct](CODE_OF_CONDUCT.md) and [Contributing Guidelines](CONTRIBUTING.md). A pull request template is provided to help developers describe their contribution, mention the issues related to the pull request, and describe how they tested it. Run the unit tests with `make test` before opening a pull request; see [docs/testing.md](docs/testing.md).
 
 ## License
-The DigitalTWINS platform is fully open source and distributed under the very permissive Apache License 2.0. See [LICENSE](LICENSE) for more information.
+The DigitalTWINS platform is dual-licensed. You may use, modify and distribute it under the Apache License 2.0 for non-commercial purposes such as research, education, personal projects or internal non-production testing. Any commercial use, including in products, services or production systems, needs a commercial license from the copyright holder. See [LICENSE.md](LICENSE.md) for the full terms.
 
 ## Team
 

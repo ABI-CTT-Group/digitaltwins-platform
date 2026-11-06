@@ -41,7 +41,7 @@ add a section here when you add a service.
 | [`.pre-commit-config.yaml`](../.pre-commit-config.yaml) | The `gitleaks` secret-scanning hook. |
 | [`.aiexclude`](../.aiexclude), `.dockerignore`, `.gitignore`, `.gitattributes` | Files that AI tools, Docker builds and git should skip or treat specially. `.aiexclude` keeps `.env` and `secrets.env` away from AI tools. |
 | [`AGENTS.md`](../AGENTS.md) | Instructions for AI agents working in this repo. |
-| [`README.md`](../README.md), [`CONTRIBUTING.md`](../CONTRIBUTING.md), [`CODE_OF_CONDUCT.md`](../CODE_OF_CONDUCT.md), [`LICENSE`](../LICENSE) | Project overview, contribution guide, code of conduct, Apache 2.0 licence. |
+| [`README.md`](../README.md), [`CONTRIBUTING.md`](../CONTRIBUTING.md), [`CODE_OF_CONDUCT.md`](../CODE_OF_CONDUCT.md), [`LICENSE.md`](../LICENSE.md) | Project overview, contribution guide, code of conduct, dual licence (Apache 2.0 for non-commercial use, commercial licence otherwise). |
 
 ## Services
 

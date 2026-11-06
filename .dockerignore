@@ -37,7 +37,7 @@ pip-delete-this-directory.txt
 docs/
 README.md
 CODE_OF_CONDUCT.md
-LICENSE
+LICENSE.md
 
 # Examples and tests
 examples/
