@@ -74,4 +74,4 @@ service's own `AGENTS.md`, to change what agents are told.
 ## License
 
 By contributing, you agree that your contributions are licensed under the
-[Apache License 2.0](LICENSE).
+[Apache License 2.0](LICENSE.md).
