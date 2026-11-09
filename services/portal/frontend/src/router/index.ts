@@ -11,6 +11,7 @@ import DashboardView from "@/views/dashboard/DashboardView.vue";
 import TutorialDashboard from "@/views/tutorial/index.vue";
 import CatalogueDashboardView from "@/views/catalogue/catalogue-dashboard-view.vue";
 import ToolsViewer from "@/views/catalogue/tools-viewer.vue";
+import IsaProjectHub from "@/views/isa-project/IsaProjectHub.vue";
 import Layout from "@/layouts/Default.vue";
 import LaunchedAssayOverview from "@/views/dashboard/report/AssayReportView.vue";
 import UploadDataset from "@/views/upload-dataset/index.vue";
@@ -67,6 +68,13 @@ const routes = [
             name: "ToolsViewer",
             component: ToolsViewer,
             meta: { requiresAuth: true },
+          },
+          {
+            // Frontend-only prototype: ISA projects live in the browser; nothing reaches the API.
+            path: "/catalogue/isa-project",
+            name: "IsaProjectPrototype",
+            component: IsaProjectHub,
+            meta: { requiresAuth: true, requiresRoles: ['admin'] },
           },
           {
             path: "/launched-assay",
