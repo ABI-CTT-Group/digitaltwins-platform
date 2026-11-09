@@ -10,9 +10,10 @@ vi.mock("@/composables/useAuthGuard", () => ({ useAuthGuard: () => ({ check }) }
 
 import CatalogueDashboardView from "../catalogue-dashboard-view.vue";
 
-const assemblerTile = () =>
+const tile = (title: string) =>
   mount(CatalogueDashboardView, { global: { plugins: [testVuetify()] } })
-    .findAll("button.tile").find((b) => b.text().includes("Workflow assembler"))!;
+    .findAll("button.tile").find((b) => b.text().includes(title))!;
+const assemblerTile = () => tile("Workflow assembler");
 
 describe("catalogue dashboard", () => {
   beforeEach(() => { push.mockClear(); check.mockClear(); });
@@ -25,5 +26,14 @@ describe("catalogue dashboard", () => {
     await flushPromises();
     expect(check).toHaveBeenCalledWith([]);
     expect(push).toHaveBeenCalledWith({ name: "ToolsViewer" });
+  });
+
+  it("labels the ISA project page a prototype and opens it for admins only", async () => {
+    const isa = tile("ISA project");
+    expect(isa.text()).toContain("Prototype");
+    await isa.trigger("click");
+    await flushPromises();
+    expect(check).toHaveBeenCalledWith(["admin"]);
+    expect(push).toHaveBeenCalledWith({ name: "IsaProjectPrototype" });
   });
 });

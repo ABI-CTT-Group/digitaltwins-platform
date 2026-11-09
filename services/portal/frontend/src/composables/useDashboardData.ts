@@ -4,6 +4,10 @@ import {
   useDashboardCategoryChildren,
 } from "@/bootstrap/dashboard_api";
 import { DashboardCategory } from "@/models/types";
+import { useAuthStore } from "@/store/auth_store";
+// Prototype: the "Study design sandbox" programme, served from the browser, never the API.
+import { useIsaProjectStore } from "@/views/isa-project/isaProjectStore";
+import { isSandboxId, sandboxChildren, sandboxProgramme } from "@/views/isa-project/sandbox";
 
 /**
  * The SEEK hierarchy, top to bottom. The category at depth `d` is the kind of
@@ -34,7 +38,7 @@ export function describeCategory(category: string): string {
     case "Studies":
       return "A Study is a particular hypothesis, which you are planning to test, using various techniques. A Study must belong to one Investigation and it can contain one or more Assays.";
     case "Assays":
-      return "An Assay is a single workflow execution against a study cohort.";
+      return "An Assay is a workflow configured to run against a study cohort. It can be run many times.";
     default:
       return "";
   }
@@ -82,13 +86,14 @@ export function useDashboardData() {
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  /** Top-level programmes, cached. */
+  /** Top-level programmes, cached, plus the sandbox programme for admins (never cached). */
   async function getProgrammes(): Promise<DashboardCategory[]> {
-    const cached = childrenCache.get(ROOT_KEY);
-    if (cached) return cached;
-    const programmes = (await useDashboardProgrammes()) ?? [];
-    childrenCache.set(ROOT_KEY, programmes);
-    return programmes;
+    let programmes = childrenCache.get(ROOT_KEY);
+    if (!programmes) {
+      programmes = (await useDashboardProgrammes()) ?? [];
+      childrenCache.set(ROOT_KEY, programmes);
+    }
+    return useAuthStore().hasAdminRole ? [...programmes, sandboxProgramme()] : programmes;
   }
 
   /**
@@ -99,6 +104,11 @@ export function useDashboardData() {
     parentSeekId: string,
     parentCategory: string,
   ): Promise<DashboardCategory[]> {
+    if (isSandboxId(parentSeekId)) {
+      const store = useIsaProjectStore();
+      await store.ensureExamples();
+      return sandboxChildren(parentSeekId, parentCategory, store.entries);
+    }
     const key = cacheKey(parentSeekId, parentCategory);
     const cached = childrenCache.get(key);
     if (cached) return cached;

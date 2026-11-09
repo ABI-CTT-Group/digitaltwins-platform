@@ -314,7 +314,11 @@ the builder, the public tool buckets and the plugin backends.
   - `views/`: `dashboard/` (study and clinician dashboards, assay config and
     launch), `catalogue/`, `upload-dataset/` (the measurements, models, tools
     and workflows hubs), `tool-plugin/` (`/tool-view`, where GUI tools run),
-    `home/`, `tutorial/`.
+    `home/`, `tutorial/`, `isa-project/` (a frontend-only prototype: the
+    ISA project hub at `/catalogue/isa-project`, and the "Study design
+    sandbox" programme that `composables/useDashboardData.ts` adds to the
+    study dashboard for admins; projects live in the browser's localStorage
+    and no API is called).
   - `components/`, `composables/`, `store/`, `services/`, `models/`, `utils/`.
     `components/RemoteComponentApp.vue` loads a plugin's UMD bundle.
   - [`frontend/nginx.conf.template`](../services/portal/frontend/nginx.conf.template):

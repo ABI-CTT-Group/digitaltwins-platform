@@ -11,7 +11,10 @@
         @go-depth="nav.goToDepth"
       />
 
+      <!-- Prototype: a sandbox study is configured as a whole, not assay by assay. -->
+      <StudyDesign v-if="sandboxStudy" v-bind="sandboxStudy" />
       <LevelGrid
+        v-else
         :items="level.items"
         :loading="data.loading.value"
         :error="data.error.value"
@@ -35,6 +38,8 @@ import { useDashboardNavigation } from "@/composables/useDashboardNavigation";
 import { useAssayActions } from "@/composables/useAssayActions";
 import DashboardHeader from "./components/DashboardHeader.vue";
 import LevelGrid from "./components/LevelGrid.vue";
+import StudyDesign from "@/views/isa-project/StudyDesign.vue";
+import { parseSandboxId } from "@/views/isa-project/sandbox";
 
 
 const route = useRoute();
@@ -60,6 +65,13 @@ const level = reactive<ResolvedLevel>({
   currentCategory: "Programmes",
 });
 
+/** The sandbox study at the end of the trail, if any (prototype). */
+const sandboxStudy = computed(() => {
+  const last = level.breadcrumbs[level.breadcrumbs.length - 1];
+  const ids = last && level.currentCategory === "Assays" ? parseSandboxId(last.seekId) : null;
+  return ids?.projectId && ids.studyId ? { projectId: ids.projectId, studyId: ids.studyId } : null;
+});
+
 const load = async () => {
   const resolved = await data.loadTrail(nav.trail.value, typeFilter);
   level.items = resolved.items;
@@ -73,8 +85,8 @@ const load = async () => {
     return;
   }
 
-  // The Assays level needs per-assay config + launch state loaded.
-  if (resolved.currentCategory === "Assays") {
+  // The Assays level needs per-assay config + launch state loaded (not for a sandbox study).
+  if (resolved.currentCategory === "Assays" && !sandboxStudy.value) {
     actions.loadAssayList(resolved.items);
   }
 };

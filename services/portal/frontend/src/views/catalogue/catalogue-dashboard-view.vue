@@ -164,6 +164,16 @@ const actions: CatalogueCard[] = [
     requireRoles: [],
     prototype: true,
   },
+  {
+    title: 'ISA project',
+    description: 'Upload an ISA project and list the ones you have. Open one in the study dashboard to configure all its assays together.',
+    herf: 'IsaProjectPrototype',
+    icon: 'mdi-file-tree-outline',
+    cta: 'Open',
+    accent: '#f0b97f',
+    requireRoles: ['admin'],
+    prototype: true,
+  },
 ];
 
 const router = useRouter();

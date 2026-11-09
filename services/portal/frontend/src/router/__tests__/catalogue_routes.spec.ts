@@ -13,6 +13,7 @@ describe("catalogue routes", () => {
     ["UploadToolDataset", "/catalogue/tools"],
     ["UploadWorkflowDataset", "/catalogue/workflows"],
     ["ToolsViewer", "/catalogue/workflow-assembler"],
+    ["IsaProjectPrototype", "/catalogue/isa-project"],
   ])("serves %s at %s", (name, path) => {
     expect(router.resolve({ name }).path).toBe(path);
   });
@@ -28,6 +29,7 @@ describe("catalogue routes", () => {
     ["UploadWorkflowDataset", ["admin"]],
     ["UploadMeasurementsDataset", ["admin", "researcher"]],
     ["UploadModelDataset", ["admin", "researcher"]],
+    ["IsaProjectPrototype", ["admin"]],
   ])("lets only %s's roles in", (name, roles) => {
     expect(router.resolve({ name }).meta.requiresRoles).toEqual(roles);
   });

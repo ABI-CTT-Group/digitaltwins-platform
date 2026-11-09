@@ -1,0 +1,407 @@
+{
+  "tools": [
+    {
+      "id": "t-cohort-query",
+      "name": "Cohort query",
+      "type": "notebook"
+    },
+    {
+      "id": "t-dicom-nifti",
+      "name": "DICOM to NIfTI converter",
+      "type": "script"
+    },
+    {
+      "id": "t-annotator",
+      "name": "Segmentation annotator",
+      "type": "gui"
+    },
+    {
+      "id": "t-seg-train",
+      "name": "Segmentation trainer (nnU-Net)",
+      "type": "script"
+    },
+    {
+      "id": "t-seg-infer",
+      "name": "Segmentation inference (nnU-Net)",
+      "type": "script"
+    },
+    {
+      "id": "t-mesher",
+      "name": "Surface mesher",
+      "type": "script"
+    },
+    {
+      "id": "t-report",
+      "name": "Pilot report builder",
+      "type": "script"
+    },
+    {
+      "id": "t-analysis",
+      "name": "Outputs analysis",
+      "type": "notebook"
+    }
+  ],
+  "workflows": [
+    {
+      "id": "wf-cohort-select",
+      "name": "Cohort selection",
+      "type": "notebook",
+      "inputs": [
+        {
+          "name": "clinical_records",
+          "category": "measurements"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "cohort_list",
+          "category": "measurements"
+        }
+      ],
+      "steps": [
+        {
+          "id": "select",
+          "toolId": "t-cohort-query"
+        }
+      ],
+      "cwl": {
+        "inputs": {
+          "clinical_records": {
+            "type": "File"
+          }
+        },
+        "steps": {
+          "select": {
+            "run": "tool_cohortool_query.cwl",
+            "in": {
+              "clinical_records": "clinical_records"
+            },
+            "out": [
+              "cohort"
+            ]
+          }
+        },
+        "outputs": {
+          "cohort_list": {
+            "type": "File",
+            "outputSource": "select/cohort"
+          }
+        }
+      }
+    },
+    {
+      "id": "wf-dicom-nifti",
+      "name": "DICOM to NIfTI conversion",
+      "type": "script",
+      "inputs": [
+        {
+          "name": "dicom",
+          "category": "measurements"
+        },
+        {
+          "name": "cohort_list",
+          "category": "measurements"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "nifti_images",
+          "category": "measurements"
+        }
+      ],
+      "steps": [
+        {
+          "id": "convert",
+          "toolId": "t-dicom-nifti"
+        }
+      ],
+      "cwl": {
+        "inputs": {
+          "dicom": {
+            "type": "File"
+          },
+          "cohort_list": {
+            "type": "File"
+          }
+        },
+        "steps": {
+          "convert": {
+            "run": "tool_dicom_nifti.cwl",
+            "in": {
+              "dicom": "dicom",
+              "cohort_list": "cohort_list"
+            },
+            "out": [
+              "nifti"
+            ]
+          }
+        },
+        "outputs": {
+          "nifti_images": {
+            "type": "File",
+            "outputSource": "convert/nifti"
+          }
+        }
+      }
+    },
+    {
+      "id": "wf-annotate",
+      "name": "Annotate cases",
+      "type": "gui",
+      "inputs": [
+        {
+          "name": "images",
+          "category": "measurements"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "labels",
+          "category": "measurements"
+        }
+      ],
+      "steps": [
+        {
+          "id": "annotate",
+          "toolId": "t-annotator"
+        }
+      ],
+      "cwl": {
+        "inputs": {
+          "images": {
+            "type": "File"
+          }
+        },
+        "steps": {
+          "annotate": {
+            "run": "tool_annotator.cwl",
+            "in": {
+              "images": "images"
+            },
+            "out": [
+              "labels"
+            ]
+          }
+        },
+        "outputs": {
+          "labels": {
+            "type": "File",
+            "outputSource": "annotate/labels"
+          }
+        }
+      }
+    },
+    {
+      "id": "wf-train-seg",
+      "name": "Train segmentation",
+      "type": "script",
+      "inputs": [
+        {
+          "name": "images",
+          "category": "measurements"
+        },
+        {
+          "name": "labels",
+          "category": "measurements"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "seg_model",
+          "category": "models"
+        }
+      ],
+      "steps": [
+        {
+          "id": "train",
+          "toolId": "t-seg-train"
+        }
+      ],
+      "cwl": {
+        "inputs": {
+          "images": {
+            "type": "File"
+          },
+          "labels": {
+            "type": "File"
+          }
+        },
+        "steps": {
+          "train": {
+            "run": "tool_seg_train.cwl",
+            "in": {
+              "images": "images",
+              "labels": "labels"
+            },
+            "out": [
+              "model"
+            ]
+          }
+        },
+        "outputs": {
+          "seg_model": {
+            "type": "File",
+            "outputSource": "train/model"
+          }
+        }
+      }
+    },
+    {
+      "id": "wf-breast-pilot",
+      "name": "Breast pilot workflow",
+      "type": "script",
+      "inputs": [
+        {
+          "name": "images",
+          "category": "measurements"
+        },
+        {
+          "name": "seg_model",
+          "category": "models"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "meshes",
+          "category": "models"
+        },
+        {
+          "name": "report",
+          "category": "measurements"
+        }
+      ],
+      "steps": [
+        {
+          "id": "segment",
+          "toolId": "t-seg-infer"
+        },
+        {
+          "id": "mesh",
+          "toolId": "t-mesher"
+        },
+        {
+          "id": "write_report",
+          "toolId": "t-report"
+        }
+      ],
+      "cwl": {
+        "inputs": {
+          "images": {
+            "type": "File"
+          },
+          "seg_model": {
+            "type": "File"
+          }
+        },
+        "steps": {
+          "segment": {
+            "run": "tool_seg_infer.cwl",
+            "in": {
+              "images": "images",
+              "seg_model": "seg_model"
+            },
+            "out": [
+              "masks"
+            ]
+          },
+          "mesh": {
+            "run": "tool_mesher.cwl",
+            "in": {
+              "masks": "segment/masks"
+            },
+            "out": [
+              "meshes"
+            ]
+          },
+          "write_report": {
+            "run": "tool_report.cwl",
+            "in": {
+              "masks": "segment/masks",
+              "meshes": "mesh/meshes"
+            },
+            "out": [
+              "report"
+            ]
+          }
+        },
+        "outputs": {
+          "meshes": {
+            "type": "File",
+            "outputSource": "mesh/meshes"
+          },
+          "report": {
+            "type": "File",
+            "outputSource": "write_report/report"
+          }
+        }
+      }
+    },
+    {
+      "id": "wf-analyse",
+      "name": "Analyse outputs",
+      "type": "notebook",
+      "inputs": [
+        {
+          "name": "meshes",
+          "category": "models"
+        },
+        {
+          "name": "report",
+          "category": "measurements"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "summary",
+          "category": "measurements"
+        }
+      ],
+      "steps": [
+        {
+          "id": "analyse",
+          "toolId": "t-analysis"
+        }
+      ],
+      "cwl": {
+        "inputs": {
+          "meshes": {
+            "type": "File"
+          },
+          "report": {
+            "type": "File"
+          }
+        },
+        "steps": {
+          "analyse": {
+            "run": "tool_analysis.cwl",
+            "in": {
+              "meshes": "meshes",
+              "report": "report"
+            },
+            "out": [
+              "summary"
+            ]
+          }
+        },
+        "outputs": {
+          "summary": {
+            "type": "File",
+            "outputSource": "analyse/summary"
+          }
+        }
+      }
+    }
+  ],
+  "datasets": [
+    {
+      "id": "ds-clinical",
+      "name": "Clinical records",
+      "category": "measurements"
+    },
+    {
+      "id": "ds-breast-mri",
+      "name": "Breast MRI (DICOM)",
+      "category": "measurements"
+    }
+  ]
+}
