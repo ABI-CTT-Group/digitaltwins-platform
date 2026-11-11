@@ -419,4 +419,5 @@ and the `/api/builder/workflow/...` routes in
 ([ADR](decisions/2026-10-02-build-gui-workflow-tools.md)). A `gui` assay opens
 the same `/tool-view` page with `?assay=<seek_id>`, and the page loads the
 assay's input files through `GET /api/dashboard/assay-gui-context`
-([ADR](decisions/2026-10-05-gui-assay-launch-input-handoff.md)).
+([ADR](decisions/2026-10-05-gui-assay-launch-input-handoff.md)). It hands them
+to the tool as the launch context ([guide](gui-tool-authoring.md)).

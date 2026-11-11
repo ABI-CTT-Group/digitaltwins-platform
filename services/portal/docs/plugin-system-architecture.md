@@ -143,7 +143,7 @@ The URL `http(s)://<host>/plugin/<expose>/…` is now live.
 3. The portal's Vue router renders `<RemoteComponentApp src=".../<expose>.umd.js" expose="<expose_name>" />` ([RemoteComponentApp.vue](../frontend/src/components/RemoteComponentApp.vue)).
 4. `RemoteComponentApp.vue` appends a `<script>` tag with `src="https://<host>:<minio_port>/tools/<expose>/primary/<name>.umd.js"` to `document.head`.
 5. The UMD bundle loads and registers itself on `window[expose_name]`.
-6. The Vue component from `window[expose_name]` is mounted via `<component :is="remoteApp" />`.
+6. The Vue component from `window[expose_name]` is mounted via `<component :is="remoteApp" />`. When `/tool-view` was opened from a gui assay, the app is given `provide('launchContext', …)`: the assay's cohort and input files ([guide](../../../docs/gui-tool-authoring.md)).
 7. The plugin's own code makes API calls like `fetch(import.meta.env.VITE_PLUGIN_ROUTE_PREFIX + '/some-endpoint')`. Because `VITE_PLUGIN_ROUTE_PREFIX` was baked in at build time as `/plugin/<expose>`, the request goes to `https://<host>/plugin/<expose>/some-endpoint`.
 8. nginx matches `location /plugin/<expose>/ { proxy_pass http://<internal_host>:<internal_port>/; }` (loaded from `plugins/<expose>.conf`) and forwards to the plugin backend container.
 
@@ -174,6 +174,7 @@ No portal rebuild, no nginx image rebuild — the plugin showed up because of a 
 - A build script named `build:plugin` in `package.json` (default). A custom command can be registered at plugin-install time instead.
 - All API calls MUST use `import.meta.env.VITE_PLUGIN_ROUTE_PREFIX` as the base path. **No hardcoded hosts, no hardcoded ports.**
 - `config.portal.json` at the repo root with plugin metadata (name, version, icon, etc.).
+- To load an assay's data, read `inject('launchContext', null)` and fall back to bundled defaults when it is absent; never bundle dataset names. See [gui-tool-authoring.md](../../../docs/gui-tool-authoring.md).
 
 ### 7.2 Backend (optional, only if the plugin needs a server)
 
@@ -191,7 +192,7 @@ No portal rebuild, no nginx image rebuild — the plugin showed up because of a 
       name: digitaltwins-platform   # real network name = ${PROJECT_NAME}
   ```
 - If the backend needs to know its own public URL, reference `${PLUGIN_ROUTE_PREFIX}` in the compose env — the deployer passes it in.
-- If the backend needs to read `measurements`/`models` from MinIO, the compose should forward `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY` (from the parent `.env` via `${VAR}` substitution).
+- If the backend needs to read `measurements`/`models` from MinIO, set `MINIO_ENDPOINT=minio:9000`, `MINIO_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY}` and `MINIO_SECRET_KEY=${MINIO_SERVER_SECRET_KEY}` in the compose env. The builder runs `docker compose` with its own environment, not the platform `.env`, and these are the names it passes (`services/builder/docker-compose.yml`).
 
 ### 7.3 Plugin repo layout
 
