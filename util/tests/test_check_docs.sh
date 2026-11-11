@@ -50,10 +50,10 @@ base "$T/code"
 printf '`[x](inline/nope.md)`\n\n```\n[y](fenced/nope.md)\n```\n' >> "$T/code/AGENTS.md"
 check "links inside code are ignored" "$T/code" 0
 
-base "$T/artifacts"
-mkdir -p "$T/artifacts/docs/artifacts/2026-01-01-000000-x"
-printf '[old](gone.md)\n' > "$T/artifacts/docs/artifacts/2026-01-01-000000-x/plan.md"
-check "docs/artifacts is skipped" "$T/artifacts" 0
+base "$T/plans"
+mkdir -p "$T/plans/docs/plans/2026-01-01-000000-x"
+printf '[old](gone.md)\n' > "$T/plans/docs/plans/2026-01-01-000000-x/plan.md"
+check "docs/plans is skipped" "$T/plans" 0
 
 base "$T/template"
 mkdir -p "$T/template/docs/decisions"

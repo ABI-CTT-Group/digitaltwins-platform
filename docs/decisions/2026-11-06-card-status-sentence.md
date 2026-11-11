@@ -38,7 +38,7 @@ platform commits them without one.
 Option B. `services/portal/frontend/src/views/upload-dataset/components/cardStatus.ts` maps an item to
 `{sentence, reason, hint, tone, group, action, problems}`; `StatusLine.vue` shows it and each card
 renders the action as its one button. The state tables are in the
-[registration UI plan](../artifacts/2026-11-05-151525-registration-ui/plan.md), and `cardStatus.spec.ts`
+[registration UI plan](../plans/2026-11-05-151525-registration-ui/plan.md), and `cardStatus.spec.ts`
 has one case per row.
 
 - **Words.** One verb for committing an item to the platform: **Approve** ("Approving…",

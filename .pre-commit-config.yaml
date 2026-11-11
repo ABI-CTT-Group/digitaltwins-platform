@@ -12,7 +12,7 @@
 # `gitleaks detect --source . -v`
 #
 # To scan a specific directory without relying on Git history (e.g., for untracked files):
-# `gitleaks detect --source docs/artifacts/ --no-git`
+# `gitleaks detect --source docs/plans/ --no-git`
 # (The --no-git flag forces gitleaks to scan the raw file contents on disk instead of git history)
 
 repos:

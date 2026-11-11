@@ -13,7 +13,7 @@ Pick the path that fits what you're doing, and read the links in order.
 | **An AI coding agent** | [AGENTS.md](../AGENTS.md) → [README](../README.md) → [code map](codemap.md) → the service's `README.md` and `AGENTS.md` → [ADRs](decisions/) |
 | **Deploying or operating a host** | [deployment](deployment.md) → [util/README.md](../util/README.md) → [util/SCRIPTS.md](../util/SCRIPTS.md) → [diagnostics](diagnostics.md) → [production](production.md) |
 
-[artifacts/](artifacts/) holds the dated design evidence for each past change. It's kept for audit
+[plans/](plans/) holds the dated design evidence for each past change. It's kept for audit
 and may be out of date, so read the guides and [ADRs](decisions/) first.
 
 ## Deploy and operate
@@ -67,4 +67,4 @@ and may be out of date, so read the guides and [ADRs](decisions/) first.
 | [../services/portal/docs/plugin-system-architecture.md](../services/portal/docs/plugin-system-architecture.md) | How portal plugins are built, deployed and routed |
 | [../services/airflow/README.md](../services/airflow/README.md) | The Airflow setup and its platform-managed DAG folders |
 | [decisions/](decisions/) | Architecture Decision Records: why the platform is built the way it is |
-| [artifacts/](artifacts/) | Dated design evidence for past changes, kept for audit (history, not reference) |
+| [plans/](plans/) | Dated design evidence for past changes, kept for audit (history, not reference) |

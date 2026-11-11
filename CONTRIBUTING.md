@@ -63,7 +63,7 @@ restart its containers, e.g. `docker compose build api && docker compose up -d a
 ## AI coding agents
 
 Agents working in this repository follow [AGENTS.md](AGENTS.md): planning and
-summary documents go to timestamped folders in `docs/artifacts/`, and ADRs go in the
+summary documents go to timestamped folders in `docs/plans/`, and ADRs go in the
 same pull request as the code they describe.
 
 `AGENTS.md` is the single source of agent instructions. `CLAUDE.md`, `GEMINI.md`,

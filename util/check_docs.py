@@ -4,7 +4,7 @@
 Usage: check_docs.py ROOT
 
 Fails (exit 1) when:
-  - a relative link in a Markdown file doesn't resolve (docs/artifacts/ is skipped: it's history;
+  - a relative link in a Markdown file doesn't resolve (docs/plans/ is skipped: it's history;
     so are TEMPLATE.md files, whose links are placeholders);
   - a folder in services/ isn't named in docs/codemap.md;
   - an entry in util/ isn't named, in backticks, in util/SCRIPTS.md;
@@ -19,7 +19,7 @@ import sys
 from urllib.parse import unquote
 
 SKIP_DIRS = {".git", "node_modules"}
-SKIP_PREFIX = "docs/artifacts/"
+SKIP_PREFIX = "docs/plans/"
 
 INLINE_LINK = re.compile(r"\]\(\s*<?([^)\s>]+)")
 REF_LINK = re.compile(r"^\s{0,3}\[[^\]]+\]:\s*<?([^\s>]+)")

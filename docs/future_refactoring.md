@@ -4,7 +4,7 @@ This document tracks technical debt, refactoring tasks, and improvements that we
 
 ## REST API (`api`)
 
-The following items were identified during the REST API restructuring (`docs/artifacts/2026-08-21-140800-rest-api-refactor`):
+The following items were identified during the REST API restructuring (`docs/plans/2026-08-21-140800-rest-api-refactor`):
 
 ### [x] 1. URL Path Consistency
 * **Description**: The API paths currently use a mix of singular nouns and actions (e.g., `POST /assay`, `POST /dataset`). These should be updated to standard RESTful resource paths (e.g., `POST /assays`, `POST /datasets`).
@@ -37,11 +37,11 @@ The following items were identified during the REST API restructuring (`docs/art
 
 ### [ ] 8. `GET /datasets/{uuid}/sample-types` fails for a dataset with no samples
 * **Description**: `get_dataset_sample_types` in `services/api/src/digitaltwins/postgres/querier.py` builds `... WHERE sample_uuid IN ()` when the dataset has no samples. Postgres rejects that, so the endpoint returns 500 instead of an empty list. Return `[]` early for no samples, and pass the UUIDs as query parameters instead of formatting them into the SQL string.
-* **Why skipped**: Found during the Dependabot work (`docs/artifacts/2026-11-03-151012-dependabot-alerts`); it predates it, and that work only changed dependency pins.
+* **Why skipped**: Found during the Dependabot work (`docs/plans/2026-11-03-151012-dependabot-alerts`); it predates it, and that work only changed dependency pins.
 
 ## Repository layout
 
-Found while writing [codemap.md](codemap.md) (`docs/artifacts/2026-10-28-133109-repo-learnability`). The docs now explain these, but nothing was moved or renamed.
+Found while writing [codemap.md](codemap.md) (`docs/plans/2026-10-28-133109-repo-learnability`). The docs now explain these, but nothing was moved or renamed.
 
 ### [ ] 1. Inactive service folders
 * **Description**: `services/jupyterlab/`, `services/pacs_pretend_external/` and `services/irods/` (only a `.gitkeep`) aren't wired into the root `docker-compose.yml`. `services/api/docker/` and some services in `services/portal/docker-compose.yml` are left over from before those repos were merged in. Remove them, or move them under an `archive/` folder.

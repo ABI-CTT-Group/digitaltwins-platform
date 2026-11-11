@@ -1,7 +1,7 @@
 /* ---- Design tokens shared by the catalogue screens (dataset registration hubs and wizards).
    Moved from views/catalogue/catalogue-dashboard-view.vue so every hub matches the catalogue
    landing. Colour is reserved for states that need someone: steady states stay uncoloured.
-   docs/artifacts/2026-11-05-151525-registration-ui/plan.md ---- */
+   docs/plans/2026-11-05-151525-registration-ui/plan.md ---- */
 :root {
   --font-ui: 'Hanken Grotesk Variable', 'Hanken Grotesk', system-ui, sans-serif;
   --font-title: 'Fraunces Variable', 'Fraunces', Georgia, serif;
