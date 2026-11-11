@@ -44,5 +44,5 @@ If step 2 or 3 fails, the new dataset is deleted and the API returns 502. We did
 - The API depends on SEEK's RO-Crate submission behaviour. A SEEK upgrade that changes it would surface as a failure in the upload tests or in the manual check.
 - Re-uploading a tool creates a new SEEK workflow. Versioning (`POST /workflows/submit` with `update_existing`) is future work.
 - If SEEK is unavailable, tool uploads fail with 502 and nothing is stored. There is no partial state to reconcile.
-- The crate POST must send only `Authorization`, with no `Accept: application/json`. With that header SEEK treats the call as JSON:API, requires a `data` record, and returns 422. This was verified live on 2026-09-30 (see `docs/artifacts/2026-09-30-122834-tool-dataset-upload/spike_seek_single_post.md`).
+- The crate POST must send only `Authorization`, with no `Accept: application/json`. With that header SEEK treats the call as JSON:API, requires a `data` record, and returns 422. This was verified live on 2026-09-30 (see `docs/plans/2026-09-30-122834-tool-dataset-upload/spike_seek_single_post.md`).
 - Upload sessions need the caller's token when the commit runs. It is passed to the background job in memory and never stored. So a session left `failed` by a SEEK error is retried through `/approve`, which brings a fresh token.

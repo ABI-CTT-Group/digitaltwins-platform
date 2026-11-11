@@ -50,7 +50,7 @@ There are no automated tests for the Airflow DAGs, the nginx configs, the Keyclo
 ## Docs check
 
 `make docs-check` runs `util/check_docs.py` on the repo's tracked files. It fails when:
-- a relative link in a Markdown file doesn't resolve (it skips `docs/artifacts/`, which is history, and `TEMPLATE.md` files);
+- a relative link in a Markdown file doesn't resolve (it skips `docs/plans/`, which is history, and `TEMPLATE.md` files);
 - a folder in `services/` isn't named in [codemap.md](codemap.md);
 - an entry in `util/` isn't listed in [util/SCRIPTS.md](../util/SCRIPTS.md);
 - an agent pointer file (`CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.agents/rules/*.md`) holds more than its pointer to `AGENTS.md` ([ADR](decisions/2026-10-28-agents-md-single-source.md)).

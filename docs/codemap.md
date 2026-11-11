@@ -25,7 +25,7 @@ add a section here when you add a service.
 | Path | What it is |
 |---|---|
 | [`services/`](../services/) | One folder per service. See [Services](#services). |
-| [`docs/`](README.md) | Guides, indexed in [docs/README.md](README.md). [`docs/decisions/`](decisions/) holds the ADRs. [`docs/artifacts/`](artifacts/) holds dated design evidence (plans, task lists, walkthroughs), one folder per change, kept for audit. It is history, not current reference. |
+| [`docs/`](README.md) | Guides, indexed in [docs/README.md](README.md). [`docs/decisions/`](decisions/) holds the ADRs. [`docs/plans/`](plans/) holds dated design evidence (plans, task lists, walkthroughs), one folder per change, kept for audit. It is history, not current reference. |
 | [`util/`](../util/) | Install, airgap, certificate, backup/restore, sync and SEEK admin scripts, the Ansible playbooks, the observability stack ([`util/observability/`](../util/observability/)), shell helpers ([`util/lib/`](../util/lib/)) and shell tests ([`util/tests/`](../util/tests/)). The runbook is [util/README.md](../util/README.md); every entry is indexed in [util/SCRIPTS.md](../util/SCRIPTS.md). |
 | [`examples/`](../examples/) | An example script workflow dataset, [`examples/workflow/workflow_image_conversion/`](../examples/workflow/workflow_image_conversion/), and a sample CWL workflow. |
 | [`tests/`](../tests/) | Empty (`.gitkeep`). Each service keeps its own tests. |
