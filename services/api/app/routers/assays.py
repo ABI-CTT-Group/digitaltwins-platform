@@ -165,7 +165,13 @@ def _normalise_subject(value: str) -> str:
     return str(value).strip().removeprefix("sub-")
 
 
-def _discover_samples(querier: Querier, configs: dict) -> list[dict]:
+def _discover_samples(querier: Querier, configs: dict, per_input: bool = False) -> list[dict]:
+    """The samples to run: each input's samples of its configured sample type, for the cohort's subjects.
+
+    A script run triggers the DAG once per sample, so a ``(subject, sample)`` pair is kept only for the
+    first input that has it. ``per_input`` keeps it for every input instead: a GUI tool needs each
+    input's own files, and SDS ids restart in every dataset, so two inputs can share a pair.
+    """
     inputs = configs.get("inputs", [])
     if not inputs:
         raise ValueError("No inputs found in assay configs.")
@@ -200,7 +206,7 @@ def _discover_samples(querier: Querier, configs: dict) -> list[dict]:
                         continue
                     matched.add(subject_key)
 
-                key = (subject_id, sample_id)
+                key = (input_name, subject_id, sample_id) if per_input else (subject_id, sample_id)
                 if key not in seen:
                     seen.add(key)
                     samples_list.append({
@@ -698,7 +704,7 @@ def get_assay_gui_inputs(assay_id: int, querier: Querier = Depends(get_querier),
     """
     try:
         configs = _fetch_assay_configs(querier, assay_id)
-        samples = _discover_samples(querier, configs)
+        samples = _discover_samples(querier, configs, per_input=True)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
