@@ -60,7 +60,7 @@ See [docs/testing.md](docs/testing.md) for integration tests and CI.
   needlessly. Name the services you changed ([docs/development.md](docs/development.md)).
 - **Never mount the repo root into a container**: it holds `.env` and `secrets.env`. Mount only the
   folders a job needs, as the Makefile does.
-- **Never write secret values** into code, docs or artifacts. Use `<REDACTED>`, and name variables only.
+- **Never write secret values** into code, docs or plans. Use `<REDACTED>`, and name variables only.
 
 ## If you change X, also check Y
 
@@ -82,19 +82,19 @@ More couplings, with the mechanism and what breaks, are in [docs/codemap.md](doc
 
 # Process rules
 
-## Agent Artifacts
+## Plans
 
 Maintain timestamped folders in `docs/plans/` and immediately sync all agent-generated planning or summary documents (e.g., implementation plans, task checklists, walkthroughs).
 Timestamps should be in the format `YYYY-MM-DD-HHMMSS` and reflect the time of creation or last update. For example, if you create a plan for a feature called "user-auth" on March 15, 2024, at 14:30:00, the folder should be named `docs/plans/2024-03-15-143000-user-auth/`.
 
-**CRITICAL REQUIREMENT:** Whenever you generate, modify, or update any planning or summary artifact, you MUST immediately duplicate or sync the updated version to a time-stamped folder in `docs/plans/<date>-<feature-name>/`. Do not wait until the end of your task to sync them.
+**CRITICAL REQUIREMENT:** Whenever you generate, modify, or update any planning or summary document, you MUST immediately duplicate or sync the updated version to a time-stamped folder in `docs/plans/<date>-<feature-name>/`. Do not wait until the end of your task to sync them.
 
-**COMMIT POLICY:** Artifacts MUST be committed in the **same branch/PR** as the code changes they relate to. This is a regulated-environment requirement — design evidence must be linked to implementation for audit traceability.
+**COMMIT POLICY:** Plans MUST be committed in the **same branch/PR** as the code changes they relate to. This is a regulated-environment requirement — design evidence must be linked to implementation for audit traceability.
 
 **OPERATIONAL STEPS TO ENFORCE THIS:**
-1. **Task Tracking:** If you maintain a task checklist (e.g., a `task.md` or internal TODO list), you MUST explicitly include a checklist item like `[ ] Sync artifacts to docs/plans/` immediately following any step that modifies a document.
-2. **Immediate Sync:** Every time you use your file-writing capabilities to create or update a plan or artifact, your very next action MUST be executing a terminal command (or equivalent file operation) to copy the updated file into the `docs/plans/` directory.
-3. **Pre-Feedback Check:** NEVER pause your execution to ask the user for review, feedback, or approval without first verifying that all updated artifacts have been synced to the project directory.
+1. **Task Tracking:** If you maintain a task checklist (e.g., a `task.md` or internal TODO list), you MUST explicitly include a checklist item like `[ ] Sync plans to docs/plans/` immediately following any step that modifies a document.
+2. **Immediate Sync:** Every time you use your file-writing capabilities to create or update a plan or summary document, your very next action MUST be executing a terminal command (or equivalent file operation) to copy the updated file into the `docs/plans/` directory.
+3. **Pre-Feedback Check:** NEVER pause your execution to ask the user for review, feedback, or approval without first verifying that all updated plans have been synced to the project directory.
 4. **Secret Redaction:** NEVER include actual passwords, API keys, or sensitive environment variables in implementation plans or walkthroughs. Always use placeholders like `<REDACTED>`. You must actively verify no secrets exist before syncing to `docs/plans/`. A `gitleaks` pre-commit hook enforces this at commit time, but you MUST still redact proactively — do not rely on the hook as the sole control.
 
 ---
@@ -127,7 +127,7 @@ A `gitleaks` pre-commit hook is configured in `.pre-commit-config.yaml` to autom
 
 **Agent responsibilities:**
 1. **Proactive redaction:** Always use placeholders like `<REDACTED>` for any passwords, API keys, tokens, or sensitive environment variables in all documents.
-2. **Pre-sync scan:** Before staging artifact files, verify no secrets are present. If unsure, run `gitleaks detect --source docs/plans/ --no-git` and fix any findings.
+2. **Pre-sync scan:** Before staging plan files, verify no secrets are present. If unsure, run `gitleaks detect --source docs/plans/ --no-git` and fix any findings.
 3. **Never bypass:** Do not advise or assist in bypassing the pre-commit hook.
 
 ---
