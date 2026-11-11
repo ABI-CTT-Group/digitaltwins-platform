@@ -52,25 +52,42 @@ export interface AssayLaunch {
   message?: string;
 }
 
-// What /tool-view gets for a gui assay: the tool bundle, and the assay's input files as portal URLs.
+// What /tool-view gets for a gui assay: the tool bundle, and the launch context it hands the tool.
+// Each file has a portal `url` for the browser, and a `key` that, with its input's `bucket`, a tool
+// backend holding MinIO credentials can read directly.
 export interface AssayGuiFile {
   name: string;
   subjectId: string;
   sampleId: string;
+  key: string;
   url: string;
 }
 
 export interface AssayGuiInput {
   name: string;
   datasetUuid: string;
+  bucket: string | null;
   sampleType: string | null;
   files: AssayGuiFile[];
 }
 
 export interface AssayGuiContext {
+  schemaVersion: number;
   assayId: string;
   tool: { name: string; path: string; expose: string };
+  /** The subject ids the assay runs on, e.g. "sub-1" (not the indices the assay stores). */
+  cohort: string[];
   inputs: AssayGuiInput[];
+}
+
+/**
+ * The launch context: what a GUI tool opened from an assay gets through `inject('launchContext')`.
+ * This is the contract with tool authors (docs/gui-tool-authoring.md, example in
+ * launch-context.example.json); a breaking change needs a new `schemaVersion`.
+ */
+export interface LaunchContext extends Omit<AssayGuiContext, "tool"> {
+  /** The user's current access token, for fetching `url`s after the 5-minute file cookie expires. */
+  getAccessToken: () => string | undefined;
 }
 
 export interface AssayDataset {

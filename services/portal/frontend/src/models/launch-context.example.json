@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "assayId": "12",
+  "cohort": ["sub-1"],
+  "inputs": [
+    {
+      "name": "contrast_pre_nrrd",
+      "datasetUuid": "00000000-0000-0000-0000-000000000001",
+      "bucket": "measurements",
+      "sampleType": "contrast_pre_nrrd",
+      "files": [
+        {
+          "name": "contrast_pre_nrrd.nrrd",
+          "subjectId": "sub-1",
+          "sampleId": "sam-1",
+          "key": "00000000-0000-0000-0000-000000000001/primary/sub-1/sam-1/contrast_pre_nrrd.nrrd",
+          "url": "/api/dashboard/assays/12/input-files/measurements/00000000-0000-0000-0000-000000000001/primary/sub-1/sam-1/contrast_pre_nrrd.nrrd"
+        }
+      ]
+    }
+  ]
+}

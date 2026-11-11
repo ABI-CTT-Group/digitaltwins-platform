@@ -4,14 +4,16 @@ import type { AssayGuiContext, AssayGuiFile } from "@/models/types";
 import { buildVolViewQuery } from "../volviewParams";
 
 const file = (name: string, encoded = name): AssayGuiFile => ({
-  name, subjectId: "sub-1", sampleId: "sam-1",
+  name, subjectId: "sub-1", sampleId: "sam-1", key: `ds-1/primary/sub-1/sam-1/${name}`,
   url: `/api/dashboard/assays/43/input-files/measurements/ds-1/primary/sub-1/sam-1/${encoded}`,
 });
 
 const context = (...files: AssayGuiFile[]): AssayGuiContext => ({
+  schemaVersion: 1,
   assayId: "43",
+  cohort: ["sub-1"],
   tool: { name: "tool_volview", path: "/tool-builds/x/primary/my-app.umd.js", expose: "x" },
-  inputs: [{ name: "dicom_file", datasetUuid: "ds-1", sampleType: "dicom", files }],
+  inputs: [{ name: "dicom_file", datasetUuid: "ds-1", bucket: "measurements", sampleType: "dicom", files }],
 });
 
 // vtk.js percent-decodes each query value once before VolView reads it, so parse the way it does.
@@ -34,7 +36,7 @@ describe("buildVolViewQuery", () => {
 
   it("concatenates the files of every input in order", () => {
     const ctx = context(file("a.dcm"));
-    ctx.inputs.push({ name: "mask", datasetUuid: "ds-2", sampleType: "nifti", files: [file("m.nii")] });
+    ctx.inputs.push({ name: "mask", datasetUuid: "ds-2", bucket: "measurements", sampleType: "nifti", files: [file("m.nii")] });
 
     expect(params(buildVolViewQuery(ctx)).get("names")).toBe("[a.dcm,m.nii]");
   });
