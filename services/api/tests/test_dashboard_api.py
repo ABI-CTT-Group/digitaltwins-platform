@@ -303,11 +303,15 @@ def test_gui_context_resolves_the_tool_and_maps_files_to_dashboard_urls(client, 
     res = client.get("/dashboard/assay-gui-context", params={"seek_id": "43"})
     assert res.status_code == 200, res.text
     body = res.json()
-    assert (body["assay_id"], body["tool"]) == ("43", GUI_TOOL)
+    assert (body["schema_version"], body["assay_id"], body["tool"]) == (1, "43", GUI_TOOL)
+    assert body["cohort"] == ["sub-1"]
     [inp] = body["inputs"]
-    assert (inp["name"], inp["dataset_uuid"], inp["sample_type"]) == ("dicom_file", "ds-1", "dicom")
-    # Under the API's public prefix, so the browser (and VolView) reach this router again.
+    assert (inp["name"], inp["dataset_uuid"], inp["bucket"], inp["sample_type"]) == (
+        "dicom_file", "ds-1", "measurements", "dicom")
+    # `url` is under the API's public prefix, so the browser (and VolView) reach this router again;
+    # `key` (with the input's bucket) is for a tool backend that reads MinIO itself.
     assert inp["files"][0] == {"name": "a.dcm", "subject_id": "sub-1", "sample_id": "sam-1",
+                               "key": "ds-1/primary/sub-1/sam-1/a.dcm",
                                "url": "/api/dashboard/assays/43/input-files/measurements/ds-1/primary/sub-1/sam-1/a.dcm"}
 
 

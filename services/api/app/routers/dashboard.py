@@ -28,6 +28,8 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 NO_GUI_TOOL_MESSAGE = ("This assay's workflow has no launchable GUI tool. Build and approve it in the portal, "
                        "or link the assay to a workflow that has one.")
+# Version of the launch context GUI tools read (docs/gui-tool-authoring.md); bump it on a breaking change.
+LAUNCH_CONTEXT_SCHEMA_VERSION = 1
 
 
 def assay_type(tags) -> Optional[str]:
@@ -320,7 +322,11 @@ def launch_assay(seek_id: int = Query(...), credentials: dict = Depends(validate
 def get_assay_gui_context(request: Request, seek_id: int = Query(...),
                           credentials: dict = Depends(validate_credentials), querier: Querier = Depends(get_querier),
                           downloader: MinioDownloader = Depends(get_minio_downloader)):
-    """What /tool-view needs to open a gui assay: the tool bundle, and the assay's input files as URLs."""
+    """What /tool-view needs to open a gui assay: the tool bundle, and the launch context it hands the tool.
+
+    The launch context (``schema_version``, ``assay_id``, ``cohort``, ``inputs``) is the contract with GUI
+    tool authors in docs/gui-tool-authoring.md: each file has a ``url`` for the browser and a ``key``
+    that, with its input's ``bucket``, a tool backend can read from MinIO itself."""
     configs = querier.get_assay(seek_id, get_configs=True).get("configs") or {}
     tool = _fetch_gui_tool(configs.get("workflow_seek_id"), credentials["token"])
     if tool is None:
@@ -332,15 +338,18 @@ def get_assay_gui_context(request: Request, seek_id: int = Query(...),
     inputs = [{
         "name": inp.get("name"),
         "dataset_uuid": inp.get("dataset_uuid"),
+        "bucket": inp.get("bucket"),
         "sample_type": inp.get("sample_type"),
         "files": [{
             "name": f.get("name"),
             "subject_id": f.get("subject_id"),
             "sample_id": f.get("sample_id"),
+            "key": f["key"],
             "url": f"{files_url}/{quote(f['bucket'], safe='')}/{quote(f['key'])}",
         } for f in inp.get("files", [])],
     } for inp in gui_inputs.get("inputs", [])]
-    return {"assay_id": str(seek_id), "tool": tool, "inputs": inputs}
+    return {"schema_version": LAUNCH_CONTEXT_SCHEMA_VERSION, "assay_id": str(seek_id), "tool": tool,
+            "cohort": gui_inputs.get("cohort", []), "inputs": inputs}
 
 
 # ── File proxy ────────────────────────────────────────────────────────

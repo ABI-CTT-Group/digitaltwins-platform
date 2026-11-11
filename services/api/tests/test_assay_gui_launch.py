@@ -91,6 +91,18 @@ def test_gui_inputs_lists_the_cohorts_sample_files_per_input(client):
     ]
 
 
+def test_gui_inputs_gives_the_cohort_as_subject_ids_and_each_inputs_bucket(client):
+    body = client.get("/assays/43/gui-inputs").json()
+    assert body["cohort"] == ["sub-1"]  # the stored cohort is the index "1"
+    [inp] = body["inputs"]
+    assert inp["bucket"] == "measurements"
+
+
+def test_gui_inputs_with_an_empty_cohort_gives_every_subject(client):
+    app.dependency_overrides[get_querier] = lambda: FakeQuerier(configs={**CONFIGS, "cohort": []})
+    assert client.get("/assays/43/gui-inputs").json()["cohort"] == ["sub-1", "sub-2"]
+
+
 def test_gui_inputs_without_a_saved_config_is_400(client):
     app.dependency_overrides[get_querier] = lambda: FakeQuerier(configs=None)
     res = client.get("/assays/43/gui-inputs")

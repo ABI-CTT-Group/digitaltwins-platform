@@ -693,7 +693,8 @@ def get_assay_gui_inputs(assay_id: int, querier: Querier = Depends(get_querier),
     The MinIO objects a gui assay's file inputs resolve to, so a GUI tool can load them.
 
     Samples are chosen as for a script run (configured sample type, cohort subjects);
-    model inputs are left out. Each input lists its files as ``{bucket, key, name, subject_id, sample_id}``.
+    model inputs are left out. ``cohort`` is the subject ids those samples belong to. Each input
+    names its ``bucket`` and lists its files as ``{bucket, key, name, subject_id, sample_id}``.
     """
     try:
         configs = _fetch_assay_configs(querier, assay_id)
@@ -720,13 +721,20 @@ def get_assay_gui_inputs(assay_id: int, querier: Querier = Depends(get_querier),
                 "sample_id": sample["sample_id"],
             })
 
+    file_inputs = [inp for inp in configs.get("inputs", []) if inp.get("category") != MODEL_INPUT_CATEGORY]
+    for inp in file_inputs:
+        dataset_uuid = inp.get("dataset_uuid")
+        if dataset_uuid and dataset_uuid not in buckets:
+            buckets[dataset_uuid] = downloader.find_bucket(dataset_uuid)
     inputs = [{
         "name": inp.get("name"),
         "dataset_uuid": inp.get("dataset_uuid"),
+        "bucket": buckets.get(inp.get("dataset_uuid")),
         "sample_type": inp.get("sample_type"),
         "files": files_by_input.get(inp.get("name"), []),
-    } for inp in configs.get("inputs", []) if inp.get("category") != MODEL_INPUT_CATEGORY]
-    return {"workflow_seek_id": configs.get("workflow_seek_id"), "inputs": inputs}
+    } for inp in file_inputs]
+    cohort = list(dict.fromkeys(sample["subject_id"] for sample in samples))  # in dataset order
+    return {"workflow_seek_id": configs.get("workflow_seek_id"), "cohort": cohort, "inputs": inputs}
 
 
 @router.get("/assays/{assay_id}/input-files/{bucket}/{key:path}", tags=["assays"])
