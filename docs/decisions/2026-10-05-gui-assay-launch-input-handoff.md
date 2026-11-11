@@ -31,6 +31,8 @@ VolView (the first gui tool) reads `urls`, `names` and `token` from the page que
 - **Signed short-lived file tokens.** No bearer needed, but the proxy would then call the API with a service credential and we would own a signing key.
 
 ### Generic contract vs. VolView convention
+> Amended by [2026-11-12-gui-tool-launch-context.md](2026-11-12-gui-tool-launch-context.md): the context is now `launchContext`, a documented, versioned contract with the cohort and each file's MinIO bucket and key.
+
 - **Both (chosen).** `RemoteComponentApp` `provide()`s `assayContext = {assayId, tool, inputs[{name, datasetUuid, sampleType, files[{name, subjectId, sampleId, url}]}], getAccessToken}` for any plugin; the VolView query is set as well so VolView runs unchanged.
 - **Query params only.** Every future tool would have to adopt VolView's URL convention.
 - **Context only.** VolView would need a fork.

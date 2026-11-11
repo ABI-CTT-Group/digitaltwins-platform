@@ -91,6 +91,40 @@ def test_gui_inputs_lists_the_cohorts_sample_files_per_input(client):
     ]
 
 
+def test_gui_inputs_gives_the_cohort_as_subject_ids_and_each_inputs_bucket(client):
+    body = client.get("/assays/43/gui-inputs").json()
+    assert body["cohort"] == ["sub-1"]  # the stored cohort is the index "1"
+    [inp] = body["inputs"]
+    assert inp["bucket"] == "measurements"
+
+
+def test_gui_inputs_with_an_empty_cohort_gives_every_subject(client):
+    app.dependency_overrides[get_querier] = lambda: FakeQuerier(configs={**CONFIGS, "cohort": []})
+    assert client.get("/assays/43/gui-inputs").json()["cohort"] == ["sub-1", "sub-2"]
+
+
+def test_gui_inputs_keeps_each_inputs_files_when_two_datasets_share_sample_ids(client):
+    # SDS ids restart in every dataset, so sub-1/sam-1 of one input's dataset is not the other's.
+    class SharedIds(FakeQuerier):
+        def get_dataset_samples(self, dataset_uuid, sample_type=None):
+            return [{"subject_id": "sub-1", "sample_id": "sam-1"}]
+
+    configs = {**CONFIGS, "inputs": [
+        {"name": "surface", "dataset_uuid": "ds-2", "sample_type": "glb", "category": "measurements"},
+        {"name": "dicom_file", "dataset_uuid": "ds-1", "sample_type": "dicom", "category": "measurements"},
+    ]}
+    downloader = FakeDownloader()
+    downloader.buckets["measurements"]["ds-2/primary/sub-1/sam-1/surface.glb"] = b"glb"
+    app.dependency_overrides[get_querier] = lambda: SharedIds(configs)
+    app.dependency_overrides[get_minio_downloader] = lambda: downloader
+
+    inputs = client.get("/assays/43/gui-inputs").json()["inputs"]
+    assert {i["name"]: [f["key"] for f in i["files"]] for i in inputs} == {
+        "surface": ["ds-2/primary/sub-1/sam-1/surface.glb"],
+        "dicom_file": ["ds-1/primary/sub-1/sam-1/a.dcm", "ds-1/primary/sub-1/sam-1/b.dcm"],
+    }
+
+
 def test_gui_inputs_without_a_saved_config_is_400(client):
     app.dependency_overrides[get_querier] = lambda: FakeQuerier(configs=None)
     res = client.get("/assays/43/gui-inputs")

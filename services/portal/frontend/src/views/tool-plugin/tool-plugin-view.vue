@@ -38,6 +38,8 @@ import { useDashboardGetAssayGuiContext } from '@/bootstrap/dashboard_api';
 import { getAccessToken } from '@/bootstrap/keycloak';
 import { buildVolViewQuery } from '@/utils/volviewParams';
 import { assayFileCookie, clearAssayFileCookie } from '@/utils/assayFileCookie';
+import { toLaunchContext } from '@/utils/launchContext';
+import type { LaunchContext } from '@/models/types';
 import { getApiErrorMessage } from '@/utils/common';
 import { BackendStartError, ensureBackend } from '@/bootstrap/tool_api';
 
@@ -51,7 +53,7 @@ const { remoteApp } = useRemoteAppStore();
 const assayId = typeof route.query.assay === 'string' ? route.query.assay : '';
 
 const app = ref<{ path: string; expose: string } | null>(assayId ? null : remoteApp);
-const context = ref<Record<string, unknown> | undefined>();
+const context = ref<LaunchContext | undefined>();
 const loading = ref(Boolean(app.value) || Boolean(assayId));
 const loadingText = ref(assayId ? "Loading the assay's inputs…" : 'Opening the tool…');
 const error = ref('');
@@ -81,7 +83,7 @@ async function loadAssay() {
     // through a cookie scoped to this assay's input-files path.
     history.replaceState(history.state, '', `${route.path}${buildVolViewQuery(ctx)}`);
     assayFileCookie(assayId, getAccessToken() ?? '');
-    context.value = { ...ctx, getAccessToken };
+    context.value = toLaunchContext(ctx, getAccessToken);
     app.value = ctx.tool;
 }
 

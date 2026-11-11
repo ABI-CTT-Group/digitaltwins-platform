@@ -37,6 +37,7 @@ and may be out of date, so read the guides and [ADRs](decisions/) first.
 |---|---|
 | [populating_data.md](populating_data.md) | Creating SEEK research objects, linking assays to workflows, deploying workflows, importing measurement datasets |
 | [workflow-dag-authoring.md](workflow-dag-authoring.md) | Writing and deploying a script workflow as an Airflow DAG |
+| [gui-tool-authoring.md](gui-tool-authoring.md) | Writing a GUI tool that loads an assay's data from the launch context |
 | [../services/api/README.md](../services/api/README.md) | The `digitaltwins` Python package: install, upload, query and download datasets |
 | [../services/api/docs/import-dataset.md](../services/api/docs/import-dataset.md) | Importing a dataset from a terminal with one command |
 | [../examples/workflow/workflow_image_conversion/README.md](../examples/workflow/workflow_image_conversion/README.md) | An example script workflow dataset (DICOM to NIfTI/NRRD) |

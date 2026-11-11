@@ -10,12 +10,14 @@ import vuetify from '@/bootstrap/vuetify'
 // @ts-ignore - vue-toastification is installed but missing type declarations
 import Toast, { useToast } from 'vue-toastification'
 import ElementPlus from 'element-plus'
+import type { LaunchContext } from '@/models/types'
 
 const props = defineProps<{
   src: string
   expose: string
-  // A gui assay launch: provided to the plugin as `assayContext` (see tool-plugin-view.vue).
-  context?: Record<string, unknown>
+  // A gui assay launch: provided to the plugin as `launchContext` (see tool-plugin-view.vue and
+  // docs/gui-tool-authoring.md).
+  context?: LaunchContext
 }>()
 const emit = defineEmits<{ mounted: [] }>()
 
@@ -27,7 +29,7 @@ let scriptEl: HTMLScriptElement | null = null
 // reset on exit and never leaks across plugins. Vuetify / Toast / ElementPlus
 // are intentionally shared with portal — they are stateless / singleton UI
 // containers, isolating them would split the toast queue and theme.
-// The only thing portal provides is `assayContext`, and only when /tool-view was
+// The only thing portal provides is `launchContext`, and only when /tool-view was
 // opened for an assay; a Tool Hub launch provides nothing.
 
 onMounted(async () => {
@@ -41,7 +43,7 @@ onMounted(async () => {
   pluginApp.use(vuetify)
   pluginApp.use(Toast)
   pluginApp.use(ElementPlus)
-  if (props.context) pluginApp.provide('assayContext', props.context)
+  if (props.context) pluginApp.provide('launchContext', props.context)
   pluginApp.mount(container.value!)
   emit('mounted')
 })
