@@ -390,7 +390,7 @@ sequenceDiagram
    the builder's environment.
 8. The plugin's compose file must attach its services to the platform network,
    so that the portal nginx can reach them by container name. See
-   [plugin-system-architecture.md](../services/portal/docs/plugin-system-architecture.md).
+   [plugin-system.md](plugin-system.md).
 9. `generate_nginx_conf` writes `location /plugin/<expose>/` to the
    `nginx_plugin_configs` volume, which `portal-frontend` mounts at
    `/etc/nginx/conf.d/plugins`. `reload_nginx` runs

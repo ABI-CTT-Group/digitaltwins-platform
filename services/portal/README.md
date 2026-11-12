@@ -103,6 +103,8 @@ The wizard has three steps: **Source**, **FHIR annotation (optional)** and **Bui
 
 Workflows must be **SDS packages** for now (`dataset_description.xlsx` at the root, `primary/workflow_*.cwl` and each step's `tool_*.cwl`). The wizard refuses a folder with only a root `.cwl`.
 
+Writing a GUI tool to register this way, from packaging to reading an assay's data, is covered in [docs/gui-tool-authoring.md](../../docs/gui-tool-authoring.md).
+
 ### Local upload constraints
 
 - **Total size cap: 500 MB.** Both nginx and the builder reject anything bigger.
@@ -150,7 +152,7 @@ The portal is the Vue 3 + Vuetify single-page app behind `/`, served by its own 
 | `frontend/Dockerfile` | Builds the SPA with Node 20 and Yarn 1, then serves it from `nginx:stable-alpine` |
 | `docker-compose.yml` | `portal-frontend`, the only service the platform uses from this file. Its `minio`, `minio-init`, `hapi-fhir` and `hapi-fhir-postgres` are for the standalone stack only |
 | `docker-compose.override.yml`, `hapi/` | Standalone stack only: host port 80, and HAPI's configuration |
-| `docs/` | [Release notes](docs/release-notes.md), [how the plugin system works](docs/plugin-system-architecture.md), and a [historical deployment guide](docs/deployment-guide.md) |
+| `docs/` | [Release notes](docs/release-notes.md) and a [historical deployment guide](docs/deployment-guide.md). How the plugin system works is in [docs/plugin-system.md](../../docs/plugin-system.md), and how to write a GUI tool in [docs/gui-tool-authoring.md](../../docs/gui-tool-authoring.md) |
 
 ### Run & test
 
