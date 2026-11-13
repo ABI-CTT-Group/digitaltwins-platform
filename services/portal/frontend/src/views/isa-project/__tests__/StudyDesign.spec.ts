@@ -30,6 +30,24 @@ const graph = (w: VueWrapper) => w.findComponent({ name: "StudyGraph" });
 const panel = (w: VueWrapper) => w.findComponent({ name: "AssayPanel" });
 
 describe("StudyDesign", () => {
+  it("lets assays use items an approval registered, as platform items", async () => {
+    const { useIsaProjectStore } = await import("../isaProjectStore");
+    useIsaProjectStore().registered.datasets.push({ id: "ds-reg", name: "ds-reg", category: "measurements" });
+    const w = await render();
+    const ds = graph(w).props("catalogue").datasets.find((d: { id: string }) => d.id === "ds-reg");
+    expect(ds).toEqual({ id: "ds-reg", name: "ds-reg", category: "measurements" });
+  });
+
+  it("adds the datasets that came with a bundled project to what its assays can use", async () => {
+    const { useIsaProjectStore } = await import("../isaProjectStore");
+    const store = useIsaProjectStore();
+    await store.ensureExamples();
+    const bundled = { datasets: [{ id: "ds-new", name: "ds-new", category: "measurements" as const, bundled: { fileCount: 1, bytes: 1 } }], workflows: [], tools: [] };
+    store.entries[0].bundled = bundled;
+    const w = await render();
+    expect(graph(w).props("catalogue").datasets.map((d: { id: string }) => d.id)).toContain("ds-new");
+  });
+
   it("shows the Flow view first, and remembers a switch to List", async () => {
     const w = await render();
     expect(graph(w).props("study").id).toBe("s-test");

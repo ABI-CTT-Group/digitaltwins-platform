@@ -204,8 +204,10 @@ const isOpen = (g: InputGroup) => g.key === "none" || (opened.value.get(g.key) ?
 const toggle = (g: InputGroup) => opened.value.set(g.key, !isOpen(g));
 
 const isGroupGhost = (g: InputGroup) => !!g.producer && !props.sim.submitted.includes(g.producer.id);
+const BUNDLED_NOTE = "Bundled with this project, not on the platform yet";
+const isBundledGroup = (g: InputGroup) => props.catalogue.datasets.some(d => d.bundled && g.key === `existing:${d.id}`);
 const groupNote = (g: InputGroup) =>
-  !g.producer ? "On the platform"
+  !g.producer ? (isBundledGroup(g) ? BUNDLED_NOTE : "On the platform")
     : isGroupGhost(g) ? `Will be produced by ${g.producer.title}` : `Produced by ${g.producer.title}`;
 
 const sourceOf = (port: string) => {
@@ -237,7 +239,7 @@ const warningsFor = (port: string) =>
   assay.value ? cohortWarnings(props.study, assay.value.id).filter(w => w.port === port).map(cohortWarningText) : [];
 
 const describe = (o: InputOption) =>
-  !o.planned ? "On the platform" : isGhost(o) ? `Will be produced by ${o.producedBy}` : `Produced by ${o.producedBy}`;
+  !o.planned ? (o.bundled ? BUNDLED_NOTE : "On the platform") : isGhost(o) ? `Will be produced by ${o.producedBy}` : `Produced by ${o.producedBy}`;
 
 function pickWorkflow(id: string) {
   const wf = props.catalogue.workflows.find(w => w.id === id);

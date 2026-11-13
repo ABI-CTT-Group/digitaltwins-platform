@@ -27,6 +27,8 @@ export interface InputOption {
   label: string;
   planned: boolean;
   producedBy?: string;
+  /** A dataset that came in an ISA project bundle and isn't on the platform yet. */
+  bundled?: true;
   source: InputSource;
 }
 
@@ -39,6 +41,8 @@ export interface GraphNode {
   row: number;
   status?: AssayStatus;
   assayId?: string;
+  /** A source dataset that came in an ISA project bundle and isn't on the platform yet. */
+  bundled?: true;
 }
 /** One edge per pair of nodes, labelled with the planned datasets passing along it (or, from a
  *  platform dataset, with how many inputs it feeds). */
@@ -254,7 +258,8 @@ export function inputOptions(study: Study, catalogue: Catalogue, assayId: string
   const excluded = downstreamOf(study, assayId).add(assayId);
   const existing: InputOption[] = catalogue.datasets
     .filter(d => d.category === category)
-    .map(d => ({ key: `existing:${d.id}`, label: d.name, planned: false, source: { kind: "existing", datasetId: d.id } }));
+    .map(d => ({ key: `existing:${d.id}`, label: d.name, planned: false, ...(d.bundled ? { bundled: true as const } : {}),
+      source: { kind: "existing", datasetId: d.id } }));
   const planned: InputOption[] = study.assays
     .filter(a => !excluded.has(a.id))
     .flatMap(a => a.outputs.filter(o => o.category === category).map(o => ({
@@ -374,7 +379,8 @@ export function studyGraph(study: Study, catalogue: Catalogue, sim: Sim) {
       if (source.kind === "existing") {
         from = sourceKey(source);
         const ds = catalogue.datasets.find(d => d.id === source.datasetId);
-        addNode({ id: from, kind: "source", label: ds?.name ?? source.datasetId, column: sourceColumn.get(from)! });
+        addNode({ id: from, kind: "source", label: ds?.name ?? source.datasetId, column: sourceColumn.get(from)!,
+          ...(ds?.bundled ? { bundled: true as const } : {}) });
       } else {
         from = `assay:${source.assayId}`;
         if (!nodes.has(from)) continue;

@@ -2,7 +2,7 @@
 // the browser's store into dashboard items, so the existing drill-down can show them without the
 // API. Sandbox ids are "isa-sandbox[:project[:investigation[:study[:assay]]]]".
 import type { DashboardCategory } from "@/models/types";
-import type { IsaProject } from "./model/types";
+import type { Catalogue, IsaProject } from "./model/types";
 
 export const SANDBOX_ID = "isa-sandbox";
 
@@ -11,6 +11,10 @@ export interface IsaProjectEntry {
   source: "example" | "upload";
   /** The fixture an example came from, so it can be reset. */
   exampleId?: string;
+  /** Datasets, workflows and tools that came with the project in a bundle (not on the platform). */
+  bundled?: Catalogue;
+  /** A simulated approval of an upload: it creates the SEEK project and registers the bundled items. */
+  approval?: { state: "approving"; stage: string } | { state: "approved" };
 }
 
 export const isSandboxId = (id: string) => id === SANDBOX_ID || id.startsWith(`${SANDBOX_ID}:`);

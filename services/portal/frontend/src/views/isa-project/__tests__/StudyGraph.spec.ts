@@ -19,8 +19,10 @@ const VueFlowStub = defineComponent({
     h("div", (props.nodes as FlowNode[]).map(n => h("div", { key: n.id }, slots[`node-${n.type}`]?.({ id: n.id, data: n.data })))),
 });
 
-async function render(sim: Sim = emptySim(), selectedAssayId: string | null = null) {
+async function render(sim: Sim = emptySim(), selectedAssayId: string | null = null, bundledDataset?: string) {
   const catalogue = await fixtureSource.catalogue();
+  const bundled = catalogue.datasets.find(d => d.id === bundledDataset);
+  if (bundled) bundled.bundled = { fileCount: 1, bytes: 1 };
   const study = (await fixtureSource.loadExample("example-test-project")).investigations[0].studies[0];
   return mount(StudyGraph, {
     props: { study, catalogue, sim, selectedAssayId },
@@ -34,6 +36,13 @@ const edges = (w: W) => w.findComponent({ name: "VueFlow" }).props("edges") as F
 const edge = (w: W, id: string) => edges(w).find(e => e.id === id)!;
 
 describe("StudyGraph", () => {
+  it("tags a source dataset that came in the project's bundle as bundled", async () => {
+    const w = await render(emptySim(), null, "ds-test-dicom");
+    const tags = w.findAll(".node-source__bundled");
+    expect(tags).toHaveLength(1);
+    expect(tags[0].element.parentElement!.textContent).toContain("test_dicom");
+  });
+
   it("lays the study out left to right, each producer before its consumers, with the fork in one column", async () => {
     const n = nodes(await render());
     const x = (id: string) => n.find(m => m.id === id)!.position.x;

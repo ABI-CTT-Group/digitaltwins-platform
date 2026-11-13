@@ -1,5 +1,5 @@
 <template>
-  <div v-if="study && catalogue" class="design">
+  <div v-if="study && projectCatalogue" class="design">
     <div class="toolbar">
       <div class="views" role="group" aria-label="View">
         <button type="button" data-test="view-list" :aria-pressed="view === 'list'" :class="{ on: view === 'list' }" @click="setView('list')">
@@ -25,7 +25,7 @@
     <StudyGraph
       v-if="view === 'flow'"
       :study="study"
-      :catalogue="catalogue"
+      :catalogue="projectCatalogue"
       :sim="sim"
       :selected-assay-id="assayId"
       @configure="configure"
@@ -63,7 +63,7 @@
           <v-btn icon="mdi-close" variant="text" size="small" aria-label="Close" @click="drawerOpen = false" />
         </div>
         <v-card-text class="assay-drawer__body">
-          <AssayPanel :study="study" :assay-id="assayId" :catalogue="catalogue" :sim="sim" />
+          <AssayPanel :study="study" :assay-id="assayId" :catalogue="projectCatalogue" :sim="sim" />
         </v-card-text>
       </v-card>
     </v-dialog>
@@ -83,6 +83,7 @@ import AssayPanel from "./components/AssayPanel.vue";
 import SandboxAssayCard from "./components/SandboxAssayCard.vue";
 import { useIsaProjectStore } from "./isaProjectStore";
 import { fixtureSource } from "./adapter/isaProjectSource";
+import { withBundled } from "./adapter/isaBundle";
 import {
   assayStatus,
   cohortWarnings,
@@ -106,6 +107,10 @@ const sim = ref<Sim>(emptySim());
 const message = ref("");
 
 const study = computed(() => store.study(props.projectId, props.studyId));
+/** The platform catalogue, the items approvals registered in this browser, and whatever came in this
+ *  project's bundle. */
+const projectCatalogue = computed(() => catalogue.value && withBundled(withBundled(catalogue.value, store.registered),
+  store.entries.find(e => e.project.project.id === props.projectId)?.bundled));
 
 // The chosen view is a per-browser convenience; storage may be unavailable.
 type View = "list" | "flow";

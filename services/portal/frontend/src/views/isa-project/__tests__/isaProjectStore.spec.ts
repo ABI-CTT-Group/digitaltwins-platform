@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
 import { createApp, nextTick } from "vue";
 import { useIsaProjectStore } from "../isaProjectStore";
 import { fixtureSource } from "../adapter/isaProjectSource";
+import { APPROVE_STEP } from "../isaProjectStore";
 
 // Pinia applies plugins only once it is installed in an app, as main.ts does.
 const freshPinia = () => {
@@ -55,6 +56,17 @@ describe("isaProjectStore", () => {
       .toEqual([["upload", "Renamed"]]);
   });
 
+  it("adds a bundled project with its new items, and replaces one with the same project id", async () => {
+    const store = useIsaProjectStore();
+    await store.ensureExamples();
+    const project = JSON.parse(await upload());
+    const bundled = { datasets: [{ id: "ds-new", name: "ds-new", category: "measurements" as const, bundled: { fileCount: 1, bytes: 9 } }], workflows: [], tools: [] };
+    store.addBundle(project, bundled);
+    store.addBundle({ ...project, project: { id: "p-mine", title: "Renamed" } }, bundled);
+    expect(store.entries.filter(e => e.project.project.id === "p-mine").map(e => [e.source, e.project.project.title, e.bundled]))
+      .toEqual([["upload", "Renamed", bundled]]);
+  });
+
   it("returns the errors of a bad upload and leaves the store as it was", async () => {
     const store = useIsaProjectStore();
     await store.ensureExamples();
@@ -96,3 +108,66 @@ describe("isaProjectStore", () => {
     expect(reloaded.study("p-test-project", "s-test")!.assays[0].title).toBe("Edited");
   });
 });
+
+describe("isaProjectStore approval (simulated)", () => {
+  afterEach(() => vi.useRealTimers());
+
+  /** "p-mine" with its first assay reading ds-new, which came in its bundle. */
+  async function bundledProject() {
+    const store = useIsaProjectStore();
+    await store.ensureExamples();
+    const project = JSON.parse(await upload());
+    project.investigations[0].studies[0].assays[0].inputs[0].source = { kind: "existing", datasetId: "ds-new" };
+    store.addBundle(project, {
+      datasets: [{ id: "ds-new", name: "ds-new", category: "measurements", bundled: { fileCount: 1, bytes: 9 } }],
+      workflows: [], tools: [],
+    });
+    return store;
+  }
+  const entry = (store: ReturnType<typeof useIsaProjectStore>, id = "p-mine") =>
+    store.entries.find(e => e.project.project.id === id)!;
+
+  it("walks the approval's stages, then registers the bundled items for every project", async () => {
+    vi.useFakeTimers();
+    const store = await bundledProject();
+    const done = store.approve("p-mine");
+    expect(entry(store).approval).toEqual({ state: "approving", stage: "Creating the SEEK project" });
+    await vi.advanceTimersByTimeAsync(APPROVE_STEP);
+    expect(entry(store).approval).toEqual({ state: "approving", stage: "Registering ds-new" });
+    await vi.runAllTimersAsync();
+    await done;
+    expect(entry(store).approval).toEqual({ state: "approved" });
+    expect(entry(store).bundled).toBeUndefined();
+    expect(store.registered.datasets).toEqual([{ id: "ds-new", name: "ds-new", category: "measurements" }]);
+    expect((await store.platformCatalogue()).datasets.map(d => d.id)).toContain("ds-new");
+  });
+
+  it("lets a later JSON upload use a registered item", async () => {
+    vi.useFakeTimers();
+    const store = await bundledProject();
+    const done = store.approve("p-mine");
+    await vi.runAllTimersAsync();
+    await done;
+    const later = { ...entry(store).project, project: { id: "p-later", title: "Later plan" } };
+    expect(await store.upload(JSON.stringify(later))).toEqual({ ok: true, projectId: "p-later" });
+  });
+
+  it("approves only uploads, not the examples", async () => {
+    const store = useIsaProjectStore();
+    await store.ensureExamples();
+    await store.approve("p-test-project");
+    expect(entry(store, "p-test-project").approval).toBeUndefined();
+  });
+
+  it("drops an approval that a page reload interrupted, so it can be approved again", async () => {
+    const store = await bundledProject();
+    entry(store).approval = { state: "approving", stage: "Creating the SEEK project" };
+    await nextTick();
+    freshPinia();
+    const reloaded = useIsaProjectStore();
+    await reloaded.ensureExamples();
+    expect(entry(reloaded).approval).toBeUndefined();
+    expect(entry(reloaded).bundled?.datasets).toHaveLength(1);
+  });
+});
+

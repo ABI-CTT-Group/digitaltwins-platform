@@ -36,6 +36,8 @@ export interface IsaProject {
 }
 
 // The platform side the prototype reads: what a real adapter would fetch from the API.
+/** Set on an item that came in an ISA project bundle and isn't on the platform yet. */
+export interface BundledFiles { fileCount: number; bytes: number }
 export interface Port { name: string; category: Category }
 export interface WorkflowStep { id: string; toolId: string }
 export interface CatalogueWorkflow {
@@ -47,9 +49,10 @@ export interface CatalogueWorkflow {
   steps: WorkflowStep[];
   /** Parsed CWL, for CWLWorkflowViewer. */
   cwl: Record<string, unknown>;
+  bundled?: BundledFiles;
 }
-export interface CatalogueTool { id: string; name: string; type: AssayType }
-export interface CatalogueDataset { id: string; name: string; category: Category }
+export interface CatalogueTool { id: string; name: string; type: AssayType; bundled?: BundledFiles }
+export interface CatalogueDataset { id: string; name: string; category: Category; bundled?: BundledFiles }
 export interface Catalogue {
   workflows: CatalogueWorkflow[];
   tools: CatalogueTool[];

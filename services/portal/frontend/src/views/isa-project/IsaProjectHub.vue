@@ -10,11 +10,22 @@
     </p>
 
     <div class="toolbar">
-      <button type="button" class="aurora-btn aurora-btn--solid" @click="fileInput?.click()">
-        <v-icon icon="mdi-upload-outline" size="18" /> Upload ISA project (JSON)
-      </button>
+      <div class="upload">
+        <button type="button" class="aurora-btn aurora-btn--solid" @click="fileInput?.click()">
+          <v-icon icon="mdi-upload-outline" size="18" /> Upload ISA project (JSON)
+        </button>
+        <span class="upload__note">Uses datasets and workflows already on the platform.</span>
+      </div>
+      <div class="upload">
+        <button type="button" class="aurora-btn aurora-btn--ghost" data-test="upload-bundle" @click="bundleOpen = true">
+          <v-icon icon="mdi-folder-upload-outline" size="18" /> Upload ISA project with datasets
+        </button>
+        <span class="upload__note">One folder or .zip: the JSON plus the datasets it needs that aren't on the platform yet.</span>
+      </div>
       <input ref="fileInput" type="file" accept=".json,application/json" hidden @change="onFile" />
     </div>
+    <BundleUploadDialog v-model="bundleOpen" @add="onBundle" />
+    <IsaApproveDialog v-model="approveOpen" :project-id="approveId" />
 
     <div v-if="errors.length" class="errors" role="alert" data-test="upload-errors">
       <p class="errors__lead">{{ errorFile }} can't be loaded as an ISA project:</p>
@@ -27,17 +38,26 @@
           <span class="row__title">{{ e.project.project.title }}</span>
           <span class="row__meta">
             <span class="row__source" :class="`row__source--${e.source}`">{{ e.source === "example" ? "Example" : "Uploaded" }}</span>
-            {{ summary(e.project) }}
+            {{ summary(e.project) }}{{ e.bundled ? `, ${newItems(e.bundled)}` : "" }}
+          </span>
+          <span v-if="e.source === 'upload'" class="row__approval" :class="`row__approval--${e.approval?.state ?? 'draft'}`" data-test="approval">
+            {{ approvalText(e) }}
           </span>
         </div>
         <div class="row__chains">
           <StudyChain v-for="s in e.project.investigations.flatMap(i => i.studies)" :key="s.id" :study="s" />
         </div>
         <div class="row__actions">
+          <button v-if="e.source === 'upload' && !e.approval" type="button" class="aurora-btn aurora-btn--solid" data-test="approve" @click="askApprove(e.project.project.id)">
+            Approve
+          </button>
           <button type="button" class="aurora-btn aurora-btn--solid" data-test="open" @click="open(e.project.project.id)">
             Open in study dashboard
           </button>
           <button type="button" class="aurora-btn aurora-btn--ghost" @click="download(e.project)">Download JSON</button>
+          <button type="button" class="aurora-btn aurora-btn--ghost" data-test="download-bundle" title="The JSON plus an SDS skeleton of each dataset and workflow it uses" @click="downloadBundle(e)">
+            Download bundle
+          </button>
           <button v-if="e.source === 'upload'" type="button" class="aurora-btn aurora-btn--ghost" data-test="remove" @click="askRemove(e.project)">
             Remove
           </button>
@@ -60,10 +80,14 @@ import { useRouter } from "vue-router";
 import HubShell from "@/views/upload-dataset/components/HubShell.vue";
 import ConfirmDialog from "@/views/upload-dataset/components/ConfirmDialog.vue";
 import StudyChain from "./components/StudyChain.vue";
+import BundleUploadDialog from "./components/BundleUploadDialog.vue";
+import IsaApproveDialog from "./components/IsaApproveDialog.vue";
+import { withBundled } from "./adapter/isaBundle";
+import { bundleZip, saveBlob } from "./adapter/isaBundleWriter";
 import { useConfirm } from "@/views/upload-dataset/components/useConfirm";
 import { useIsaProjectStore } from "./isaProjectStore";
-import { SANDBOX_ID } from "./sandbox";
-import type { IsaProject } from "./model/types";
+import { SANDBOX_ID, type IsaProjectEntry } from "./sandbox";
+import type { Catalogue, IsaProject } from "./model/types";
 
 const store = useIsaProjectStore();
 const router = useRouter();
@@ -71,6 +95,9 @@ const confirm = useConfirm();
 const fileInput = ref<HTMLInputElement | null>(null);
 const errors = ref<string[]>([]);
 const errorFile = ref("");
+const bundleOpen = ref(false);
+const approveOpen = ref(false);
+const approveId = ref<string | null>(null);
 
 onMounted(() => store.ensureExamples());
 
@@ -83,6 +110,28 @@ function summary(p: IsaProject) {
     plural(studies.length, "study", "studies"),
     plural(studies.flatMap(s => s.assays).length, "assay"),
   ].join(", ");
+}
+
+/** "with 2 bundled datasets, 1 bundled tool": what a bundle brought that isn't on the platform. */
+function newItems(bundled: Catalogue) {
+  const parts = [
+    [bundled.datasets.length, "bundled dataset"], [bundled.workflows.length, "bundled workflow"], [bundled.tools.length, "bundled tool"],
+  ] as const;
+  return `with ${parts.filter(([n]) => n).map(([n, one]) => plural(n, one)).join(", ") || "nothing bundled"}`;
+}
+
+/** Where an upload stands with the (simulated) platform, as the other hubs' cards say it. */
+function approvalText(e: IsaProjectEntry) {
+  if (e.approval?.state === "approving") return `Approving… ${e.approval.stage}`;
+  if (e.approval?.state === "approved") return "In the platform";
+  const n = e.bundled ? e.bundled.datasets.length + e.bundled.workflows.length + e.bundled.tools.length : 0;
+  return "Not in the platform yet. Approve it to create its SEEK project" +
+    (n ? ` and register its ${plural(n, "bundled item")}.` : ".");
+}
+
+function askApprove(projectId: string) {
+  approveId.value = projectId;
+  approveOpen.value = true;
 }
 
 function open(projectId: string) {
@@ -113,18 +162,33 @@ async function onFile(e: Event) {
   });
 }
 
+function onBundle({ project, bundled }: { project: IsaProject; bundled: Catalogue }) {
+  errors.value = [];
+  const existing = store.entries.find(x => x.project.project.id === project.project.id);
+  if (!existing) return store.addBundle(project, bundled);
+  confirm.ask({
+    title: `Replace ${existing.project.project.title}?`,
+    text: "The bundle has the same project id. Replacing it discards the current version and any changes made in the study dashboard.",
+    confirmLabel: "Replace",
+    action: async () => store.addBundle(project, bundled),
+  });
+}
+
 function download(p: IsaProject) {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(p, null, 2)], { type: "application/json" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${p.project.id}.isa-project.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  saveBlob(new Blob([JSON.stringify(p, null, 2)], { type: "application/json" }), `${p.project.id}.isa-project.json`);
+}
+
+/** The project's JSON plus an SDS skeleton of each dataset and workflow it uses (no files are kept). */
+async function downloadBundle(e: IsaProjectEntry) {
+  const catalogue = withBundled(await store.platformCatalogue(), e.bundled);
+  saveBlob(await bundleZip(e.project, catalogue), `${e.project.project.id}.isa-bundle.zip`);
 }
 
 const askRemove = (p: IsaProject) => confirm.ask({
   title: `Remove ${p.project.title}?`,
-  text: "It disappears from this list and from the study dashboard. Download it first if you want to keep it.",
+  text: "It disappears from this list and from the study dashboard. Download it first if you want to keep it." +
+    (store.entries.find(e => e.project === p)?.approval?.state === "approved"
+      ? " Its registered datasets, workflows and tools stay." : ""),
   confirmLabel: "Remove",
   action: async () => store.remove(p.project.id),
 });
@@ -139,8 +203,10 @@ const askReset = (p: IsaProject) => confirm.ask({
 
 <style scoped>
 .note { display: flex; align-items: center; gap: 6px; margin: 0 0 18px; font-size: 0.86rem; color: var(--tone-needs); }
-.toolbar { margin-bottom: 20px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 12px 28px; margin-bottom: 20px; }
 .toolbar .aurora-btn { display: inline-flex; align-items: center; gap: 8px; }
+.upload { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; max-width: 34ch; }
+.upload__note { font-size: 0.82rem; line-height: 1.4; color: var(--text-dim); }
 
 .errors {
   margin-bottom: 20px;
@@ -170,6 +236,10 @@ const askReset = (p: IsaProject) => confirm.ask({
 .row__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-dim); }
 .row__source { padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: 0.76rem; }
 .row__source--upload { border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent); }
+/* Quiet when fine, loud when not, as on the other hubs' cards. */
+.row__approval { font-size: 0.85rem; color: var(--text-dim); }
+.row__approval--draft { color: var(--tone-needs); }
+.row__approval--approving { color: var(--text); }
 .row__actions { display: flex; flex-wrap: wrap; gap: 8px; }
 /* The chains take a line of their own under the title and actions. */
 .row__chains { order: 3; flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; min-width: 0; }

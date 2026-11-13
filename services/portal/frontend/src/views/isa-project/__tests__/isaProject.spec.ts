@@ -150,6 +150,11 @@ describe("inputOptions", () => {
     const keys = inputOptions(chain(), catalogue, "a3", "models").map(o => o.key);
     expect(keys).toEqual(["existing:ds-model", "planned:a2:meshes"]);
   });
+
+  it("marks a dataset that came in a bundle, and isn't on the platform yet, as new", () => {
+    const bundled = { ...catalogue, datasets: [{ id: "ds-new", name: "New CT", category: "measurements" as const, bundled: { fileCount: 1, bytes: 1 } }] };
+    expect(inputOptions(chain(), bundled, "a1", "measurements")[0]).toMatchObject({ key: "existing:ds-new", bundled: true });
+  });
 });
 
 describe("runOrder", () => {
@@ -282,6 +287,11 @@ describe("studyGraph sources", () => {
     const g = studyGraph(s, catalogue, sim());
     expect(g.nodes.find(n => n.id === "existing:ds-ct")!.column).toBe(0);
     expect(g.nodes.find(n => n.id === "existing:ds-model")!.column).toBe(2); // a3 is in column 3
+  });
+
+  it("marks a dataset that came in a bundle as new", () => {
+    const bundled = { ...catalogue, datasets: catalogue.datasets.map(d => ({ ...d, bundled: { fileCount: 1, bytes: 1 } })) };
+    expect(studyGraph(chain(), bundled, sim()).nodes.find(n => n.id === "existing:ds-ct")).toMatchObject({ bundled: true });
   });
 
   it("labels a platform dataset's edge with how many inputs read it, when more than one does", () => {

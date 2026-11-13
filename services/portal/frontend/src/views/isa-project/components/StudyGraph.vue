@@ -31,6 +31,7 @@
       <template #node-source="{ data }">
         <v-icon icon="mdi-database-outline" size="16" />
         <span class="node-source__label">{{ data.label }}</span>
+        <span v-if="data.bundled" class="node-source__bundled" title="Bundled with this project, not on the platform yet">Bundled</span>
         <Handle type="source" :position="Position.Right" />
       </template>
     </VueFlow>
@@ -117,7 +118,7 @@ const nodes = computed(() => graph.value.nodes.map(n => ({
         status: n.status,
         warnings: cohortWarnings(props.study, n.assayId!).map(cohortWarningText),
       }
-    : { label: n.label },
+    : { label: n.label, bundled: n.bundled },
   class: `node-${n.kind}`,
 })));
 
@@ -190,6 +191,15 @@ function onNodeClick({ node }: Pick<NodeMouseEvent, "node">) {
   font-size: 0.8rem;
 }
 .graph :deep(.node-source__label) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.graph :deep(.node-source__bundled) {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent-measurements);
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
 
 .graph :deep(.vue-flow__edge-path) { stroke: #8fa6b2; stroke-width: 1.5; }
 .graph :deep(.edge-planned .vue-flow__edge-path) { stroke: var(--text-faint); stroke-dasharray: 6 5; }

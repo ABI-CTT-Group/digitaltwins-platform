@@ -10,8 +10,10 @@ import { emptySim, type Sim } from "../model/isaProject";
 let wrapper: VueWrapper | undefined;
 afterEach(() => wrapper?.unmount());
 
-async function render(assayId: string, sim: Sim = emptySim(), tweak: (s: Study) => void = () => {}) {
+async function render(assayId: string, sim: Sim = emptySim(), tweak: (s: Study) => void = () => {},
+  tweakCatalogue: (c: Catalogue) => void = () => {}) {
   const catalogue: Catalogue = await fixtureSource.catalogue();
+  tweakCatalogue(catalogue);
   const project = await fixtureSource.loadExample("example-test-project");
   const study: Study = project.investigations[0].studies[0];
   tweak(study);
@@ -85,6 +87,14 @@ describe("AssayPanel", () => {
       .toEqual([["test_converted", "1"], ["test_data_breast_app", "14"], ["test_model_breast_app", "1"]]);
     expect(group(w, "test_converted").text()).toContain("Will be produced by Test Assay 2: image conversion");
     expect(group(w, "test_data_breast_app").text()).toContain("On the platform");
+  });
+
+  it("says when a dataset came with the project's upload rather than from the platform", async () => {
+    const { w } = await render("a-breast-app", emptySim(), () => {}, c => {
+      c.datasets.find(d => d.id === "ds-test-data-breast-app")!.bundled = { fileCount: 1, bytes: 1 };
+    });
+    expect(group(w, "test_data_breast_app").text()).toContain("Bundled with this project, not on the platform yet");
+    expect(group(w, "test_model_breast_app").text()).toContain("On the platform");
   });
 
   it("starts a group of four or more inputs collapsed, and opens it on request", async () => {
