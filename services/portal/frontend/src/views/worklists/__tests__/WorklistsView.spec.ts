@@ -44,6 +44,29 @@ describe("WorklistsView", () => {
     expect(w.find("[data-test=progress]").exists()).toBe(false);
   });
 
+  it("previews the middle slice of the case being reviewed", async () => {
+    const w = await render();
+    const preview = panel(w).find("[data-test=slice-preview]");
+    expect(preview.attributes("aria-label")).toBe("sub-013, slice 56 of 112, with the annotation outlined");
+    expect(preview.text()).toContain("Slice 56 / 112");
+
+    await w.find("[data-test=batch-form]").trigger("submit");
+    await click(w, "[data-test=confirm]");
+    expect(panel(w).find("[data-test=slice-preview]").text()).toContain("Slice 80 / 160");
+  });
+
+  it("draws a different image and annotation outline for each case", async () => {
+    const w = await render();
+    const outline = () => panel(w).find("[data-test=annotation-outline]").attributes("points");
+    const tissue = () => panel(w).find("[data-test=tissue]").attributes("d");
+    const first = { outline: outline(), tissue: tissue() };
+    expect(first.outline?.split(" ")).toHaveLength(10);
+    await w.find("[data-test=batch-form]").trigger("submit");
+    await click(w, "[data-test=confirm]");
+    expect(outline()).not.toBe(first.outline);
+    expect(tissue()).not.toBe(first.tissue);
+  });
+
   it("shows progress and the count on each tab", async () => {
     const w = await render();
     expect(w.find("[data-test=progress]").text()).toBe("15 of 36 cases reviewed");

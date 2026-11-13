@@ -7,6 +7,7 @@
         <StatusPill :status="item.status" />
       </div>
       <p v-if="batchPos" class="batch-pos">Case {{ batchPos }} of {{ batchTotal }} in this batch</p>
+      <SlicePreview :case-id="item.id" :slices="item.slices" />
 
       <dl class="facts">
         <dt>Scan</dt><dd>{{ item.scan }}, {{ item.slices }} slices</dd>
@@ -44,6 +45,7 @@ import { nextTick, ref, watch } from "vue";
 import { useToast } from "vue-toastification";
 import type { Case } from "../model/worklist";
 import StatusPill from "./StatusPill.vue";
+import SlicePreview from "./SlicePreview.vue";
 
 const props = defineProps<{ item: Case | null; batchPos: number; batchTotal: number }>();
 const emit = defineEmits<{ decide: ["confirmed" | "needs", string | null]; open: [] }>();
