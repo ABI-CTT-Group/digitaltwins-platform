@@ -27,7 +27,16 @@
 
     <div class="card__meta">
       <span class="card__tag" :style="{ '--tag': tagAccent }">{{ assay.type }}</span>
-      <span class="card__status" data-test="status">{{ STATUS_TEXT[status] }}</span>
+      <a
+        v-if="platform"
+        class="card__platform nodrag nopan"
+        data-test="platform-assay"
+        :href="`/launched-assay?assayId=${platform.seekId}`"
+        target="_blank"
+        rel="noopener"
+        @click.stop
+      ><v-icon icon="mdi-link-variant" size="14" />Platform assay {{ platform.seekId }}</a>
+      <span class="card__status" data-test="status">{{ statusText }}</span>
       <v-tooltip v-if="warnings?.length" :text="warnings.join(' ')" location="top" open-delay="150">
         <template #activator="{ props: tip }">
           <span class="card__warn" role="img" data-test="cohort-warning" :aria-label="warnings.join(' ')" v-bind="tip">
@@ -40,13 +49,16 @@
     <div class="card__actions nodrag nopan">
       <AssayActionBar
         :ready="status === 'ready' || status === 'ran' || status === 'submitted'"
-        :can-monitor="false"
+        :can-monitor="platform?.canMonitor"
+        :launching="platform?.launching"
+        :downloading="platform?.downloading"
+        :submitting="platform?.submitting"
         :is-script="assay.type === 'script'"
         :is-notebook="assay.type === 'notebook'"
         @launch="emit('launch')"
-        @monitor="emit('unavailable', 'Monitor')"
-        @verify="emit('unavailable', 'Verify')"
-        @download="emit('unavailable', 'Download')"
+        @monitor="emit('monitor')"
+        @verify="emit('verify')"
+        @download="emit('download')"
         @submit="emit('submit')"
       />
     </div>
@@ -55,18 +67,24 @@
 
 <script setup lang="ts">
 // One assay of a sandbox study (prototype), shown in both the List and the Flow view. It looks
-// like the dashboard's real assay card; Launch and Submit are simulated, the other actions aren't.
+// like the dashboard's real assay card. Its study decides what the actions do: run the linked
+// platform assay, simulate, or explain that the prototype doesn't do that.
 import { computed } from "vue";
 import AssayActionBar from "@/views/dashboard/components/AssayActionBar.vue";
 import type { Assay } from "../model/types";
 import { ASSAY_TYPE_ACCENT, type AssayStatus } from "../model/isaProject";
+import type { PlatformLink } from "../platformRun";
 
-const props = defineProps<{ assay: Assay; status: AssayStatus; selected?: boolean; warnings?: string[] }>();
+const props = defineProps<{
+  assay: Assay;
+  status: AssayStatus;
+  selected?: boolean;
+  warnings?: string[];
+  /** The platform assay this one runs, if its project is linked to the platform. */
+  platform?: PlatformLink;
+}>();
 const emit = defineEmits<{
-  (e: "configure"): void;
-  (e: "launch"): void;
-  (e: "submit"): void;
-  (e: "unavailable", action: string): void;
+  (e: "configure" | "launch" | "submit" | "monitor" | "verify" | "download"): void;
 }>();
 
 const STATUS_TEXT: Record<AssayStatus, string> = {
@@ -76,6 +94,8 @@ const STATUS_TEXT: Record<AssayStatus, string> = {
   ran: "Run, not submitted",
   submitted: "Submitted (simulated)",
 };
+const statusText = computed(() =>
+  props.status === "submitted" && props.platform ? "Submitted" : STATUS_TEXT[props.status]);
 
 // The same type colours as the real assay cards.
 const tagAccent = computed(() => ASSAY_TYPE_ACCENT[props.assay.type] ?? "#9fb4bf");
@@ -161,6 +181,16 @@ const tagAccent = computed(() => ASSAY_TYPE_ACCENT[props.assay.type] ?? "#9fb4bf
   background: color-mix(in srgb, var(--tag) 14%, transparent);
   border: 1px solid color-mix(in srgb, var(--tag) 38%, transparent);
 }
+.card__platform {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  text-decoration: none;
+}
+.card__platform:hover { color: var(--accent); text-decoration: underline; }
+.card__platform:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .card__status { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-dim); }
 .card__status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--state); }
 .card__warn {

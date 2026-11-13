@@ -19,9 +19,12 @@
           :selected="data.assay.id === selectedAssayId"
           @configure="emit('configure', data.assay.id)"
           :warnings="data.warnings"
+          :platform="platform?.[data.assay.id]"
           @launch="emit('launch', data.assay.id)"
           @submit="emit('submit', data.assay.id)"
-          @unavailable="(action: string) => emit('unavailable', action)"
+          @monitor="emit('monitor', data.assay.id)"
+          @verify="emit('verify', data.assay.id)"
+          @download="emit('download', data.assay.id)"
         />
         <Handle type="source" :position="Position.Right" />
       </template>
@@ -55,13 +58,18 @@ import SandboxAssayCard from "./SandboxAssayCard.vue";
 import DatasetEdge from "./DatasetEdge.vue";
 import type { Catalogue, Study } from "../model/types";
 import { cohortWarnings, cohortWarningText, studyGraph, type Sim } from "../model/isaProject";
+import type { PlatformLink } from "../platformRun";
 
-const props = defineProps<{ study: Study; catalogue: Catalogue; sim: Sim; selectedAssayId: string | null }>();
+const props = defineProps<{
+  study: Study;
+  catalogue: Catalogue;
+  sim: Sim;
+  selectedAssayId: string | null;
+  /** Sandbox assay id → the platform assay it runs, for a project linked to the platform. */
+  platform?: Record<string, PlatformLink>;
+}>();
 const emit = defineEmits<{
-  (e: "configure", assayId: string): void;
-  (e: "launch", assayId: string): void;
-  (e: "submit", assayId: string): void;
-  (e: "unavailable", action: string): void;
+  (e: "configure" | "launch" | "submit" | "monitor" | "verify" | "download", assayId: string): void;
 }>();
 
 const CARD_WIDTH = 330;

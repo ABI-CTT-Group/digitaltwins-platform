@@ -6,6 +6,7 @@ import StudyGraph from "../components/StudyGraph.vue";
 import SandboxAssayCard from "../components/SandboxAssayCard.vue";
 import { fixtureSource } from "../adapter/isaProjectSource";
 import { emptySim, type Sim } from "../model/isaProject";
+import type { PlatformLink } from "../platformRun";
 
 type FlowNode = { id: string; type: string; data: unknown; position: { x: number; y: number } };
 type FlowEdge = { id: string; type: string; data: { labels: string[] }; class: string };
@@ -19,13 +20,13 @@ const VueFlowStub = defineComponent({
     h("div", (props.nodes as FlowNode[]).map(n => h("div", { key: n.id }, slots[`node-${n.type}`]?.({ id: n.id, data: n.data })))),
 });
 
-async function render(sim: Sim = emptySim(), selectedAssayId: string | null = null, bundledDataset?: string) {
+async function render(sim: Sim = emptySim(), selectedAssayId: string | null = null, bundledDataset?: string, platform?: Record<string, PlatformLink>) {
   const catalogue = await fixtureSource.catalogue();
   const bundled = catalogue.datasets.find(d => d.id === bundledDataset);
   if (bundled) bundled.bundled = { fileCount: 1, bytes: 1 };
   const study = (await fixtureSource.loadExample("example-test-project")).investigations[0].studies[0];
   return mount(StudyGraph, {
-    props: { study, catalogue, sim, selectedAssayId },
+    props: { study, catalogue, sim, selectedAssayId, platform },
     global: { plugins: [testVuetify()], stubs: { VueFlow: VueFlowStub, Handle: true } },
   });
 }
@@ -97,11 +98,21 @@ describe("StudyGraph", () => {
     cards[0].vm.$emit("configure");
     cards[0].vm.$emit("launch");
     cards[0].vm.$emit("submit");
-    cards[0].vm.$emit("unavailable", "Verify");
+    cards[0].vm.$emit("monitor");
+    cards[0].vm.$emit("verify");
+    cards[0].vm.$emit("download");
     expect(w.emitted("configure")).toEqual([["a-cohort"]]);
     expect(w.emitted("launch")).toEqual([["a-cohort"]]);
     expect(w.emitted("submit")).toEqual([["a-cohort"]]);
-    expect(w.emitted("unavailable")).toEqual([["Verify"]]);
+    expect(w.emitted("monitor")).toEqual([["a-cohort"]]);
+    expect(w.emitted("verify")).toEqual([["a-cohort"]]);
+    expect(w.emitted("download")).toEqual([["a-cohort"]]);
+  });
+
+  it("hands each card the platform assay it is linked to", async () => {
+    const a1: PlatformLink = { seekId: "41", canMonitor: false, launching: false, downloading: false, submitting: false };
+    const w = await render(emptySim(), null, undefined, { "a-cohort": a1 });
+    expect(w.findAllComponents(SandboxAssayCard).map(c => c.props("platform"))).toEqual([a1, undefined, undefined, undefined]);
   });
 
   it("opens an assay when its card is clicked", async () => {

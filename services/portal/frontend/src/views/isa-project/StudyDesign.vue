@@ -17,7 +17,12 @@
         <v-btn size="small" variant="text" :disabled="!sim.ran.length && !sim.submitted.length" @click="resetRun">Reset</v-btn>
       </div>
     </div>
-    <p class="design__note">
+    <p v-if="linked" class="design__note">
+      <v-icon icon="mdi-link-variant" size="16" />
+      Launch, Submit and Download run the linked platform assays with their platform configuration. Changes you
+      make here stay in this browser, and later platform assays keep reading the datasets they were configured with.
+    </p>
+    <p v-else class="design__note">
       <v-icon icon="mdi-flask-empty-outline" size="16" />
       Prototype: these assays use example data. Changes are kept in this browser only, and nothing runs.
     </p>
@@ -28,10 +33,13 @@
       :catalogue="projectCatalogue"
       :sim="sim"
       :selected-assay-id="assayId"
+      :platform="platform"
       @configure="configure"
       @launch="launch"
       @submit="submit"
-      @unavailable="unavailable"
+      @monitor="id => follow('Monitor', id)"
+      @verify="id => follow('Verify', id)"
+      @download="id => follow('Download', id)"
     />
     <div v-else class="list" data-test="assay-list">
       <SandboxAssayCard
@@ -41,10 +49,13 @@
         :status="assayStatus(study, sim, a.id)"
         :selected="a.id === assayId"
         :warnings="cohortWarnings(study, a.id).map(cohortWarningText)"
+        :platform="platform[a.id]"
         @configure="configure(a.id)"
         @launch="launch(a.id)"
         @submit="submit(a.id)"
-        @unavailable="unavailable"
+        @monitor="follow('Monitor', a.id)"
+        @verify="follow('Verify', a.id)"
+        @download="follow('Download', a.id)"
       />
     </div>
 
@@ -54,7 +65,7 @@
       <li><span class="sw sw--dot sw--ready" />Ready to run</li>
       <li><span class="sw sw--dot sw--needs" />Needs configuring, or waiting on earlier assays</li>
       <li><span class="sw sw--dot sw--ran" />Run, not submitted</li>
-      <li><span class="sw sw--dot sw--done" />Submitted (simulated)</li>
+      <li><span class="sw sw--dot sw--done" />{{ linked ? "Submitted" : "Submitted (simulated)" }}</li>
     </ul>
 
     <v-dialog v-model="drawerOpen" class="assay-drawer-dialog" content-class="assay-drawer" transition="slide-x-reverse-transition" scrollable>
@@ -95,6 +106,9 @@ import {
   type Sim,
 } from "./model/isaProject";
 import type { Catalogue } from "./model/types";
+import { launchPlatformAssay, platformAssayIds, submitPlatformAssay, type PlatformLink } from "./platformRun";
+import { useAssayActions } from "@/composables/useAssayActions";
+import { useDashboardCacheStore } from "@/store/dashboard_cache_store";
 
 const props = defineProps<{ projectId: string; studyId: string }>();
 
@@ -107,6 +121,23 @@ const sim = ref<Sim>(emptySim());
 const message = ref("");
 
 const study = computed(() => store.study(props.projectId, props.studyId));
+
+// Real runs: the Test Project example's assays run their linked platform assays.
+const actions = useAssayActions();
+const dashboardCache = useDashboardCacheStore();
+const platformIds = computed(() => platformAssayIds(store.entries.find(e => e.project.project.id === props.projectId)));
+const linked = computed(() => Object.keys(platformIds.value).length > 0);
+const launching = ref<Record<string, boolean>>({});
+const submitting = ref<Record<string, boolean>>({});
+const platform = computed<Record<string, PlatformLink>>(() => Object.fromEntries(
+  Object.entries(platformIds.value).map(([id, seekId]) => [id, {
+    seekId,
+    canMonitor: dashboardCache.assayExecute[seekId]?.text === "Monitor",
+    launching: !!launching.value[seekId],
+    downloading: !!actions.downloadingMap.value[seekId],
+    submitting: !!submitting.value[seekId],
+  }]),
+));
 /** The platform catalogue, the items approvals registered in this browser, and whatever came in this
  *  project's bundle. */
 const projectCatalogue = computed(() => catalogue.value && withBundled(withBundled(catalogue.value, store.registered),
@@ -151,8 +182,33 @@ function simulateStep() {
   message.value = r.ran.length ? `Ran and submitted ${r.ran.map(titleOf).join(", ")}` : "Nothing else can run";
 }
 
+async function launchOnPlatform(id: string, seekId: string) {
+  const status = assayStatus(study.value!, sim.value, id);
+  if (status !== "ready" && status !== "ran" && status !== "submitted") return;
+  launching.value[seekId] = true;
+  const started = await launchPlatformAssay(seekId).finally(() => { launching.value[seekId] = false; });
+  if (!started) return;
+  // An assay can run many times; only its first run changes its status.
+  if (status === "ready") sim.value = simulateLaunch(study.value!, sim.value, id);
+  message.value = `Launched ${titleOf(id)} on the platform. Submit its outputs so later assays can use them.`;
+}
+
+async function submitOnPlatform(id: string, seekId: string) {
+  if (!sim.value.ran.includes(id) && !sim.value.submitted.includes(id)) {
+    message.value = `${titleOf(id)} has no run to submit. Launch it first.`;
+    return;
+  }
+  submitting.value[seekId] = true;
+  const done = await submitPlatformAssay(seekId).finally(() => { submitting.value[seekId] = false; });
+  if (!done) return;
+  sim.value = simulateSubmit(sim.value, id);
+  message.value = `Submitted ${titleOf(id)}`;
+}
+
 function launch(id: string) {
   if (!study.value) return;
+  const seekId = platformIds.value[id];
+  if (seekId) return launchOnPlatform(id, seekId);
   const status = assayStatus(study.value, sim.value, id);
   if (status === "submitted") {
     message.value = `${titleOf(id)} is already submitted (simulated). Reset to start again.`;
@@ -165,6 +221,8 @@ function launch(id: string) {
 }
 
 function submit(id: string) {
+  const seekId = platformIds.value[id];
+  if (seekId) return submitOnPlatform(id, seekId);
   if (sim.value.submitted.includes(id)) {
     message.value = `${titleOf(id)} is already submitted (simulated).`;
   } else if (!sim.value.ran.includes(id)) {
@@ -175,8 +233,18 @@ function submit(id: string) {
   }
 }
 
-function unavailable(action: string) {
-  message.value = `${action} isn't part of the prototype.`;
+/** Monitor, Verify and Download: real for a linked assay; the prototype doesn't simulate them. */
+function follow(action: "Monitor" | "Verify" | "Download", id: string) {
+  const seekId = platformIds.value[id];
+  if (!seekId) {
+    message.value = `${action} isn't part of the prototype.`;
+  } else if (action === "Monitor") {
+    actions.monitor(seekId);
+  } else if (action === "Verify") {
+    actions.verify(seekId);
+  } else {
+    actions.download(seekId);
+  }
 }
 
 const canStep = computed(() =>
