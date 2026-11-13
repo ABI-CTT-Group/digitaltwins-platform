@@ -3,6 +3,7 @@
 import {
   SCHEMA_VERSION,
   type Assay,
+  type AssayOutput,
   type Catalogue,
   type CatalogueWorkflow,
   type Category,
@@ -26,6 +27,8 @@ export interface InputOption {
   label: string;
   planned: boolean;
   producedBy?: string;
+  /** A dataset that came in an ISA project bundle and isn't on the platform yet. */
+  bundled?: true;
   source: InputSource;
 }
 
@@ -38,9 +41,19 @@ export interface GraphNode {
   row: number;
   status?: AssayStatus;
   assayId?: string;
+  /** A source dataset that came in an ISA project bundle and isn't on the platform yet. */
+  bundled?: true;
 }
-/** One edge per pair of nodes, labelled with the planned datasets passing along it. */
+/** One edge per pair of nodes, labelled with the planned datasets passing along it (or, from a
+ *  platform dataset, with how many inputs it feeds). */
 export interface GraphEdge { id: string; source: string; target: string; labels: string[]; planned: boolean }
+
+/** Several outputs of one assay can fill the same dataset, each as its own part, so a planned
+ *  dataset is named by the dataset and the output port that fills it. */
+const plannedLabel = (datasetName: string, port: string) => `${datasetName} / ${port}`;
+
+/** Each assay type's colour, the same as on the real assay cards. */
+export const ASSAY_TYPE_ACCENT: Record<string, string> = { gui: "#5fd6e8", notebook: "#ffb74d", script: "#c792ea" };
 
 export const sourceKey = (s: InputSource): string =>
   s.kind === "existing" ? `existing:${s.datasetId}` : `planned:${s.assayId}:${s.port}`;
@@ -245,11 +258,12 @@ export function inputOptions(study: Study, catalogue: Catalogue, assayId: string
   const excluded = downstreamOf(study, assayId).add(assayId);
   const existing: InputOption[] = catalogue.datasets
     .filter(d => d.category === category)
-    .map(d => ({ key: `existing:${d.id}`, label: d.name, planned: false, source: { kind: "existing", datasetId: d.id } }));
+    .map(d => ({ key: `existing:${d.id}`, label: d.name, planned: false, ...(d.bundled ? { bundled: true as const } : {}),
+      source: { kind: "existing", datasetId: d.id } }));
   const planned: InputOption[] = study.assays
     .filter(a => !excluded.has(a.id))
     .flatMap(a => a.outputs.filter(o => o.category === category).map(o => ({
-      key: `planned:${a.id}:${o.port}`, label: o.datasetName, planned: true, producedBy: a.title,
+      key: `planned:${a.id}:${o.port}`, label: plannedLabel(o.datasetName, o.port), planned: true, producedBy: a.title,
       source: { kind: "planned", assayId: a.id, port: o.port } as InputSource,
     })));
   return [...existing, ...planned];
@@ -262,13 +276,52 @@ export function setWorkflow(study: Study, assayId: string, wf: CatalogueWorkflow
   if (!a) return;
   a.workflowId = wf.id;
   a.inputs = wf.inputs.map(p => ({ port: p.name, source: null }));
-  a.outputs = wf.outputs.map(p => ({ port: p.name, datasetName: `${a.title} ${p.name}`, category: p.category }));
+  // Like the platform, one dataset holds every output until the user splits them.
+  a.outputs = wf.outputs.map(p => ({ port: p.name, datasetName: `${a.title} outputs`, category: p.category }));
   const ports = new Set(a.outputs.map(o => o.port));
   for (const other of study.assays) {
     for (const i of other.inputs) {
       if (i.source?.kind === "planned" && i.source.assayId === assayId && !ports.has(i.source.port)) i.source = null;
     }
   }
+}
+
+/** Inputs of one assay that read the same dataset. `producer` is set when that dataset is planned. */
+export interface InputGroup {
+  key: string;
+  title: string;
+  producer: { id: string; title: string } | null;
+  ports: string[];
+}
+
+/** An assay's inputs grouped by where they read from: one group per planned dataset or platform
+ *  dataset, in the order the inputs first use it, then the inputs with no source yet. */
+export function inputGroups(study: Study, catalogue: Catalogue, assayId: string): InputGroup[] {
+  const groups = new Map<string, InputGroup>();
+  const none: InputGroup = { key: "none", title: "Not chosen yet", producer: null, ports: [] };
+  for (const { port, source } of study.assays.find(a => a.id === assayId)?.inputs ?? []) {
+    if (!source) { none.ports.push(port); continue; }
+    let group: InputGroup;
+    if (source.kind === "existing") {
+      const name = catalogue.datasets.find(d => d.id === source.datasetId)?.name ?? source.datasetId;
+      group = { key: `existing:${source.datasetId}`, title: name, producer: null, ports: [] };
+    } else {
+      const producer = study.assays.find(a => a.id === source.assayId);
+      const name = producer?.outputs.find(o => o.port === source.port)?.datasetName ?? source.port;
+      group = { key: `planned:${source.assayId}:${name}`, title: name,
+        producer: { id: source.assayId, title: producer?.title ?? source.assayId }, ports: [] };
+    }
+    if (!groups.has(group.key)) groups.set(group.key, group);
+    groups.get(group.key)!.ports.push(port);
+  }
+  return [...groups.values(), ...(none.ports.length ? [none] : [])];
+}
+
+/** An assay's outputs grouped by the dataset they fill, in order. */
+export function outputGroups(assay: Assay): { datasetName: string; ports: AssayOutput[] }[] {
+  const groups = new Map<string, AssayOutput[]>();
+  for (const o of assay.outputs) groups.set(o.datasetName, [...(groups.get(o.datasetName) ?? []), o]);
+  return [...groups].map(([datasetName, ports]) => ({ datasetName, ports }));
 }
 
 export function workflowTools(catalogue: Catalogue, workflowId: string | null) {
@@ -283,8 +336,9 @@ export function workflowTools(catalogue: Catalogue, workflowId: string | null) {
 
 // ---- Study graph --------------------------------------------------------------------------
 
-/** Nodes and edges for one study, in columns: the platform datasets it reads, then each assay
- *  level. Edges between assays carry planned datasets, planned until their producer has submitted. */
+/** Nodes and edges for one study, in columns: one per assay level, with each platform dataset the
+ *  study reads in the column before its first reader. Edges between assays carry planned datasets,
+ *  planned until their producer has submitted; a platform dataset's edge counts the inputs it feeds. */
 export function studyGraph(study: Study, catalogue: Catalogue, sim: Sim) {
   const level = new Map<string, number>();
   for (const id of runOrder(study).order) {
@@ -301,10 +355,22 @@ export function studyGraph(study: Study, catalogue: Catalogue, sim: Sim) {
     nodes.set(n.id, { ...n, row });
   };
 
+  const column = (a: Assay) => (level.get(a.id) ?? 0) + 1;
   for (const a of study.assays) {
-    addNode({ id: `assay:${a.id}`, kind: "assay", label: a.title, column: (level.get(a.id) ?? 0) + 1,
+    addNode({ id: `assay:${a.id}`, kind: "assay", label: a.title, column: column(a),
       status: assayStatus(study, sim, a.id), assayId: a.id });
   }
+  // A platform dataset sits just before the first assay that reads it, not always in column 0, so
+  // a dataset read only late in the study doesn't send a long edge across the earlier assays.
+  const sourceColumn = new Map<string, number>();
+  for (const a of study.assays) {
+    for (const { source } of a.inputs) {
+      if (source?.kind !== "existing") continue;
+      const key = sourceKey(source);
+      sourceColumn.set(key, Math.min(sourceColumn.get(key) ?? Infinity, column(a) - 1));
+    }
+  }
+  const sourceReads = new Map<string, number>();
   for (const a of study.assays) {
     for (const { source } of a.inputs) {
       if (!source) continue;
@@ -313,20 +379,24 @@ export function studyGraph(study: Study, catalogue: Catalogue, sim: Sim) {
       if (source.kind === "existing") {
         from = sourceKey(source);
         const ds = catalogue.datasets.find(d => d.id === source.datasetId);
-        addNode({ id: from, kind: "source", label: ds?.name ?? source.datasetId, column: 0 });
+        addNode({ id: from, kind: "source", label: ds?.name ?? source.datasetId, column: sourceColumn.get(from)!,
+          ...(ds?.bundled ? { bundled: true as const } : {}) });
       } else {
         from = `assay:${source.assayId}`;
         if (!nodes.has(from)) continue;
-        label = study.assays.find(x => x.id === source.assayId)?.outputs
-          .find(o => o.port === source.port)?.datasetName ?? source.port;
+        const name = study.assays.find(x => x.id === source.assayId)?.outputs
+          .find(o => o.port === source.port)?.datasetName;
+        label = name ? plannedLabel(name, source.port) : source.port;
       }
       const id = `${from}->assay:${a.id}`;
       const edge = edges.get(id) ?? { id, source: from, target: `assay:${a.id}`, labels: [], planned: false };
       if (label && !edge.labels.includes(label)) edge.labels.push(label);
       if (source.kind === "planned" && !sim.submitted.includes(source.assayId)) edge.planned = true;
+      if (source.kind === "existing") sourceReads.set(id, (sourceReads.get(id) ?? 0) + 1);
       edges.set(id, edge);
     }
   }
+  for (const [id, n] of sourceReads) if (n > 1) edges.get(id)!.labels = [`${n} inputs`];
   return { nodes: [...nodes.values()], edges: [...edges.values()] };
 }
 

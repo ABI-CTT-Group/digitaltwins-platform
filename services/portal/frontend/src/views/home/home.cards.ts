@@ -45,7 +45,7 @@ export const cards: CardConfig[] = [
         title: 'Clinician dashboard',
         image: clinicalImage,
         location: 'Te Whatu Ora AI Lab',
-        description: 'Enables clinicians to run AI/digital twin driven workflows and generate clinical reports.',
+        description: "Go through your project's cases and confirm each annotation, or send it back for correction.",
         requireRoles: ['admin', 'researcher', 'clinician'],
         action: { type: 'route', name: 'ClinicianDashboard' }
     },

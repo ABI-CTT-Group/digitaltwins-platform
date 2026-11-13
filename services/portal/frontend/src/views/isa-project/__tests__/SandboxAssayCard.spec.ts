@@ -4,14 +4,18 @@ import { testVuetify } from "@/testing/vuetify";
 import SandboxAssayCard from "../components/SandboxAssayCard.vue";
 import type { Assay } from "../model/types";
 import type { AssayStatus } from "../model/isaProject";
+import type { PlatformLink } from "../platformRun";
 
 const assay: Assay = {
   id: "a-cohort", title: "Assay 1: cohort selection", type: "notebook", workflowId: "wf-cohort-select",
   cohort: [], inputs: [], outputs: [],
 };
 
-const render = (status: AssayStatus, selected = false, warnings: string[] = []) =>
-  mount(SandboxAssayCard, { props: { assay, status, selected, warnings }, global: { plugins: [testVuetify()] } });
+const render = (status: AssayStatus, selected = false, warnings: string[] = [], platform?: PlatformLink, a: Assay = assay) =>
+  mount(SandboxAssayCard, { props: { assay: a, status, selected, warnings, platform }, global: { plugins: [testVuetify()] } });
+
+const link = (extra: Partial<PlatformLink> = {}): PlatformLink =>
+  ({ seekId: "41", canMonitor: false, launching: false, downloading: false, submitting: false, ...extra });
 
 const button = (w: ReturnType<typeof render>, text: string) => w.findAll("button").find(b => b.text() === text)!;
 
@@ -45,12 +49,37 @@ describe("SandboxAssayCard", () => {
     }
   });
 
-  it("submits, and says which actions the prototype doesn't simulate", async () => {
+  it("passes Submit, Verify and Download on, for its study to run or explain", async () => {
     const w = render("ran");
     await button(w, "Submit").trigger("click");
+    await button(w, "Verify").trigger("click");
     await button(w, "Download").trigger("click");
     expect(w.emitted("submit")).toHaveLength(1);
-    expect(w.emitted("unavailable")).toEqual([["Download"]]);
+    expect(w.emitted("verify")).toHaveLength(1);
+    expect(w.emitted("download")).toHaveLength(1);
+  });
+
+  it("links to the platform assay it runs, and drops \"simulated\" once submitted", () => {
+    expect(render("ready").find("[data-test=platform-assay]").exists()).toBe(false);
+    const w = render("submitted", false, [], link());
+    const a = w.find("[data-test=platform-assay]");
+    expect(a.text()).toBe("Platform assay 41");
+    expect(a.attributes("href")).toBe("/launched-assay?assayId=41");
+    expect(a.attributes("target")).toBe("_blank");
+    expect(w.find("[data-test=status]").text()).toBe("Submitted");
+  });
+
+  it("monitors a launched platform script, and shows requests in flight", async () => {
+    const script: Assay = { ...assay, type: "script" };
+    expect(button(render("ran", false, [], link(), script), "Monitor").attributes("disabled")).toBeDefined();
+    const w = render("ran", false, [], link({ canMonitor: true }), script);
+    await button(w, "Monitor").trigger("click");
+    expect(w.emitted("monitor")).toHaveLength(1);
+
+    const busy = render("ran", false, [], link({ launching: true, downloading: true, submitting: true }));
+    expect(button(busy, "Launch").attributes("disabled")).toBeDefined();
+    expect(busy.text()).toContain("Downloading...");
+    expect(busy.text()).toContain("Submitting...");
   });
 
   it("flags a cohort warning", () => {

@@ -19,15 +19,22 @@
           :selected="data.assay.id === selectedAssayId"
           @configure="emit('configure', data.assay.id)"
           :warnings="data.warnings"
+          :platform="platform?.[data.assay.id]"
           @launch="emit('launch', data.assay.id)"
           @submit="emit('submit', data.assay.id)"
-          @unavailable="(action: string) => emit('unavailable', action)"
+          @monitor="emit('monitor', data.assay.id)"
+          @verify="emit('verify', data.assay.id)"
+          @download="emit('download', data.assay.id)"
         />
         <Handle type="source" :position="Position.Right" />
+      </template>
+      <template #edge-dataset="edgeProps">
+        <DatasetEdge v-bind="edgeProps" />
       </template>
       <template #node-source="{ data }">
         <v-icon icon="mdi-database-outline" size="16" />
         <span class="node-source__label">{{ data.label }}</span>
+        <span v-if="data.bundled" class="node-source__bundled" title="Bundled with this project, not on the platform yet">Bundled</span>
         <Handle type="source" :position="Position.Right" />
       </template>
     </VueFlow>
@@ -48,15 +55,21 @@ import { computed, watch } from "vue";
 import { VueFlow, Handle, Position, MarkerType, useVueFlow, type NodeMouseEvent } from "@vue-flow/core";
 import "@vue-flow/core/dist/style.css";
 import SandboxAssayCard from "./SandboxAssayCard.vue";
+import DatasetEdge from "./DatasetEdge.vue";
 import type { Catalogue, Study } from "../model/types";
 import { cohortWarnings, cohortWarningText, studyGraph, type Sim } from "../model/isaProject";
+import type { PlatformLink } from "../platformRun";
 
-const props = defineProps<{ study: Study; catalogue: Catalogue; sim: Sim; selectedAssayId: string | null }>();
+const props = defineProps<{
+  study: Study;
+  catalogue: Catalogue;
+  sim: Sim;
+  selectedAssayId: string | null;
+  /** Sandbox assay id → the platform assay it runs, for a project linked to the platform. */
+  platform?: Record<string, PlatformLink>;
+}>();
 const emit = defineEmits<{
-  (e: "configure", assayId: string): void;
-  (e: "launch", assayId: string): void;
-  (e: "submit", assayId: string): void;
-  (e: "unavailable", action: string): void;
+  (e: "configure" | "launch" | "submit" | "monitor" | "verify" | "download", assayId: string): void;
 }>();
 
 const CARD_WIDTH = 330;
@@ -64,6 +77,7 @@ const COLUMN_WIDTH = CARD_WIDTH + 130; // room for the edge labels between colum
 const ROW_HEIGHT = 290;
 const SOURCE_OFFSET = 60; // a dataset pill level with the upper half of the card it feeds
 const SOURCE_GAP = 44;
+const CARD_CLEARANCE = 250; // below an assay card, for a dataset pill in the same column
 /** Below this the cards can't be read, so a wide study is panned rather than squeezed. */
 const MIN_READABLE_ZOOM = 0.7;
 
@@ -71,7 +85,7 @@ const graph = computed(() => studyGraph(props.study, props.catalogue, props.sim)
 
 const columnSize = computed(() => {
   const size = new Map<number, number>();
-  for (const n of graph.value.nodes) size.set(n.column, (size.get(n.column) ?? 0) + 1);
+  for (const n of graph.value.nodes) if (n.kind === "assay") size.set(n.column, (size.get(n.column) ?? 0) + 1);
   return size;
 });
 
@@ -79,18 +93,25 @@ const columnSize = computed(() => {
 const rowY = (column: number, row: number) => (row - ((columnSize.value.get(column) ?? 1) - 1) / 2) * ROW_HEIGHT;
 
 /** A platform dataset sits level with the first assay it feeds, so its edge runs straight across
- *  instead of behind other cards. Several feeding one assay stack downwards. */
+ *  instead of behind other cards. In a column that also holds assays it starts below the last card,
+ *  and one that would overlap another dataset moves down. */
 const sourceY = computed(() => {
   const ys = new Map<string, number>();
-  const stacked = new Map<string, number>();
+  const placed = new Map<number, number[]>();
+  const floor = new Map<number, number>();
+  for (const n of graph.value.nodes) {
+    if (n.kind === "assay") floor.set(n.column, Math.max(floor.get(n.column) ?? -Infinity, rowY(n.column, n.row) + CARD_CLEARANCE));
+  }
   for (const n of graph.value.nodes) {
     if (n.kind !== "source") continue;
     const target = graph.value.edges.find(e => e.source === n.id)?.target;
     const t = graph.value.nodes.find(m => m.id === target);
     if (!t) continue;
-    const k = stacked.get(t.id) ?? 0;
-    stacked.set(t.id, k + 1);
-    ys.set(n.id, rowY(t.column, t.row) + SOURCE_OFFSET + k * SOURCE_GAP);
+    let y = Math.max(rowY(t.column, t.row) + SOURCE_OFFSET, floor.get(n.column) ?? -Infinity);
+    const taken = placed.get(n.column) ?? [];
+    while (taken.some(p => Math.abs(p - y) < SOURCE_GAP)) y = Math.max(...taken.filter(p => Math.abs(p - y) < SOURCE_GAP)) + SOURCE_GAP;
+    placed.set(n.column, [...taken, y]);
+    ys.set(n.id, y);
   }
   return ys;
 });
@@ -105,7 +126,7 @@ const nodes = computed(() => graph.value.nodes.map(n => ({
         status: n.status,
         warnings: cohortWarnings(props.study, n.assayId!).map(cohortWarningText),
       }
-    : { label: n.label },
+    : { label: n.label, bundled: n.bundled },
   class: `node-${n.kind}`,
 })));
 
@@ -113,8 +134,8 @@ const edges = computed(() => graph.value.edges.map(e => ({
   id: e.id,
   source: e.source,
   target: e.target,
-  type: "smoothstep",
-  label: e.labels.length ? e.labels.join(", ") : undefined,
+  type: "dataset",
+  data: { labels: e.labels, planned: e.planned },
   markerEnd: MarkerType.ArrowClosed,
   class: e.planned ? "edge-planned" : "",
 })));
@@ -178,12 +199,18 @@ function onNodeClick({ node }: Pick<NodeMouseEvent, "node">) {
   font-size: 0.8rem;
 }
 .graph :deep(.node-source__label) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.graph :deep(.node-source__bundled) {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent-measurements);
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
 
 .graph :deep(.vue-flow__edge-path) { stroke: #8fa6b2; stroke-width: 1.5; }
 .graph :deep(.edge-planned .vue-flow__edge-path) { stroke: var(--text-faint); stroke-dasharray: 6 5; }
-.graph :deep(.vue-flow__edge-textbg) { fill: #0a1a24; }
-.graph :deep(.vue-flow__edge-text) { fill: var(--text-dim); font-size: 12px; font-family: var(--font-ui); }
-.graph :deep(.edge-planned .vue-flow__edge-text) { font-style: italic; }
 
 .zoom {
   position: absolute;

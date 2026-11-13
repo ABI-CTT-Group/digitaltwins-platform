@@ -1,392 +1,456 @@
 {
   "tools": [
     {
-      "id": "t-cohort-query",
-      "name": "Cohort query",
+      "id": "t-mri-curation",
+      "name": "tool_mri_curation",
       "type": "notebook"
     },
     {
-      "id": "t-dicom-nifti",
-      "name": "DICOM to NIfTI converter",
+      "id": "t-dicom-to-nifti",
+      "name": "tool_dicom_to_nifti",
       "type": "script"
     },
     {
-      "id": "t-annotator",
-      "name": "Segmentation annotator",
+      "id": "t-dicom-to-nrrd",
+      "name": "tool_dicom_to_nrrd",
+      "type": "script"
+    },
+    {
+      "id": "t-volview",
+      "name": "tool_volview",
       "type": "gui"
     },
     {
-      "id": "t-seg-train",
-      "name": "Segmentation trainer (nnU-Net)",
-      "type": "script"
-    },
-    {
-      "id": "t-seg-infer",
-      "name": "Segmentation inference (nnU-Net)",
-      "type": "script"
-    },
-    {
-      "id": "t-mesher",
-      "name": "Surface mesher",
-      "type": "script"
-    },
-    {
-      "id": "t-report",
-      "name": "Pilot report builder",
-      "type": "script"
-    },
-    {
-      "id": "t-analysis",
-      "name": "Outputs analysis",
-      "type": "notebook"
+      "id": "t-lesion-curator",
+      "name": "tool_Lesion-Ground-Truth-Curator",
+      "type": "gui"
     }
   ],
   "workflows": [
     {
-      "id": "wf-cohort-select",
-      "name": "Cohort selection",
+      "id": "wf-mri-curation",
+      "name": "workflow_mri_curation",
       "type": "notebook",
       "inputs": [
         {
-          "name": "clinical_records",
+          "name": "raw_dataset",
           "category": "measurements"
         }
       ],
       "outputs": [
         {
-          "name": "cohort_list",
+          "name": "curated_dataset",
           "category": "measurements"
         }
       ],
       "steps": [
         {
-          "id": "select",
-          "toolId": "t-cohort-query"
+          "id": "step1_run_notebook",
+          "toolId": "t-mri-curation"
         }
       ],
       "cwl": {
         "inputs": {
-          "clinical_records": {
-            "type": "File"
+          "raw_dataset": {
+            "type": "Directory"
           }
         },
         "steps": {
-          "select": {
-            "run": "tool_cohortool_query.cwl",
+          "step1_run_notebook": {
+            "run": "tool_mri_curation.cwl",
             "in": {
-              "clinical_records": "clinical_records"
+              "raw_dataset": "raw_dataset"
             },
             "out": [
-              "cohort"
+              "curated_dataset"
             ]
           }
         },
         "outputs": {
-          "cohort_list": {
-            "type": "File",
-            "outputSource": "select/cohort"
+          "curated_dataset": {
+            "type": "Directory",
+            "outputSource": "step1_run_notebook/curated_dataset"
           }
         }
       }
     },
     {
-      "id": "wf-dicom-nifti",
-      "name": "DICOM to NIfTI conversion",
+      "id": "wf-image-conversion",
+      "name": "workflow_image_conversion",
       "type": "script",
       "inputs": [
         {
-          "name": "dicom",
-          "category": "measurements"
-        },
-        {
-          "name": "cohort_list",
+          "name": "dicom_input",
           "category": "measurements"
         }
       ],
       "outputs": [
         {
-          "name": "nifti_images",
+          "name": "nifti_output",
+          "category": "measurements"
+        },
+        {
+          "name": "nrrd_output",
           "category": "measurements"
         }
       ],
       "steps": [
         {
-          "id": "convert",
-          "toolId": "t-dicom-nifti"
+          "id": "dicom_to_nifti",
+          "toolId": "t-dicom-to-nifti"
+        },
+        {
+          "id": "dicom_to_nrrd",
+          "toolId": "t-dicom-to-nrrd"
         }
       ],
       "cwl": {
         "inputs": {
-          "dicom": {
-            "type": "File"
-          },
-          "cohort_list": {
-            "type": "File"
+          "dicom_input": {
+            "type": "Directory"
           }
         },
         "steps": {
-          "convert": {
-            "run": "tool_dicom_nifti.cwl",
+          "dicom_to_nifti": {
+            "run": "tool_dicom_to_nifti.cwl",
             "in": {
-              "dicom": "dicom",
-              "cohort_list": "cohort_list"
+              "dicom_input": "dicom_input"
             },
             "out": [
-              "nifti"
+              "rai_nifti_output"
+            ]
+          },
+          "dicom_to_nrrd": {
+            "run": "tool_dicom_to_nrrd.cwl",
+            "in": {
+              "dicom_input": "dicom_input"
+            },
+            "out": [
+              "nrrd_output"
             ]
           }
         },
         "outputs": {
-          "nifti_images": {
+          "nifti_output": {
             "type": "File",
-            "outputSource": "convert/nifti"
+            "outputSource": "dicom_to_nifti/rai_nifti_output"
+          },
+          "nrrd_output": {
+            "type": "File",
+            "outputSource": "dicom_to_nrrd/nrrd_output"
           }
         }
       }
     },
     {
-      "id": "wf-annotate",
-      "name": "Annotate cases",
+      "id": "wf-volview",
+      "name": "workflow_volview",
       "type": "gui",
       "inputs": [
         {
-          "name": "images",
+          "name": "dicom_file",
           "category": "measurements"
         }
       ],
       "outputs": [
         {
-          "name": "labels",
+          "name": "output",
           "category": "measurements"
         }
       ],
       "steps": [
         {
-          "id": "annotate",
-          "toolId": "t-annotator"
+          "id": "volview",
+          "toolId": "t-volview"
         }
       ],
       "cwl": {
         "inputs": {
-          "images": {
+          "dicom_file": {
             "type": "File"
           }
         },
         "steps": {
-          "annotate": {
-            "run": "tool_annotator.cwl",
+          "volview": {
+            "run": "tool_volview.cwl",
             "in": {
-              "images": "images"
+              "dicom_file": "dicom_file"
             },
             "out": [
-              "labels"
+              "output"
             ]
           }
         },
         "outputs": {
-          "labels": {
+          "output": {
             "type": "File",
-            "outputSource": "annotate/labels"
+            "outputSource": "volview/output"
           }
         }
       }
     },
     {
-      "id": "wf-train-seg",
-      "name": "Train segmentation",
-      "type": "script",
+      "id": "wf-lesion-curator",
+      "name": "workflow_Lesion-Ground-Truth-Curator",
+      "type": "gui",
       "inputs": [
         {
-          "name": "images",
+          "name": "contrast_pre_nrrd",
           "category": "measurements"
         },
         {
-          "name": "labels",
+          "name": "contrast_1_nrrd",
+          "category": "measurements"
+        },
+        {
+          "name": "contrast_2_nrrd",
+          "category": "measurements"
+        },
+        {
+          "name": "contrast_3_nrrd",
+          "category": "measurements"
+        },
+        {
+          "name": "contrast_4_nrrd",
+          "category": "measurements"
+        },
+        {
+          "name": "registration_pre_nrrd",
+          "category": "measurements"
+        },
+        {
+          "name": "registration_1_nrrd",
+          "category": "measurements"
+        },
+        {
+          "name": "registration_2_nrrd",
+          "category": "measurements"
+        },
+        {
+          "name": "registration_3_nrrd",
+          "category": "measurements"
+        },
+        {
+          "name": "registration_4_nrrd",
+          "category": "measurements"
+        },
+        {
+          "name": "t2_nrrd",
+          "category": "measurements"
+        },
+        {
+          "name": "model_predicted_LPS_nii",
+          "category": "measurements"
+        },
+        {
+          "name": "researcher_manual_LPS_nii",
+          "category": "measurements"
+        },
+        {
+          "name": "ground_truth_LPS_nii",
+          "category": "measurements"
+        },
+        {
+          "name": "breast_surface_glb",
+          "category": "measurements"
+        },
+        {
+          "name": "vessel_mask_nii",
           "category": "measurements"
         }
       ],
       "outputs": [
         {
-          "name": "seg_model",
-          "category": "models"
-        }
-      ],
-      "steps": [
-        {
-          "id": "train",
-          "toolId": "t-seg-train"
-        }
-      ],
-      "cwl": {
-        "inputs": {
-          "images": {
-            "type": "File"
-          },
-          "labels": {
-            "type": "File"
-          }
-        },
-        "steps": {
-          "train": {
-            "run": "tool_seg_train.cwl",
-            "in": {
-              "images": "images",
-              "labels": "labels"
-            },
-            "out": [
-              "model"
-            ]
-          }
-        },
-        "outputs": {
-          "seg_model": {
-            "type": "File",
-            "outputSource": "train/model"
-          }
-        }
-      }
-    },
-    {
-      "id": "wf-breast-pilot",
-      "name": "Breast pilot workflow",
-      "type": "script",
-      "inputs": [
-        {
-          "name": "images",
+          "name": "mask_meta_json",
           "category": "measurements"
         },
         {
-          "name": "seg_model",
-          "category": "models"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "meshes",
-          "category": "models"
+          "name": "model_predicted_nii_LPS",
+          "category": "measurements"
         },
         {
-          "name": "report",
+          "name": "researcher_manual_nii_LPS",
+          "category": "measurements"
+        },
+        {
+          "name": "clinician_validated_nii_LPS",
+          "category": "measurements"
+        },
+        {
+          "name": "clinician_validated_nii_RAI",
+          "category": "measurements"
+        },
+        {
+          "name": "ai_generated_nii_LPS",
+          "category": "measurements"
+        },
+        {
+          "name": "mask_glb",
+          "category": "measurements"
+        },
+        {
+          "name": "ground_truth_glb",
+          "category": "measurements"
+        },
+        {
+          "name": "ai_generated_glb",
+          "category": "measurements"
+        },
+        {
+          "name": "validate_json",
+          "category": "measurements"
+        },
+        {
+          "name": "model_predicted_glb",
+          "category": "measurements"
+        },
+        {
+          "name": "researcher_manual_glb",
           "category": "measurements"
         }
       ],
       "steps": [
         {
-          "id": "segment",
-          "toolId": "t-seg-infer"
-        },
-        {
-          "id": "mesh",
-          "toolId": "t-mesher"
-        },
-        {
-          "id": "write_report",
-          "toolId": "t-report"
+          "id": "lesion_ground_truth_curator",
+          "toolId": "t-lesion-curator"
         }
       ],
       "cwl": {
         "inputs": {
-          "images": {
+          "contrast_pre_nrrd": {
             "type": "File"
           },
-          "seg_model": {
-            "type": "File"
-          }
-        },
-        "steps": {
-          "segment": {
-            "run": "tool_seg_infer.cwl",
-            "in": {
-              "images": "images",
-              "seg_model": "seg_model"
-            },
-            "out": [
-              "masks"
-            ]
-          },
-          "mesh": {
-            "run": "tool_mesher.cwl",
-            "in": {
-              "masks": "segment/masks"
-            },
-            "out": [
-              "meshes"
-            ]
-          },
-          "write_report": {
-            "run": "tool_report.cwl",
-            "in": {
-              "masks": "segment/masks",
-              "meshes": "mesh/meshes"
-            },
-            "out": [
-              "report"
-            ]
-          }
-        },
-        "outputs": {
-          "meshes": {
-            "type": "File",
-            "outputSource": "mesh/meshes"
-          },
-          "report": {
-            "type": "File",
-            "outputSource": "write_report/report"
-          }
-        }
-      }
-    },
-    {
-      "id": "wf-analyse",
-      "name": "Analyse outputs",
-      "type": "notebook",
-      "inputs": [
-        {
-          "name": "meshes",
-          "category": "models"
-        },
-        {
-          "name": "report",
-          "category": "measurements"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "summary",
-          "category": "measurements"
-        }
-      ],
-      "steps": [
-        {
-          "id": "analyse",
-          "toolId": "t-analysis"
-        }
-      ],
-      "cwl": {
-        "inputs": {
-          "meshes": {
+          "contrast_1_nrrd": {
             "type": "File"
           },
-          "report": {
+          "contrast_2_nrrd": {
+            "type": "File"
+          },
+          "contrast_3_nrrd": {
+            "type": "File"
+          },
+          "contrast_4_nrrd": {
+            "type": "File"
+          },
+          "registration_pre_nrrd": {
+            "type": "File"
+          },
+          "registration_1_nrrd": {
+            "type": "File"
+          },
+          "registration_2_nrrd": {
+            "type": "File"
+          },
+          "registration_3_nrrd": {
+            "type": "File"
+          },
+          "registration_4_nrrd": {
+            "type": "File"
+          },
+          "t2_nrrd": {
+            "type": "File"
+          },
+          "model_predicted_LPS_nii": {
+            "type": "File"
+          },
+          "researcher_manual_LPS_nii": {
+            "type": "File"
+          },
+          "ground_truth_LPS_nii": {
+            "type": "File"
+          },
+          "breast_surface_glb": {
+            "type": "File"
+          },
+          "vessel_mask_nii": {
             "type": "File"
           }
         },
         "steps": {
-          "analyse": {
-            "run": "tool_analysis.cwl",
+          "lesion_ground_truth_curator": {
+            "run": "tool_Lesion-Ground-Truth-Curator.cwl",
             "in": {
-              "meshes": "meshes",
-              "report": "report"
+              "contrast_pre_nrrd": "contrast_pre_nrrd",
+              "contrast_1_nrrd": "contrast_1_nrrd",
+              "contrast_2_nrrd": "contrast_2_nrrd",
+              "contrast_3_nrrd": "contrast_3_nrrd",
+              "contrast_4_nrrd": "contrast_4_nrrd",
+              "registration_pre_nrrd": "registration_pre_nrrd",
+              "registration_1_nrrd": "registration_1_nrrd",
+              "registration_2_nrrd": "registration_2_nrrd",
+              "registration_3_nrrd": "registration_3_nrrd",
+              "registration_4_nrrd": "registration_4_nrrd",
+              "t2_nrrd": "t2_nrrd",
+              "model_predicted_LPS_nii": "model_predicted_LPS_nii",
+              "researcher_manual_LPS_nii": "researcher_manual_LPS_nii",
+              "ground_truth_LPS_nii": "ground_truth_LPS_nii",
+              "breast_surface_glb": "breast_surface_glb",
+              "vessel_mask_nii": "vessel_mask_nii"
             },
             "out": [
-              "summary"
+              "mask_meta_json",
+              "model_predicted_nii_LPS",
+              "researcher_manual_nii_LPS",
+              "clinician_validated_nii_LPS",
+              "clinician_validated_nii_RAI",
+              "ai_generated_nii_LPS",
+              "mask_glb",
+              "ground_truth_glb",
+              "ai_generated_glb",
+              "validate_json",
+              "model_predicted_glb",
+              "researcher_manual_glb"
             ]
           }
         },
         "outputs": {
-          "summary": {
+          "mask_meta_json": {
             "type": "File",
-            "outputSource": "analyse/summary"
+            "outputSource": "lesion_ground_truth_curator/mask_meta_json"
+          },
+          "model_predicted_nii_LPS": {
+            "type": "File",
+            "outputSource": "lesion_ground_truth_curator/model_predicted_nii_LPS"
+          },
+          "researcher_manual_nii_LPS": {
+            "type": "File",
+            "outputSource": "lesion_ground_truth_curator/researcher_manual_nii_LPS"
+          },
+          "clinician_validated_nii_LPS": {
+            "type": "File",
+            "outputSource": "lesion_ground_truth_curator/clinician_validated_nii_LPS"
+          },
+          "clinician_validated_nii_RAI": {
+            "type": "File",
+            "outputSource": "lesion_ground_truth_curator/clinician_validated_nii_RAI"
+          },
+          "ai_generated_nii_LPS": {
+            "type": "File",
+            "outputSource": "lesion_ground_truth_curator/ai_generated_nii_LPS"
+          },
+          "mask_glb": {
+            "type": "File",
+            "outputSource": "lesion_ground_truth_curator/mask_glb"
+          },
+          "ground_truth_glb": {
+            "type": "File",
+            "outputSource": "lesion_ground_truth_curator/ground_truth_glb"
+          },
+          "ai_generated_glb": {
+            "type": "File",
+            "outputSource": "lesion_ground_truth_curator/ai_generated_glb"
+          },
+          "validate_json": {
+            "type": "File",
+            "outputSource": "lesion_ground_truth_curator/validate_json"
+          },
+          "model_predicted_glb": {
+            "type": "File",
+            "outputSource": "lesion_ground_truth_curator/model_predicted_glb"
+          },
+          "researcher_manual_glb": {
+            "type": "File",
+            "outputSource": "lesion_ground_truth_curator/researcher_manual_glb"
           }
         }
       }
@@ -394,13 +458,28 @@
   ],
   "datasets": [
     {
-      "id": "ds-clinical",
-      "name": "Clinical records",
+      "id": "ds-test-dicom",
+      "name": "test_dicom",
       "category": "measurements"
     },
     {
-      "id": "ds-breast-mri",
-      "name": "Breast MRI (DICOM)",
+      "id": "ds-test-curated-dataset",
+      "name": "test_curated_dataset",
+      "category": "measurements"
+    },
+    {
+      "id": "ds-test-converted",
+      "name": "test_converted",
+      "category": "measurements"
+    },
+    {
+      "id": "ds-test-data-breast-app",
+      "name": "test_data_breast_app",
+      "category": "measurements"
+    },
+    {
+      "id": "ds-test-model-breast-app",
+      "name": "test_model_breast_app",
       "category": "measurements"
     }
   ]

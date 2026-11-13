@@ -32,10 +32,10 @@ describe("useDashboardData: study design sandbox (prototype)", () => {
   });
 
   it("walks a sandbox trail from the browser's store, never the API", async () => {
-    const r = await useDashboardData().loadTrail(["isa-sandbox", "isa-sandbox:p-breast-pilot", "isa-sandbox:p-breast-pilot:i-breast"], all);
-    expect(r.breadcrumbs.map(b => b.name)).toEqual(["Study design sandbox", "Breast pilot (example)", "Breast cancer imaging"]);
+    const r = await useDashboardData().loadTrail(["isa-sandbox", "isa-sandbox:p-test-project", "isa-sandbox:p-test-project:i-test"], all);
+    expect(r.breadcrumbs.map(b => b.name)).toEqual(["Study design sandbox", "Test Project (example)", "Test Investigation"]);
     expect(r.currentCategory).toBe("Studies");
-    expect(r.items.map(i => i.name)).toEqual(["Breast pilot"]);
+    expect(r.items.map(i => i.name)).toEqual(["Test Study"]);
     expect(api.useDashboardCategoryChildren).not.toHaveBeenCalled();
   });
 

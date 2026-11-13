@@ -28,10 +28,10 @@ beforeEach(() => {
 
 describe("DashboardView: study design sandbox (prototype)", () => {
   it("shows a sandbox study as one study design, not assay cards", async () => {
-    route.query = { trail: "isa-sandbox,isa-sandbox:p-breast-pilot,isa-sandbox:p-breast-pilot:i-breast,isa-sandbox:p-breast-pilot:i-breast:s-pilot" };
+    route.query = { trail: "isa-sandbox,isa-sandbox:p-test-project,isa-sandbox:p-test-project:i-test,isa-sandbox:p-test-project:i-test:s-test" };
     const w = render();
     await flushPromises();
-    expect(w.findComponent({ name: "StudyDesign" }).props()).toEqual({ projectId: "p-breast-pilot", studyId: "s-pilot" });
+    expect(w.findComponent({ name: "StudyDesign" }).props()).toEqual({ projectId: "p-test-project", studyId: "s-test" });
     expect(w.findComponent({ name: "LevelGrid" }).exists()).toBe(false);
     expect(loadAssayList).not.toHaveBeenCalled();
   });

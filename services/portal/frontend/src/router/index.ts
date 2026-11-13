@@ -12,6 +12,8 @@ import TutorialDashboard from "@/views/tutorial/index.vue";
 import CatalogueDashboardView from "@/views/catalogue/catalogue-dashboard-view.vue";
 import ToolsViewer from "@/views/catalogue/tools-viewer.vue";
 import IsaProjectHub from "@/views/isa-project/IsaProjectHub.vue";
+import StudyListView from "@/views/worklists/StudyListView.vue";
+import WorklistsView from "@/views/worklists/WorklistsView.vue";
 import Layout from "@/layouts/Default.vue";
 import LaunchedAssayOverview from "@/views/dashboard/report/AssayReportView.vue";
 import UploadDataset from "@/views/upload-dataset/index.vue";
@@ -48,10 +50,23 @@ const routes = [
             meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'], type: 'study' },
           },
           {
+            // Frontend-only prototype: example cases live in the browser; nothing reaches the API.
             path: "/clinician-dashboard",
             name: "ClinicianDashboard",
-            component: DashboardView,
-            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher', 'clinician'], type: 'clinician' },
+            component: StudyListView,
+            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher', 'clinician'] },
+          },
+          {
+            path: "/clinician-dashboard/studies/:studyId",
+            name: "ClinicianStudyWorklist",
+            component: WorklistsView,
+            props: true,
+            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher', 'clinician'] },
+          },
+          {
+            // The page was briefly served here; keep those links working.
+            path: "/worklists",
+            redirect: { name: "ClinicianDashboard" },
           },
           {
             path: "/how-it-works",
