@@ -313,7 +313,8 @@ the builder, the public tool buckets and the plugin backends.
   - `router/index.ts`: routes and their `requiresAuth` / `requiresRoles` meta.
   - `views/`: `dashboard/` (the study dashboard, assay config and launch),
     `worklists/` (the clinician dashboard at `/clinician-dashboard`, a
-    frontend-only prototype: clinicians review each case's annotation; example
+    frontend-only prototype: a list of studies, each opening its worklist, where
+    clinicians review each case's annotation; example
     cases and decisions live in the browser's localStorage), `catalogue/`, `upload-dataset/` (the measurements, models, tools
     and workflows hubs), `tool-plugin/` (`/tool-view`, where GUI tools run),
     `home/`, `tutorial/`, `isa-project/` (a frontend-only prototype: the
