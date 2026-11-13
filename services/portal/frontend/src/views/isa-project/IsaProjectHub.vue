@@ -30,6 +30,9 @@
             {{ summary(e.project) }}
           </span>
         </div>
+        <div class="row__chains">
+          <StudyChain v-for="s in e.project.investigations.flatMap(i => i.studies)" :key="s.id" :study="s" />
+        </div>
         <div class="row__actions">
           <button type="button" class="aurora-btn aurora-btn--solid" data-test="open" @click="open(e.project.project.id)">
             Open in study dashboard
@@ -56,6 +59,7 @@ import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import HubShell from "@/views/upload-dataset/components/HubShell.vue";
 import ConfirmDialog from "@/views/upload-dataset/components/ConfirmDialog.vue";
+import StudyChain from "./components/StudyChain.vue";
 import { useConfirm } from "@/views/upload-dataset/components/useConfirm";
 import { useIsaProjectStore } from "./isaProjectStore";
 import { SANDBOX_ID } from "./sandbox";
@@ -167,4 +171,6 @@ const askReset = (p: IsaProject) => confirm.ask({
 .row__source { padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: 0.76rem; }
 .row__source--upload { border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent); }
 .row__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+/* The chains take a line of their own under the title and actions. */
+.row__chains { order: 3; flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 </style>

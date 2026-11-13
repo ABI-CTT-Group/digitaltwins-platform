@@ -8,6 +8,7 @@ const push = vi.fn();
 vi.mock("vue-router", () => ({ useRouter: () => ({ push }) }));
 
 import IsaProjectHub from "../IsaProjectHub.vue";
+import StudyChain from "../components/StudyChain.vue";
 
 let wrapper: VueWrapper | undefined;
 afterEach(() => wrapper?.unmount());
@@ -42,6 +43,13 @@ describe("IsaProjectHub", () => {
     expect(rows(w)).toHaveLength(1);
     expect(row(w, "Test Project (example)").text()).toContain("Example");
     expect(row(w, "Test Project (example)").text()).toContain("1 investigation, 1 study, 4 assays");
+  });
+
+  it("previews each study's chain of assays", async () => {
+    const w = await render();
+    const chains = w.findAllComponents(StudyChain);
+    expect(chains.map(c => c.props("study").title)).toEqual(["Test Study"]);
+    expect(row(w, "Test Project").find("[data-test=chain]").exists()).toBe(true);
   });
 
   it("opens a project in the study dashboard", async () => {
