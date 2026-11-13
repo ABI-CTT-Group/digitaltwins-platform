@@ -5,15 +5,15 @@ vi.mock("@/store/auth_store", () => ({ useAuthStore: () => ({ updateAuthState: (
 
 import router from "../index";
 
-describe("worklists routes", () => {
-  it("serves Worklists at /worklists to the clinician dashboard's roles", () => {
-    const r = router.resolve({ name: "Worklists" });
-    expect(r.path).toBe("/worklists");
+describe("clinician dashboard routes", () => {
+  it("serves the worklist page as the clinician dashboard, to admins, researchers and clinicians", () => {
+    const r = router.resolve({ name: "ClinicianDashboard" });
+    expect(r.path).toBe("/clinician-dashboard");
     expect(r.meta.requiresRoles).toEqual(["admin", "researcher", "clinician"]);
   });
 
-  it("sends the old clinician dashboard URL to Worklists", () => {
-    const old = router.getRoutes().find(r => r.path === "/clinician-dashboard");
-    expect(old?.redirect).toEqual({ name: "Worklists" });
+  it("sends /worklists links to the clinician dashboard", () => {
+    const old = router.getRoutes().find(r => r.path === "/worklists");
+    expect(old?.redirect).toEqual({ name: "ClinicianDashboard" });
   });
 });

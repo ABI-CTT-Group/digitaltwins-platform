@@ -50,15 +50,15 @@ const routes = [
           },
           {
             // Frontend-only prototype: example cases live in the browser; nothing reaches the API.
-            path: "/worklists",
-            name: "Worklists",
+            path: "/clinician-dashboard",
+            name: "ClinicianDashboard",
             component: WorklistsView,
             meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher', 'clinician'] },
           },
           {
-            // Worklists replaced the clinician dashboard; keep old links working.
-            path: "/clinician-dashboard",
-            redirect: { name: "Worklists" },
+            // The page was briefly served here; keep those links working.
+            path: "/worklists",
+            redirect: { name: "ClinicianDashboard" },
           },
           {
             path: "/how-it-works",

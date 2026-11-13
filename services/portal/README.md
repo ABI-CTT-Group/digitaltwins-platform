@@ -141,7 +141,7 @@ The portal is the Vue 3 + Vuetify single-page app behind `/`, served by its own 
 
 | Path | What it is |
 |---|---|
-| `frontend/src/views/` | Pages: `home`, `dashboard` (the study dashboard, assays), `worklists` (frontend-only prototype at `/worklists`, which replaced the clinician dashboard: clinicians review each case's annotation, on example cases kept in the browser), `catalogue`, `upload-dataset` (the measurement, model, tool and workflow wizards), `tool-plugin` (`/tool-view`, where a GUI tool runs), `tutorial`, `isa-project` (frontend-only prototype: the ISA project hub, and the study dashboard's "Study design sandbox" programme, kept in the browser) |
+| `frontend/src/views/` | Pages: `home`, `dashboard` (the study dashboard, assays), `worklists` (the clinician dashboard at `/clinician-dashboard`, a frontend-only prototype: clinicians review each case's annotation, on example cases kept in the browser), `catalogue`, `upload-dataset` (the measurement, model, tool and workflow wizards), `tool-plugin` (`/tool-view`, where a GUI tool runs), `tutorial`, `isa-project` (frontend-only prototype: the ISA project hub, and the study dashboard's "Study design sandbox" programme, kept in the browser) |
 | `frontend/src/router/index.ts` | The routes |
 | `frontend/src/bootstrap/` | Keycloak sign-in (`keycloak.ts`), the HTTP clients (`http.ts`) and one module per backend area (`platform_api.ts`, `tool_api.ts`, `workflow_api.ts`, `measurement_api.ts`, `model_api.ts`, `dashboard_api.ts`) |
 | `frontend/src/components/` | Shared components, including `RemoteComponentApp.vue`, which mounts a plugin's bundle |

@@ -41,7 +41,7 @@
 </template>
 
 <script setup lang="ts">
-// Worklists (frontend-only prototype): the cases of a project for clinicians to review, one
+// The clinician dashboard (frontend-only prototype): a worklist of a project's cases for clinicians to review, one
 // decision per case. Example cases kept in the browser; nothing reaches an API.
 import { computed, ref } from "vue";
 import { useToast } from "vue-toastification";

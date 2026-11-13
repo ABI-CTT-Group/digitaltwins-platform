@@ -48,3 +48,10 @@ builder or database change.
   - Needs correction opens the note form.
   - After a reload the progress still reads 16 of 36.
   - On a phone, the review panel stacks above the list.
+
+## Follow-up: back at /clinician-dashboard
+
+Afterwards the page went back to `/clinician-dashboard`, and its name to "Clinician dashboard", as the
+user asked. The route name is `ClinicianDashboard` again, the home card and nav title say "Clinician
+dashboard", and `/worklists` now redirects there. The page heading "Your worklist", the `worklists/` folder
+and the glossary term *worklist* are unchanged.

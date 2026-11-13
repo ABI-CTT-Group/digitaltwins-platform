@@ -42,12 +42,12 @@ export const cards: CardConfig[] = [
         action: { type: 'route', name: 'StudyDashboard' }
     },
     {
-        title: 'Worklists',
+        title: 'Clinician dashboard',
         image: clinicalImage,
         location: 'Te Whatu Ora AI Lab',
         description: "Go through your project's cases and confirm each annotation, or send it back for correction.",
         requireRoles: ['admin', 'researcher', 'clinician'],
-        action: { type: 'route', name: 'Worklists' }
+        action: { type: 'route', name: 'ClinicianDashboard' }
     },
     {
         title: 'Physiology exploration (FC Map)',
