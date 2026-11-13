@@ -32,7 +32,7 @@ async function uploadFile(w: VueWrapper, text: string) {
 }
 
 const mine = async () => {
-  const p = await fixtureSource.loadExample("example-breast-pilot");
+  const p = await fixtureSource.loadExample("example-test-project");
   return JSON.stringify({ ...p, project: { id: "p-mine", title: "My study plan" } });
 };
 
@@ -40,14 +40,14 @@ describe("IsaProjectHub", () => {
   it("lists the example ISA projects with what they hold", async () => {
     const w = await render();
     expect(rows(w)).toHaveLength(1);
-    expect(row(w, "Breast pilot (example)").text()).toContain("Example");
-    expect(row(w, "Breast pilot (example)").text()).toContain("1 investigation, 1 study, 6 assays");
+    expect(row(w, "Test Project (example)").text()).toContain("Example");
+    expect(row(w, "Test Project (example)").text()).toContain("1 investigation, 1 study, 4 assays");
   });
 
   it("opens a project in the study dashboard", async () => {
     const w = await render();
-    await row(w, "Breast pilot").find("[data-test=open]").trigger("click");
-    expect(push).toHaveBeenCalledWith({ name: "StudyDashboard", query: { trail: "isa-sandbox,isa-sandbox:p-breast-pilot" } });
+    await row(w, "Test Project").find("[data-test=open]").trigger("click");
+    expect(push).toHaveBeenCalledWith({ name: "StudyDashboard", query: { trail: "isa-sandbox,isa-sandbox:p-test-project" } });
   });
 
   it("adds an uploaded project to the list", async () => {
@@ -74,8 +74,8 @@ describe("IsaProjectHub", () => {
   it("offers Remove for uploads and Reset for examples, each after asking", async () => {
     const w = await render();
     await uploadFile(w, await mine());
-    expect(row(w, "Breast pilot").find("[data-test=remove]").exists()).toBe(false);
-    expect(row(w, "Breast pilot").find("[data-test=reset]").exists()).toBe(true);
+    expect(row(w, "Test Project").find("[data-test=remove]").exists()).toBe(false);
+    expect(row(w, "Test Project").find("[data-test=reset]").exists()).toBe(true);
 
     await row(w, "My study plan").find("[data-test=remove]").trigger("click");
     const dialog = w.findComponent({ name: "ConfirmDialog" });

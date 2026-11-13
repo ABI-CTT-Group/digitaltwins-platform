@@ -3,7 +3,7 @@
 import type { Catalogue, IsaProject } from "../model/types";
 import { validateIsaProject } from "../model/isaProject";
 import catalogueJson from "../fixtures/catalogue.json";
-import breastPilotJson from "../fixtures/example-breast-pilot.json";
+import testProjectJson from "../fixtures/example-test-project.json";
 
 export interface IsaProjectSource {
   listExamples(): Promise<{ id: string; title: string }[]>;
@@ -22,7 +22,7 @@ export class IsaProjectUploadError extends Error {
 
 const copy = <T>(v: unknown): T => JSON.parse(JSON.stringify(v)) as T;
 
-const examples: Record<string, unknown> = { "example-breast-pilot": breastPilotJson };
+const examples: Record<string, unknown> = { "example-test-project": testProjectJson };
 
 export const fixtureSource: IsaProjectSource = {
   async listExamples() {

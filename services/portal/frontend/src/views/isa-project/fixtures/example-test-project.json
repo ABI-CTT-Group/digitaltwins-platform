@@ -1,0 +1,287 @@
+{
+  "schemaVersion": "0.1-draft",
+  "project": {
+    "id": "p-test-project",
+    "title": "Test Project (example)"
+  },
+  "investigations": [
+    {
+      "id": "i-test",
+      "title": "Test Investigation",
+      "studies": [
+        {
+          "id": "s-test",
+          "title": "Test Study",
+          "assays": [
+            {
+              "id": "a-cohort",
+              "title": "Test Assay 1: cohort selection",
+              "type": "notebook",
+              "workflowId": "wf-mri-curation",
+              "cohort": [],
+              "inputs": [
+                {
+                  "port": "raw_dataset",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-test-dicom"
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "port": "curated_dataset",
+                  "datasetName": "test_curated_dataset",
+                  "category": "measurements"
+                }
+              ]
+            },
+            {
+              "id": "a-convert",
+              "title": "Test Assay 2: image conversion",
+              "type": "script",
+              "workflowId": "wf-image-conversion",
+              "cohort": [
+                1
+              ],
+              "inputs": [
+                {
+                  "port": "dicom_input",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-cohort",
+                    "port": "curated_dataset"
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "port": "nifti_output",
+                  "datasetName": "test_converted",
+                  "category": "measurements"
+                },
+                {
+                  "port": "nrrd_output",
+                  "datasetName": "test_converted",
+                  "category": "measurements"
+                }
+              ]
+            },
+            {
+              "id": "a-visualise",
+              "title": "Test Assay 3: image visualisation",
+              "type": "gui",
+              "workflowId": "wf-volview",
+              "cohort": [
+                1
+              ],
+              "inputs": [
+                {
+                  "port": "dicom_file",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-convert",
+                    "port": "nifti_output"
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "port": "output",
+                  "datasetName": "test_volview_output",
+                  "category": "measurements"
+                }
+              ]
+            },
+            {
+              "id": "a-breast-app",
+              "title": "Test Assay 4: breast app",
+              "type": "gui",
+              "workflowId": "wf-lesion-curator",
+              "cohort": [
+                1
+              ],
+              "inputs": [
+                {
+                  "port": "contrast_pre_nrrd",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-convert",
+                    "port": "nrrd_output"
+                  }
+                },
+                {
+                  "port": "contrast_1_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-test-data-breast-app"
+                  }
+                },
+                {
+                  "port": "contrast_2_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-test-data-breast-app"
+                  }
+                },
+                {
+                  "port": "contrast_3_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-test-data-breast-app"
+                  }
+                },
+                {
+                  "port": "contrast_4_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-test-data-breast-app"
+                  }
+                },
+                {
+                  "port": "registration_pre_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-test-data-breast-app"
+                  }
+                },
+                {
+                  "port": "registration_1_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-test-data-breast-app"
+                  }
+                },
+                {
+                  "port": "registration_2_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-test-data-breast-app"
+                  }
+                },
+                {
+                  "port": "registration_3_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-test-data-breast-app"
+                  }
+                },
+                {
+                  "port": "registration_4_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-test-data-breast-app"
+                  }
+                },
+                {
+                  "port": "t2_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-test-data-breast-app"
+                  }
+                },
+                {
+                  "port": "model_predicted_LPS_nii",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-test-data-breast-app"
+                  }
+                },
+                {
+                  "port": "researcher_manual_LPS_nii",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-test-data-breast-app"
+                  }
+                },
+                {
+                  "port": "ground_truth_LPS_nii",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-test-data-breast-app"
+                  }
+                },
+                {
+                  "port": "breast_surface_glb",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-test-model-breast-app"
+                  }
+                },
+                {
+                  "port": "vessel_mask_nii",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-test-data-breast-app"
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "port": "mask_meta_json",
+                  "datasetName": "test_breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "model_predicted_nii_LPS",
+                  "datasetName": "test_breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "researcher_manual_nii_LPS",
+                  "datasetName": "test_breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "clinician_validated_nii_LPS",
+                  "datasetName": "test_breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "clinician_validated_nii_RAI",
+                  "datasetName": "test_breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "ai_generated_nii_LPS",
+                  "datasetName": "test_breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "mask_glb",
+                  "datasetName": "test_breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "ground_truth_glb",
+                  "datasetName": "test_breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "ai_generated_glb",
+                  "datasetName": "test_breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "validate_json",
+                  "datasetName": "test_breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "model_predicted_glb",
+                  "datasetName": "test_breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "researcher_manual_glb",
+                  "datasetName": "test_breast_app_output",
+                  "category": "measurements"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

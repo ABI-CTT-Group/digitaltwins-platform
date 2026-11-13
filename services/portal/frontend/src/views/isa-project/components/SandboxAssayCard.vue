@@ -59,7 +59,7 @@
 import { computed } from "vue";
 import AssayActionBar from "@/views/dashboard/components/AssayActionBar.vue";
 import type { Assay } from "../model/types";
-import type { AssayStatus } from "../model/isaProject";
+import { ASSAY_TYPE_ACCENT, type AssayStatus } from "../model/isaProject";
 
 const props = defineProps<{ assay: Assay; status: AssayStatus; selected?: boolean; warnings?: string[] }>();
 const emit = defineEmits<{
@@ -78,7 +78,7 @@ const STATUS_TEXT: Record<AssayStatus, string> = {
 };
 
 // The same type colours as the real assay cards.
-const tagAccent = computed(() => ({ gui: "#5fd6e8", notebook: "#ffb74d", script: "#c792ea" })[props.assay.type] ?? "#9fb4bf");
+const tagAccent = computed(() => ASSAY_TYPE_ACCENT[props.assay.type] ?? "#9fb4bf");
 </script>
 
 <style scoped>

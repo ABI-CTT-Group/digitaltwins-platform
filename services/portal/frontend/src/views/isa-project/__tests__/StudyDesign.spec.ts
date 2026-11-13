@@ -17,9 +17,9 @@ beforeEach(() => {
   setActivePinia(createPinia());
 });
 
-async function render(studyId = "s-pilot") {
+async function render(studyId = "s-test") {
   wrapper = mount(StudyDesign, {
-    props: { projectId: "p-breast-pilot", studyId },
+    props: { projectId: "p-test-project", studyId },
     global: { plugins: [testVuetify()], stubs: { VueFlow: VueFlowStub, RouterLink: RouterLinkStub } },
   });
   await flushPromises();
@@ -32,7 +32,7 @@ const panel = (w: VueWrapper) => w.findComponent({ name: "AssayPanel" });
 describe("StudyDesign", () => {
   it("shows the Flow view first, and remembers a switch to List", async () => {
     const w = await render();
-    expect(graph(w).props("study").id).toBe("s-pilot");
+    expect(graph(w).props("study").id).toBe("s-test");
     await w.find("[data-test=view-list]").trigger("click");
     expect(graph(w).exists()).toBe(false);
     expect(w.find("[data-test=assay-list]").exists()).toBe(true);
@@ -45,16 +45,16 @@ describe("StudyDesign", () => {
     const w = await render();
     await w.find("[data-test=view-list]").trigger("click");
     expect(w.findAllComponents(SandboxAssayCard).map(c => c.props("assay").id))
-      .toEqual(["a-cohort", "a-convert", "a-annotate", "a-train", "a-pilot", "a-analyse"]);
+      .toEqual(["a-cohort", "a-convert", "a-visualise", "a-breast-app"]);
   });
 
   it("opens an assay's configuration in the side panel", async () => {
     const w = await render();
     expect(panel(w).exists()).toBe(false);
-    graph(w).vm.$emit("configure", "a-pilot");
+    graph(w).vm.$emit("configure", "a-breast-app");
     await flushPromises();
-    expect(panel(w).props("assayId")).toBe("a-pilot");
-    expect(graph(w).props("selectedAssayId")).toBe("a-pilot");
+    expect(panel(w).props("assayId")).toBe("a-breast-app");
+    expect(graph(w).props("selectedAssayId")).toBe("a-breast-app");
   });
 
   it("runs an assay from its card, and makes its outputs available only once submitted", async () => {
@@ -62,36 +62,36 @@ describe("StudyDesign", () => {
     graph(w).vm.$emit("launch", "a-cohort");
     await flushPromises();
     expect(graph(w).props("sim")).toEqual({ ran: ["a-cohort"], submitted: [] });
-    expect(w.text()).toContain("Ran Assay 1: cohort selection. Submit its outputs so later assays can use them.");
+    expect(w.text()).toContain("Ran Test Assay 1: cohort selection. Submit its outputs so later assays can use them.");
 
     graph(w).vm.$emit("submit", "a-cohort");
     await flushPromises();
     expect(graph(w).props("sim")).toEqual({ ran: [], submitted: ["a-cohort"] });
-    expect(w.text()).toContain("Submitted Assay 1: cohort selection");
+    expect(w.text()).toContain("Submitted Test Assay 1: cohort selection");
 
     await w.find("[data-test=simulate]").trigger("click");
     expect(graph(w).props("sim")).toEqual({ ran: [], submitted: ["a-cohort", "a-convert"] });
-    expect(w.text()).toContain("Ran and submitted Assay 2: DICOM to NIfTI conversion");
+    expect(w.text()).toContain("Ran and submitted Test Assay 2: image conversion");
   });
 
   it("explains a Submit or Launch that has nothing to do", async () => {
     const w = await render();
     graph(w).vm.$emit("submit", "a-cohort");
     await flushPromises();
-    expect(w.text()).toContain("Assay 1: cohort selection has no run to submit. Launch it first.");
+    expect(w.text()).toContain("Test Assay 1: cohort selection has no run to submit. Launch it first.");
 
     graph(w).vm.$emit("launch", "a-cohort");
     graph(w).vm.$emit("launch", "a-cohort");
     await flushPromises();
-    expect(w.text()).toContain("Assay 1: cohort selection has already run (simulated). Submit its outputs next.");
+    expect(w.text()).toContain("Test Assay 1: cohort selection has already run (simulated). Submit its outputs next.");
 
     graph(w).vm.$emit("submit", "a-cohort");
     graph(w).vm.$emit("launch", "a-cohort");
     await flushPromises();
-    expect(w.text()).toContain("Assay 1: cohort selection is already submitted (simulated). Reset to start again.");
+    expect(w.text()).toContain("Test Assay 1: cohort selection is already submitted (simulated). Reset to start again.");
     graph(w).vm.$emit("submit", "a-cohort");
     await flushPromises();
-    expect(w.text()).toContain("Assay 1: cohort selection is already submitted (simulated).");
+    expect(w.text()).toContain("Test Assay 1: cohort selection is already submitted (simulated).");
     expect(graph(w).props("sim")).toEqual({ ran: [], submitted: ["a-cohort"] });
   });
 

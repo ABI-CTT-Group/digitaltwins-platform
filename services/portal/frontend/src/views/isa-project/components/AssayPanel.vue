@@ -39,55 +39,96 @@
 
     <section v-if="assay.inputs.length" class="block">
       <h3 class="block__title">Inputs</h3>
-      <div v-for="input in assay.inputs" :key="input.port" :data-test="`input-${input.port}`" class="io">
-        <v-select
-          :label="input.port"
-          :items="optionsFor(input.port)"
-          item-title="label"
-          item-value="key"
-          :model-value="input.source ? sourceKey(input.source) : null"
-          :hint="categoryOf(input.port)"
-          persistent-hint
-          density="comfortable"
-          variant="outlined"
-          no-data-text="Nothing of this category yet"
-          @update:model-value="(key: string) => pickSource(input.port, key)"
+      <div
+        v-for="g in groups"
+        :key="g.key"
+        class="group"
+        :class="{ 'group--planned': g.producer, 'is-ghost': isGroupGhost(g) }"
+        data-test="input-group"
+      >
+        <button
+          v-if="g.key !== 'none'"
+          type="button"
+          class="group__head"
+          data-test="group-toggle"
+          :aria-expanded="isOpen(g)"
+          @click="toggle(g)"
         >
-          <template #item="{ props: itemProps, item }">
-            <v-list-item v-bind="itemProps" :class="{ 'is-planned': isGhost(item.raw) }">
-              <template #prepend>
-                <v-icon :icon="isGhost(item.raw) ? 'mdi-database-clock-outline' : 'mdi-database-outline'" size="18" />
+          <v-icon :icon="isOpen(g) ? 'mdi-chevron-down' : 'mdi-chevron-right'" size="18" class="group__chevron" />
+          <span class="group__text">
+            <span class="group__title">{{ g.title }}</span>
+            <span class="group__note">{{ groupNote(g) }}</span>
+          </span>
+          <span class="group__count">{{ g.ports.length }}</span>
+        </button>
+        <div v-else class="group__head group__head--static">
+          <v-icon icon="mdi-circle-outline" size="18" class="group__chevron" />
+          <span class="group__text">
+            <span class="group__title">{{ g.title }}</span>
+            <span class="group__note">Choose what each of these reads.</span>
+          </span>
+          <span class="group__count">{{ g.ports.length }}</span>
+        </div>
+
+        <div v-if="isOpen(g)" class="group__body">
+          <div v-for="port in g.ports" :key="port" :data-test="`input-${port}`" class="io">
+            <v-select
+              :label="port"
+              :items="optionsFor(port)"
+              item-title="label"
+              item-value="key"
+              :model-value="sourceOf(port)"
+              :hint="categoryOf(port)"
+              persistent-hint
+              density="comfortable"
+              variant="outlined"
+              no-data-text="Nothing of this category yet"
+              @update:model-value="(key: string) => pickSource(port, key)"
+            >
+              <template #item="{ props: itemProps, item }">
+                <v-list-item v-bind="itemProps" :class="{ 'is-planned': isGhost(item.raw) }">
+                  <template #prepend>
+                    <v-icon :icon="isGhost(item.raw) ? 'mdi-database-clock-outline' : 'mdi-database-outline'" size="18" />
+                  </template>
+                  <v-list-item-subtitle>{{ describe(item.raw) }}</v-list-item-subtitle>
+                </v-list-item>
               </template>
-              <v-list-item-subtitle>{{ describe(item.raw) }}</v-list-item-subtitle>
-            </v-list-item>
-          </template>
-          <template #selection="{ item }">
-            <span class="chosen" :class="{ 'is-planned': isGhost(item.raw) }">
-              <v-icon :icon="isGhost(item.raw) ? 'mdi-database-clock-outline' : 'mdi-database-outline'" size="16" />
-              <span class="chosen__name">{{ item.raw.label }}</span>
-              <span class="chosen__note">{{ describe(item.raw) }}</span>
-            </span>
-          </template>
-        </v-select>
-        <p v-for="w in warningsFor(input.port)" :key="w" class="warn" data-test="cohort-warning">
-          <v-icon icon="mdi-alert-outline" size="16" />{{ w }}
-        </p>
+              <template #selection="{ item }">
+                <span class="chosen" :class="{ 'is-planned': isGhost(item.raw) }">
+                  <v-icon :icon="isGhost(item.raw) ? 'mdi-database-clock-outline' : 'mdi-database-outline'" size="16" />
+                  <span class="chosen__name">{{ item.raw.label }}</span>
+                  <span class="chosen__note">{{ describe(item.raw) }}</span>
+                </span>
+              </template>
+            </v-select>
+            <p v-for="w in warningsFor(port)" :key="w" class="warn" data-test="cohort-warning">
+              <v-icon icon="mdi-alert-outline" size="16" />{{ w }}
+            </p>
+          </div>
+        </div>
       </div>
     </section>
 
     <section v-if="assay.outputs.length" class="block">
       <h3 class="block__title">Outputs</h3>
-      <p class="block__help">Each output becomes a planned dataset. Later assays in this study can use it before it exists.</p>
-      <div v-for="output in assay.outputs" :key="output.port" data-test="output" class="io">
+      <p class="block__help">
+        Outputs with the same dataset name fill one planned dataset. Later assays in this study can use it before it exists.
+      </p>
+      <div v-for="(g, n) in outputs" :key="n" data-test="output-group" class="io">
         <v-text-field
-          :label="`${output.port}: dataset name`"
-          :model-value="output.datasetName"
-          :hint="output.category"
+          label="Dataset name"
+          :model-value="drafts[n] ?? g.datasetName"
+          :hint="[...new Set(g.ports.map(o => o.category))].join(', ')"
           persistent-hint
           density="comfortable"
           variant="outlined"
-          @update:model-value="(v: string) => (output.datasetName = v)"
+          @update:model-value="(v: string) => (drafts[n] = v)"
+          @change="renameOutputs(n, g.datasetName)"
         />
+        <p class="fills">
+          Filled by {{ g.ports.length === 1 ? "one output" : `${g.ports.length} outputs` }}:
+          <span v-for="o in g.ports" :key="o.port" class="fills__port">{{ o.port }}</span>
+        </p>
       </div>
     </section>
 
@@ -122,12 +163,15 @@ import {
   cohortWarnings,
   cohortWarningText,
   formatCohort,
+  inputGroups,
   inputOptions,
+  outputGroups,
   parseCohort,
   setWorkflow,
   sourceKey,
   workflowTools,
   type AssayStatus,
+  type InputGroup,
   type InputOption,
   type Sim,
 } from "../model/isaProject";
@@ -149,6 +193,34 @@ const workflow = computed(() => props.catalogue.workflows.find(w => w.id === ass
 const workflowItems = computed(() => props.catalogue.workflows.filter(w => w.type === assay.value?.type));
 const tools = computed(() => workflowTools(props.catalogue, assay.value?.workflowId ?? null));
 const showWorkflow = ref(false);
+
+const groups = computed(() => (assay.value ? inputGroups(props.study, props.catalogue, assay.value.id) : []));
+const outputs = computed(() => (assay.value ? outputGroups(assay.value) : []));
+
+/** Groups the user opened or closed; the rest start open unless they hold this many inputs. */
+const COLLAPSE_AT = 4;
+const opened = ref(new Map<string, boolean>());
+const isOpen = (g: InputGroup) => g.key === "none" || (opened.value.get(g.key) ?? g.ports.length < COLLAPSE_AT);
+const toggle = (g: InputGroup) => opened.value.set(g.key, !isOpen(g));
+
+const isGroupGhost = (g: InputGroup) => !!g.producer && !props.sim.submitted.includes(g.producer.id);
+const groupNote = (g: InputGroup) =>
+  !g.producer ? "On the platform"
+    : isGroupGhost(g) ? `Will be produced by ${g.producer.title}` : `Produced by ${g.producer.title}`;
+
+const sourceOf = (port: string) => {
+  const source = assay.value?.inputs.find(i => i.port === port)?.source;
+  return source ? sourceKey(source) : null;
+};
+
+/** Typed dataset names, applied to every output in the group when the field is left. */
+const drafts = ref<Record<number, string>>({});
+function renameOutputs(n: number, from: string) {
+  const to = drafts.value[n]?.trim();
+  delete drafts.value[n];
+  if (!assay.value || !to || to === from) return;
+  for (const o of assay.value.outputs) if (o.datasetName === from) o.datasetName = to;
+}
 
 const categoryOf = (port: string) => workflow.value?.inputs.find(p => p.name === port)?.category ?? "";
 
@@ -180,7 +252,12 @@ function pickSource(port: string, key: string) {
 
 const cohortText = ref("");
 const cohortError = ref("");
-watch(assay, a => { cohortText.value = formatCohort(a?.cohort ?? []); cohortError.value = ""; }, { immediate: true });
+watch(assay, a => {
+  cohortText.value = formatCohort(a?.cohort ?? []);
+  cohortError.value = "";
+  opened.value = new Map();
+  drafts.value = {};
+}, { immediate: true });
 
 function setCohort(text: string) {
   cohortText.value = text;
@@ -233,6 +310,39 @@ function setCohort(text: string) {
 .tool { color: var(--text); font-size: 0.88rem; }
 .tool__name { font-weight: 500; }
 .tool__step { margin-left: 8px; color: var(--text-faint); font-size: 0.8rem; }
+
+/* An input group: a rail down its left edge, dashed while its dataset is still planned, as the
+   Flow view draws a planned edge. */
+.group { border-left: 2px solid color-mix(in srgb, var(--accent-measurements) 55%, transparent); padding-left: 12px; }
+.group.is-ghost { border-left-style: dashed; border-left-color: var(--text-faint); }
+.group:has(.group__head--static) { border-left-color: var(--tone-needs); }
+.group__head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.group__head--static { cursor: default; }
+.group__head:focus-visible { outline: 2px solid var(--accent-tools); outline-offset: 2px; border-radius: 4px; }
+.group__chevron { margin-top: 1px; color: var(--text-dim); }
+.group__text { display: flex; flex-direction: column; min-width: 0; }
+.group__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 0.9rem; color: var(--text); }
+.group.is-ghost .group__title { font-style: italic; color: var(--text-dim); }
+.group__note { font-size: 0.78rem; color: var(--text-faint); }
+.group__count { font-variant-numeric: tabular-nums; font-size: 0.85rem; color: var(--text-dim); }
+.group__body { display: flex; flex-direction: column; gap: 12px; padding: 10px 0 4px; }
+
+.fills { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 8px 0 0; font-size: 0.78rem; color: var(--text-faint); }
+.fills__port { color: var(--text-dim); }
+.fills__port:not(:last-child)::after { content: ","; }
 
 /* Name, then the note on its own line, so a long note never squeezes the name. */
 .chosen {

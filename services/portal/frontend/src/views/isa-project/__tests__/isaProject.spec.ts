@@ -4,7 +4,9 @@ import {
   assayStatus,
   cohortWarnings,
   formatCohort,
+  inputGroups,
   inputOptions,
+  outputGroups,
   parseCohort,
   runOrder,
   setWorkflow,
@@ -134,7 +136,7 @@ describe("inputOptions", () => {
     const opts = inputOptions(chain(), catalogue, "a2", "measurements");
     expect(opts).toEqual([
       { key: "existing:ds-ct", label: "Chest CT", planned: false, source: { kind: "existing", datasetId: "ds-ct" } },
-      { key: "planned:a1:masks", label: "Lung masks", planned: true, producedBy: "A1",
+      { key: "planned:a1:masks", label: "Lung masks / masks", planned: true, producedBy: "A1",
         source: { kind: "planned", assayId: "a1", port: "masks" } },
     ]);
   });
@@ -222,12 +224,18 @@ describe("cohortWarnings", () => {
 });
 
 describe("setWorkflow", () => {
+  it("names one shared dataset for all of the workflow's outputs, as the platform does", () => {
+    const s = chain();
+    setWorkflow(s, "a1", catalogue.workflows[1]);
+    expect(s.assays[0].outputs.map(o => o.datasetName)).toEqual(["A1 outputs", "A1 outputs"]);
+  });
+
   it("replaces the assay's ports with the workflow's and clears inputs that pointed at removed outputs", () => {
     const s = chain();
     setWorkflow(s, "a2", catalogue.workflows[0]); // wf-seg: out "masks" only, so a3's "report" link breaks
     expect(s.assays[1].workflowId).toBe("wf-seg");
     expect(s.assays[1].inputs).toEqual([{ port: "ct", source: null }]);
-    expect(s.assays[1].outputs).toEqual([{ port: "masks", datasetName: "A2 masks", category: "measurements" }]);
+    expect(s.assays[1].outputs).toEqual([{ port: "masks", datasetName: "A2 outputs", category: "measurements" }]);
     expect(s.assays[2].inputs[0].source).toBeNull();
   });
 });
@@ -259,11 +267,72 @@ describe("studyGraph", () => {
     const g = studyGraph(s, catalogue, sim());
     expect(g.edges).toEqual([
       { id: "existing:ds-ct->assay:a1", source: "existing:ds-ct", target: "assay:a1", labels: [], planned: false },
-      { id: "assay:a1->assay:a2", source: "assay:a1", target: "assay:a2", labels: ["Lung masks"], planned: true },
-      { id: "assay:a2->assay:a3", source: "assay:a2", target: "assay:a3", labels: ["Mesh report", "Lung meshes"], planned: true },
+      { id: "assay:a1->assay:a2", source: "assay:a1", target: "assay:a2", labels: ["Lung masks / masks"], planned: true },
+      { id: "assay:a2->assay:a3", source: "assay:a2", target: "assay:a3", labels: ["Mesh report / report", "Lung meshes / meshes"], planned: true },
     ]);
     expect(studyGraph(s, catalogue, sim(["a1"])).edges.find(e => e.id === "assay:a1->assay:a2")!.planned).toBe(true);
     expect(studyGraph(s, catalogue, sim([], ["a1"])).edges.find(e => e.id === "assay:a1->assay:a2")!.planned).toBe(false);
+  });
+});
+
+describe("studyGraph sources", () => {
+  it("puts a platform dataset in the column just before the first assay that reads it", () => {
+    const s = chain();
+    s.assays[2].inputs.push({ port: "template", source: { kind: "existing", datasetId: "ds-model" } });
+    const g = studyGraph(s, catalogue, sim());
+    expect(g.nodes.find(n => n.id === "existing:ds-ct")!.column).toBe(0);
+    expect(g.nodes.find(n => n.id === "existing:ds-model")!.column).toBe(2); // a3 is in column 3
+  });
+
+  it("labels a platform dataset's edge with how many inputs read it, when more than one does", () => {
+    const s = chain();
+    s.assays[0].inputs.push({ port: "ct2", source: { kind: "existing", datasetId: "ds-ct" } });
+    s.assays[1].inputs.push({ port: "ct", source: { kind: "existing", datasetId: "ds-ct" } });
+    const g = studyGraph(s, catalogue, sim());
+    expect(g.edges.find(e => e.id === "existing:ds-ct->assay:a1")!.labels).toEqual(["2 inputs"]);
+    expect(g.edges.find(e => e.id === "existing:ds-ct->assay:a2")!.labels).toEqual([]);
+  });
+});
+
+describe("inputGroups", () => {
+  it("groups an assay's inputs by where they read from, with unchosen inputs last", () => {
+    const s = chain();
+    s.assays[2].inputs = [
+      { port: "x", source: null },
+      { port: "masks", source: { kind: "planned", assayId: "a2", port: "report" } },
+      { port: "ct", source: { kind: "existing", datasetId: "ds-ct" } },
+      { port: "meshes", source: { kind: "planned", assayId: "a2", port: "meshes" } },
+      { port: "ct2", source: { kind: "existing", datasetId: "ds-ct" } },
+    ];
+    const a2 = { id: "a2", title: "A2" };
+    expect(inputGroups(s, catalogue, "a3")).toEqual([
+      { key: "planned:a2:Mesh report", title: "Mesh report", producer: a2, ports: ["masks"] },
+      { key: "existing:ds-ct", title: "Chest CT", producer: null, ports: ["ct", "ct2"] },
+      { key: "planned:a2:Lung meshes", title: "Lung meshes", producer: a2, ports: ["meshes"] },
+      { key: "none", title: "Not chosen yet", producer: null, ports: ["x"] },
+    ]);
+  });
+
+  it("keeps ports that fill the same planned dataset in one group", () => {
+    const s = chain();
+    s.assays[1].outputs.forEach(o => (o.datasetName = "Shared"));
+    s.assays[2].inputs = [
+      { port: "a", source: { kind: "planned", assayId: "a2", port: "report" } },
+      { port: "b", source: { kind: "planned", assayId: "a2", port: "meshes" } },
+    ];
+    expect(inputGroups(s, catalogue, "a3").map(g => [g.title, g.ports])).toEqual([["Shared", ["a", "b"]]]);
+  });
+});
+
+describe("outputGroups", () => {
+  it("groups an assay's outputs by the dataset they fill, in order", () => {
+    const a = assay("a", { outputs: [
+      { port: "p1", datasetName: "One", category: "measurements" },
+      { port: "p2", datasetName: "Two", category: "models" },
+      { port: "p3", datasetName: "One", category: "measurements" },
+    ] });
+    expect(outputGroups(a).map(g => [g.datasetName, g.ports.map(o => o.port)]))
+      .toEqual([["One", ["p1", "p3"]], ["Two", ["p2"]]]);
   });
 });
 

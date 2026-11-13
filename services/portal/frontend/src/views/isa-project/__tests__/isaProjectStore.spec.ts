@@ -13,7 +13,7 @@ const freshPinia = () => {
 };
 
 const upload = async (over: Record<string, unknown> = {}) => {
-  const p = await fixtureSource.loadExample("example-breast-pilot");
+  const p = await fixtureSource.loadExample("example-test-project");
   return JSON.stringify({ ...p, project: { id: "p-mine", title: "My study plan" }, ...over });
 };
 
@@ -28,20 +28,20 @@ describe("isaProjectStore", () => {
     await Promise.all([store.ensureExamples(), store.ensureExamples()]);
     await store.ensureExamples();
     expect(store.entries.map(e => [e.project.project.id, e.source])).toEqual([
-      ["p-breast-pilot", "example"],
+      ["p-test-project", "example"],
     ]);
   });
 
-  it("drops examples that no longer ship, but keeps uploads", async () => {
+  it("drops examples that no longer ship, such as the retired breast pilot, but keeps uploads", async () => {
     const store = useIsaProjectStore();
     const old = JSON.parse(await upload());
     store.entries = [
-      { project: { ...old, project: { id: "p-lung", title: "Lung (old example)" } }, source: "example", exampleId: "example-lung" },
+      { project: { ...old, project: { id: "p-breast-pilot", title: "Breast pilot (example)" } }, source: "example", exampleId: "example-breast-pilot" },
       { project: old, source: "upload" },
     ];
     await store.ensureExamples();
     expect(store.entries.map(e => [e.project.project.id, e.source])).toEqual([
-      ["p-mine", "upload"], ["p-breast-pilot", "example"],
+      ["p-mine", "upload"], ["p-test-project", "example"],
     ]);
   });
 
@@ -71,28 +71,28 @@ describe("isaProjectStore", () => {
     store.remove("p-mine");
     expect(store.has("p-mine")).toBe(false);
 
-    store.study("p-breast-pilot", "s-pilot")!.assays[0].title = "Edited";
-    await store.resetExample("p-breast-pilot");
-    expect(store.study("p-breast-pilot", "s-pilot")!.assays[0].title).toBe("Assay 1: cohort selection");
+    store.study("p-test-project", "s-test")!.assays[0].title = "Edited";
+    await store.resetExample("p-test-project");
+    expect(store.study("p-test-project", "s-test")!.assays[0].title).toBe("Test Assay 1: cohort selection");
   });
 
   it("finds a study by project and study id", async () => {
     const store = useIsaProjectStore();
     await store.ensureExamples();
-    expect(store.study("p-breast-pilot", "s-pilot")?.title).toBe("Breast pilot");
-    expect(store.study("p-breast-pilot", "nope")).toBeNull();
+    expect(store.study("p-test-project", "s-test")?.title).toBe("Test Study");
+    expect(store.study("p-test-project", "nope")).toBeNull();
   });
 
   it("keeps uploads and edits across a page reload (localStorage)", async () => {
     const store = useIsaProjectStore();
     await store.ensureExamples();
     await store.upload(await upload());
-    store.study("p-breast-pilot", "s-pilot")!.assays[0].title = "Edited";
+    store.study("p-test-project", "s-test")!.assays[0].title = "Edited";
     await nextTick();
 
     freshPinia();
     const reloaded = useIsaProjectStore();
     expect(reloaded.has("p-mine")).toBe(true);
-    expect(reloaded.study("p-breast-pilot", "s-pilot")!.assays[0].title).toBe("Edited");
+    expect(reloaded.study("p-test-project", "s-test")!.assays[0].title).toBe("Edited");
   });
 });
