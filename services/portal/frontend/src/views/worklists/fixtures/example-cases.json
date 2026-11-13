@@ -1,0 +1,368 @@
+{
+  "project": {
+    "id": "p-breast-mri-ground-truth",
+    "title": "Breast MRI lesion ground truth (example)"
+  },
+  "cases": [
+    {
+      "id": "sub-001",
+      "scan": "DCE-MRI",
+      "slices": 112,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-03",
+      "status": "confirmed",
+      "note": null,
+      "reviewedBy": "Dr J. Ngata"
+    },
+    {
+      "id": "sub-002",
+      "scan": "DCE-MRI",
+      "slices": 128,
+      "annotatedBy": "R. Patel",
+      "updated": "2026-10-10",
+      "status": "confirmed",
+      "note": null,
+      "reviewedBy": "Dr J. Ngata"
+    },
+    {
+      "id": "sub-003",
+      "scan": "DCE-MRI",
+      "slices": 144,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-17",
+      "status": "needs",
+      "note": "Contour misses the satellite lesion at 2 o’clock.",
+      "reviewedBy": "Dr J. Ngata"
+    },
+    {
+      "id": "sub-004",
+      "scan": "DCE-MRI",
+      "slices": 160,
+      "annotatedBy": "S. Lim",
+      "updated": "2026-10-24",
+      "status": "confirmed",
+      "note": null,
+      "reviewedBy": "Dr J. Ngata"
+    },
+    {
+      "id": "sub-005",
+      "scan": "DCE-MRI",
+      "slices": 112,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-05",
+      "status": "confirmed",
+      "note": null,
+      "reviewedBy": "Dr J. Ngata"
+    },
+    {
+      "id": "sub-006",
+      "scan": "DCE-MRI",
+      "slices": 128,
+      "annotatedBy": "R. Patel",
+      "updated": "2026-10-12",
+      "status": "confirmed",
+      "note": null,
+      "reviewedBy": "Dr J. Ngata"
+    },
+    {
+      "id": "sub-007",
+      "scan": "DCE-MRI",
+      "slices": 144,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-19",
+      "status": "confirmed",
+      "note": null,
+      "reviewedBy": "Dr J. Ngata"
+    },
+    {
+      "id": "sub-008",
+      "scan": "DCE-MRI",
+      "slices": 160,
+      "annotatedBy": "S. Lim",
+      "updated": "2026-10-26",
+      "status": "needs",
+      "note": "Segmentation includes the biopsy clip artefact.",
+      "reviewedBy": "Dr J. Ngata"
+    },
+    {
+      "id": "sub-009",
+      "scan": "DCE-MRI",
+      "slices": 112,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-07",
+      "status": "confirmed",
+      "note": null,
+      "reviewedBy": "Dr J. Ngata"
+    },
+    {
+      "id": "sub-010",
+      "scan": "DCE-MRI",
+      "slices": 128,
+      "annotatedBy": "R. Patel",
+      "updated": "2026-10-14",
+      "status": "confirmed",
+      "note": null,
+      "reviewedBy": "Dr J. Ngata"
+    },
+    {
+      "id": "sub-011",
+      "scan": "DCE-MRI",
+      "slices": 144,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-21",
+      "status": "confirmed",
+      "note": null,
+      "reviewedBy": "Dr J. Ngata"
+    },
+    {
+      "id": "sub-012",
+      "scan": "DCE-MRI",
+      "slices": 160,
+      "annotatedBy": "S. Lim",
+      "updated": "2026-10-28",
+      "status": "confirmed",
+      "note": null,
+      "reviewedBy": "Dr J. Ngata"
+    },
+    {
+      "id": "sub-013",
+      "scan": "DCE-MRI",
+      "slices": 112,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-09",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-014",
+      "scan": "DCE-MRI",
+      "slices": 128,
+      "annotatedBy": "R. Patel",
+      "updated": "2026-10-16",
+      "status": "confirmed",
+      "note": null,
+      "reviewedBy": "Dr J. Ngata"
+    },
+    {
+      "id": "sub-015",
+      "scan": "DCE-MRI",
+      "slices": 144,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-23",
+      "status": "confirmed",
+      "note": null,
+      "reviewedBy": "Dr J. Ngata"
+    },
+    {
+      "id": "sub-016",
+      "scan": "DCE-MRI",
+      "slices": 160,
+      "annotatedBy": "S. Lim",
+      "updated": "2026-10-04",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-017",
+      "scan": "DCE-MRI",
+      "slices": 112,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-11",
+      "status": "needs",
+      "note": "Second lesion not annotated on slices 40 to 46.",
+      "reviewedBy": "Dr J. Ngata"
+    },
+    {
+      "id": "sub-018",
+      "scan": "DCE-MRI",
+      "slices": 128,
+      "annotatedBy": "R. Patel",
+      "updated": "2026-10-18",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-019",
+      "scan": "DCE-MRI",
+      "slices": 144,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-25",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-020",
+      "scan": "DCE-MRI",
+      "slices": 160,
+      "annotatedBy": "S. Lim",
+      "updated": "2026-10-06",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-021",
+      "scan": "DCE-MRI",
+      "slices": 112,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-13",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-022",
+      "scan": "DCE-MRI",
+      "slices": 128,
+      "annotatedBy": "R. Patel",
+      "updated": "2026-10-20",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-023",
+      "scan": "DCE-MRI",
+      "slices": 144,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-27",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-024",
+      "scan": "DCE-MRI",
+      "slices": 160,
+      "annotatedBy": "S. Lim",
+      "updated": "2026-10-08",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-025",
+      "scan": "DCE-MRI",
+      "slices": 112,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-15",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-026",
+      "scan": "DCE-MRI",
+      "slices": 128,
+      "annotatedBy": "R. Patel",
+      "updated": "2026-10-22",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-027",
+      "scan": "DCE-MRI",
+      "slices": 144,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-03",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-028",
+      "scan": "DCE-MRI",
+      "slices": 160,
+      "annotatedBy": "S. Lim",
+      "updated": "2026-10-10",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-029",
+      "scan": "DCE-MRI",
+      "slices": 112,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-17",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-030",
+      "scan": "DCE-MRI",
+      "slices": 128,
+      "annotatedBy": "R. Patel",
+      "updated": "2026-10-24",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-031",
+      "scan": "DCE-MRI",
+      "slices": 144,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-05",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-032",
+      "scan": "DCE-MRI",
+      "slices": 160,
+      "annotatedBy": "S. Lim",
+      "updated": "2026-10-12",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-033",
+      "scan": "DCE-MRI",
+      "slices": 112,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-19",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-034",
+      "scan": "DCE-MRI",
+      "slices": 128,
+      "annotatedBy": "R. Patel",
+      "updated": "2026-10-26",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-035",
+      "scan": "DCE-MRI",
+      "slices": 144,
+      "annotatedBy": "Lesion model v2.1",
+      "updated": "2026-10-07",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "sub-036",
+      "scan": "DCE-MRI",
+      "slices": 160,
+      "annotatedBy": "S. Lim",
+      "updated": "2026-10-14",
+      "status": "review",
+      "note": null,
+      "reviewedBy": null
+    }
+  ]
+}
