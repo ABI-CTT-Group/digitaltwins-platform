@@ -1,7 +1,8 @@
 {
-  "project": {
-    "id": "p-breast-mri-ground-truth",
-    "title": "Breast MRI lesion ground truth (example)"
+  "study": {
+    "id": "breast-mri-reading",
+    "title": "Breast MRI reading",
+    "purpose": "Check lesion annotations on DCE-MRI scans"
   },
   "cases": [
     {

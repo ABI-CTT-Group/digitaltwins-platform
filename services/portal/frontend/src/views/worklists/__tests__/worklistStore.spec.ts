@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
 import { createApp, nextTick } from "vue";
-import { useWorklistStore } from "../worklistStore";
+import { STUDY, useWorklistStore } from "../worklistStore";
 import { counts } from "../model/worklist";
 
 // Pinia applies plugins only once it is installed in an app, as main.ts does.
@@ -20,7 +20,7 @@ beforeEach(() => {
 describe("worklistStore", () => {
   it("starts from the example cases", () => {
     const store = useWorklistStore();
-    expect(store.projectTitle).toBe("Breast MRI lesion ground truth (example)");
+    expect(STUDY).toMatchObject({ id: "breast-mri-reading", title: "Breast MRI reading" });
     expect(counts(store.cases)).toEqual({ review: 21, needs: 3, confirmed: 12, reviewed: 15, total: 36 });
   });
 

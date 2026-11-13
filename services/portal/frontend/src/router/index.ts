@@ -12,6 +12,7 @@ import TutorialDashboard from "@/views/tutorial/index.vue";
 import CatalogueDashboardView from "@/views/catalogue/catalogue-dashboard-view.vue";
 import ToolsViewer from "@/views/catalogue/tools-viewer.vue";
 import IsaProjectHub from "@/views/isa-project/IsaProjectHub.vue";
+import StudyListView from "@/views/worklists/StudyListView.vue";
 import WorklistsView from "@/views/worklists/WorklistsView.vue";
 import Layout from "@/layouts/Default.vue";
 import LaunchedAssayOverview from "@/views/dashboard/report/AssayReportView.vue";
@@ -52,7 +53,14 @@ const routes = [
             // Frontend-only prototype: example cases live in the browser; nothing reaches the API.
             path: "/clinician-dashboard",
             name: "ClinicianDashboard",
+            component: StudyListView,
+            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher', 'clinician'] },
+          },
+          {
+            path: "/clinician-dashboard/studies/:studyId",
+            name: "ClinicianStudyWorklist",
             component: WorklistsView,
+            props: true,
             meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher', 'clinician'] },
           },
           {

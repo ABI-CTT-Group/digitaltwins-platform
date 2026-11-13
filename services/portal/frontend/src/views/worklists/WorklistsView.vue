@@ -1,10 +1,15 @@
 <template>
   <section class="worklists">
-    <div class="worklists__inner">
+    <div v-if="!study" class="worklists__inner">
+      <RouterLink class="back" :to="{ name: 'ClinicianDashboard' }"><v-icon icon="mdi-arrow-left" size="16" /> All studies</RouterLink>
+      <p class="lede missing">There is no study called {{ studyId }}.</p>
+    </div>
+    <div v-else class="worklists__inner">
       <header class="head">
-        <button type="button" class="project-switch" aria-label="Change project" @click="toast.info('This prototype has one example project.')">
-          Project <strong>{{ store.projectTitle }}</strong> <v-icon icon="mdi-chevron-down" size="16" />
-        </button>
+        <nav class="crumb" aria-label="Study">
+          <RouterLink class="back" :to="{ name: 'ClinicianDashboard' }"><v-icon icon="mdi-arrow-left" size="16" /> All studies</RouterLink>
+          <strong data-test="study-title">{{ study.title }}</strong>
+        </nav>
         <h1>Your worklist</h1>
         <p class="lede">Retrospective study. Check the annotation on each case, then confirm it or send it back for correction.</p>
         <p class="proto">
@@ -41,17 +46,20 @@
 </template>
 
 <script setup lang="ts">
-// The clinician dashboard (frontend-only prototype): a worklist of a project's cases for clinicians to review, one
-// decision per case. Example cases kept in the browser; nothing reaches an API.
+// One study's worklist on the clinician dashboard (frontend-only prototype): its cases for clinicians to review,
+// one decision per case. Example cases kept in the browser; nothing reaches an API.
 import { computed, ref } from "vue";
 import { useToast } from "vue-toastification";
 import { useAuthStore } from "@/store/auth_store";
 import { afterDecision, batchPosition, counts, startBatch, type Batch, type Tab } from "./model/worklist";
-import { useWorklistStore } from "./worklistStore";
+import { STUDY, useWorklistStore } from "./worklistStore";
 import CaseTable from "./components/CaseTable.vue";
 import CaseReviewPanel from "./components/CaseReviewPanel.vue";
 
+const props = defineProps<{ studyId: string }>();
+
 const store = useWorklistStore();
+const study = computed(() => (props.studyId === STUDY.id ? STUDY : null));
 const auth = useAuthStore();
 const toast = useToast();
 
@@ -107,12 +115,15 @@ function decide(status: "confirmed" | "needs", note: string | null) {
 .worklists__inner { max-width: 1200px; margin: 0 auto; }
 
 .head { display: grid; gap: 6px; }
-.project-switch {
-  justify-self: start; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
-  padding: 6px 12px; border-radius: 8px; font-size: 0.875rem;
-  background: var(--surface); border: 1px solid var(--line); color: var(--text-dim);
+.crumb { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 0.875rem; }
+.crumb strong { color: var(--text); font-weight: 600; }
+.back {
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;
+  color: var(--text-dim); text-decoration: none;
 }
-.project-switch strong { color: var(--text); font-weight: 600; }
+.back:hover { color: var(--text); }
+.back:focus-visible { outline: 2px solid var(--accent-tools); outline-offset: 2px; }
+.missing { margin-top: 16px; }
 h1 {
   margin: 10px 0 0; font-family: var(--font-title); font-weight: 400;
   font-size: clamp(2rem, 4vw, 2.6rem); line-height: 1.1; text-wrap: balance; color: var(--text);

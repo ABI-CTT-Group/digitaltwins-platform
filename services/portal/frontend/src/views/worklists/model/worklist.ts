@@ -38,6 +38,12 @@ export function counts(cases: Case[]) {
   return { review, needs: n("needs"), confirmed: n("confirmed"), reviewed: cases.length - review, total: cases.length };
 }
 
+/** ISO date of the latest decision on any case, or null before the first one. */
+export function lastDecision(cases: Case[]): string | null {
+  const dates = cases.filter(c => c.status !== "review").map(c => c.updated).sort();
+  return dates.at(-1) ?? null;
+}
+
 export function filterCases(cases: Case[], tab: Tab, query: string): Case[] {
   const q = query.trim().toLowerCase();
   return cases.filter(c => (tab === "all" || c.status === tab) && c.id.toLowerCase().includes(q));

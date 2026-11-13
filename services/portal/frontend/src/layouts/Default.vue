@@ -18,7 +18,7 @@ const dashboardTitle = computed(() => {
     return "Catalogue Dashboard";
   } else if (route.name === 'TutorialDashboard'){
     return "How It Works";
-  } else if (route.name === 'ClinicianDashboard'){
+  } else if (route.name === 'ClinicianDashboard' || route.name === 'ClinicianStudyWorklist'){
     return "Clinician Dashboard";
   } else if (route.name === 'Dashboard') {
     return route.params.dashboardType === 'clinician' ? "Clinician Dashboard" : "Study Dashboard";

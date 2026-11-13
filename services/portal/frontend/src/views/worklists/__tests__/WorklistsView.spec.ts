@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
+import { flushPromises, mount, RouterLinkStub, type VueWrapper } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { testVuetify } from "@/testing/vuetify";
 
@@ -17,8 +17,11 @@ beforeEach(() => {
   Object.values(toast).forEach(f => f.mockClear());
 });
 
-async function render() {
-  wrapper = mount(WorklistsView, { global: { plugins: [testVuetify()] } });
+async function render(studyId = "breast-mri-reading") {
+  wrapper = mount(WorklistsView, {
+    props: { studyId },
+    global: { plugins: [testVuetify()], stubs: { RouterLink: RouterLinkStub } },
+  });
   await flushPromises();
   return wrapper;
 }
@@ -27,6 +30,20 @@ const panel = (w: VueWrapper) => w.find("[data-test=review-panel]");
 const click = async (w: VueWrapper, sel: string) => { await w.find(sel).trigger("click"); await flushPromises(); };
 
 describe("WorklistsView", () => {
+  it("names the study and links back to all studies", async () => {
+    const w = await render();
+    expect(w.find("[data-test=study-title]").text()).toBe("Breast MRI reading");
+    const back = w.findComponent(RouterLinkStub);
+    expect(back.props("to")).toEqual({ name: "ClinicianDashboard" });
+    expect(back.text()).toContain("All studies");
+  });
+
+  it("says when there is no such study", async () => {
+    const w = await render("no-such-study");
+    expect(w.text()).toContain("There is no study called no-such-study.");
+    expect(w.find("[data-test=progress]").exists()).toBe(false);
+  });
+
   it("shows progress and the count on each tab", async () => {
     const w = await render();
     expect(w.find("[data-test=progress]").text()).toBe("15 of 36 cases reviewed");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { afterDecision, batchPosition, counts, filterCases, startBatch, type Case, type ReviewStatus } from "../model/worklist";
+import { afterDecision, batchPosition, counts, filterCases, lastDecision, startBatch, type Case, type ReviewStatus } from "../model/worklist";
 
 const make = (statuses: ReviewStatus[]): Case[] =>
   statuses.map((status, i) => ({
@@ -18,6 +18,20 @@ describe("counts", () => {
     expect(counts(make(["review", "confirmed", "needs", "review"]))).toEqual({
       review: 2, needs: 1, confirmed: 1, reviewed: 2, total: 4,
     });
+  });
+});
+
+describe("lastDecision", () => {
+  it("gives the latest date among decided cases", () => {
+    const cases = make(["confirmed", "review", "needs"]);
+    cases[0].updated = "2026-10-20";
+    cases[1].updated = "2026-11-01";
+    cases[2].updated = "2026-10-25";
+    expect(lastDecision(cases)).toBe("2026-10-25");
+  });
+
+  it("is null when no case has a decision", () => {
+    expect(lastDecision(make(["review"]))).toBeNull();
   });
 });
 

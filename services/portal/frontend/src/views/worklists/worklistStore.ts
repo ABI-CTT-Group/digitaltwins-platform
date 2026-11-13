@@ -4,9 +4,11 @@ import { defineStore } from "pinia";
 import type { Case, ReviewStatus } from "./model/worklist";
 import example from "./fixtures/example-cases.json";
 
+/** The one example study; not persisted, so the fixture always names it. */
+export const STUDY = example.study;
+
 export const useWorklistStore = defineStore("worklist", {
   state: () => ({
-    projectTitle: example.project.title,
     cases: structuredClone(example.cases) as Case[],
   }),
   actions: {
