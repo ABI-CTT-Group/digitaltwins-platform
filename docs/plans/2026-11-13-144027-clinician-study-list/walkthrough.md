@@ -30,3 +30,15 @@ one study, **Breast MRI reading**, which holds the existing 36 example cases.
   - the row opens the study's worklist;
   - confirming a case and going back moves the list to 16 of 36;
   - at 390px wide the page has no horizontal scroll.
+
+## Follow-up: slice preview in the review panel
+
+The review panel shows an image again: a drawn axial breast MRI slice with the annotation outlined in cyan,
+labelled with the case's middle slice ("Slice 56 / 112"). It is `components/SlicePreview.vue`. The drawing is
+a stand-in, not the case's scan; the prototype has no images. It had been dropped from the original mockup.
+A test in `WorklistsView.spec.ts` checks that it follows the case under review.
+
+The slice image and the annotation outline both follow the case number, so each case looks different. For the
+image, that means the tissue's width and depth, the bright patch and the strands. For the outline, its place,
+size and shape, as in the first mockup. A test checks that two cases get a different image and outline. On all
+36 example cases, every outline fits inside the tissue.
