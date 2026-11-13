@@ -311,8 +311,10 @@ the builder, the public tool buckets and the plugin backends.
     `http.ts` (axios clients that add the bearer token: the default one for
     `/api/builder`, `dtApiAxios` for `/api`), and one `*_api.ts` client per area.
   - `router/index.ts`: routes and their `requiresAuth` / `requiresRoles` meta.
-  - `views/`: `dashboard/` (study and clinician dashboards, assay config and
-    launch), `catalogue/`, `upload-dataset/` (the measurements, models, tools
+  - `views/`: `dashboard/` (the study dashboard, assay config and launch),
+    `worklists/` (a frontend-only prototype at `/worklists`, which replaced
+    the clinician dashboard: clinicians review each case's annotation; example
+    cases and decisions live in the browser's localStorage), `catalogue/`, `upload-dataset/` (the measurements, models, tools
     and workflows hubs), `tool-plugin/` (`/tool-view`, where GUI tools run),
     `home/`, `tutorial/`, `isa-project/` (a frontend-only prototype: the
     ISA project hub at `/catalogue/isa-project`, and the "Study design
