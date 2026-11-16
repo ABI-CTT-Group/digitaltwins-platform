@@ -74,7 +74,7 @@ const workflows = ref([
     "Predict post surgery PAP - script"
 ]);
 
-// TODO: https://github.com/ABI-CTT-Group/DigitalTWINS-Portal/issues/xxx switch to API
+// TODO: switch to API
 const tools = ref([
     "baseline_perfusion_simulation_1d_cfd",
     "centreline_annotation",

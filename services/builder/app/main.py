@@ -184,7 +184,7 @@ async def lifespan(app: FastAPI):
     print("ending lifespan: shutting down plugin backends")
     _shutdown_all_plugin_backends()
 
-app = FastAPI(title="DigitalTWINS Portal API", verison="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Digital Twins Portal API", verison="1.0.0", lifespan=lifespan)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 install_request_error_logging(app)
 app.include_router(workflow_tool_plugin.router)
@@ -224,7 +224,7 @@ async def dynamic_cors(request: Request, call_next):
 
 @app.get('/')
 async def root():
-    return {"message": "DigitalTWINS Portal API", "version": "1.0.0"}
+    return {"message": "Digital Twins Portal API", "version": "1.0.0"}
 
 
 @app.get("/health")

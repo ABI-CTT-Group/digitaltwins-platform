@@ -12,7 +12,7 @@
 # via PATH with `env` and pin PATH to cover both prefixes, so the same unit
 # works on either kind of node with no manual edit.
 [Unit]
-Description=DigitalTWINS Airflow remote compute worker
+Description=Digital Twins Airflow remote compute worker
 Requires=docker.service
 After=docker.service network-online.target
 Wants=network-online.target

@@ -1,4 +1,4 @@
-DigitalTWINS API documentation
+Digital Twins API documentation
 =======================================
 
 

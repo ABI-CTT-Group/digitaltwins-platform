@@ -1,4 +1,4 @@
-# Deploying the DigitalTWINS platform
+# Deploying the Digital Twins platform
 
 This guide installs the platform by hand on a host **with Internet access**, either
 for local development on `http://localhost` or on a domain over https. It runs the

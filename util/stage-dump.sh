@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-# stage-dump.sh — READ-ONLY dump of a DigitalTWINS instance for migration.
+# stage-dump.sh — READ-ONLY dump of a Digital Twins instance for migration.
 #
 # Run this ON THE SOURCE box. It mutates nothing on the source (no compose
 # down, volumes mounted read-only) and writes all archives under OUT

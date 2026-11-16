@@ -86,7 +86,7 @@ Runs script workflows as Airflow 3 DAGs on Celery workers.
 
 ### `services/api/`
 
-The DigitalTWINS REST API (FastAPI), and the `digitaltwins` Python package it is
+The Digital Twins REST API (FastAPI), and the `digitaltwins` Python package it is
 built on. It ties the platform together: datasets, assays, workflow deploy and
 launch, and the SEEK, FHIR, MinIO, Airflow and JupyterHub integrations.
 

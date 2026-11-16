@@ -605,7 +605,7 @@ async def get_workflow_approval(workflow_id: str, db: Session = Depends(get_db))
     if workflow.is_sds:
         raise HTTPException(status_code=409, detail="SDS workflow packages are approved with POST /api/builder/workflow/{id}/approval")
     dataset_path = Path(latest_build.dataset_path)
-    # TODO 1: Upload dataset to Digitaltwins Platform,and get the uuid
+    # TODO 1: Upload dataset to Digital Twins Platform,and get the uuid
     # dataset_uuid = upload_dataset(dataset_path)
     if is_empty(workflow.uuid):
         dataset_uuid = f"sparc-workflow-${uuid.uuid4()}"

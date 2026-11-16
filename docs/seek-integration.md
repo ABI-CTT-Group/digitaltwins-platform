@@ -1,6 +1,6 @@
 # Platform ↔ SEEK: authentication, access, and visibility
 
-How the DigitalTWINS platform talks to SEEK, what that connection is allowed to
+How the Digital Twins platform talks to SEEK, what that connection is allowed to
 see, and how SEEK's own visibility model gates (or doesn't) different callers.
 Written for anyone reasoning about **who can see what** — especially in a
 locked-down / airgapped deployment.

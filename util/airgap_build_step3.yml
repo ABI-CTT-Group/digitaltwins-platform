@@ -1,5 +1,5 @@
 # ===========================================================================
-# airgap_build_step3.yml — deploy the DigitalTWINS platform onto a prepared VM.
+# airgap_build_step3.yml — deploy the Digital Twins platform onto a prepared VM.
 #
 # This is the app-deployment stage. It assumes the earlier airgap stages have
 # already run on the target: the install-source drive mounted at
@@ -39,7 +39,7 @@
 # NOT an image re-freeze. This playbook does not rebuild images in the airgap.
 # ===========================================================================
 
-- name: DigitalTWINS platform deployment (airgap step 3)
+- name: Digital Twins platform deployment (airgap step 3)
   gather_facts: false
   hosts: all
 

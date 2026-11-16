@@ -12,7 +12,7 @@
 ## Table of contents
 * [Introduction](#introduction)
 * [Architecture](#architecture)
-* [Deploying the DigitalTWINS platform](#deploying-the-digitaltwins-platform)
+* [Deploying the Digital Twins platform](#deploying-the-digital-twins-platform)
 * [Populating data](#populating-data)
 * [Documentation](#documentation)
 * [Development and testing](#development-and-testing)
@@ -27,9 +27,9 @@
 ## Introduction
 The development of novel medical diagnosis and treatment approaches requires understanding how diseases that operate at the molecular scale influence physiological function at the scale of cells, tissues, organs, and organ systems. The Auckland Bioengineering Institute (ABI) led **Physiome Project aims to establish an integrative “systems medicine” framework based on personalised computational modelling** to link information encoded in the genome to organism-wide physiological function and dysfunction in disease. The **[12 LABOURS project](https://www.auckland.ac.nz/en/abi/our-research/research-groups-themes/12-Labours.html) aims to extend and apply the developments of the Physiome Project to clinical and home-based healthcare applications**.
 
-As part of the 12 LABOURS project, we are **building a DigitalTWINS platform to provide common infrastructure**:
+As part of the 12 LABOURS project, we are **building a Digital Twins platform to provide common infrastructure**:
 * A **data catalogue** that describes what data is available, what it can be used for, and how to request it.
-* A **harmonised data repository** that provides access control to primary and derived data (waveforms, medical images, electronic health records, measurements from remote monitoring devices such as wearables and implantables etc), tools, and workflows that are stored in the SPARC Dataset Structure (SDS). More information about SDS datasets can be found on the [SPARC project's documentation](https://docs.sparc.science/docs/overview-of-sparc-dataset-format). The use of SDS datasets in the 12 LABOURS DigitaTWINS platform is described in the following [presentation](https://docs.google.com/file/d/1zZ3-C17lPIgtRp6bnkSwvKacaTA66GVR/edit?usp=docslist_api&filetype=mspresentation).
+* A **harmonised data repository** that provides access control to primary and derived data (waveforms, medical images, electronic health records, measurements from remote monitoring devices such as wearables and implantables etc), tools, and workflows that are stored in the SPARC Dataset Structure (SDS). More information about SDS datasets can be found on the [SPARC project's documentation](https://docs.sparc.science/docs/overview-of-sparc-dataset-format). The use of SDS datasets in the 12 LABOURS Digital Twins platform is described in the following [presentation](https://docs.google.com/file/d/1zZ3-C17lPIgtRp6bnkSwvKacaTA66GVR/edit?usp=docslist_api&filetype=mspresentation).
 * **Describe computational physiology workflows in a standardised language** (including workflows for knowledge discovery, clinical translation, or education, etc), and **run and monitor their progress**.
 * **Securely access electronic health records from health systems** (WIP).
 * **Securely link data from remote monitoring devices** such as wearables and implantables into computational physiology workflows.
@@ -45,7 +45,7 @@ These efforts are aimed at **supporting an ecosystem** to:
 * **Support clinical translation via commercialisation** by enabling researchers to conduct clinical trials more efficiently to demonstrate the efficacy of their computational physiology workflows. 
 * Provide a **foundation for integrating research developments** across different research groups for assembling more comprehensive computational physiology/digital twin workflows.
 
-**If you find the DigitalTWINS platform useful, please add a GitHub Star to support developments!**
+**If you find the Digital Twins platform useful, please add a GitHub Star to support developments!**
 
 ## Architecture
 
@@ -57,11 +57,11 @@ single sign-on across all of them.
 flowchart TB
     user(["User"])
 
-    subgraph platform["DigitalTWINS platform"]
+    subgraph platform["Digital Twins platform"]
         gateway["Gateway<br/>nginx"]
         sso["Single sign-on<br/>Keycloak"]
         portal["Web portal"]
-        api["DigitalTWINS API"]
+        api["Digital Twins API"]
 
         subgraph analyse["Run and build analyses"]
             workflows["Workflow engine<br/>Airflow"]
@@ -95,7 +95,7 @@ flowchart TB
 | Service | Role | Path |
 |---|---|---|
 | Portal (`portal-frontend`) | Web portal for researchers, clinicians and admins | `/` |
-| API (`api`) | DigitalTWINS REST API and `digitaltwins` Python package | `/api` |
+| API (`api`) | Digital Twins REST API and `digitaltwins` Python package | `/api` |
 | Builder (`builder`) | Builds and deploys portal tools, workflows and plugins | `/api/builder` |
 | Airflow | Workflow execution (DAGs on Celery workers) | `/airflow` |
 | JupyterHub | Interactive analysis, one notebook server per user | `/jupyter` |
@@ -110,7 +110,7 @@ flowchart TB
 See [docs/architecture.md](docs/architecture.md) for the service and container
 diagrams, data stores and Keycloak clients.
 
-## Deploying the DigitalTWINS platform
+## Deploying the Digital Twins platform
 
 The platform targets **Ubuntu 24.04 (amd64)** with **Docker Engine and the Compose v2
 plugin**. An NVIDIA GPU is optional and is used by the Airflow worker when present.
@@ -161,7 +161,7 @@ To report an issue or suggest a new feature, please use the [issues page](https:
 Fork this repository and submit a pull request to contribute. Before doing so, please read our [Code of Conduct](CODE_OF_CONDUCT.md) and [Contributing Guidelines](CONTRIBUTING.md). A pull request template is provided to help developers describe their contribution, mention the issues related to the pull request, and describe how they tested it. Run the unit tests with `make test` before opening a pull request; see [docs/testing.md](docs/testing.md).
 
 ## License
-The DigitalTWINS platform is dual-licensed. You may use, modify and distribute it under the Apache License 2.0 for non-commercial purposes such as research, education, personal projects or internal non-production testing. Any commercial use, including in products, services or production systems, needs a commercial license from the copyright holder. See [LICENSE.md](LICENSE.md) for the full terms.
+The Digital Twins platform is dual-licensed. You may use, modify and distribute it under the Apache License 2.0 for non-commercial purposes such as research, education, personal projects or internal non-production testing. Any commercial use, including in products, services or production systems, needs a commercial license from the copyright holder. See [LICENSE.md](LICENSE.md) for the full terms.
 
 ## Team
 

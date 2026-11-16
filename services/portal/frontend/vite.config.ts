@@ -41,7 +41,7 @@ export default defineConfig({
       // Compress shader by default using logic from rollup-plugin-glsl
       compress: true,
     }),
-    // PWA — keeps the DigitalTWINS Portal installable / full-screen
+    // PWA — keeps the Digital Twins Portal installable / full-screen
     // (standalone display) via the web app manifest below, but the service
     // worker does NO caching. It precaches nothing and serves every request
     // network-only, so a plain browser refresh after a redeploy always loads
@@ -58,10 +58,10 @@ export default defineConfig({
       // and are served over the network; they don't need to be cached.
       manifest: {
         id: "/",
-        name: "DigitalTWINS Portal",
-        short_name: "DigitalTWINS",
+        name: "Digital Twins Portal",
+        short_name: "Digital Twins",
         description:
-          "DigitalTWINS — clinical digital-twin platform: register, build and run medical imaging and measurement plugins.",
+          "Digital Twins — clinical digital-twin platform: register, build and run medical imaging and measurement plugins.",
         lang: "en",
         start_url: "/",
         scope: "/",

@@ -10,7 +10,7 @@
         <a href="#" @click.prevent="go('CatalogueDashboardView')">Catalogue</a>
         <a :href="seekUrl" target="_blank" rel="noopener">SEEK repository</a>
       </nav>
-      <div class="hfoot__legal">© {{ year }} DigitalTWINS · v{{ version }}</div>
+      <div class="hfoot__legal">© {{ year }} Digital Twins · v{{ version }}</div>
     </div>
   </footer>
 </template>
