@@ -1,4 +1,4 @@
-# digitaltwins-platform
+# Digital Twins Platform
 
 ![License](https://img.shields.io/github/license/ABI-CTT-Group/digitaltwins-platform)
 
