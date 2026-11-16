@@ -62,7 +62,7 @@ and the REST API at `http://localhost:8013/fhir`.
   `FHIR_ENDPOINT` (see the comment above `location /fhir/` in `platform-routes.conf`).
 - **The gateway must pass `X-Forwarded-*`.** HAPI builds the absolute URLs in `Bundle.link` and
   `fullUrl` from the request.
-- **No `depends_on` on the database.** `restart: on-failure` retries until Postgres is up.
+- **No `depends_on` on the database.** `restart: unless-stopped` retries until Postgres is up.
 - **Fixed names.** The container is always named `hapi-fhir` (not prefixed with `PROJECT_NAME`), and
   the image tag is `latest`, not pinned.
 - `services/portal/hapi/application.yaml` is a separate copy, used only by the portal's standalone
