@@ -2,14 +2,12 @@
 
 ## Deploy locally
 
-### Docker setup
+The portal runs as the platform's `portal-frontend` service. To deploy the whole platform, follow
+[docs/deployment.md](../../docs/deployment.md). To rebuild and restart only the portal, run from the
+repository root:
 
-- Clone the repo to your PC
 ```sh
-# 1. start docker
-cd DigitalTWINS-Portal
-
-docker compose up --build -d
+docker compose build portal-frontend && docker compose up -d portal-frontend
 ```
 
 ## How to Use the Study Dashboard
@@ -169,10 +167,8 @@ builder's tests, which check that template.
 
 ### Gotchas
 
-- **The steps under "Deploy locally" above predate the platform** (they name the old
-  `DigitalTWINS-Portal` repository). Under the platform, build and start `portal-frontend` from the
-  repository root as above. The standalone stack and the platform can't run at the same time: they
-  share a container name, a network and port 80.
+- **`docker-compose.yml` here also defines a standalone stack** from before the platform. It can't
+  run at the same time as the platform: they share a container name, a network and port 80.
 - **Field names change case on the wire.** The axios interceptors in `bootstrap/http.ts` turn the
   backends' snake_case into camelCase and back, on both clients. The exception is FHIR `descriptions`
   trees sent to the platform API, which pass through untouched.

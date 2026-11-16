@@ -17,7 +17,7 @@ export const sections: SectionConfig[] = [
         items: [
             {
                 title: 'How to use the study dashboard',
-                herf: 'https://github.com/ABI-CTT-Group/DigitalTWINS-Portal?tab=readme-ov-file#how-to-use-the-study-dashboard',
+                herf: 'https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/portal/README.md#how-to-use-the-study-dashboard',
                 width: 350,
             },
             {
