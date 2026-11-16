@@ -1,4 +1,4 @@
-# DigitalTWINS platform architecture
+# Digital Twins platform architecture
 
 The platform is a single Docker Compose project: the root `docker-compose.yml`
 extends or includes each service under `services/`, and every container joins one
@@ -28,7 +28,7 @@ See also:
 ## Overview
 
 Users reach the platform through one gateway and sign in once with single
-sign-on. The DigitalTWINS API ties the platform together: it records data in the
+sign-on. The Digital Twins API ties the platform together: it records data in the
 catalogue and clinical metadata stores, keeps files in object storage, and launches
 analyses as workflows or interactive notebooks. The builder turns registered tools
 and workflows into GUI tools and plugins, which open inside the web portal.
@@ -37,11 +37,11 @@ and workflows into GUI tools and plugins, which open inside the web portal.
 flowchart TB
     user(["User"])
 
-    subgraph platform["DigitalTWINS platform"]
+    subgraph platform["Digital Twins platform"]
         gateway["Gateway<br/>nginx"]
         sso["Single sign-on<br/>Keycloak"]
         portal["Web portal"]
-        api["DigitalTWINS API"]
+        api["Digital Twins API"]
 
         subgraph analyse["Run and build analyses"]
             workflows["Workflow engine<br/>Airflow"]
@@ -94,7 +94,7 @@ flowchart TB
         end
 
         subgraph application["Application tier"]
-            api["«FastAPI» api<br/>DigitalTWINS REST API"]
+            api["«FastAPI» api<br/>Digital Twins REST API"]
             builder["«FastAPI» builder<br/>tool · workflow · plugin builder"]
             airflow["«Airflow 3 · Celery»<br/>workflow service"]
             jhub["«JupyterHub»<br/>notebook service"]
@@ -288,7 +288,7 @@ per-user notebook image and exits.
 |---|---|---|---|
 | gateway | TLS edge and path router. The only public entry. | `services/nginx` (stock nginx, bind-mounted config) | all |
 | portal-frontend | Web portal. A Vue SPA, plus an nginx that proxies the builder, plugin bundles and plugin backends. | `services/portal` | `/` |
-| api | DigitalTWINS REST API: datasets, assays, workflow deploy and launch, SEEK/FHIR/MinIO integration. Also published as the `digitaltwins` Python package. | `services/api` | `/api` |
+| api | Digital Twins REST API: datasets, assays, workflow deploy and launch, SEEK/FHIR/MinIO integration. Also published as the `digitaltwins` Python package. | `services/api` | `/api` |
 | builder | Builds and deploys portal tools, workflows and plugins. The only service holding the Docker socket for that purpose. | `services/builder` | `/api/builder` |
 | Airflow | Runs workflows as DAGs on Celery workers. The worker can have a GPU (opt-in). | `services/airflow` | `/airflow` |
 | JupyterHub | Interactive analysis. Starts a notebook server per user. | `services/jupyterhub` | `/jupyter` |

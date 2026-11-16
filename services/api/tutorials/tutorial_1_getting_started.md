@@ -1,4 +1,4 @@
-# Tutorial 1: Getting started with the 12 LABOURS DigitalTWINS platform
+# Tutorial 1: Getting started with the 12 LABOURS Digital Twins platform
 
 ## Introduction
 This tutorial shows how to get access to and interact with the 12 LABOURS Digital Twins Platform and its web portal.
@@ -14,7 +14,7 @@ In this tutorial, you will learn how to:
 - access the platform's web portal.
 
 ## Installing the platform's API
-We will connect to the DigitalTWINS platform programmatically using its Python API, which is called `digitaltwins`. It is designed to be used with the `sparc-me` Python tool, which is used for managing datasets.
+We will connect to the Digital Twins platform programmatically using its Python API, which is called `digitaltwins`. It is designed to be used with the `sparc-me` Python tool, which is used for managing datasets.
 
 ### Pre-requisites 
 - Python 3.9+. Tested on:
@@ -46,7 +46,7 @@ pip install sparc-me
 ```
 
 ## Accessing your local eResearch storage drive
-For security reasons, the CTT team have placed project specific documentation for connecting to your instance of the 12 LABOURS DigitalTWINS platform on your project-specific eResearch drive. Please see the [Workshop FAQ Section of the 12 LABOURS DigitalTWINS platform user documentation](https://docs.google.com/document/d/10dQ0Cyq0NQ1JlxPYCVtGCIY2umZrYzhAltsyRd9QhgY/edit?pli=1#heading=h.1rd514tjkqxp) to find the instructions for mounting your eResearch drive.
+For security reasons, the CTT team have placed project specific documentation for connecting to your instance of the 12 LABOURS Digital Twins platform on your project-specific eResearch drive. Please see the [Workshop FAQ Section of the 12 LABOURS Digital Twins platform user documentation](https://docs.google.com/document/d/10dQ0Cyq0NQ1JlxPYCVtGCIY2umZrYzhAltsyRd9QhgY/edit?pli=1#heading=h.1rd514tjkqxp) to find the instructions for mounting your eResearch drive.
 
 ## Connecting to the platform
 
@@ -100,7 +100,7 @@ Tutorial 4: `/MOUNT_POINT/DigitalTWINS/resources/latest/example_datasets/example
 - please replace `/MOUNT_POINT` with the location where you mounted your eResearch drive. 
 
 ## Accessing the platform's web portal
-Once you have connected to the platform, open https://localhost:3000 (or open http://localhost:3000) in a web browser to access the web portal for the 12 LABOURS DigitalTWINS platform. The data catalogue can be found from the `View data browswer` link on the `DATA & MODELS` page.
+Once you have connected to the platform, open https://localhost:3000 (or open http://localhost:3000) in a web browser to access the web portal for the 12 LABOURS Digital Twins platform. The data catalogue can be found from the `View data browswer` link on the `DATA & MODELS` page.
 
 Please wait a moment for the datasets to load. If the datasets still do not load, then please reload the website.
 
@@ -108,4 +108,4 @@ Please wait a moment for the datasets to load. If the datasets still do not load
 Once you have completed this tutorial, please complete [this survey](https://docs.google.com/forms/d/e/1FAIpQLSe-EsVz6ahz2FXFy906AZh68i50jRYnt3hQe-loc-1DaFWoFQ/viewform?usp=sf_link), which will allow us to improve this and future tutorials.
 
 ## Next steps
-The [next tutorial](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/tutorial_2_finding_and_downloading_platform_datasets.ipynb) will show how to find and download datasets from the 12 LABOURS DigitalTWINS platform.
+The [next tutorial](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/tutorial_2_finding_and_downloading_platform_datasets.ipynb) will show how to find and download datasets from the 12 LABOURS Digital Twins platform.

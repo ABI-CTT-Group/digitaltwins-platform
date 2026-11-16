@@ -95,3 +95,11 @@ Found while making `make lint` pass. The cleanup kept behaviour unchanged, so th
 ### [ ] 5. A promise that never rejects
 * **Description**: `getRepoRootCWLContent` in `services/portal/frontend/src/views/upload-dataset/components/utils.ts` never calls `reject`, so a failing `getRepoContents` leaves the caller waiting forever. Reject on error.
 * **Why skipped**: It changes behaviour; the lint cleanup only dropped the unused parameter.
+
+## API tutorials
+
+Found while renaming "DigitalTWINS" to "Digital Twins".
+
+### [ ] 1. Review the tutorials in `services/api/tutorials/`
+* **Description**: The tutorials were written for the 12 LABOURS shared-drive setup and haven't been checked against the current platform. They still use example paths on that drive, such as `X:\DigitalTWINS\resources\latest\configs\configs.ini` and `/MOUNT_POINT/DigitalTWINS/...` (`tutorial_1_getting_started.md` and the notebooks for tutorials 2 to 5). Check whether that drive layout still exists, update or remove the paths, and check each tutorial still runs (see also "Imports of names `digitaltwins` no longer exports" above).
+* **Why skipped**: The rename changed display text only; the paths name a real folder, so renaming them would point at a folder that may not exist.

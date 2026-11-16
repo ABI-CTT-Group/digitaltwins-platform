@@ -1,14 +1,14 @@
-# Workshop 1 - Describing and storing data in the 12 LABOURS DigitalTWINS platform
+# Workshop 1 - Describing and storing data in the 12 LABOURS Digital Twins platform
 
 ## Introduction
-This 2 hour workshop aims to allow researchers in the 12 LABOURS project to become familiar with the 12 LABOURS DigitalTWINS platform. This includes understanding how to connect to the platform, store their data within a standardised dataset structure, and upload/download it to/from the platform.
+This 2 hour workshop aims to allow researchers in the 12 LABOURS project to become familiar with the 12 LABOURS Digital Twins platform. This includes understanding how to connect to the platform, store their data within a standardised dataset structure, and upload/download it to/from the platform.
 
 This workshop has been organised by the CTT group and the 12L portal development team, and the demonstrators are Chinchien Lin, Linkun Gao, Jiali Xu, and Thiranja Prasad Babarenda Gamage.
 
 ## Learning outcomes
-- How to connect to the 12 LABOURS DigitalTWINS platform via the web portal and programmatically via its python API. 
+- How to connect to the 12 LABOURS Digital Twins platform via the web portal and programmatically via its python API. 
 - How to create datasets in the SPARC Dataset Structure (SDS) programmatically using a python tool (sparc-me)
-- How to upload and download your data to the 12 LABOURS DigitalTWINS platform via its python API
+- How to upload and download your data to the 12 LABOURS Digital Twins platform via its python API
 
 ## Workshop programme
 - 15 mins - Brief overview of the workshop and tutorials
@@ -28,7 +28,7 @@ We will be using the computers on Level 5 at ABI. These machines do not have pyt
 
 ## Next steps
 
-Guided Jupyter Notebook tutorials have been developed describing how to use the DigitalTWINS platform. This workshop involves running through these tutorials.
+Guided Jupyter Notebook tutorials have been developed describing how to use the Digital Twins platform. This workshop involves running through these tutorials.
 
 <table>
 <thead>
@@ -42,13 +42,13 @@ Guided Jupyter Notebook tutorials have been developed describing how to use the 
     <td><a href="https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/tutorial_1_getting_started.md">
     1
     </a></td>
-    <td> Getting started with the 12 LABOURS DigitalTWINS platform.</td>
+    <td> Getting started with the 12 LABOURS Digital Twins platform.</td>
   </tr>
   <tr>
     <td><a href="https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/tutorial_2_finding_and_downloading_platform_datasets.ipynb">
     2
     </a></td>
-    <td> Finding and downloading datasets from the DigitalTWINS platform using the platform API.</td>
+    <td> Finding and downloading datasets from the Digital Twins platform using the platform API.</td>
   </tr>
   <tr>
     <td><a href="https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/tutorial_3_loading_and_exploring_sds_datasets.ipynb">
@@ -66,7 +66,7 @@ Guided Jupyter Notebook tutorials have been developed describing how to use the 
     <td><a href="https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/tutorial_5_uploading_datasets.ipynb">
     5
     </a></td>
-    <td> Uploading datasets to the DigitalTWINS platform using the platform API.</td>
+    <td> Uploading datasets to the Digital Twins platform using the platform API.</td>
   </tr>
   
 </tbody>

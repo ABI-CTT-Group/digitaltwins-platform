@@ -1,4 +1,4 @@
-# DigitalTWINS Portal Frontend
+# Digital Twins Portal Frontend
 
 ## Project setup
 

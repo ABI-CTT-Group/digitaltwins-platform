@@ -3,7 +3,7 @@
     <div class="tutorial__inner">
 
       <header class="masthead">
-        <p class="masthead__eyebrow">DigitalTWINS · Documentation</p>
+        <p class="masthead__eyebrow">Digital Twins · Documentation</p>
         <h1 class="masthead__title">How It Works</h1>
         <p class="masthead__sub">
           Guides, API references and resources to help you get the most out of the platform.

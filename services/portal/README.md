@@ -1,21 +1,19 @@
-# DigitalTWINS Portal
+# Digital Twins Portal
 
 ## Deploy locally
 
-### Docker setup
+The portal runs as the platform's `portal-frontend` service. To deploy the whole platform, follow
+[docs/deployment.md](../../docs/deployment.md). To rebuild and restart only the portal, run from the
+repository root:
 
-- Clone the repo to your PC
 ```sh
-# 1. start docker
-cd DigitalTWINS-Portal
-
-docker compose up --build -d
+docker compose build portal-frontend && docker compose up -d portal-frontend
 ```
 
 ## How to Use the Study Dashboard
 
 ### Table of Contents
-- [Step 1: Access the Study Dashboard in the DigitalTWINS Portal](#step-1-access-the-study-dashboard-in-the-digitaltwins-portal)
+- [Step 1: Access the Study Dashboard in the Digital Twins Portal](#step-1-access-the-study-dashboard-in-the-digital-twins-portal)
 - [Step 2: Edit an Assay](#step-2-edit-an-assay)
 - [Step 3: Launch an Assay](#step-3-launch-an-assay)
 - [Step 4: Monitor an Assay](#step-4-monitor-an-assay)
@@ -25,7 +23,7 @@ docker compose up --build -d
 
 ---
 
-### Step 1: Access the Study Dashboard in the DigitalTWINS Portal
+### Step 1: Access the Study Dashboard in the Digital Twins Portal
 Open the Study Dashboard at `http://<platform-host>/study-dashboard`, where `<platform-host>` is the address of your deployment.
 
 Here you can find information about all **Programmes**, **Projects**, **Investigations**, **Studies**, and **Assays**.
@@ -63,7 +61,7 @@ After editing the assay, click the **`LAUNCH`** button.
 - **Script–based workflow**  
   The workflow will run in **Airflow**.  
 - **Web GUI–based workflow**  
-  A Web GUI will be displayed in the **DigitalTWINS Portal**.  
+  A Web GUI will be displayed in the **Digital Twins Portal**.  
 
 ---
 
@@ -84,7 +82,7 @@ For **script–based workflows**, after the execution finishes in Airflow, you c
 ---
 
 ### Step 7: Submit a Dataset
-For **script–based workflows**, once you are satisfied with the result dataset, you can upload it to the **DigitalTWINS platform** by clicking the **`SUBMIT`** button.  
+For **script–based workflows**, once you are satisfied with the result dataset, you can upload it to the **Digital Twins platform** by clicking the **`SUBMIT`** button.  
 
 ---
 
@@ -169,10 +167,8 @@ builder's tests, which check that template.
 
 ### Gotchas
 
-- **The steps under "Deploy locally" above predate the platform** (they name the old
-  `DigitalTWINS-Portal` repository). Under the platform, build and start `portal-frontend` from the
-  repository root as above. The standalone stack and the platform can't run at the same time: they
-  share a container name, a network and port 80.
+- **`docker-compose.yml` here also defines a standalone stack** from before the platform. It can't
+  run at the same time as the platform: they share a container name, a network and port 80.
 - **Field names change case on the wire.** The axios interceptors in `bootstrap/http.ts` turn the
   backends' snake_case into camelCase and back, on both clients. The exception is FHIR `descriptions`
   trees sent to the platform API, which pass through untouched.

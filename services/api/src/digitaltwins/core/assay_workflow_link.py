@@ -63,11 +63,11 @@ def link_assay_workflow(querier, writer, assay_id, workflow_id) -> Callable[[], 
         content = (
             f"# Workflow link\n\n"
             f"Links SEEK assay {assay_id} to the workflow \"{title}\" ({workflow_id}).\n\n"
-            f"Created by the DigitalTWINS Portal when the assay was configured.\n"
+            f"Created by the Digital Twins Portal when the assay was configured.\n"
         )
         new_sop_id = writer.create_sop(
             f"Workflow link: {title}",
-            "Created by the DigitalTWINS Portal to link this assay to its workflow.",
+            "Created by the Digital Twins Portal to link this assay to its workflow.",
             assay_projects, assay_id, workflow_id, content,
         )
     except Exception:

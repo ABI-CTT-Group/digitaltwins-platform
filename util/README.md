@@ -1,4 +1,4 @@
-# Airgap buildout — DigitalTWINS platform
+# Airgap buildout — Digital Twins platform
 
 > **Building a whole system from scratch (portal + observability + remote
 > compute)?** Start with the ordered master runbook —

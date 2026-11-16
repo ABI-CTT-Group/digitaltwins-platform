@@ -1,7 +1,7 @@
 # Build a full system — portal (platform + observability) + remote compute
 
 **This is the canonical, ordered runbook.** Follow it top to bottom for a clean
-build of a portal (the DigitalTWINS platform *plus* the Grafana/Loki/Mimir
+build of a portal (the Digital Twins platform *plus* the Grafana/Loki/Mimir
 observability stack) and one or more remote compute nodes whose logs and metrics
 report back into the portal's observability. Where a step has deep detail, this
 doc links to it — but the **order lives here**, and where older docs disagree,

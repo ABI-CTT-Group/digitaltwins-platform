@@ -1,4 +1,4 @@
-# DigitalTWINS platform documentation
+# Digital Twins platform documentation
 
 An index of the platform's guides. Start with the [project README](../README.md) and
 the [architecture overview](architecture.md).
