@@ -1,4 +1,4 @@
-# Contributing to the DigitalTWINS platform
+# Contributing to the Digital Twins platform
 
 Thanks for helping improve the platform. This page covers how changes get from an
 idea into `main`.

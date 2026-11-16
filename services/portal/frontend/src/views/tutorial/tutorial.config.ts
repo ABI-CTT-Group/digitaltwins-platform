@@ -31,12 +31,12 @@ export const sections: SectionConfig[] = [
         title: 'API documentation',
         items: [
             {
-                title: 'DigitalTWINS API',
+                title: 'Digital Twins API',
                 herf: import.meta.env.VITE_API_DOC_DT_URL,
                 width: 350,
             },
             {
-                title: 'DigitalTWINS-Portal-API',
+                title: 'Digital Twins Portal API',
                 herf: import.meta.env.VITE_API_DOC_PORTAL_URL,
                 width: 350,
             }
@@ -57,7 +57,7 @@ export const sections: SectionConfig[] = [
         title: 'Resources',
         items: [
             {
-                title: 'DigitalTWINS on FHIR',
+                title: 'Digital Twins on FHIR',
                 herf: 'https://colab.research.google.com/drive/15c_v9sK4wSF3Rng3j6xk-L6ngfWEEbPq',
                 width: 350,
                 requiresAuth: true

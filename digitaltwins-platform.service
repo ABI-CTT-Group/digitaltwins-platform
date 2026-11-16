@@ -1,4 +1,4 @@
-# DigitalTWINS platform — brings the full docker compose stack up at boot.
+# Digital Twins platform — brings the full docker compose stack up at boot.
 #
 # Install on the platform host:
 #   sudo cp digitaltwins-platform.service /etc/systemd/system/
@@ -20,7 +20,7 @@
 # airgap static install), so this unit is install-method-agnostic. Adjust
 # WorkingDirectory if the platform lives somewhere other than the path below.
 [Unit]
-Description=DigitalTWINS platform (docker compose stack)
+Description=Digital Twins platform (docker compose stack)
 Requires=docker.service
 After=docker.service network-online.target
 Wants=network-online.target

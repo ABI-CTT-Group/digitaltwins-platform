@@ -35,7 +35,7 @@ The worker reaches the portal two ways:
 | **Redis** (broker) | direct VLAN port `MAIN_VM_IP:8005` | raw TCP — can't go through the http gateway |
 | **Postgres** (metadata + result backend) | direct VLAN port `MAIN_VM_IP:8003` | raw TCP |
 | **MinIO** (S3 — task logs/data) | direct VLAN port `MAIN_VM_IP:8011` | S3 API (the gateway `/minio` route is the GUI, not the API) |
-| **DigitalTWINS API** | direct VLAN port `MAIN_VM_IP:8010` | — |
+| **Digital Twins API** | direct VLAN port `MAIN_VM_IP:8010` | — |
 | **Airflow execution API** | direct VLAN port `MAIN_VM_IP:8002` | machine-to-machine API — keep it **internal**, never the public gateway |
 | **Keycloak** (token issuer) | **gateway** `https://<domain>/auth` | canonical token issuer; internal `keycloak` host is unreachable off-box |
 
@@ -78,7 +78,7 @@ Values used below: portal VLAN IP `10.2.0.195`, compute node VLAN IP `10.2.0.14`
    > ```
    > (`docker compose ... stop airflow-worker` stops it now, but the next `up -d`
    > brings it back.) This matters: the child workflow_* DAG tasks reach the
-   > platform's services (DigitalTWINS API, MinIO) at absolute VLAN endpoints set
+   > platform's services (Digital Twins API, MinIO) at absolute VLAN endpoints set
    > per-worker, so a *hybrid* split only works if every worker resolves the same
    > endpoints — pure-remote (a single worker) sidesteps that. Confirm one node:
    > ```bash

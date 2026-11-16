@@ -1,4 +1,4 @@
-"""Upload a SPARC measurement dataset to the DigitalTWINS platform through the REST API.
+"""Upload a SPARC measurement dataset to the Digital Twins platform through the REST API.
 
 The upload is chunked and resumable, so it suits large datasets. The script
 waits until the dataset is stored (platform Postgres + MinIO) and, if FHIR

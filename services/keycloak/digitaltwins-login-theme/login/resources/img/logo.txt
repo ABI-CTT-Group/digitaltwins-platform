@@ -1,1 +1,1 @@
-Place your ABI/DigitalTWINS logo files here and reference them from login.ftl/CSS if needed.
+Place your ABI/Digital Twins logo files here and reference them from login.ftl/CSS if needed.

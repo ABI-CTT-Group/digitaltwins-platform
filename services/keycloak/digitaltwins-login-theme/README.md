@@ -1,6 +1,6 @@
 # Keycloak Login Theme: `keycloak-login-theme`
 
-This theme customizes the Keycloak login page to look similar to the DigitalTWINS frontend login style.
+This theme customizes the Keycloak login page to look similar to the Digital Twins frontend login style.
 
 ## Folder structure
 

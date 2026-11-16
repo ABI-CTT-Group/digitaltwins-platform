@@ -4,7 +4,7 @@
 
         <section id="launchpad" ref="launchpad" class="home__launchpad">
             <div class="home__grid">
-                <!-- DigitalTWINS track: two light bands (aqua + magenta = the twin
+                <!-- Digital Twins track: two light bands (aqua + magenta = the twin
                      pair) chase each other around the grid's rounded outer track. -->
                 <span class="twin-track" aria-hidden="true"></span>
 
@@ -84,7 +84,7 @@ const goTutorial = () => router.push({ name: 'TutorialDashboard' });
 @media (max-width: 960px) { .home__grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 600px) { .home__grid { grid-template-columns: 1fr; } }
 
-/* ---- DigitalTWINS track ----------------------------------------------------
+/* ---- Digital Twins track ----------------------------------------------------
    A masked conic-gradient ring around the grid's rounded outer frame, with two
    soft colour bands ~180° apart. Spinning the gradient angle sends both bands
    chasing each other around the track — the twin pair (real + digital) in sync. */

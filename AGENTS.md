@@ -1,4 +1,4 @@
-# AGENTS.md: DigitalTWINS platform
+# AGENTS.md: Digital Twins platform
 
 This is the single source of agent instructions for this repository. `CLAUDE.md`, `GEMINI.md`,
 `.github/copilot-instructions.md` and `.agents/rules/main.md` only point here; put any new instruction

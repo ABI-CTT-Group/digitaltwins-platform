@@ -44,11 +44,11 @@ services:
       DUMB_INIT_SETSID: "0"
       # --- services the child workflow_* DAG tasks call, also over the VLAN ---
       # Orchestration (fetch configs, discover samples, trigger the child
-      # workflow_{seek_id} runs) now lives in the DigitalTWINS API on the portal,
+      # workflow_{seek_id} runs) now lives in the Digital Twins API on the portal,
       # not in a preprocessor DAG here — so the worker no longer needs
       # AIRFLOW_ENDPOINT. It just runs the child DAG tasks, which call the
-      # DigitalTWINS API and MinIO over the VLAN.
-      # The task builds the DigitalTWINS API URL as base + ":" + API_PORT,
+      # Digital Twins API and MinIO over the VLAN.
+      # The task builds the Digital Twins API URL as base + ":" + API_PORT,
       # so the base must NOT carry a port (else it doubles, e.g. host:8010:8010).
       # Pass the port separately; the task appends it. (Over the VLAN the API is on
       # the published 8010, not the internal 8000.)

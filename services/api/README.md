@@ -1,5 +1,5 @@
-# 12 LABOURS DigitalTWINS API
-A Python tool for interacting with the 12 LABOURS DigitalTWINS (Digital Translational Workflows for Integrating Systems) platform
+# 12 LABOURS Digital Twins API
+A Python tool for interacting with the 12 LABOURS Digital Twins platform
 
 ![Python 3](https://img.shields.io/badge/Python->=3.9-blue)
 [![Contributors][contributors-shield]][contributors-url]
@@ -23,8 +23,8 @@ A Python tool for interacting with the 12 LABOURS DigitalTWINS (Digital Translat
 
 ## Table of contents
 * [Introduction](#introduction)
-* [Installing the DigitalTWINS platform API](#installing-the-digitaltwins-platform-api)
-* [Using the DigitalTWINS platform](#using-the-digitaltwins-platform)
+* [Installing the Digital Twins platform API](#installing-the-digital-twins-platform-api)
+* [Using the Digital Twins platform](#using-the-digital-twins-platform)
 * [Developing this package](#developing-this-package)
 * [Reporting Issues](#reporting-issues)
 * [Contributing](#contributing)
@@ -43,7 +43,7 @@ A Python tool for interacting with the 12 LABOURS DigitalTWINS (Digital Translat
 ## Introduction
 The development of novel medical diagnosis and treatment approaches requires understanding how diseases that operate at the molecular scale influence physiological function at the scale of cells, tissues, organs, and organ systems. The Auckland Bioengineering Institute (ABI) led **Physiome Project aims to establish an integrative “systems medicine” framework based on personalised computational modelling** to link information encoded in the genome to organism-wide physiological function and dysfunction in disease. The **[12 LABOURS project](https://www.auckland.ac.nz/en/abi/our-research/research-groups-themes/12-Labours.html) aims to extend and apply the developments of the Physiome Project to clinical and home-based healthcare applications**.
 
-As part of the 12 LABOURS project, we are **building a DigitalTWINS platform to provide common infrastructure**:
+As part of the 12 LABOURS project, we are **building a Digital Twins platform to provide common infrastructure**:
 * A **data catalogue** that describes what data is available, what it can be used for, and how to request it.
 * A **harmonised data repository** that provides access control to primary and derived data (waveforms, medical images, electronic health records, measurements from remote monitoring devices such as wearables and implantables etc), tools, and workflows that are stored with a standardised dataset description.
 * **Describe computational physiology workflows in a standardised language** (including workflows for knowledge discovery, clinical translation, or education, etc), and **run and monitor their progress**.
@@ -54,7 +54,7 @@ As part of the 12 LABOURS project, we are **building a DigitalTWINS platform to 
 * **Guidelines for clinical translation of computational physiology workflows** and digital twins via commercialisation
 * **Unified ethics application templates** that aim to maximise data reusability and linking to enable our vision for creating integrated and personalised digital twins.
 
-Please see the [User Documentation for the DigitalTWINS platform](https://docs.google.com/document/d/10dQ0Cyq0NQ1JlxPYCVtGCIY2umZrYzhAltsyRd9QhgY/edit) for more information in the current capabilities of the platform.
+Please see the [User Documentation for the Digital Twins platform](https://docs.google.com/document/d/10dQ0Cyq0NQ1JlxPYCVtGCIY2umZrYzhAltsyRd9QhgY/edit) for more information in the current capabilities of the platform.
 
 These efforts are aimed at **supporting an ecosystem** to:
 * **Make research outcomes FAIR** (Findable, Accessible, Interoperable, and Reusable).
@@ -63,13 +63,13 @@ These efforts are aimed at **supporting an ecosystem** to:
 * **Support clinical translation via commercialisation** by enabling researchers to conduct clinical trials more efficiently to demonstrate the efficacy of their computational physiology workflows. 
 * Provide a **foundation for integrating research developments** across different research groups for assembling more comprehensive computational physiology/digital twin workflows.
 
-**If you find the DigitalTWINS platform useful, please add a GitHub Star to support developments!**
+**If you find the Digital Twins platform useful, please add a GitHub Star to support developments!**
 
-## Storing datasets in the DigitalTWINS platform
-Data within the DigitalTWINS platform is stored in the SPARC Dataset Structure (SDS). More information about SDS datasets can be found on the [SPARC project's documentation](https://docs.sparc.science/docs/overview-of-sparc-dataset-format). The use of SDS datasets in the 12 LABOURS DigitaTWINS platform is described in the following [presentation](https://docs.google.com/file/d/1zZ3-C17lPIgtRp6bnkSwvKacaTA66GVR/edit?usp=docslist_api&filetype=mspresentation).
+## Storing datasets in the Digital Twins platform
+Data within the Digital Twins platform is stored in the SPARC Dataset Structure (SDS). More information about SDS datasets can be found on the [SPARC project's documentation](https://docs.sparc.science/docs/overview-of-sparc-dataset-format). The use of SDS datasets in the 12 LABOURS Digital Twins platform is described in the following [presentation](https://docs.google.com/file/d/1zZ3-C17lPIgtRp6bnkSwvKacaTA66GVR/edit?usp=docslist_api&filetype=mspresentation).
 
-## Installing the DigitalTWINS platform API
-This code repository provides a Python API tool to enable users to connect to and interact with the DigitalTWINS platform programmatically.
+## Installing the Digital Twins platform API
+This code repository provides a Python API tool to enable users to connect to and interact with the Digital Twins platform programmatically.
 
 ### Pre-requisites
 - Python 3.9+. Tested on:
@@ -80,7 +80,7 @@ This code repository provides a Python API tool to enable users to connect to an
   - Mac 13.3, 13.5
 
 ### User installation
-The DigitalTWINS platform Python API is called `digitaltwins`. It is designed to be used with the `sparc-me` python tool.
+The Digital Twins platform Python API is called `digitaltwins`. It is designed to be used with the `sparc-me` python tool.
 
 1. **Setting up a virtual environment (optional but recommended)**
    
@@ -132,9 +132,9 @@ The DigitalTWINS platform Python API is called `digitaltwins`. It is designed to
 
    To run the tests, you don't need this virtual environment: see [Developing this package](#developing-this-package).
    
-## Using the DigitalTWINS platform
+## Using the Digital Twins platform
 
-Please see the [documentation for workshop 1](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/workshop_1_describing_and_storing_data.md), which describes how to use the 12 LABOURS DigitalTWINS platform and its API.
+Please see the [documentation for workshop 1](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/workshop_1_describing_and_storing_data.md), which describes how to use the 12 LABOURS Digital Twins platform and its API.
 
 ### Uploading a measurement dataset from a script
 
@@ -335,7 +335,7 @@ To report an issue or suggest a new feature, please use the [issues page](https:
 Fork this repository and submit a pull request to contribute. Before doing so, please read our [Code of Conduct](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/CODE_OF_CONDUCT.md) and [Contributing Guidelines](https://github.com/ABI-CTT-Group/digitaltwins-platform#contributing). Pull request templates are provided to help developers describe their contribution, mention the issues related to the pull request, and describe their testing environment. 
 
 ## License
-The DigitalTWINS platform API is fully open source and distributed under the very permissive Apache License 2.0. See [LICENSE](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/LICENSE) for more information.
+The Digital Twins platform API is fully open source and distributed under the very permissive Apache License 2.0. See [LICENSE](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/LICENSE) for more information.
 
 ## Team
 - Chinchien Lin (12L, CTT, BBRG)

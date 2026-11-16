@@ -1,4 +1,4 @@
-# DigitalTWINS Keycloak realm — reference
+# Digital Twins Keycloak realm — reference
 
 What lives in `digitaltwins-realm.json.template`, why, and how it maps to the
 platform's services. Read this before editing the realm.

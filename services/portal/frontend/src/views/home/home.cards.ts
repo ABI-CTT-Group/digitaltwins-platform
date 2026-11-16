@@ -64,7 +64,7 @@ export const cards: CardConfig[] = [
         action: { type: 'external', url: 'https://abi-web-apps.github.io/' }
     },
     {
-        title: 'DigitalTWINS data repository',
+        title: 'Digital Twins data repository',
         image: digitalRepositoryImage,
         location: 'Auckland Bioengineering Institute',
         description: 'World’s first data resource where health information from participants across multiple research studies can be contributed, linked, and reused with informed consent for developing digital twins.',

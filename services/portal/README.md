@@ -1,4 +1,4 @@
-# DigitalTWINS Portal
+# Digital Twins Portal
 
 ## Deploy locally
 
@@ -15,7 +15,7 @@ docker compose up --build -d
 ## How to Use the Study Dashboard
 
 ### Table of Contents
-- [Step 1: Access the Study Dashboard in the DigitalTWINS Portal](#step-1-access-the-study-dashboard-in-the-digitaltwins-portal)
+- [Step 1: Access the Study Dashboard in the Digital Twins Portal](#step-1-access-the-study-dashboard-in-the-digital-twins-portal)
 - [Step 2: Edit an Assay](#step-2-edit-an-assay)
 - [Step 3: Launch an Assay](#step-3-launch-an-assay)
 - [Step 4: Monitor an Assay](#step-4-monitor-an-assay)
@@ -25,7 +25,7 @@ docker compose up --build -d
 
 ---
 
-### Step 1: Access the Study Dashboard in the DigitalTWINS Portal
+### Step 1: Access the Study Dashboard in the Digital Twins Portal
 Open the Study Dashboard at `http://<platform-host>/study-dashboard`, where `<platform-host>` is the address of your deployment.
 
 Here you can find information about all **Programmes**, **Projects**, **Investigations**, **Studies**, and **Assays**.
@@ -63,7 +63,7 @@ After editing the assay, click the **`LAUNCH`** button.
 - **Script–based workflow**  
   The workflow will run in **Airflow**.  
 - **Web GUI–based workflow**  
-  A Web GUI will be displayed in the **DigitalTWINS Portal**.  
+  A Web GUI will be displayed in the **Digital Twins Portal**.  
 
 ---
 
@@ -84,7 +84,7 @@ For **script–based workflows**, after the execution finishes in Airflow, you c
 ---
 
 ### Step 7: Submit a Dataset
-For **script–based workflows**, once you are satisfied with the result dataset, you can upload it to the **DigitalTWINS platform** by clicking the **`SUBMIT`** button.  
+For **script–based workflows**, once you are satisfied with the result dataset, you can upload it to the **Digital Twins platform** by clicking the **`SUBMIT`** button.  
 
 ---
 
