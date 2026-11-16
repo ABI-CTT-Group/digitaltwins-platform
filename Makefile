@@ -28,6 +28,8 @@ RUN := docker run --rm --init --user $(UID):$(GID) -e HOME=/tmp \
 OFFLINE := --network none
 # The frontend's node_modules comes from the cache, so the host's node_modules is never used or changed.
 FE := -v $(CURDIR)/services/portal/frontend:/w -v $(CACHE)/frontend/node_modules:/w/node_modules -w /w
+# Tracked service compose files, mounted one by one for test-util (services/ holds untracked rendered config).
+COMPOSE_FILES := $(shell git ls-files 'services/*compose*.yml')
 
 .PHONY: test test-api test-builder test-frontend test-jupyterhub test-util frontend-deps cache-dirs \
 	lint lint-python lint-frontend gitleaks docs-check
@@ -78,7 +80,7 @@ test-jupyterhub: cache-dirs
 # read-only: the two Airflow compose files the test checks for the GPU reservation. Neither holds secrets.
 test-util: cache-dirs
 	$(RUN) $(OFFLINE) -v $(CURDIR)/util:/w/util:ro \
-	  -v $(CURDIR)/services/airflow/docker-compose.yml:/w/services/airflow/docker-compose.yml:ro \
+	  $(foreach f,$(COMPOSE_FILES),-v $(CURDIR)/$(f):/w/$(f):ro) \
 	  -v $(CURDIR)/services/airflow/gpu.override.yml:/w/services/airflow/gpu.override.yml:ro \
 	  -w /w $(PY311_IMAGE) bash -c 'rc=0; for t in util/tests/test_*.sh; do bash "$$t" || rc=1; done; exit $$rc'
 

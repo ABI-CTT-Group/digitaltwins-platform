@@ -79,7 +79,7 @@ services:
       - ./config:/opt/airflow/config
       - ./plugins:/opt/airflow/plugins
     user: "${AIRFLOW_UID:-50000}:0"
-    restart: always
+    restart: unless-stopped
     # --- GPU access -------------------------------------------------------
     # On a GPU node (NVIDIA driver + nvidia-container-toolkit installed),
     # uncomment to give the worker the GPU(s). Only needed if the task code
