@@ -41,6 +41,7 @@ services:
   
   minio:
     image: quay.io/minio/minio:latest
+    restart: unless-stopped
     networks:
       - digitaltwins-platform
     volumes:
@@ -60,7 +61,7 @@ services:
   
   hapi-fhir:
     image: hapiproject/hapi:latest
-    restart: on-failure
+    restart: unless-stopped
     ports:
       - "8006:8080"
     networks:
@@ -74,7 +75,7 @@ services:
 
   hapi-fhir-postgres:
     image: postgres:13-alpine
-    restart: always
+    restart: unless-stopped
     networks:
       - digitaltwins-platform
     environment:

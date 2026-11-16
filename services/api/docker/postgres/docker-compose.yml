@@ -5,6 +5,7 @@ services:
     image: postgres:latest
     # Official docker image https://hub.docker.com/_/postgres
     container_name: digitaltwins_postgres
+    restart: unless-stopped
     environment:
       POSTGRES_DB: digitaltwins
       POSTGRES_USER: postgres

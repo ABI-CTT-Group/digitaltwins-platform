@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     command: [ "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api" ]
+    restart: unless-stopped
     ports:
       - "8010:8000"
     environment:

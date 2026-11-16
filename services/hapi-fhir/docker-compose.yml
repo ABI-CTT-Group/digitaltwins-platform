@@ -2,7 +2,7 @@ services:
   hapi-fhir:
     image: hapiproject/hapi:latest
     container_name: hapi-fhir
-    restart: on-failure          # retries until the shared `database` is up (no depends_on needed cross-include)
+    restart: unless-stopped      # retries until the shared `database` is up (no depends_on needed cross-include)
     ports:
       - "8013:8080"
     networks:
