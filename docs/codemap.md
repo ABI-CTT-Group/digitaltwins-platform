@@ -118,7 +118,7 @@ launch, and the SEEK, FHIR, MinIO, Airflow and JupyterHub integrations.
       the numbered [`migrations/`](../services/api/src/digitaltwins/postgres/migrations/)
       for the `public` schema.
     - `minio/`: S3 upload, download and delete.
-    - `airflow/`: `workflow.py`, the Airflow REST client.
+    - `airflow/`: `workflow.py`, which gets Airflow API tokens for workflow deploys.
     - `workflows/`: workflow dataset ingest, `dag.py` (static DAG checks and the
       DAG folder layout) and `deploy.py` (writes the DAG folder and waits for
       Airflow).
