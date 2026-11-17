@@ -2,41 +2,42 @@
 
 This document tracks technical debt, refactoring tasks, and improvements that were identified but skipped in previous iterations. They are documented here for future consideration.
 
+Resolved items are removed; git history and `docs/plans/` keep the record.
+
 ## REST API (`api`)
 
 The following items were identified during the REST API restructuring (`docs/plans/2026-08-21-140800-rest-api-refactor`):
 
-### [x] 1. URL Path Consistency
-* **Description**: The API paths currently use a mix of singular nouns and actions (e.g., `POST /assay`, `POST /dataset`). These should be updated to standard RESTful resource paths (e.g., `POST /assays`, `POST /datasets`).
-* **Why skipped**: To avoid breaking existing platform tooling and frontend clients.
-* **Mitigation Strategy**: Implement redirect aliases for old paths (e.g., `POST /assay` redirects to `POST /assays`) with deprecation warnings to ensure a smooth transition.
+### [ ] 1. Action-style paths under `/dashboard`
+* **Description**: The resource routes use plural paths (`/assays`, `/datasets`), but the clinician dashboard's routes in `services/api/app/routers/dashboard.py` still use action-style names: `/dashboard/assay-details` (GET and POST), `/dashboard/assay-launch`, `/dashboard/assay-gui-context`, `/dashboard/assay-results-submit`, `/dashboard/assay-download`, `/dashboard/dataset-detail` and `/dashboard/workflow-detail`. Rename them to resource paths. Callers to update: `services/portal/frontend/src/bootstrap/dashboard_api.ts` and the other portal files that build `/api/dashboard/...` URLs. Tool plugins also receive `/api/dashboard/assays/{id}/input-files/...` URLs in their launch context (`launch-context.example.json`), so keep that path, or the old paths as aliases, until plugins move.
+* **Why skipped**: The REST API restructuring moved the resource routes to plural paths and removed the singular ones. The dashboard routes were outside that work.
 
 ### [ ] 2. API Versioning
-* **Description**: Add versioning to the API route prefixes (e.g., `/api/v1/...`).
+* **Description**: Add a version to the API's route prefixes. The gateway strips `/api`, so clients would call `/api/v1/...` while the API's own routes start with `/v1/...` (see [services/nginx/README.md](../services/nginx/README.md)).
 * **Why skipped**: Considered an internal API, so versioning was deemed unnecessary for the initial refactoring scope.
 
 ### [ ] 3. Response Models
-* **Description**: The API currently returns raw Python dictionaries for responses. These should be formalized into Pydantic models (e.g., `DatasetResponse`, `AssayResponse`) for automatic validation, OpenAPI documentation generation, and stricter contract enforcement.
+* **Description**: The API returns raw Python dictionaries, and no route sets `response_model`. The only schema module, `services/api/app/schemas/assay.py`, describes request bodies. Add Pydantic response models (e.g., `DatasetResponse`, `AssayResponse`) for validation, OpenAPI docs and a stricter contract.
 * **Why skipped**: To keep the scope focused on router reorganization.
 
 ### [ ] 4. Service Layer Extraction
-* **Description**: Route handlers in `assays.py` contain private helper functions (e.g., `_fetch_assay_configs`, `_discover_samples`, etc.). These could be extracted to a dedicated `services/` layer to decouple business logic from HTTP routing.
+* **Description**: `services/api/app/routers/assays.py` is about 990 lines and holds 13 private helpers (e.g., `_fetch_assay_configs`, `_discover_samples`, `_trigger_dag`, `_create_sds_output`, `_reconcile_manifest`). Move the business logic out of the router, into `src/digitaltwins/core/` or a new service module, so it can be tested without HTTP.
 * **Why skipped**: Helpers were determined to be router-specific, and the `src/digitaltwins/core/` layer already acts as the primary service layer.
 
 ### [ ] 5. Async Handler Conversion
-* **Description**: Many route handlers in the API are synchronous (`def` instead of `async def`). Converting them to `async` would improve concurrency and performance.
+* **Description**: 60 of the API's 66 route handlers are `def`, not `async def`. FastAPI runs `def` handlers in a thread pool, so they don't block the event loop today. Changing them to `async def` while they still call `requests` and the synchronous Postgres driver would block the loop and make things slower. Convert a handler only after its I/O has moved to async clients (e.g., `httpx`, an async DB driver), and only where the thread pool is shown to be a bottleneck.
 * **Why skipped**: Requires auditing underlying database and network dependencies (e.g., `requests`, synchronous DB drivers) to ensure they are async-compatible to prevent blocking the event loop.
 
 ### [ ] 6. Configuration Consolidation
-* **Description**: Environment variables are currently accessed via scattered `os.getenv()` calls throughout the codebase. Consolidate these into a centralized configuration module (e.g., using `pydantic-settings`).
+* **Description**: Environment variables are read through about 120 scattered `os.getenv()` and `os.environ` calls across 34 files in `services/api/app/` and `services/api/src/`. Consolidate them into one configuration module (e.g., using `pydantic-settings`).
 * **Why skipped**: Left as-is to minimize the scope of the routing refactor.
 
 ### [ ] 7. CORS Hardening
-* **Description**: Review and restrict the Cross-Origin Resource Sharing (CORS) policy.
+* **Description**: `initialise` in `services/api/app/main.py` allows every origin (`allow_origins=["*"]`) with `allow_credentials=True` and all methods and headers. The portal calls the API through the gateway on the same origin, so check which clients, if any, make cross-origin calls. Then restrict the list to those origins, or drop the middleware.
 * **Why skipped**: Left as-is for the initial refactor.
 
 ### [ ] 8. `GET /datasets/{uuid}/sample-types` fails for a dataset with no samples
-* **Description**: `get_dataset_sample_types` in `services/api/src/digitaltwins/postgres/querier.py` builds `... WHERE sample_uuid IN ()` when the dataset has no samples. Postgres rejects that, so the endpoint returns 500 instead of an empty list. Return `[]` early for no samples, and pass the UUIDs as query parameters instead of formatting them into the SQL string.
+* **Description**: `get_dataset_sample_types` in `services/api/src/digitaltwins/postgres/querier.py` builds `... WHERE sample_uuid IN ()` when the dataset has no samples. Postgres rejects that, so the endpoint returns 500 instead of an empty list. Return `[]` early for no samples. Both of its queries also format values into the SQL string (`dataset_uuid` in the first, the sample UUIDs in the second); pass them as query parameters instead.
 * **Why skipped**: Found during the Dependabot work (`docs/plans/2026-11-03-151012-dependabot-alerts`); it predates it, and that work only changed dependency pins.
 
 ## Repository layout
@@ -44,17 +45,12 @@ The following items were identified during the REST API restructuring (`docs/pla
 Found while writing [codemap.md](codemap.md) (`docs/plans/2026-10-28-133109-repo-learnability`). The docs now explain these, but nothing was moved or renamed.
 
 ### [ ] 1. Inactive service folders
-* **Description**: `services/jupyterlab/`, `services/pacs_pretend_external/` and `services/irods/` (only a `.gitkeep`) aren't wired into the root `docker-compose.yml`. `services/api/docker/` and some services in `services/portal/docker-compose.yml` are left over from before those repos were merged in. Remove them, or move them under an `archive/` folder.
+* **Description**: `services/jupyterlab/` and `services/pacs_pretend_external/` are commented out of the root `docker-compose.yml`, and `services/irods/` holds only a README and a `.gitkeep`. `services/api/docker/` (`orthanc/`, `postgres/`) and the services in `services/portal/docker-compose.yml` other than `portal-frontend` (MinIO, HAPI FHIR and its Postgres, `minio-init`) are left over from before those repos were merged in. Remove them, or move them under an `archive/` folder.
 * **Why skipped**: The learnability work was docs-only.
 
 ### [ ] 2. Flat `util/` folder
 * **Description**: `util/` holds about 70 scripts in one folder, indexed in [util/SCRIPTS.md](../util/SCRIPTS.md). Group them into subfolders (install, seek, keycloak, backup, sync), updating the Ansible playbooks, docs and the systemd unit that call them.
 * **Why skipped**: Moving them breaks paths in playbooks and on running hosts.
-
-### [x] 3. Old names in code and comments
-* **Description**: Names from before the portal and preprocessor were merged in are still around: `clinical-dashboard` in a comment in `services/builder/docker-compose.yml`, a comment in `services/airflow/compute-worker/docker-compose.yml`, and the `preprocessor` DAG URL that `services/api/src/digitaltwins/airflow/workflow.py` still calls. Check whether that code path is live, then remove or rename.
-* **Why skipped**: The learnability work was docs-only, and the DAG URL is code.
-* **Resolved**: The `preprocessor` call was dead: no such DAG exists, and `POST /assays/{id}/run` triggers `workflow_<seek_id>` from the API. It was removed with its only entry point, the package's `Workflow` export (`core/workflow.py`), its example `services/api/examples/run_workflow.py`, and `AIRFLOW_VERSION`, which only it read. The Airflow client in `airflow/workflow.py` keeps `get_api_token()`, which workflow deploy uses. The client also no longer reads `AIRFLOW_API_URL` or `AIRFLOW_API_TOKEN`, which nothing used. The comments now name the platform's root `.env` and the API's assay run, and `services/portal/docs/deployment-guide.md` now describes `services/portal/` instead of the old `clinical-dashboard` repository and its submodule.
 
 ### [ ] 4. Empty root `tests/` folder
 * **Description**: `tests/` holds only a `.gitkeep`. Use it for end-to-end tests, or remove it.
@@ -80,27 +76,18 @@ Found while making `make lint` pass. The cleanup kept behaviour unchanged, so th
 * **Description**: `services/portal/frontend/src/components/domain/DownloadSheet.vue` and `SubmitSheet.vue` aren't imported anywhere. Remove both.
 * **Why skipped**: Deleting files is outside a behaviour-neutral lint cleanup.
 
-### [x] 2. Duplicate vite copies in the portal
-* **Description**: The portal installs vite 6.4.x, but vitest 3.2.7 brought its own vite 7.3.x. `vite.config.ts` worked around the type clash with a `@ts-expect-error` on the `test` key. (The matching rollup clash, and its `as PluginOption` cast on `glslify(...)`, went away when the Dependabot refresh brought every rollup copy to 4.67.)
-* **Why skipped**: It's a dependency change with its own risk.
-* **Resolved**: The Dependabot work moved vitest to 4.1.12, which shares the portal's vite 6.4.x, and removed the `@ts-expect-error`. In `yarn.lock`, vitest's `vite` range is listed on the same entry as the portal's own `vite@^6.3.5`. Yarn 1 can't install vitest 4 if its range resolves to a separate vite, because vitest also lists vite as a peer dependency. Keep the two on one entry when you update either.
-
 ### [ ] 3. Broad exception handlers in `gen3/metadata_convertor.py`
 * **Description**: Two former bare `except:` clauses are now `except Exception:`. The one around `data.get(key)` can't raise and prints `"test"`; remove it. The one around the mapping lookup should catch `(IndexError, KeyError)` only.
 * **Why skipped**: Narrowing changes which errors propagate.
 
 ### [ ] 4. Imports of names `digitaltwins` no longer exports
-* **Description**: `services/api/src/digitaltwins/core/uploader_gen3.py` imports `MetadataConvertor` and `MetadataUploader` from `digitaltwins`, and some files in `services/api/examples/` and the tutorials import `Auth`, `MetadataUploader`, `QuerierFactory` or `Connection`. Those exports are commented out in `digitaltwins/__init__.py`, so this code fails on import. Fix the imports or remove the code.
+* **Description**: `services/api/src/digitaltwins/core/uploader_gen3.py` imports `MetadataConvertor` and `MetadataUploader` from `digitaltwins`. `services/api/examples/query_postgres.py`, `services/api/examples/gen3/submit_metadata.py` and `services/api/tutorials/vph/tutorial_digitaltwins_api.ipynb` import `Auth`, `MetadataUploader`, `QuerierFactory` or `Connection`. Those exports are commented out in `digitaltwins/__init__.py`, so this code fails on import. Fix the imports or remove the code.
 * **Why skipped**: Gen3 and these examples look unused; that needs checking first.
-
-### [ ] 5. A promise that never rejects
-* **Description**: `getRepoRootCWLContent` in `services/portal/frontend/src/views/upload-dataset/components/utils.ts` never calls `reject`, so a failing `getRepoContents` leaves the caller waiting forever. Reject on error.
-* **Why skipped**: It changes behaviour; the lint cleanup only dropped the unused parameter.
 
 ## API tutorials
 
 Found while renaming "DigitalTWINS" to "Digital Twins".
 
 ### [ ] 1. Review the tutorials in `services/api/tutorials/`
-* **Description**: The tutorials were written for the 12 LABOURS shared-drive setup and haven't been checked against the current platform. They still use example paths on that drive, such as `X:\DigitalTWINS\resources\latest\configs\configs.ini` and `/MOUNT_POINT/DigitalTWINS/...` (`tutorial_1_getting_started.md` and the notebooks for tutorials 2 to 5). Check whether that drive layout still exists, update or remove the paths, and check each tutorial still runs (see also "Imports of names `digitaltwins` no longer exports" above).
+* **Description**: The tutorials were written for the 12 LABOURS shared-drive setup and haven't been checked against the current platform. They still use example paths on that drive, such as `X:\DigitalTWINS\resources\latest\configs\configs.ini`, `L:\DigitalTWINS\...` and `/MOUNT_POINT/DigitalTWINS/...` (`tutorial_1_getting_started.md` and the notebooks for tutorials 2 to 5). Check whether that drive layout still exists, update or remove the paths, and check each tutorial still runs (see also "Imports of names `digitaltwins` no longer exports" above).
 * **Why skipped**: The rename changed display text only; the paths name a real folder, so renaming them would point at a folder that may not exist.
