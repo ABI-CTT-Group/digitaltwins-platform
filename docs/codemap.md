@@ -118,7 +118,7 @@ launch, and the SEEK, FHIR, MinIO, Airflow and JupyterHub integrations.
       the numbered [`migrations/`](../services/api/src/digitaltwins/postgres/migrations/)
       for the `public` schema.
     - `minio/`: S3 upload, download and delete.
-    - `airflow/`: `workflow.py`, the Airflow REST client.
+    - `airflow/`: `workflow.py`, which gets Airflow API tokens for workflow deploys.
     - `workflows/`: workflow dataset ingest, `dag.py` (static DAG checks and the
       DAG folder layout) and `deploy.py` (writes the DAG folder and waits for
       Airflow).
@@ -453,7 +453,7 @@ given here; values live in `env`, `secrets.env` and the rendered `.env`.
 | api | Keycloak | `KEYCLOAK_BASE_URL` (internal), `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`. Accepts tokens issued to `portal-frontend` or `api` only. | `services/api/docker-compose.yml`, `.env` | 503 when Keycloak is unreachable; 401 for other clients' tokens; Basic auth and `/login` fail if the secret is wrong. |
 | api | postgres | `POSTGRES_HOST` (`database`), `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | `services/api/docker-compose.yml`, `.env` | The API fails to start: it runs its migrations at startup. |
 | api | SEEK | `SEEK_BASE_URL` (`http://seek:3000/seek`); every call forwards the caller's Keycloak JWT, which SEEK verifies (client `seek`) | `services/api/docker-compose.yml`; `keycloak_jwt_auth.rb` in the submodule | Empty dashboards or 401s. Users see only what their SEEK user may see. See [seek-integration.md](seek-integration.md). |
-| api | Airflow | `AIRFLOW_ENDPOINT` (token from `/auth/token`, DAG runs at `/api/v2/dags/{id}/dagRuns`); `AIRFLOW_API_URL` (required by the package's Airflow client, used by DAG deploy); `AIRFLOW_USERNAME` and `AIRFLOW_PASSWORD`, the local Airflow user that `airflow-init` creates from the same variables; `AIRFLOW__API__BASE_URL` for monitor links | `services/api/docker-compose.yml`, `services/airflow/docker-compose.yml` | Assay launch returns 503; DAG deploy fails. |
+| api | Airflow | `AIRFLOW_ENDPOINT` (token from `/auth/token`, DAG runs at `/api/v2/dags/{id}/dagRuns`); `AIRFLOW_USERNAME` and `AIRFLOW_PASSWORD`, the local Airflow user that `airflow-init` creates from the same variables; `AIRFLOW__API__BASE_URL` for monitor links | `services/api/docker-compose.yml`, `services/airflow/docker-compose.yml` | Assay launch returns 503; DAG deploy fails. |
 | api | Airflow DAG folder | Bind mount `../airflow/dags` at `/airflow-dags` (`AIRFLOW_DAGS_DIR`); Airflow mounts the same folder. The DAG processor rescans every 30 s; the API waits up to `AIRFLOW_DAG_DEPLOY_TIMEOUT`. | `services/api/docker-compose.yml`, `services/airflow/docker-compose.yml` | Deploys fail or time out. The DAG id must equal its folder name, `workflow_<seek_id>`. |
 | api | builder | `BUILDER_URL`; `GET /api/builder/workflow/gui-tool` as the caller | `services/api/docker-compose.yml`, `.env` | GUI assays can't launch (502 "Builder unreachable"). |
 | builder | api | `API_BASE_URL` and `API_PORT`; approval uploads through `/datasets/uploads` as the approving user | `services/builder/docker-compose.yml`, `.env` | Tool and workflow approvals stall. |

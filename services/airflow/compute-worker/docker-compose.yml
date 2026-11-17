@@ -45,7 +45,7 @@ services:
       # --- services the child workflow_* DAG tasks call, also over the VLAN ---
       # Orchestration (fetch configs, discover samples, trigger the child
       # workflow_{seek_id} runs) now lives in the Digital Twins API on the portal,
-      # not in a preprocessor DAG here — so the worker no longer needs
+      # not in a DAG on this node — so the worker no longer needs
       # AIRFLOW_ENDPOINT. It just runs the child DAG tasks, which call the
       # Digital Twins API and MinIO over the VLAN.
       # The task builds the Digital Twins API URL as base + ":" + API_PORT,
