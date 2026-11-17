@@ -51,9 +51,10 @@ Found while writing [codemap.md](codemap.md) (`docs/plans/2026-10-28-133109-repo
 * **Description**: `util/` holds about 70 scripts in one folder, indexed in [util/SCRIPTS.md](../util/SCRIPTS.md). Group them into subfolders (install, seek, keycloak, backup, sync), updating the Ansible playbooks, docs and the systemd unit that call them.
 * **Why skipped**: Moving them breaks paths in playbooks and on running hosts.
 
-### [ ] 3. Old names in code and comments
+### [x] 3. Old names in code and comments
 * **Description**: Names from before the portal and preprocessor were merged in are still around: `clinical-dashboard` in a comment in `services/builder/docker-compose.yml`, a comment in `services/airflow/compute-worker/docker-compose.yml`, and the `preprocessor` DAG URL that `services/api/src/digitaltwins/airflow/workflow.py` still calls. Check whether that code path is live, then remove or rename.
 * **Why skipped**: The learnability work was docs-only, and the DAG URL is code.
+* **Resolved**: The `preprocessor` call was dead: no such DAG exists, and `POST /assays/{id}/run` triggers `workflow_<seek_id>` from the API. It was removed with its only entry point, the package's `Workflow` export (`core/workflow.py`), its example `services/api/examples/run_workflow.py`, and `AIRFLOW_VERSION`, which only it read. The Airflow client in `airflow/workflow.py` keeps `get_api_token()`, which workflow deploy uses. The client also no longer reads `AIRFLOW_API_URL` or `AIRFLOW_API_TOKEN`, which nothing used. The comments now name the platform's root `.env` and the API's assay run, and `services/portal/docs/deployment-guide.md` now describes `services/portal/` instead of the old `clinical-dashboard` repository and its submodule.
 
 ### [ ] 4. Empty root `tests/` folder
 * **Description**: `tests/` holds only a `.gitkeep`. Use it for end-to-end tests, or remove it.
