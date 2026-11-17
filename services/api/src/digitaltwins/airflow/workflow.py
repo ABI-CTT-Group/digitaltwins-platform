@@ -11,12 +11,10 @@ load_dotenv()
 class Workflow(object):
     def __init__(self):
         self._airflow_endpoint = os.getenv("AIRFLOW_ENDPOINT")
-        self._airflow_api_url = os.getenv("AIRFLOW_API_URL")
         self._username = os.getenv("AIRFLOW_USERNAME")
         self._password = os.getenv("AIRFLOW_PASSWORD")
-        self._airflow_api_token = os.getenv("AIRFLOW_API_TOKEN")
 
-        for required in [self._airflow_endpoint, self._airflow_api_url, self._username, self._password]:
+        for required in [self._airflow_endpoint, self._username, self._password]:
             if not required:
                 raise ValueError("Airflow configuration is incomplete. Please check your environment variables.")
 

@@ -16,7 +16,7 @@ def test_airflow_client_has_no_run():
 def test_get_api_token_posts_credentials(monkeypatch):
     monkeypatch.delenv("AIRFLOW_VERSION", raising=False)
     monkeypatch.setenv("AIRFLOW_ENDPOINT", "http://airflow:8080/airflow")
-    monkeypatch.setenv("AIRFLOW_API_URL", "http://airflow:8080/airflow/api/v2")
+    monkeypatch.delenv("AIRFLOW_API_URL", raising=False)
     monkeypatch.setenv("AIRFLOW_USERNAME", "user")
     monkeypatch.setenv("AIRFLOW_PASSWORD", "pw")
 

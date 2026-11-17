@@ -286,7 +286,7 @@ a FastAPI app that uvicorn serves under `/api`.
 | Keycloak | `KEYCLOAK_BASE_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`. It accepts tokens issued to the `portal-frontend` and `api` clients |
 | SEEK | `SEEK_BASE_URL`, as the calling user: the user's token is forwarded |
 | HAPI FHIR | `FHIR_ENDPOINT`. `API_PUBLIC_URL` is the base of the file URLs written into FHIR resources |
-| Airflow | The REST API at `AIRFLOW_ENDPOINT` / `AIRFLOW_API_URL`, as `AIRFLOW_USERNAME`. DAG folders are written into `services/airflow/dags`, bind-mounted at `/airflow-dags` (`AIRFLOW_DAGS_DIR`) |
+| Airflow | The REST API at `AIRFLOW_ENDPOINT`, as `AIRFLOW_USERNAME`. DAG folders are written into `services/airflow/dags`, bind-mounted at `/airflow-dags` (`AIRFLOW_DAGS_DIR`) |
 | JupyterHub | `JUPYTERHUB_API_TOKEN` (required), `JUPYTERHUB_PUBLIC_URL`, and `JUPYTERHUB_INTERNAL_URL` (defaulted in code) |
 | builder | `BUILDER_URL`, to ask which tool backs a GUI assay |
 | Volumes | `dataset_staging` (`DATASET_STAGING_DIR`): upload chunks and staged datasets |

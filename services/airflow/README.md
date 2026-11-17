@@ -52,7 +52,7 @@ when the workflow is deleted. Don't edit them by hand: redeploy instead. See
 |---|---|
 | Postgres | The `airflow` database, for metadata and Celery results: `AIRFLOW_DB_USER`, `AIRFLOW_DB_PASSWORD`, `AIRFLOW_DB_NAME` |
 | Redis | The stack's own `redis`, the Celery broker, password `REDIS_PASSWORD` |
-| api | The API bind-mounts `dags/` at `/airflow-dags` and writes DAG folders there. It calls Airflow's REST API (`AIRFLOW_ENDPOINT`, `AIRFLOW_API_URL`) as the local user `AIRFLOW_USERNAME`, which `airflow-init` creates with `AIRFLOW_PASSWORD` |
+| api | The API bind-mounts `dags/` at `/airflow-dags` and writes DAG folders there. It calls Airflow's REST API (`AIRFLOW_ENDPOINT`) as the local user `AIRFLOW_USERNAME`, which `airflow-init` creates with `AIRFLOW_PASSWORD` |
 | MinIO | Tasks get `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY` (from `MINIO_SERVER_*`). Task logs go to the `airflow-logs` bucket through `AIRFLOW_CONN_MINIO_LOGS` |
 | Keycloak | UI sign-in through the `airflow` client (`AIRFLOW_KEYCLOAK_CLIENT_SECRET`). Tasks get `KEYCLOAK_*` for the `api` client's client-credentials grant |
 | gateway | `/airflow/` → `airflow-apiserver:8080`; Airflow knows its prefix from `AIRFLOW__API__BASE_URL` |
