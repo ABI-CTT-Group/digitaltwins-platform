@@ -18,6 +18,8 @@ API, a builder, Airflow, JupyterHub, SEEK, MinIO, HAPI FHIR and Orthanc, with Ke
 [docs/glossary.md](docs/glossary.md) explains domain terms (SDS, SEEK assay, SOP, tool, workflow, plugin).
 `docs/plans/` is dated design evidence kept for audit. It describes what was true when each change
 was made, so it may be stale: trust the guides, the ADRs and the code over it.
+[docs/future_refactoring.md](docs/future_refactoring.md) lists known debt. Like the plans, its items
+can be stale or wrong: check each one against the code before acting on it.
 
 ## Repository map
 
@@ -118,6 +120,15 @@ Do NOT create ADRs for routine fixes, minor refactors, or straightforward implem
 2. **At task-end:** Check whether any decisions emerged mid-implementation that weren't captured at plan time. If so, create or update the ADR. If the outcome diverged from the plan-time ADR, update it to reflect what actually happened.
 
 ADRs MUST be committed in the **same branch/PR** as the related code changes.
+
+---
+
+## Technical debt
+
+Debt you find but don't fix goes in `docs/future_refactoring.md`, with a Description and a Why skipped.
+When a change fixes an item, remove it in the same PR. If the item holds guidance that stays true
+after the fix, move it first to the doc that covers that area: a service's `AGENTS.md` or README, a
+guide in `docs/`, or the couplings in `docs/codemap.md`.
 
 ---
 
