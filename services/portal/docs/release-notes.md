@@ -37,7 +37,7 @@ Removed the long-deprecated dev-mount source path from the plugin and workflow b
 - The build response dict no longer includes an `is_local` key. The internal `build_record` writer ([`builder_utils.py`](../../builder/app/utils/builder_utils.py)) and the `/api/.../metadata` endpoints never read this key (they recompute from `latest_build.s3_path is None`); no in-tree consumer is affected. External consumers reading the build response directly should switch to `s3_path is None` if they need an equivalent signal.
 - The `is_git_url` helper in [`services/builder/app/utils/builder_utils.py`](../../builder/app/utils/builder_utils.py) has been removed.
 
-**No frontend impact** — `clinical-dashboard/frontend/` had zero references to `is_local` or `is_git_url`, and the production registration form's `githubRepoRegex` already rejected non-git URLs.
+**No frontend impact** — `services/portal/frontend/` had zero references to `is_local` or `is_git_url`, and the production registration form's `githubRepoRegex` already rejected non-git URLs.
 
 See `../plan/03-PLAN-deprecate-dev-mount.md` for the full context.
 

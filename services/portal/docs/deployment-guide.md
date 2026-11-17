@@ -1,14 +1,7 @@
-# Clinical Dashboard — Deployment Guide (Portal Frontend Nginx)
+# Portal — Deployment Guide (Portal Frontend Nginx)
 
-> **Historical.** This guide describes the old "Clinical Dashboard" repository and the
-> `DigitalTWINS-Portal` submodule, neither of which exists any more: the portal now lives in
-> `services/portal`, and its backend is the builder in `services/builder`. It is kept for history.
-> To deploy the platform, follow [docs/deployment.md](../../../docs/deployment.md), which supersedes it.
-
-**Audience:** Ops / platform team running `clinical-dashboard`, either standalone or as the `DigitalTWINS-Portal` submodule inside `digitaltwins-platform`.
-
-**Date:** 2026-07-13
-**Status:** Active — supersedes the `entry.sh` + dual-template approach. TLS and platform-level routes now live in the platform's own edge gateway.
+> This guide covers `portal-frontend`'s nginx and the standalone development stack in
+> `services/portal/`. To deploy the whole platform, follow [docs/deployment.md](../../../docs/deployment.md).
 
 ---
 
@@ -16,7 +9,7 @@
 
 `portal-frontend`'s nginx serves **only what the portal owns**: the SPA, `/api/builder/` → the builder (`services/builder`, service `builder`), `/tools/` → the public MinIO bucket, and the dynamically generated `/plugin/*` routes.
 
-- **HTTP only.** There is no SSL template and no `entry.sh` anymore. TLS terminates at the platform gateway (`digitaltwins-platform/services/nginx`), which proxies everything it doesn't recognise back to `portal-frontend` via `location /`.
+- **HTTP only.** There is no SSL template and no `entry.sh` anymore. TLS terminates at the platform gateway ([`services/nginx`](../../nginx/)), which proxies everything it doesn't recognise back to `portal-frontend` via `location /`.
 - **Standalone is a development inner loop**, not a deployment target. Real deployments go through the platform.
 - **Config is rendered by the official nginx image.** `frontend/nginx.conf.template` is copied to `/etc/nginx/templates/default.conf.template`; the stock entrypoint runs `envsubst` over it at container start. No custom shell script.
 - **Host ports come from `docker-compose.override.yml`**, which only the standalone stack loads.
@@ -36,19 +29,19 @@ Both stacks derive their identity from the same `PROJECT_NAME=digitaltwins-platf
 Starting one while the other is up will fail on the container-name conflict — and recovering from that can take the *other* stack's containers and network with it. **Bring one down before bringing the other up.**
 
 ```bash
-# switching from platform to standalone
-cd digitaltwins-platform && docker compose down
-cd ../clinical-dashboard && docker compose up -d
+# switching from platform to standalone, starting at the repo root
+docker compose down
+cd services/portal && docker compose up -d
 ```
 
 Named volumes survive `down`, so no data is lost either way.
 
 ---
 
-## 2. What's in the repo
+## 2. What's in `services/portal/`
 
 ```
-clinical-dashboard/
+services/portal/
 ├── docker-compose.yml               # base: NO host ports (the platform gateway owns 80/443)
 ├── docker-compose.override.yml      # dev-only: publishes 80. Auto-merged by `docker compose up`
 └── frontend/
@@ -65,7 +58,7 @@ There is no `certs/` requirement for the portal anymore — certificates belong 
 ## 3. Running it standalone (development)
 
 ```bash
-cd clinical-dashboard
+cd services/portal
 docker compose up -d --build
 ```
 
@@ -73,7 +66,7 @@ Browse `http://localhost/`.
 
 > **Use `docker compose up`, not `docker compose -f docker-compose.yml up`.** Compose only auto-merges `docker-compose.override.yml` when you don't pass `-f`, and port 80 is published in that override. With an explicit `-f` the stack comes up with no published ports and nothing is reachable.
 
-That asymmetry is deliberate: the platform consumes this repo through `extends: { file: docker-compose.yml, service: portal-frontend }`, which reads only the file it names. So the platform never picks up the override, and 80/443 stay free for the gateway.
+That asymmetry is deliberate: the root `docker-compose.yml` consumes this folder through `extends: { file: ./services/portal/docker-compose.yml, service: portal-frontend }`, which reads only the file it names. So the platform never picks up the override, and 80/443 stay free for the gateway.
 
 The standalone stack runs only `portal-frontend`. The builder that serves `/api/builder/` is its own service (`services/builder/docker-compose.yml`) and comes up with the platform; without it `/api/builder/` answers 502.
 
@@ -133,15 +126,15 @@ You should see `proxy_pass http://$up_builder:8000;` (port substituted), `proxy_
 
 ## 6. Deploying under the platform
 
-The platform builds this repo as a git submodule and adds its own edge:
+The root `docker-compose.yml` extends `services/portal/docker-compose.yml` and adds its own edge:
 
 ```
-browser → gateway (digitaltwins-platform/services/nginx, owns 80/443 + TLS)
+browser → gateway (services/nginx, owns 80/443 + TLS)
             ├── /seek/ /jupyter/ /auth/ /airflow/ /minio/
-            └── /  →  portal-frontend  (this repo: SPA, /api/builder/, /tools/, /plugin/*)
+            └── /  →  portal-frontend  (services/portal: SPA, /api/builder/, /tools/, /plugin/*)
 ```
 
-Gateway config is bind-mounted, so operators change a route and `nginx -s reload` — no image rebuild. See `digitaltwins-platform/services/nginx/README.md`.
+Gateway config is bind-mounted, so operators change a route and `nginx -s reload` — no image rebuild. See [services/nginx/README.md](../../nginx/README.md).
 
 ### Database
 
@@ -158,8 +151,6 @@ docker compose run --rm builder python -m app.cli.migrate_sqlite_to_postgres
 ```
 
 It refuses to run if the target already has portal rows, and it copies everything in a single transaction.
-
-**Never edit `services/portal/DigitalTWINS-Portal/` from the platform side.** It is a git submodule; editing it dirties the working tree and the next `git submodule update` will conflict. Portal changes are made here, pushed, and picked up by bumping the submodule SHA.
 
 ---
 

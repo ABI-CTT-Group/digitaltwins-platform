@@ -25,7 +25,7 @@ services:
       # Pass-through vars consumed by PLUGIN compose files, not by this backend.
       # PluginDeployer shells out to `docker compose` from inside this container
       # with os.environ as the interpolation source, and compose looks for a .env
-      # in the plugin's own project dir — never in clinical-dashboard/.env. So a
+      # in the plugin's own project dir — never in the platform's root .env. So a
       # `${VAR}` in any plugin compose resolves against THIS block, and a missing
       # name degrades silently to the plugin's `:-` default rather than erroring.
       # These names are the plugin-facing contract; keep them even though the
