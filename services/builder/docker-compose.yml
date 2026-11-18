@@ -20,7 +20,7 @@ services:
       - DATASET_DIR_WORKFLOW=/portal_workspace/workflows
       - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio:9000}
       - MINIO_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:?set MINIO_SERVER_SECRET_KEY in secrets.env}
       - MINIO_PORT=${MINIO_PORT:-8004}
       # Pass-through vars consumed by PLUGIN compose files, not by this backend.
       # PluginDeployer shells out to `docker compose` from inside this container
@@ -36,7 +36,7 @@ services:
       # a bare, generic word — don't add more of them (HOST, PORT, DEBUG, ENV...)
       # or a plugin author's unrelated ${VAR} will silently resolve to ours.
       - MINIO_SERVER_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
-      - MINIO_SERVER_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
+      - MINIO_SERVER_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:?set MINIO_SERVER_SECRET_KEY in secrets.env}
       - PROJECT_NAME=${PROJECT_NAME:-digitaltwins-platform}
       # Public scheme of the portal — decides whether generated URLs (workflow
       # metadata, MinIO presigned links) say http:// or https://. The key is SSL

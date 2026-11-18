@@ -53,7 +53,7 @@ services:
       # backend a credential this server had never heard of (403 on every bucket).
       # Both sides now read the same two .env keys.
       - MINIO_ROOT_USER=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
-      - MINIO_ROOT_PASSWORD=${MINIO_SERVER_SECRET_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_SERVER_SECRET_KEY:?set MINIO_SERVER_SECRET_KEY in secrets.env}
       # Tells the Console its public base URL so all static/API/redirect paths get the /minio prefix.
       # The HTTP default is used only when unset.
       - MINIO_BROWSER_REDIRECT_URL=${MINIO_BROWSER_REDIRECT_URL:-http://localhost/minio}
@@ -98,7 +98,7 @@ services:
       # set real credentials. $$VAR escapes compose interpolation so the value is
       # expanded by the container's shell, not substituted into the entrypoint.
       - MC_USER=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
-      - MC_PASS=${MINIO_SERVER_SECRET_KEY:-minioadmin}
+      - MC_PASS=${MINIO_SERVER_SECRET_KEY:?set MINIO_SERVER_SECRET_KEY in secrets.env}
     entrypoint: >
       /bin/sh -c "
       echo 'Waiting for MinIO...';
