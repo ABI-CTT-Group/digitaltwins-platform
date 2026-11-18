@@ -78,10 +78,13 @@ test-jupyterhub: cache-dirs
 	  $(HUB_IMAGE) -m pytest -p no:cacheprovider -ra tests $(PYTEST_ARGS)
 
 # Shell tests for util/ (which compose files gen-env.sh merges, and the docs checker). Also mounted,
-# read-only: the two Airflow compose files the test checks for the GPU reservation. Neither holds secrets.
+# read-only: the two Airflow compose files the test checks for the GPU reservation, and the root compose
+# file and secrets.env.template, for the required-secrets check. None holds secrets.
 test-util: cache-dirs
 	$(RUN) $(OFFLINE) -v $(CURDIR)/util:/w/util:ro \
 	  $(foreach f,$(COMPOSE_FILES),-v $(CURDIR)/$(f):/w/$(f):ro) \
+	  -v $(CURDIR)/docker-compose.yml:/w/docker-compose.yml:ro \
+	  -v $(CURDIR)/secrets.env.template:/w/secrets.env.template:ro \
 	  -v $(CURDIR)/services/airflow/gpu.override.yml:/w/services/airflow/gpu.override.yml:ro \
 	  -w /w $(PY311_IMAGE) bash -c 'rc=0; for t in util/tests/test_*.sh; do bash "$$t" || rc=1; done; exit $$rc'
 

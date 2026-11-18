@@ -57,8 +57,8 @@ x-airflow-common:
   environment: &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@database:5432/${AIRFLOW_DB_NAME:-airflow}
-    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@database:5432/${AIRFLOW_DB_NAME:-airflow}
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:?set AIRFLOW_DB_PASSWORD in secrets.env}@database:5432/${AIRFLOW_DB_NAME:-airflow}
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:?set AIRFLOW_DB_PASSWORD in secrets.env}@database:5432/${AIRFLOW_DB_NAME:-airflow}
     # Redis is ALWAYS password-protected (base sets --requirepass below), so the
     # broker URL always carries REDIS_PASSWORD — a required secret. The
     # remote-compute override only publishes the broker port on the VLAN.
@@ -96,13 +96,13 @@ x-airflow-common:
     KEYCLOAK_INTERNAL_URL: ${KEYCLOAK_INTERNAL_URL:-http://keycloak:8080/auth}
     KEYCLOAK_REALM: ${KEYCLOAK_REALM:-digitaltwins}
     KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-api}
-    KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+    KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:?set KEYCLOAK_CLIENT_SECRET in secrets.env}
     KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL}
     AIRFLOW_KEYCLOAK_CLIENT_SECRET: ${AIRFLOW_KEYCLOAK_CLIENT_SECRET:?set AIRFLOW_KEYCLOAK_CLIENT_SECRET in secrets.env}
     # MinIO credentials — read from .env so DAGs use the correct secret key
     MINIO_ENDPOINT: ${MINIO_ENDPOINT:-http://minio:9000}
     MINIO_ACCESS_KEY: ${MINIO_SERVER_ACCESS_KEY:-minioadmin}
-    MINIO_SECRET_KEY: ${MINIO_SERVER_SECRET_KEY:-minioadmin}
+    MINIO_SECRET_KEY: ${MINIO_SERVER_SECRET_KEY:?set MINIO_SERVER_SECRET_KEY in secrets.env}
     # Any environment variable prefixed with AIRFLOW_VAR_ is mapped to an Airflow Variable.
     # This allows DAGs to call Variable.get() without querying the Airflow metadata database.
     AIRFLOW_VAR_COMPUTE_QUEUE: ${AIRFLOW_VAR_COMPUTE_QUEUE}
@@ -114,7 +114,7 @@ x-airflow-common:
     AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: minio_logs
     AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: s3://airflow-logs
     AIRFLOW__LOGGING__ENCRYPT_S3_LOGS: 'False'
-    AIRFLOW_CONN_MINIO_LOGS: "aws://${MINIO_SERVER_ACCESS_KEY}:${MINIO_SERVER_SECRET_KEY}@?endpoint_url=http%3A%2F%2Fminio%3A9000"
+    AIRFLOW_CONN_MINIO_LOGS: "aws://${MINIO_SERVER_ACCESS_KEY}:${MINIO_SERVER_SECRET_KEY:?set MINIO_SERVER_SECRET_KEY in secrets.env}@?endpoint_url=http%3A%2F%2Fminio%3A9000"
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
@@ -184,7 +184,7 @@ services:
       # Same keys the minio server derives its root credentials from; $$VAR is
       # expanded by the container shell, not by compose interpolation.
       - MC_USER=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
-      - MC_PASS=${MINIO_SERVER_SECRET_KEY:-minioadmin}
+      - MC_PASS=${MINIO_SERVER_SECRET_KEY:?set MINIO_SERVER_SECRET_KEY in secrets.env}
     entrypoint: >
       /bin/sh -c "
       echo 'Waiting for MinIO...';
