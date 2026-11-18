@@ -1,18 +1,16 @@
-import os
 
 import requests
 from requests import RequestException
 
-from dotenv import load_dotenv
-
-load_dotenv()
+from ..settings import load_settings
 
 
 class Workflow(object):
     def __init__(self):
-        self._airflow_endpoint = os.getenv("AIRFLOW_ENDPOINT")
-        self._username = os.getenv("AIRFLOW_USERNAME")
-        self._password = os.getenv("AIRFLOW_PASSWORD")
+        airflow = load_settings().airflow
+        self._airflow_endpoint = airflow.endpoint
+        self._username = airflow.username
+        self._password = airflow.password
 
         for required in [self._airflow_endpoint, self._username, self._password]:
             if not required:

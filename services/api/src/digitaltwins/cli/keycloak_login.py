@@ -7,7 +7,6 @@ and clients as the API's Bearer auth.
 """
 import getpass
 import json
-import os
 import time
 import urllib.error
 import urllib.parse
@@ -15,6 +14,7 @@ import urllib.request
 from typing import Dict, Optional, Tuple
 
 from digitaltwins.core import keycloak_verifier
+from digitaltwins.settings import load_settings
 
 # Same realm roles as the API's require_upload_role.
 UPLOAD_ROLES = {"admin", "researcher"}
@@ -25,13 +25,15 @@ _verifier = None
 
 
 def _realm_url() -> str:
-    return f"{os.getenv('KEYCLOAK_BASE_URL', '').rstrip('/')}/realms/{os.getenv('KEYCLOAK_REALM', '')}"
+    keycloak = load_settings().keycloak
+    return f"{(keycloak.base_url or '').rstrip('/')}/realms/{keycloak.realm}"
 
 
 def _client_fields() -> Dict[str, str]:
-    fields = {"client_id": os.getenv("KEYCLOAK_CLIENT_ID", "api")}
-    if os.getenv("KEYCLOAK_CLIENT_SECRET"):
-        fields["client_secret"] = os.getenv("KEYCLOAK_CLIENT_SECRET")
+    keycloak = load_settings().keycloak
+    fields = {"client_id": keycloak.client_id}
+    if keycloak.client_secret:
+        fields["client_secret"] = keycloak.client_secret
     return fields
 
 

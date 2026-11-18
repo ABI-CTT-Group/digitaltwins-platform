@@ -1,8 +1,6 @@
-import os
 import psycopg2
 
-from dotenv import load_dotenv
-load_dotenv()
+from ..settings import load_settings
 
 
 class Connection(object):
@@ -15,11 +13,12 @@ class Connection(object):
         self._cur = None
         self._conn = None
 
-        self._host = host or os.getenv("POSTGRES_HOST")
-        self._port = port or os.getenv("POSTGRES_PORT")
-        self._database = database or os.getenv("POSTGRES_DB")
-        self._user = user or os.getenv("POSTGRES_USER")
-        self._password = password or os.getenv("POSTGRES_PASSWORD")
+        pg = load_settings().postgres
+        self._host = host or pg.host
+        self._port = port or pg.port
+        self._database = database or pg.db
+        self._user = user or pg.user
+        self._password = password or pg.password
 
 
     def get_cur(self):

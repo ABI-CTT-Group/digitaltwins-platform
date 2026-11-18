@@ -1,4 +1,3 @@
-import os
 import json
 import logging
 import uuid
@@ -8,15 +7,11 @@ from typing import Iterable, Optional
 import psycopg2
 import openpyxl
 
-from dotenv import load_dotenv
-
-from ..utils.config_loader import is_truthy
-
 from ..postgres.uploader import Uploader as PostgresUploader
 from ..irods.uploader import Uploader as IRODSUploader
 from ..minio.uploader import Uploader as MinioUploader
+from ..settings import load_settings
 
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -146,10 +141,11 @@ def _parse_transposed_excel(file_path: str, mapping: Optional[dict] = None) -> l
 
 class Uploader(object):
     def __init__(self):
-        self._postgres_enabled = is_truthy(os.getenv("POSTGRES_ENABLED"))
-        self._gen3_enabled = is_truthy(os.getenv("GEN3_ENABLED"))
-        self._irods_enabled = is_truthy(os.getenv("IRODS_ENABLED"))
-        self._minio_enabled = is_truthy(os.getenv("MINIO_ENABLED"))
+        enabled = load_settings().enabled
+        self._postgres_enabled = enabled.postgres
+        self._gen3_enabled = enabled.gen3
+        self._irods_enabled = enabled.irods
+        self._minio_enabled = enabled.minio
 
         if self._postgres_enabled and self._gen3_enabled:
             raise ValueError("Metadata service conflict. Only one of 'postgres' or 'gen3' can be enabled")

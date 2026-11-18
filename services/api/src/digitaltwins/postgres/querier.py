@@ -1,22 +1,19 @@
-
-
 import psycopg2
-import os
 
-from dotenv import load_dotenv
+from ..settings import load_settings
 
-load_dotenv()
 
 class Querier(object):
     def __init__(self):
         """
         Constructor inherited and expanded from AbstractQuerier
         """
-        self._host = os.getenv("POSTGRES_HOST")
-        self._port = os.getenv("POSTGRES_PORT")
-        self._database = os.getenv("POSTGRES_DB")
-        self._user = os.getenv("POSTGRES_USER")
-        self._password = os.getenv("POSTGRES_PASSWORD")
+        pg = load_settings().postgres
+        self._host = pg.host
+        self._port = pg.port
+        self._database = pg.db
+        self._user = pg.user
+        self._password = pg.password
 
         for required in [self._host, self._port, self._database, self._user, self._password]:
             if not required:

@@ -4,14 +4,14 @@ The service token holds the hub's admin role (services/jupyterhub/jupyterhub_con
 can create users, spawn their default server and use that server's contents API.
 """
 import base64
-import os
 import time
 from typing import Iterable, Iterator, Optional, Set
 from urllib.parse import quote
 
 import requests
 
-DEFAULT_URL = "http://digitaltwins-platform-jupyterhub:8000/jupyter"
+from ..settings import load_settings, require
+
 PART_SIZE = 8 * 1024 * 1024
 # Appended while a file is being written, so a path that exists is always complete. Not a
 # dot-prefix: jupyter_server refuses hidden paths unless allow_hidden is set.
@@ -29,9 +29,10 @@ class HubTimeout(HubError):
 class JupyterHub:
     def __init__(self, base_url: Optional[str] = None, token: Optional[str] = None,
                  session=None, start_timeout: float = 120.0, poll_interval: float = 1.0):
-        self.base_url = (base_url or os.getenv("JUPYTERHUB_INTERNAL_URL", DEFAULT_URL)).rstrip("/")
+        settings = load_settings().jupyterhub
+        self.base_url = (base_url or settings.internal_url).rstrip("/")
         # No default: the hub would accept it, and a default would be public.
-        self.headers = {"Authorization": f"token {token or os.environ['JUPYTERHUB_API_TOKEN']}"}
+        self.headers = {"Authorization": f"token {token or require(settings.api_token, 'JUPYTERHUB_API_TOKEN')}"}
         self.session = session or requests.Session()
         # Matches DockerSpawner.start_timeout.
         self.start_timeout = start_timeout

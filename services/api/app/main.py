@@ -7,7 +7,6 @@
 
 import starlette.requests
 
-import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -15,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from digitaltwins.measurements import jobs
 from digitaltwins.postgres import migrate
-from digitaltwins.utils.config_loader import is_truthy
+from digitaltwins.settings import load_settings
 
 from .logging_setup import configure_logging
 from .request_logging import install_request_error_logging
@@ -39,7 +38,7 @@ starlette.requests.Request.form = _patched_form  # type: ignore[method-assign]
 async def lifespan(app: FastAPI):
     # Upgrade the platform schema before serving; a failed migration fails startup.
     # Then fail any ingest job a previous process left mid-flight (retryable).
-    if is_truthy(os.getenv("POSTGRES_ENABLED")):
+    if load_settings().enabled.postgres:
         migrate.run()
         jobs.sweep_on_startup()
     yield

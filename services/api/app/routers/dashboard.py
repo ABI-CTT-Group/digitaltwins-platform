@@ -6,7 +6,6 @@ reshaped for the frontend (moved here from the portal backend). SEEK reads go th
 Querier; assay operations call the assays routes in-process, through the module so tests can
 replace them.
 """
-import os
 from typing import Optional
 from urllib.parse import quote
 
@@ -18,6 +17,7 @@ from pydantic import ValidationError
 from digitaltwins import Querier, Uploader
 from digitaltwins.jupyterhub.hub import JupyterHub
 from digitaltwins.minio.downloader import Downloader as MinioDownloader
+from digitaltwins.settings import load_settings
 from . import assays
 from .auth import auth_bearer, validate_credentials
 from .dataset_uploads import get_conn
@@ -59,7 +59,7 @@ def _fetch_gui_tool(workflow_seek_id, token: str) -> Optional[dict]:
     """The gui tool bundle the builder serves for a SEEK workflow, asked as the user; None when it has none."""
     if workflow_seek_id in (None, ""):
         return None
-    base = os.getenv("BUILDER_URL", "http://builder:8000").rstrip("/")
+    base = load_settings().builder_url.rstrip("/")
     try:
         res = requests.get(f"{base}/api/builder/workflow/gui-tool", params={"workflow_seek_id": workflow_seek_id},
                            headers={"Authorization": f"Bearer {token}"}, timeout=15)

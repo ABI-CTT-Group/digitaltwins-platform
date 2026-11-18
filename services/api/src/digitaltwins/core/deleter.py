@@ -4,18 +4,14 @@ Coordinates Postgres and MinIO deletions within a single transaction
 so that either everything succeeds or everything is rolled back.
 """
 
-import os
 import logging
 import shutil
 from typing import Optional
 
 import psycopg2
 
-from dotenv import load_dotenv
+from ..settings import load_settings
 
-from ..utils.config_loader import is_truthy
-
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +32,9 @@ class Deleter(object):
     def __init__(self, api_token: Optional[str] = None):
         # The caller's Keycloak token, used to delete a tool's SEEK Workflow as that user.
         self._api_token = api_token
-        self._postgres_enabled = is_truthy(os.getenv("POSTGRES_ENABLED"))
-        self._minio_enabled = is_truthy(os.getenv("MINIO_ENABLED"))
+        enabled = load_settings().enabled
+        self._postgres_enabled = enabled.postgres
+        self._minio_enabled = enabled.minio
 
         self._postgres_deleter = None
         self._minio_deleter = None

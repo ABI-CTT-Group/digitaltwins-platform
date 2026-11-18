@@ -10,7 +10,6 @@ The title is the portal name when one is given, else the CWL ``label``
 """
 import io
 import json
-import os
 import zipfile
 from pathlib import Path
 from typing import Optional
@@ -19,9 +18,7 @@ import requests
 import yaml
 from requests import RequestException
 
-from dotenv import load_dotenv
-
-load_dotenv()
+from ..settings import load_settings
 
 
 def _build_crate(main_cwl: Path, keywords, extra_cwls=(), title: Optional[str] = None) -> bytes:
@@ -107,7 +104,7 @@ def _seek_error(resp) -> str:
 
 class Writer(object):
     def __init__(self, api_token: str):
-        self._base_url = os.getenv("SEEK_BASE_URL")
+        self._base_url = load_settings().seek.base_url
         self._api_token = api_token
 
         if not self._base_url:

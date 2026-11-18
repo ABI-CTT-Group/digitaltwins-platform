@@ -8,10 +8,12 @@ assembly paths.
 from __future__ import annotations
 
 import math
+import os
 import tempfile
 import threading
 import unittest
 import zipfile
+from unittest import mock
 from pathlib import Path
 
 
@@ -50,16 +52,10 @@ class ChunkStoreTests(unittest.TestCase):
             self.store.init(self.mid, "folder", [])
 
     def test_init_rejects_manifest_over_cap(self):
-        from digitaltwins.measurements import chunk_store as mod
-
-        original = mod.MANIFEST_MAX_FILES
-        mod.MANIFEST_MAX_FILES = 2
-        try:
-            big = [{"rel_path": f"f{i}", "size": 1, "parts": 1} for i in range(3)]
+        big = [{"rel_path": f"f{i}", "size": 1, "parts": 1} for i in range(3)]
+        with mock.patch.dict(os.environ, {"UPLOAD_MANIFEST_MAX_FILES": "2"}):
             with self.assertRaises(ChunkStoreError):
                 self.store.init(self.mid, "folder", big)
-        finally:
-            mod.MANIFEST_MAX_FILES = original
 
     def test_init_rejects_path_traversal(self):
         with self.assertRaises(ValueError):

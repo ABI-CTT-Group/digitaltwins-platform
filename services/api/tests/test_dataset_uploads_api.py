@@ -9,8 +9,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.main import create_app
 from app.routers import auth, dataset_uploads
-from digitaltwins.measurements import chunk_store as chunk_store_mod
 from digitaltwins.measurements.staging import dataset_dir
+from digitaltwins.settings import load_settings
 
 FIXTURE = Path(__file__).parent / "data" / "example_sds_dataset"
 FIXTURE_ZIP = Path(__file__).parent / "data" / "example_sds_dataset.zip"
@@ -192,7 +192,7 @@ def test_list_shows_sessions_that_are_not_committed(client):
 
 @pytest.mark.integration
 def test_config_reports_part_size(client):
-    assert client.get("/datasets/uploads/config").json()["max_part_size"] == chunk_store_mod.PART_SIZE
+    assert client.get("/datasets/uploads/config").json()["max_part_size"] == load_settings().uploads.part_size_bytes
 
 
 @pytest.mark.integration
