@@ -94,8 +94,8 @@ Found while renaming "DigitalTWINS" to "Digital Twins".
 
 ## Default credentials
 
-Found while removing `services/api/.env.template` (`docs/plans/2026-11-19-121345-remove-api-env-template`).
+Found while making every secret required in the compose files (`docs/plans/2026-11-19-122632-require-compose-secrets`).
 
-### [ ] 1. Fallback client secret for Orthanc in the PACS compose files
-* **Description**: `services/pacs/docker-compose.yml` (two services) and `services/pacs_pretend_external/docker-compose.yml` fall back to a literal default when `ORTHANC_KEYCLOAK_CLIENT_SECRET` is unset (`${ORTHANC_KEYCLOAK_CLIENT_SECRET:-...}`). The same value was in the removed template, so it is public. `util/gen-env.sh` always sets the variable, so the fallback is unused on a rendered deployment. Make the variable required (`${ORTHANC_KEYCLOAK_CLIENT_SECRET:?...}`), as `JUPYTERHUB_API_TOKEN` is in the API's compose file.
-* **Why skipped**: Changing the PACS compose file recreates the Orthanc containers; outside the template removal.
+### [ ] 1. Keycloak's database password is a public default
+* **Description**: `KEYCLOAK_DB_PASSWORD` is in `secrets.env.template` but not in `.env.template`, so it never reaches `.env`. Every host runs Keycloak on the literal default in `services/keycloak/docker-compose.yml`, which matches the role password in `services/postgres/keycloak_init.sql`, and both are public. To fix: add it to `.env.template`, turn `keycloak_init.sql` into a script that reads it (as `portal_init.sh` does for `BUILDER_DB_PASSWORD`), run `ALTER ROLE keycloak` with the new password on each existing database before deploying, change the compose file to `${KEYCLOAK_DB_PASSWORD:?...}`, and remove the exception in `util/tests/test_secrets_required.sh`.
+* **Why skipped**: It needs a coordinated password change on every host's database; a missed step takes Keycloak, and sign-in, down. Every other secret became required without one.
