@@ -28,11 +28,11 @@ The following items were identified during the REST API restructuring (`docs/pla
 * **Description**: 60 of the API's 66 route handlers are `def`, not `async def`. FastAPI runs `def` handlers in a thread pool, so they don't block the event loop today. Changing them to `async def` while they still call `requests` and the synchronous Postgres driver would block the loop and make things slower. Convert a handler only after its I/O has moved to async clients (e.g., `httpx`, an async DB driver), and only where the thread pool is shown to be a bottleneck.
 * **Why skipped**: Requires auditing underlying database and network dependencies (e.g., `requests`, synchronous DB drivers) to ensure they are async-compatible to prevent blocking the event loop.
 
-### [ ] 7. CORS Hardening
+### [ ] 6. CORS Hardening
 * **Description**: `initialise` in `services/api/app/main.py` allows every origin (`allow_origins=["*"]`) with `allow_credentials=True` and all methods and headers. The portal calls the API through the gateway on the same origin, so check which clients, if any, make cross-origin calls. Then restrict the list to those origins, or drop the middleware.
 * **Why skipped**: Left as-is for the initial refactor.
 
-### [ ] 8. `GET /datasets/{uuid}/sample-types` fails for a dataset with no samples
+### [ ] 7. `GET /datasets/{uuid}/sample-types` fails for a dataset with no samples
 * **Description**: `get_dataset_sample_types` in `services/api/src/digitaltwins/postgres/querier.py` builds `... WHERE sample_uuid IN ()` when the dataset has no samples. Postgres rejects that, so the endpoint returns 500 instead of an empty list. Return `[]` early for no samples. Both of its queries also format values into the SQL string (`dataset_uuid` in the first, the sample UUIDs in the second); pass them as query parameters instead.
 * **Why skipped**: Found during the Dependabot work (`docs/plans/2026-11-03-151012-dependabot-alerts`); it predates it, and that work only changed dependency pins.
 
@@ -48,7 +48,7 @@ Found while writing [codemap.md](codemap.md) (`docs/plans/2026-10-28-133109-repo
 * **Description**: `util/` holds about 70 scripts in one folder, indexed in [util/SCRIPTS.md](../util/SCRIPTS.md). Group them into subfolders (install, seek, keycloak, backup, sync), updating the Ansible playbooks, docs and the systemd unit that call them.
 * **Why skipped**: Moving them breaks paths in playbooks and on running hosts.
 
-### [ ] 5. util scripts that look dead or duplicated
+### [ ] 3. util scripts that look dead or duplicated
 * **Description**: Found while writing [util/SCRIPTS.md](../util/SCRIPTS.md). Check each one, then remove it or document why it stays:
   * `realm_exporter` duplicates `export_realm_and_users`.
   * `get_token`, `get_token2` and `get_token3` hardcode an old test domain.
@@ -60,10 +60,6 @@ Found while writing [codemap.md](codemap.md) (`docs/plans/2026-10-28-133109-repo
   * `util/legacy-buildout-utils.md` is out of date about `generate-compute-env.sh` and `ufw_for_remote_compute.sh`.
 * **Why skipped**: The learnability work was docs-only.
 
-### [ ] 6. Stale builder env template in `services/portal/`
-* **Description**: `services/portal/.env.template` is headed "the builder", but the builder moved to `services/builder/`, and nothing reads this file: the platform renders only the root `.env`. It still sets `KEYCLOAK_VERIFY_SSL=false` and `KEYCLOAK_CLIENT_ID=api`, which contradict the root `.env.template` and the builder's compose defaults. Remove it, or move it to `services/builder/` and update it to match those.
-* **Why skipped**: Found while passing `KEYCLOAK_VERIFY_SSL` to the API (`docs/plans/2026-11-19-113214-api-compose-settings`); the template is outside that change.
-
 ## Lint cleanup leftovers
 
 Found while making `make lint` pass. The cleanup kept behaviour unchanged, so these were noted rather than changed.
@@ -72,11 +68,11 @@ Found while making `make lint` pass. The cleanup kept behaviour unchanged, so th
 * **Description**: `services/portal/frontend/src/components/domain/DownloadSheet.vue` and `SubmitSheet.vue` aren't imported anywhere. Remove both.
 * **Why skipped**: Deleting files is outside a behaviour-neutral lint cleanup.
 
-### [ ] 3. Broad exception handlers in `gen3/metadata_convertor.py`
+### [ ] 2. Broad exception handlers in `gen3/metadata_convertor.py`
 * **Description**: Two former bare `except:` clauses are now `except Exception:`. The one around `data.get(key)` can't raise and prints `"test"`; remove it. The one around the mapping lookup should catch `(IndexError, KeyError)` only.
 * **Why skipped**: Narrowing changes which errors propagate.
 
-### [ ] 4. Imports of names `digitaltwins` no longer exports
+### [ ] 3. Imports of names `digitaltwins` no longer exports
 * **Description**: `services/api/src/digitaltwins/core/uploader_gen3.py` imports `MetadataConvertor` and `MetadataUploader` from `digitaltwins`. `services/api/examples/query_postgres.py`, `services/api/examples/gen3/submit_metadata.py` and `services/api/tutorials/vph/tutorial_digitaltwins_api.ipynb` import `Auth`, `MetadataUploader`, `QuerierFactory` or `Connection`. Those exports are commented out in `digitaltwins/__init__.py`, so this code fails on import. Fix the imports or remove the code.
 * **Why skipped**: Gen3 and these examples look unused; that needs checking first.
 
