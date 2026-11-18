@@ -44,6 +44,7 @@ Everything runs in pinned containers and needs only Docker and GNU make. CI call
 | `make lint` | ruff, eslint and vue-tsc; must pass (a required check in CI) |
 | `make docs-check` | Doc links, the code map, `util/SCRIPTS.md` and agent pointer files; checks tracked files only, so `git add` new files first |
 | `make gitleaks` | Secret scan of this branch's commits |
+| `make smoke` | Read-only smoke tests against a running stack (`SMOKE_URL`); not in `make test` or CI ([tests/README.md](tests/README.md)) |
 
 See [docs/testing.md](docs/testing.md) for integration tests and CI.
 
