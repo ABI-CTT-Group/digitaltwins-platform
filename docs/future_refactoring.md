@@ -60,10 +60,6 @@ Found while writing [codemap.md](codemap.md) (`docs/plans/2026-10-28-133109-repo
   * `util/legacy-buildout-utils.md` is out of date about `generate-compute-env.sh` and `ufw_for_remote_compute.sh`.
 * **Why skipped**: The learnability work was docs-only.
 
-### [ ] 6. Stale builder env template in `services/portal/`
-* **Description**: `services/portal/.env.template` is headed "the builder", but the builder moved to `services/builder/`, and nothing reads this file: the platform renders only the root `.env`. It still sets `KEYCLOAK_VERIFY_SSL=false` and `KEYCLOAK_CLIENT_ID=api`, which contradict the root `.env.template` and the builder's compose defaults. Remove it, or move it to `services/builder/` and update it to match those.
-* **Why skipped**: Found while passing `KEYCLOAK_VERIFY_SSL` to the API (`docs/plans/2026-11-19-113214-api-compose-settings`); the template is outside that change.
-
 ## Lint cleanup leftovers
 
 Found while making `make lint` pass. The cleanup kept behaviour unchanged, so these were noted rather than changed.

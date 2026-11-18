@@ -168,7 +168,9 @@ builder's tests, which check that template.
 ### Gotchas
 
 - **`docker-compose.yml` here also defines a standalone stack** from before the platform. It can't
-  run at the same time as the platform: they share a container name, a network and port 80.
+  run at the same time as the platform: they share a container name, a network and port 80. It has
+  no `.env` of its own, so pass `PROJECT_NAME`, which has no default:
+  `PROJECT_NAME=digitaltwins-platform docker compose up -d`.
 - **Field names change case on the wire.** The axios interceptors in `bootstrap/http.ts` turn the
   backends' snake_case into camelCase and back, on both clients. The exception is FHIR `descriptions`
   trees sent to the platform API, which pass through untouched.
