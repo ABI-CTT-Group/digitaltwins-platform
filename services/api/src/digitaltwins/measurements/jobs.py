@@ -8,7 +8,6 @@ marked failed (and so retryable) by :func:`sweep_interrupted_jobs` at startup.
 """
 import asyncio
 import logging
-import os
 import shutil
 import time
 import uuid
@@ -19,6 +18,7 @@ from .. import models, tools, workflows
 from ..core.connection import Connection
 from ..models import fhir as model_fhir
 from ..models.pipeline import commit_model
+from ..settings import load_settings
 from ..tools import fhir as tool_fhir
 from ..tools.pipeline import annotate_tool, commit_tool
 from ..workflows import fhir as workflow_fhir
@@ -145,7 +145,7 @@ def run_commit_and_push(upload_id: str, api_token: Optional[str] = None, deploy_
 
 def public_base() -> str:
     """Public URL of this API, used for FHIR endpoint URLs."""
-    return os.getenv("API_PUBLIC_URL", "http://localhost/api")
+    return load_settings().api_public_url
 
 
 def _replace_fhir_resources(conn, dataset_uuid: str, fhir_json: Dict[str, Any]) -> None:

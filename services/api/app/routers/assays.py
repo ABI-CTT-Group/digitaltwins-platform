@@ -17,7 +17,6 @@ from typing import Any, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import requests
-from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from requests import Response
@@ -32,29 +31,17 @@ from digitaltwins.minio.downloader import Downloader as MinioDownloader
 from digitaltwins.minio.uploader import Uploader as MinioUploader
 from digitaltwins.seek.querier import Querier as SeekQuerier
 from digitaltwins.seek.writer import Writer as SeekWriter
+from digitaltwins.settings import load_settings, require
 from .auth import require_upload_role, validate_credentials
 from .dataset_uploads import get_conn
 from .dependencies import get_jupyterhub, get_minio_downloader, get_querier, get_uploader
 from ..schemas.assay import AssayDataModel
 
-load_dotenv()
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Airflow configs
-AIRFLOW_ENABLED = os.getenv("AIRFLOW_ENABLED", "false").lower() == "true"
-AIRFLOW_ENDPOINT = os.getenv("AIRFLOW_ENDPOINT", "http://airflow-apiserver:8080/airflow")
-
-HOSTNAME = os.getenv("HOSTNAME")
-AIRFLOW_BASE_URL = os.getenv("AIRFLOW_BASE_URL", f"http://{HOSTNAME}/airflow")# JupyterHub configs
-JUPYTERHUB_PUBLIC_URL = os.getenv("JUPYTERHUB_PUBLIC_URL", "http://localhost/jupyter")
-JUPYTERHUB_INTERNAL_URL = os.getenv("JUPYTERHUB_INTERNAL_URL", "http://digitaltwins-platform-jupyterhub:8000/jupyter")
 DEFAULT_BUCKET = "airflow-workspace"
-WORKFLOW_TIMEZONE = os.getenv("WORKFLOW_TIMEZONE", os.getenv("TZ", "Pacific/Auckland"))
-AIRFLOW_USERNAME = os.getenv("AIRFLOW_USERNAME", "admin")
-AIRFLOW_PASSWORD = os.getenv("AIRFLOW_PASSWORD", "admin")
 
 # assay_input.category value marking an input as a model dataset.
 MODEL_INPUT_CATEGORY = "models"
@@ -65,18 +52,19 @@ MODEL_INPUT_CATEGORY = "models"
 
 def _workflow_local_timestamp() -> str:
     try:
-        tz = ZoneInfo(WORKFLOW_TIMEZONE)
+        tz = ZoneInfo(load_settings().workflow_timezone)
     except ZoneInfoNotFoundError:
         tz = timezone.utc
     return datetime.now(tz).strftime("%Y%m%d_%H%M%S")
 
 
 def _get_api_token():
-    url = f"{AIRFLOW_ENDPOINT}/auth/token"
+    airflow = load_settings().airflow
+    url = f"{airflow.endpoint}/auth/token"
     headers = {"Content-Type": "application/json"}
     payload = {
-        "username": AIRFLOW_USERNAME,
-        "password": AIRFLOW_PASSWORD
+        "username": airflow.username,
+        "password": airflow.password
     }
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=30)
@@ -97,7 +85,7 @@ def _get_api_token():
 
 def _trigger_dag(dag_id: str, conf: dict) -> Response:
     """Trigger an Airflow DAG run via the Airflow REST API v2 (Airflow 3)."""
-    url = f"{AIRFLOW_ENDPOINT}/api/v2/dags/{dag_id}/dagRuns"
+    url = f"{load_settings().airflow.endpoint}/api/v2/dags/{dag_id}/dagRuns"
     api_token = _get_api_token()
     headers = {
         "Authorization": f"Bearer {api_token}",
@@ -578,7 +566,7 @@ def run_assay(assay_id: int, credentials: dict = Depends(validate_credentials), 
     tags = assay.get("attributes").get("tags") or []
 
     if "script" in tags:
-        if not AIRFLOW_ENABLED:
+        if not load_settings().enabled.airflow:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Airflow integration is disabled (AIRFLOW_ENABLED=false).",
@@ -647,7 +635,7 @@ def run_assay(assay_id: int, credentials: dict = Depends(validate_credentials), 
                     "error": str(e)
                 })
 
-        monitor_base_url = AIRFLOW_BASE_URL
+        monitor_base_url = load_settings().airflow.base_url
         monitor_url = f"{monitor_base_url}/dags/workflow_{workflow_seek_id}"
 
         return {"dag_runs": results, "monitor_url": monitor_url}
@@ -670,7 +658,7 @@ def run_assay(assay_id: int, credentials: dict = Depends(validate_credentials), 
         except (HubError, requests.RequestException) as e:
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Failed to stage the notebook workspace: {e}")
 
-        monitor_base_url = JUPYTERHUB_PUBLIC_URL
+        monitor_base_url = load_settings().jupyterhub.public_url
         monitor_url = f"{monitor_base_url}/user/{username}/lab/tree/assay_{assay_id}"
         return {"url": monitor_url, **counts}
     else:
@@ -853,9 +841,10 @@ def download_workspace_dataset(
 
 def _download_jupyter_folder(username: str, remote_path: str, local_dir: str):
     """Recursively download a folder from Jupyter Server."""
-    api_token = os.environ["JUPYTERHUB_API_TOKEN"]
+    jupyterhub = load_settings().jupyterhub
+    api_token = require(jupyterhub.api_token, "JUPYTERHUB_API_TOKEN")
     headers = {"Authorization": f"token {api_token}"}
-    api_url = f"{JUPYTERHUB_INTERNAL_URL}/user/{username}/api/contents/{remote_path}"
+    api_url = f"{jupyterhub.internal_url}/user/{username}/api/contents/{remote_path}"
     
     response = requests.get(api_url, headers=headers)
     if response.status_code == 404:
@@ -874,7 +863,7 @@ def _download_jupyter_folder(username: str, remote_path: str, local_dir: str):
             if item_type == "directory":
                 _download_jupyter_folder(username, item_path, local_item_path)
             elif item_type == "file":
-                file_url = f"{JUPYTERHUB_INTERNAL_URL}/user/{username}/files/{item_path}"
+                file_url = f"{jupyterhub.internal_url}/user/{username}/files/{item_path}"
                 file_resp = requests.get(file_url, headers=headers, stream=True)
                 file_resp.raise_for_status()
                 with open(local_item_path, 'wb') as f:

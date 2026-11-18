@@ -23,8 +23,10 @@ The code map, connections and config are in [README.md](README.md#developing-thi
   `services/postgres/digitaltwins_schema.sql`; a reverse change is a new migration.
 - **`migration_runner.py` or `core/keycloak_verifier.py`**: copy your change byte for byte into the
   builder (`services/builder/app/database/`, `services/builder/app/client/`) in the same PR.
-- **A new environment variable**: add it to `docker-compose.yml` and to the root `.env.template`
-  (and `secrets.env.template` if secret), names only.
+- **A new environment variable**: add a field to `src/digitaltwins/settings.py` and read it through
+  `load_settings()`; `tests/test_settings.py` fails on any other `os.getenv` or `os.environ`. Then add
+  it to `docker-compose.yml` and to the root `.env.template` (and `secrets.env.template` if secret),
+  names only.
 
 ## Tests
 

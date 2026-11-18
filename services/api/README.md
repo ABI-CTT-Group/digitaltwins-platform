@@ -268,6 +268,7 @@ a FastAPI app that uvicorn serves under `/api`.
 | `app/routers/` | One module per area: `datasets`, `dataset_uploads`, `dataset_fhir`, `assays`, `workflows`, `tools`, `models`, `dashboard`, the SEEK hierarchy (`programs`, `projects`, `investigations`, `studies`), `auth` and `health`. Shared dependencies are in `dependencies.py` |
 | `app/schemas/` | Pydantic request models |
 | `src/digitaltwins/<area>/` | The library the routers call. `core/` (the `Querier`, `Uploader`, `Downloader` and `Deleter` facades, and the Keycloak token verifier); `measurements/` (upload sessions, chunk store, staging, ingest jobs, FHIR); `models/`, `tools/` and `workflows/` (ingest pipelines; `workflows/` also checks and deploys DAGs); `seek/`, `minio/`, `postgres/`, `airflow/` and `jupyterhub/` (clients); `cli/` (the importer and maintenance commands). `irods/` and `gen3/` are inactive |
+| `src/digitaltwins/settings.py` | Every environment variable the API and the package read, with its type and default. Code calls `load_settings()` instead of reading the environment |
 | `src/digitaltwins/client.py` | `UploadClient`, the resumable upload client |
 | `src/digitaltwins/postgres/migrations/` | Numbered SQL migrations for the `public` schema |
 | `tests/` | The pytest suite. `tests/conftest.py` holds the shared fixtures and the in-memory SEEK and HAPI FHIR fakes |
@@ -278,6 +279,8 @@ a FastAPI app that uvicorn serves under `/api`.
 | `Dockerfile`, `docker-compose.yml` | The `api` image (Python 3.11) and service; the root compose includes the service |
 
 ### Connects to
+
+The variables below are defined, with their defaults, in `src/digitaltwins/settings.py`.
 
 | Peer | How |
 |---|---|

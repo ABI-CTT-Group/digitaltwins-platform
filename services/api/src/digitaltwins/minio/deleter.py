@@ -1,23 +1,22 @@
 """MinIO deletion operations for datasets."""
 
-import os
 import logging
 
 import boto3
 from botocore.exceptions import ClientError, ConnectionClosedError, EndpointConnectionError
 
-from dotenv import load_dotenv
+from ..settings import load_settings
 
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 
 class Deleter(object):
     def __init__(self):
-        self._endpoint = os.getenv("MINIO_ENDPOINT")
-        self._access_key = os.getenv("MINIO_SERVER_ACCESS_KEY")
-        self._secret_key = os.getenv("MINIO_SERVER_SECRET_KEY")
+        minio = load_settings().minio
+        self._endpoint = minio.endpoint
+        self._access_key = minio.access_key
+        self._secret_key = minio.secret_key
 
         missing_vars = [
             name

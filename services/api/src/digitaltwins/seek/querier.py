@@ -1,12 +1,9 @@
 
 
 import requests
-import os
 from requests import RequestException
 
-from dotenv import load_dotenv
-
-load_dotenv()
+from ..settings import load_settings
 
 
 class Querier(object):
@@ -14,7 +11,7 @@ class Querier(object):
         """
         Constructor inherited and expanded from AbstractQuerier
         """
-        self._base_url = os.getenv("SEEK_BASE_URL")
+        self._base_url = load_settings().seek.base_url
         self._api_token = api_token
 
         if not self._base_url:

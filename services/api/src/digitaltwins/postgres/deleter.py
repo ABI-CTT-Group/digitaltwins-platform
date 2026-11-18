@@ -1,24 +1,23 @@
 """Postgres deletion operations for datasets."""
 
-import os
 import logging
 
 import psycopg2
 
-from dotenv import load_dotenv
+from ..settings import load_settings
 
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 
 class Deleter(object):
     def __init__(self):
-        self._host = os.getenv("POSTGRES_HOST")
-        self._port = os.getenv("POSTGRES_PORT")
-        self._database = os.getenv("POSTGRES_DB")
-        self._user = os.getenv("POSTGRES_USER")
-        self._password = os.getenv("POSTGRES_PASSWORD")
+        pg = load_settings().postgres
+        self._host = pg.host
+        self._port = pg.port
+        self._database = pg.db
+        self._user = pg.user
+        self._password = pg.password
 
         missing_vars = [
             name

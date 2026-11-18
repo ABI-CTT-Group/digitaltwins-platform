@@ -3,30 +3,18 @@ IAM by Keycloak
 """
 import logging
 import requests
-import os
 
 from fastapi import APIRouter
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
-from dotenv import load_dotenv
-
 from digitaltwins.core import keycloak_verifier
+from digitaltwins.settings import load_settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-load_dotenv()
-# Keycloak configs
-KEYCLOAK_BASE_URL = os.getenv("KEYCLOAK_BASE_URL")
-KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM")
-KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID")
-KEYCLOAK_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET")
-
-keycloak_realm_url = f"{KEYCLOAK_BASE_URL}/realms/{KEYCLOAK_REALM}"
-keycloak_token_url = f"{keycloak_realm_url}/protocol/openid-connect/token"
 
 # Clients whose access tokens the API accepts: the portal ("portal-frontend") and the API's own
 # client ("api": Basic auth, /login, the CLI and scripts). Tokens are verified locally rather than
@@ -125,18 +113,19 @@ def get_token(
         basic_credentials: HTTPBasicCredentials = Depends(HTTPBasic(auto_error=False)),
         bearer_credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False))
 ):
+    keycloak = load_settings().keycloak
     if basic_credentials:
         payload = {
-            "client_id": KEYCLOAK_CLIENT_ID,
-            "client_secret": KEYCLOAK_CLIENT_SECRET,
+            "client_id": keycloak.client_id,
+            "client_secret": keycloak.client_secret,
             "grant_type": "password",
             "username": basic_credentials.username,
             "password": basic_credentials.password
         }
     elif bearer_credentials:
         payload = {
-            "client_id": KEYCLOAK_CLIENT_ID,
-            "client_secret": KEYCLOAK_CLIENT_SECRET,
+            "client_id": keycloak.client_id,
+            "client_secret": keycloak.client_secret,
             "grant_type": "refresh_token",
             "refresh_token": bearer_credentials.credentials
         }
@@ -148,7 +137,8 @@ def get_token(
         )
 
     try:
-        response = requests.post(keycloak_token_url, data=payload, timeout=10)
+        token_url = f"{keycloak.base_url}/realms/{keycloak.realm}/protocol/openid-connect/token"
+        response = requests.post(token_url, data=payload, timeout=10)
     except requests.RequestException as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
