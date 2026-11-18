@@ -48,10 +48,6 @@ Found while writing [codemap.md](codemap.md) (`docs/plans/2026-10-28-133109-repo
 * **Description**: `util/` holds about 70 scripts in one folder, indexed in [util/SCRIPTS.md](../util/SCRIPTS.md). Group them into subfolders (install, seek, keycloak, backup, sync), updating the Ansible playbooks, docs and the systemd unit that call them.
 * **Why skipped**: Moving them breaks paths in playbooks and on running hosts.
 
-### [ ] 4. Empty root `tests/` folder
-* **Description**: `tests/` holds only a `.gitkeep`. Use it for end-to-end tests, or remove it.
-* **Why skipped**: There are no end-to-end tests yet.
-
 ### [ ] 5. util scripts that look dead or duplicated
 * **Description**: Found while writing [util/SCRIPTS.md](../util/SCRIPTS.md). Check each one, then remove it or document why it stays:
   * `realm_exporter` duplicates `export_realm_and_users`.

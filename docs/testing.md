@@ -14,6 +14,7 @@ make test-util             # util/                       (bash, Python 3.11 imag
 make lint                  # ruff + eslint + vue-tsc (a required check in CI)
 make docs-check            # doc links, code map, util/SCRIPTS.md, agent pointer files
 make gitleaks              # secret scan of origin/main..HEAD
+make smoke                 # post-deploy smoke tests against a running stack (not in make test or CI)
 ```
 
 To run part of a Python suite, pass pytest arguments:
@@ -33,8 +34,9 @@ make test-api PYTEST_ARGS="-q tests/test_models_api.py -k delete"
 | util | `util/tests/test_*.sh` | bash | `test-util` | `util unit tests` |
 | Docs | `util/check_docs.py`, tested by `util/tests/test_check_docs.sh` | Python | `docs-check` | `docs check (report-only)` |
 | PACS (manual) | `services/pacs/tests/` | Python scripts against a running Orthanc | none | none |
+| Smoke (manual) | `tests/`, at the repo root | pytest against a running stack | `smoke` | none |
 
-There are no automated tests for the Airflow DAGs, the nginx configs, the Keycloak realm template, SEEK, MinIO, HAPI FHIR or PostgreSQL init scripts, and no end-to-end tests. The root `tests/` folder is an empty placeholder.
+There are no automated tests for the Airflow DAGs, the nginx configs, the Keycloak realm template, SEEK, MinIO, HAPI FHIR or PostgreSQL init scripts. The smoke tests are the only end-to-end checks.
 
 ## Writing a test
 
@@ -46,6 +48,10 @@ There are no automated tests for the Airflow DAGs, the nginx configs, the Keyclo
 ## Manual tests (PACS)
 
 `services/pacs/tests/` holds Python scripts that upload, pull, download and de-identify DICOM against a running Orthanc. They read `ORTHANC_URL`, `ORTHANC_USER` and `ORTHANC_PASSWORD`, and default to a local development Orthanc. They aren't in `make test` or CI. Run them only against a development stack: they write studies to whatever Orthanc they're pointed at.
+
+## Smoke tests
+
+`make smoke` checks a running platform through its gateway: the portal, API, Keycloak, Airflow, JupyterHub, SEEK, HAPI FHIR and the builder each answer, and a signed-in user can reach the API and the builder. Run it after a deploy, an upgrade or a config change. `SMOKE_URL` picks the host (default `http://localhost`); sign-in uses `SMOKE_USERNAME` and `SMOKE_PASSWORD` from your shell, and those checks skip without them. Unlike the unit suites it needs the network, so it runs with `--network host`; it still mounts only `tests/`. The tests only read, because they run against real data. See [tests/README.md](../tests/README.md) for what's checked and how to add a check ([ADR](decisions/2026-11-18-post-deploy-smoke-tests.md)).
 
 ## Docs check
 
@@ -100,6 +106,7 @@ On a PR, only the suites whose files changed run. "Changed" means the whole PR's
 | `services/jupyterhub/` | jupyterhub |
 | `util/`, `services/airflow/docker-compose.yml`, `services/airflow/gpu.override.yml` | util |
 | any `*.md` file, anything in `services/` or `util/` | docs |
+| `tests/` (smoke tests) | lint only |
 | `Makefile`, `.github/workflows/` | all suites, and docs |
 | anything else | no tests |
 
@@ -112,7 +119,7 @@ These checks block merging:
 - `builder unit tests`
 - `frontend unit tests`
 - `jupyterhub unit tests`
-- `lint` (ruff, eslint and vue-tsc; runs when api, builder, frontend or jupyterhub code changes)
+- `lint` (ruff, eslint and vue-tsc; runs when api, builder, frontend, jupyterhub or `tests/` code changes)
 - `gitleaks (PR commits)`
 
 `util unit tests` runs too, but isn't a required check.
