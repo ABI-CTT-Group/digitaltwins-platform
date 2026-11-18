@@ -60,6 +60,10 @@ Found while writing [codemap.md](codemap.md) (`docs/plans/2026-10-28-133109-repo
   * `util/legacy-buildout-utils.md` is out of date about `generate-compute-env.sh` and `ufw_for_remote_compute.sh`.
 * **Why skipped**: The learnability work was docs-only.
 
+### [ ] 6. Stale builder env template in `services/portal/`
+* **Description**: `services/portal/.env.template` is headed "the builder", but the builder moved to `services/builder/`, and nothing reads this file: the platform renders only the root `.env`. It still sets `KEYCLOAK_VERIFY_SSL=false` and `KEYCLOAK_CLIENT_ID=api`, which contradict the root `.env.template` and the builder's compose defaults. Remove it, or move it to `services/builder/` and update it to match those.
+* **Why skipped**: Found while passing `KEYCLOAK_VERIFY_SSL` to the API (`docs/plans/2026-11-19-113214-api-compose-settings`); the template is outside that change.
+
 ## Lint cleanup leftovers
 
 Found while making `make lint` pass. The cleanup kept behaviour unchanged, so these were noted rather than changed.
@@ -81,12 +85,8 @@ Found while making `make lint` pass. The cleanup kept behaviour unchanged, so th
 Found while moving the API's environment reads into `services/api/src/digitaltwins/settings.py` (`docs/plans/2026-11-18-155050-config-consolidation`).
 
 ### [ ] 1. Inactive iRODS and Gen3 backends in the API package
-* **Description**: `services/api/src/digitaltwins/irods/`, `gen3/`, `core/uploader_gen3.py` and `core/querier_factory.py` aren't deployed: `IRODS_ENABLED` and `GEN3_ENABLED` are commented out of `.env.template`, and the `gen3` package isn't installed, so importing `digitaltwins.gen3` fails. They still read the environment themselves and are listed as exceptions in `services/api/tests/test_settings.py`. `core/querier.py`, `core/uploader.py` and `core/downloader.py` keep iRODS and Gen3 branches, and `core/uploader.py` imports `irods.uploader` on every import. Remove the backends and their branches, then drop the `gen3` and `irods` flags from `Enabled` in `settings.py` and the exceptions from the test.
+* **Description**: `services/api/src/digitaltwins/irods/`, `gen3/`, `core/uploader_gen3.py` and `core/querier_factory.py` aren't deployed: `IRODS_ENABLED` and `GEN3_ENABLED` are commented out of `.env.template`, and the `gen3` package isn't installed, so importing `digitaltwins.gen3` fails. They still read the environment themselves and are listed as exceptions in `services/api/tests/test_settings.py`. `core/querier.py`, `core/uploader.py` and `core/downloader.py` keep iRODS and Gen3 branches, and `core/uploader.py` imports `irods.uploader` on every import. Remove the backends and their branches, then drop the `gen3` and `irods` flags from `Enabled` in `settings.py` and the exceptions from the test. `ConfigLoader` in `utils/config_loader.py` is used only by the Gen3 example `services/api/examples/export_metadata.py`; remove it with that example.
 * **Why skipped**: The settings change kept behaviour unchanged; removing backends is a separate decision, and the examples that use them need checking first (see "Imports of names `digitaltwins` no longer exports" above).
-
-### [ ] 2. Unused or missing settings in the API's compose service
-* **Description**: In `services/api/docker-compose.yml`, the `./configs.ini:/api/configs.ini` bind mount feeds nothing (no code reads `/api/configs.ini`), and when the host file is missing Docker creates an empty root-owned `configs.ini` directory instead. `AIRFLOW_PORT` is passed to the API but never read. `KEYCLOAK_VERIFY_SSL` and `KEYCLOAK_CA_CERT`, which the token verifier reads, aren't passed, so the `.env.template` value doesn't reach the API. In `services/api/src/digitaltwins/utils/config_loader.py`, `_coerce_value` is unused and `ConfigLoader` is used only by `services/api/examples/export_metadata.py`.
-* **Why skipped**: Changing the compose service recreates the `api` container on every host; outside a code-only refactor.
 
 ## API tutorials
 

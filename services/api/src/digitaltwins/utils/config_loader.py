@@ -15,27 +15,6 @@ def is_truthy(value: Any) -> bool:
     # Converts to lowercase and checks against common truthy strings
     return str(value).lower() in ("true", "1", "yes", "on")
 
-def _coerce_value(s: str) -> Any:
-    v = s.strip()
-    low = v.lower()
-    if low in {"true", "yes", "on"}:
-        return True
-    if low in {"false", "no", "off"}:
-        return False
-    if low in {"none", "null"}:
-        return None
-    if v == "":
-        return ""
-    try:
-        return int(v)
-    except ValueError:
-        pass
-    try:
-        return float(v)
-    except ValueError:
-        pass
-    return v
-
 class ConfigLoader(object):
     def __init__(self, file=None):
         self._configs = None

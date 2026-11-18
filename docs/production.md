@@ -67,8 +67,10 @@ Set every one of these to a strong value in `secrets.env` (never leave a
 
 - [ ] Real CA-signed cert in place (`data/fullchain.pem`/`privkey.pem`), not
   self-signed; `PLATFORM_PROTOCOL=https`, `NGINX_MODE=ssl`.
-- [ ] **`KEYCLOAK_VERIFY_SSL`** (builder) — currently `false` to tolerate
-  self-signed certs; set **`true`** in production with a real cert.
+- [ ] **`KEYCLOAK_VERIFY_SSL`** (builder, API) — defaults to `true`; keep it
+  `true`. It matters only if `KEYCLOAK_BASE_URL` is https. For a private CA, set
+  `KEYCLOAK_CA_CERT` (a path inside the container, so it also needs a mount)
+  rather than `false`.
 - [ ] Cert **renewal** process in place (Let's Encrypt / provider) — certs expire.
 
 ## 5. Secrets handling

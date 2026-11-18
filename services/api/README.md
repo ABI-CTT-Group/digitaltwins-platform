@@ -286,7 +286,7 @@ The variables below are defined, with their defaults, in `src/digitaltwins/setti
 |---|---|
 | Postgres | `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` (the superuser) |
 | MinIO | `MINIO_ENDPOINT`, `MINIO_SERVER_ACCESS_KEY`, `MINIO_SERVER_SECRET_KEY` |
-| Keycloak | `KEYCLOAK_BASE_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`. It accepts tokens issued to the `portal-frontend` and `api` clients |
+| Keycloak | `KEYCLOAK_BASE_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`; `KEYCLOAK_CA_CERT` names a CA bundle for Keycloak's TLS certificate, and `KEYCLOAK_VERIFY_SSL=false` turns verification off. It accepts tokens issued to the `portal-frontend` and `api` clients |
 | SEEK | `SEEK_BASE_URL`, as the calling user: the user's token is forwarded |
 | HAPI FHIR | `FHIR_ENDPOINT`. `API_PUBLIC_URL` is the base of the file URLs written into FHIR resources |
 | Airflow | The REST API at `AIRFLOW_ENDPOINT`, as `AIRFLOW_USERNAME`. DAG folders are written into `services/airflow/dags`, bind-mounted at `/airflow-dags` (`AIRFLOW_DAGS_DIR`) |
@@ -316,8 +316,6 @@ The interactive API docs are at `/api/docs` through the gateway, or on host port
 - **Router order matters.** `dataset_uploads` is registered before `datasets`, or
   `/datasets/{dataset_uuid}` would capture `/datasets/uploads`.
 - **A failed migration stops the API from starting.**
-- `docker-compose.yml` bind-mounts `./configs.ini`, which isn't in the repository and which no code
-  reads. When it doesn't exist, Docker creates an empty, root-owned directory in its place.
 - The Airflow image installs this package from PyPI, not from this folder.
 
 ### Related ADRs
