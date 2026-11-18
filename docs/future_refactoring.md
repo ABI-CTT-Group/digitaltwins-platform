@@ -28,10 +28,6 @@ The following items were identified during the REST API restructuring (`docs/pla
 * **Description**: 60 of the API's 66 route handlers are `def`, not `async def`. FastAPI runs `def` handlers in a thread pool, so they don't block the event loop today. Changing them to `async def` while they still call `requests` and the synchronous Postgres driver would block the loop and make things slower. Convert a handler only after its I/O has moved to async clients (e.g., `httpx`, an async DB driver), and only where the thread pool is shown to be a bottleneck.
 * **Why skipped**: Requires auditing underlying database and network dependencies (e.g., `requests`, synchronous DB drivers) to ensure they are async-compatible to prevent blocking the event loop.
 
-### [ ] 6. Configuration Consolidation
-* **Description**: Environment variables are read through about 120 scattered `os.getenv()` and `os.environ` calls across 34 files in `services/api/app/` and `services/api/src/`. Consolidate them into one configuration module (e.g., using `pydantic-settings`).
-* **Why skipped**: Left as-is to minimize the scope of the routing refactor.
-
 ### [ ] 7. CORS Hardening
 * **Description**: `initialise` in `services/api/app/main.py` allows every origin (`allow_origins=["*"]`) with `allow_credentials=True` and all methods and headers. The portal calls the API through the gateway on the same origin, so check which clients, if any, make cross-origin calls. Then restrict the list to those origins, or drop the middleware.
 * **Why skipped**: Left as-is for the initial refactor.
@@ -83,6 +79,18 @@ Found while making `make lint` pass. The cleanup kept behaviour unchanged, so th
 ### [ ] 4. Imports of names `digitaltwins` no longer exports
 * **Description**: `services/api/src/digitaltwins/core/uploader_gen3.py` imports `MetadataConvertor` and `MetadataUploader` from `digitaltwins`. `services/api/examples/query_postgres.py`, `services/api/examples/gen3/submit_metadata.py` and `services/api/tutorials/vph/tutorial_digitaltwins_api.ipynb` import `Auth`, `MetadataUploader`, `QuerierFactory` or `Connection`. Those exports are commented out in `digitaltwins/__init__.py`, so this code fails on import. Fix the imports or remove the code.
 * **Why skipped**: Gen3 and these examples look unused; that needs checking first.
+
+## API settings leftovers
+
+Found while moving the API's environment reads into `services/api/src/digitaltwins/settings.py` (`docs/plans/2026-11-18-155050-config-consolidation`).
+
+### [ ] 1. Inactive iRODS and Gen3 backends in the API package
+* **Description**: `services/api/src/digitaltwins/irods/`, `gen3/`, `core/uploader_gen3.py` and `core/querier_factory.py` aren't deployed: `IRODS_ENABLED` and `GEN3_ENABLED` are commented out of `.env.template`, and the `gen3` package isn't installed, so importing `digitaltwins.gen3` fails. They still read the environment themselves and are listed as exceptions in `services/api/tests/test_settings.py`. `core/querier.py`, `core/uploader.py` and `core/downloader.py` keep iRODS and Gen3 branches, and `core/uploader.py` imports `irods.uploader` on every import. Remove the backends and their branches, then drop the `gen3` and `irods` flags from `Enabled` in `settings.py` and the exceptions from the test.
+* **Why skipped**: The settings change kept behaviour unchanged; removing backends is a separate decision, and the examples that use them need checking first (see "Imports of names `digitaltwins` no longer exports" above).
+
+### [ ] 2. Unused or missing settings in the API's compose service
+* **Description**: In `services/api/docker-compose.yml`, the `./configs.ini:/api/configs.ini` bind mount feeds nothing (no code reads `/api/configs.ini`), and when the host file is missing Docker creates an empty root-owned `configs.ini` directory instead. `AIRFLOW_PORT` is passed to the API but never read. `KEYCLOAK_VERIFY_SSL` and `KEYCLOAK_CA_CERT`, which the token verifier reads, aren't passed, so the `.env.template` value doesn't reach the API. In `services/api/src/digitaltwins/utils/config_loader.py`, `_coerce_value` is unused and `ConfigLoader` is used only by `services/api/examples/export_metadata.py`.
+* **Why skipped**: Changing the compose service recreates the `api` container on every host; outside a code-only refactor.
 
 ## API tutorials
 

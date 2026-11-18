@@ -378,10 +378,10 @@ Detail: [`README.md`](README.md) §0–6.
 7. **Verify** the platform (README §6): the stack is up, and the Airflow API token
    works (fresh Keycloak+Airflow creates the local admin — `PLATFORM_ADMIN_USERNAME`,
    default `admin1` — automatically). This
-   mirrors `_get_api_token()` in `assays.py` — `os.getenv(key, default)`, so it uses
-   the same fallbacks the code does and never KeyErrors on an unset var:
+   mirrors `_get_api_token()` in `assays.py` — it reads `load_settings().airflow`, so it
+   uses the same values and defaults the code does:
    ```
-   docker compose exec -T api python -c "import os,requests; ep=os.getenv('AIRFLOW_ENDPOINT','http://airflow-apiserver:8080/airflow'); u=os.getenv('AIRFLOW_USERNAME','admin'); p=os.getenv('AIRFLOW_PASSWORD','admin'); r=requests.post(ep+'/auth/token',json={'username':u,'password':p},timeout=30); print('HTTP',r.status_code)"
+   docker compose exec -T api python -c "import requests; from digitaltwins.settings import load_settings; a=load_settings().airflow; r=requests.post(a.endpoint+'/auth/token',json={'username':a.username,'password':a.password},timeout=30); print('HTTP',r.status_code)"
    ```
    Expect `HTTP 200`.
 

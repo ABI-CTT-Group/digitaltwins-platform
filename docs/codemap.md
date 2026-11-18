@@ -130,6 +130,8 @@ launch, and the SEEK, FHIR, MinIO, Airflow and JupyterHub integrations.
       `staging.py` (stages a notebook assay's workspace).
     - `cli/`: `import_dataset.py` (the terminal importer), `keycloak_login.py`,
       `repush_fhir_urls.py`.
+    - `settings.py`: every environment variable the API and the package read,
+      with its type and default (`load_settings()`).
     - `client.py`: `UploadClient`, resumable uploads over HTTP.
     - `resources/`: the SDS dictionary and the SDS-to-Postgres element mappings.
     - `gen3/`, `irods/`: present but not configured.
