@@ -77,7 +77,10 @@ Set every one of these to a strong value in `secrets.env` (never leave a
 
 - [ ] `secrets.env` / `env` are git-ignored and `chmod 600`; never committed.
 - [ ] No secrets hardcoded in tracked templates. (Two Orthanc secrets that were
-  hardcoded in the tracked `.env.template` have already been rotated — `[x]`.)
+  hardcoded in the tracked `.env.template` have already been rotated — `[x]`.
+  An old copy, `services/api/.env.template`, still held them, with other
+  default credentials, until it was removed; they remain in git history, so
+  check that no host uses any of its values.)
 - [ ] Rotate any credential that has ever been committed or shared in plaintext.
 
 ## 6. Firewall / network

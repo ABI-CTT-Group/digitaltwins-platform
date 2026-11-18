@@ -400,7 +400,6 @@ An Orthanc stand-in for an external PACS, for testing DICOM transfers. Its
 | [`services/portal/docker-compose.override.yml`](../services/portal/docker-compose.override.yml) | Publishes port 80 for the standalone portal. `extends` reads only the file it names, so the platform never loads it. |
 | `pgadmin` in [`services/postgres/docker-compose.yml`](../services/postgres/docker-compose.yml) | The root `extends` only `database`. |
 | [`services/keycloak/docker-compose-https.yml`](../services/keycloak/docker-compose-https.yml) | Keycloak serving TLS itself. Nothing references it; Keycloak now sits behind the gateway. |
-| [`services/api/.env.template`](../services/api/.env.template) | An older copy of the root `.env.template` that has drifted (it lacks newer keys such as `BUILDER_URL`). The platform renders only the root `.env`. |
 | `src/digitaltwins/gen3/` in the API | Gen3 support. The `GEN3_*` settings are commented out. |
 
 ## How the compose files fit together

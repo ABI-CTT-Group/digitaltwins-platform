@@ -91,3 +91,11 @@ Found while renaming "DigitalTWINS" to "Digital Twins".
 ### [ ] 1. Review the tutorials in `services/api/tutorials/`
 * **Description**: The tutorials were written for the 12 LABOURS shared-drive setup and haven't been checked against the current platform. They still use example paths on that drive, such as `X:\DigitalTWINS\resources\latest\configs\configs.ini`, `L:\DigitalTWINS\...` and `/MOUNT_POINT/DigitalTWINS/...` (`tutorial_1_getting_started.md` and the notebooks for tutorials 2 to 5). Check whether that drive layout still exists, update or remove the paths, and check each tutorial still runs (see also "Imports of names `digitaltwins` no longer exports" above).
 * **Why skipped**: The rename changed display text only; the paths name a real folder, so renaming them would point at a folder that may not exist.
+
+## Default credentials
+
+Found while removing `services/api/.env.template` (`docs/plans/2026-11-19-121345-remove-api-env-template`).
+
+### [ ] 1. Fallback client secret for Orthanc in the PACS compose files
+* **Description**: `services/pacs/docker-compose.yml` (two services) and `services/pacs_pretend_external/docker-compose.yml` fall back to a literal default when `ORTHANC_KEYCLOAK_CLIENT_SECRET` is unset (`${ORTHANC_KEYCLOAK_CLIENT_SECRET:-...}`). The same value was in the removed template, so it is public. `util/gen-env.sh` always sets the variable, so the fallback is unused on a rendered deployment. Make the variable required (`${ORTHANC_KEYCLOAK_CLIENT_SECRET:?...}`), as `JUPYTERHUB_API_TOKEN` is in the API's compose file.
+* **Why skipped**: Changing the PACS compose file recreates the Orthanc containers; outside the template removal.
