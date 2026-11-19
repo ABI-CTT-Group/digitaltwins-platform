@@ -10,9 +10,6 @@
 # from .core.dataset import Dataset
 
 ########################################################################
-# from .metadata.querier import Querier
-# from .metadata.uploader import Uploader
-# from .metadata.exporter import Exporter
 
 
 from .core.querier import Querier
