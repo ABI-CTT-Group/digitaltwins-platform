@@ -11,4 +11,5 @@
 - [x] 6. Delete `digitaltwins/metadata/` and its commented import
 - [x] 7. Remove item 7 from `docs/future_refactoring.md` (its SQL guidance moved to `services/api/AGENTS.md`); no stale mentions of `metadata/`
 - [x] 8. `make test-api`, `make lint`, `make docs-check`; integration tests incl. measurement upload; formatted-SQL grep clean
+- [x] 9. Add a debt item for the `digitaltwins` pin in the Airflow image
 - [x] Sync plans to docs/plans/

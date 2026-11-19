@@ -92,3 +92,6 @@ No ADR: these are routine security fixes; the two deletions are of unused, broke
   the allowlist in `measurements/sessions.py`, and uploader columns checked by `_column_list`.
 - No local stack was running, so the API container wasn't rebuilt; run
   `docker compose build api && docker compose up -d api` on a host running the stack.
+- Follow-up: no PyPI release is needed for the platform (the API runs from source; no DAG imports
+  `digitaltwins`). Added debt item "Airflow 1. The Airflow image may not need the `digitaltwins`
+  package" to `docs/future_refactoring.md`.
