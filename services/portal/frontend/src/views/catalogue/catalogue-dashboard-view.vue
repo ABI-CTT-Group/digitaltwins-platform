@@ -59,9 +59,6 @@
             <span v-if="card.comingSoon" class="tile__roles">
               Coming soon
             </span>
-            <span v-else-if="card.prototype" class="tile__roles">
-              Prototype
-            </span>
             <span v-else-if="card.requireRoles" class="tile__roles">
               <v-icon icon="mdi-lock-outline" size="12"></v-icon>
               {{ card.requireRoles.join(' · ') }}
@@ -101,7 +98,6 @@ type CatalogueCard = {
   external?: boolean;
   requireRoles?: string[];
   comingSoon?: boolean;
-  prototype?: boolean;
 };
 
 const hero: CatalogueCard = {
@@ -162,17 +158,15 @@ const actions: CatalogueCard[] = [
     cta: 'Open',
     accent: '#9fd0e6',
     requireRoles: [],
-    prototype: true,
   },
   {
     title: 'ISA project',
-    description: 'Upload an ISA project and list the ones you have. Open one in the prototype study dashboard to configure all its assays together.',
+    description: 'Upload an ISA project and list the ones you have. Open one in the study dashboard to configure all its assays together.',
     herf: 'IsaProjectPrototype',
     icon: 'mdi-file-tree-outline',
     cta: 'Open',
     accent: '#f0b97f',
     requireRoles: ['admin'],
-    prototype: true,
   },
 ];
 

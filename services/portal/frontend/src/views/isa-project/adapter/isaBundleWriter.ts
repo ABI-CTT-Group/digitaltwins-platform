@@ -5,7 +5,7 @@ import yaml from "js-yaml";
 import type { Catalogue, CatalogueWorkflow, IsaProject, Port } from "../model/types";
 import testProjectJson from "../fixtures/example-test-project.json";
 
-const PLACEHOLDER = "Placeholder made by the ISA project prototype: replace it with the real one.";
+const PLACEHOLDER = "Placeholder: replace it with the real one.";
 
 type Section = Record<string, unknown> | { id?: string }[] | undefined;
 /** A port's definition in a CWL `inputs` / `outputs` section, map or list form. */

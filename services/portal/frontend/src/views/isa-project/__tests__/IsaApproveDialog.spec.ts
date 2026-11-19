@@ -36,6 +36,7 @@ describe("IsaApproveDialog", () => {
     expect(dialog().textContent).toContain("Approve My study plan?");
     expect(dialog().textContent).toContain("Its SEEK project is created from the ISA tree");
     expect(dialog().textContent).toContain("1 bundled item: ds-new");
+    expect(dialog().textContent).not.toMatch(/prototype/i);
   });
 
   it("follows the approval's stages to the end", async () => {

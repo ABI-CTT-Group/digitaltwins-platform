@@ -2,7 +2,7 @@
   <section class="dashboard">
     <div class="dashboard__inner">
       <DashboardHeader
-        root-label="Study dashboard (prototype)"
+        root-label="Study dashboard"
         :breadcrumbs="level.breadcrumbs"
         :current-category="nav.currentCategory.value"
         :count="level.items.length"
@@ -10,10 +10,6 @@
         @go-root="nav.goToRoot"
         @go-depth="nav.goToDepth"
       />
-      <p class="note">
-        <v-icon icon="mdi-flask-empty-outline" size="16" />
-        Prototype: ISA projects are kept in this browser only.
-      </p>
 
       <!-- A study is configured as a whole, not assay by assay. -->
       <StudyDesign v-if="study" v-bind="study" />
@@ -78,5 +74,4 @@ watch(() => nav.trail.value.join(","), load, { immediate: true });
   max-width: 1200px;
   margin: 0 auto;
 }
-.note { display: flex; align-items: center; gap: 6px; margin: 0 0 18px; font-size: 0.86rem; color: var(--tone-needs); }
 </style>

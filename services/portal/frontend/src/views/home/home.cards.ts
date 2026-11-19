@@ -38,14 +38,7 @@ export const cards: CardConfig[] = [
         image: studyImage,
         location: 'Te Whatu Ora AI Lab',
         description: 'Enables clinicians to collaborate with researchers to assess efficacy of AI/digital twin driven workflows.',
-        requireRoles: ['admin', 'researcher'],
-        action: { type: 'route', name: 'StudyDashboard' }
-    },
-    {
-        title: 'Study dashboard (prototype)',
-        image: studyImage,
-        location: 'Te Whatu Ora AI Lab',
-        description: 'Plan all the assays of a study from an uploaded ISA project. A frontend-only prototype: projects are kept in this browser.',
+        // Opens the ISA projects' dashboard (frontend-only prototype); the platform's is unlisted for the demo.
         requireRoles: ['admin'],
         action: { type: 'route', name: 'StudyDashboardPrototype' }
     },

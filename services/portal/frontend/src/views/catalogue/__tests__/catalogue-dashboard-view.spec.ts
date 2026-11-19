@@ -18,9 +18,8 @@ const assemblerTile = () => tile("Workflow assembler");
 describe("catalogue dashboard", () => {
   beforeEach(() => { push.mockClear(); check.mockClear(); });
 
-  it("labels the workflow assembler a prototype and opens it for a signed-in user", async () => {
+  it("opens the workflow assembler for a signed-in user", async () => {
     const tile = assemblerTile();
-    expect(tile.text()).toContain("Prototype");
     expect(tile.text()).not.toContain("Coming soon");
     await tile.trigger("click");
     await flushPromises();
@@ -28,13 +27,19 @@ describe("catalogue dashboard", () => {
     expect(push).toHaveBeenCalledWith({ name: "ToolsViewer" });
   });
 
-  it("labels the ISA project page a prototype and opens it for admins only", async () => {
+  it("opens the ISA project page for admins only", async () => {
     const isa = tile("ISA project");
-    expect(isa.text()).toContain("Prototype");
+    expect(isa.text()).toContain("admin");
+    expect(isa.text()).toContain("Open one in the study dashboard");
     await isa.trigger("click");
     await flushPromises();
     expect(check).toHaveBeenCalledWith(["admin"]);
     expect(push).toHaveBeenCalledWith({ name: "IsaProjectPrototype" });
+  });
+
+  it("never says prototype", () => {
+    const page = mount(CatalogueDashboardView, { global: { plugins: [testVuetify()] } });
+    expect(page.text()).not.toMatch(/prototype/i);
   });
 
   it("has no card for the study dashboard prototype, which is on the home page", () => {

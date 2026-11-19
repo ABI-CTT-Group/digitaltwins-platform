@@ -22,10 +22,6 @@
       Launch, Submit and Download run the linked platform assays with their platform configuration. Changes you
       make here stay in this browser, and later platform assays keep reading the datasets they were configured with.
     </p>
-    <p v-else class="design__note">
-      <v-icon icon="mdi-flask-empty-outline" size="16" />
-      Prototype: these assays use example data. Changes are kept in this browser only, and nothing runs.
-    </p>
 
     <StudyGraph
       v-if="view === 'flow'"
@@ -237,7 +233,7 @@ function submit(id: string) {
 function follow(action: "Monitor" | "Verify" | "Download", id: string) {
   const seekId = platformIds.value[id];
   if (!seekId) {
-    message.value = `${action} isn't part of the prototype.`;
+    message.value = `${action} isn't available for this assay yet.`;
   } else if (action === "Monitor") {
     actions.monitor(seekId);
   } else if (action === "Verify") {

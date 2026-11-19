@@ -136,13 +136,13 @@ describe("StudyDesign", () => {
     expect(graph(w).props("sim")).toEqual({ ran: [], submitted: ["a-cohort"] });
   });
 
-  it("says when an action isn't part of the prototype", async () => {
+  it("says when an action isn't available for an assay", async () => {
     await addUpload();
     const w = await render("s-test", "p-upload");
-    expect(w.text()).toContain("nothing runs");
+    expect(w.text()).not.toMatch(/prototype|nothing runs/i);
     graph(w).vm.$emit("verify", "a-cohort");
     await flushPromises();
-    expect(w.text()).toContain("Verify isn't part of the prototype");
+    expect(w.text()).toContain("Verify isn't available for this assay yet.");
     expect(actions.verify).not.toHaveBeenCalled();
     expect(run.launchPlatformAssay).not.toHaveBeenCalled();
     expect(graph(w).props("platform")).toEqual({});

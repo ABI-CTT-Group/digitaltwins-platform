@@ -319,10 +319,12 @@ the builder, the public tool buckets and the plugin backends.
     cases and decisions live in the browser's localStorage), `catalogue/`, `upload-dataset/` (the measurements, models, tools
     and workflows hubs), `tool-plugin/` (`/tool-view`, where GUI tools run),
     `home/`, `tutorial/`, `isa-project/` (a frontend-only prototype: the
-    ISA project hub at `/catalogue/isa-project`, and the Study dashboard
-    (prototype) at `/study-dashboard-prototype`, which reuses the study
-    dashboard's parts to show only those ISA projects; projects live in the
-    browser's localStorage and no API is called).
+    ISA project hub at `/catalogue/isa-project`, and the study dashboard at
+    `/study-dashboard` (the only one on the home page, for the demo), which
+    reuses the study dashboard's parts to show only those ISA projects;
+    projects live in the browser's localStorage and no API is called). The
+    platform's own study dashboard (`dashboard/`) is unlisted at
+    `/study-dashboard-platform` on this branch.
   - `components/`, `composables/`, `store/`, `services/`, `models/`, `utils/`.
     `components/RemoteComponentApp.vue` loads a plugin's UMD bundle.
   - [`frontend/nginx.conf.template`](../services/portal/frontend/nginx.conf.template):

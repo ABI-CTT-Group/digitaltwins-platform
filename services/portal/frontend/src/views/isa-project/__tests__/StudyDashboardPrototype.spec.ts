@@ -26,9 +26,9 @@ describe("StudyDashboardPrototype", () => {
     route.query = {};
     const w = render();
     await flushPromises();
-    expect(w.findComponent({ name: "DashboardHeader" }).props("rootLabel")).toBe("Study dashboard (prototype)");
+    expect(w.findComponent({ name: "DashboardHeader" }).props("rootLabel")).toBe("Study dashboard");
     expect(w.findComponent({ name: "LevelGrid" }).props("items").map((i: { name: string }) => i.name)).toEqual(["ISA projects"]);
-    expect(w.text()).toContain("Prototype: ISA projects are kept in this browser only.");
+    expect(w.text()).not.toMatch(/prototype|kept in this browser/i);
     expect(api.useDashboardProgrammes).not.toHaveBeenCalled();
     expect(api.useDashboardCategoryChildren).not.toHaveBeenCalled();
   });

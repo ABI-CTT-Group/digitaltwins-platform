@@ -55,6 +55,12 @@ describe("IsaProjectHub", () => {
     expect(row(w, "Test Project").find("[data-test=chain]").exists()).toBe(true);
   });
 
+  it("never says prototype", async () => {
+    const w = await render();
+    expect(w.text()).not.toMatch(/prototype|kept in this browser/i);
+    expect(w.text()).toContain("open it in the study dashboard");
+  });
+
   it("opens a project in the study dashboard (prototype)", async () => {
     const w = await render();
     await row(w, "Test Project").find("[data-test=open]").trigger("click");

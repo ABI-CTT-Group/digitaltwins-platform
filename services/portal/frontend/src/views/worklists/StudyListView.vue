@@ -4,10 +4,6 @@
       <header class="head">
         <h1>Clinician dashboard</h1>
         <p class="lede">Choose a study to review its cases.</p>
-        <p class="proto">
-          <v-icon icon="mdi-flask-empty-outline" size="16" />
-          Prototype with example cases. Decisions are kept in this browser only.
-        </p>
       </header>
 
       <ul class="list">
@@ -63,7 +59,6 @@ h1 {
   font-size: clamp(2rem, 4vw, 2.6rem); line-height: 1.1; text-wrap: balance; color: var(--text);
 }
 .lede { margin: 0; max-width: 62ch; color: var(--text-dim); }
-.proto { display: flex; align-items: center; gap: 6px; margin: 4px 0 0; font-size: 0.86rem; color: var(--tone-needs); }
 
 .list { list-style: none; margin: 32px 0 0; padding: 0; border-top: 1px solid var(--line); }
 .list li { border-bottom: 1px solid var(--line); }

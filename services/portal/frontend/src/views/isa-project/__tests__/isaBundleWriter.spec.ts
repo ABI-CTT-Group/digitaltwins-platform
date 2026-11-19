@@ -33,6 +33,7 @@ describe("bundleZip", () => {
     const rows = XLSX.utils.sheet_to_json<string[]>(book.Sheets[book.SheetNames[0]], { header: 1 });
     expect(rows).toContainEqual(["Title", "test_dicom"]);
     expect(rows).toContainEqual(["Type", "measurements"]);
+    expect(rows).toContainEqual(["Description", "Placeholder: replace it with the real one."]);
   });
 
   it("reads back as the same project, every folder already on the platform", async () => {

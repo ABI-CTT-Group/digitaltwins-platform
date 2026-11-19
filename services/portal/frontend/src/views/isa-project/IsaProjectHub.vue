@@ -1,13 +1,9 @@
 <template>
   <HubShell
     title="ISA projects"
-    subtitle="Upload an ISA project, then open it in the prototype study dashboard to configure all of its assays together."
+    subtitle="Upload an ISA project, then open it in the study dashboard to configure all of its assays together."
     accent="#f0b97f"
   >
-    <p class="note">
-      <v-icon icon="mdi-flask-empty-outline" size="16" />
-      Prototype: ISA projects are kept in this browser only. Download one as JSON to keep or share it.
-    </p>
 
     <div class="toolbar">
       <div class="upload">
@@ -202,7 +198,6 @@ const askReset = (p: IsaProject) => confirm.ask({
 </script>
 
 <style scoped>
-.note { display: flex; align-items: center; gap: 6px; margin: 0 0 18px; font-size: 0.86rem; color: var(--tone-needs); }
 .toolbar { display: flex; flex-wrap: wrap; gap: 12px 28px; margin-bottom: 20px; }
 .toolbar .aurora-btn { display: inline-flex; align-items: center; gap: 8px; }
 .upload { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; max-width: 34ch; }

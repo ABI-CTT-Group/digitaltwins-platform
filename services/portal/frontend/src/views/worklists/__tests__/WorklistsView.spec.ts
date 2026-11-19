@@ -36,6 +36,13 @@ describe("WorklistsView", () => {
     const back = w.findComponent(RouterLinkStub);
     expect(back.props("to")).toEqual({ name: "ClinicianDashboard" });
     expect(back.text()).toContain("All studies");
+    expect(w.text()).not.toMatch(/prototype|kept in this browser/i);
+  });
+
+  it("says the annotator isn't connected yet", async () => {
+    const w = await render();
+    w.findComponent({ name: "CaseReviewPanel" }).vm.$emit("open");
+    expect(toast.info).toHaveBeenCalledWith("The annotator isn't connected yet.");
   });
 
   it("says when there is no such study", async () => {

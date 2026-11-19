@@ -9,7 +9,6 @@
           registered so any project can use them.
         </p>
         <p class="approve__text">{{ bundledLine }}</p>
-        <p class="approve__hint">Prototype: nothing reaches the platform; only this browser's list changes.</p>
       </template>
 
       <template v-else-if="phase === 'progress'">
@@ -83,7 +82,6 @@ watch(open, isOpen => { if (isOpen) started.value = false; });
 }
 .approve__title { margin: 0; font-family: var(--font-title); font-weight: 500; font-size: 1.44rem; color: var(--text); overflow-wrap: anywhere; }
 .approve__text { margin: 0; max-width: 60ch; font-size: 0.9375rem; line-height: 1.55; color: var(--text-dim); }
-.approve__hint { margin: 0; font-size: 0.875rem; line-height: 1.5; color: var(--tone-needs); }
 .approve__stage { margin: 0; font-size: 1rem; font-weight: 600; color: var(--text); }
 .approve__result { margin: 0; font-size: 1.2rem; font-weight: 600; color: var(--text); }
 .approve__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }

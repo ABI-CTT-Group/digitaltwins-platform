@@ -45,17 +45,23 @@ const routes = [
             component: Home,
           },
           {
-            path: "/study-dashboard",
+            // The platform's study dashboard, unlisted for the demo: the prototype below took its URL.
+            path: "/study-dashboard-platform",
             name: "StudyDashboard",
             component: DashboardView,
             meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'], type: 'study' },
           },
           {
             // Frontend-only prototype: the study dashboard for the ISA projects in the browser; nothing reaches the API.
-            path: "/study-dashboard-prototype",
+            path: "/study-dashboard",
             name: "StudyDashboardPrototype",
             component: StudyDashboardPrototype,
             meta: { requiresAuth: true, requiresRoles: ['admin'] },
+          },
+          {
+            // The prototype was briefly served here; keep those links working.
+            path: "/study-dashboard-prototype",
+            redirect: { name: "StudyDashboardPrototype" },
           },
           {
             // Frontend-only prototype: example cases live in the browser; nothing reaches the API.

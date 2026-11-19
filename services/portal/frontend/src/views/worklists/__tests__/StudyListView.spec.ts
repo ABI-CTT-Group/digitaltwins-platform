@@ -30,6 +30,7 @@ describe("StudyListView", () => {
     expect(row.find("[data-test=study-reviewed]").text()).toBe("15 of 36 reviewed");
     expect(row.find("[data-test=study-left]").text()).toBe("21 to review");
     expect(row.find("progress").attributes()).toMatchObject({ value: "15", max: "36" });
+    expect(w.text()).not.toMatch(/prototype|kept in this browser/i);
   });
 
   it("opens the study's worklist from its row", async () => {
