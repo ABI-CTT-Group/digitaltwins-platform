@@ -180,26 +180,14 @@ class Querier(object):
         return resp
 
     def get_dataset_sample_types(self, dataset_uuid):
-        sql = "SELECT DISTINCT dataset_uuid, sample_uuid FROM dataset_mapping WHERE dataset_uuid='{dataset_uuid}'".format(dataset_uuid=dataset_uuid)
+        sql = "SELECT DISTINCT sample_uuid FROM dataset_mapping WHERE dataset_uuid = %s"
+        sample_uuids = [row.get("sample_uuid") for row in self._query(sql, (dataset_uuid,))]
+        if not sample_uuids:
+            return []
 
-        resp = self._query(sql)
-
-        sample_uuids = list()
-        for sample in resp:
-            sample_uuid = sample.get("sample_uuid")
-            sample_uuids.append(sample_uuid)
-
-        formatted_sample_uuids_list = []
-
-        # Loop through each category and format it
-        for sample_uuid in sample_uuids:
-            formatted_sample_uuids = f"'{sample_uuid}'"
-            formatted_sample_uuids_list.append(formatted_sample_uuids)
-
-        formatted_sample_uuids = ', '.join(formatted_sample_uuids_list)
-        sql = f"SELECT sample_type FROM sample WHERE sample_uuid IN ({formatted_sample_uuids})"
-
-        resp = self._query(sql)
+        # A tuple renders as ('…', '…'), untyped literals that Postgres casts to uuid.
+        sql = "SELECT sample_type FROM sample WHERE sample_uuid IN %s"
+        resp = self._query(sql, (tuple(sample_uuids),))
 
         sample_types = list()
         for row in resp:
