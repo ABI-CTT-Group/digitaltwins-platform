@@ -1,7 +1,8 @@
-// The study dashboard's "Study design sandbox" programme (prototype). It turns the ISA projects in
-// the browser's store into dashboard items, so the existing drill-down can show them without the
+// The "ISA projects" programme of the Study dashboard (prototype). It turns the ISA projects in the
+// browser's store into dashboard items, so the dashboard's drill-down parts can show them without the
 // API. Sandbox ids are "isa-sandbox[:project[:investigation[:study[:assay]]]]".
 import type { DashboardCategory } from "@/models/types";
+import { BREADCRUMB_ORDER, type ResolvedLevel } from "@/composables/useDashboardData";
 import type { Catalogue, IsaProject } from "./model/types";
 
 export const SANDBOX_ID = "isa-sandbox";
@@ -22,7 +23,7 @@ export const isSandboxId = (id: string) => id === SANDBOX_ID || id.startsWith(`$
 export function sandboxProgramme(): DashboardCategory {
   return {
     seekId: SANDBOX_ID,
-    name: "Study design sandbox",
+    name: "ISA projects",
     category: "Programmes",
     description:
       "Plan every assay of a study before anything runs. Pick inputs that earlier assays will produce, " +
@@ -80,4 +81,17 @@ export function sandboxChildren(parentId: string, parentCategory: string, entrie
     }));
   }
   return [];
+}
+
+/** The level at the end of a trail of sandbox ids. Stops at an id it can't find, like the real dashboard. */
+export function resolveSandboxTrail(trail: string[], entries: IsaProjectEntry[]): ResolvedLevel {
+  let items = [sandboxProgramme()];
+  const breadcrumbs: ResolvedLevel["breadcrumbs"] = [];
+  for (const [depth, seekId] of trail.entries()) {
+    const node = items.find(item => item.seekId === seekId);
+    if (!node) break;
+    breadcrumbs.push({ seekId: node.seekId, name: node.name, category: node.category });
+    items = sandboxChildren(node.seekId, BREADCRUMB_ORDER[depth], entries);
+  }
+  return { items, breadcrumbs, currentCategory: BREADCRUMB_ORDER[breadcrumbs.length] ?? "Assays" };
 }

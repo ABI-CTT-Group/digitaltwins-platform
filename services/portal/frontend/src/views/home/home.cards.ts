@@ -42,6 +42,14 @@ export const cards: CardConfig[] = [
         action: { type: 'route', name: 'StudyDashboard' }
     },
     {
+        title: 'Study dashboard (prototype)',
+        image: studyImage,
+        location: 'Te Whatu Ora AI Lab',
+        description: 'Plan all the assays of a study from an uploaded ISA project. A frontend-only prototype: projects are kept in this browser.',
+        requireRoles: ['admin'],
+        action: { type: 'route', name: 'StudyDashboardPrototype' }
+    },
+    {
         title: 'Clinician dashboard',
         image: clinicalImage,
         location: 'Te Whatu Ora AI Lab',

@@ -36,4 +36,9 @@ describe("catalogue dashboard", () => {
     expect(check).toHaveBeenCalledWith(["admin"]);
     expect(push).toHaveBeenCalledWith({ name: "IsaProjectPrototype" });
   });
+
+  it("has no card for the study dashboard prototype, which is on the home page", () => {
+    const tiles = mount(CatalogueDashboardView, { global: { plugins: [testVuetify()] } }).findAll("button.tile");
+    expect(tiles.some(t => t.text().includes("Study dashboard"))).toBe(false);
+  });
 });

@@ -1,10 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createPinia, setActivePinia } from "pinia";
 
 const api = vi.hoisted(() => ({ useDashboardProgrammes: vi.fn(), useDashboardCategoryChildren: vi.fn() }));
-const auth = vi.hoisted(() => ({ hasAdminRole: true }));
 vi.mock("@/bootstrap/dashboard_api", () => api);
-vi.mock("@/store/auth_store", () => ({ useAuthStore: () => auth }));
 
 import { clearDashboardCache, describeCategory, useDashboardData } from "../useDashboardData";
 
@@ -13,30 +10,20 @@ const all = () => true;
 beforeEach(() => {
   vi.resetAllMocks();
   clearDashboardCache();
-  setActivePinia(createPinia());
-  auth.hasAdminRole = true;
   api.useDashboardProgrammes.mockResolvedValue([{ seekId: "7", name: "Lungs", category: "Programmes" }]);
   api.useDashboardCategoryChildren.mockResolvedValue([{ seekId: "8", name: "Project A", category: "Projects" }]);
 });
 
-describe("useDashboardData: study design sandbox (prototype)", () => {
-  it("adds the sandbox programme for an admin", async () => {
-    const { items } = await useDashboardData().loadTrail([], all);
-    expect(items.map(i => i.name)).toEqual(["Lungs", "Study design sandbox"]);
-  });
-
-  it("hides it from everyone else", async () => {
-    auth.hasAdminRole = false;
+describe("useDashboardData", () => {
+  it("shows only the API's programmes", async () => {
     const { items } = await useDashboardData().loadTrail([], all);
     expect(items.map(i => i.name)).toEqual(["Lungs"]);
   });
 
-  it("walks a sandbox trail from the browser's store, never the API", async () => {
-    const r = await useDashboardData().loadTrail(["isa-sandbox", "isa-sandbox:p-test-project", "isa-sandbox:p-test-project:i-test"], all);
-    expect(r.breadcrumbs.map(b => b.name)).toEqual(["Study design sandbox", "Test Project (example)", "Test Investigation"]);
-    expect(r.currentCategory).toBe("Studies");
-    expect(r.items.map(i => i.name)).toEqual(["Test Study"]);
-    expect(api.useDashboardCategoryChildren).not.toHaveBeenCalled();
+  it("doesn't resolve a trail into the ISA projects prototype", async () => {
+    const r = await useDashboardData().loadTrail(["isa-sandbox", "isa-sandbox:p-test-project"], all);
+    expect(r.breadcrumbs).toEqual([]);
+    expect(r.currentCategory).toBe("Programmes");
   });
 
   it("leaves real programmes on the API and its cache", async () => {

@@ -1,7 +1,7 @@
 <template>
   <HubShell
     title="ISA projects"
-    subtitle="Upload an ISA project, then open it in the study dashboard to configure all of its assays together."
+    subtitle="Upload an ISA project, then open it in the prototype study dashboard to configure all of its assays together."
     accent="#f0b97f"
   >
     <p class="note">
@@ -74,7 +74,7 @@
 
 <script setup lang="ts">
 // The catalogue's ISA project hub (prototype): upload draft-schema JSON files and list them. Each
-// one appears in the study dashboard under the "Study design sandbox" programme.
+// one appears in the Study dashboard (prototype) under the "ISA projects" programme.
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import HubShell from "@/views/upload-dataset/components/HubShell.vue";
@@ -135,7 +135,7 @@ function askApprove(projectId: string) {
 }
 
 function open(projectId: string) {
-  router.push({ name: "StudyDashboard", query: { trail: `${SANDBOX_ID},${SANDBOX_ID}:${projectId}` } });
+  router.push({ name: "StudyDashboardPrototype", query: { trail: `${SANDBOX_ID},${SANDBOX_ID}:${projectId}` } });
 }
 
 async function load(text: string, name: string) {

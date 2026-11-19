@@ -55,10 +55,10 @@ describe("IsaProjectHub", () => {
     expect(row(w, "Test Project").find("[data-test=chain]").exists()).toBe(true);
   });
 
-  it("opens a project in the study dashboard", async () => {
+  it("opens a project in the study dashboard (prototype)", async () => {
     const w = await render();
     await row(w, "Test Project").find("[data-test=open]").trigger("click");
-    expect(push).toHaveBeenCalledWith({ name: "StudyDashboard", query: { trail: "isa-sandbox,isa-sandbox:p-test-project" } });
+    expect(push).toHaveBeenCalledWith({ name: "StudyDashboardPrototype", query: { trail: "isa-sandbox,isa-sandbox:p-test-project" } });
   });
 
   it("adds an uploaded project to the list", async () => {

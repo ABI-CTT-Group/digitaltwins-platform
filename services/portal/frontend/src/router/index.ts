@@ -12,6 +12,7 @@ import TutorialDashboard from "@/views/tutorial/index.vue";
 import CatalogueDashboardView from "@/views/catalogue/catalogue-dashboard-view.vue";
 import ToolsViewer from "@/views/catalogue/tools-viewer.vue";
 import IsaProjectHub from "@/views/isa-project/IsaProjectHub.vue";
+import StudyDashboardPrototype from "@/views/isa-project/StudyDashboardPrototype.vue";
 import StudyListView from "@/views/worklists/StudyListView.vue";
 import WorklistsView from "@/views/worklists/WorklistsView.vue";
 import Layout from "@/layouts/Default.vue";
@@ -48,6 +49,13 @@ const routes = [
             name: "StudyDashboard",
             component: DashboardView,
             meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'], type: 'study' },
+          },
+          {
+            // Frontend-only prototype: the study dashboard for the ISA projects in the browser; nothing reaches the API.
+            path: "/study-dashboard-prototype",
+            name: "StudyDashboardPrototype",
+            component: StudyDashboardPrototype,
+            meta: { requiresAuth: true, requiresRoles: ['admin'] },
           },
           {
             // Frontend-only prototype: example cases live in the browser; nothing reaches the API.

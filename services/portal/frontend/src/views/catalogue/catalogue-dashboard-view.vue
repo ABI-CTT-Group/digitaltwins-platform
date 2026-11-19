@@ -166,7 +166,7 @@ const actions: CatalogueCard[] = [
   },
   {
     title: 'ISA project',
-    description: 'Upload an ISA project and list the ones you have. Open one in the study dashboard to configure all its assays together.',
+    description: 'Upload an ISA project and list the ones you have. Open one in the prototype study dashboard to configure all its assays together.',
     herf: 'IsaProjectPrototype',
     icon: 'mdi-file-tree-outline',
     cta: 'Open',
