@@ -17,6 +17,11 @@ The code map, connections and config are in [README.md](README.md#developing-thi
   `app/routers/dependencies.py`), never from a shared token.
 - **Library code** goes in `src/digitaltwins/<area>/`. It is also the published `digitaltwins`
   package and imports nothing from FastAPI; keep it that way. Request models go in `app/schemas/`.
+- **SQL** never has a value formatted into it: pass values as `%s` parameters (`_query(sql, values)`
+  in `postgres/querier.py`). For a list of UUIDs use `IN %s` with a tuple; `= ANY(%s)` with a list
+  sends `text[]`, which Postgres won't compare to a `uuid` column. A column name taken from input
+  (spreadsheet headers in `core/uploader.py`) goes through `_column_list`, which rejects anything
+  but a plain identifier.
 - **A schema change** is a new file `src/digitaltwins/postgres/migrations/NNNN_<name>.sql`, numbered
   after the last one. It runs once, in its own transaction, at the next API start. Write it to be safe
   on any existing deployment (`IF NOT EXISTS`). Never edit a shipped migration or
