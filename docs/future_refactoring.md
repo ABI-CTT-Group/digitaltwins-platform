@@ -73,7 +73,7 @@ Found while making `make lint` pass. The cleanup kept behaviour unchanged, so th
 * **Why skipped**: Narrowing changes which errors propagate.
 
 ### [ ] 3. Imports of names `digitaltwins` no longer exports
-* **Description**: `services/api/src/digitaltwins/core/uploader_gen3.py` imports `MetadataConvertor` and `MetadataUploader` from `digitaltwins`. `services/api/examples/query_postgres.py`, `services/api/examples/gen3/submit_metadata.py` and `services/api/tutorials/vph/tutorial_digitaltwins_api.ipynb` import `Auth`, `MetadataUploader`, `QuerierFactory` or `Connection`. Those exports are commented out in `digitaltwins/__init__.py`, so this code fails on import. Fix the imports or remove the code.
+* **Description**: `services/api/src/digitaltwins/core/uploader_gen3.py` imports `MetadataConvertor` and `MetadataUploader` from `digitaltwins`. `services/api/examples/query_postgres.py` and `services/api/examples/gen3/submit_metadata.py` import `Auth`, `MetadataUploader`, `QuerierFactory` or `Connection`. Those exports are commented out in `digitaltwins/__init__.py`, so this code fails on import. Fix the imports or remove the code.
 * **Why skipped**: Gen3 and these examples look unused; that needs checking first.
 
 ## API settings leftovers
@@ -83,14 +83,6 @@ Found while moving the API's environment reads into `services/api/src/digitaltwi
 ### [ ] 1. Inactive iRODS and Gen3 backends in the API package
 * **Description**: `services/api/src/digitaltwins/irods/`, `gen3/`, `core/uploader_gen3.py` and `core/querier_factory.py` aren't deployed: `IRODS_ENABLED` and `GEN3_ENABLED` are commented out of `.env.template`, and the `gen3` package isn't installed, so importing `digitaltwins.gen3` fails. They still read the environment themselves and are listed as exceptions in `services/api/tests/test_settings.py`. `core/querier.py`, `core/uploader.py` and `core/downloader.py` keep iRODS and Gen3 branches, and `core/uploader.py` imports `irods.uploader` on every import. Remove the backends and their branches, then drop the `gen3` and `irods` flags from `Enabled` in `settings.py` and the exceptions from the test. `ConfigLoader` in `utils/config_loader.py` is used only by the Gen3 example `services/api/examples/export_metadata.py`; remove it with that example.
 * **Why skipped**: The settings change kept behaviour unchanged; removing backends is a separate decision, and the examples that use them need checking first (see "Imports of names `digitaltwins` no longer exports" above).
-
-## API tutorials
-
-Found while renaming "DigitalTWINS" to "Digital Twins".
-
-### [ ] 1. Review the tutorials in `services/api/tutorials/`
-* **Description**: The tutorials were written for the 12 LABOURS shared-drive setup and haven't been checked against the current platform. They still use example paths on that drive, such as `X:\DigitalTWINS\resources\latest\configs\configs.ini`, `L:\DigitalTWINS\...` and `/MOUNT_POINT/DigitalTWINS/...` (`tutorial_1_getting_started.md` and the notebooks for tutorials 2 to 5). Check whether that drive layout still exists, update or remove the paths, and check each tutorial still runs (see also "Imports of names `digitaltwins` no longer exports" above).
-* **Why skipped**: The rename changed display text only; the paths name a real folder, so renaming them would point at a folder that may not exist.
 
 ## Default credentials
 

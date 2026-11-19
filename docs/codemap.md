@@ -138,8 +138,7 @@ launch, and the SEEK, FHIR, MinIO, Airflow and JupyterHub integrations.
   - [`scripts/`](../services/api/scripts/): `import-dataset.sh`, `.command`,
     `.ps1` and `.bat`, which copy a dataset into the `api` container and run the
     importer.
-  - [`tutorials/`](../services/api/tutorials/), [`examples/`](../services/api/examples/):
-    using the package as a library.
+  - [`examples/`](../services/api/examples/): using the package as a library.
 - **Tests:** [`tests/`](../services/api/tests/), `make test-api`. Tests that
   need a live Postgres or MinIO are marked `integration` and are deselected.
 - **Docs:** [README.md](../services/api/README.md),

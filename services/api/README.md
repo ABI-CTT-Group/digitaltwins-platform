@@ -134,8 +134,6 @@ The Digital Twins platform Python API is called `digitaltwins`. It is designed t
    
 ## Using the Digital Twins platform
 
-Please see the [documentation for workshop 1](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/workshop_1_describing_and_storing_data.md), which describes how to use the 12 LABOURS Digital Twins platform and its API.
-
 ### Uploading a measurement dataset from a script
 
 `UploadClient` uploads a SPARC dataset folder or `.zip` in resumable chunks through `/datasets/uploads`. It then waits for the dataset to be committed to Postgres and MinIO, and, optionally, for the FHIR annotation to be pushed. Uploading requires the Keycloak realm role `admin` or `researcher`.
@@ -274,7 +272,7 @@ a FastAPI app that uvicorn serves under `/api`.
 | `tests/` | The pytest suite. `tests/conftest.py` holds the shared fixtures and the in-memory SEEK and HAPI FHIR fakes |
 | `scripts/import-dataset.*` | Wrappers that run the importer in the API container ([guide](docs/import-dataset.md)) |
 | `docs/source/` | Sphinx sources for Read the Docs |
-| `examples/`, `tutorials/` | Example scripts and workshop material |
+| `examples/` | Example scripts |
 | `docker/` | Old standalone compose files for Postgres and Orthanc. Nothing uses them |
 | `Dockerfile`, `docker-compose.yml` | The `api` image (Python 3.11) and service; the root compose includes the service |
 
