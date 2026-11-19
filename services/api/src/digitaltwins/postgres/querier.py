@@ -96,33 +96,24 @@ class Querier(object):
 
         if len(categories) == 0:
             sql = "SELECT * FROM dataset"
+            values = None
         else:
-            formatted_categories_list = []
+            sql = "SELECT * FROM dataset WHERE category IN %s"
+            values = (tuple(categories),)
 
-            # Loop through each category and format it
-            for category in categories:
-                formatted_category = f"'{category}'"
-                formatted_categories_list.append(formatted_category)
-
-            # Join the formatted categories into a single string
-            formatted_categories = ', '.join(formatted_categories_list)
-
-            sql = f"SELECT * FROM dataset WHERE category IN ({formatted_categories})"
-
-        # Execute the query with the actual list of categories
-        results = self._query(sql)
+        results = self._query(sql, values)
 
         return results
 
     def get_dataset(self, dataset_uuid):
-        sql = "SELECT * FROM dataset WHERE dataset_uuid='{dataset_uuid}'".format(dataset_uuid=dataset_uuid)
-        results = self._query(sql)
+        sql = "SELECT * FROM dataset WHERE dataset_uuid = %s"
+        results = self._query(sql, (dataset_uuid,))
 
         return results[0]
 
     def get_dataset_uuid_by_seek_id(self, seek_id):
-        sql = "SELECT dataset_uuid FROM dataset WHERE seek_id='{seek_id}'".format(seek_id=seek_id)
-        results = self._query(sql)
+        sql = "SELECT dataset_uuid FROM dataset WHERE seek_id = %s"
+        results = self._query(sql, (seek_id,))
 
         if len(results) > 0:
             dataset_uuid = results[0].get("dataset_uuid")
@@ -133,49 +124,29 @@ class Querier(object):
         return dataset_uuid
 
     def get_dataset_descriptions(self, dataset_uuid):
-        sql = "SELECT * FROM dataset_description WHERE dataset_uuid='{dataset_uuid}'".format(dataset_uuid=dataset_uuid)
-        results = self._query(sql)
+        sql = "SELECT * FROM dataset_description WHERE dataset_uuid = %s"
+        results = self._query(sql, (dataset_uuid,))
 
         return results
 
     def get_subjects(self, dataset_uuid):
-        sql = "SELECT * FROM dataset_mapping WHERE dataset_uuid='{dataset_uuid}'".format(dataset_uuid=dataset_uuid)
-        results = self._query(sql)
+        sql = "SELECT * FROM dataset_mapping WHERE dataset_uuid = %s"
+        results = self._query(sql, (dataset_uuid,))
 
-        return results
-
-    def get_samples(self, dataset_uuid=None, subject_uuid=None):
-        sql = r"""SELECT subject_sample.sample_uuid FROM subject_sample INNER JOIN dataset_mapping ON subject_sample.subject_uuid=dataset_mapping.subject_uuid"""
-        if dataset_uuid and not subject_uuid:
-            sql = sql + " WHERE dataset_uuid='{dataset_uuid}'".format(dataset_uuid=dataset_uuid)
-        elif not dataset_uuid and subject_uuid:
-            sql = sql + " WHERE subject_uuid='{subject_uuid}'".format(subject_uuid=subject_uuid)
-        elif dataset_uuid and subject_uuid:
-            sql = sql + " WHERE dataset_uuid='{dataset_uuid}' AND subject_uuid='{subject_uuid}'".format(
-                dataset_uuid=dataset_uuid, subject_uuid=subject_uuid)
-
-        results = self._query(sql)
         return results
 
     def get_subject_by_sample(self, sample_uuid):
-        sql = "SELECT DISTINCT subject_uuid FROM dataset_mapping WHERE sample_uuid='{sample_uuid}'".format(sample_uuid=sample_uuid)
-        resp = self._query(sql)
+        sql = "SELECT DISTINCT subject_uuid FROM dataset_mapping WHERE sample_uuid = %s"
+        resp = self._query(sql, (sample_uuid,))
         subject_uuid = resp[0].get("subject_uuid")
-        sql = "SELECT * FROM subject WHERE subject_uuid='{subject_uuid}'".format(subject_uuid=subject_uuid)
-        result = self._query(sql)
+        sql = "SELECT * FROM subject WHERE subject_uuid = %s"
+        result = self._query(sql, (subject_uuid,))
 
         return result
 
     def get_sample(self, sample_uuid):
-        sql = "SELECT * FROM sample WHERE sample_uuid='{sample_uuid}'".format(sample_uuid=sample_uuid)
-        resp = self._query(sql)
-
-        return resp
-
-    def get_workflow(self, dataset_uuid):
-        sql = "SELECT * FROM workflow WHERE dataset_uuid='{dataset_uuid}'".format(dataset_uuid=dataset_uuid)
-
-        resp = self._query(sql)
+        sql = "SELECT * FROM sample WHERE sample_uuid = %s"
+        resp = self._query(sql, (sample_uuid,))
 
         return resp
 
@@ -226,9 +197,9 @@ class Querier(object):
         sql = (r"SELECT * "
                r"FROM dataset_mapping "
                r"INNER JOIN sample ON dataset_mapping.sample_uuid = sample.sample_uuid "
-               r"WHERE dataset_mapping.dataset_uuid='{dataset_uuid}' "
-               r"AND sample.sample_type='{sample_type}'").format(dataset_uuid=dataset_uuid, sample_type=sample_type)
+               r"WHERE dataset_mapping.dataset_uuid = %s "
+               r"AND sample.sample_type = %s")
 
-        resp = self._query(sql)
+        resp = self._query(sql, (dataset_uuid, sample_type))
 
         return resp
