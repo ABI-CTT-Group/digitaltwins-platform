@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import uuid
 from pathlib import Path
 from typing import Iterable, Optional
@@ -35,6 +36,18 @@ _ARRAY_COLUMNS = {
     "contributor_affiliation", "contributor_role", "identifier_description",
     "relation_type", "identifier", "identifier_type"
 }
+
+# Column names come from spreadsheet headers, so only plain identifiers may reach the SQL.
+_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def _column_list(columns: Iterable[str]) -> str:
+    """Join column names for an INSERT, rejecting any that isn't a plain identifier."""
+    columns = list(columns)
+    for column in columns:
+        if not _IDENTIFIER.fullmatch(str(column)):
+            raise ValueError(f"Invalid column name in metadata: {column!r}")
+    return ", ".join(columns)
 
 def _normalize_key(key: str) -> str:
     """Normalize an Excel header or metadata element string."""
@@ -433,7 +446,7 @@ class Uploader(object):
             columns = ["dataset_uuid"] + list(merged.keys())
             values = [dataset_uuid] + list(merged.values())
             placeholders = ", ".join(["%s"] * len(values))
-            col_str = ", ".join(columns)
+            col_str = _column_list(columns)
             cur.execute(
                 f"INSERT INTO {table_name} ({col_str}) VALUES ({placeholders})",
                 values,
@@ -452,7 +465,7 @@ class Uploader(object):
                 columns = ["dataset_uuid"] + list(record.keys())
                 values = [dataset_uuid] + list(record.values())
                 placeholders = ", ".join(["%s"] * len(values))
-                col_str = ", ".join(columns)
+                col_str = _column_list(columns)
                 cur.execute(
                     f"INSERT INTO {table_name} ({col_str}) VALUES ({placeholders})",
                     values,
@@ -525,7 +538,7 @@ def _insert_subject(
     columns = list(db_record.keys())
     values = list(db_record.values())
     placeholders = ", ".join(["%s"] * len(values))
-    col_str = ", ".join(columns)
+    col_str = _column_list(columns)
 
     if columns:
         cur.execute(
@@ -563,7 +576,7 @@ def _insert_sample(
     columns = list(db_record.keys())
     values = list(db_record.values())
     placeholders = ", ".join(["%s"] * len(values))
-    col_str = ", ".join(columns)
+    col_str = _column_list(columns)
 
     if columns:
         cur.execute(
