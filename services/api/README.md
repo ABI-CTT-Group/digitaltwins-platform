@@ -134,8 +134,6 @@ The Digital Twins platform Python API is called `digitaltwins`. It is designed t
    
 ## Using the Digital Twins platform
 
-Please see the [documentation for workshop 1](https://github.com/ABI-CTT-Group/digitaltwins-platform/blob/main/services/api/tutorials/workshop_1_describing_and_storing_data.md), which describes how to use the 12 LABOURS Digital Twins platform and its API.
-
 ### Uploading a measurement dataset from a script
 
 `UploadClient` uploads a SPARC dataset folder or `.zip` in resumable chunks through `/datasets/uploads`. It then waits for the dataset to be committed to Postgres and MinIO, and, optionally, for the FHIR annotation to be pushed. Uploading requires the Keycloak realm role `admin` or `researcher`.
@@ -268,25 +266,28 @@ a FastAPI app that uvicorn serves under `/api`.
 | `app/routers/` | One module per area: `datasets`, `dataset_uploads`, `dataset_fhir`, `assays`, `workflows`, `tools`, `models`, `dashboard`, the SEEK hierarchy (`programs`, `projects`, `investigations`, `studies`), `auth` and `health`. Shared dependencies are in `dependencies.py` |
 | `app/schemas/` | Pydantic request models |
 | `src/digitaltwins/<area>/` | The library the routers call. `core/` (the `Querier`, `Uploader`, `Downloader` and `Deleter` facades, and the Keycloak token verifier); `measurements/` (upload sessions, chunk store, staging, ingest jobs, FHIR); `models/`, `tools/` and `workflows/` (ingest pipelines; `workflows/` also checks and deploys DAGs); `seek/`, `minio/`, `postgres/`, `airflow/` and `jupyterhub/` (clients); `cli/` (the importer and maintenance commands). `irods/` and `gen3/` are inactive |
+| `src/digitaltwins/settings.py` | Every environment variable the API and the package read, with its type and default. Code calls `load_settings()` instead of reading the environment |
 | `src/digitaltwins/client.py` | `UploadClient`, the resumable upload client |
 | `src/digitaltwins/postgres/migrations/` | Numbered SQL migrations for the `public` schema |
 | `tests/` | The pytest suite. `tests/conftest.py` holds the shared fixtures and the in-memory SEEK and HAPI FHIR fakes |
 | `scripts/import-dataset.*` | Wrappers that run the importer in the API container ([guide](docs/import-dataset.md)) |
 | `docs/source/` | Sphinx sources for Read the Docs |
-| `examples/`, `tutorials/` | Example scripts and workshop material |
+| `examples/` | Example scripts |
 | `docker/` | Old standalone compose files for Postgres and Orthanc. Nothing uses them |
 | `Dockerfile`, `docker-compose.yml` | The `api` image (Python 3.11) and service; the root compose includes the service |
 
 ### Connects to
 
+The variables below are defined, with their defaults, in `src/digitaltwins/settings.py`.
+
 | Peer | How |
 |---|---|
 | Postgres | `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` (the superuser) |
 | MinIO | `MINIO_ENDPOINT`, `MINIO_SERVER_ACCESS_KEY`, `MINIO_SERVER_SECRET_KEY` |
-| Keycloak | `KEYCLOAK_BASE_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`. It accepts tokens issued to the `portal-frontend` and `api` clients |
+| Keycloak | `KEYCLOAK_BASE_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`; `KEYCLOAK_CA_CERT` names a CA bundle for Keycloak's TLS certificate, and `KEYCLOAK_VERIFY_SSL=false` turns verification off. It accepts tokens issued to the `portal-frontend` and `api` clients |
 | SEEK | `SEEK_BASE_URL`, as the calling user: the user's token is forwarded |
 | HAPI FHIR | `FHIR_ENDPOINT`. `API_PUBLIC_URL` is the base of the file URLs written into FHIR resources |
-| Airflow | The REST API at `AIRFLOW_ENDPOINT` / `AIRFLOW_API_URL`, as `AIRFLOW_USERNAME`. DAG folders are written into `services/airflow/dags`, bind-mounted at `/airflow-dags` (`AIRFLOW_DAGS_DIR`) |
+| Airflow | The REST API at `AIRFLOW_ENDPOINT`, as `AIRFLOW_USERNAME`. DAG folders are written into `services/airflow/dags`, bind-mounted at `/airflow-dags` (`AIRFLOW_DAGS_DIR`) |
 | JupyterHub | `JUPYTERHUB_API_TOKEN` (required), `JUPYTERHUB_PUBLIC_URL`, and `JUPYTERHUB_INTERNAL_URL` (defaulted in code) |
 | builder | `BUILDER_URL`, to ask which tool backs a GUI assay |
 | Volumes | `dataset_staging` (`DATASET_STAGING_DIR`): upload chunks and staged datasets |
@@ -313,8 +314,6 @@ The interactive API docs are at `/api/docs` through the gateway, or on host port
 - **Router order matters.** `dataset_uploads` is registered before `datasets`, or
   `/datasets/{dataset_uuid}` would capture `/datasets/uploads`.
 - **A failed migration stops the API from starting.**
-- `docker-compose.yml` bind-mounts `./configs.ini`, which isn't in the repository and which no code
-  reads. When it doesn't exist, Docker creates an empty, root-owned directory in its place.
 - The Airflow image installs this package from PyPI, not from this folder.
 
 ### Related ADRs

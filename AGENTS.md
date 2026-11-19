@@ -18,6 +18,8 @@ API, a builder, Airflow, JupyterHub, SEEK, MinIO, HAPI FHIR and Orthanc, with Ke
 [docs/glossary.md](docs/glossary.md) explains domain terms (SDS, SEEK assay, SOP, tool, workflow, plugin).
 `docs/plans/` is dated design evidence kept for audit. It describes what was true when each change
 was made, so it may be stale: trust the guides, the ADRs and the code over it.
+[docs/future_refactoring.md](docs/future_refactoring.md) lists known debt. Like the plans, its items
+can be stale or wrong: check each one against the code before acting on it.
 
 ## Repository map
 
@@ -42,6 +44,7 @@ Everything runs in pinned containers and needs only Docker and GNU make. CI call
 | `make lint` | ruff, eslint and vue-tsc; must pass (a required check in CI) |
 | `make docs-check` | Doc links, the code map, `util/SCRIPTS.md` and agent pointer files; checks tracked files only, so `git add` new files first |
 | `make gitleaks` | Secret scan of this branch's commits |
+| `make smoke` | Read-only smoke tests against a running stack (`SMOKE_URL`); not in `make test` or CI ([tests/README.md](tests/README.md)) |
 
 See [docs/testing.md](docs/testing.md) for integration tests and CI.
 
@@ -92,7 +95,7 @@ Timestamps should be in the format `YYYY-MM-DD-HHMMSS` and reflect the time of c
 **COMMIT POLICY:** Plans MUST be committed in the **same branch/PR** as the code changes they relate to. This is a regulated-environment requirement — design evidence must be linked to implementation for audit traceability.
 
 **OPERATIONAL STEPS TO ENFORCE THIS:**
-1. **Task Tracking:** If you maintain a task checklist (e.g., a `task.md` or internal TODO list), you MUST explicitly include a checklist item like `[ ] Sync plans to docs/plans/` immediately following any step that modifies a document.
+1. **Task Tracking:** Keep a `tasks.md` checklist next to the plan, one item per plan step. Tick each item the moment its check passes, before starting the next step: people follow the work's progress from this file. Include a checklist item like `[ ] Sync plans to docs/plans/` immediately following any step that modifies a document.
 2. **Immediate Sync:** Every time you use your file-writing capabilities to create or update a plan or summary document, your very next action MUST be executing a terminal command (or equivalent file operation) to copy the updated file into the `docs/plans/` directory.
 3. **Pre-Feedback Check:** NEVER pause your execution to ask the user for review, feedback, or approval without first verifying that all updated plans have been synced to the project directory.
 4. **Secret Redaction:** NEVER include actual passwords, API keys, or sensitive environment variables in implementation plans or walkthroughs. Always use placeholders like `<REDACTED>`. You must actively verify no secrets exist before syncing to `docs/plans/`. A `gitleaks` pre-commit hook enforces this at commit time, but you MUST still redact proactively — do not rely on the hook as the sole control.
@@ -118,6 +121,15 @@ Do NOT create ADRs for routine fixes, minor refactors, or straightforward implem
 2. **At task-end:** Check whether any decisions emerged mid-implementation that weren't captured at plan time. If so, create or update the ADR. If the outcome diverged from the plan-time ADR, update it to reflect what actually happened.
 
 ADRs MUST be committed in the **same branch/PR** as the related code changes.
+
+---
+
+## Technical debt
+
+Debt you find but don't fix goes in `docs/future_refactoring.md`, with a Description and a Why skipped.
+When a change fixes an item, remove it in the same PR. If the item holds guidance that stays true
+after the fix, move it first to the doc that covers that area: a service's `AGENTS.md` or README, a
+guide in `docs/`, or the couplings in `docs/codemap.md`.
 
 ---
 

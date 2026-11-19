@@ -76,7 +76,7 @@ def hub():
 
 @pytest.fixture
 def client(hub, monkeypatch):
-    monkeypatch.setattr(assays, "AIRFLOW_ENABLED", False)
+    monkeypatch.setenv("AIRFLOW_ENABLED", "false")
     monkeypatch.setattr(assays, "workflow_uuid_by_seek_id", lambda conn, seek_id: "wf-1")
     app.dependency_overrides[validate_credentials] = lambda: {"username": "tester", "token": "t"}
     app.dependency_overrides[get_querier] = lambda: FakeQuerier()

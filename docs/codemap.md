@@ -28,11 +28,11 @@ add a section here when you add a service.
 | [`docs/`](README.md) | Guides, indexed in [docs/README.md](README.md). [`docs/decisions/`](decisions/) holds the ADRs. [`docs/plans/`](plans/) holds dated design evidence (plans, task lists, walkthroughs), one folder per change, kept for audit. It is history, not current reference. |
 | [`util/`](../util/) | Install, airgap, certificate, backup/restore, sync and SEEK admin scripts, the Ansible playbooks, the observability stack ([`util/observability/`](../util/observability/)), shell helpers ([`util/lib/`](../util/lib/)) and shell tests ([`util/tests/`](../util/tests/)). The runbook is [util/README.md](../util/README.md); every entry is indexed in [util/SCRIPTS.md](../util/SCRIPTS.md). |
 | [`examples/`](../examples/) | An example script workflow dataset, [`examples/workflow/workflow_image_conversion/`](../examples/workflow/workflow_image_conversion/), and a sample CWL workflow. |
-| [`tests/`](../tests/) | Empty (`.gitkeep`). Each service keeps its own tests. |
+| [`tests/`](../tests/) | Post-deploy smoke tests against a running stack (`make smoke`, [tests/README.md](../tests/README.md)). Each service keeps its own unit tests. |
 | [`.github/`](../.github/) | CI ([`workflows/ci.yml`](../.github/workflows/ci.yml)), a Docker volume backup workflow, and the issue and PR templates. |
 | [`.agents/`](../.agents/) | `rules/main.md`, which points the Antigravity agent at [AGENTS.md](../AGENTS.md). |
 | [`docker-compose.yml`](../docker-compose.yml) | The whole platform as one Compose project. See [How the compose files fit together](#how-the-compose-files-fit-together). |
-| [`Makefile`](../Makefile) | `make test`, `make test-<suite>`, `make lint`, `make docs-check` and `make gitleaks`, each in a pinned container. See [testing.md](testing.md). |
+| [`Makefile`](../Makefile) | `make test`, `make test-<suite>`, `make lint`, `make docs-check`, `make gitleaks` and `make smoke`, each in a pinned container. See [testing.md](testing.md). |
 | [`env.template`](../env.template) | The non-secret host inputs: `PLATFORM_PROTOCOL`, `PLATFORM_DOMAIN`, `REMOTE_COMPUTE`, `AIRFLOW_VAR_COMPUTE_QUEUE`, `AIRFLOW_WORKER_GPU`, and the platform admin's username and email. Copy it to `env` (git-ignored) and fill it in. |
 | [`secrets.env.template`](../secrets.env.template) | The secret keys the platform needs, with no values. Copy it to `secrets.env` (git-ignored) and fill in every value. |
 | [`.env.template`](../.env.template) | The template for the platform's `.env`, with `${VAR}` placeholders. [`util/gen-env.sh`](../util/gen-env.sh) renders `.env` from it, `env`, `secrets.env` and derived values such as `NGINX_MODE`, `SSL`, `AIRFLOW_UID`, `COMPOSE_FILE` and `NODE_IP`. Never hand-edit `.env`; re-run `gen-env.sh`. |
@@ -118,7 +118,7 @@ launch, and the SEEK, FHIR, MinIO, Airflow and JupyterHub integrations.
       the numbered [`migrations/`](../services/api/src/digitaltwins/postgres/migrations/)
       for the `public` schema.
     - `minio/`: S3 upload, download and delete.
-    - `airflow/`: `workflow.py`, the Airflow REST client.
+    - `airflow/`: `workflow.py`, which gets Airflow API tokens for workflow deploys.
     - `workflows/`: workflow dataset ingest, `dag.py` (static DAG checks and the
       DAG folder layout) and `deploy.py` (writes the DAG folder and waits for
       Airflow).
@@ -130,14 +130,15 @@ launch, and the SEEK, FHIR, MinIO, Airflow and JupyterHub integrations.
       `staging.py` (stages a notebook assay's workspace).
     - `cli/`: `import_dataset.py` (the terminal importer), `keycloak_login.py`,
       `repush_fhir_urls.py`.
+    - `settings.py`: every environment variable the API and the package read,
+      with its type and default (`load_settings()`).
     - `client.py`: `UploadClient`, resumable uploads over HTTP.
     - `resources/`: the SDS dictionary and the SDS-to-Postgres element mappings.
     - `gen3/`, `irods/`: present but not configured.
   - [`scripts/`](../services/api/scripts/): `import-dataset.sh`, `.command`,
     `.ps1` and `.bat`, which copy a dataset into the `api` container and run the
     importer.
-  - [`tutorials/`](../services/api/tutorials/), [`examples/`](../services/api/examples/):
-    using the package as a library.
+  - [`examples/`](../services/api/examples/): using the package as a library.
 - **Tests:** [`tests/`](../services/api/tests/), `make test-api`. Tests that
   need a live Postgres or MinIO are marked `integration` and are deselected.
 - **Docs:** [README.md](../services/api/README.md),
@@ -401,7 +402,6 @@ An Orthanc stand-in for an external PACS, for testing DICOM transfers. Its
 | [`services/portal/docker-compose.override.yml`](../services/portal/docker-compose.override.yml) | Publishes port 80 for the standalone portal. `extends` reads only the file it names, so the platform never loads it. |
 | `pgadmin` in [`services/postgres/docker-compose.yml`](../services/postgres/docker-compose.yml) | The root `extends` only `database`. |
 | [`services/keycloak/docker-compose-https.yml`](../services/keycloak/docker-compose-https.yml) | Keycloak serving TLS itself. Nothing references it; Keycloak now sits behind the gateway. |
-| [`services/api/.env.template`](../services/api/.env.template) | An older copy of the root `.env.template` that has drifted (it lacks newer keys such as `BUILDER_URL`). The platform renders only the root `.env`. |
 | `src/digitaltwins/gen3/` in the API | Gen3 support. The `GEN3_*` settings are commented out. |
 
 ## How the compose files fit together
@@ -456,7 +456,7 @@ given here; values live in `env`, `secrets.env` and the rendered `.env`.
 | api | Keycloak | `KEYCLOAK_BASE_URL` (internal), `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID`, `KEYCLOAK_CLIENT_SECRET`. Accepts tokens issued to `portal-frontend` or `api` only. | `services/api/docker-compose.yml`, `.env` | 503 when Keycloak is unreachable; 401 for other clients' tokens; Basic auth and `/login` fail if the secret is wrong. |
 | api | postgres | `POSTGRES_HOST` (`database`), `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | `services/api/docker-compose.yml`, `.env` | The API fails to start: it runs its migrations at startup. |
 | api | SEEK | `SEEK_BASE_URL` (`http://seek:3000/seek`); every call forwards the caller's Keycloak JWT, which SEEK verifies (client `seek`) | `services/api/docker-compose.yml`; `keycloak_jwt_auth.rb` in the submodule | Empty dashboards or 401s. Users see only what their SEEK user may see. See [seek-integration.md](seek-integration.md). |
-| api | Airflow | `AIRFLOW_ENDPOINT` (token from `/auth/token`, DAG runs at `/api/v2/dags/{id}/dagRuns`); `AIRFLOW_API_URL` (required by the package's Airflow client, used by DAG deploy); `AIRFLOW_USERNAME` and `AIRFLOW_PASSWORD`, the local Airflow user that `airflow-init` creates from the same variables; `AIRFLOW__API__BASE_URL` for monitor links | `services/api/docker-compose.yml`, `services/airflow/docker-compose.yml` | Assay launch returns 503; DAG deploy fails. |
+| api | Airflow | `AIRFLOW_ENDPOINT` (token from `/auth/token`, DAG runs at `/api/v2/dags/{id}/dagRuns`); `AIRFLOW_USERNAME` and `AIRFLOW_PASSWORD`, the local Airflow user that `airflow-init` creates from the same variables; `AIRFLOW__API__BASE_URL` for monitor links | `services/api/docker-compose.yml`, `services/airflow/docker-compose.yml` | Assay launch returns 503; DAG deploy fails. |
 | api | Airflow DAG folder | Bind mount `../airflow/dags` at `/airflow-dags` (`AIRFLOW_DAGS_DIR`); Airflow mounts the same folder. The DAG processor rescans every 30 s; the API waits up to `AIRFLOW_DAG_DEPLOY_TIMEOUT`. | `services/api/docker-compose.yml`, `services/airflow/docker-compose.yml` | Deploys fail or time out. The DAG id must equal its folder name, `workflow_<seek_id>`. |
 | api | builder | `BUILDER_URL`; `GET /api/builder/workflow/gui-tool` as the caller | `services/api/docker-compose.yml`, `.env` | GUI assays can't launch (502 "Builder unreachable"). |
 | builder | api | `API_BASE_URL` and `API_PORT`; approval uploads through `/datasets/uploads` as the approving user | `services/builder/docker-compose.yml`, `.env` | Tool and workflow approvals stall. |
@@ -492,6 +492,6 @@ them inside a live container: the builder's tests drop and recreate every table.
 | Change the Keycloak realm (clients, roles, mappers) | [`services/keycloak/digitaltwins-realm.json.template`](../services/keycloak/digitaltwins-realm.json.template), then `util/gen-realm.sh`. The import runs on first boot only: also apply the change live, or re-import into an empty Keycloak database. | no unit test | [REALM.md](../services/keycloak/REALM.md), [development.md](development.md#change-type-playbook) |
 | Change the SEEK integration | API side: `src/digitaltwins/seek/querier.py`, `writer.py`, `core/assay_workflow_link.py`. SEEK side: the [`ldh-deployment`](../services/seek/ldh-deployment/) submodule; change its repo first, then bump the pointer. | `make test-api` (`tests/test_seek_writer.py`, `tests/test_assay_workflow_link.py`) | [seek-integration.md](seek-integration.md), [ADR: SOP link](decisions/2026-10-05-link-assay-to-workflow-via-auto-created-sop.md) |
 | Change how GUI tools or plugins build and deploy | [`services/builder/app/engine/`](../services/builder/app/engine/) (`build_tool.py`, `deploy_tool.py`), [`app/router/workflow_tool_plugin.py`](../services/builder/app/router/workflow_tool_plugin.py); portal side `src/bootstrap/tool_api.ts`, `src/components/RemoteComponentApp.vue` | `make test-builder`, `make test-frontend` | [builder README](../services/builder/README.md), [plugin-system.md](plugin-system.md) |
-| Add an environment variable or secret | [`.env.template`](../.env.template), and [`env.template`](../env.template) (host inputs) or [`secrets.env.template`](../secrets.env.template) (secrets); pass it in the service's compose file. Never give the builder an API credential. | Run `util/gen-env.sh`: it fails on a placeholder with no value. `make test-builder` if the builder's environment changed. | [development.md](development.md#change-type-playbook) |
+| Add an environment variable or secret | [`.env.template`](../.env.template), and [`env.template`](../env.template) (host inputs) or [`secrets.env.template`](../secrets.env.template) (secrets); pass it in the service's compose file, a secret as `${VAR:?set VAR in secrets.env}`, never with a default. Never give the builder an API credential. | Run `util/gen-env.sh`: it fails on a placeholder with no value. `make test-util` fails on a secret with a default or no `:?`. `make test-builder` if the builder's environment changed. | [development.md](development.md#change-type-playbook) |
 | Add a util script | Add it to [`util/`](../util/) and name it, in backticks, in [`util/SCRIPTS.md`](../util/SCRIPTS.md) | `make docs-check` fails if it isn't listed; shell tests go in `util/tests/` (`make test-util`) | [util/README.md](../util/README.md) |
 | Add a service | `services/<name>/docker-compose.yml` on the `${PROJECT_NAME}` network; `include` (or `extends`) it in the root [`docker-compose.yml`](../docker-compose.yml); a gateway route and a Keycloak client if users reach it; its variables in the templates. Add a section to this file and update [architecture.md](architecture.md). | `make docs-check` fails until this file names the folder | [architecture.md](architecture.md), [ADR template](decisions/TEMPLATE.md) |

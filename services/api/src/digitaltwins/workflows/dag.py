@@ -14,6 +14,8 @@ import uuid
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from ..settings import load_settings
+
 DAG_ID_EXPR = "Path(__file__).parent.name"
 _ACCEPTED = {DAG_ID_EXPR, f"pathlib.{DAG_ID_EXPR}"}
 _HOW = ("Name the DAG after its folder:\n"
@@ -24,8 +26,7 @@ _DAG_NAMES = {"dag", "DAG"}
 
 def dags_dir() -> Optional[Path]:
     """The Airflow dags folder as mounted in this container, or None when deploying is not set up."""
-    value = os.getenv("AIRFLOW_DAGS_DIR")
-    return Path(value) if value else None
+    return load_settings().airflow.dags_dir
 
 
 def dag_id_for(seek_id) -> str:

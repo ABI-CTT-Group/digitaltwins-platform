@@ -22,9 +22,9 @@ services:
       AIRFLOW__CORE__EXECUTOR: CeleryExecutor
       AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
       # --- reach the portal's control plane over the VLAN -------------------
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD}@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT}/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD}@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT}/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW__CELERY__BROKER_URL: redis://:${REDIS_PASSWORD}@${MAIN_VM_IP}:${REDIS_PORT}/0
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:?set in the node .env (same as platform)}@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT}/${AIRFLOW_DB_NAME:-airflow}
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:?set in the node .env (same as platform)}@${MAIN_VM_IP}:${AIRFLOW_POSTGRES_PORT}/${AIRFLOW_DB_NAME:-airflow}
+      AIRFLOW__CELERY__BROKER_URL: redis://:${REDIS_PASSWORD:?set in the node .env (same as platform)}@${MAIN_VM_IP}:${REDIS_PORT}/0
       # Execution API over the VLAN (direct port) — this is a machine-to-machine
       # API, keep it INTERNAL, never the public gateway. The direct port must be
       # opened in the cloud security group RESTRICTED to this node's private IP.
@@ -45,7 +45,7 @@ services:
       # --- services the child workflow_* DAG tasks call, also over the VLAN ---
       # Orchestration (fetch configs, discover samples, trigger the child
       # workflow_{seek_id} runs) now lives in the Digital Twins API on the portal,
-      # not in a preprocessor DAG here — so the worker no longer needs
+      # not in a DAG on this node — so the worker no longer needs
       # AIRFLOW_ENDPOINT. It just runs the child DAG tasks, which call the
       # Digital Twins API and MinIO over the VLAN.
       # The task builds the Digital Twins API URL as base + ":" + API_PORT,
@@ -56,7 +56,7 @@ services:
       API_PORT: ${API_PORT}
       MINIO_ENDPOINT: http://${MAIN_VM_IP}:${MINIO_PORT}
       MINIO_ACCESS_KEY: ${MINIO_SERVER_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SERVER_SECRET_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SERVER_SECRET_KEY:?set in the node .env (same as platform)}
       # --- Keycloak (token issuer for DAG -> platform-API auth) ------------
       # Via the PUBLIC gateway URL — the internal 'keycloak' hostname is
       # unreachable off-box, and this is the canonical token issuer. Reached at
@@ -71,7 +71,7 @@ services:
       AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID: minio_logs
       AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER: s3://airflow-logs
       AIRFLOW__LOGGING__ENCRYPT_S3_LOGS: 'False'
-      AIRFLOW_CONN_MINIO_LOGS: "aws://${MINIO_SERVER_ACCESS_KEY}:${MINIO_SERVER_SECRET_KEY}@?endpoint_url=http%3A%2F%2F${MAIN_VM_IP}%3A${MINIO_PORT}"
+      AIRFLOW_CONN_MINIO_LOGS: "aws://${MINIO_SERVER_ACCESS_KEY}:${MINIO_SERVER_SECRET_KEY:?set in the node .env (same as platform)}@?endpoint_url=http%3A%2F%2F${MAIN_VM_IP}%3A${MINIO_PORT}"
     volumes:
       # synced from the portal (rsync services/airflow/{dags,config,plugins,data})
       - ./dags:/opt/airflow/dags

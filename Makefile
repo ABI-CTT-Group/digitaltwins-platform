@@ -19,6 +19,7 @@ GITLEAKS_IMAGE := ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79
 HUB_IMAGE   := dtp-ci-jupyterhub
 
 PYTEST_ARGS ?=
+SMOKE_URL ?= http://localhost
 RUFF_FORMAT ?= concise
 GITLEAKS_RANGE ?= origin/main..HEAD
 
@@ -31,7 +32,7 @@ FE := -v $(CURDIR)/services/portal/frontend:/w -v $(CACHE)/frontend/node_modules
 # Tracked service compose files, mounted one by one for test-util (services/ holds untracked rendered config).
 COMPOSE_FILES := $(shell git ls-files 'services/*compose*.yml')
 
-.PHONY: test test-api test-builder test-frontend test-jupyterhub test-util frontend-deps cache-dirs \
+.PHONY: test test-api test-builder test-frontend test-jupyterhub test-util smoke frontend-deps cache-dirs \
 	lint lint-python lint-frontend gitleaks docs-check
 
 test: test-api test-builder test-frontend test-jupyterhub test-util
@@ -77,12 +78,25 @@ test-jupyterhub: cache-dirs
 	  $(HUB_IMAGE) -m pytest -p no:cacheprovider -ra tests $(PYTEST_ARGS)
 
 # Shell tests for util/ (which compose files gen-env.sh merges, and the docs checker). Also mounted,
-# read-only: the two Airflow compose files the test checks for the GPU reservation. Neither holds secrets.
+# read-only: the two Airflow compose files the test checks for the GPU reservation, and the root compose
+# file and secrets.env.template, for the required-secrets check. None holds secrets.
 test-util: cache-dirs
 	$(RUN) $(OFFLINE) -v $(CURDIR)/util:/w/util:ro \
 	  $(foreach f,$(COMPOSE_FILES),-v $(CURDIR)/$(f):/w/$(f):ro) \
+	  -v $(CURDIR)/docker-compose.yml:/w/docker-compose.yml:ro \
+	  -v $(CURDIR)/secrets.env.template:/w/secrets.env.template:ro \
 	  -v $(CURDIR)/services/airflow/gpu.override.yml:/w/services/airflow/gpu.override.yml:ro \
 	  -w /w $(PY311_IMAGE) bash -c 'rc=0; for t in util/tests/test_*.sh; do bash "$$t" || rc=1; done; exit $$rc'
+
+# Post-deploy smoke tests against a running platform (tests/README.md). Not part of `make test` or CI:
+# they need the network and a live stack. They only read. Sign-in uses SMOKE_USERNAME and
+# SMOKE_PASSWORD from your shell, passed by name so the values never appear in the command.
+smoke: cache-dirs
+	$(RUN) -v $(CURDIR)/tests:/w:ro -w /w $(PY311_IMAGE) sh -c \
+	  'uv venv -q --allow-existing /cache/smoke/venv && uv pip install -q --python /cache/smoke/venv -r requirements.txt'
+	$(RUN) --network host -e SMOKE_URL='$(SMOKE_URL)' -e SMOKE_USERNAME -e SMOKE_PASSWORD \
+	  -v $(CURDIR)/tests:/w:ro -w /w $(PY311_IMAGE) \
+	  /cache/smoke/venv/bin/python -m pytest -rs --tb=short -p no:cacheprovider $(PYTEST_ARGS)
 
 # Static checks; a required check in CI. Runs both, fails if either finds problems.
 # ruff is pinned to the bug-class rules (pyflakes + syntax/statement errors), not style.
@@ -90,8 +104,9 @@ lint:
 	$(MAKE) -k lint-python lint-frontend
 
 lint-python:
-	docker run --rm --user $(UID):$(GID) $(OFFLINE) -v $(CURDIR)/services:/w/services:ro -w /w $(RUFF_IMAGE) \
-	  check --no-cache --select E4,E7,E9,F --output-format=$(RUFF_FORMAT) services/api services/builder services/jupyterhub
+	docker run --rm --user $(UID):$(GID) $(OFFLINE) -v $(CURDIR)/services:/w/services:ro -v $(CURDIR)/tests:/w/tests:ro \
+	  -w /w $(RUFF_IMAGE) \
+	  check --no-cache --select E4,E7,E9,F --output-format=$(RUFF_FORMAT) services/api services/builder services/jupyterhub tests
 
 lint-frontend: frontend-deps
 	$(RUN) $(OFFLINE) $(FE) $(NODE_IMAGE) sh -c 'rc=0; yarn -s lint:check || rc=1; yarn -s type-check || rc=1; exit $$rc'

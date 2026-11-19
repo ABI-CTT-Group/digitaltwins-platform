@@ -150,7 +150,7 @@ The portal is the Vue 3 + Vuetify single-page app behind `/`, served by its own 
 | `frontend/Dockerfile` | Builds the SPA with Node 20 and Yarn 1, then serves it from `nginx:stable-alpine` |
 | `docker-compose.yml` | `portal-frontend`, the only service the platform uses from this file. Its `minio`, `minio-init`, `hapi-fhir` and `hapi-fhir-postgres` are for the standalone stack only |
 | `docker-compose.override.yml`, `hapi/` | Standalone stack only: host port 80, and HAPI's configuration |
-| `docs/` | [Release notes](docs/release-notes.md) and a [historical deployment guide](docs/deployment-guide.md). How the plugin system works is in [docs/plugin-system.md](../../docs/plugin-system.md), and how to write a GUI tool in [docs/gui-tool-authoring.md](../../docs/gui-tool-authoring.md) |
+| `docs/` | [Release notes](docs/release-notes.md) and a [deployment guide for portal-frontend's nginx](docs/deployment-guide.md). How the plugin system works is in [docs/plugin-system.md](../../docs/plugin-system.md), and how to write a GUI tool in [docs/gui-tool-authoring.md](../../docs/gui-tool-authoring.md) |
 
 ### Run & test
 
@@ -168,7 +168,9 @@ builder's tests, which check that template.
 ### Gotchas
 
 - **`docker-compose.yml` here also defines a standalone stack** from before the platform. It can't
-  run at the same time as the platform: they share a container name, a network and port 80.
+  run at the same time as the platform: they share a container name, a network and port 80. It has
+  no `.env` of its own, so pass `PROJECT_NAME` and `MINIO_SERVER_SECRET_KEY`, which have no default:
+  `PROJECT_NAME=digitaltwins-platform MINIO_SERVER_SECRET_KEY=<secret> docker compose up -d`.
 - **Field names change case on the wire.** The axios interceptors in `bootstrap/http.ts` turn the
   backends' snake_case into camelCase and back, on both clients. The exception is FHIR `descriptions`
   trees sent to the platform API, which pass through untouched.

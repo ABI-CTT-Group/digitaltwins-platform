@@ -4,12 +4,13 @@
     <root>/datasets/<upload_id>/        validated dataset root: staged until commit,
                                         then kept as the local cache for FHIR build
 """
-import os
 from pathlib import Path
+
+from ..settings import load_settings
 
 
 def staging_root() -> Path:
-    return Path(os.getenv("DATASET_STAGING_DIR", "./dataset_staging"))
+    return load_settings().uploads.staging_dir
 
 
 def chunk_root() -> Path:
@@ -22,8 +23,4 @@ def dataset_dir(upload_id: str) -> Path:
 
 def max_upload_bytes() -> int:
     """Largest dataset accepted, unzipped (``MAX_UPLOAD_MB``, default 20 GiB)."""
-    try:
-        mb = int(os.getenv("MAX_UPLOAD_MB", "20480"))
-    except ValueError:
-        mb = 20480
-    return max(mb, 1) * 1024 * 1024
+    return max(load_settings().uploads.max_upload_mb, 1) * 1024 * 1024

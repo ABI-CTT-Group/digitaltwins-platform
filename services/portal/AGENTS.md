@@ -47,3 +47,7 @@ is an end-user guide.
   one needs an image rebuild.
 - The image and `make test-frontend` install with Yarn 1 and `--frozen-lockfile`, so a dependency
   change must update `yarn.lock` in the same commit.
+- **vitest must share the portal's vite.** In `yarn.lock`, vitest's `vite` range sits on the same
+  entry as the portal's own `vite@^6.3.5`. vitest also lists vite as a peer dependency, so Yarn 1
+  can't install it if its range resolves to a separate vite. Keep them on one entry when you update
+  either.

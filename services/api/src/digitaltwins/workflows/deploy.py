@@ -7,7 +7,6 @@ The outcome is stored in ``dataset.dag_status`` / ``dag_error``.
 See docs/decisions/2026-10-13-deploy-script-workflow-dags.md.
 """
 import logging
-import os
 import tempfile
 import time
 import uuid
@@ -20,6 +19,7 @@ import requests
 from digitaltwins import workflows
 from .dag import dag_id_for, dags_dir, find_dag_file, write_dag_folder
 from ..measurements.staging import staging_root
+from ..settings import load_settings
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ def wait_for_dag(session, dag_id: str, dag_file: str, started: datetime, timeout
     Returns ``("deployed", None)`` or ``("failed", reason)``. Earlier parses and
     import errors are ignored, so a redeploy waits for the new files.
     """
-    base = f"{os.environ['AIRFLOW_ENDPOINT']}/api/v2"
+    base = f"{load_settings().airflow.endpoint}/api/v2"
     deadline = time.monotonic() + timeout
     while True:
         r = session.get(f"{base}/dags/{dag_id}", timeout=30)
@@ -127,7 +127,7 @@ def deploy_workflow(conn, dataset_uuid: str) -> Dict[str, Any]:
         started = datetime.now(timezone.utc)
         write_dag_folder(code, dags, dag_id, dag_file.name)
 
-    timeout = float(os.getenv("AIRFLOW_DAG_DEPLOY_TIMEOUT", "120"))
+    timeout = load_settings().airflow.deploy_timeout
     try:
         status, error = wait_for_dag(_airflow_session(), dag_id, dag_file.name, started, timeout)
     except (requests.RequestException, RuntimeError, ValueError) as exc:

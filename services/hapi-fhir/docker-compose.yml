@@ -24,7 +24,7 @@ services:
       # datasource block in application.yaml (Spring: env wins over file).
       - SPRING_DATASOURCE_URL=jdbc:postgresql://database:5432/hapi
       - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-admin}
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-admin}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in secrets.env}
 
 networks:
   digitaltwins-platform:

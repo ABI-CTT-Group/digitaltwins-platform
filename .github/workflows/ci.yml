@@ -65,6 +65,8 @@ jobs:
           [ "$all" = true ] && api=true builder=true frontend=true jupyterhub=true util=true docs=true
           code=false
           for v in $api $builder $frontend $jupyterhub; do [ "$v" = true ] && code=true; done
+          # lint also checks the smoke tests in tests/.
+          [ "$(has '^tests/')" = true ] && code=true
           {
             echo "api=$api"
             echo "builder=$builder"

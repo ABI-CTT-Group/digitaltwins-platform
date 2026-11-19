@@ -2,64 +2,55 @@
 
 This document tracks technical debt, refactoring tasks, and improvements that were identified but skipped in previous iterations. They are documented here for future consideration.
 
+Resolved items are removed; git history and `docs/plans/` keep the record.
+
 ## REST API (`api`)
 
 The following items were identified during the REST API restructuring (`docs/plans/2026-08-21-140800-rest-api-refactor`):
 
-### [x] 1. URL Path Consistency
-* **Description**: The API paths currently use a mix of singular nouns and actions (e.g., `POST /assay`, `POST /dataset`). These should be updated to standard RESTful resource paths (e.g., `POST /assays`, `POST /datasets`).
-* **Why skipped**: To avoid breaking existing platform tooling and frontend clients.
-* **Mitigation Strategy**: Implement redirect aliases for old paths (e.g., `POST /assay` redirects to `POST /assays`) with deprecation warnings to ensure a smooth transition.
+### [ ] 1. Action-style paths under `/dashboard`
+* **Description**: The resource routes use plural paths (`/assays`, `/datasets`), but the clinician dashboard's routes in `services/api/app/routers/dashboard.py` still use action-style names: `/dashboard/assay-details` (GET and POST), `/dashboard/assay-launch`, `/dashboard/assay-gui-context`, `/dashboard/assay-results-submit`, `/dashboard/assay-download`, `/dashboard/dataset-detail` and `/dashboard/workflow-detail`. Rename them to resource paths. Callers to update: `services/portal/frontend/src/bootstrap/dashboard_api.ts` and the other portal files that build `/api/dashboard/...` URLs. Tool plugins also receive `/api/dashboard/assays/{id}/input-files/...` URLs in their launch context (`launch-context.example.json`), so keep that path, or the old paths as aliases, until plugins move.
+* **Why skipped**: The REST API restructuring moved the resource routes to plural paths and removed the singular ones. The dashboard routes were outside that work.
 
 ### [ ] 2. API Versioning
-* **Description**: Add versioning to the API route prefixes (e.g., `/api/v1/...`).
+* **Description**: Add a version to the API's route prefixes. The gateway strips `/api`, so clients would call `/api/v1/...` while the API's own routes start with `/v1/...` (see [services/nginx/README.md](../services/nginx/README.md)).
 * **Why skipped**: Considered an internal API, so versioning was deemed unnecessary for the initial refactoring scope.
 
 ### [ ] 3. Response Models
-* **Description**: The API currently returns raw Python dictionaries for responses. These should be formalized into Pydantic models (e.g., `DatasetResponse`, `AssayResponse`) for automatic validation, OpenAPI documentation generation, and stricter contract enforcement.
+* **Description**: The API returns raw Python dictionaries, and no route sets `response_model`. The only schema module, `services/api/app/schemas/assay.py`, describes request bodies. Add Pydantic response models (e.g., `DatasetResponse`, `AssayResponse`) for validation, OpenAPI docs and a stricter contract.
 * **Why skipped**: To keep the scope focused on router reorganization.
 
 ### [ ] 4. Service Layer Extraction
-* **Description**: Route handlers in `assays.py` contain private helper functions (e.g., `_fetch_assay_configs`, `_discover_samples`, etc.). These could be extracted to a dedicated `services/` layer to decouple business logic from HTTP routing.
+* **Description**: `services/api/app/routers/assays.py` is about 990 lines and holds 13 private helpers (e.g., `_fetch_assay_configs`, `_discover_samples`, `_trigger_dag`, `_create_sds_output`, `_reconcile_manifest`). Move the business logic out of the router, into `src/digitaltwins/core/` or a new service module, so it can be tested without HTTP.
 * **Why skipped**: Helpers were determined to be router-specific, and the `src/digitaltwins/core/` layer already acts as the primary service layer.
 
 ### [ ] 5. Async Handler Conversion
-* **Description**: Many route handlers in the API are synchronous (`def` instead of `async def`). Converting them to `async` would improve concurrency and performance.
+* **Description**: 60 of the API's 66 route handlers are `def`, not `async def`. FastAPI runs `def` handlers in a thread pool, so they don't block the event loop today. Changing them to `async def` while they still call `requests` and the synchronous Postgres driver would block the loop and make things slower. Convert a handler only after its I/O has moved to async clients (e.g., `httpx`, an async DB driver), and only where the thread pool is shown to be a bottleneck.
 * **Why skipped**: Requires auditing underlying database and network dependencies (e.g., `requests`, synchronous DB drivers) to ensure they are async-compatible to prevent blocking the event loop.
 
-### [ ] 6. Configuration Consolidation
-* **Description**: Environment variables are currently accessed via scattered `os.getenv()` calls throughout the codebase. Consolidate these into a centralized configuration module (e.g., using `pydantic-settings`).
-* **Why skipped**: Left as-is to minimize the scope of the routing refactor.
-
-### [ ] 7. CORS Hardening
-* **Description**: Review and restrict the Cross-Origin Resource Sharing (CORS) policy.
+### [ ] 6. CORS Hardening
+* **Description**: `initialise` in `services/api/app/main.py` allows every origin (`allow_origins=["*"]`) with `allow_credentials=True` and all methods and headers. The portal calls the API through the gateway on the same origin, so check which clients, if any, make cross-origin calls. Then restrict the list to those origins, or drop the middleware.
 * **Why skipped**: Left as-is for the initial refactor.
 
-### [ ] 8. `GET /datasets/{uuid}/sample-types` fails for a dataset with no samples
-* **Description**: `get_dataset_sample_types` in `services/api/src/digitaltwins/postgres/querier.py` builds `... WHERE sample_uuid IN ()` when the dataset has no samples. Postgres rejects that, so the endpoint returns 500 instead of an empty list. Return `[]` early for no samples, and pass the UUIDs as query parameters instead of formatting them into the SQL string.
-* **Why skipped**: Found during the Dependabot work (`docs/plans/2026-11-03-151012-dependabot-alerts`); it predates it, and that work only changed dependency pins.
+## Airflow (`airflow`)
+
+### [ ] 1. The Airflow image may not need the `digitaltwins` package
+* **Description**: `services/airflow/Dockerfile` runs `pip install digitaltwins==2.0a3`, but no DAG in the repo or in the deployed DAG folders imports `digitaltwins`, and [workflow-dag-authoring.md](workflow-dag-authoring.md) doesn't offer it to DAG authors. That release also still has the SQL injection fixed in the API's Postgres `Querier` and uploader. Before removing the line, check whether anything else in the image, or the compute workers that run it (`services/airflow/compute-worker/`), uses the package, and whether DAGs deployed from workflow uploads on any host import it. If nothing does, remove the line and the notes that describe it: the row in the root `AGENTS.md` "If you change X" table, `docs/codemap.md`, `services/airflow/README.md` (two places), `services/api/AGENTS.md` and `services/api/README.md`.
+* **Why skipped**: Found while checking whether the SQL injection fix needs a PyPI release (`docs/plans/2026-11-19-160444-postgres-sql-injection`). Removing the line needs checking the deployed hosts, which that work didn't cover.
 
 ## Repository layout
 
 Found while writing [codemap.md](codemap.md) (`docs/plans/2026-10-28-133109-repo-learnability`). The docs now explain these, but nothing was moved or renamed.
 
 ### [ ] 1. Inactive service folders
-* **Description**: `services/jupyterlab/`, `services/pacs_pretend_external/` and `services/irods/` (only a `.gitkeep`) aren't wired into the root `docker-compose.yml`. `services/api/docker/` and some services in `services/portal/docker-compose.yml` are left over from before those repos were merged in. Remove them, or move them under an `archive/` folder.
+* **Description**: `services/jupyterlab/` and `services/pacs_pretend_external/` are commented out of the root `docker-compose.yml`, and `services/irods/` holds only a README and a `.gitkeep`. `services/api/docker/` (`orthanc/`, `postgres/`) and the services in `services/portal/docker-compose.yml` other than `portal-frontend` (MinIO, HAPI FHIR and its Postgres, `minio-init`) are left over from before those repos were merged in. Remove them, or move them under an `archive/` folder.
 * **Why skipped**: The learnability work was docs-only.
 
 ### [ ] 2. Flat `util/` folder
 * **Description**: `util/` holds about 70 scripts in one folder, indexed in [util/SCRIPTS.md](../util/SCRIPTS.md). Group them into subfolders (install, seek, keycloak, backup, sync), updating the Ansible playbooks, docs and the systemd unit that call them.
 * **Why skipped**: Moving them breaks paths in playbooks and on running hosts.
 
-### [ ] 3. Old names in code and comments
-* **Description**: Names from before the portal and preprocessor were merged in are still around: `clinical-dashboard` in a comment in `services/builder/docker-compose.yml`, a comment in `services/airflow/compute-worker/docker-compose.yml`, and the `preprocessor` DAG URL that `services/api/src/digitaltwins/airflow/workflow.py` still calls. Check whether that code path is live, then remove or rename.
-* **Why skipped**: The learnability work was docs-only, and the DAG URL is code.
-
-### [ ] 4. Empty root `tests/` folder
-* **Description**: `tests/` holds only a `.gitkeep`. Use it for end-to-end tests, or remove it.
-* **Why skipped**: There are no end-to-end tests yet.
-
-### [ ] 5. util scripts that look dead or duplicated
+### [ ] 3. util scripts that look dead or duplicated
 * **Description**: Found while writing [util/SCRIPTS.md](../util/SCRIPTS.md). Check each one, then remove it or document why it stays:
   * `realm_exporter` duplicates `export_realm_and_users`.
   * `get_token`, `get_token2` and `get_token3` hardcode an old test domain.
@@ -79,27 +70,26 @@ Found while making `make lint` pass. The cleanup kept behaviour unchanged, so th
 * **Description**: `services/portal/frontend/src/components/domain/DownloadSheet.vue` and `SubmitSheet.vue` aren't imported anywhere. Remove both.
 * **Why skipped**: Deleting files is outside a behaviour-neutral lint cleanup.
 
-### [x] 2. Duplicate vite copies in the portal
-* **Description**: The portal installs vite 6.4.x, but vitest 3.2.7 brought its own vite 7.3.x. `vite.config.ts` worked around the type clash with a `@ts-expect-error` on the `test` key. (The matching rollup clash, and its `as PluginOption` cast on `glslify(...)`, went away when the Dependabot refresh brought every rollup copy to 4.67.)
-* **Why skipped**: It's a dependency change with its own risk.
-* **Resolved**: The Dependabot work moved vitest to 4.1.12, which shares the portal's vite 6.4.x, and removed the `@ts-expect-error`. In `yarn.lock`, vitest's `vite` range is listed on the same entry as the portal's own `vite@^6.3.5`. Yarn 1 can't install vitest 4 if its range resolves to a separate vite, because vitest also lists vite as a peer dependency. Keep the two on one entry when you update either.
-
-### [ ] 3. Broad exception handlers in `gen3/metadata_convertor.py`
+### [ ] 2. Broad exception handlers in `gen3/metadata_convertor.py`
 * **Description**: Two former bare `except:` clauses are now `except Exception:`. The one around `data.get(key)` can't raise and prints `"test"`; remove it. The one around the mapping lookup should catch `(IndexError, KeyError)` only.
 * **Why skipped**: Narrowing changes which errors propagate.
 
-### [ ] 4. Imports of names `digitaltwins` no longer exports
-* **Description**: `services/api/src/digitaltwins/core/uploader_gen3.py` imports `MetadataConvertor` and `MetadataUploader` from `digitaltwins`, and some files in `services/api/examples/` and the tutorials import `Auth`, `MetadataUploader`, `QuerierFactory` or `Connection`. Those exports are commented out in `digitaltwins/__init__.py`, so this code fails on import. Fix the imports or remove the code.
+### [ ] 3. Imports of names `digitaltwins` no longer exports
+* **Description**: `services/api/src/digitaltwins/core/uploader_gen3.py` imports `MetadataConvertor` and `MetadataUploader` from `digitaltwins`. `services/api/examples/query_postgres.py` and `services/api/examples/gen3/submit_metadata.py` import `Auth`, `MetadataUploader`, `QuerierFactory` or `Connection`. Those exports are commented out in `digitaltwins/__init__.py`, so this code fails on import. Fix the imports or remove the code.
 * **Why skipped**: Gen3 and these examples look unused; that needs checking first.
 
-### [ ] 5. A promise that never rejects
-* **Description**: `getRepoRootCWLContent` in `services/portal/frontend/src/views/upload-dataset/components/utils.ts` never calls `reject`, so a failing `getRepoContents` leaves the caller waiting forever. Reject on error.
-* **Why skipped**: It changes behaviour; the lint cleanup only dropped the unused parameter.
+## API settings leftovers
 
-## API tutorials
+Found while moving the API's environment reads into `services/api/src/digitaltwins/settings.py` (`docs/plans/2026-11-18-155050-config-consolidation`).
 
-Found while renaming "DigitalTWINS" to "Digital Twins".
+### [ ] 1. Inactive iRODS and Gen3 backends in the API package
+* **Description**: `services/api/src/digitaltwins/irods/`, `gen3/`, `core/uploader_gen3.py` and `core/querier_factory.py` aren't deployed: `IRODS_ENABLED` and `GEN3_ENABLED` are commented out of `.env.template`, and the `gen3` package isn't installed, so importing `digitaltwins.gen3` fails. They still read the environment themselves and are listed as exceptions in `services/api/tests/test_settings.py`. `core/querier.py`, `core/uploader.py` and `core/downloader.py` keep iRODS and Gen3 branches, and `core/uploader.py` imports `irods.uploader` on every import. Remove the backends and their branches, then drop the `gen3` and `irods` flags from `Enabled` in `settings.py` and the exceptions from the test. `ConfigLoader` in `utils/config_loader.py` is used only by the Gen3 example `services/api/examples/export_metadata.py`; remove it with that example.
+* **Why skipped**: The settings change kept behaviour unchanged; removing backends is a separate decision, and the examples that use them need checking first (see "Imports of names `digitaltwins` no longer exports" above).
 
-### [ ] 1. Review the tutorials in `services/api/tutorials/`
-* **Description**: The tutorials were written for the 12 LABOURS shared-drive setup and haven't been checked against the current platform. They still use example paths on that drive, such as `X:\DigitalTWINS\resources\latest\configs\configs.ini` and `/MOUNT_POINT/DigitalTWINS/...` (`tutorial_1_getting_started.md` and the notebooks for tutorials 2 to 5). Check whether that drive layout still exists, update or remove the paths, and check each tutorial still runs (see also "Imports of names `digitaltwins` no longer exports" above).
-* **Why skipped**: The rename changed display text only; the paths name a real folder, so renaming them would point at a folder that may not exist.
+## Default credentials
+
+Found while making every secret required in the compose files (`docs/plans/2026-11-19-122632-require-compose-secrets`).
+
+### [ ] 1. Keycloak's database password is a public default
+* **Description**: `KEYCLOAK_DB_PASSWORD` is in `secrets.env.template` but not in `.env.template`, so it never reaches `.env`. Every host runs Keycloak on the literal default in `services/keycloak/docker-compose.yml`, which matches the role password in `services/postgres/keycloak_init.sql`, and both are public. To fix: add it to `.env.template`, turn `keycloak_init.sql` into a script that reads it (as `portal_init.sh` does for `BUILDER_DB_PASSWORD`), run `ALTER ROLE keycloak` with the new password on each existing database before deploying, change the compose file to `${KEYCLOAK_DB_PASSWORD:?...}`, and remove the exception in `util/tests/test_secrets_required.sh`.
+* **Why skipped**: It needs a coordinated password change on every host's database; a missed step takes Keycloak, and sign-in, down. Every other secret became required without one.

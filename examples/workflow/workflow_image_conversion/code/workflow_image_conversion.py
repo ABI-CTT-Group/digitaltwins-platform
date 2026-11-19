@@ -213,7 +213,7 @@ def workflow_image_conversion() -> None:
             "bucket": str(conf.get("bucket", DEFAULT_BUCKET)),
             "dicom_prefix": str(conf.get("dicom_prefix", "")),
             "run_id": str(conf.get("run_id", dag_run_id)),
-            # Preprocessor-injected keys (empty when triggered manually)
+            # Keys the API's assay run injects (empty when triggered manually)
             "subject_id": str(conf.get("subject_id", "")),
             "sample_id": str(conf.get("sample_id", "")),
             "dataset_uuid": str(conf.get("dataset_uuid", "")),

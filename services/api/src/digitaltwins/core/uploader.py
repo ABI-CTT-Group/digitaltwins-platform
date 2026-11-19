@@ -1,6 +1,6 @@
-import os
 import json
 import logging
+import re
 import uuid
 from pathlib import Path
 from typing import Iterable, Optional
@@ -8,15 +8,11 @@ from typing import Iterable, Optional
 import psycopg2
 import openpyxl
 
-from dotenv import load_dotenv
-
-from ..utils.config_loader import is_truthy
-
 from ..postgres.uploader import Uploader as PostgresUploader
 from ..irods.uploader import Uploader as IRODSUploader
 from ..minio.uploader import Uploader as MinioUploader
+from ..settings import load_settings
 
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +36,18 @@ _ARRAY_COLUMNS = {
     "contributor_affiliation", "contributor_role", "identifier_description",
     "relation_type", "identifier", "identifier_type"
 }
+
+# Column names come from spreadsheet headers, so only plain identifiers may reach the SQL.
+_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def _column_list(columns: Iterable[str]) -> str:
+    """Join column names for an INSERT, rejecting any that isn't a plain identifier."""
+    columns = list(columns)
+    for column in columns:
+        if not _IDENTIFIER.fullmatch(str(column)):
+            raise ValueError(f"Invalid column name in metadata: {column!r}")
+    return ", ".join(columns)
 
 def _normalize_key(key: str) -> str:
     """Normalize an Excel header or metadata element string."""
@@ -146,10 +154,11 @@ def _parse_transposed_excel(file_path: str, mapping: Optional[dict] = None) -> l
 
 class Uploader(object):
     def __init__(self):
-        self._postgres_enabled = is_truthy(os.getenv("POSTGRES_ENABLED"))
-        self._gen3_enabled = is_truthy(os.getenv("GEN3_ENABLED"))
-        self._irods_enabled = is_truthy(os.getenv("IRODS_ENABLED"))
-        self._minio_enabled = is_truthy(os.getenv("MINIO_ENABLED"))
+        enabled = load_settings().enabled
+        self._postgres_enabled = enabled.postgres
+        self._gen3_enabled = enabled.gen3
+        self._irods_enabled = enabled.irods
+        self._minio_enabled = enabled.minio
 
         if self._postgres_enabled and self._gen3_enabled:
             raise ValueError("Metadata service conflict. Only one of 'postgres' or 'gen3' can be enabled")
@@ -437,7 +446,7 @@ class Uploader(object):
             columns = ["dataset_uuid"] + list(merged.keys())
             values = [dataset_uuid] + list(merged.values())
             placeholders = ", ".join(["%s"] * len(values))
-            col_str = ", ".join(columns)
+            col_str = _column_list(columns)
             cur.execute(
                 f"INSERT INTO {table_name} ({col_str}) VALUES ({placeholders})",
                 values,
@@ -456,7 +465,7 @@ class Uploader(object):
                 columns = ["dataset_uuid"] + list(record.keys())
                 values = [dataset_uuid] + list(record.values())
                 placeholders = ", ".join(["%s"] * len(values))
-                col_str = ", ".join(columns)
+                col_str = _column_list(columns)
                 cur.execute(
                     f"INSERT INTO {table_name} ({col_str}) VALUES ({placeholders})",
                     values,
@@ -529,7 +538,7 @@ def _insert_subject(
     columns = list(db_record.keys())
     values = list(db_record.values())
     placeholders = ", ".join(["%s"] * len(values))
-    col_str = ", ".join(columns)
+    col_str = _column_list(columns)
 
     if columns:
         cur.execute(
@@ -567,7 +576,7 @@ def _insert_sample(
     columns = list(db_record.keys())
     values = list(db_record.values())
     placeholders = ", ".join(["%s"] * len(values))
-    col_str = ", ".join(columns)
+    col_str = _column_list(columns)
 
     if columns:
         cur.execute(

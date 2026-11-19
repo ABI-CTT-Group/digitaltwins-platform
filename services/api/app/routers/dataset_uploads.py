@@ -27,7 +27,7 @@ from pydantic import BaseModel
 from digitaltwins import models, tools, workflows
 from digitaltwins.core.connection import Connection
 from digitaltwins.measurements import jobs, sessions
-from digitaltwins.measurements.chunk_store import PART_SIZE, ChunkStore, ChunkStoreError
+from digitaltwins.measurements.chunk_store import ChunkStore, ChunkStoreError
 from digitaltwins.measurements.fhir_service import build_fhir_json
 from digitaltwins.measurements.pipeline import check_descriptions_match
 from digitaltwins.measurements.staging import chunk_root, dataset_dir, max_upload_bytes
@@ -40,6 +40,7 @@ from digitaltwins.measurements.validation import (
     sampleless_subjects,
     validate_sparc_structure,
 )
+from digitaltwins.settings import load_settings
 from digitaltwins.tools import fhir as tool_fhir
 from digitaltwins.tools.validation import find_tool_cwl
 from digitaltwins.workflows import fhir as workflow_fhir
@@ -125,7 +126,7 @@ class AnnotationBody(BaseModel):
 
 @router.get("/config")
 def get_upload_config(_creds: dict = Depends(validate_credentials)):
-    return {"max_upload_bytes": max_upload_bytes(), "max_part_size": PART_SIZE}
+    return {"max_upload_bytes": max_upload_bytes(), "max_part_size": load_settings().uploads.part_size_bytes}
 
 
 @router.get("")
@@ -178,7 +179,7 @@ def create_upload(body: SessionCreate, conn=Depends(get_conn), _creds: dict = De
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     logger.info("Registration %s upload session: upload_id=%s name=%s user=%s",
                 body.category, upload_id, body.name, _creds.get("username"))
-    return {"upload_id": upload_id, "max_part_size": PART_SIZE}
+    return {"upload_id": upload_id, "max_part_size": load_settings().uploads.part_size_bytes}
 
 
 @router.put("/{upload_id}/parts/{rel_path:path}")

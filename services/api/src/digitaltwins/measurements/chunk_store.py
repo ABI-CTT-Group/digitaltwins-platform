@@ -29,16 +29,9 @@ import threading
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List
 
+from ..settings import load_settings
+
 logger = logging.getLogger(__name__)
-
-# Intra-file chunk size clients split on. Surfaced in the session-create
-# response so a single source of truth drives both sides. Default 8 MiB;
-# operators can override via env without a rebuild.
-PART_SIZE = int(os.getenv("UPLOAD_PART_SIZE_BYTES", str(8 * 1024 * 1024)))
-
-# Folder-mode manifest file-count ceiling — guards against a pathological drop
-# (e.g. a 500k-file directory) exhausting fds / bloating .meta.json.
-MANIFEST_MAX_FILES = int(os.getenv("UPLOAD_MANIFEST_MAX_FILES", "100000"))
 
 _META_NAME = ".meta.json"
 
@@ -125,10 +118,13 @@ class ChunkStore:
             raise ChunkStoreError(f"Unknown source_kind: {source_kind!r}")
         if not manifest:
             raise ChunkStoreError("Manifest is empty.")
-        if len(manifest) > MANIFEST_MAX_FILES:
+        # Folder-mode file-count ceiling: guards against a pathological drop
+        # (e.g. a 500k-file directory) exhausting fds / bloating .meta.json.
+        max_files = load_settings().uploads.manifest_max_files
+        if len(manifest) > max_files:
             raise ChunkStoreError(
                 f"Manifest has {len(manifest)} files; exceeds the "
-                f"{MANIFEST_MAX_FILES} limit."
+                f"{max_files} limit."
             )
 
         norm: List[Dict[str, Any]] = []

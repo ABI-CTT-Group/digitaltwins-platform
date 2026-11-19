@@ -7,7 +7,6 @@ fhir-cda's camelCase shape (``resourceType``, ``codeSystem``, ``imagingStudy``,
 import copy
 import json
 import logging
-import os
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
@@ -17,6 +16,7 @@ import requests
 from fhir_cda.ehr import DocumentReferenceMeasurement
 from fhir_cda.ehr.elements import DocumentAttachment, ObservationValue, Quantity
 
+from ..settings import load_settings
 from .fhir_adapter import MeasurementsFhirAnnotator, NiiCompatibleImagingStudy, SafeObservationMeasurement
 
 logger = logging.getLogger(__name__)
@@ -179,7 +179,7 @@ def _fhir_base_url() -> str:
     """``FHIR_ENDPOINT`` as a URL. Container-to-container hop: hapi-fhir serves
     plain HTTP, so a bare ``host:port/fhir`` gets ``http://``; an explicit
     scheme is honoured."""
-    endpoint = os.getenv("FHIR_ENDPOINT", "localhost:8080/fhir").strip()
+    endpoint = load_settings().fhir_endpoint.strip()
     return endpoint if endpoint.startswith(("http://", "https://")) else f"http://{endpoint}"
 
 

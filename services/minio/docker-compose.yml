@@ -13,9 +13,9 @@ services:
       - 'minio_data:/data'
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in secrets.env}
       - MINIO_SERVER_ACCESS_KEY=${MINIO_SERVER_ACCESS_KEY:-minioadmin}
-      - MINIO_SERVER_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:-minioadmin}
+      - MINIO_SERVER_SECRET_KEY=${MINIO_SERVER_SECRET_KEY:?set MINIO_SERVER_SECRET_KEY in secrets.env}
       # Tells the Console its public base URL so all static/API/redirect paths get the /minio prefix.
       # Filled from .env (see .env.template). HTTP default is used only when unset.
       - MINIO_BROWSER_REDIRECT_URL=${MINIO_BROWSER_REDIRECT_URL:-http://localhost/minio}
@@ -23,7 +23,7 @@ services:
       - MINIO_IDENTITY_OPENID_DISPLAY_NAME=Keycloak
       - MINIO_IDENTITY_OPENID_CONFIG_URL=${MINIO_OIDC_CONFIG_URL}
       - MINIO_IDENTITY_OPENID_CLIENT_ID=minio
-      - MINIO_IDENTITY_OPENID_CLIENT_SECRET=${MINIO_KEYCLOAK_CLIENT_SECRET}
+      - MINIO_IDENTITY_OPENID_CLIENT_SECRET=${MINIO_KEYCLOAK_CLIENT_SECRET:?set MINIO_KEYCLOAK_CLIENT_SECRET in secrets.env}
       - MINIO_IDENTITY_OPENID_SCOPES=openid,profile,email
       - MINIO_IDENTITY_OPENID_CLAIM_NAME=policy
     command: server /data --console-address ":9001" --address ":9000"
@@ -42,7 +42,7 @@ services:
         condition: service_healthy
     environment:
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in secrets.env}
     volumes:
       - ./init-minio.sh:/init-minio.sh:ro
     entrypoint: /bin/sh /init-minio.sh

@@ -151,6 +151,9 @@ make test   # all unit-test suites, in pinned containers
 make lint   # ruff, eslint and vue-tsc
 ```
 
+After a deploy, `make smoke` checks that every service answers through the gateway
+([tests/README.md](tests/README.md)).
+
 See [docs/testing.md](docs/testing.md) for single suites, integration tests and CI,
 and [CONTRIBUTING.md](CONTRIBUTING.md) for how to contribute.
 

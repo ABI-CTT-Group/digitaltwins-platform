@@ -1,13 +1,10 @@
 import os
 import shutil
 
-from dotenv import load_dotenv
-
-from ..utils.config_loader import is_truthy
 
 from digitaltwins import Querier
 
-load_dotenv()
+from ..settings import load_settings
 
 
 class Downloader(object):
@@ -15,10 +12,11 @@ class Downloader(object):
         self._irods_downloader = None
         self._minio_downloader = None
 
-        if is_truthy(os.getenv("IRODS_ENABLED")):
+        enabled = load_settings().enabled
+        if enabled.irods:
             from ..irods.downloader import Downloader as IRODSDownloader
             self._irods_downloader = IRODSDownloader()
-        if is_truthy(os.getenv("MINIO_ENABLED")):
+        if enabled.minio:
             from ..minio.downloader import Downloader as MinioDownloader
             self._minio_downloader = MinioDownloader()
             

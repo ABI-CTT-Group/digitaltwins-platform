@@ -1,22 +1,19 @@
 import re
 import yaml
-import os
-
-from dotenv import load_dotenv
 
 from .. import tools
-from ..utils.config_loader import is_truthy
+from ..settings import load_settings
 
-load_dotenv()
 
 class Querier(object):
 
     def __init__(self, api_token: str | None = None):
-        self._postgres_enabled = is_truthy(os.getenv("POSTGRES_ENABLED"))
-        self._seek_enabled = is_truthy(os.getenv("SEEK_ENABLED"))
-        self._gen3_enabled = is_truthy(os.getenv("GEN3_ENABLED"))
-        self._irods_enabled = is_truthy(os.getenv("IRODS_ENABLED"))
-        self._minio_enabled = is_truthy(os.getenv("MINIO_ENABLED"))
+        enabled = load_settings().enabled
+        self._postgres_enabled = enabled.postgres
+        self._seek_enabled = enabled.seek
+        self._gen3_enabled = enabled.gen3
+        self._irods_enabled = enabled.irods
+        self._minio_enabled = enabled.minio
 
         if self._postgres_enabled and self._gen3_enabled:
             raise ValueError("Metadata service conflict. Only one of 'postgres' or 'gen3' can be enabled")
