@@ -32,6 +32,10 @@ The following items were identified during the REST API restructuring (`docs/pla
 * **Description**: `initialise` in `services/api/app/main.py` allows every origin (`allow_origins=["*"]`) with `allow_credentials=True` and all methods and headers. The portal calls the API through the gateway on the same origin, so check which clients, if any, make cross-origin calls. Then restrict the list to those origins, or drop the middleware.
 * **Why skipped**: Left as-is for the initial refactor.
 
+### [ ] 7. Postgres `Querier` formats values into SQL strings
+* **Description**: In `services/api/src/digitaltwins/postgres/querier.py`, `get_datasets` (categories), `get_dataset`, `get_dataset_uuid_by_seek_id`, `get_dataset_descriptions`, `get_subjects`, `get_samples`, `get_subject_by_sample`, `get_sample`, `get_workflow` and `get_dataset_samples` build SQL with `.format()` or f-strings. Routes such as `GET /datasets/{dataset_uuid}` type the path value as `str` and pass it straight in, so a signed-in user can inject SQL. Pass every value as a query parameter through `_query(sql, values)`, as `get_assay` and `get_dataset_sample_types` do, and add a `platform_db` integration test per method (see `services/api/tests/test_postgres_querier.py`). For lists, use `IN %s` with a tuple; `= ANY(%s)` with a list sends `text[]`, which Postgres won't compare to a `uuid` column.
+* **Why skipped**: Found while fixing `get_dataset_sample_types` (`docs/plans/2026-11-19-154155-dataset-sample-types-empty`), which covered only that method.
+
 ## Repository layout
 
 Found while writing [codemap.md](codemap.md) (`docs/plans/2026-10-28-133109-repo-learnability`). The docs now explain these, but nothing was moved or renamed.
