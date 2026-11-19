@@ -32,6 +32,12 @@ The following items were identified during the REST API restructuring (`docs/pla
 * **Description**: `initialise` in `services/api/app/main.py` allows every origin (`allow_origins=["*"]`) with `allow_credentials=True` and all methods and headers. The portal calls the API through the gateway on the same origin, so check which clients, if any, make cross-origin calls. Then restrict the list to those origins, or drop the middleware.
 * **Why skipped**: Left as-is for the initial refactor.
 
+## Airflow (`airflow`)
+
+### [ ] 1. The Airflow image may not need the `digitaltwins` package
+* **Description**: `services/airflow/Dockerfile` runs `pip install digitaltwins==2.0a3`, but no DAG in the repo or in the deployed DAG folders imports `digitaltwins`, and [workflow-dag-authoring.md](workflow-dag-authoring.md) doesn't offer it to DAG authors. That release also still has the SQL injection fixed in the API's Postgres `Querier` and uploader. Before removing the line, check whether anything else in the image, or the compute workers that run it (`services/airflow/compute-worker/`), uses the package, and whether DAGs deployed from workflow uploads on any host import it. If nothing does, remove the line and the notes that describe it: the row in the root `AGENTS.md` "If you change X" table, `docs/codemap.md`, `services/airflow/README.md` (two places), `services/api/AGENTS.md` and `services/api/README.md`.
+* **Why skipped**: Found while checking whether the SQL injection fix needs a PyPI release (`docs/plans/2026-11-19-160444-postgres-sql-injection`). Removing the line needs checking the deployed hosts, which that work didn't cover.
+
 ## Repository layout
 
 Found while writing [codemap.md](codemap.md) (`docs/plans/2026-10-28-133109-repo-learnability`). The docs now explain these, but nothing was moved or renamed.
