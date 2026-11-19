@@ -8,6 +8,6 @@
 - [x] 5. Page text: notes removed, messages and bundle placeholder reworded (test first)
 - [x] 6. Docs: glossary, codemap, portal README
 - [x] Sync plans to docs/plans/
-- [ ] 7. Rebuild `portal-frontend`
-- [ ] Verify: `make test-frontend`, `make lint`, `make docs-check`, grep, browser check
-- [ ] Commit
+- [x] 7. Rebuild `portal-frontend`
+- [x] Verify: `make test-frontend`, `make lint`, `make docs-check`, grep, browser check
+- [x] Commit
