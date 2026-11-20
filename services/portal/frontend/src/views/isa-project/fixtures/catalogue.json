@@ -24,6 +24,51 @@
       "id": "t-lesion-curator",
       "name": "tool_Lesion-Ground-Truth-Curator",
       "type": "gui"
+    },
+    {
+      "id": "t-mock-download-samples",
+      "name": "tool_mock_download_samples",
+      "type": "script"
+    },
+    {
+      "id": "t-mock-skin-inference",
+      "name": "tool_mock_skin_inference",
+      "type": "script"
+    },
+    {
+      "id": "t-mock-outer-rib-inference",
+      "name": "tool_mock_outer_rib_inference",
+      "type": "script"
+    },
+    {
+      "id": "t-mock-sternum-inference",
+      "name": "tool_mock_sternum_inference",
+      "type": "script"
+    },
+    {
+      "id": "t-mock-lesion-inference",
+      "name": "tool_mock_lesion_inference",
+      "type": "script"
+    },
+    {
+      "id": "t-mock-model-finetuning",
+      "name": "tool_mock_model_finetuning",
+      "type": "notebook"
+    },
+    {
+      "id": "t-mock-point-cloud-generation",
+      "name": "tool_mock_point_cloud_generation",
+      "type": "script"
+    },
+    {
+      "id": "t-mock-mesh-fitting",
+      "name": "tool_mock_mesh_fitting",
+      "type": "script"
+    },
+    {
+      "id": "t-mock-statistical-analysis",
+      "name": "tool_mock_statistical_analysis",
+      "type": "notebook"
     }
   ],
   "workflows": [
@@ -454,6 +499,347 @@
           }
         }
       }
+    },
+    {
+      "id": "wf-mock-inference",
+      "name": "workflow_mock_inference",
+      "type": "script",
+      "inputs": [
+        {
+          "name": "mri_nifti",
+          "category": "measurements"
+        },
+        {
+          "name": "skin_model",
+          "category": "models"
+        },
+        {
+          "name": "outer_rib_model",
+          "category": "models"
+        },
+        {
+          "name": "sternum_model",
+          "category": "models"
+        },
+        {
+          "name": "lesion_model",
+          "category": "models"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "skin_inference_nifti",
+          "category": "measurements"
+        },
+        {
+          "name": "outer_rib_inference_nifti",
+          "category": "measurements"
+        },
+        {
+          "name": "sternum_inference_nifti",
+          "category": "measurements"
+        },
+        {
+          "name": "lesion_inference_nifti",
+          "category": "measurements"
+        }
+      ],
+      "steps": [
+        {
+          "id": "download_samples",
+          "toolId": "t-mock-download-samples"
+        },
+        {
+          "id": "skin_inference",
+          "toolId": "t-mock-skin-inference"
+        },
+        {
+          "id": "outer_rib_inference",
+          "toolId": "t-mock-outer-rib-inference"
+        },
+        {
+          "id": "sternum_inference",
+          "toolId": "t-mock-sternum-inference"
+        },
+        {
+          "id": "lesion_inference",
+          "toolId": "t-mock-lesion-inference"
+        }
+      ],
+      "cwl": {
+        "inputs": {
+          "mri_nifti": {
+            "type": "File"
+          },
+          "skin_model": {
+            "type": "Directory"
+          },
+          "outer_rib_model": {
+            "type": "Directory"
+          },
+          "sternum_model": {
+            "type": "Directory"
+          },
+          "lesion_model": {
+            "type": "Directory"
+          }
+        },
+        "steps": {
+          "download_samples": {
+            "run": "tool_mock_download_samples.cwl",
+            "in": {
+              "mri_nifti": "mri_nifti"
+            },
+            "out": [
+              "nifti"
+            ]
+          },
+          "skin_inference": {
+            "run": "tool_mock_skin_inference.cwl",
+            "in": {
+              "nifti": "download_samples/nifti",
+              "skin_model": "skin_model"
+            },
+            "out": [
+              "skin_inference_nifti"
+            ]
+          },
+          "outer_rib_inference": {
+            "run": "tool_mock_outer_rib_inference.cwl",
+            "in": {
+              "nifti": "download_samples/nifti",
+              "outer_rib_model": "outer_rib_model"
+            },
+            "out": [
+              "outer_rib_inference_nifti"
+            ]
+          },
+          "sternum_inference": {
+            "run": "tool_mock_sternum_inference.cwl",
+            "in": {
+              "nifti": "download_samples/nifti",
+              "sternum_model": "sternum_model"
+            },
+            "out": [
+              "sternum_inference_nifti"
+            ]
+          },
+          "lesion_inference": {
+            "run": "tool_mock_lesion_inference.cwl",
+            "in": {
+              "nifti": "download_samples/nifti",
+              "lesion_model": "lesion_model"
+            },
+            "out": [
+              "lesion_inference_nifti"
+            ]
+          }
+        },
+        "outputs": {
+          "skin_inference_nifti": {
+            "type": "File",
+            "outputSource": "skin_inference/skin_inference_nifti"
+          },
+          "outer_rib_inference_nifti": {
+            "type": "File",
+            "outputSource": "outer_rib_inference/outer_rib_inference_nifti"
+          },
+          "sternum_inference_nifti": {
+            "type": "File",
+            "outputSource": "sternum_inference/sternum_inference_nifti"
+          },
+          "lesion_inference_nifti": {
+            "type": "File",
+            "outputSource": "lesion_inference/lesion_inference_nifti"
+          }
+        }
+      }
+    },
+    {
+      "id": "wf-mock-model-finetuning",
+      "name": "workflow_mock_model_finetuning",
+      "type": "notebook",
+      "inputs": [
+        {
+          "name": "clinician_validated_masks",
+          "category": "measurements"
+        },
+        {
+          "name": "pretrained_models",
+          "category": "models"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "finetuned_models",
+          "category": "models"
+        }
+      ],
+      "steps": [
+        {
+          "id": "run_notebook",
+          "toolId": "t-mock-model-finetuning"
+        }
+      ],
+      "cwl": {
+        "inputs": {
+          "clinician_validated_masks": {
+            "type": "Directory"
+          },
+          "pretrained_models": {
+            "type": "Directory"
+          }
+        },
+        "steps": {
+          "run_notebook": {
+            "run": "tool_mock_model_finetuning.cwl",
+            "in": {
+              "clinician_validated_masks": "clinician_validated_masks",
+              "pretrained_models": "pretrained_models"
+            },
+            "out": [
+              "finetuned_models"
+            ]
+          }
+        },
+        "outputs": {
+          "finetuned_models": {
+            "type": "Directory",
+            "outputSource": "run_notebook/finetuned_models"
+          }
+        }
+      }
+    },
+    {
+      "id": "wf-mock-breast-model",
+      "name": "workflow_mock_breast_model",
+      "type": "script",
+      "inputs": [
+        {
+          "name": "skin_inference_nifti",
+          "category": "measurements"
+        },
+        {
+          "name": "outer_rib_inference_nifti",
+          "category": "measurements"
+        },
+        {
+          "name": "sternum_inference_nifti",
+          "category": "measurements"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "point_cloud",
+          "category": "measurements"
+        },
+        {
+          "name": "breast_mesh",
+          "category": "measurements"
+        }
+      ],
+      "steps": [
+        {
+          "id": "point_cloud_generation",
+          "toolId": "t-mock-point-cloud-generation"
+        },
+        {
+          "id": "mesh_fitting",
+          "toolId": "t-mock-mesh-fitting"
+        }
+      ],
+      "cwl": {
+        "inputs": {
+          "skin_inference_nifti": {
+            "type": "File"
+          },
+          "outer_rib_inference_nifti": {
+            "type": "File"
+          },
+          "sternum_inference_nifti": {
+            "type": "File"
+          }
+        },
+        "steps": {
+          "point_cloud_generation": {
+            "run": "tool_mock_point_cloud_generation.cwl",
+            "in": {
+              "skin_inference_nifti": "skin_inference_nifti",
+              "outer_rib_inference_nifti": "outer_rib_inference_nifti",
+              "sternum_inference_nifti": "sternum_inference_nifti"
+            },
+            "out": [
+              "point_cloud"
+            ]
+          },
+          "mesh_fitting": {
+            "run": "tool_mock_mesh_fitting.cwl",
+            "in": {
+              "point_cloud": "point_cloud_generation/point_cloud"
+            },
+            "out": [
+              "breast_mesh"
+            ]
+          }
+        },
+        "outputs": {
+          "point_cloud": {
+            "type": "File",
+            "outputSource": "point_cloud_generation/point_cloud"
+          },
+          "breast_mesh": {
+            "type": "File",
+            "outputSource": "mesh_fitting/breast_mesh"
+          }
+        }
+      }
+    },
+    {
+      "id": "wf-mock-statistical-analysis",
+      "name": "workflow_mock_statistical_analysis",
+      "type": "notebook",
+      "inputs": [
+        {
+          "name": "lesion_position_reports",
+          "category": "measurements"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "statistics_summary",
+          "category": "measurements"
+        }
+      ],
+      "steps": [
+        {
+          "id": "run_notebook",
+          "toolId": "t-mock-statistical-analysis"
+        }
+      ],
+      "cwl": {
+        "inputs": {
+          "lesion_position_reports": {
+            "type": "Directory"
+          }
+        },
+        "steps": {
+          "run_notebook": {
+            "run": "tool_mock_statistical_analysis.cwl",
+            "in": {
+              "lesion_position_reports": "lesion_position_reports"
+            },
+            "out": [
+              "statistics_summary"
+            ]
+          }
+        },
+        "outputs": {
+          "statistics_summary": {
+            "type": "Directory",
+            "outputSource": "run_notebook/statistics_summary"
+          }
+        }
+      }
     }
   ],
   "datasets": [
@@ -481,6 +867,11 @@
       "id": "ds-model-breast-app",
       "name": "model_breast_app",
       "category": "measurements"
+    },
+    {
+      "id": "ds-pretrained-models",
+      "name": "pretrained_models",
+      "category": "models"
     }
   ]
 }

@@ -45,13 +45,13 @@ describe("IsaProjectHub", () => {
     const w = await render();
     expect(rows(w)).toHaveLength(1);
     expect(row(w, "Breast").text()).toContain("Example");
-    expect(row(w, "Breast").text()).toContain("1 investigation, 1 study, 4 assays");
+    expect(row(w, "Breast").text()).toContain("1 investigation, 2 studies, 14 assays");
   });
 
   it("previews each study's chain of assays", async () => {
     const w = await render();
     const chains = w.findAllComponents(StudyChain);
-    expect(chains.map(c => c.props("study").title)).toEqual(["Te Whatu Ora Breast Pilot"]);
+    expect(chains.map(c => c.props("study").title)).toEqual(["Te Whatu Ora Breast Pilot", "Image pipeline test"]);
     expect(row(w, "Breast").find("[data-test=chain]").exists()).toBe(true);
   });
 

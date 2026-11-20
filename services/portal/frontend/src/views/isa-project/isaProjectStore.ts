@@ -2,7 +2,7 @@
 // Kept in this browser's localStorage only; nothing is sent to a server.
 import { defineStore } from "pinia";
 import type { Catalogue, IsaProject, Study } from "./model/types";
-import { fixtureSource, IsaProjectUploadError } from "./adapter/isaProjectSource";
+import { EXAMPLE_RELEASE, fixtureSource, IsaProjectUploadError } from "./adapter/isaProjectSource";
 import { withBundled } from "./adapter/isaBundle";
 import type { IsaProjectEntry } from "./sandbox";
 
@@ -19,6 +19,8 @@ const registeredCopy = <T extends { bundled?: unknown }>(item: T): T => {
   delete copy.bundled;
   return copy;
 };
+const exampleEntry = async (id: string): Promise<IsaProjectEntry> =>
+  ({ project: await fixtureSource.loadExample(id), source: "example", exampleId: id, exampleRelease: EXAMPLE_RELEASE });
 const addMissing = <T extends { id: string; bundled?: unknown }>(to: T[], items: T[]) =>
   items.forEach(i => { if (!to.some(x => x.id === i.id)) to.push(registeredCopy(i)); });
 
@@ -36,7 +38,8 @@ export const useIsaProjectStore = defineStore("isaProjects", {
   },
   actions: {
     /** Add any bundled example that isn't in the store yet, and drop stored examples that no
-     *  longer ship (uploads are kept). Safe to call repeatedly. */
+     *  longer ship or come from an older release of their fixture (uploads are kept). Safe to call
+     *  repeatedly. */
     ensureExamples(): Promise<void> {
       seeding ??= (async () => {
         // An approval a page reload interrupted never finished: the project can be approved again.
@@ -45,11 +48,10 @@ export const useIsaProjectStore = defineStore("isaProjects", {
         }
         const shipped = await fixtureSource.listExamples();
         const ids = new Set(shipped.map(x => x.id));
-        this.entries = this.entries.filter(e => e.source !== "example" || ids.has(e.exampleId ?? ""));
+        this.entries = this.entries.filter(e => e.source !== "example" ||
+          (ids.has(e.exampleId ?? "") && e.exampleRelease === EXAMPLE_RELEASE));
         for (const { id } of shipped) {
-          if (!this.entries.some(e => e.exampleId === id)) {
-            this.entries.push({ project: await fixtureSource.loadExample(id), source: "example", exampleId: id });
-          }
+          if (!this.entries.some(e => e.exampleId === id)) this.entries.push(await exampleEntry(id));
         }
       })().finally(() => { seeding = null; });
       return seeding;
@@ -115,7 +117,7 @@ export const useIsaProjectStore = defineStore("isaProjects", {
       const at = this.entries.findIndex(e => e.project.project.id === projectId);
       const exampleId = this.entries[at]?.exampleId;
       if (at < 0 || !exampleId) return;
-      this.entries.splice(at, 1, { project: await fixtureSource.loadExample(exampleId), source: "example", exampleId });
+      this.entries.splice(at, 1, await exampleEntry(exampleId));
     },
   },
   persist: true,

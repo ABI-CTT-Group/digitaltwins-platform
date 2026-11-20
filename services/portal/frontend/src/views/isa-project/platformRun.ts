@@ -1,6 +1,7 @@
-// Real runs for the sandbox (prototype). The Breast example mirrors the platform's Test Project,
-// so its assays are linked to those platform assays, and Launch and Submit run them with the platform's
-// own saved configuration. Nothing here writes assay configuration.
+// Real runs for the sandbox (prototype). The Breast example's assays are linked to platform assays in
+// the Test Project: Test Study's real assays, and the mock assays (they only wait) that
+// util/populate-isa-mock-assays.sh creates in its "Breast pilot mockups" study. Launch and Submit run
+// them with the platform's own saved configuration. Nothing here writes assay configuration.
 import { useToast } from "vue-toastification";
 import { useDashboardGetAssayLaunch, useDashboardSubmitAssayResults } from "@/bootstrap/dashboard_api";
 import { useDashboardCacheStore } from "@/store/dashboard_cache_store";
@@ -12,7 +13,13 @@ export interface PlatformLink { seekId: string; canMonitor: boolean; launching: 
 
 /** Example id → sandbox assay id → SEEK assay id of the platform assay it mirrors. */
 const PLATFORM_ASSAYS: Record<string, Record<string, string>> = {
-  "example-breast-pilot": { "a-cohort": "41", "a-convert": "42", "a-visualise": "43", "a-breast-app": "45" },
+  "example-breast-pilot": {
+    // Te Whatu Ora Breast Pilot. Assay 8 reuses Assay 4's GUI tool until its own tool is registered.
+    "a-cohort": "41", "a-convert": "42", "a-initial-inference": "46", "a-breast-app": "45", "a-finetune": "47",
+    "a-inference": "48", "a-breast-model": "49", "a-lesion-report": "45", "a-statistics": "50", "a-visualise": "43",
+    // Image pipeline test: the original four assays.
+    "a-pipeline-cohort": "41", "a-pipeline-convert": "42", "a-pipeline-visualise": "43", "a-pipeline-breast-app": "45",
+  },
 };
 
 /** The platform assays a project's assays are linked to; none for uploads or unlinked examples. */

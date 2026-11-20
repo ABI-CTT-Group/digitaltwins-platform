@@ -15,7 +15,7 @@
           "assays": [
             {
               "id": "a-cohort",
-              "title": "Assay 1: cohort selection",
+              "title": "Assay 1 - Cohort selection",
               "type": "notebook",
               "workflowId": "wf-mri-curation",
               "cohort": [],
@@ -38,7 +38,7 @@
             },
             {
               "id": "a-convert",
-              "title": "Assay 2: image conversion",
+              "title": "Assay 2 - Image conversion",
               "type": "script",
               "workflowId": "wf-image-conversion",
               "cohort": [
@@ -68,7 +68,715 @@
               ]
             },
             {
+              "id": "a-initial-inference",
+              "title": "Assay 3 - Initial inference",
+              "type": "script",
+              "workflowId": "wf-mock-inference",
+              "cohort": [
+                1
+              ],
+              "inputs": [
+                {
+                  "port": "mri_nifti",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-convert",
+                    "port": "nifti_output"
+                  }
+                },
+                {
+                  "port": "skin_model",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-pretrained-models"
+                  }
+                },
+                {
+                  "port": "outer_rib_model",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-pretrained-models"
+                  }
+                },
+                {
+                  "port": "sternum_model",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-pretrained-models"
+                  }
+                },
+                {
+                  "port": "lesion_model",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-pretrained-models"
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "port": "skin_inference_nifti",
+                  "datasetName": "initial_inference",
+                  "category": "measurements"
+                },
+                {
+                  "port": "outer_rib_inference_nifti",
+                  "datasetName": "initial_inference",
+                  "category": "measurements"
+                },
+                {
+                  "port": "sternum_inference_nifti",
+                  "datasetName": "initial_inference",
+                  "category": "measurements"
+                },
+                {
+                  "port": "lesion_inference_nifti",
+                  "datasetName": "initial_inference",
+                  "category": "measurements"
+                }
+              ]
+            },
+            {
+              "id": "a-breast-app",
+              "title": "Assay 4 - Image annotation",
+              "type": "gui",
+              "workflowId": "wf-lesion-curator",
+              "cohort": [
+                1
+              ],
+              "inputs": [
+                {
+                  "port": "contrast_pre_nrrd",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-convert",
+                    "port": "nrrd_output"
+                  }
+                },
+                {
+                  "port": "contrast_1_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "contrast_2_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "contrast_3_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "contrast_4_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "registration_pre_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "registration_1_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "registration_2_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "registration_3_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "registration_4_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "t2_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "model_predicted_LPS_nii",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-initial-inference",
+                    "port": "lesion_inference_nifti"
+                  }
+                },
+                {
+                  "port": "researcher_manual_LPS_nii",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "ground_truth_LPS_nii",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "breast_surface_glb",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-model-breast-app"
+                  }
+                },
+                {
+                  "port": "vessel_mask_nii",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "port": "mask_meta_json",
+                  "datasetName": "breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "model_predicted_nii_LPS",
+                  "datasetName": "breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "researcher_manual_nii_LPS",
+                  "datasetName": "breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "clinician_validated_nii_LPS",
+                  "datasetName": "breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "clinician_validated_nii_RAI",
+                  "datasetName": "breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "ai_generated_nii_LPS",
+                  "datasetName": "breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "mask_glb",
+                  "datasetName": "breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "ground_truth_glb",
+                  "datasetName": "breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "ai_generated_glb",
+                  "datasetName": "breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "validate_json",
+                  "datasetName": "breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "model_predicted_glb",
+                  "datasetName": "breast_app_output",
+                  "category": "measurements"
+                },
+                {
+                  "port": "researcher_manual_glb",
+                  "datasetName": "breast_app_output",
+                  "category": "measurements"
+                }
+              ]
+            },
+            {
+              "id": "a-finetune",
+              "title": "Assay 5 - Model fine-tuning",
+              "type": "notebook",
+              "workflowId": "wf-mock-model-finetuning",
+              "cohort": [
+                1
+              ],
+              "inputs": [
+                {
+                  "port": "clinician_validated_masks",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-breast-app",
+                    "port": "clinician_validated_nii_LPS"
+                  }
+                },
+                {
+                  "port": "pretrained_models",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-pretrained-models"
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "port": "finetuned_models",
+                  "datasetName": "finetuned_models",
+                  "category": "models"
+                }
+              ]
+            },
+            {
+              "id": "a-inference",
+              "title": "Assay 6 - Inference",
+              "type": "script",
+              "workflowId": "wf-mock-inference",
+              "cohort": [
+                1
+              ],
+              "inputs": [
+                {
+                  "port": "mri_nifti",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-convert",
+                    "port": "nifti_output"
+                  }
+                },
+                {
+                  "port": "skin_model",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-finetune",
+                    "port": "finetuned_models"
+                  }
+                },
+                {
+                  "port": "outer_rib_model",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-finetune",
+                    "port": "finetuned_models"
+                  }
+                },
+                {
+                  "port": "sternum_model",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-finetune",
+                    "port": "finetuned_models"
+                  }
+                },
+                {
+                  "port": "lesion_model",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-finetune",
+                    "port": "finetuned_models"
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "port": "skin_inference_nifti",
+                  "datasetName": "inference",
+                  "category": "measurements"
+                },
+                {
+                  "port": "outer_rib_inference_nifti",
+                  "datasetName": "inference",
+                  "category": "measurements"
+                },
+                {
+                  "port": "sternum_inference_nifti",
+                  "datasetName": "inference",
+                  "category": "measurements"
+                },
+                {
+                  "port": "lesion_inference_nifti",
+                  "datasetName": "inference",
+                  "category": "measurements"
+                }
+              ]
+            },
+            {
+              "id": "a-breast-model",
+              "title": "Assay 7 - Generate breast model",
+              "type": "script",
+              "workflowId": "wf-mock-breast-model",
+              "cohort": [
+                1
+              ],
+              "inputs": [
+                {
+                  "port": "skin_inference_nifti",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-inference",
+                    "port": "skin_inference_nifti"
+                  }
+                },
+                {
+                  "port": "outer_rib_inference_nifti",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-inference",
+                    "port": "outer_rib_inference_nifti"
+                  }
+                },
+                {
+                  "port": "sternum_inference_nifti",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-inference",
+                    "port": "sternum_inference_nifti"
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "port": "point_cloud",
+                  "datasetName": "breast_model",
+                  "category": "measurements"
+                },
+                {
+                  "port": "breast_mesh",
+                  "datasetName": "breast_model",
+                  "category": "measurements"
+                }
+              ]
+            },
+            {
+              "id": "a-lesion-report",
+              "title": "Assay 8 - Lesion position reporting",
+              "type": "gui",
+              "workflowId": "wf-lesion-curator",
+              "cohort": [
+                1
+              ],
+              "inputs": [
+                {
+                  "port": "contrast_pre_nrrd",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-convert",
+                    "port": "nrrd_output"
+                  }
+                },
+                {
+                  "port": "contrast_1_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "contrast_2_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "contrast_3_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "contrast_4_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "registration_pre_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "registration_1_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "registration_2_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "registration_3_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "registration_4_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "t2_nrrd",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "model_predicted_LPS_nii",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-inference",
+                    "port": "lesion_inference_nifti"
+                  }
+                },
+                {
+                  "port": "researcher_manual_LPS_nii",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "ground_truth_LPS_nii",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                },
+                {
+                  "port": "breast_surface_glb",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-breast-model",
+                    "port": "breast_mesh"
+                  }
+                },
+                {
+                  "port": "vessel_mask_nii",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-data-breast-app"
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "port": "mask_meta_json",
+                  "datasetName": "lesion_position_report",
+                  "category": "measurements"
+                },
+                {
+                  "port": "model_predicted_nii_LPS",
+                  "datasetName": "lesion_position_report",
+                  "category": "measurements"
+                },
+                {
+                  "port": "researcher_manual_nii_LPS",
+                  "datasetName": "lesion_position_report",
+                  "category": "measurements"
+                },
+                {
+                  "port": "clinician_validated_nii_LPS",
+                  "datasetName": "lesion_position_report",
+                  "category": "measurements"
+                },
+                {
+                  "port": "clinician_validated_nii_RAI",
+                  "datasetName": "lesion_position_report",
+                  "category": "measurements"
+                },
+                {
+                  "port": "ai_generated_nii_LPS",
+                  "datasetName": "lesion_position_report",
+                  "category": "measurements"
+                },
+                {
+                  "port": "mask_glb",
+                  "datasetName": "lesion_position_report",
+                  "category": "measurements"
+                },
+                {
+                  "port": "ground_truth_glb",
+                  "datasetName": "lesion_position_report",
+                  "category": "measurements"
+                },
+                {
+                  "port": "ai_generated_glb",
+                  "datasetName": "lesion_position_report",
+                  "category": "measurements"
+                },
+                {
+                  "port": "validate_json",
+                  "datasetName": "lesion_position_report",
+                  "category": "measurements"
+                },
+                {
+                  "port": "model_predicted_glb",
+                  "datasetName": "lesion_position_report",
+                  "category": "measurements"
+                },
+                {
+                  "port": "researcher_manual_glb",
+                  "datasetName": "lesion_position_report",
+                  "category": "measurements"
+                }
+              ]
+            },
+            {
+              "id": "a-statistics",
+              "title": "Assay 9 - Statistical Analysis",
+              "type": "notebook",
+              "workflowId": "wf-mock-statistical-analysis",
+              "cohort": [
+                1
+              ],
+              "inputs": [
+                {
+                  "port": "lesion_position_reports",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-lesion-report",
+                    "port": "mask_meta_json"
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "port": "statistics_summary",
+                  "datasetName": "statistics_summary",
+                  "category": "measurements"
+                }
+              ]
+            },
+            {
               "id": "a-visualise",
+              "title": "Assay: Image visualisation",
+              "type": "gui",
+              "workflowId": "wf-volview",
+              "cohort": [
+                1
+              ],
+              "inputs": [
+                {
+                  "port": "dicom_file",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-converted"
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "port": "output",
+                  "datasetName": "volview_output",
+                  "category": "measurements"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "s-image-pipeline-test",
+          "title": "Image pipeline test",
+          "assays": [
+            {
+              "id": "a-pipeline-cohort",
+              "title": "Assay 1: cohort selection",
+              "type": "notebook",
+              "workflowId": "wf-mri-curation",
+              "cohort": [],
+              "inputs": [
+                {
+                  "port": "raw_dataset",
+                  "source": {
+                    "kind": "existing",
+                    "datasetId": "ds-dicom"
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "port": "curated_dataset",
+                  "datasetName": "curated_dataset",
+                  "category": "measurements"
+                }
+              ]
+            },
+            {
+              "id": "a-pipeline-convert",
+              "title": "Assay 2: image conversion",
+              "type": "script",
+              "workflowId": "wf-image-conversion",
+              "cohort": [
+                1
+              ],
+              "inputs": [
+                {
+                  "port": "dicom_input",
+                  "source": {
+                    "kind": "planned",
+                    "assayId": "a-pipeline-cohort",
+                    "port": "curated_dataset"
+                  }
+                }
+              ],
+              "outputs": [
+                {
+                  "port": "nifti_output",
+                  "datasetName": "converted",
+                  "category": "measurements"
+                },
+                {
+                  "port": "nrrd_output",
+                  "datasetName": "converted",
+                  "category": "measurements"
+                }
+              ]
+            },
+            {
+              "id": "a-pipeline-visualise",
               "title": "Assay 3: image visualisation",
               "type": "gui",
               "workflowId": "wf-volview",
@@ -80,7 +788,7 @@
                   "port": "dicom_file",
                   "source": {
                     "kind": "planned",
-                    "assayId": "a-convert",
+                    "assayId": "a-pipeline-convert",
                     "port": "nifti_output"
                   }
                 }
@@ -94,7 +802,7 @@
               ]
             },
             {
-              "id": "a-breast-app",
+              "id": "a-pipeline-breast-app",
               "title": "Assay 4: breast app",
               "type": "gui",
               "workflowId": "wf-lesion-curator",
@@ -106,7 +814,7 @@
                   "port": "contrast_pre_nrrd",
                   "source": {
                     "kind": "planned",
-                    "assayId": "a-convert",
+                    "assayId": "a-pipeline-convert",
                     "port": "nrrd_output"
                   }
                 },

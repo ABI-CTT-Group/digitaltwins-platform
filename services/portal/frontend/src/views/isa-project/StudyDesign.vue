@@ -126,7 +126,7 @@ const linked = computed(() => Object.keys(platformIds.value).length > 0);
 const launching = ref<Record<string, boolean>>({});
 const submitting = ref<Record<string, boolean>>({});
 const platform = computed<Record<string, PlatformLink>>(() => Object.fromEntries(
-  Object.entries(platformIds.value).map(([id, seekId]) => [id, {
+  Object.entries(platformIds.value).filter(([id]) => study.value?.assays.some(a => a.id === id)).map(([id, seekId]) => [id, {
     seekId,
     canMonitor: dashboardCache.assayExecute[seekId]?.text === "Monitor",
     launching: !!launching.value[seekId],

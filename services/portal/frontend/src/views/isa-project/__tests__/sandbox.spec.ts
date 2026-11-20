@@ -36,13 +36,14 @@ describe("sandbox programme", () => {
     expect(projects.map(p => p.description)).toEqual(["1 investigation", "1 investigation"]);
 
     const invs = sandboxChildren("te-whatu-ora-radiology-reporting:p-breast", "Projects", e);
-    expect(invs.map(i => [i.seekId, i.category, i.description])).toEqual([["te-whatu-ora-radiology-reporting:p-breast:i-breast-radiology-report", "Investigations", "1 study"]]);
+    expect(invs.map(i => [i.seekId, i.category, i.description])).toEqual([["te-whatu-ora-radiology-reporting:p-breast:i-breast-radiology-report", "Investigations", "2 studies"]]);
 
     const studies = sandboxChildren("te-whatu-ora-radiology-reporting:p-breast:i-breast-radiology-report", "Investigations", e);
     expect(studies.map(s => [s.seekId, s.name, s.category])).toEqual([
       ["te-whatu-ora-radiology-reporting:p-breast:i-breast-radiology-report:s-breast-pilot", "Te Whatu Ora Breast Pilot", "Studies"],
+      ["te-whatu-ora-radiology-reporting:p-breast:i-breast-radiology-report:s-image-pipeline-test", "Image pipeline test", "Studies"],
     ]);
-    expect(studies[0].description).toBe("4 assays");
+    expect(studies.map(s => s.description)).toEqual(["10 assays", "4 assays"]);
 
     const assays = sandboxChildren("te-whatu-ora-radiology-reporting:p-breast:i-breast-radiology-report:s-breast-pilot", "Studies", e);
     expect(assays.map(a => [a.seekId, a.category, a.tag])[0])
@@ -77,7 +78,7 @@ describe("resolveSandboxTrail", () => {
     expect(r.breadcrumbs.map(b => [b.name, b.category]))
       .toEqual([["Te Whatu Ora Radiology Reporting", "Programmes"], ["Breast", "Projects"], ["Breast Radiology Report", "Investigations"], ["Te Whatu Ora Breast Pilot", "Studies"]]);
     expect(r.currentCategory).toBe("Assays");
-    expect(r.items).toHaveLength(4);
+    expect(r.items).toHaveLength(10);
   });
 
   it("stops at an id it can't find, so the caller can shorten the URL", async () => {

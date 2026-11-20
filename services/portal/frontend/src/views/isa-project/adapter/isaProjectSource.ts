@@ -25,6 +25,8 @@ export class IsaProjectUploadError extends Error {
 const copy = <T>(v: unknown): T => JSON.parse(JSON.stringify(v)) as T;
 
 const examples: Record<string, unknown> = { "example-breast-pilot": breastPilotJson };
+/** Bump when a shipped example changes, so browsers that stored an older one get the new one. */
+export const EXAMPLE_RELEASE = 2;
 
 export const fixtureSource: IsaProjectSource = {
   async listExamples() {

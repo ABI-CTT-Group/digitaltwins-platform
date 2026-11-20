@@ -46,6 +46,22 @@ describe("isaProjectStore", () => {
     ]);
   });
 
+  it("replaces an example stored from an older release of it, but keeps uploads and current examples", async () => {
+    const store = useIsaProjectStore();
+    const old = JSON.parse(await upload());
+    store.entries = [
+      { project: { ...old, project: { id: "p-breast", title: "Breast" } }, source: "example", exampleId: "example-breast-pilot" },
+      { project: old, source: "upload" },
+    ];
+    await store.ensureExamples();
+    expect(store.entries.map(e => [e.project.project.id, e.source])).toEqual([["p-mine", "upload"], ["p-breast", "example"]]);
+    expect(store.study("p-breast", "s-image-pipeline-test")?.title).toBe("Image pipeline test");
+
+    store.study("p-breast", "s-breast-pilot")!.assays[0].title = "Edited";
+    await store.ensureExamples();
+    expect(store.study("p-breast", "s-breast-pilot")!.assays[0].title).toBe("Edited");
+  });
+
   it("adds an uploaded project, and replaces one with the same project id", async () => {
     const store = useIsaProjectStore();
     await store.ensureExamples();
@@ -85,7 +101,7 @@ describe("isaProjectStore", () => {
 
     store.study("p-breast", "s-breast-pilot")!.assays[0].title = "Edited";
     await store.resetExample("p-breast");
-    expect(store.study("p-breast", "s-breast-pilot")!.assays[0].title).toBe("Assay 1: cohort selection");
+    expect(store.study("p-breast", "s-breast-pilot")!.assays[0].title).toBe("Assay 1 - Cohort selection");
   });
 
   it("finds a study by project and study id", async () => {

@@ -25,9 +25,11 @@ beforeEach(() => {
 });
 
 describe("platformAssayIds", () => {
-  it("links the Test Project example's assays to the platform's Test Project assays", () => {
+  it("links the example's assays to the platform's Test Project assays and mock assays", () => {
     expect(platformAssayIds(entry({ exampleId: "example-breast-pilot" }))).toEqual({
-      "a-cohort": "41", "a-convert": "42", "a-visualise": "43", "a-breast-app": "45",
+      "a-cohort": "41", "a-convert": "42", "a-initial-inference": "46", "a-breast-app": "45", "a-finetune": "47",
+      "a-inference": "48", "a-breast-model": "49", "a-lesion-report": "45", "a-statistics": "50", "a-visualise": "43",
+      "a-pipeline-cohort": "41", "a-pipeline-convert": "42", "a-pipeline-visualise": "43", "a-pipeline-breast-app": "45",
     });
   });
 

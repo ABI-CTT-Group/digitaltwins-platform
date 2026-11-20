@@ -8,7 +8,7 @@ let wrapper: VueWrapper | undefined;
 afterEach(() => wrapper?.unmount());
 
 async function render(tweak: (s: Study) => void = () => {}) {
-  const study = (await fixtureSource.loadExample("example-breast-pilot")).investigations[0].studies[0];
+  const study = (await fixtureSource.loadExample("example-breast-pilot")).investigations[0].studies[1];
   tweak(study);
   wrapper = mount(StudyChain, { props: { study } });
   return wrapper;
@@ -29,9 +29,9 @@ describe("StudyChain", () => {
 
   it("names the study and reads out the run order", async () => {
     const w = await render();
-    expect(w.find(".chain__study").text()).toBe("Te Whatu Ora Breast Pilot");
+    expect(w.find(".chain__study").text()).toBe("Image pipeline test");
     expect(w.find("[data-test=chain]").attributes("aria-label")).toBe(
-      "Te Whatu Ora Breast Pilot runs Assay 1: cohort selection, then Assay 2: image conversion, " +
+      "Image pipeline test runs Assay 1: cohort selection, then Assay 2: image conversion, " +
       "then Assay 3: image visualisation and Assay 4: breast app.");
   });
 

@@ -3,14 +3,17 @@ import { fixtureSource, IsaProjectUploadError } from "../adapter/isaProjectSourc
 import { validateIsaProject } from "../model/isaProject";
 
 describe("fixtureSource", () => {
-  it("ships the Te Whatu Ora breast pilot example, with no \"test\" anywhere it shows", async () => {
+  it("ships the Te Whatu Ora breast pilot example, with no \"test\" anywhere the pilot study shows", async () => {
     expect(await fixtureSource.listExamples()).toEqual([{ id: "example-breast-pilot", title: "Breast" }]);
     const example = await fixtureSource.loadExample("example-breast-pilot");
     expect(example.project.id).toBe("p-breast");
     const inv = example.investigations[0];
     expect([inv.id, inv.title]).toEqual(["i-breast-radiology-report", "Breast Radiology Report"]);
-    expect([inv.studies[0].id, inv.studies[0].title]).toEqual(["s-breast-pilot", "Te Whatu Ora Breast Pilot"]);
-    expect(JSON.stringify(example)).not.toMatch(/test/i);
+    expect(inv.studies.map(s => [s.id, s.title])).toEqual([
+      ["s-breast-pilot", "Te Whatu Ora Breast Pilot"],
+      ["s-image-pipeline-test", "Image pipeline test"],
+    ]);
+    expect(JSON.stringify(inv.studies[0])).not.toMatch(/test/i);
     const { datasets } = await fixtureSource.catalogue();
     expect(JSON.stringify(datasets)).not.toMatch(/test/i);
   });
@@ -19,20 +22,63 @@ describe("fixtureSource", () => {
     expect(await fixtureSource.listExamples()).toEqual([{ id: "example-breast-pilot", title: "Breast" }]);
   });
 
-  it("wires the example as the Test Project runs: 1 -> 2 -> 3, and 2 -> 4", async () => {
+  const planned = (study: { assays: { id: string; inputs: { port: string; source: unknown }[] }[] }) =>
+    study.assays.flatMap(a => a.inputs.flatMap(i => {
+      const s = i.source as { kind: string; assayId: string; port: string } | null;
+      return s?.kind === "planned" ? [`${s.assayId}/${s.port} -> ${a.id}/${i.port}`] : [];
+    }));
+
+  it("lays the pilot study out as the nine-assay breast pipeline, plus a standalone image visualisation", async () => {
     const study = (await fixtureSource.loadExample("example-breast-pilot")).investigations[0].studies[0];
-    expect(study.assays.map(a => [a.id, a.title, a.workflowId, a.cohort])).toEqual([
-      ["a-cohort", "Assay 1: cohort selection", "wf-mri-curation", []],
-      ["a-convert", "Assay 2: image conversion", "wf-image-conversion", [1]],
-      ["a-visualise", "Assay 3: image visualisation", "wf-volview", [1]],
-      ["a-breast-app", "Assay 4: breast app", "wf-lesion-curator", [1]],
+    expect(study.assays.map(a => [a.id, a.title, a.type, a.workflowId])).toEqual([
+      ["a-cohort", "Assay 1 - Cohort selection", "notebook", "wf-mri-curation"],
+      ["a-convert", "Assay 2 - Image conversion", "script", "wf-image-conversion"],
+      ["a-initial-inference", "Assay 3 - Initial inference", "script", "wf-mock-inference"],
+      ["a-breast-app", "Assay 4 - Image annotation", "gui", "wf-lesion-curator"],
+      ["a-finetune", "Assay 5 - Model fine-tuning", "notebook", "wf-mock-model-finetuning"],
+      ["a-inference", "Assay 6 - Inference", "script", "wf-mock-inference"],
+      ["a-breast-model", "Assay 7 - Generate breast model", "script", "wf-mock-breast-model"],
+      ["a-lesion-report", "Assay 8 - Lesion position reporting", "gui", "wf-lesion-curator"],
+      ["a-statistics", "Assay 9 - Statistical Analysis", "notebook", "wf-mock-statistical-analysis"],
+      ["a-visualise", "Assay: Image visualisation", "gui", "wf-volview"],
     ]);
-    const planned = study.assays.flatMap(a => a.inputs.flatMap(i =>
-      i.source?.kind === "planned" ? [`${i.source.assayId}/${i.source.port} -> ${a.id}/${i.port}`] : []));
-    expect(planned).toEqual([
+    expect(planned(study)).toEqual([
       "a-cohort/curated_dataset -> a-convert/dicom_input",
-      "a-convert/nifti_output -> a-visualise/dicom_file",
+      "a-convert/nifti_output -> a-initial-inference/mri_nifti",
       "a-convert/nrrd_output -> a-breast-app/contrast_pre_nrrd",
+      "a-initial-inference/lesion_inference_nifti -> a-breast-app/model_predicted_LPS_nii",
+      "a-breast-app/clinician_validated_nii_LPS -> a-finetune/clinician_validated_masks",
+      "a-convert/nifti_output -> a-inference/mri_nifti",
+      "a-finetune/finetuned_models -> a-inference/skin_model",
+      "a-finetune/finetuned_models -> a-inference/outer_rib_model",
+      "a-finetune/finetuned_models -> a-inference/sternum_model",
+      "a-finetune/finetuned_models -> a-inference/lesion_model",
+      "a-inference/skin_inference_nifti -> a-breast-model/skin_inference_nifti",
+      "a-inference/outer_rib_inference_nifti -> a-breast-model/outer_rib_inference_nifti",
+      "a-inference/sternum_inference_nifti -> a-breast-model/sternum_inference_nifti",
+      "a-convert/nrrd_output -> a-lesion-report/contrast_pre_nrrd",
+      "a-inference/lesion_inference_nifti -> a-lesion-report/model_predicted_LPS_nii",
+      "a-breast-model/breast_mesh -> a-lesion-report/breast_surface_glb",
+      "a-lesion-report/mask_meta_json -> a-statistics/lesion_position_reports",
+    ]);
+    const visualise = study.assays.find(a => a.id === "a-visualise")!;
+    expect(visualise.inputs).toEqual([{ port: "dicom_file", source: { kind: "existing", datasetId: "ds-converted" } }]);
+    expect(study.assays.some(a => a.inputs.some(i => i.source?.kind === "planned" && i.source.assayId === "a-visualise")))
+      .toBe(false);
+  });
+
+  it("keeps the original four assays and their flow in the Image pipeline test study", async () => {
+    const study = (await fixtureSource.loadExample("example-breast-pilot")).investigations[0].studies[1];
+    expect(study.assays.map(a => [a.id, a.title, a.workflowId, a.cohort])).toEqual([
+      ["a-pipeline-cohort", "Assay 1: cohort selection", "wf-mri-curation", []],
+      ["a-pipeline-convert", "Assay 2: image conversion", "wf-image-conversion", [1]],
+      ["a-pipeline-visualise", "Assay 3: image visualisation", "wf-volview", [1]],
+      ["a-pipeline-breast-app", "Assay 4: breast app", "wf-lesion-curator", [1]],
+    ]);
+    expect(planned(study)).toEqual([
+      "a-pipeline-cohort/curated_dataset -> a-pipeline-convert/dicom_input",
+      "a-pipeline-convert/nifti_output -> a-pipeline-visualise/dicom_file",
+      "a-pipeline-convert/nrrd_output -> a-pipeline-breast-app/contrast_pre_nrrd",
     ]);
   });
 
@@ -40,20 +86,27 @@ describe("fixtureSource", () => {
     const study = (await fixtureSource.loadExample("example-breast-pilot")).investigations[0].studies[0];
     const names = (id: string) => [...new Set(study.assays.find(a => a.id === id)!.outputs.map(o => o.datasetName))];
     expect(names("a-convert")).toEqual(["converted"]);
+    expect(names("a-initial-inference")).toEqual(["initial_inference"]);
     expect(names("a-breast-app")).toEqual(["breast_app_output"]);
+    expect(names("a-lesion-report")).toEqual(["lesion_position_report"]);
     expect(study.assays.find(a => a.id === "a-breast-app")!.outputs).toHaveLength(12);
   });
 
-  it("catalogues the platform's real workflows, tools and test datasets", async () => {
+  it("catalogues the platform's workflows (real and mock), tools and datasets", async () => {
     const { workflows, tools, datasets } = await fixtureSource.catalogue();
     expect(workflows.map(w => w.name)).toEqual([
       "workflow_mri_curation", "workflow_image_conversion", "workflow_volview", "workflow_Lesion-Ground-Truth-Curator",
+      "workflow_mock_inference", "workflow_mock_model_finetuning", "workflow_mock_breast_model",
+      "workflow_mock_statistical_analysis",
     ]);
     expect(tools.map(t => t.name)).toEqual([
       "tool_mri_curation", "tool_dicom_to_nifti", "tool_dicom_to_nrrd", "tool_volview", "tool_Lesion-Ground-Truth-Curator",
+      "tool_mock_download_samples", "tool_mock_skin_inference", "tool_mock_outer_rib_inference",
+      "tool_mock_sternum_inference", "tool_mock_lesion_inference", "tool_mock_model_finetuning",
+      "tool_mock_point_cloud_generation", "tool_mock_mesh_fitting", "tool_mock_statistical_analysis",
     ]);
     expect(datasets.map(d => d.name)).toEqual([
-      "dicom", "curated_dataset", "converted", "data_breast_app", "model_breast_app",
+      "dicom", "curated_dataset", "converted", "data_breast_app", "model_breast_app", "pretrained_models",
     ]);
   });
 

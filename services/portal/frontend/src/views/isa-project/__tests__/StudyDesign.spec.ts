@@ -38,7 +38,7 @@ async function addUpload() {
   store.entries.push({ project, source: "upload" });
 }
 
-async function render(studyId = "s-breast-pilot", projectId = "p-breast") {
+async function render(studyId = "s-image-pipeline-test", projectId = "p-breast") {
   wrapper = mount(StudyDesign, {
     props: { projectId, studyId },
     global: { plugins: [testVuetify()], stubs: { VueFlow: VueFlowStub, RouterLink: RouterLinkStub } },
@@ -71,7 +71,7 @@ describe("StudyDesign", () => {
 
   it("shows the Flow view first, and remembers a switch to List", async () => {
     const w = await render();
-    expect(graph(w).props("study").id).toBe("s-breast-pilot");
+    expect(graph(w).props("study").id).toBe("s-image-pipeline-test");
     await w.find("[data-test=view-list]").trigger("click");
     expect(graph(w).exists()).toBe(false);
     expect(w.find("[data-test=assay-list]").exists()).toBe(true);
@@ -84,63 +84,63 @@ describe("StudyDesign", () => {
     const w = await render();
     await w.find("[data-test=view-list]").trigger("click");
     expect(w.findAllComponents(SandboxAssayCard).map(c => c.props("assay").id))
-      .toEqual(["a-cohort", "a-convert", "a-visualise", "a-breast-app"]);
+      .toEqual(["a-pipeline-cohort", "a-pipeline-convert", "a-pipeline-visualise", "a-pipeline-breast-app"]);
   });
 
   it("opens an assay's configuration in the side panel", async () => {
     const w = await render();
     expect(panel(w).exists()).toBe(false);
-    graph(w).vm.$emit("configure", "a-breast-app");
+    graph(w).vm.$emit("configure", "a-pipeline-breast-app");
     await flushPromises();
-    expect(panel(w).props("assayId")).toBe("a-breast-app");
-    expect(graph(w).props("selectedAssayId")).toBe("a-breast-app");
+    expect(panel(w).props("assayId")).toBe("a-pipeline-breast-app");
+    expect(graph(w).props("selectedAssayId")).toBe("a-pipeline-breast-app");
   });
 
   it("runs an assay from its card, and makes its outputs available only once submitted", async () => {
     await addUpload();
-    const w = await render("s-breast-pilot", "p-upload");
-    graph(w).vm.$emit("launch", "a-cohort");
+    const w = await render("s-image-pipeline-test", "p-upload");
+    graph(w).vm.$emit("launch", "a-pipeline-cohort");
     await flushPromises();
-    expect(graph(w).props("sim")).toEqual({ ran: ["a-cohort"], submitted: [] });
+    expect(graph(w).props("sim")).toEqual({ ran: ["a-pipeline-cohort"], submitted: [] });
     expect(w.text()).toContain("Ran Assay 1: cohort selection. Submit its outputs so later assays can use them.");
 
-    graph(w).vm.$emit("submit", "a-cohort");
+    graph(w).vm.$emit("submit", "a-pipeline-cohort");
     await flushPromises();
-    expect(graph(w).props("sim")).toEqual({ ran: [], submitted: ["a-cohort"] });
+    expect(graph(w).props("sim")).toEqual({ ran: [], submitted: ["a-pipeline-cohort"] });
     expect(w.text()).toContain("Submitted Assay 1: cohort selection");
 
     await w.find("[data-test=simulate]").trigger("click");
-    expect(graph(w).props("sim")).toEqual({ ran: [], submitted: ["a-cohort", "a-convert"] });
+    expect(graph(w).props("sim")).toEqual({ ran: [], submitted: ["a-pipeline-cohort", "a-pipeline-convert"] });
     expect(w.text()).toContain("Ran and submitted Assay 2: image conversion");
   });
 
   it("explains a Submit or Launch that has nothing to do", async () => {
     await addUpload();
-    const w = await render("s-breast-pilot", "p-upload");
-    graph(w).vm.$emit("submit", "a-cohort");
+    const w = await render("s-image-pipeline-test", "p-upload");
+    graph(w).vm.$emit("submit", "a-pipeline-cohort");
     await flushPromises();
     expect(w.text()).toContain("Assay 1: cohort selection has no run to submit. Launch it first.");
 
-    graph(w).vm.$emit("launch", "a-cohort");
-    graph(w).vm.$emit("launch", "a-cohort");
+    graph(w).vm.$emit("launch", "a-pipeline-cohort");
+    graph(w).vm.$emit("launch", "a-pipeline-cohort");
     await flushPromises();
     expect(w.text()).toContain("Assay 1: cohort selection has already run (simulated). Submit its outputs next.");
 
-    graph(w).vm.$emit("submit", "a-cohort");
-    graph(w).vm.$emit("launch", "a-cohort");
+    graph(w).vm.$emit("submit", "a-pipeline-cohort");
+    graph(w).vm.$emit("launch", "a-pipeline-cohort");
     await flushPromises();
     expect(w.text()).toContain("Assay 1: cohort selection is already submitted (simulated). Reset to start again.");
-    graph(w).vm.$emit("submit", "a-cohort");
+    graph(w).vm.$emit("submit", "a-pipeline-cohort");
     await flushPromises();
     expect(w.text()).toContain("Assay 1: cohort selection is already submitted (simulated).");
-    expect(graph(w).props("sim")).toEqual({ ran: [], submitted: ["a-cohort"] });
+    expect(graph(w).props("sim")).toEqual({ ran: [], submitted: ["a-pipeline-cohort"] });
   });
 
   it("says when an action isn't available for an assay", async () => {
     await addUpload();
-    const w = await render("s-breast-pilot", "p-upload");
+    const w = await render("s-image-pipeline-test", "p-upload");
     expect(w.text()).not.toMatch(/prototype|nothing runs/i);
-    graph(w).vm.$emit("verify", "a-cohort");
+    graph(w).vm.$emit("verify", "a-pipeline-cohort");
     await flushPromises();
     expect(w.text()).toContain("Verify isn't available for this assay yet.");
     expect(actions.verify).not.toHaveBeenCalled();
@@ -153,34 +153,34 @@ describe("StudyDesign", () => {
       const w = await render();
       expect(w.text()).toContain("Launch, Submit and Download run the linked platform assays");
       expect(Object.fromEntries(Object.entries(graph(w).props("platform")).map(([k, v]) => [k, (v as { seekId: string }).seekId])))
-        .toEqual({ "a-cohort": "41", "a-convert": "42", "a-visualise": "43", "a-breast-app": "45" });
+        .toEqual({ "a-pipeline-cohort": "41", "a-pipeline-convert": "42", "a-pipeline-visualise": "43", "a-pipeline-breast-app": "45" });
     });
 
     it("launches the platform assay, and counts it as run only once it started", async () => {
       const w = await render();
       run.launchPlatformAssay.mockResolvedValueOnce(false);
-      graph(w).vm.$emit("launch", "a-cohort");
+      graph(w).vm.$emit("launch", "a-pipeline-cohort");
       await flushPromises();
       expect(run.launchPlatformAssay).toHaveBeenCalledWith("41");
       expect(graph(w).props("sim")).toEqual({ ran: [], submitted: [] });
 
       run.launchPlatformAssay.mockResolvedValueOnce(true);
-      graph(w).vm.$emit("launch", "a-cohort");
+      graph(w).vm.$emit("launch", "a-pipeline-cohort");
       await flushPromises();
-      expect(graph(w).props("sim")).toEqual({ ran: ["a-cohort"], submitted: [] });
+      expect(graph(w).props("sim")).toEqual({ ran: ["a-pipeline-cohort"], submitted: [] });
       expect(w.text()).toContain("Launched Assay 1: cohort selection on the platform.");
 
       // An assay can run many times.
       run.launchPlatformAssay.mockResolvedValueOnce(true);
-      graph(w).vm.$emit("launch", "a-cohort");
+      graph(w).vm.$emit("launch", "a-pipeline-cohort");
       await flushPromises();
       expect(run.launchPlatformAssay).toHaveBeenCalledTimes(3);
-      expect(graph(w).props("sim")).toEqual({ ran: ["a-cohort"], submitted: [] });
+      expect(graph(w).props("sim")).toEqual({ ran: ["a-pipeline-cohort"], submitted: [] });
     });
 
     it("doesn't launch an assay still waiting on earlier ones", async () => {
       const w = await render();
-      graph(w).vm.$emit("launch", "a-convert");
+      graph(w).vm.$emit("launch", "a-pipeline-convert");
       await flushPromises();
       expect(run.launchPlatformAssay).not.toHaveBeenCalled();
     });
@@ -188,32 +188,32 @@ describe("StudyDesign", () => {
     it("submits the platform run, and counts it as submitted only once it worked", async () => {
       const w = await render();
       run.launchPlatformAssay.mockResolvedValue(true);
-      graph(w).vm.$emit("launch", "a-cohort");
+      graph(w).vm.$emit("launch", "a-pipeline-cohort");
       await flushPromises();
 
       run.submitPlatformAssay.mockResolvedValueOnce(false);
-      graph(w).vm.$emit("submit", "a-cohort");
+      graph(w).vm.$emit("submit", "a-pipeline-cohort");
       await flushPromises();
       expect(run.submitPlatformAssay).toHaveBeenCalledWith("41");
-      expect(graph(w).props("sim")).toEqual({ ran: ["a-cohort"], submitted: [] });
+      expect(graph(w).props("sim")).toEqual({ ran: ["a-pipeline-cohort"], submitted: [] });
 
       run.submitPlatformAssay.mockResolvedValueOnce(true);
-      graph(w).vm.$emit("submit", "a-cohort");
+      graph(w).vm.$emit("submit", "a-pipeline-cohort");
       await flushPromises();
-      expect(graph(w).props("sim")).toEqual({ ran: [], submitted: ["a-cohort"] });
+      expect(graph(w).props("sim")).toEqual({ ran: [], submitted: ["a-pipeline-cohort"] });
       expect(w.text()).toContain("Submitted Assay 1: cohort selection");
     });
 
     it("monitors, verifies and downloads the platform assay", async () => {
       const w = await render();
-      expect(graph(w).props("platform")["a-convert"].canMonitor).toBe(false);
+      expect(graph(w).props("platform")["a-pipeline-convert"].canMonitor).toBe(false);
       useDashboardCacheStore().setAssayExecute("42", "Monitor", "http://airflow/dags/workflow_116");
       await flushPromises();
-      expect(graph(w).props("platform")["a-convert"].canMonitor).toBe(true);
+      expect(graph(w).props("platform")["a-pipeline-convert"].canMonitor).toBe(true);
 
-      graph(w).vm.$emit("monitor", "a-convert");
-      graph(w).vm.$emit("verify", "a-cohort");
-      graph(w).vm.$emit("download", "a-cohort");
+      graph(w).vm.$emit("monitor", "a-pipeline-convert");
+      graph(w).vm.$emit("verify", "a-pipeline-cohort");
+      graph(w).vm.$emit("download", "a-pipeline-cohort");
       expect(actions.monitor).toHaveBeenCalledWith("42");
       expect(actions.verify).toHaveBeenCalledWith("41");
       expect(actions.download).toHaveBeenCalledWith("41");

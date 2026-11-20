@@ -24,7 +24,7 @@ describe("bundleZip", () => {
     expect(list).toContain("p-breast/datasets/ds-dicom/primary/README.txt");
     expect(list).toContain("p-breast/datasets/wf-image-conversion/dataset_description.xlsx");
     expect(list).toContain("p-breast/datasets/wf-image-conversion/primary/workflow_image_conversion.cwl");
-    expect(list.filter(p => p.endsWith("dataset_description.xlsx"))).toHaveLength(3 + 4); // 3 datasets, 4 workflows
+    expect(list.filter(p => p.endsWith("dataset_description.xlsx"))).toHaveLength(5 + 8); // 5 datasets, 8 workflows
   });
 
   it("describes each dataset in its dataset_description.xlsx", async () => {
@@ -41,7 +41,7 @@ describe("bundleZip", () => {
     const r = await readBack(await bundleZip(project, await platform()), await platform());
     expect(r.errors).toEqual([]);
     expect(r.project).toEqual(project);
-    expect(r.warnings).toHaveLength(7);
+    expect(r.warnings).toHaveLength(13);
     expect(r.warnings[0]).toMatch(/already on the platform/);
   });
 

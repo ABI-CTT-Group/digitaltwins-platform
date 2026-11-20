@@ -12,6 +12,8 @@ export interface IsaProjectEntry {
   source: "example" | "upload";
   /** The fixture an example came from, so it can be reset. */
   exampleId?: string;
+  /** Which release of that fixture this browser stored (EXAMPLE_RELEASE when it was added). */
+  exampleRelease?: number;
   /** Datasets, workflows and tools that came with the project in a bundle (not on the platform). */
   bundled?: Catalogue;
   /** A simulated approval of an upload: it creates the SEEK project and registers the bundled items. */
