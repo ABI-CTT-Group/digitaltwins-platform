@@ -3,7 +3,7 @@
 // dataset_description.xlsx and placeholders (or the workflow's CWL) to fill in. readBundle reads it back.
 import yaml from "js-yaml";
 import type { Catalogue, CatalogueWorkflow, IsaProject, Port } from "../model/types";
-import testProjectJson from "../fixtures/example-test-project.json";
+import breastPilotJson from "../fixtures/example-breast-pilot.json";
 
 const PLACEHOLDER = "Placeholder: replace it with the real one.";
 
@@ -92,12 +92,12 @@ export async function bundleZip(project: IsaProject, catalogue: Catalogue, opts:
   return zip.generateAsync({ type: "blob" });
 }
 
-/** An example to try the bundle upload with: the Test Project example, where assay 1 reads a bundled
+/** An example to try the bundle upload with: the Breast example, where assay 1 reads a bundled
  *  dataset and assay 2 runs a bundled copy of the image conversion workflow, one of whose steps runs
  *  a bundled tool. */
 export function demoBundle(platform: Catalogue): { project: IsaProject; bundled: Catalogue } {
-  const project = JSON.parse(JSON.stringify(testProjectJson)) as IsaProject;
-  project.project = { id: "p-test-project-demo", title: "Test Project (bundled demo)" };
+  const project = JSON.parse(JSON.stringify(breastPilotJson)) as IsaProject;
+  project.project = { id: "p-breast-demo", title: "Breast (bundled demo)" };
   const [first, second] = project.investigations[0].studies[0].assays;
   first.inputs[0].source = { kind: "existing", datasetId: "ds-demo-mri" };
   second.workflowId = "wf-demo-image-conversion";

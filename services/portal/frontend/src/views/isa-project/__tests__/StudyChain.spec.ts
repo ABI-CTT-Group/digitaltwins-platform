@@ -8,7 +8,7 @@ let wrapper: VueWrapper | undefined;
 afterEach(() => wrapper?.unmount());
 
 async function render(tweak: (s: Study) => void = () => {}) {
-  const study = (await fixtureSource.loadExample("example-test-project")).investigations[0].studies[0];
+  const study = (await fixtureSource.loadExample("example-breast-pilot")).investigations[0].studies[0];
   tweak(study);
   wrapper = mount(StudyChain, { props: { study } });
   return wrapper;
@@ -21,18 +21,18 @@ describe("StudyChain", () => {
   it("draws the study's assays in run order, with the fork after image conversion as one column", async () => {
     const w = await render();
     expect(columns(w)).toEqual([
-      ["Test Assay 1: cohort selection"],
-      ["Test Assay 2: image conversion"],
-      ["Test Assay 3: image visualisation", "Test Assay 4: breast app"],
+      ["Assay 1: cohort selection"],
+      ["Assay 2: image conversion"],
+      ["Assay 3: image visualisation", "Assay 4: breast app"],
     ]);
   });
 
   it("names the study and reads out the run order", async () => {
     const w = await render();
-    expect(w.find(".chain__study").text()).toBe("Test Study");
+    expect(w.find(".chain__study").text()).toBe("Te Whatu Ora Breast Pilot");
     expect(w.find("[data-test=chain]").attributes("aria-label")).toBe(
-      "Test Study runs Test Assay 1: cohort selection, then Test Assay 2: image conversion, " +
-      "then Test Assay 3: image visualisation and Test Assay 4: breast app.");
+      "Te Whatu Ora Breast Pilot runs Assay 1: cohort selection, then Assay 2: image conversion, " +
+      "then Assay 3: image visualisation and Assay 4: breast app.");
   });
 
   it("tags each assay with its type", async () => {

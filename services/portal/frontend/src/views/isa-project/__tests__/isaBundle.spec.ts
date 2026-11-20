@@ -41,7 +41,7 @@ function design(over: Partial<{ datasetId: string; workflowId: string }> = {}): 
         inputs: [{ port: "scans", source: { kind: "existing", datasetId: over.datasetId ?? "ds-scans" } }],
         outputs: [{ port: "masks", datasetName: "masks", category: "models" }] },
       { id: "a-cohort", title: "Curate", type: "notebook", workflowId: "wf-mri-curation", cohort: [],
-        inputs: [{ port: "raw_dataset", source: { kind: "existing", datasetId: "ds-test-dicom" } }],
+        inputs: [{ port: "raw_dataset", source: { kind: "existing", datasetId: "ds-dicom" } }],
         outputs: [{ port: "curated_dataset", datasetName: "curated", category: "measurements" }] },
     ] }] }],
   };
@@ -174,12 +174,12 @@ describe("readBundle", () => {
   it("warns about folders the design doesn't use, and leaves them out", async () => {
     const r = await read(bundle(design(), {
       "datasets/old-scratch/a.txt": "a",
-      "datasets/ds-test-dicom/b.txt": "b",
+      "datasets/ds-dicom/b.txt": "b",
     }));
     expect(r.errors).toEqual([]);
     expect(r.warnings).toEqual([
       "datasets/old-scratch/ isn't used by the design, so it is left out.",
-      "datasets/ds-test-dicom/ is already on the platform; the design uses the platform's copy, so this folder is left out.",
+      "datasets/ds-dicom/ is already on the platform; the design uses the platform's copy, so this folder is left out.",
     ]);
     expect(r.bundled.datasets.map(d => d.id)).toEqual(["ds-scans"]);
   });

@@ -12,7 +12,7 @@ beforeEach(() => { localStorage.clear(); setActivePinia(createPinia()); });
 
 async function render() {
   const store = useIsaProjectStore();
-  const p = await fixtureSource.loadExample("example-test-project");
+  const p = await fixtureSource.loadExample("example-breast-pilot");
   store.addBundle({ ...p, project: { id: "p-mine", title: "My study plan" } }, {
     datasets: [{ id: "ds-new", name: "ds-new", category: "measurements", bundled: { fileCount: 1, bytes: 1 } }],
     workflows: [], tools: [],

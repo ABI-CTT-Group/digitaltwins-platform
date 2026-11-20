@@ -1,4 +1,4 @@
-// Real runs for the sandbox (prototype). The Test Project example mirrors the platform's Test Project,
+// Real runs for the sandbox (prototype). The Breast example mirrors the platform's Test Project,
 // so its assays are linked to those platform assays, and Launch and Submit run them with the platform's
 // own saved configuration. Nothing here writes assay configuration.
 import { useToast } from "vue-toastification";
@@ -12,7 +12,7 @@ export interface PlatformLink { seekId: string; canMonitor: boolean; launching: 
 
 /** Example id → sandbox assay id → SEEK assay id of the platform assay it mirrors. */
 const PLATFORM_ASSAYS: Record<string, Record<string, string>> = {
-  "example-test-project": { "a-cohort": "41", "a-convert": "42", "a-visualise": "43", "a-breast-app": "45" },
+  "example-breast-pilot": { "a-cohort": "41", "a-convert": "42", "a-visualise": "43", "a-breast-app": "45" },
 };
 
 /** The platform assays a project's assays are linked to; none for uploads or unlinked examples. */

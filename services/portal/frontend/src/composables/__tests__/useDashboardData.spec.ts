@@ -21,7 +21,7 @@ describe("useDashboardData", () => {
   });
 
   it("doesn't resolve a trail into the ISA projects prototype", async () => {
-    const r = await useDashboardData().loadTrail(["isa-sandbox", "isa-sandbox:p-test-project"], all);
+    const r = await useDashboardData().loadTrail(["te-whatu-ora-radiology-reporting", "te-whatu-ora-radiology-reporting:p-breast"], all);
     expect(r.breadcrumbs).toEqual([]);
     expect(r.currentCategory).toBe("Programmes");
   });

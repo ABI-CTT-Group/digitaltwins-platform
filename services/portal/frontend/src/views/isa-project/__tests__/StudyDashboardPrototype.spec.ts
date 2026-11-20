@@ -22,29 +22,29 @@ beforeEach(() => {
 });
 
 describe("StudyDashboardPrototype", () => {
-  it("starts at the one ISA projects programme, without the API", async () => {
+  it("starts at the one Te Whatu Ora Radiology Reporting programme, without the API", async () => {
     route.query = {};
     const w = render();
     await flushPromises();
     expect(w.findComponent({ name: "DashboardHeader" }).props("rootLabel")).toBe("Study dashboard");
-    expect(w.findComponent({ name: "LevelGrid" }).props("items").map((i: { name: string }) => i.name)).toEqual(["ISA projects"]);
+    expect(w.findComponent({ name: "LevelGrid" }).props("items").map((i: { name: string }) => i.name)).toEqual(["Te Whatu Ora Radiology Reporting"]);
     expect(w.text()).not.toMatch(/prototype|kept in this browser/i);
     expect(api.useDashboardProgrammes).not.toHaveBeenCalled();
     expect(api.useDashboardCategoryChildren).not.toHaveBeenCalled();
   });
 
   it("shows a study as one study design, not assay cards", async () => {
-    route.query = { trail: "isa-sandbox,isa-sandbox:p-test-project,isa-sandbox:p-test-project:i-test,isa-sandbox:p-test-project:i-test:s-test" };
+    route.query = { trail: "te-whatu-ora-radiology-reporting,te-whatu-ora-radiology-reporting:p-breast,te-whatu-ora-radiology-reporting:p-breast:i-breast-radiology-report,te-whatu-ora-radiology-reporting:p-breast:i-breast-radiology-report:s-breast-pilot" };
     const w = render();
     await flushPromises();
-    expect(w.findComponent({ name: "StudyDesign" }).props()).toEqual({ projectId: "p-test-project", studyId: "s-test" });
+    expect(w.findComponent({ name: "StudyDesign" }).props()).toEqual({ projectId: "p-breast", studyId: "s-breast-pilot" });
     expect(w.findComponent({ name: "LevelGrid" }).exists()).toBe(false);
   });
 
   it("shortens a trail it can't resolve", async () => {
-    route.query = { trail: "isa-sandbox,isa-sandbox:gone" };
+    route.query = { trail: "te-whatu-ora-radiology-reporting,te-whatu-ora-radiology-reporting:gone" };
     render();
     await flushPromises();
-    expect(router.push).toHaveBeenCalledWith({ query: { trail: "isa-sandbox" } });
+    expect(router.push).toHaveBeenCalledWith({ query: { trail: "te-whatu-ora-radiology-reporting" } });
   });
 });

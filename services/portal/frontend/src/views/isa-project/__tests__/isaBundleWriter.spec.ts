@@ -6,7 +6,7 @@ import { bundleZip, demoBundle } from "../adapter/isaBundleWriter";
 import { fixtureSource } from "../adapter/isaProjectSource";
 import type { Catalogue, IsaProject } from "../model/types";
 
-const example = () => fixtureSource.loadExample("example-test-project");
+const example = () => fixtureSource.loadExample("example-breast-pilot");
 const platform = () => fixtureSource.catalogue();
 
 /** Read a written bundle back the way the upload dialog does. */
@@ -19,19 +19,19 @@ const paths = async (blob: Blob) => Object.keys((await JSZip.loadAsync(blob)).fi
 describe("bundleZip", () => {
   it("writes the project and an SDS skeleton for each dataset and workflow it uses", async () => {
     const list = await paths(await bundleZip(await example(), await platform()));
-    expect(list).toContain("p-test-project/isa-project.json");
-    expect(list).toContain("p-test-project/datasets/ds-test-dicom/dataset_description.xlsx");
-    expect(list).toContain("p-test-project/datasets/ds-test-dicom/primary/README.txt");
-    expect(list).toContain("p-test-project/datasets/wf-image-conversion/dataset_description.xlsx");
-    expect(list).toContain("p-test-project/datasets/wf-image-conversion/primary/workflow_image_conversion.cwl");
+    expect(list).toContain("p-breast/isa-project.json");
+    expect(list).toContain("p-breast/datasets/ds-dicom/dataset_description.xlsx");
+    expect(list).toContain("p-breast/datasets/ds-dicom/primary/README.txt");
+    expect(list).toContain("p-breast/datasets/wf-image-conversion/dataset_description.xlsx");
+    expect(list).toContain("p-breast/datasets/wf-image-conversion/primary/workflow_image_conversion.cwl");
     expect(list.filter(p => p.endsWith("dataset_description.xlsx"))).toHaveLength(3 + 4); // 3 datasets, 4 workflows
   });
 
   it("describes each dataset in its dataset_description.xlsx", async () => {
     const zip = await JSZip.loadAsync(await bundleZip(await example(), await platform()));
-    const book = XLSX.read(await zip.file("p-test-project/datasets/ds-test-dicom/dataset_description.xlsx")!.async("uint8array"));
+    const book = XLSX.read(await zip.file("p-breast/datasets/ds-dicom/dataset_description.xlsx")!.async("uint8array"));
     const rows = XLSX.utils.sheet_to_json<string[]>(book.Sheets[book.SheetNames[0]], { header: 1 });
-    expect(rows).toContainEqual(["Title", "test_dicom"]);
+    expect(rows).toContainEqual(["Title", "dicom"]);
     expect(rows).toContainEqual(["Type", "measurements"]);
     expect(rows).toContainEqual(["Description", "Placeholder: replace it with the real one."]);
   });
@@ -63,7 +63,7 @@ describe("demoBundle", () => {
   it("is the Test Project with one bundled dataset, workflow and tool", async () => {
     const catalogue = await platform();
     const { project, bundled } = demoBundle(catalogue);
-    expect(project.project).toEqual({ id: "p-test-project-demo", title: "Test Project (bundled demo)" });
+    expect(project.project).toEqual({ id: "p-breast-demo", title: "Breast (bundled demo)" });
     const assays = project.investigations[0].studies[0].assays;
     expect(assays[0].inputs[0].source).toEqual({ kind: "existing", datasetId: "ds-demo-mri" });
     expect(assays[1].workflowId).toBe("wf-demo-image-conversion");
@@ -78,7 +78,7 @@ describe("demoBundle", () => {
       .toEqual(["ds-demo-mri", "wf-demo-image-conversion"]);
     const r = await readBack(blob, catalogue);
     expect([r.errors, r.warnings]).toEqual([[], []]);
-    expect(r.project?.project.id).toBe("p-test-project-demo");
+    expect(r.project?.project.id).toBe("p-breast-demo");
   });
 
   it("leaves the example it copies untouched", async () => {

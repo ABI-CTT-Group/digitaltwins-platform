@@ -26,14 +26,14 @@ beforeEach(() => {
 
 describe("platformAssayIds", () => {
   it("links the Test Project example's assays to the platform's Test Project assays", () => {
-    expect(platformAssayIds(entry({ exampleId: "example-test-project" }))).toEqual({
+    expect(platformAssayIds(entry({ exampleId: "example-breast-pilot" }))).toEqual({
       "a-cohort": "41", "a-convert": "42", "a-visualise": "43", "a-breast-app": "45",
     });
   });
 
   it("links nothing else", () => {
     expect(platformAssayIds(entry({ source: "upload" }))).toEqual({});
-    expect(platformAssayIds(entry({ source: "upload", exampleId: "example-test-project" }))).toEqual({});
+    expect(platformAssayIds(entry({ source: "upload", exampleId: "example-breast-pilot" }))).toEqual({});
     expect(platformAssayIds(entry({ exampleId: "another-example" }))).toEqual({});
     expect(platformAssayIds(undefined)).toEqual({});
   });

@@ -3,17 +3,29 @@ import { fixtureSource, IsaProjectUploadError } from "../adapter/isaProjectSourc
 import { validateIsaProject } from "../model/isaProject";
 
 describe("fixtureSource", () => {
+  it("ships the Te Whatu Ora breast pilot example, with no \"test\" anywhere it shows", async () => {
+    expect(await fixtureSource.listExamples()).toEqual([{ id: "example-breast-pilot", title: "Breast" }]);
+    const example = await fixtureSource.loadExample("example-breast-pilot");
+    expect(example.project.id).toBe("p-breast");
+    const inv = example.investigations[0];
+    expect([inv.id, inv.title]).toEqual(["i-breast-radiology-report", "Breast Radiology Report"]);
+    expect([inv.studies[0].id, inv.studies[0].title]).toEqual(["s-breast-pilot", "Te Whatu Ora Breast Pilot"]);
+    expect(JSON.stringify(example)).not.toMatch(/test/i);
+    const { datasets } = await fixtureSource.catalogue();
+    expect(JSON.stringify(datasets)).not.toMatch(/test/i);
+  });
+
   it("ships one example, mirroring the platform's Test Project", async () => {
-    expect(await fixtureSource.listExamples()).toEqual([{ id: "example-test-project", title: "Test Project (example)" }]);
+    expect(await fixtureSource.listExamples()).toEqual([{ id: "example-breast-pilot", title: "Breast" }]);
   });
 
   it("wires the example as the Test Project runs: 1 -> 2 -> 3, and 2 -> 4", async () => {
-    const study = (await fixtureSource.loadExample("example-test-project")).investigations[0].studies[0];
+    const study = (await fixtureSource.loadExample("example-breast-pilot")).investigations[0].studies[0];
     expect(study.assays.map(a => [a.id, a.title, a.workflowId, a.cohort])).toEqual([
-      ["a-cohort", "Test Assay 1: cohort selection", "wf-mri-curation", []],
-      ["a-convert", "Test Assay 2: image conversion", "wf-image-conversion", [1]],
-      ["a-visualise", "Test Assay 3: image visualisation", "wf-volview", [1]],
-      ["a-breast-app", "Test Assay 4: breast app", "wf-lesion-curator", [1]],
+      ["a-cohort", "Assay 1: cohort selection", "wf-mri-curation", []],
+      ["a-convert", "Assay 2: image conversion", "wf-image-conversion", [1]],
+      ["a-visualise", "Assay 3: image visualisation", "wf-volview", [1]],
+      ["a-breast-app", "Assay 4: breast app", "wf-lesion-curator", [1]],
     ]);
     const planned = study.assays.flatMap(a => a.inputs.flatMap(i =>
       i.source?.kind === "planned" ? [`${i.source.assayId}/${i.source.port} -> ${a.id}/${i.port}`] : []));
@@ -25,10 +37,10 @@ describe("fixtureSource", () => {
   });
 
   it("lets several outputs of one assay promise the same dataset, as the platform does", async () => {
-    const study = (await fixtureSource.loadExample("example-test-project")).investigations[0].studies[0];
+    const study = (await fixtureSource.loadExample("example-breast-pilot")).investigations[0].studies[0];
     const names = (id: string) => [...new Set(study.assays.find(a => a.id === id)!.outputs.map(o => o.datasetName))];
-    expect(names("a-convert")).toEqual(["test_converted"]);
-    expect(names("a-breast-app")).toEqual(["test_breast_app_output"]);
+    expect(names("a-convert")).toEqual(["converted"]);
+    expect(names("a-breast-app")).toEqual(["breast_app_output"]);
     expect(study.assays.find(a => a.id === "a-breast-app")!.outputs).toHaveLength(12);
   });
 
@@ -41,7 +53,7 @@ describe("fixtureSource", () => {
       "tool_mri_curation", "tool_dicom_to_nifti", "tool_dicom_to_nrrd", "tool_volview", "tool_Lesion-Ground-Truth-Curator",
     ]);
     expect(datasets.map(d => d.name)).toEqual([
-      "test_dicom", "test_curated_dataset", "test_converted", "test_data_breast_app", "test_model_breast_app",
+      "dicom", "curated_dataset", "converted", "data_breast_app", "model_breast_app",
     ]);
   });
 

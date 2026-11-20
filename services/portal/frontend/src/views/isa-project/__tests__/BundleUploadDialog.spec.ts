@@ -28,7 +28,7 @@ const file = (path: string, text: string) =>
 
 /** The example project, with its first assay reading a new dataset that the bundle brings. */
 async function bundle(datasetFolder = "ds-new-scans") {
-  const p = await fixtureSource.loadExample("example-test-project");
+  const p = await fixtureSource.loadExample("example-breast-pilot");
   p.project = { id: "p-bundled", title: "Bundled plan" };
   p.investigations[0].studies[0].assays[0].inputs[0].source = { kind: "existing", datasetId: "ds-new-scans" };
   const files = [
@@ -67,7 +67,7 @@ describe("BundleUploadDialog", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toContain("ds-new-scans");
     expect(rows[0]).toContain("measurements, 2 files, 4 B");
-    expect(rows[0]).toContain("Test Assay 1: cohort selection");
+    expect(rows[0]).toContain("Assay 1: cohort selection");
     expect(body().querySelector("[data-test=bundle-on-platform]")!.textContent).toContain("2 datasets, 4 workflows");
     expect(addButton().disabled).toBe(false);
   });

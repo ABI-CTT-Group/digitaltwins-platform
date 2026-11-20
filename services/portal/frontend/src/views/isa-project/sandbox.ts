@@ -1,11 +1,11 @@
-// The "ISA projects" programme of the Study dashboard (prototype). It turns the ISA projects in the
+// The "Te Whatu Ora Radiology Reporting" programme of the Study dashboard (prototype). It turns the ISA projects in the
 // browser's store into dashboard items, so the dashboard's drill-down parts can show them without the
-// API. Sandbox ids are "isa-sandbox[:project[:investigation[:study[:assay]]]]".
+// API. Sandbox ids are "te-whatu-ora-radiology-reporting[:project[:investigation[:study[:assay]]]]".
 import type { DashboardCategory } from "@/models/types";
 import { BREADCRUMB_ORDER, type ResolvedLevel } from "@/composables/useDashboardData";
 import type { Catalogue, IsaProject } from "./model/types";
 
-export const SANDBOX_ID = "isa-sandbox";
+export const SANDBOX_ID = "te-whatu-ora-radiology-reporting";
 
 export interface IsaProjectEntry {
   project: IsaProject;
@@ -18,17 +18,16 @@ export interface IsaProjectEntry {
   approval?: { state: "approving"; stage: string } | { state: "approved" };
 }
 
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
 export const isSandboxId = (id: string) => id === SANDBOX_ID || id.startsWith(`${SANDBOX_ID}:`);
 
-export function sandboxProgramme(): DashboardCategory {
+export function sandboxProgramme(entries: IsaProjectEntry[]): DashboardCategory {
   return {
     seekId: SANDBOX_ID,
-    name: "ISA projects",
+    name: "Te Whatu Ora Radiology Reporting",
     category: "Programmes",
-    description:
-      "Plan every assay of a study before anything runs. Pick inputs that earlier assays will produce, " +
-      "and see which tools each workflow uses. Holds example and uploaded ISA projects; nothing here is " +
-      "saved to the platform.",
+    description: plural(entries.length, "project"),
   };
 }
 
@@ -40,25 +39,17 @@ export function parseSandboxId(id: string): { projectId?: string; investigationI
   );
 }
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-
 /** Children of a sandbox node, in the shape the dashboard's data layer returns. */
 export function sandboxChildren(parentId: string, parentCategory: string, entries: IsaProjectEntry[]): DashboardCategory[] {
   const ids = parseSandboxId(parentId);
   if (!ids) return [];
   if (parentCategory === "Programmes") {
-    return entries.map(({ project, source }) => {
-      const studies = project.investigations.flatMap(i => i.studies);
-      const assays = studies.flatMap(s => s.assays);
-      return {
-        seekId: `${SANDBOX_ID}:${project.project.id}`,
-        name: project.project.title,
-        category: "Projects",
-        description: `${source === "example" ? "Example" : "Uploaded"} ISA project: ` +
-          `${plural(project.investigations.length, "investigation")}, ${plural(studies.length, "study", "studies")}, ` +
-          `${plural(assays.length, "assay")}.`,
-      };
-    });
+    return entries.map(({ project }) => ({
+      seekId: `${SANDBOX_ID}:${project.project.id}`,
+      name: project.project.title,
+      category: "Projects",
+      description: plural(project.investigations.length, "investigation"),
+    }));
   }
   const project = entries.find(e => e.project.project.id === ids.projectId)?.project;
   if (!project) return [];
@@ -85,7 +76,7 @@ export function sandboxChildren(parentId: string, parentCategory: string, entrie
 
 /** The level at the end of a trail of sandbox ids. Stops at an id it can't find, like the real dashboard. */
 export function resolveSandboxTrail(trail: string[], entries: IsaProjectEntry[]): ResolvedLevel {
-  let items = [sandboxProgramme()];
+  let items = [sandboxProgramme(entries)];
   const breadcrumbs: ResolvedLevel["breadcrumbs"] = [];
   for (const [depth, seekId] of trail.entries()) {
     const node = items.find(item => item.seekId === seekId);

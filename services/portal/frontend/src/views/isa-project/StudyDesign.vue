@@ -118,7 +118,7 @@ const message = ref("");
 
 const study = computed(() => store.study(props.projectId, props.studyId));
 
-// Real runs: the Test Project example's assays run their linked platform assays.
+// Real runs: the Breast example's assays run their linked platform assays.
 const actions = useAssayActions();
 const dashboardCache = useDashboardCacheStore();
 const platformIds = computed(() => platformAssayIds(store.entries.find(e => e.project.project.id === props.projectId)));

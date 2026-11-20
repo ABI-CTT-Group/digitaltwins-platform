@@ -24,7 +24,7 @@ async function render() {
 }
 
 const rows = (w: VueWrapper) => w.findAll("[data-test=isa-row]");
-const row = (w: VueWrapper, title: string) => rows(w).find(r => r.text().includes(title))!;
+const row = (w: VueWrapper, title: string) => rows(w).find(r => r.find(".row__title").text() === title)!;
 
 async function uploadFile(w: VueWrapper, text: string) {
   const input = w.find("input[type=file]");
@@ -36,7 +36,7 @@ async function uploadFile(w: VueWrapper, text: string) {
 }
 
 const mine = async () => {
-  const p = await fixtureSource.loadExample("example-test-project");
+  const p = await fixtureSource.loadExample("example-breast-pilot");
   return JSON.stringify({ ...p, project: { id: "p-mine", title: "My study plan" } });
 };
 
@@ -44,15 +44,15 @@ describe("IsaProjectHub", () => {
   it("lists the example ISA projects with what they hold", async () => {
     const w = await render();
     expect(rows(w)).toHaveLength(1);
-    expect(row(w, "Test Project (example)").text()).toContain("Example");
-    expect(row(w, "Test Project (example)").text()).toContain("1 investigation, 1 study, 4 assays");
+    expect(row(w, "Breast").text()).toContain("Example");
+    expect(row(w, "Breast").text()).toContain("1 investigation, 1 study, 4 assays");
   });
 
   it("previews each study's chain of assays", async () => {
     const w = await render();
     const chains = w.findAllComponents(StudyChain);
-    expect(chains.map(c => c.props("study").title)).toEqual(["Test Study"]);
-    expect(row(w, "Test Project").find("[data-test=chain]").exists()).toBe(true);
+    expect(chains.map(c => c.props("study").title)).toEqual(["Te Whatu Ora Breast Pilot"]);
+    expect(row(w, "Breast").find("[data-test=chain]").exists()).toBe(true);
   });
 
   it("never says prototype", async () => {
@@ -63,8 +63,8 @@ describe("IsaProjectHub", () => {
 
   it("opens a project in the study dashboard (prototype)", async () => {
     const w = await render();
-    await row(w, "Test Project").find("[data-test=open]").trigger("click");
-    expect(push).toHaveBeenCalledWith({ name: "StudyDashboardPrototype", query: { trail: "isa-sandbox,isa-sandbox:p-test-project" } });
+    await row(w, "Breast").find("[data-test=open]").trigger("click");
+    expect(push).toHaveBeenCalledWith({ name: "StudyDashboardPrototype", query: { trail: "te-whatu-ora-radiology-reporting,te-whatu-ora-radiology-reporting:p-breast" } });
   });
 
   it("adds an uploaded project to the list", async () => {
@@ -91,8 +91,8 @@ describe("IsaProjectHub", () => {
   it("offers Remove for uploads and Reset for examples, each after asking", async () => {
     const w = await render();
     await uploadFile(w, await mine());
-    expect(row(w, "Test Project").find("[data-test=remove]").exists()).toBe(false);
-    expect(row(w, "Test Project").find("[data-test=reset]").exists()).toBe(true);
+    expect(row(w, "Breast").find("[data-test=remove]").exists()).toBe(false);
+    expect(row(w, "Breast").find("[data-test=reset]").exists()).toBe(true);
 
     await row(w, "My study plan").find("[data-test=remove]").trigger("click");
     const dialog = w.findComponent({ name: "ConfirmDialog" });
@@ -131,7 +131,7 @@ describe("IsaProjectHub", () => {
   it("offers Approve for uploads, not for examples, saying what it will do", async () => {
     const w = await render();
     await uploadFile(w, await mine());
-    expect(row(w, "Test Project").find("[data-test=approve]").exists()).toBe(false);
+    expect(row(w, "Breast").find("[data-test=approve]").exists()).toBe(false);
     expect(row(w, "My study plan").find("[data-test=approval]").text())
       .toBe("Not in the platform yet. Approve it to create its SEEK project.");
     await row(w, "My study plan").find("[data-test=approve]").trigger("click");
@@ -173,12 +173,12 @@ describe("IsaProjectHub", () => {
     const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {}); // jsdom can't navigate
     const w = await render();
-    await row(w, "Test Project").find("[data-test=download-bundle]").trigger("click");
+    await row(w, "Breast").find("[data-test=download-bundle]").trigger("click");
     await vi.waitFor(() => expect(created).toHaveLength(1));
     const { default: JSZip } = await import("jszip");
     const zip = await JSZip.loadAsync(created[0]);
-    expect(zip.file("p-test-project/isa-project.json")).not.toBeNull();
-    expect(zip.file("p-test-project/datasets/ds-test-dicom/dataset_description.xlsx")).not.toBeNull();
+    expect(zip.file("p-breast/isa-project.json")).not.toBeNull();
+    expect(zip.file("p-breast/datasets/ds-dicom/dataset_description.xlsx")).not.toBeNull();
     create.mockRestore();
     revoke.mockRestore();
     click.mockRestore();

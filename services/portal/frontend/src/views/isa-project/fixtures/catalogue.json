@@ -458,28 +458,28 @@
   ],
   "datasets": [
     {
-      "id": "ds-test-dicom",
-      "name": "test_dicom",
+      "id": "ds-dicom",
+      "name": "dicom",
       "category": "measurements"
     },
     {
-      "id": "ds-test-curated-dataset",
-      "name": "test_curated_dataset",
+      "id": "ds-curated-dataset",
+      "name": "curated_dataset",
       "category": "measurements"
     },
     {
-      "id": "ds-test-converted",
-      "name": "test_converted",
+      "id": "ds-converted",
+      "name": "converted",
       "category": "measurements"
     },
     {
-      "id": "ds-test-data-breast-app",
-      "name": "test_data_breast_app",
+      "id": "ds-data-breast-app",
+      "name": "data_breast_app",
       "category": "measurements"
     },
     {
-      "id": "ds-test-model-breast-app",
-      "name": "test_model_breast_app",
+      "id": "ds-model-breast-app",
+      "name": "model_breast_app",
       "category": "measurements"
     }
   ]

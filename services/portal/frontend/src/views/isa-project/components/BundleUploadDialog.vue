@@ -18,7 +18,7 @@
         <p class="bundle__hint">Each folder is matched to a <code>datasets/&lt;id&gt;/</code> the JSON names. Only file names and sizes are kept in this browser, not the files.</p>
         <p class="bundle__hint">
           <button type="button" class="bundle__link" data-test="bundle-example" @click="downloadExample">Download an example bundle</button>
-          to try it: the Test Project with one bundled dataset, workflow and tool, with placeholder files.
+          to try it: the Breast project with one bundled dataset, workflow and tool, with placeholder files.
         </p>
         <LocalFolderDropzone :key="attempt" @source-selected="onSource" />
         <p v-if="reading" class="bundle__hint" aria-live="polite">Reading the bundle…</p>

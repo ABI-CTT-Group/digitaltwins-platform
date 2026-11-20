@@ -70,7 +70,7 @@
 
 <script setup lang="ts">
 // The catalogue's ISA project hub (prototype): upload draft-schema JSON files and list them. Each
-// one appears in the Study dashboard (prototype) under the "ISA projects" programme.
+// one appears in the Study dashboard (prototype) under the "Te Whatu Ora Radiology Reporting" programme.
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import HubShell from "@/views/upload-dataset/components/HubShell.vue";
