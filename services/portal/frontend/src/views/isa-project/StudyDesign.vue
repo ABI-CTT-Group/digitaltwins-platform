@@ -9,6 +9,14 @@
           Flow
         </button>
       </div>
+      <div v-if="view === 'flow'" class="views" role="group" aria-label="Flow direction">
+        <button type="button" data-test="dir-tb" :aria-pressed="direction === 'TB'" :class="{ on: direction === 'TB' }" @click="setDirection('TB')">
+          <v-icon icon="mdi-arrow-down" size="16" />Top to bottom
+        </button>
+        <button type="button" data-test="dir-lr" :aria-pressed="direction === 'LR'" :class="{ on: direction === 'LR' }" @click="setDirection('LR')">
+          <v-icon icon="mdi-arrow-right" size="16" />Left to right
+        </button>
+      </div>
       <div class="toolbar__run">
         <span class="toolbar__msg" aria-live="polite">{{ message }}</span>
         <v-btn size="small" variant="tonal" prepend-icon="mdi-play-outline" data-test="simulate" :disabled="!canStep" @click="simulateStep">
@@ -30,6 +38,7 @@
       :sim="run"
       :selected-assay-id="assayId"
       :platform="platform"
+      :direction="direction"
       @configure="configure"
       @launch="launch"
       @submit="submit"
@@ -154,16 +163,27 @@ const run = computed<Sim>(() => ({ ...sim.value, available: available.value }));
 const projectCatalogue = computed(() => catalogue.value && withBundled(withBundled(catalogue.value, store.registered),
   store.entries.find(e => e.project.project.id === props.projectId)?.bundled));
 
-// The chosen view is a per-browser convenience; storage may be unavailable.
+// The chosen view and flow direction are per-browser conveniences; storage may be unavailable.
+// The view's key is new so that every browser opens once on the Flow view, top to bottom.
 type View = "list" | "flow";
-const VIEW_KEY = "isa-study-design-view";
-const readView = (): View => {
-  try { return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "flow"; } catch { return "flow"; }
+type Direction = "TB" | "LR";
+const VIEW_KEY = "isa-study-design-view-v2";
+const DIRECTION_KEY = "isa-study-design-direction";
+const read = (key: string): string | null => {
+  try { return localStorage.getItem(key); } catch { return null; }
 };
-const view = ref<View>(readView());
+const remember = (key: string, value: string) => {
+  try { localStorage.setItem(key, value); } catch { /* not remembered */ }
+};
+const view = ref<View>(read(VIEW_KEY) === "list" ? "list" : "flow");
+const direction = ref<Direction>(read(DIRECTION_KEY) === "LR" ? "LR" : "TB");
 function setView(v: View) {
   view.value = v;
-  try { localStorage.setItem(VIEW_KEY, v); } catch { /* not remembered */ }
+  remember(VIEW_KEY, v);
+}
+function setDirection(d: Direction) {
+  direction.value = d;
+  remember(DIRECTION_KEY, d);
 }
 
 onMounted(async () => {
@@ -265,13 +285,16 @@ const canStep = computed(() => !!study.value && simulateRunStep(study.value, sim
 .design { display: flex; flex-direction: column; gap: 14px; font-family: var(--font-ui); color: var(--text); }
 .design__note { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 0.84rem; color: var(--tone-needs); }
 
-.toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
-.toolbar__run { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.toolbar__run { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
 .toolbar__msg { font-size: 0.82rem; color: var(--text-dim); }
 
-/* List | Flow: one segmented control, the active view filled. */
+/* List | Flow, and the flow direction: segmented controls, the active choice filled. */
 .views { display: inline-flex; padding: 4px; gap: 4px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); }
 .views button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 7px 16px;
   border-radius: 9px;
   border: 0;

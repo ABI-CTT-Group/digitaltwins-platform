@@ -20,13 +20,13 @@ const VueFlowStub = defineComponent({
     h("div", (props.nodes as FlowNode[]).map(n => h("div", { key: n.id }, slots[`node-${n.type}`]?.({ id: n.id, data: n.data })))),
 });
 
-async function render(sim: Sim = emptySim(), selectedAssayId: string | null = null, bundledDataset?: string, platform?: Record<string, PlatformLink>) {
+async function render(sim: Sim = emptySim(), selectedAssayId: string | null = null, bundledDataset?: string, platform?: Record<string, PlatformLink>, direction: "TB" | "LR" = "LR") {
   const catalogue = await fixtureSource.catalogue();
   const bundled = catalogue.datasets.find(d => d.id === bundledDataset);
   if (bundled) bundled.bundled = { fileCount: 1, bytes: 1 };
   const study = (await fixtureSource.loadExample("example-breast-pilot")).investigations[0].studies[1];
   return mount(StudyGraph, {
-    props: { study, catalogue, sim, selectedAssayId, platform },
+    props: { study, catalogue, sim, selectedAssayId, platform, direction },
     global: { plugins: [testVuetify()], stubs: { VueFlow: VueFlowStub, Handle: true } },
   });
 }
@@ -69,6 +69,37 @@ describe("StudyGraph", () => {
     }
     expect(at("existing:ds-model-breast-app").y).toBeGreaterThan(at("existing:ds-data-breast-app").y);
     expect(at("assay:a-pipeline-convert").y).toBe(at("assay:a-pipeline-cohort").y); // the datasets don't push the assay off centre
+  });
+
+  it("lays the study out top to bottom, each producer above its consumers, with the fork in one row", async () => {
+    const n = nodes(await render(emptySim(), null, undefined, undefined, "TB"));
+    const y = (id: string) => n.find(m => m.id === id)!.position.y;
+    expect(y("existing:ds-dicom")).toBeLessThan(y("assay:a-pipeline-cohort"));
+    expect(y("assay:a-pipeline-cohort")).toBeLessThan(y("assay:a-pipeline-convert"));
+    expect(y("assay:a-pipeline-convert")).toBeLessThan(y("assay:a-pipeline-visualise"));
+    expect(y("assay:a-pipeline-visualise")).toBe(y("assay:a-pipeline-breast-app"));
+  });
+
+  it("top to bottom, puts a platform dataset just above the assay that reads it", async () => {
+    const n = nodes(await render(emptySim(), null, undefined, undefined, "TB"));
+    const at = (id: string) => n.find(m => m.id === id)!.position;
+    expect(at("existing:ds-dicom").y).toBeLessThan(at("assay:a-pipeline-cohort").y);
+    expect(at("existing:ds-dicom").y).toBeGreaterThan(at("assay:a-pipeline-cohort").y - 150);
+    expect(at("existing:ds-dicom").x).toBeGreaterThan(at("assay:a-pipeline-cohort").x);
+    expect(at("existing:ds-dicom").x).toBeLessThan(at("assay:a-pipeline-cohort").x + 330);
+  });
+
+  it("top to bottom, puts the breast app's platform datasets side by side above it, clear of its incoming label", async () => {
+    const n = nodes(await render(emptySim(), null, undefined, undefined, "TB"));
+    const at = (id: string) => n.find(m => m.id === id)!.position;
+    const app = at("assay:a-pipeline-breast-app");
+    for (const id of ["existing:ds-data-breast-app", "existing:ds-model-breast-app"]) {
+      expect(at(id).y).toBeLessThan(app.y);
+      expect(at(id).y).toBeGreaterThan(at("assay:a-pipeline-convert").y + 200); // clear of the convert card
+      expect(at(id).x).toBeGreaterThan(app.x + 165); // right of the card's centre, where the edge label sits
+    }
+    expect(at("existing:ds-model-breast-app").x).toBeGreaterThan(at("existing:ds-data-breast-app").x + 200);
+    expect(at("assay:a-pipeline-convert").x).toBe(at("assay:a-pipeline-cohort").x); // the datasets don't push the assay off centre
   });
 
   it("labels each edge with the datasets it carries, dashed until they exist", async () => {

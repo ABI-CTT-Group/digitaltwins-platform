@@ -69,6 +69,31 @@ describe("StudyDesign", () => {
     expect(graph(w).props("catalogue").datasets.map((d: { id: string }) => d.id)).toContain("ds-new");
   });
 
+  it("opens on the Flow view, top to bottom, even where the List view was chosen before", async () => {
+    localStorage.setItem("isa-study-design-view", "list");
+    const w = await render();
+    expect(graph(w).exists()).toBe(true);
+    expect(graph(w).props("direction")).toBe("TB");
+    expect(w.find("[data-test=dir-tb]").attributes("aria-pressed")).toBe("true");
+  });
+
+  it("switches the flow to left to right, and remembers it", async () => {
+    const w = await render();
+    await w.find("[data-test=dir-lr]").trigger("click");
+    expect(graph(w).props("direction")).toBe("LR");
+    expect(w.find("[data-test=dir-lr]").attributes("aria-pressed")).toBe("true");
+
+    w.unmount();
+    expect(graph(await render()).props("direction")).toBe("LR");
+  });
+
+  it("offers the flow direction only in the Flow view", async () => {
+    const w = await render();
+    await w.find("[data-test=view-list]").trigger("click");
+    expect(w.find("[data-test=dir-tb]").exists()).toBe(false);
+    expect(w.find("[data-test=dir-lr]").exists()).toBe(false);
+  });
+
   it("shows the Flow view first, and remembers a switch to List", async () => {
     const w = await render();
     expect(graph(w).props("study").id).toBe("s-image-pipeline-test");
