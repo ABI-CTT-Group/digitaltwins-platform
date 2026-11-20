@@ -8,5 +8,5 @@
 - [x] 4. StudyDesign direction toggle, new storage keys (tests green)
 - [x] 5. `make test-frontend`, `make lint`, `make docs-check`
 - [x] 6. Rebuild `portal-frontend`; verify in the browser (screenshots)
-- [ ] Sync plans to docs/plans/
-- [ ] 7. Commit (on explicit ask)
+- [x] Sync plans to docs/plans/
+- [x] 7. Commit (on explicit ask)
