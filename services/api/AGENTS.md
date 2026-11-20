@@ -44,8 +44,9 @@ The code map, connections and config are in [README.md](README.md#developing-thi
   pointed at it), `minio_bucket`, `s3`, and `tool_bucket`, all in `tests/conftest.py`.
   A test that uses one must carry `@pytest.mark.integration`, or collection fails. `make test-api`
   deselects those tests and runs the rest offline.
-- `make test-api` mounts this folder and `services/postgres` only. A test that needs another file
-  from the repo won't find it there.
+- `make test-api` mounts this folder, `services/postgres` and `examples/workflow` (read-only, for
+  `tests/test_example_workflows.py`) only. A test that needs another file from the repo won't find it
+  there.
 
 ## Domain rules that bite
 

@@ -45,6 +45,7 @@ test-api: cache-dirs
 	$(RUN) -v $(CURDIR)/services/api:/w:ro -w /w $(PY311_IMAGE) sh -c \
 	  'uv venv -q --allow-existing /cache/api/venv && uv pip install -q --python /cache/api/venv -r requirements-test.txt'
 	$(RUN) $(OFFLINE) -v $(CURDIR)/services/api:/w/services/api -v $(CURDIR)/services/postgres:/w/services/postgres:ro \
+	  -v $(CURDIR)/examples/workflow:/w/examples/workflow:ro \
 	  -w /w/services/api $(PY311_IMAGE) \
 	  /cache/api/venv/bin/python -m pytest -m "not integration" -p no:cacheprovider $(PYTEST_ARGS)
 
