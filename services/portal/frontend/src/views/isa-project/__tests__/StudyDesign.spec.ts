@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { defineComponent, h, ref } from "vue";
 import { testVuetify } from "@/testing/vuetify";
 
-const run = vi.hoisted(() => ({ launchPlatformAssay: vi.fn(), submitPlatformAssay: vi.fn() }));
+const run = vi.hoisted(() => ({ launchPlatformAssay: vi.fn(), submitPlatformAssay: vi.fn(), platformInputsExist: vi.fn() }));
 vi.mock("../platformRun", async importOriginal => ({ ...(await importOriginal<object>()), ...run }));
 const actions = vi.hoisted(() => ({ monitor: vi.fn(), verify: vi.fn(), download: vi.fn() }));
 vi.mock("@/composables/useAssayActions", () => ({
@@ -101,16 +101,16 @@ describe("StudyDesign", () => {
     const w = await render("s-image-pipeline-test", "p-upload");
     graph(w).vm.$emit("launch", "a-pipeline-cohort");
     await flushPromises();
-    expect(graph(w).props("sim")).toEqual({ ran: ["a-pipeline-cohort"], submitted: [] });
+    expect(graph(w).props("sim")).toMatchObject({ ran: ["a-pipeline-cohort"], submitted: [] });
     expect(w.text()).toContain("Ran Assay 1: cohort selection. Submit its outputs so later assays can use them.");
 
     graph(w).vm.$emit("submit", "a-pipeline-cohort");
     await flushPromises();
-    expect(graph(w).props("sim")).toEqual({ ran: [], submitted: ["a-pipeline-cohort"] });
+    expect(graph(w).props("sim")).toMatchObject({ ran: [], submitted: ["a-pipeline-cohort"] });
     expect(w.text()).toContain("Submitted Assay 1: cohort selection");
 
     await w.find("[data-test=simulate]").trigger("click");
-    expect(graph(w).props("sim")).toEqual({ ran: [], submitted: ["a-pipeline-cohort", "a-pipeline-convert"] });
+    expect(graph(w).props("sim")).toMatchObject({ ran: [], submitted: ["a-pipeline-cohort", "a-pipeline-convert"] });
     expect(w.text()).toContain("Ran and submitted Assay 2: image conversion");
   });
 
@@ -133,7 +133,7 @@ describe("StudyDesign", () => {
     graph(w).vm.$emit("submit", "a-pipeline-cohort");
     await flushPromises();
     expect(w.text()).toContain("Assay 1: cohort selection is already submitted (simulated).");
-    expect(graph(w).props("sim")).toEqual({ ran: [], submitted: ["a-pipeline-cohort"] });
+    expect(graph(w).props("sim")).toMatchObject({ ran: [], submitted: ["a-pipeline-cohort"] });
   });
 
   it("says when an action isn't available for an assay", async () => {
@@ -162,12 +162,12 @@ describe("StudyDesign", () => {
       graph(w).vm.$emit("launch", "a-pipeline-cohort");
       await flushPromises();
       expect(run.launchPlatformAssay).toHaveBeenCalledWith("41");
-      expect(graph(w).props("sim")).toEqual({ ran: [], submitted: [] });
+      expect(graph(w).props("sim")).toMatchObject({ ran: [], submitted: [] });
 
       run.launchPlatformAssay.mockResolvedValueOnce(true);
       graph(w).vm.$emit("launch", "a-pipeline-cohort");
       await flushPromises();
-      expect(graph(w).props("sim")).toEqual({ ran: ["a-pipeline-cohort"], submitted: [] });
+      expect(graph(w).props("sim")).toMatchObject({ ran: ["a-pipeline-cohort"], submitted: [] });
       expect(w.text()).toContain("Launched Assay 1: cohort selection on the platform.");
 
       // An assay can run many times.
@@ -175,7 +175,7 @@ describe("StudyDesign", () => {
       graph(w).vm.$emit("launch", "a-pipeline-cohort");
       await flushPromises();
       expect(run.launchPlatformAssay).toHaveBeenCalledTimes(3);
-      expect(graph(w).props("sim")).toEqual({ ran: ["a-pipeline-cohort"], submitted: [] });
+      expect(graph(w).props("sim")).toMatchObject({ ran: ["a-pipeline-cohort"], submitted: [] });
     });
 
     it("doesn't launch an assay still waiting on earlier ones", async () => {
@@ -183,6 +183,29 @@ describe("StudyDesign", () => {
       graph(w).vm.$emit("launch", "a-pipeline-convert");
       await flushPromises();
       expect(run.launchPlatformAssay).not.toHaveBeenCalled();
+    });
+
+    it("launches an assay before earlier ones are submitted when its platform data exists", async () => {
+      run.platformInputsExist.mockImplementation(async (seekId: string) => seekId === "42");
+      const w = await render();
+      expect(run.platformInputsExist.mock.calls.map(c => c[0]).sort()).toEqual(["41", "42", "43", "45"]);
+      expect(graph(w).props("sim").available).toEqual(["a-pipeline-convert"]);
+
+      run.launchPlatformAssay.mockResolvedValue(true);
+      graph(w).vm.$emit("launch", "a-pipeline-convert");
+      await flushPromises();
+      expect(run.launchPlatformAssay).toHaveBeenCalledWith("42");
+      expect(graph(w).props("sim")).toMatchObject({ ran: ["a-pipeline-convert"], available: ["a-pipeline-convert"] });
+
+      await w.findAll("button").find(b => b.text() === "Reset")!.trigger("click");
+      expect(graph(w).props("sim")).toEqual({ ran: [], submitted: [], available: ["a-pipeline-convert"] });
+    });
+
+    it("still simulates one wave of the chain at a time", async () => {
+      run.platformInputsExist.mockResolvedValue(true);
+      const w = await render();
+      await w.find("[data-test=simulate]").trigger("click");
+      expect(graph(w).props("sim").submitted).toEqual(["a-pipeline-cohort"]);
     });
 
     it("submits the platform run, and counts it as submitted only once it worked", async () => {
@@ -195,12 +218,12 @@ describe("StudyDesign", () => {
       graph(w).vm.$emit("submit", "a-pipeline-cohort");
       await flushPromises();
       expect(run.submitPlatformAssay).toHaveBeenCalledWith("41");
-      expect(graph(w).props("sim")).toEqual({ ran: ["a-pipeline-cohort"], submitted: [] });
+      expect(graph(w).props("sim")).toMatchObject({ ran: ["a-pipeline-cohort"], submitted: [] });
 
       run.submitPlatformAssay.mockResolvedValueOnce(true);
       graph(w).vm.$emit("submit", "a-pipeline-cohort");
       await flushPromises();
-      expect(graph(w).props("sim")).toEqual({ ran: [], submitted: ["a-pipeline-cohort"] });
+      expect(graph(w).props("sim")).toMatchObject({ ran: [], submitted: ["a-pipeline-cohort"] });
       expect(w.text()).toContain("Submitted Assay 1: cohort selection");
     });
 

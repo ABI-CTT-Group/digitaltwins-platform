@@ -18,8 +18,9 @@ const CATEGORIES = ["measurements", "models", "tools", "workflows"];
 export type AssayStatus = "unconfigured" | "blocked" | "ready" | "ran" | "submitted";
 
 /** A simulated study run: assays whose run has finished, and those whose outputs are submitted
- *  (only then do their planned datasets exist). */
-export interface Sim { ran: string[]; submitted: string[] }
+ *  (only then do their planned datasets exist). `available`: linked assays whose platform datasets
+ *  exist, so they can run before the earlier assays are submitted. */
+export interface Sim { ran: string[]; submitted: string[]; available?: string[] }
 export const emptySim = (): Sim => ({ ran: [], submitted: [] });
 
 export interface InputOption {
@@ -209,13 +210,16 @@ export function assayStatus(study: Study, sim: Sim, assayId: string): AssayStatu
   if (sim.ran.includes(assayId)) return "ran";
   const a = study.assays.find(x => x.id === assayId);
   if (!a || !a.workflowId || a.inputs.some(i => !i.source)) return "unconfigured";
+  if (sim.available?.includes(assayId)) return "ready";
   return producers(a).every(p => sim.submitted.includes(p)) ? "ready" : "blocked";
 }
 
-/** One simulated wave: every ready assay runs and its outputs are submitted. */
+/** One simulated wave: every assay whose earlier assays are submitted runs, and its outputs are
+ *  submitted. It follows the chain even for assays whose platform data exists. */
 export function simulateRunStep(study: Study, sim: Sim): { sim: Sim; ran: string[] } {
-  const ran = runOrder(study).order.filter(id => assayStatus(study, sim, id) === "ready");
-  return { sim: { ran: sim.ran, submitted: [...sim.submitted, ...ran] }, ran };
+  const chain = { ...sim, available: [] };
+  const ran = runOrder(study).order.filter(id => assayStatus(study, chain, id) === "ready");
+  return { sim: { ...sim, submitted: [...sim.submitted, ...ran] }, ran };
 }
 
 /** Run one assay (simulated), if it is ready. Its outputs aren't submitted yet. */
@@ -226,7 +230,7 @@ export function simulateLaunch(study: Study, sim: Sim, assayId: string): Sim {
 /** Submit the outputs of an assay that has run, so its planned datasets now exist. */
 export function simulateSubmit(sim: Sim, assayId: string): Sim {
   if (!sim.ran.includes(assayId)) return sim;
-  return { ran: sim.ran.filter(id => id !== assayId), submitted: [...sim.submitted, assayId] };
+  return { ...sim, ran: sim.ran.filter(id => id !== assayId), submitted: [...sim.submitted, assayId] };
 }
 
 /** Per-subject (measurements) inputs whose producer runs fewer subjects than this assay, so part

@@ -3,7 +3,12 @@
 // util/populate-isa-mock-assays.sh creates in its "Breast pilot mockups" study. Launch and Submit run
 // them with the platform's own saved configuration. Nothing here writes assay configuration.
 import { useToast } from "vue-toastification";
-import { useDashboardGetAssayLaunch, useDashboardSubmitAssayResults } from "@/bootstrap/dashboard_api";
+import {
+  useDashboardGetAssayConfigDetails,
+  useDashboardGetAssayLaunch,
+  useDashboardGetDatasets,
+  useDashboardSubmitAssayResults,
+} from "@/bootstrap/dashboard_api";
 import { useDashboardCacheStore } from "@/store/dashboard_cache_store";
 import { getApiErrorMessage } from "@/utils/common";
 import type { IsaProjectEntry } from "./sandbox";
@@ -52,6 +57,21 @@ export async function launchPlatformAssay(seekId: string): Promise<boolean> {
     return true;
   } catch (e: unknown) {
     toast.error(getApiErrorMessage(e, "Launch"));
+    return false;
+  }
+}
+
+/** True when every dataset a platform assay is configured to read is on the platform, so it can run
+ *  now. False when it isn't configured, an input has no dataset, or the platform can't be asked. */
+export async function platformInputsExist(seekId: string): Promise<boolean> {
+  try {
+    const inputs = (await useDashboardGetAssayConfigDetails(seekId))?.workflow?.inputs;
+    if (!inputs?.length || inputs.some(i => !i.datasetSelectedUuid)) return false;
+    const categories = [...new Set(inputs.map(i => i.input.category))];
+    const listed = await Promise.all(categories.map(c => useDashboardGetDatasets(c)));
+    const uuids = new Set(listed.flatMap(l => l ?? []).map(d => d.uuid));
+    return inputs.every(i => uuids.has(i.datasetSelectedUuid));
+  } catch {
     return false;
   }
 }

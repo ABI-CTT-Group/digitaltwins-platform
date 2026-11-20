@@ -196,6 +196,21 @@ describe("assayStatus and simulateRunStep", () => {
     expect(simulateRunStep(s, sim([], ["a1"]))).toEqual({ sim: sim([], ["a1", "a2"]), ran: ["a2"] });
     expect(simulateRunStep(s, sim([], ["a1", "a2", "a3"]))).toEqual({ sim: sim([], ["a1", "a2", "a3"]), ran: [] });
   });
+
+  it("counts an assay whose platform data exists as ready, without waiting on earlier assays", () => {
+    const s = chain();
+    const available = { ...sim(), available: ["a3"] };
+    expect(assayStatus(s, available, "a2")).toBe("blocked");
+    expect(assayStatus(s, available, "a3")).toBe("ready");
+    expect(simulateLaunch(s, available, "a3")).toEqual({ ...sim(["a3"]), available: ["a3"] });
+  });
+
+  it("still steps through the chain one wave at a time, and keeps what's available", () => {
+    const s = chain();
+    const available = { ...sim(), available: ["a3"] };
+    expect(simulateRunStep(s, available)).toEqual({ sim: { ...sim([], ["a1"]), available: ["a3"] }, ran: ["a1"] });
+    expect(simulateSubmit({ ...sim(["a3"]), available: ["a3"] }, "a3")).toEqual({ ...sim([], ["a3"]), available: ["a3"] });
+  });
 });
 
 describe("simulateLaunch and simulateSubmit", () => {

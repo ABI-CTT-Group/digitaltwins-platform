@@ -27,7 +27,7 @@
       v-if="view === 'flow'"
       :study="study"
       :catalogue="projectCatalogue"
-      :sim="sim"
+      :sim="run"
       :selected-assay-id="assayId"
       :platform="platform"
       @configure="configure"
@@ -42,7 +42,7 @@
         v-for="a in study.assays"
         :key="a.id"
         :assay="a"
-        :status="assayStatus(study, sim, a.id)"
+        :status="assayStatus(study, run, a.id)"
         :selected="a.id === assayId"
         :warnings="cohortWarnings(study, a.id).map(cohortWarningText)"
         :platform="platform[a.id]"
@@ -70,7 +70,7 @@
           <v-btn icon="mdi-close" variant="text" size="small" aria-label="Close" @click="drawerOpen = false" />
         </div>
         <v-card-text class="assay-drawer__body">
-          <AssayPanel :study="study" :assay-id="assayId" :catalogue="projectCatalogue" :sim="sim" />
+          <AssayPanel :study="study" :assay-id="assayId" :catalogue="projectCatalogue" :sim="run" />
         </v-card-text>
       </v-card>
     </v-dialog>
@@ -102,7 +102,7 @@ import {
   type Sim,
 } from "./model/isaProject";
 import type { Catalogue } from "./model/types";
-import { launchPlatformAssay, platformAssayIds, submitPlatformAssay, type PlatformLink } from "./platformRun";
+import { launchPlatformAssay, platformAssayIds, platformInputsExist, submitPlatformAssay, type PlatformLink } from "./platformRun";
 import { useAssayActions } from "@/composables/useAssayActions";
 import { useDashboardCacheStore } from "@/store/dashboard_cache_store";
 
@@ -125,8 +125,11 @@ const platformIds = computed(() => platformAssayIds(store.entries.find(e => e.pr
 const linked = computed(() => Object.keys(platformIds.value).length > 0);
 const launching = ref<Record<string, boolean>>({});
 const submitting = ref<Record<string, boolean>>({});
+/** This study's linked assays: [sandbox assay id, SEEK assay id]. */
+const studyLinks = computed(() =>
+  Object.entries(platformIds.value).filter(([id]) => study.value?.assays.some(a => a.id === id)));
 const platform = computed<Record<string, PlatformLink>>(() => Object.fromEntries(
-  Object.entries(platformIds.value).filter(([id]) => study.value?.assays.some(a => a.id === id)).map(([id, seekId]) => [id, {
+  studyLinks.value.map(([id, seekId]) => [id, {
     seekId,
     canMonitor: dashboardCache.assayExecute[seekId]?.text === "Monitor",
     launching: !!launching.value[seekId],
@@ -134,6 +137,18 @@ const platform = computed<Record<string, PlatformLink>>(() => Object.fromEntries
     submitting: !!submitting.value[seekId],
   }]),
 ));
+/** Linked assays whose platform datasets exist: they can launch before earlier assays are submitted. */
+const available = ref<string[]>([]);
+const linksKey = computed(() => studyLinks.value.map(l => l.join(":")).join());
+watch(linksKey, async key => {
+  const links = studyLinks.value;
+  const seekIds = [...new Set(links.map(([, seekId]) => seekId))];
+  const exists = await Promise.all(seekIds.map(platformInputsExist));
+  if (key !== linksKey.value) return;
+  available.value = links.filter(([, seekId]) => exists[seekIds.indexOf(seekId)]).map(([id]) => id);
+}, { immediate: true });
+/** The run as the cards see it. */
+const run = computed<Sim>(() => ({ ...sim.value, available: available.value }));
 /** The platform catalogue, the items approvals registered in this browser, and whatever came in this
  *  project's bundle. */
 const projectCatalogue = computed(() => catalogue.value && withBundled(withBundled(catalogue.value, store.registered),
@@ -179,13 +194,13 @@ function simulateStep() {
 }
 
 async function launchOnPlatform(id: string, seekId: string) {
-  const status = assayStatus(study.value!, sim.value, id);
+  const status = assayStatus(study.value!, run.value, id);
   if (status !== "ready" && status !== "ran" && status !== "submitted") return;
   launching.value[seekId] = true;
   const started = await launchPlatformAssay(seekId).finally(() => { launching.value[seekId] = false; });
   if (!started) return;
   // An assay can run many times; only its first run changes its status.
-  if (status === "ready") sim.value = simulateLaunch(study.value!, sim.value, id);
+  if (status === "ready") sim.value = simulateLaunch(study.value!, run.value, id);
   message.value = `Launched ${titleOf(id)} on the platform. Submit its outputs so later assays can use them.`;
 }
 
@@ -205,13 +220,13 @@ function launch(id: string) {
   if (!study.value) return;
   const seekId = platformIds.value[id];
   if (seekId) return launchOnPlatform(id, seekId);
-  const status = assayStatus(study.value, sim.value, id);
+  const status = assayStatus(study.value, run.value, id);
   if (status === "submitted") {
     message.value = `${titleOf(id)} is already submitted (simulated). Reset to start again.`;
   } else if (status === "ran") {
     message.value = `${titleOf(id)} has already run (simulated). Submit its outputs next.`;
   } else if (status === "ready") {
-    sim.value = simulateLaunch(study.value, sim.value, id);
+    sim.value = simulateLaunch(study.value, run.value, id);
     message.value = `Ran ${titleOf(id)}. Submit its outputs so later assays can use them.`;
   }
 }
@@ -243,8 +258,7 @@ function follow(action: "Monitor" | "Verify" | "Download", id: string) {
   }
 }
 
-const canStep = computed(() =>
-  !!study.value && study.value.assays.some(a => assayStatus(study.value!, sim.value, a.id) === "ready"));
+const canStep = computed(() => !!study.value && simulateRunStep(study.value, sim.value).ran.length > 0);
 </script>
 
 <style scoped>

@@ -1,13 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 
-const api = vi.hoisted(() => ({ useDashboardGetAssayLaunch: vi.fn(), useDashboardSubmitAssayResults: vi.fn() }));
+const api = vi.hoisted(() => ({
+  useDashboardGetAssayLaunch: vi.fn(),
+  useDashboardSubmitAssayResults: vi.fn(),
+  useDashboardGetAssayConfigDetails: vi.fn(),
+  useDashboardGetDatasets: vi.fn(),
+}));
 const toast = vi.hoisted(() => ({ error: vi.fn(), warning: vi.fn(), success: vi.fn(), info: vi.fn() }));
 vi.mock("@/bootstrap/dashboard_api", () => api);
 vi.mock("vue-toastification", () => ({ useToast: () => toast }));
 
 import { useDashboardCacheStore } from "@/store/dashboard_cache_store";
-import { launchPlatformAssay, platformAssayIds, submitPlatformAssay } from "../platformRun";
+import { launchPlatformAssay, platformAssayIds, platformInputsExist, submitPlatformAssay } from "../platformRun";
 import type { IsaProjectEntry } from "../sandbox";
 
 const entry = (extra: Partial<IsaProjectEntry>): IsaProjectEntry => ({
@@ -91,5 +96,40 @@ describe("submitPlatformAssay", () => {
     api.useDashboardSubmitAssayResults.mockRejectedValue({ response: { status: 404 } });
     expect(await submitPlatformAssay("43")).toBe(false);
     expect(toast.error).toHaveBeenCalledWith("Submit failed: resource not found.");
+  });
+});
+
+describe("platformInputsExist", () => {
+  const config = (inputs: [string, string | null][]) => ({
+    seekId: "46",
+    workflow: { inputs: inputs.map(([category, uuid]) => ({ input: { name: "x", category }, datasetSelectedUuid: uuid })) },
+  });
+  const listed: Record<string, { uuid: string; name: string }[]> = {
+    measurements: [{ uuid: "nifti", name: "converted_dataset" }],
+    models: [{ uuid: "skin", name: "model_sds_skin" }],
+  };
+
+  it("is true when every dataset the platform assay reads is on the platform", async () => {
+    api.useDashboardGetAssayConfigDetails.mockResolvedValue(config([["measurements", "nifti"], ["models", "skin"], ["models", "skin"]]));
+    api.useDashboardGetDatasets.mockImplementation(async (category: string) => listed[category] ?? []);
+    expect(await platformInputsExist("46")).toBe(true);
+    expect(api.useDashboardGetAssayConfigDetails).toHaveBeenCalledWith("46");
+    expect(api.useDashboardGetDatasets.mock.calls.map(c => c[0]).sort()).toEqual(["measurements", "models"]);
+  });
+
+  it("is false when a dataset is missing, an input has none, or the assay isn't configured", async () => {
+    api.useDashboardGetDatasets.mockImplementation(async (category: string) => listed[category] ?? []);
+    api.useDashboardGetAssayConfigDetails.mockResolvedValueOnce(config([["measurements", "gone"]]));
+    expect(await platformInputsExist("46")).toBe(false);
+    api.useDashboardGetAssayConfigDetails.mockResolvedValueOnce(config([["measurements", null]]));
+    expect(await platformInputsExist("46")).toBe(false);
+    api.useDashboardGetAssayConfigDetails.mockResolvedValueOnce(null);
+    expect(await platformInputsExist("46")).toBe(false);
+  });
+
+  it("is false when the platform can't be asked, without a toast", async () => {
+    api.useDashboardGetAssayConfigDetails.mockRejectedValue({ response: { status: 500 } });
+    expect(await platformInputsExist("46")).toBe(false);
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });
