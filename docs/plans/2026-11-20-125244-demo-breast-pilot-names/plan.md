@@ -10,16 +10,16 @@ SEEK) may still say "Test"; the user chose portal text only.
 ## Decisions
 | # | Decision |
 |---|---|
-| Q1 | Programme "Te Whatu Ora Radiology Reporting"; project "Breast"; investigation "breast Radiology report"; study "Te Whatu Ora Breast Pilot" (as given by the user) |
+| Q1 | Programme "Te Whatu Ora Radiology Reporting"; project "Breast"; investigation "Breast Radiology Report"; study "Te Whatu Ora Breast Pilot" |
 | Q2 | Assay titles drop "Test " ("Assay 1: cohort selection", ...) |
 | Q3 | Dataset names drop "test_" (dicom, curated_dataset, converted, volview_output, data_breast_app, model_breast_app, breast_app_output); dataset ids `ds-test-*` → `ds-*` (they name bundle folders) |
 | Q4 | URL ids renamed: programme `te-whatu-ora-radiology-reporting` (was `isa-sandbox`), `p-breast`, `i-breast-radiology-report`, `s-breast-pilot` |
 | Q5 | SEEK data untouched (portal text only) |
+| Q6 | Programme and project cards show only a count of their children ("2 projects", "1 investigation"), like the investigation and study cards; no other description |
 
 Defaults: the example's internal id becomes `example-breast-pilot` (fixture file renamed to match), so
 browsers holding the old stored copy drop it and load the new one (`ensureExamples` drops examples that no
-longer ship). Programme description loses its "nothing here is saved to the platform" caveat, like the notes
-removed earlier. The ISA hub keeps its title "ISA projects". Code comments are updated where they name the
+longer ship). The ISA hub keeps its title "ISA projects". Code comments are updated where they name the
 example.
 
 ## Steps

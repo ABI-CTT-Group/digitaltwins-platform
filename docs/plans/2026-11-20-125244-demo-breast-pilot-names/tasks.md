@@ -6,5 +6,6 @@
 - [x] 2. Rename ids, dataset names, titles, example id (tests green)
 - [x] 3. Docs: glossary
 - [x] Sync plans to docs/plans/
-- [ ] 4. Rebuild `portal-frontend`; verify tests, lint, docs-check, browser
-- [ ] 5. Commit (on explicit ask)
+- [x] 4. Rebuild `portal-frontend`; verify tests, lint, docs-check, browser
+- [x] 4b. Programme and project cards show child counts only (test first)
+- [x] 5. Commit (on explicit ask)
