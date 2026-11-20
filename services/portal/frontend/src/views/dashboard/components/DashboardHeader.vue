@@ -51,7 +51,7 @@ defineEmits<{
   (e: "go-depth", depth: number): void;
 }>();
 
-const title = computed(() => (props.currentCategory === "Assays" ? "Assays (study design)" : props.currentCategory));
+const title = computed(() => (props.currentCategory === "Assays" ? "Study design" : props.currentCategory));
 const description = computed(() => describeCategory(props.currentCategory));
 const itemNoun = computed(() => {
   const c = props.currentCategory;

@@ -10,9 +10,9 @@ const mountHeader = (currentCategory: string, count = 5) =>
   });
 
 describe("DashboardHeader title", () => {
-  it("calls the assay level the study design, and still counts assays", () => {
+  it("titles the assay level \"Study design\", and still counts assays", () => {
     const w = mountHeader("Assays");
-    expect(w.find("h1").text()).toBe("Assays (study design)");
+    expect(w.find("h1").text()).toBe("Study design");
     expect(w.find(".dash-header__count").text()).toBe("5 assays");
   });
 
