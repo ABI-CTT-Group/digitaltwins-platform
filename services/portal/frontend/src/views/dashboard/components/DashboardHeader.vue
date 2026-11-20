@@ -26,7 +26,7 @@
     <!-- Current level title + meta -->
     <div class="dash-header__title-row">
       <h1 class="dash-header__title">{{ title }}</h1>
-      <span v-if="!loading" class="dash-header__count">{{ count }} {{ count === 1 ? itemNoun : title.toLowerCase() }}</span>
+      <span v-if="!loading" class="dash-header__count">{{ count }} {{ count === 1 ? itemNoun : currentCategory.toLowerCase() }}</span>
     </div>
     <p class="dash-header__desc">{{ description }}</p>
   </header>
@@ -51,7 +51,7 @@ defineEmits<{
   (e: "go-depth", depth: number): void;
 }>();
 
-const title = computed(() => props.currentCategory);
+const title = computed(() => (props.currentCategory === "Assays" ? "Assays (study design)" : props.currentCategory));
 const description = computed(() => describeCategory(props.currentCategory));
 const itemNoun = computed(() => {
   const c = props.currentCategory;
