@@ -313,14 +313,17 @@ the builder, the public tool buckets and the plugin backends.
     `/api/builder`, `dtApiAxios` for `/api`), and one `*_api.ts` client per area.
   - `router/index.ts`: routes and their `requiresAuth` / `requiresRoles` meta.
   - `views/`: `dashboard/` (the study dashboard, assay config and launch),
-    `worklists/` (the clinician dashboard at `/clinician-dashboard`, a
-    frontend-only prototype: a list of studies, each opening its worklist, where
+    `study-dashboard/` (a frontend-only prototype: `/study-dashboard`, the only
+    study dashboard on the home page for the demo, shows a clinician view or a
+    researcher view by role; admin, or anyone with both roles, picks with
+    "View as"), `worklists/` (the clinician view, a mock-up: a list of studies,
+    each opening its worklist at `/study-dashboard/reviews/<id>`, where
     clinicians review each case's annotation; example
     cases and decisions live in the browser's localStorage), `catalogue/`, `upload-dataset/` (the measurements, models, tools
     and workflows hubs), `tool-plugin/` (`/tool-view`, where GUI tools run),
     `home/`, `tutorial/`, `isa-project/` (a frontend-only prototype: the
-    ISA project hub at `/catalogue/isa-project`, and the study dashboard at
-    `/study-dashboard` (the only one on the home page, for the demo), which
+    ISA project hub at `/catalogue/isa-project`, and the researcher view of
+    `/study-dashboard`, which
     reuses the study dashboard's parts to show only those ISA projects;
     projects live in the browser's localStorage and no API is called). The
     platform's own study dashboard (`dashboard/`) is unlisted at

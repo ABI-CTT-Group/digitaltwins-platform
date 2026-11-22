@@ -34,7 +34,7 @@ describe("WorklistsView", () => {
     const w = await render();
     expect(w.find("[data-test=study-title]").text()).toBe("Breast MRI reading");
     const back = w.findComponent(RouterLinkStub);
-    expect(back.props("to")).toEqual({ name: "ClinicianDashboard" });
+    expect(back.props("to")).toEqual({ name: "StudyDashboardPrototype", query: { view: "clinician" } });
     expect(back.text()).toContain("All studies");
     expect(w.text()).not.toMatch(/prototype|kept in this browser/i);
   });

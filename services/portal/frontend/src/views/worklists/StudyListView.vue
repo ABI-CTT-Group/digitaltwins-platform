@@ -1,8 +1,9 @@
 <template>
   <section class="studies">
     <div class="studies__inner">
+      <slot name="toolbar" />
       <header class="head">
-        <h1>Clinician dashboard</h1>
+        <h1>Study dashboard</h1>
         <p class="lede">Choose a study to review its cases.</p>
       </header>
 

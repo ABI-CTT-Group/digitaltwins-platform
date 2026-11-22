@@ -1,4 +1,3 @@
-import clinicalImage from '@/assets/dashboard/clinical-01.jpg';
 import studyImage from '@/assets/dashboard/study.png';
 import catelogueImage from '@/assets/dashboard/catalogue.png';
 import tutorialImage from '@/assets/dashboard/how-to-use.png';
@@ -38,17 +37,10 @@ export const cards: CardConfig[] = [
         image: studyImage,
         location: 'Te Whatu Ora AI Lab',
         description: 'Enables clinicians to collaborate with researchers to assess efficacy of AI/digital twin driven workflows.',
-        // Opens the ISA projects' dashboard (frontend-only prototype); the platform's is unlisted for the demo.
-        requireRoles: ['admin'],
-        action: { type: 'route', name: 'StudyDashboardPrototype' }
-    },
-    {
-        title: 'Clinician dashboard',
-        image: clinicalImage,
-        location: 'Te Whatu Ora AI Lab',
-        description: "Go through your project's cases and confirm each annotation, or send it back for correction.",
+        // Opens the study dashboard (frontend-only prototype): a clinician view and a researcher view, by role.
+        // The platform's own dashboard is unlisted for the demo.
         requireRoles: ['admin', 'researcher', 'clinician'],
-        action: { type: 'route', name: 'ClinicianDashboard' }
+        action: { type: 'route', name: 'StudyDashboardPrototype' }
     },
     {
         title: 'Physiology exploration (FC Map)',

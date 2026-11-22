@@ -1,13 +1,13 @@
 <template>
   <section class="worklists">
     <div v-if="!study" class="worklists__inner">
-      <RouterLink class="back" :to="{ name: 'ClinicianDashboard' }"><v-icon icon="mdi-arrow-left" size="16" /> All studies</RouterLink>
+      <RouterLink class="back" :to="{ name: 'StudyDashboardPrototype', query: { view: 'clinician' } }"><v-icon icon="mdi-arrow-left" size="16" /> All studies</RouterLink>
       <p class="lede missing">There is no study called {{ studyId }}.</p>
     </div>
     <div v-else class="worklists__inner">
       <header class="head">
         <nav class="crumb" aria-label="Study">
-          <RouterLink class="back" :to="{ name: 'ClinicianDashboard' }"><v-icon icon="mdi-arrow-left" size="16" /> All studies</RouterLink>
+          <RouterLink class="back" :to="{ name: 'StudyDashboardPrototype', query: { view: 'clinician' } }"><v-icon icon="mdi-arrow-left" size="16" /> All studies</RouterLink>
           <strong data-test="study-title">{{ study.title }}</strong>
         </nav>
         <h1>Your worklist</h1>

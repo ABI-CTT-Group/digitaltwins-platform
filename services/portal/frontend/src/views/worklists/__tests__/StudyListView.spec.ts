@@ -33,6 +33,12 @@ describe("StudyListView", () => {
     expect(w.text()).not.toMatch(/prototype|kept in this browser/i);
   });
 
+  it("is headed as the study dashboard", async () => {
+    const w = await render();
+    expect(w.find("h1").text()).toBe("Study dashboard");
+    expect(w.find(".lede").text()).toBe("Choose a study to review its cases.");
+  });
+
   it("opens the study's worklist from its row", async () => {
     const w = await render();
     expect(w.findComponent(RouterLinkStub).props("to")).toEqual({

@@ -4,31 +4,30 @@ vi.mock("@/bootstrap/keycloak", () => ({ isAuthenticated: () => false }));
 vi.mock("@/store/auth_store", () => ({ useAuthStore: () => ({ updateAuthState: () => {} }) }));
 
 import router from "../index";
-import StudyListView from "@/views/worklists/StudyListView.vue";
 import WorklistsView from "@/views/worklists/WorklistsView.vue";
 
-describe("clinician dashboard routes", () => {
-  it("serves the clinician dashboard to admins, researchers and clinicians", () => {
-    const r = router.resolve({ name: "ClinicianDashboard" });
-    expect(r.path).toBe("/clinician-dashboard");
-    expect(r.meta.requiresRoles).toEqual(["admin", "researcher", "clinician"]);
-  });
+const CLINICIAN_VIEW = { name: "StudyDashboardPrototype", query: { view: "clinician" } };
+const route = (path: string) => router.getRoutes().find(r => r.path === path);
 
-  it("lists the clinician's studies on the dashboard", () => {
-    const r = router.resolve({ name: "ClinicianDashboard" });
-    expect(r.matched.at(-1)?.components?.default).toBe(StudyListView);
-  });
-
-  it("opens a study's worklist under the dashboard, with the study id as a prop", () => {
+describe("worklist routes", () => {
+  it("opens a study's worklist under the study dashboard, for admins and clinicians", () => {
     const r = router.resolve({ name: "ClinicianStudyWorklist", params: { studyId: "breast-mri-reading" } });
-    expect(r.path).toBe("/clinician-dashboard/studies/breast-mri-reading");
+    expect(r.path).toBe("/study-dashboard/reviews/breast-mri-reading");
     expect(r.matched.at(-1)?.components?.default).toBe(WorklistsView);
     expect(r.matched.at(-1)?.props.default).toBe(true);
-    expect(r.meta.requiresRoles).toEqual(["admin", "researcher", "clinician"]);
+    expect(r.meta.requiresRoles).toEqual(["admin", "clinician"]);
   });
 
-  it("sends /worklists links to the clinician dashboard", () => {
-    const old = router.getRoutes().find(r => r.path === "/worklists");
-    expect(old?.redirect).toEqual({ name: "ClinicianDashboard" });
+  it("sends the old clinician dashboard links to the clinician view", () => {
+    expect(route("/clinician-dashboard")?.redirect).toEqual(CLINICIAN_VIEW);
+    expect(route("/worklists")?.redirect).toEqual(CLINICIAN_VIEW);
+  });
+
+  it("sends an old worklist link to the study's worklist", () => {
+    const old = route("/clinician-dashboard/studies/:studyId");
+    const target = typeof old?.redirect === "function"
+      ? old.redirect(router.resolve("/clinician-dashboard/studies/breast-mri-reading"), router.currentRoute.value)
+      : old?.redirect;
+    expect(router.resolve(target as never).path).toBe("/study-dashboard/reviews/breast-mri-reading");
   });
 });

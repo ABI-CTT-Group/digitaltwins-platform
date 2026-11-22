@@ -1,6 +1,7 @@
 <template>
   <section class="dashboard">
     <div class="dashboard__inner">
+      <slot name="toolbar" />
       <DashboardHeader
         root-label="Study dashboard"
         :breadcrumbs="level.breadcrumbs"

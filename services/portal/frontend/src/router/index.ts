@@ -12,8 +12,7 @@ import TutorialDashboard from "@/views/tutorial/index.vue";
 import CatalogueDashboardView from "@/views/catalogue/catalogue-dashboard-view.vue";
 import ToolsViewer from "@/views/catalogue/tools-viewer.vue";
 import IsaProjectHub from "@/views/isa-project/IsaProjectHub.vue";
-import StudyDashboardPrototype from "@/views/isa-project/StudyDashboardPrototype.vue";
-import StudyListView from "@/views/worklists/StudyListView.vue";
+import StudyDashboardPage from "@/views/study-dashboard/StudyDashboardPage.vue";
 import WorklistsView from "@/views/worklists/WorklistsView.vue";
 import Layout from "@/layouts/Default.vue";
 import LaunchedAssayOverview from "@/views/dashboard/report/AssayReportView.vue";
@@ -52,11 +51,20 @@ const routes = [
             meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher'], type: 'study' },
           },
           {
-            // Frontend-only prototype: the study dashboard for the ISA projects in the browser; nothing reaches the API.
+            // Frontend-only prototype: a clinician view (studies to review) and a researcher view (the ISA
+            // projects in the browser), chosen by role; nothing reaches the API. views/study-dashboard/
             path: "/study-dashboard",
             name: "StudyDashboardPrototype",
-            component: StudyDashboardPrototype,
-            meta: { requiresAuth: true, requiresRoles: ['admin'] },
+            component: StudyDashboardPage,
+            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher', 'clinician'] },
+          },
+          {
+            // A study's worklist, in the clinician view: example cases live in the browser.
+            path: "/study-dashboard/reviews/:studyId",
+            name: "ClinicianStudyWorklist",
+            component: WorklistsView,
+            props: true,
+            meta: { requiresAuth: true, requiresRoles: ['admin', 'clinician'] },
           },
           {
             // The prototype was briefly served here; keep those links working.
@@ -64,23 +72,18 @@ const routes = [
             redirect: { name: "StudyDashboardPrototype" },
           },
           {
-            // Frontend-only prototype: example cases live in the browser; nothing reaches the API.
+            // The clinician dashboard became the study dashboard's clinician view; keep those links working.
             path: "/clinician-dashboard",
-            name: "ClinicianDashboard",
-            component: StudyListView,
-            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher', 'clinician'] },
+            redirect: { name: "StudyDashboardPrototype", query: { view: "clinician" } },
           },
           {
             path: "/clinician-dashboard/studies/:studyId",
-            name: "ClinicianStudyWorklist",
-            component: WorklistsView,
-            props: true,
-            meta: { requiresAuth: true, requiresRoles: ['admin', 'researcher', 'clinician'] },
+            redirect: (to: { params: RouteLocationNormalized["params"] }) => ({ name: "ClinicianStudyWorklist", params: { studyId: to.params.studyId } }),
           },
           {
             // The page was briefly served here; keep those links working.
             path: "/worklists",
-            redirect: { name: "ClinicianDashboard" },
+            redirect: { name: "StudyDashboardPrototype", query: { view: "clinician" } },
           },
           {
             path: "/how-it-works",
