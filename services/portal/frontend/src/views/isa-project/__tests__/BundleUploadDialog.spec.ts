@@ -68,7 +68,7 @@ describe("BundleUploadDialog", () => {
     expect(rows[0]).toContain("ds-new-scans");
     expect(rows[0]).toContain("measurements, 2 files, 4 B");
     expect(rows[0]).toContain("1. Cohort selection");
-    expect(body().querySelector("[data-test=bundle-on-platform]")!.textContent).toContain("5 datasets, 8 workflows");
+    expect(body().querySelector("[data-test=bundle-on-platform]")!.textContent).toContain("4 datasets, 8 workflows");
     expect(addButton().disabled).toBe(false);
   });
 
@@ -98,7 +98,7 @@ describe("BundleUploadDialog", () => {
     const w = await render();
     await drop(w, await bundle("ds-unused"));
     expect(addButton().disabled).toBe(false);
-    expect(body().querySelector("[data-test=bundle-on-platform]")!.textContent).toContain("6 datasets");
+    expect(body().querySelector("[data-test=bundle-on-platform]")!.textContent).toContain("5 datasets");
   });
 
   it("goes back to choosing a bundle", async () => {

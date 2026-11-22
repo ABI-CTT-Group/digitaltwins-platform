@@ -702,8 +702,9 @@
                 {
                   "port": "dicom_file",
                   "source": {
-                    "kind": "existing",
-                    "datasetId": "ds-converted"
+                    "kind": "planned",
+                    "assayId": "a-convert",
+                    "port": "nifti_output"
                   }
                 }
               ],

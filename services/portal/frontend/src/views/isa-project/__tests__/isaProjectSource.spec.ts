@@ -28,7 +28,7 @@ describe("fixtureSource", () => {
       return s?.kind === "planned" ? [`${s.assayId}/${s.port} -> ${a.id}/${i.port}`] : [];
     }));
 
-  it("lays the pilot study out as the nine-assay breast pipeline, plus a standalone image visualisation", async () => {
+  it("lays the pilot study out as the nine-assay breast pipeline, plus an image visualisation after image conversion", async () => {
     const study = (await fixtureSource.loadExample("example-breast-pilot")).investigations[0].studies[0];
     expect(study.assays.map(a => [a.id, a.title, a.type, a.workflowId])).toEqual([
       ["a-cohort", "1. Cohort selection", "notebook", "wf-mri-curation"],
@@ -60,9 +60,12 @@ describe("fixtureSource", () => {
       "a-inference/lesion_inference_nifti -> a-lesion-report/model_predicted_LPS_nii",
       "a-breast-model/breast_mesh -> a-lesion-report/breast_surface_glb",
       "a-lesion-report/mask_meta_json -> a-statistics/lesion_position_reports",
+      "a-convert/nifti_output -> a-visualise/dicom_file",
     ]);
     const visualise = study.assays.find(a => a.id === "a-visualise")!;
-    expect(visualise.inputs).toEqual([{ port: "dicom_file", source: { kind: "existing", datasetId: "ds-converted" } }]);
+    expect(visualise.inputs).toEqual([
+      { port: "dicom_file", source: { kind: "planned", assayId: "a-convert", port: "nifti_output" } },
+    ]);
     expect(study.assays.some(a => a.inputs.some(i => i.source?.kind === "planned" && i.source.assayId === "a-visualise")))
       .toBe(false);
   });
