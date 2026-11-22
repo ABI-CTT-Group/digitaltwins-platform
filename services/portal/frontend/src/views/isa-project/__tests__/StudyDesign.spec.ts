@@ -127,16 +127,16 @@ describe("StudyDesign", () => {
     graph(w).vm.$emit("launch", "a-pipeline-cohort");
     await flushPromises();
     expect(graph(w).props("sim")).toMatchObject({ ran: ["a-pipeline-cohort"], submitted: [] });
-    expect(w.text()).toContain("Ran Assay 1: cohort selection. Submit its outputs so later assays can use them.");
+    expect(w.text()).toContain("Ran 1. Cohort selection. Submit its outputs so later assays can use them.");
 
     graph(w).vm.$emit("submit", "a-pipeline-cohort");
     await flushPromises();
     expect(graph(w).props("sim")).toMatchObject({ ran: [], submitted: ["a-pipeline-cohort"] });
-    expect(w.text()).toContain("Submitted Assay 1: cohort selection");
+    expect(w.text()).toContain("Submitted 1. Cohort selection");
 
     await w.find("[data-test=simulate]").trigger("click");
     expect(graph(w).props("sim")).toMatchObject({ ran: [], submitted: ["a-pipeline-cohort", "a-pipeline-convert"] });
-    expect(w.text()).toContain("Ran and submitted Assay 2: image conversion");
+    expect(w.text()).toContain("Ran and submitted 2. Image conversion");
   });
 
   it("explains a Submit or Launch that has nothing to do", async () => {
@@ -144,20 +144,20 @@ describe("StudyDesign", () => {
     const w = await render("s-image-pipeline-test", "p-upload");
     graph(w).vm.$emit("submit", "a-pipeline-cohort");
     await flushPromises();
-    expect(w.text()).toContain("Assay 1: cohort selection has no run to submit. Launch it first.");
+    expect(w.text()).toContain("1. Cohort selection has no run to submit. Launch it first.");
 
     graph(w).vm.$emit("launch", "a-pipeline-cohort");
     graph(w).vm.$emit("launch", "a-pipeline-cohort");
     await flushPromises();
-    expect(w.text()).toContain("Assay 1: cohort selection has already run (simulated). Submit its outputs next.");
+    expect(w.text()).toContain("1. Cohort selection has already run (simulated). Submit its outputs next.");
 
     graph(w).vm.$emit("submit", "a-pipeline-cohort");
     graph(w).vm.$emit("launch", "a-pipeline-cohort");
     await flushPromises();
-    expect(w.text()).toContain("Assay 1: cohort selection is already submitted (simulated). Reset to start again.");
+    expect(w.text()).toContain("1. Cohort selection is already submitted (simulated). Reset to start again.");
     graph(w).vm.$emit("submit", "a-pipeline-cohort");
     await flushPromises();
-    expect(w.text()).toContain("Assay 1: cohort selection is already submitted (simulated).");
+    expect(w.text()).toContain("1. Cohort selection is already submitted (simulated).");
     expect(graph(w).props("sim")).toMatchObject({ ran: [], submitted: ["a-pipeline-cohort"] });
   });
 
@@ -174,9 +174,9 @@ describe("StudyDesign", () => {
   });
 
   describe("the Test Project example, linked to the platform's Test Project", () => {
-    it("says its actions run the platform assays", async () => {
+    it("links its assays to the platform assays, without a note about it", async () => {
       const w = await render();
-      expect(w.text()).toContain("Launch, Submit and Download run the linked platform assays");
+      expect(w.text()).not.toMatch(/platform assay/i);
       expect(Object.fromEntries(Object.entries(graph(w).props("platform")).map(([k, v]) => [k, (v as { seekId: string }).seekId])))
         .toEqual({ "a-pipeline-cohort": "41", "a-pipeline-convert": "42", "a-pipeline-visualise": "43", "a-pipeline-breast-app": "45" });
     });
@@ -193,7 +193,7 @@ describe("StudyDesign", () => {
       graph(w).vm.$emit("launch", "a-pipeline-cohort");
       await flushPromises();
       expect(graph(w).props("sim")).toMatchObject({ ran: ["a-pipeline-cohort"], submitted: [] });
-      expect(w.text()).toContain("Launched Assay 1: cohort selection on the platform.");
+      expect(w.text()).toContain("Launched 1. Cohort selection on the platform.");
 
       // An assay can run many times.
       run.launchPlatformAssay.mockResolvedValueOnce(true);
@@ -249,7 +249,7 @@ describe("StudyDesign", () => {
       graph(w).vm.$emit("submit", "a-pipeline-cohort");
       await flushPromises();
       expect(graph(w).props("sim")).toMatchObject({ ran: [], submitted: ["a-pipeline-cohort"] });
-      expect(w.text()).toContain("Submitted Assay 1: cohort selection");
+      expect(w.text()).toContain("Submitted 1. Cohort selection");
     });
 
     it("monitors, verifies and downloads the platform assay", async () => {

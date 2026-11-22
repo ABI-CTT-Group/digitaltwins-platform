@@ -25,11 +25,6 @@
         <v-btn size="small" variant="text" :disabled="!sim.ran.length && !sim.submitted.length" @click="resetRun">Reset</v-btn>
       </div>
     </div>
-    <p v-if="linked" class="design__note">
-      <v-icon icon="mdi-link-variant" size="16" />
-      Launch, Submit and Download run the linked platform assays with their platform configuration. Changes you
-      make here stay in this browser, and later platform assays keep reading the datasets they were configured with.
-    </p>
 
     <StudyGraph
       v-if="view === 'flow'"
@@ -283,7 +278,6 @@ const canStep = computed(() => !!study.value && simulateRunStep(study.value, sim
 
 <style scoped>
 .design { display: flex; flex-direction: column; gap: 14px; font-family: var(--font-ui); color: var(--text); }
-.design__note { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 0.84rem; color: var(--tone-needs); }
 
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .toolbar__run { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }

@@ -15,7 +15,7 @@
           "assays": [
             {
               "id": "a-cohort",
-              "title": "Assay 1 - Cohort selection",
+              "title": "1. Cohort selection",
               "type": "notebook",
               "workflowId": "wf-mri-curation",
               "cohort": [],
@@ -38,7 +38,7 @@
             },
             {
               "id": "a-convert",
-              "title": "Assay 2 - Image conversion",
+              "title": "2. Image conversion",
               "type": "script",
               "workflowId": "wf-image-conversion",
               "cohort": [
@@ -69,7 +69,7 @@
             },
             {
               "id": "a-initial-inference",
-              "title": "Assay 3 - Initial inference",
+              "title": "3. Initial inference",
               "type": "script",
               "workflowId": "wf-mock-inference",
               "cohort": [
@@ -138,7 +138,7 @@
             },
             {
               "id": "a-breast-app",
-              "title": "Assay 4 - Image annotation",
+              "title": "4. Image annotation",
               "type": "gui",
               "workflowId": "wf-lesion-curator",
               "cohort": [
@@ -325,7 +325,7 @@
             },
             {
               "id": "a-finetune",
-              "title": "Assay 5 - Model fine-tuning",
+              "title": "5. Model fine-tuning",
               "type": "notebook",
               "workflowId": "wf-mock-model-finetuning",
               "cohort": [
@@ -358,7 +358,7 @@
             },
             {
               "id": "a-inference",
-              "title": "Assay 6 - Inference",
+              "title": "6. Inference",
               "type": "script",
               "workflowId": "wf-mock-inference",
               "cohort": [
@@ -431,7 +431,7 @@
             },
             {
               "id": "a-breast-model",
-              "title": "Assay 7 - Generate breast model",
+              "title": "7. Generate breast model",
               "type": "script",
               "workflowId": "wf-mock-breast-model",
               "cohort": [
@@ -478,7 +478,7 @@
             },
             {
               "id": "a-lesion-report",
-              "title": "Assay 8 - Lesion position reporting",
+              "title": "8. Lesion position reporting",
               "type": "gui",
               "workflowId": "wf-lesion-curator",
               "cohort": [
@@ -666,7 +666,7 @@
             },
             {
               "id": "a-statistics",
-              "title": "Assay 9 - Statistical Analysis",
+              "title": "9. Statistical analysis",
               "type": "notebook",
               "workflowId": "wf-mock-statistical-analysis",
               "cohort": [
@@ -692,7 +692,7 @@
             },
             {
               "id": "a-visualise",
-              "title": "Assay: Image visualisation",
+              "title": "Image visualisation",
               "type": "gui",
               "workflowId": "wf-volview",
               "cohort": [
@@ -723,7 +723,7 @@
           "assays": [
             {
               "id": "a-pipeline-cohort",
-              "title": "Assay 1: cohort selection",
+              "title": "1. Cohort selection",
               "type": "notebook",
               "workflowId": "wf-mri-curation",
               "cohort": [],
@@ -746,7 +746,7 @@
             },
             {
               "id": "a-pipeline-convert",
-              "title": "Assay 2: image conversion",
+              "title": "2. Image conversion",
               "type": "script",
               "workflowId": "wf-image-conversion",
               "cohort": [
@@ -777,7 +777,7 @@
             },
             {
               "id": "a-pipeline-visualise",
-              "title": "Assay 3: image visualisation",
+              "title": "3. Image visualisation",
               "type": "gui",
               "workflowId": "wf-volview",
               "cohort": [
@@ -803,7 +803,7 @@
             },
             {
               "id": "a-pipeline-breast-app",
-              "title": "Assay 4: breast app",
+              "title": "4. Breast app",
               "type": "gui",
               "workflowId": "wf-lesion-curator",
               "cohort": [

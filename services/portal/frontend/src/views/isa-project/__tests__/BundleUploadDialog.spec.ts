@@ -67,7 +67,7 @@ describe("BundleUploadDialog", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toContain("ds-new-scans");
     expect(rows[0]).toContain("measurements, 2 files, 4 B");
-    expect(rows[0]).toContain("Assay 1 - Cohort selection");
+    expect(rows[0]).toContain("1. Cohort selection");
     expect(body().querySelector("[data-test=bundle-on-platform]")!.textContent).toContain("5 datasets, 8 workflows");
     expect(addButton().disabled).toBe(false);
   });

@@ -101,7 +101,7 @@ describe("isaProjectStore", () => {
 
     store.study("p-breast", "s-breast-pilot")!.assays[0].title = "Edited";
     await store.resetExample("p-breast");
-    expect(store.study("p-breast", "s-breast-pilot")!.assays[0].title).toBe("Assay 1 - Cohort selection");
+    expect(store.study("p-breast", "s-breast-pilot")!.assays[0].title).toBe("1. Cohort selection");
   });
 
   it("finds a study by project and study id", async () => {

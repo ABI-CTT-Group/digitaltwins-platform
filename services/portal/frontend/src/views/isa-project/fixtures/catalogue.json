@@ -27,47 +27,47 @@
     },
     {
       "id": "t-mock-download-samples",
-      "name": "tool_mock_download_samples",
+      "name": "tool_download_samples",
       "type": "script"
     },
     {
       "id": "t-mock-skin-inference",
-      "name": "tool_mock_skin_inference",
+      "name": "tool_skin_inference",
       "type": "script"
     },
     {
       "id": "t-mock-outer-rib-inference",
-      "name": "tool_mock_outer_rib_inference",
+      "name": "tool_outer_rib_inference",
       "type": "script"
     },
     {
       "id": "t-mock-sternum-inference",
-      "name": "tool_mock_sternum_inference",
+      "name": "tool_sternum_inference",
       "type": "script"
     },
     {
       "id": "t-mock-lesion-inference",
-      "name": "tool_mock_lesion_inference",
+      "name": "tool_lesion_inference",
       "type": "script"
     },
     {
       "id": "t-mock-model-finetuning",
-      "name": "tool_mock_model_finetuning",
+      "name": "tool_model_finetuning",
       "type": "notebook"
     },
     {
       "id": "t-mock-point-cloud-generation",
-      "name": "tool_mock_point_cloud_generation",
+      "name": "tool_point_cloud_generation",
       "type": "script"
     },
     {
       "id": "t-mock-mesh-fitting",
-      "name": "tool_mock_mesh_fitting",
+      "name": "tool_mesh_fitting",
       "type": "script"
     },
     {
       "id": "t-mock-statistical-analysis",
-      "name": "tool_mock_statistical_analysis",
+      "name": "tool_statistical_analysis",
       "type": "notebook"
     }
   ],
@@ -502,7 +502,7 @@
     },
     {
       "id": "wf-mock-inference",
-      "name": "workflow_mock_inference",
+      "name": "workflow_breast_inference",
       "type": "script",
       "inputs": [
         {
@@ -586,7 +586,7 @@
         },
         "steps": {
           "download_samples": {
-            "run": "tool_mock_download_samples.cwl",
+            "run": "tool_download_samples.cwl",
             "in": {
               "mri_nifti": "mri_nifti"
             },
@@ -595,7 +595,7 @@
             ]
           },
           "skin_inference": {
-            "run": "tool_mock_skin_inference.cwl",
+            "run": "tool_skin_inference.cwl",
             "in": {
               "nifti": "download_samples/nifti",
               "skin_model": "skin_model"
@@ -605,7 +605,7 @@
             ]
           },
           "outer_rib_inference": {
-            "run": "tool_mock_outer_rib_inference.cwl",
+            "run": "tool_outer_rib_inference.cwl",
             "in": {
               "nifti": "download_samples/nifti",
               "outer_rib_model": "outer_rib_model"
@@ -615,7 +615,7 @@
             ]
           },
           "sternum_inference": {
-            "run": "tool_mock_sternum_inference.cwl",
+            "run": "tool_sternum_inference.cwl",
             "in": {
               "nifti": "download_samples/nifti",
               "sternum_model": "sternum_model"
@@ -625,7 +625,7 @@
             ]
           },
           "lesion_inference": {
-            "run": "tool_mock_lesion_inference.cwl",
+            "run": "tool_lesion_inference.cwl",
             "in": {
               "nifti": "download_samples/nifti",
               "lesion_model": "lesion_model"
@@ -657,7 +657,7 @@
     },
     {
       "id": "wf-mock-model-finetuning",
-      "name": "workflow_mock_model_finetuning",
+      "name": "workflow_model_finetuning",
       "type": "notebook",
       "inputs": [
         {
@@ -692,7 +692,7 @@
         },
         "steps": {
           "run_notebook": {
-            "run": "tool_mock_model_finetuning.cwl",
+            "run": "tool_model_finetuning.cwl",
             "in": {
               "clinician_validated_masks": "clinician_validated_masks",
               "pretrained_models": "pretrained_models"
@@ -712,7 +712,7 @@
     },
     {
       "id": "wf-mock-breast-model",
-      "name": "workflow_mock_breast_model",
+      "name": "workflow_breast_model",
       "type": "script",
       "inputs": [
         {
@@ -762,7 +762,7 @@
         },
         "steps": {
           "point_cloud_generation": {
-            "run": "tool_mock_point_cloud_generation.cwl",
+            "run": "tool_point_cloud_generation.cwl",
             "in": {
               "skin_inference_nifti": "skin_inference_nifti",
               "outer_rib_inference_nifti": "outer_rib_inference_nifti",
@@ -773,7 +773,7 @@
             ]
           },
           "mesh_fitting": {
-            "run": "tool_mock_mesh_fitting.cwl",
+            "run": "tool_mesh_fitting.cwl",
             "in": {
               "point_cloud": "point_cloud_generation/point_cloud"
             },
@@ -796,7 +796,7 @@
     },
     {
       "id": "wf-mock-statistical-analysis",
-      "name": "workflow_mock_statistical_analysis",
+      "name": "workflow_statistical_analysis",
       "type": "notebook",
       "inputs": [
         {
@@ -824,7 +824,7 @@
         },
         "steps": {
           "run_notebook": {
-            "run": "tool_mock_statistical_analysis.cwl",
+            "run": "tool_statistical_analysis.cwl",
             "in": {
               "lesion_position_reports": "lesion_position_reports"
             },

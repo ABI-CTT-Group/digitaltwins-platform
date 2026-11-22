@@ -59,13 +59,10 @@ describe("SandboxAssayCard", () => {
     expect(w.emitted("download")).toHaveLength(1);
   });
 
-  it("links to the platform assay it runs, and drops \"simulated\" once submitted", () => {
-    expect(render("ready").find("[data-test=platform-assay]").exists()).toBe(false);
+  it("doesn't name the platform assay it runs, and drops \"simulated\" once submitted", () => {
     const w = render("submitted", false, [], link());
-    const a = w.find("[data-test=platform-assay]");
-    expect(a.text()).toBe("Platform assay 41");
-    expect(a.attributes("href")).toBe("/launched-assay?assayId=41");
-    expect(a.attributes("target")).toBe("_blank");
+    expect(w.find("[data-test=platform-assay]").exists()).toBe(false);
+    expect(w.text()).not.toMatch(/platform assay/i);
     expect(w.find("[data-test=status]").text()).toBe("Submitted");
   });
 

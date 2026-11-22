@@ -21,9 +21,9 @@ describe("StudyChain", () => {
   it("draws the study's assays in run order, with the fork after image conversion as one column", async () => {
     const w = await render();
     expect(columns(w)).toEqual([
-      ["Assay 1: cohort selection"],
-      ["Assay 2: image conversion"],
-      ["Assay 3: image visualisation", "Assay 4: breast app"],
+      ["1. Cohort selection"],
+      ["2. Image conversion"],
+      ["3. Image visualisation", "4. Breast app"],
     ]);
   });
 
@@ -31,8 +31,8 @@ describe("StudyChain", () => {
     const w = await render();
     expect(w.find(".chain__study").text()).toBe("Image pipeline test");
     expect(w.find("[data-test=chain]").attributes("aria-label")).toBe(
-      "Image pipeline test runs Assay 1: cohort selection, then Assay 2: image conversion, " +
-      "then Assay 3: image visualisation and Assay 4: breast app.");
+      "Image pipeline test runs 1. Cohort selection, then 2. Image conversion, " +
+      "then 3. Image visualisation and 4. Breast app.");
   });
 
   it("tags each assay with its type", async () => {

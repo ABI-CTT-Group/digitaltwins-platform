@@ -50,7 +50,7 @@ describe("AssayPanel", () => {
       .toContainEqual(["curated_dataset", false]);
     expect(select(w, "dicom_input").props("items")).toContainEqual(expect.objectContaining({
       key: "planned:a-pipeline-cohort:curated_dataset", label: "curated_dataset / curated_dataset", planned: true,
-      producedBy: "Assay 1: cohort selection",
+      producedBy: "1. Cohort selection",
     }));
   });
 
@@ -62,7 +62,7 @@ describe("AssayPanel", () => {
     const chosen = w.find("[data-test=input-dicom_file] .is-planned");
     expect(chosen.exists()).toBe(true);
     expect(chosen.text()).toContain("converted / nifti_output");
-    expect(chosen.text()).toContain("Will be produced by Assay 2: image conversion");
+    expect(chosen.text()).toContain("Will be produced by 2. Image conversion");
   });
 
   it("stops greying a planned dataset once its producer's outputs are submitted", async () => {
@@ -70,7 +70,7 @@ describe("AssayPanel", () => {
     expect(ran.find("[data-test=input-dicom_input] .is-planned").exists()).toBe(true);
     const { w } = await render("a-pipeline-convert", { ran: [], submitted: ["a-pipeline-cohort"] });
     expect(w.find("[data-test=input-dicom_input] .is-planned").exists()).toBe(false);
-    expect(w.find("[data-test=input-dicom_input]").text()).toContain("Produced by Assay 1: cohort selection");
+    expect(w.find("[data-test=input-dicom_input]").text()).toContain("Produced by 1. Cohort selection");
   });
 
   it("warns when an input covers fewer subjects than the assay's cohort", async () => {
@@ -85,7 +85,7 @@ describe("AssayPanel", () => {
     const { w } = await render("a-pipeline-breast-app");
     expect(w.findAll("[data-test=input-group]").map(g => [g.find(".group__title").text(), g.find(".group__count").text()]))
       .toEqual([["converted", "1"], ["data_breast_app", "14"], ["model_breast_app", "1"]]);
-    expect(group(w, "converted").text()).toContain("Will be produced by Assay 2: image conversion");
+    expect(group(w, "converted").text()).toContain("Will be produced by 2. Image conversion");
     expect(group(w, "data_breast_app").text()).toContain("On the platform");
   });
 

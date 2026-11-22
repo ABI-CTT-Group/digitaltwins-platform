@@ -27,15 +27,6 @@
 
     <div class="card__meta">
       <span class="card__tag" :style="{ '--tag': tagAccent }">{{ assay.type }}</span>
-      <a
-        v-if="platform"
-        class="card__platform nodrag nopan"
-        data-test="platform-assay"
-        :href="`/launched-assay?assayId=${platform.seekId}`"
-        target="_blank"
-        rel="noopener"
-        @click.stop
-      ><v-icon icon="mdi-link-variant" size="14" />Platform assay {{ platform.seekId }}</a>
       <span class="card__status" data-test="status">{{ statusText }}</span>
       <v-tooltip v-if="warnings?.length" :text="warnings.join(' ')" location="top" open-delay="150">
         <template #activator="{ props: tip }">
@@ -181,16 +172,6 @@ const tagAccent = computed(() => ASSAY_TYPE_ACCENT[props.assay.type] ?? "#9fb4bf
   background: color-mix(in srgb, var(--tag) 14%, transparent);
   border: 1px solid color-mix(in srgb, var(--tag) 38%, transparent);
 }
-.card__platform {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.78rem;
-  color: var(--text-dim);
-  text-decoration: none;
-}
-.card__platform:hover { color: var(--accent); text-decoration: underline; }
-.card__platform:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .card__status { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-dim); }
 .card__status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--state); }
 .card__warn {
