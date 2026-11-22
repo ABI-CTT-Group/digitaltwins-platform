@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
 # populate-isa-mock-assays.sh: register the mock workflows in
-# examples/workflow/workflow_mock_* and create the "Breast pilot mockups"
-# SEEK study with one configured assay per mock step of the ISA breast pilot
-# (Assays 3, 5, 6, 7 and 9). The mocks only wait, so a demo can launch, monitor
-# and submit them like real assays.
+# examples/workflow/ (workflow_breast_inference, workflow_breast_model,
+# workflow_model_finetuning, workflow_statistical_analysis) and create the
+# "Te Whatu Ora Breast Pilot" SEEK study with one configured assay per mock
+# step of the ISA breast pilot (Assays 3, 5, 6, 7 and 9). The mocks only wait,
+# so a demo can launch, monitor and submit them like real assays. Nothing a
+# demo audience sees says "mock": the workflows, tools, study, assays and
+# outputs are named like real ones.
 #
 # What it creates, as the platform admin:
 #   - 4 SEEK workflows (+ their tools), registered through the platform API in
 #     SEEK_PROJECT_ID; the 2 script workflows' DAGs deploy automatically.
-#   - study "Breast pilot mockups" in SEEK_INVESTIGATION_ID, visible to the project.
+#   - study "Te Whatu Ora Breast Pilot" in SEEK_INVESTIGATION_ID, visible to the project.
 #   - 5 assays in that study, each linked to its workflow (an SOP) and
 #     configured with fixed input datasets and cohort ["1"].
 # Re-running creates everything again (a second study and new workflows).
@@ -38,7 +41,7 @@ cd "$BASE_DIR"
 SEEK_SERVICE="${SEEK_SERVICE:-seek}"
 SEEK_PROJECT_ID="${SEEK_PROJECT_ID:-12}"
 SEEK_INVESTIGATION_ID="${SEEK_INVESTIGATION_ID:-10}"
-STUDY_TITLE="${STUDY_TITLE:-Breast pilot mockups}"
+STUDY_TITLE="${STUDY_TITLE:-Te Whatu Ora Breast Pilot}"
 
 : "${PLATFORM_ADMIN_PASSWORD:?set PLATFORM_ADMIN_PASSWORD (source secrets.env first)}"
 : "${KEYCLOAK_CLIENT_SECRET:?set KEYCLOAK_CLIENT_SECRET (source secrets.env first)}"
@@ -123,21 +126,21 @@ outputs() {  # $1 = dataset name, $2... = output names
 }
 
 log "registering the mock workflows in SEEK project $SEEK_PROJECT_ID"
-WF_INFERENCE=$(register_workflow workflow_mock_inference script)
-WF_BREAST_MODEL=$(register_workflow workflow_mock_breast_model script)
-WF_FINETUNING=$(register_workflow workflow_mock_model_finetuning notebook)
-WF_STATISTICS=$(register_workflow workflow_mock_statistical_analysis notebook)
+WF_INFERENCE=$(register_workflow workflow_breast_inference script)
+WF_BREAST_MODEL=$(register_workflow workflow_breast_model script)
+WF_FINETUNING=$(register_workflow workflow_model_finetuning notebook)
+WF_STATISTICS=$(register_workflow workflow_statistical_analysis notebook)
 log "  workflows: inference #$WF_INFERENCE, breast model #$WF_BREAST_MODEL, fine-tuning #$WF_FINETUNING, statistics #$WF_STATISTICS"
 
 STUDY_ID=$(seek_post studies "$(jq -n --arg inv "$SEEK_INVESTIGATION_ID" --arg title "$STUDY_TITLE" \
   '{data:{type:"studies",attributes:{title:$title},relationships:{investigation:{data:{type:"investigations",id:$inv}}}}}')")
 log "  study #$STUDY_ID: $STUDY_TITLE"
 
-A3=$(create_assay "Mock Assay 3: initial inference" script)
-A5=$(create_assay "Mock Assay 5: model fine-tuning" notebook)
-A6=$(create_assay "Mock Assay 6: inference" script)
-A7=$(create_assay "Mock Assay 7: generate breast model" script)
-A9=$(create_assay "Mock Assay 9: statistical analysis" notebook)
+A3=$(create_assay "3. Initial inference" script)
+A5=$(create_assay "5. Model fine-tuning" notebook)
+A6=$(create_assay "6. Inference" script)
+A7=$(create_assay "7. Generate breast model" script)
+A9=$(create_assay "9. Statistical analysis" notebook)
 
 # API-created items default to private; make them visible to the project, as the SEEK UI would.
 log "setting the study and assay policies to visible-to-project"
@@ -159,11 +162,11 @@ MODELS=$(for m in skin outer_rib sternum lesion; do input "${m}_model" "$MODELS_
 INFERENCE_INPUTS=$(jq -n --argjson a "$NIFTI" --argjson b "$MODELS" '[$a] + $b')
 SEGMENTATIONS=(skin_inference_nifti outer_rib_inference_nifti sternum_inference_nifti lesion_inference_nifti)
 
-configure_assay "$A3" "$WF_INFERENCE" "$INFERENCE_INPUTS" "$(outputs mock_initial_inference "${SEGMENTATIONS[@]}")"
-configure_assay "$A6" "$WF_INFERENCE" "$INFERENCE_INPUTS" "$(outputs mock_inference "${SEGMENTATIONS[@]}")"
+configure_assay "$A3" "$WF_INFERENCE" "$INFERENCE_INPUTS" "$(outputs initial_inference "${SEGMENTATIONS[@]}")"
+configure_assay "$A6" "$WF_INFERENCE" "$INFERENCE_INPUTS" "$(outputs inference "${SEGMENTATIONS[@]}")"
 configure_assay "$A7" "$WF_BREAST_MODEL" \
   "$(for s in "${SEGMENTATIONS[@]:0:3}"; do input "$s" "$NIFTI_DATASET_UUID" nifti measurements; done | jq -s .)" \
-  "$(outputs mock_breast_model point_cloud breast_mesh)"
+  "$(outputs breast_model point_cloud breast_mesh)"
 configure_assay "$A5" "$WF_FINETUNING" \
   "$(input clinician_validated_masks "$CURATED_DATASET_UUID" pre measurements | jq -s .)" \
   "$(outputs finetuned_models finetuned_models)"
