@@ -1,5 +1,5 @@
 <template>
-  <div class="slice" role="img" :aria-label="`${caseId}, slice ${middle} of ${slices}, with the annotation outlined`" data-test="slice-preview">
+  <div class="slice" role="img" :aria-label="`Illustration of the annotation on ${caseId}, not a scan`" data-test="slice-preview">
     <!-- An illustration, not the case's scan: the prototype has no images. -->
     <svg viewBox="0 0 320 220" aria-hidden="true">
       <defs>
@@ -18,7 +18,7 @@
         fill="rgba(95, 214, 232, 0.16)" stroke="#5fd6e8" stroke-width="1.6" stroke-linejoin="round"
       />
     </svg>
-    <span class="slice__label" aria-hidden="true">Slice {{ middle }} / {{ slices }}</span>
+    <span class="slice__label" aria-hidden="true">Illustration, not a scan</span>
   </div>
 </template>
 
@@ -26,8 +26,7 @@
 // A stand-in slice image for the case under review, with its annotation outlined (frontend-only prototype).
 import { computed } from "vue";
 
-const props = defineProps<{ caseId: string; slices: number }>();
-const middle = computed(() => Math.ceil(props.slices / 2));
+const props = defineProps<{ caseId: string }>();
 
 const seed = computed(() => Number(props.caseId.replace(/\D/g, "")) || 1);
 
@@ -68,6 +67,6 @@ const outline = computed(() => {
 svg { display: block; width: 100%; height: auto; }
 .slice__label {
   position: absolute; left: 10px; bottom: 8px; font-size: 0.75rem;
-  font-variant-numeric: tabular-nums; color: var(--text-dim);
+  color: var(--text-dim);
 }
 </style>

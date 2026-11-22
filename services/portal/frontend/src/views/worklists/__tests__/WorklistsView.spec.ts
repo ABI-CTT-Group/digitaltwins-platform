@@ -36,7 +36,14 @@ describe("WorklistsView", () => {
     const back = w.findComponent(RouterLinkStub);
     expect(back.props("to")).toEqual({ name: "StudyDashboardPrototype", query: { view: "clinician" } });
     expect(back.text()).toContain("All studies");
-    expect(w.text()).not.toMatch(/prototype|kept in this browser/i);
+    expect(w.find("main, .main").text()).not.toMatch(/prototype|mock-up|kept in this browser/i);
+  });
+
+  it("says the view is a mock-up, as the study list does", async () => {
+    const w = await render();
+    const note = w.find("[data-test=mockup-note]");
+    expect(note.attributes("role")).toBe("note");
+    expect(note.text()).toBe("Mock-up. The cases and scans are examples, not real patients, and your decisions stay in this browser.");
   });
 
   it("says the annotator isn't connected yet", async () => {
@@ -51,15 +58,19 @@ describe("WorklistsView", () => {
     expect(w.find("[data-test=progress]").exists()).toBe(false);
   });
 
-  it("previews the middle slice of the case being reviewed", async () => {
+  it("previews the case being reviewed as an illustration, not a scan", async () => {
     const w = await render();
     const preview = panel(w).find("[data-test=slice-preview]");
-    expect(preview.attributes("aria-label")).toBe("sub-013, slice 56 of 112, with the annotation outlined");
-    expect(preview.text()).toContain("Slice 56 / 112");
+    expect(preview.attributes("aria-label")).toBe("Illustration of the annotation on sub-013, not a scan");
+    expect(preview.text()).toBe("Illustration, not a scan");
+    expect(preview.text()).not.toMatch(/slice/i);
 
     await w.find("[data-test=batch-form]").trigger("submit");
     await click(w, "[data-test=confirm]");
-    expect(panel(w).find("[data-test=slice-preview]").text()).toContain("Slice 80 / 160");
+    const next = panel(w).find("h2").text();
+    expect(next).not.toBe("sub-013");
+    expect(panel(w).find("[data-test=slice-preview]").attributes("aria-label"))
+      .toBe(`Illustration of the annotation on ${next}, not a scan`);
   });
 
   it("draws a different image and annotation outline for each case", async () => {

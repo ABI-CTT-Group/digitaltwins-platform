@@ -13,6 +13,7 @@
         <h1>Your worklist</h1>
         <p class="lede">Retrospective study. Check the annotation on each case, then confirm it or send it back for correction.</p>
       </header>
+      <MockupNote />
 
       <div class="progress">
         <p class="progress__line" data-test="progress"><b>{{ n.reviewed }}</b> of <b>{{ n.total }}</b> cases reviewed</p>
@@ -51,6 +52,7 @@ import { afterDecision, batchPosition, counts, startBatch, type Batch, type Tab 
 import { STUDY, useWorklistStore } from "./worklistStore";
 import CaseTable from "./components/CaseTable.vue";
 import CaseReviewPanel from "./components/CaseReviewPanel.vue";
+import MockupNote from "./components/MockupNote.vue";
 
 const props = defineProps<{ studyId: string }>();
 

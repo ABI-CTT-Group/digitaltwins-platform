@@ -7,7 +7,7 @@
         <StatusPill :status="item.status" />
       </div>
       <p v-if="batchPos" class="batch-pos">Case {{ batchPos }} of {{ batchTotal }} in this batch</p>
-      <SlicePreview :case-id="item.id" :slices="item.slices" />
+      <SlicePreview :case-id="item.id" />
 
       <dl class="facts">
         <dt>Scan</dt><dd>{{ item.scan }}, {{ item.slices }} slices</dd>

@@ -7,6 +7,8 @@
         <p class="lede">Choose a study to review its cases.</p>
       </header>
 
+      <MockupNote />
+
       <ul class="list">
         <li v-for="s in studies" :key="s.id">
           <RouterLink class="row" data-test="study-row" :to="{ name: 'ClinicianStudyWorklist', params: { studyId: s.id } }">
@@ -31,6 +33,7 @@
 // The clinician dashboard (frontend-only prototype): the studies a clinician reviews. Each opens its worklist.
 // One example study, whose progress comes from the decisions kept in the browser.
 import { computed } from "vue";
+import MockupNote from "./components/MockupNote.vue";
 import { counts, lastDecision } from "./model/worklist";
 import { STUDY, useWorklistStore } from "./worklistStore";
 

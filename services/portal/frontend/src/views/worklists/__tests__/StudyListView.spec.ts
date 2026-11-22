@@ -30,7 +30,14 @@ describe("StudyListView", () => {
     expect(row.find("[data-test=study-reviewed]").text()).toBe("15 of 36 reviewed");
     expect(row.find("[data-test=study-left]").text()).toBe("21 to review");
     expect(row.find("progress").attributes()).toMatchObject({ value: "15", max: "36" });
-    expect(w.text()).not.toMatch(/prototype|kept in this browser/i);
+    expect(row.text()).not.toMatch(/prototype|mock-up|kept in this browser/i);
+  });
+
+  it("says the view is a mock-up on example cases", async () => {
+    const w = await render();
+    const note = w.find("[data-test=mockup-note]");
+    expect(note.attributes("role")).toBe("note");
+    expect(note.text()).toBe("Mock-up. The cases and scans are examples, not real patients, and your decisions stay in this browser.");
   });
 
   it("is headed as the study dashboard", async () => {
