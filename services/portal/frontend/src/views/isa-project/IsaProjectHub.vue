@@ -29,7 +29,7 @@
     </div>
 
     <ul class="list">
-      <li v-for="e in store.entries" :key="e.project.project.id" class="row" data-test="isa-row">
+      <li v-for="e in store.entries" :key="e.project.project.id" class="row" data-test="isa-row" :data-project="e.project.project.id">
         <div class="row__body">
           <span class="row__title">{{ e.project.project.title }}</span>
           <span class="row__meta">
@@ -40,9 +40,6 @@
             {{ approvalText(e) }}
           </span>
         </div>
-        <div class="row__chains">
-          <StudyChain v-for="s in e.project.investigations.flatMap(i => i.studies)" :key="s.id" :study="s" />
-        </div>
         <div class="row__actions">
           <button v-if="e.source === 'upload' && !e.approval" type="button" class="aurora-btn aurora-btn--solid" data-test="approve" @click="askApprove(e.project.project.id)">
             Approve
@@ -50,17 +47,47 @@
           <button type="button" class="aurora-btn aurora-btn--solid" data-test="open" @click="open(e.project.project.id)">
             Open in study dashboard
           </button>
-          <button type="button" class="aurora-btn aurora-btn--ghost" @click="download(e.project)">Download JSON</button>
-          <button type="button" class="aurora-btn aurora-btn--ghost" data-test="download-bundle" title="The JSON plus an SDS skeleton of each dataset and workflow it uses" @click="downloadBundle(e)">
-            Download bundle
-          </button>
-          <button v-if="e.source === 'upload'" type="button" class="aurora-btn aurora-btn--ghost" data-test="remove" @click="askRemove(e.project)">
-            Remove
-          </button>
-          <button v-else type="button" class="aurora-btn aurora-btn--ghost" data-test="reset" @click="askReset(e.project)">
-            Reset
-          </button>
+          <v-menu location="bottom end" :offset="8">
+            <template #activator="{ props: act, isActive }">
+              <button type="button" class="more" :class="{ 'is-open': isActive }" v-bind="act" aria-label="More actions" data-test="more">
+                <v-icon icon="mdi-dots-horizontal" size="18" />
+              </button>
+            </template>
+            <div class="menu" :data-test="`menu-${e.project.project.id}`">
+              <button type="button" class="menu__item" data-test="download-json" @click="download(e.project)">
+                <v-icon icon="mdi-code-json" size="16" class="menu__icon" /><span>Download JSON</span>
+              </button>
+              <button type="button" class="menu__item" data-test="download-bundle" title="The JSON plus an SDS skeleton of each dataset and workflow it uses" @click="downloadBundle(e)">
+                <v-icon icon="mdi-folder-zip-outline" size="16" class="menu__icon" /><span>Download bundle</span>
+              </button>
+              <button v-if="e.source === 'upload'" type="button" class="menu__item is-danger" data-test="remove" @click="askRemove(e.project)">
+                <v-icon icon="mdi-delete-outline" size="16" class="menu__icon" /><span>Remove</span>
+              </button>
+              <button v-else type="button" class="menu__item" data-test="reset" @click="askReset(e.project)">
+                <v-icon icon="mdi-restore" size="16" class="menu__icon" /><span>Reset</span>
+              </button>
+            </div>
+          </v-menu>
         </div>
+        <!-- The ISA tree: solid rails mean "contains"; each study's chain keeps the dashed "flows into". -->
+        <ul class="tree" :aria-label="`${e.project.project.title}: investigations and studies`">
+          <li v-for="inv in e.project.investigations" :key="inv.id" class="tree__node" data-test="isa-investigation">
+            <button type="button" class="node node--investigation" data-test="isa-investigation-open" @click="open(e.project.project.id, inv.id)">
+              <span class="node__title">{{ inv.title }}</span>
+              <span class="node__level">investigation</span>
+            </button>
+            <p v-if="!inv.studies.length" class="tree__empty">No studies yet</p>
+            <ul v-else class="tree">
+              <li v-for="s in inv.studies" :key="s.id" class="tree__node" data-test="isa-study">
+                <button type="button" class="node node--study" data-test="isa-study-open" @click="open(e.project.project.id, inv.id, s.id)">
+                  <span class="node__title">{{ s.title }}</span>
+                  <span class="node__level">study, {{ plural(s.assays.length, "assay") }}</span>
+                </button>
+                <StudyChain :study="s" class="tree__chain" />
+              </li>
+            </ul>
+          </li>
+        </ul>
       </li>
     </ul>
 
@@ -130,8 +157,10 @@ function askApprove(projectId: string) {
   approveOpen.value = true;
 }
 
-function open(projectId: string) {
-  router.push({ name: "StudyDashboardPrototype", query: { trail: `${SANDBOX_ID},${SANDBOX_ID}:${projectId}` } });
+/** Opens the study dashboard at a project, or deeper at one of its investigations or studies. */
+function open(...ids: string[]) {
+  const trail = [SANDBOX_ID, ...ids.map((_, n) => [SANDBOX_ID, ...ids.slice(0, n + 1)].join(":"))];
+  router.push({ name: "StudyDashboardPrototype", query: { trail: trail.join(",") } });
 }
 
 async function load(text: string, name: string) {
@@ -227,7 +256,7 @@ const askReset = (p: IsaProject) => confirm.ask({
   background: var(--surface);
 }
 .row__body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.row__title { font-size: 1.05rem; font-weight: 600; color: #fff; }
+.row__title { font-family: var(--font-title); font-size: 1.35rem; font-weight: 500; line-height: 1.2; color: #fff; }
 .row__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-dim); }
 .row__source { padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: 0.76rem; }
 .row__source--upload { border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent); }
@@ -235,7 +264,84 @@ const askReset = (p: IsaProject) => confirm.ask({
 .row__approval { font-size: 0.85rem; color: var(--text-dim); }
 .row__approval--draft { color: var(--tone-needs); }
 .row__approval--approving { color: var(--text); }
-.row__actions { display: flex; flex-wrap: wrap; gap: 8px; }
-/* The chains take a line of their own under the title and actions. */
-.row__chains { order: 3; flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.row__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* The More actions menu, in the look of the other hubs' cards (CardUI.vue). */
+.more {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.more:hover, .more.is-open { border-color: color-mix(in srgb, var(--accent) 50%, transparent); color: var(--text); }
+.more:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.menu {
+  min-width: 210px;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(8, 18, 26, 0.98);
+  border: 1px solid var(--line);
+  box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.8);
+}
+.menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 11px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+.menu__item:hover, .menu__item:focus-visible { background: rgba(255, 255, 255, 0.06); outline: none; }
+.menu__icon { color: var(--text-faint); }
+.menu__item:hover .menu__icon { color: var(--text); }
+.menu__item.is-danger, .menu__item.is-danger .menu__icon { color: var(--tone-failed); }
+.menu__item.is-danger:hover { background: color-mix(in srgb, var(--tone-failed) 12%, transparent); }
+
+/* The ISA tree, on a line of its own under the title and actions. Solid rails mean "contains";
+   the dashed lines inside each study's chain mean "flows into". */
+.row > .tree { order: 3; flex-basis: 100%; min-width: 0; padding-left: 2px; }
+.tree { --rail: color-mix(in srgb, var(--text-faint) 55%, transparent); --elbow: 18px; list-style: none; margin: 0; padding: 0; }
+.tree .tree { padding-left: 14px; }
+.tree__node { position: relative; padding-left: 22px; min-width: 0; }
+.tree__node::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; border-left: 1px solid var(--rail); }
+.tree__node:last-child::before { bottom: auto; height: var(--elbow); }
+.tree__node::after { content: ""; position: absolute; left: 0; top: var(--elbow); width: 16px; border-top: 1px solid var(--rail); }
+.tree__empty { margin: 2px 0 6px 22px; font-size: 0.82rem; color: var(--text-faint); }
+.tree__chain { padding: 2px 0 16px 8px; }
+
+.node {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.node:hover { background: rgba(255, 255, 255, 0.04); }
+.node:hover .node__title, .node:focus-visible .node__title { color: var(--accent); }
+.node:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+.node__title { font-size: 0.95rem; }
+.node--investigation .node__title { font-weight: 600; }
+.node--study .node__title { font-weight: 500; }
+.node__level { font-size: 0.8rem; color: var(--text-faint); }
 </style>

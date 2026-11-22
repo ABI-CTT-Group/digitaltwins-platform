@@ -27,9 +27,9 @@ describe("StudyChain", () => {
     ]);
   });
 
-  it("names the study and reads out the run order", async () => {
+  it("reads out the run order, leaving the study's name to the row it sits in", async () => {
     const w = await render();
-    expect(w.find(".chain__study").text()).toBe("Image pipeline test");
+    expect(w.find(".chain__study").exists()).toBe(false);
     expect(w.find("[data-test=chain]").attributes("aria-label")).toBe(
       "Image pipeline test runs 1. Cohort selection, then 2. Image conversion, " +
       "then 3. Image visualisation and 4. Breast app.");

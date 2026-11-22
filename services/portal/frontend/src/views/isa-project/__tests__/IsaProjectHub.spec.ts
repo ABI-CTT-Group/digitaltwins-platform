@@ -18,13 +18,22 @@ afterEach(() => wrapper?.unmount());
 beforeEach(() => { push.mockClear(); setActivePinia(createPinia()); });
 
 async function render() {
-  wrapper = mount(IsaProjectHub, { global: { plugins: [testVuetify()], stubs: { BackLink: true } } });
+  wrapper = mount(IsaProjectHub, { attachTo: document.body, global: { plugins: [testVuetify()], stubs: { BackLink: true } } });
   await flushPromises();
   return wrapper;
 }
 
 const rows = (w: VueWrapper) => w.findAll("[data-test=isa-row]");
 const row = (w: VueWrapper, title: string) => rows(w).find(r => r.find(".row__title").text() === title)!;
+
+/** Opens a row's More actions menu (Vuetify renders it into the body) and finds an item in it. */
+async function menuItem(w: VueWrapper, title: string, item: string) {
+  const r = row(w, title);
+  await r.find("[data-test=more]").trigger("click");
+  await flushPromises();
+  const id = r.attributes("data-project");
+  return document.body.querySelector<HTMLButtonElement>(`[data-test="menu-${id}"] [data-test=${item}]`);
+}
 
 async function uploadFile(w: VueWrapper, text: string) {
   const input = w.find("input[type=file]");
@@ -53,6 +62,58 @@ describe("IsaProjectHub", () => {
     const chains = w.findAllComponents(StudyChain);
     expect(chains.map(c => c.props("study").title)).toEqual(["Te Whatu Ora Breast Pilot", "Image pipeline test"]);
     expect(row(w, "Breast").find("[data-test=chain]").exists()).toBe(true);
+  });
+
+  it("shows each project's investigations and their studies", async () => {
+    const w = await render();
+    const investigations = row(w, "Breast").findAll("[data-test=isa-investigation]");
+    expect(investigations.map(i => i.find("[data-test=isa-investigation-open]").text())).toEqual([
+      expect.stringContaining("Breast Radiology Report"),
+    ]);
+    const studies = investigations[0].findAll("[data-test=isa-study]");
+    expect(studies.map(s => s.find("[data-test=isa-study-open]").text())).toEqual([
+      expect.stringMatching(/Te Whatu Ora Breast Pilot.*10 assays/),
+      expect.stringMatching(/Image pipeline test.*4 assays/),
+    ]);
+    expect(studies.every(s => s.findComponent(StudyChain).exists())).toBe(true);
+  });
+
+  it("opens an investigation in the study dashboard", async () => {
+    const w = await render();
+    await row(w, "Breast").find("[data-test=isa-investigation-open]").trigger("click");
+    expect(push).toHaveBeenCalledWith({ name: "StudyDashboardPrototype", query: { trail: [
+      "te-whatu-ora-radiology-reporting",
+      "te-whatu-ora-radiology-reporting:p-breast",
+      "te-whatu-ora-radiology-reporting:p-breast:i-breast-radiology-report",
+    ].join(",") } });
+  });
+
+  it("opens a study in the study dashboard", async () => {
+    const w = await render();
+    await row(w, "Breast").findAll("[data-test=isa-study-open]")[1].trigger("click");
+    expect(push).toHaveBeenCalledWith({ name: "StudyDashboardPrototype", query: { trail: [
+      "te-whatu-ora-radiology-reporting",
+      "te-whatu-ora-radiology-reporting:p-breast",
+      "te-whatu-ora-radiology-reporting:p-breast:i-breast-radiology-report",
+      "te-whatu-ora-radiology-reporting:p-breast:i-breast-radiology-report:s-image-pipeline-test",
+    ].join(",") } });
+  });
+
+  it("says when an investigation has no studies", async () => {
+    const w = await render();
+    const p = JSON.parse(await mine());
+    p.investigations[0].studies = [];
+    await uploadFile(w, JSON.stringify(p));
+    expect(row(w, "My study plan").find("[data-test=isa-investigation]").text()).toContain("No studies yet");
+  });
+
+  it("keeps the downloads and Reset in a menu", async () => {
+    const w = await render();
+    expect(row(w, "Breast").text()).not.toMatch(/Download JSON|Download bundle|Reset/);
+    for (const item of ["download-json", "download-bundle", "reset"]) {
+      expect(await menuItem(w, "Breast", item), item).not.toBeNull();
+    }
+    expect(await menuItem(w, "Breast", "remove")).toBeNull();
   });
 
   it("never says prototype", async () => {
@@ -91,10 +152,11 @@ describe("IsaProjectHub", () => {
   it("offers Remove for uploads and Reset for examples, each after asking", async () => {
     const w = await render();
     await uploadFile(w, await mine());
-    expect(row(w, "Breast").find("[data-test=remove]").exists()).toBe(false);
-    expect(row(w, "Breast").find("[data-test=reset]").exists()).toBe(true);
+    expect(await menuItem(w, "Breast", "remove")).toBeNull();
+    expect(await menuItem(w, "Breast", "reset")).not.toBeNull();
 
-    await row(w, "My study plan").find("[data-test=remove]").trigger("click");
+    (await menuItem(w, "My study plan", "remove"))!.click();
+    await flushPromises();
     const dialog = w.findComponent({ name: "ConfirmDialog" });
     expect(dialog.props("title")).toBe("Remove My study plan?");
     await (dialog.props("action") as () => Promise<unknown>)();
@@ -163,7 +225,8 @@ describe("IsaProjectHub", () => {
     await flushPromises();
     expect(row(w, "My study plan").find("[data-test=approval]").text()).toBe("In the platform");
 
-    await row(w, "My study plan").find("[data-test=remove]").trigger("click");
+    (await menuItem(w, "My study plan", "remove"))!.click();
+    await flushPromises();
     expect(w.findComponent({ name: "ConfirmDialog" }).props("text")).toContain("Its registered datasets, workflows and tools stay");
   });
 
@@ -173,7 +236,7 @@ describe("IsaProjectHub", () => {
     const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {}); // jsdom can't navigate
     const w = await render();
-    await row(w, "Breast").find("[data-test=download-bundle]").trigger("click");
+    (await menuItem(w, "Breast", "download-bundle"))!.click();
     await vi.waitFor(() => expect(created).toHaveLength(1));
     const { default: JSZip } = await import("jszip");
     const zip = await JSZip.loadAsync(created[0]);

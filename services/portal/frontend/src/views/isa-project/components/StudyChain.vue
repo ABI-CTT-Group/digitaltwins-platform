@@ -1,6 +1,5 @@
 <template>
   <div class="chain">
-    <span class="chain__study">{{ study.title }}</span>
     <p v-if="!columns.length" class="chain__empty">No assays yet</p>
     <div v-else class="chain__line" data-test="chain" role="img" :aria-label="readout">
       <div v-for="(col, n) in columns" :key="n" class="chain__col" :class="{ 'chain__col--fork': col.length > 1 }" data-test="chain-column">
@@ -19,9 +18,9 @@
 </template>
 
 <script setup lang="ts">
-// A study's assays as a short line on the ISA project hub (prototype). It uses the Flow view's
-// columns and its line language: dashed, because nothing on the hub has run yet, and a fork drawn
-// as a branch.
+// A study's assays as a short line under its row in the ISA project hub's tree (prototype), which
+// names the study. It uses the Flow view's columns and its line language: dashed, because nothing
+// on the hub has run yet, and a fork drawn as a branch. A long chain wraps rather than scrolls.
 import { computed } from "vue";
 import type { Assay, Catalogue, Study } from "../model/types";
 import { ASSAY_TYPE_ACCENT, emptySim, studyGraph } from "../model/isaProject";
@@ -47,13 +46,13 @@ const readout = computed(() =>
 </script>
 
 <style scoped>
-.chain { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; min-width: 0; }
-.chain__study { font-size: 0.8rem; color: var(--text-faint); }
+.chain { min-width: 0; }
 .chain__empty { margin: 0; font-size: 0.8rem; color: var(--text-faint); }
 
 /* Columns left to right; the connectors are drawn in the gap before each column after the first. */
-.chain__line { --gap: 30px; --chip-h: 28px; display: flex; align-items: center; max-width: 100%; overflow-x: auto; padding: 2px 0; }
+.chain__line { --gap: 30px; --chip-h: 28px; display: flex; flex-wrap: wrap; align-items: center; row-gap: 12px; max-width: 100%; padding: 2px 0; }
 .chain__col { position: relative; display: flex; flex-direction: column; gap: 8px; }
+/* A wrapped line starts one gap in, so its connector reads as the previous line continuing. */
 .chain__col + .chain__col { margin-left: var(--gap); }
 /* The line in from the previous column, to the middle of the gap. */
 .chain__col + .chain__col::before {
