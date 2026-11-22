@@ -1,6 +1,6 @@
 // An ISA project bundle (prototype): one folder or .zip with the ISA project JSON at its root and,
 // under datasets/<id>/, each dataset, workflow or tool the design uses that isn't on the platform
-// yet. Nothing is uploaded: only file counts, sizes and the workflow CWL are read and kept.
+// yet. A lone JSON file is read as a bundle with no folders. Nothing is uploaded: only file counts, sizes and the workflow CWL are read and kept.
 import type { LocalSource } from "@/bootstrap/upload_source";
 import { findRootPrefix, formatBytes } from "@/composables/useFolderScan";
 import { SDS_MARKER, sdsToolCwls, sdsWorkflowCwls } from "@/views/upload-dataset/components/utils";
@@ -222,7 +222,12 @@ export async function readBundle(all: BundleFile[], catalogue: Catalogue): Promi
     if (!m) return e;
     const [, what, id] = m;
     const kind = kinds.get(id);
-    if (!kind) return `${e} (no datasets/${id}/ folder in the bundle)`;
+    if (!kind) {
+      // A lone JSON has no folders at all: say how to bring the item rather than what's missing.
+      return folders.size
+        ? `${e} (no datasets/${id}/ folder in the bundle)`
+        : `${e} (not on the platform: upload a folder or .zip with datasets/${id}/)`;
+    }
     if (kind === what) return null;
     return what === "workflow"
       ? `${e} (datasets/${id}/ has no primary/workflow_*.cwl)`

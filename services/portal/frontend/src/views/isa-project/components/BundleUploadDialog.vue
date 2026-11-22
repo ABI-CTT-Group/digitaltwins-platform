@@ -1,13 +1,12 @@
 <template>
   <v-dialog v-model="open" max-width="680" scrollable>
     <div class="bundle" data-test="bundle-dialog" role="dialog" aria-labelledby="bundle-title">
-      <h2 id="bundle-title" class="bundle__title">Upload ISA project with datasets</h2>
+      <h2 id="bundle-title" class="bundle__title">Upload ISA project</h2>
 
       <template v-if="!read">
         <p class="bundle__text">
-          For a design whose data or workflows aren't on the platform yet. Pick one folder or .zip that holds
-          the ISA project JSON and an SDS folder for each dataset, workflow or tool it uses that isn't on the platform
-          yet, named by the id the design uses.
+          Pick the ISA project JSON on its own, or a folder or .zip that also holds an SDS folder for each
+          dataset, workflow or tool it uses that isn't on the platform yet, named by the id the design uses:
         </p>
         <pre class="bundle__tree" aria-label="Bundle layout">my-project/
 ├── isa-project.json
@@ -21,7 +20,12 @@
           to try it: the Breast project with one bundled dataset, workflow and tool, with placeholder files.
         </p>
         <LocalFolderDropzone :key="attempt" @source-selected="onSource" />
-        <p v-if="reading" class="bundle__hint" aria-live="polite">Reading the bundle…</p>
+        <p class="bundle__hint">
+          Or <button type="button" class="bundle__link" data-test="bundle-pick-json" @click="jsonInput?.click()">pick a JSON file</button>
+          when everything the design uses is already on the platform.
+        </p>
+        <input ref="jsonInput" type="file" accept=".json,application/json" hidden data-test="bundle-json" @change="onJson" />
+        <p v-if="reading" class="bundle__hint" aria-live="polite">Reading {{ source }}…</p>
       </template>
 
       <div v-else data-test="bundle-review" class="review">
@@ -36,31 +40,54 @@
         </div>
 
         <template v-if="manifest">
-          <h3 class="review__heading">Bundled items</h3>
-          <p v-if="!manifest.rows.length" class="bundle__hint">
-            Nothing: everything this design uses is already on the platform. The JSON upload would do.
-          </p>
-          <ul class="items">
-            <li v-for="r in manifest.rows" :key="`${r.kind}:${r.id}`" class="item" :class="`item--${r.kind}`" data-test="bundle-item">
-              <span class="item__name">{{ r.name }}</span>
-              <span class="item__kind">{{ KIND_LABEL[r.kind] }}</span>
-              <span class="item__meta">{{ r.meta }}</span>
-              <span class="item__used">{{ r.usedBy.length ? `Used by ${r.usedBy.join(", ")}` : "Not used" }}</span>
-            </li>
-          </ul>
+          <!-- A lone JSON brings nothing, so only a bundle lists what it brings. -->
+          <template v-if="!lone">
+            <h3 class="review__heading">Bundled items</h3>
+            <p v-if="!manifest.rows.length" class="bundle__hint">
+              Nothing: everything this design uses is already on the platform.
+            </p>
+            <ul class="items">
+              <li v-for="r in manifest.rows" :key="`${r.kind}:${r.id}`" class="item" :class="`item--${r.kind}`" data-test="bundle-item">
+                <span class="item__name">{{ r.name }}</span>
+                <span class="item__kind">{{ KIND_LABEL[r.kind] }}</span>
+                <span class="item__meta">{{ r.meta }}</span>
+                <span class="item__used">{{ r.usedBy.length ? `Used by ${r.usedBy.join(", ")}` : "Not used" }}</span>
+              </li>
+            </ul>
+          </template>
           <p class="bundle__hint" data-test="bundle-on-platform">Already on the platform: {{ onPlatform }}.</p>
         </template>
 
         <div v-if="read.warnings.length" class="notes notes--warn" data-test="bundle-warnings">
           <ul><li v-for="w in read.warnings" :key="w">{{ w }}</li></ul>
         </div>
+
+        <div v-if="read.project" class="programme">
+          <label for="bundle-programme" class="review__heading">Programme</label>
+          <p class="bundle__hint">The study dashboard lists the project under it.</p>
+          <div class="programme__fields">
+            <select id="bundle-programme" v-model="programmeId" class="field" data-test="bundle-programme">
+              <option v-for="p in programmes" :key="p.id" :value="p.id">{{ p.name }}</option>
+              <option :value="NEW">New programme…</option>
+            </select>
+            <input
+              v-if="programmeId === NEW"
+              v-model="newName"
+              class="field"
+              type="text"
+              placeholder="Programme name"
+              aria-label="New programme name"
+              data-test="bundle-programme-name"
+            />
+          </div>
+        </div>
       </div>
 
       <div class="bundle__actions">
         <button type="button" class="aurora-btn aurora-btn--ghost" @click="open = false">Cancel</button>
         <template v-if="read">
-          <button type="button" class="aurora-btn aurora-btn--ghost" data-test="bundle-again" @click="reset">Choose another bundle</button>
-          <button type="button" class="aurora-btn aurora-btn--solid" data-test="bundle-add" :disabled="!read.project" @click="add">
+          <button type="button" class="aurora-btn aurora-btn--ghost" data-test="bundle-again" @click="reset">Choose another</button>
+          <button type="button" class="aurora-btn aurora-btn--solid" data-test="bundle-add" :disabled="!read.project || !programme" @click="add">
             Add project
           </button>
         </template>
@@ -70,18 +97,23 @@
 </template>
 
 <script setup lang="ts">
-// Upload an ISA project together with the datasets, workflows and tools it uses that aren't on the
-// platform yet (prototype). Reads the bundle in the browser and shows what it adds before adding.
+// Upload an ISA project (prototype): its JSON on its own, or a bundle that also brings the datasets,
+// workflows and tools it uses that aren't on the platform yet. Reads it in the browser, shows what it
+// adds, and asks which programme to file it in before adding.
 import { computed, ref, watch } from "vue";
 import type { LocalSource } from "@/bootstrap/upload_source";
 import LocalFolderDropzone from "@/views/upload-dataset/components/LocalFolderDropzone.vue";
-import { bundleFiles, bundleManifest, readBundle, withBundled, type BundleRead } from "../adapter/isaBundle";
+import { bundleFiles, bundleManifest, readBundle, withBundled, type BundleFile, type BundleRead } from "../adapter/isaBundle";
 import { bundleZip, demoBundle, saveBlob } from "../adapter/isaBundleWriter";
 import { useIsaProjectStore } from "../isaProjectStore";
+import { BUILT_IN_PROGRAMME, knownProgrammes, programmeNamed, type Programme } from "../sandbox";
 import type { Catalogue, IsaProject } from "../model/types";
 
 const open = defineModel<boolean>({ default: false });
-const emit = defineEmits<{ (e: "add", bundle: { project: IsaProject; bundled: Catalogue }): void }>();
+const emit = defineEmits<{ (e: "add", upload: { project: IsaProject; bundled: Catalogue; programme: Programme }): void }>();
+
+/** The select's value for "New programme…"; no programme id can be it. */
+const NEW = "new";
 
 const KIND_LABEL = { dataset: "Dataset", workflow: "Workflow", tool: "Tool" } as const;
 
@@ -90,8 +122,19 @@ const read = ref<BundleRead | null>(null);
 const catalogue = ref<Catalogue | null>(null);
 const source = ref("");
 const reading = ref(false);
+/** A lone JSON file was picked, not a folder or .zip. */
+const lone = ref(false);
+const jsonInput = ref<HTMLInputElement | null>(null);
 /** Remounts the dropzone so a new pick starts clean. */
 const attempt = ref(0);
+const programmeId = ref(BUILT_IN_PROGRAMME.id);
+const newName = ref("");
+
+const programmes = computed(() => knownProgrammes(store.entries));
+/** The chosen programme; none while a new one has no name. */
+const programme = computed<Programme | null>(() => programmeId.value === NEW
+  ? (newName.value.trim() ? programmeNamed(newName.value, store.entries) : null)
+  : programmes.value.find(p => p.id === programmeId.value) ?? null);
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -114,12 +157,22 @@ const onPlatform = computed(() => {
   return parts.filter(s => !s.startsWith("0 ")).join(", ") || "nothing";
 });
 
-async function onSource(s: LocalSource) {
+const onSource = (s: LocalSource) => readUpload(s.rootName, false, () => bundleFiles(s));
+
+function onJson(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (file) readUpload(file.name, true, async () => [{ path: file.name, size: file.size, text: () => file.text() }]);
+}
+
+async function readUpload(name: string, isJson: boolean, files: () => Promise<BundleFile[]>) {
   reading.value = true;
-  source.value = s.rootName;
+  source.value = name;
+  lone.value = isJson;
   try {
     catalogue.value = await store.platformCatalogue();
-    read.value = await readBundle(await bundleFiles(s), catalogue.value);
+    read.value = await readBundle(await files(), catalogue.value);
   } catch (e) {
     read.value = { project: null, bundled: { datasets: [], workflows: [], tools: [] }, warnings: [],
       errors: [`The bundle can't be read: ${e instanceof Error ? e.message : String(e)}`] };
@@ -140,12 +193,17 @@ function reset() {
 }
 
 function add() {
-  if (!read.value?.project) return;
-  emit("add", { project: read.value.project, bundled: read.value.bundled });
+  if (!read.value?.project || !programme.value) return;
+  emit("add", { project: read.value.project, bundled: read.value.bundled, programme: programme.value });
   open.value = false;
 }
 
-watch(open, isOpen => { if (isOpen) reset(); });
+watch(open, isOpen => {
+  if (!isOpen) return;
+  reset();
+  programmeId.value = BUILT_IN_PROGRAMME.id;
+  newName.value = "";
+});
 </script>
 
 <style scoped>
@@ -220,4 +278,21 @@ watch(open, isOpen => { if (isOpen) reset(); });
 .notes--error { border: 1px solid color-mix(in srgb, var(--tone-failed) 45%, transparent); }
 .notes--warn { border: 1px solid color-mix(in srgb, var(--tone-needs) 40%, transparent); }
 .notes--warn ul { color: var(--tone-needs); }
+
+.programme { display: flex; flex-direction: column; gap: 4px; padding-top: 12px; border-top: 1px solid var(--line); }
+.programme__fields { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.field {
+  flex: 1 1 220px;
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.92rem;
+}
+.field:focus-visible { outline: 2px solid var(--accent-tools); outline-offset: 1px; }
+select.field option { background: var(--ink); color: var(--text); }
 </style>

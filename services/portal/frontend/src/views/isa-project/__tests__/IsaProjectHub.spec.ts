@@ -35,14 +35,20 @@ async function menuItem(w: VueWrapper, title: string, item: string) {
   return document.body.querySelector<HTMLButtonElement>(`[data-test="menu-${id}"] [data-test=${item}]`);
 }
 
-async function uploadFile(w: VueWrapper, text: string) {
-  const input = w.find("input[type=file]");
-  // jsdom's File has no text(); browsers do.
-  const file = Object.assign(new File([text], "p.json"), { text: async () => text });
-  Object.defineProperty(input.element, "files", { value: [file], configurable: true });
-  await input.trigger("change");
+const BUILT_IN = { id: "te-whatu-ora-radiology-reporting", name: "Te Whatu Ora Radiology Reporting" };
+const RESEARCH = { id: "isa-radiology-research", name: "Radiology research" };
+
+/** Adds a project as the upload dialog hands it over, with nothing bundled. */
+async function uploadFile(w: VueWrapper, text: string, programme = BUILT_IN) {
+  w.findComponent(BundleUploadDialog).vm.$emit("add",
+    { project: JSON.parse(text), bundled: { datasets: [], workflows: [], tools: [] }, programme });
   await flushPromises();
 }
+
+const groups = (w: VueWrapper) => w.findAll("[data-test=isa-programme]").map(g => ({
+  name: g.find("[data-test=isa-programme-name]").text(),
+  projects: g.findAll("[data-test=isa-row] .row__title").map(t => t.text()),
+}));
 
 const mine = async () => {
   const p = await fixtureSource.loadExample("example-breast-pilot");
@@ -53,8 +59,8 @@ describe("IsaProjectHub", () => {
   it("lists the example ISA projects with what they hold", async () => {
     const w = await render();
     expect(rows(w)).toHaveLength(1);
-    expect(row(w, "Breast").text()).toContain("Example");
     expect(row(w, "Breast").text()).toContain("1 investigation, 2 studies, 14 assays");
+    expect(row(w, "Breast").text()).not.toContain("Example");
   });
 
   it("previews each study's chain of assays", async () => {
@@ -128,17 +134,37 @@ describe("IsaProjectHub", () => {
     expect(push).toHaveBeenCalledWith({ name: "StudyDashboardPrototype", query: { trail: "te-whatu-ora-radiology-reporting,te-whatu-ora-radiology-reporting:p-breast" } });
   });
 
-  it("adds an uploaded project to the list", async () => {
+  it("adds an uploaded project to the list, with no badge", async () => {
     const w = await render();
     await uploadFile(w, await mine());
-    expect(row(w, "My study plan").text()).toContain("Uploaded");
+    expect(row(w, "My study plan").text()).toContain("1 investigation, 2 studies, 14 assays");
+    expect(row(w, "My study plan").text()).not.toContain("Uploaded");
+    expect(row(w, "My study plan").text()).not.toContain("bundled");
   });
 
-  it("says why an upload can't be loaded", async () => {
+  it("groups the projects under their programmes, the built-in one first", async () => {
     const w = await render();
-    await uploadFile(w, '{"schemaVersion":"0.1-draft"}');
-    expect(w.find("[data-test=upload-errors]").text()).toContain("project needs an id and a title");
-    expect(rows(w)).toHaveLength(1);
+    expect(groups(w)).toEqual([{ name: "Te Whatu Ora Radiology Reporting", projects: ["Breast"] }]);
+    await uploadFile(w, await mine(), RESEARCH);
+    expect(groups(w)).toEqual([
+      { name: "Te Whatu Ora Radiology Reporting", projects: ["Breast"] },
+      { name: "Radiology research", projects: ["My study plan"] },
+    ]);
+    expect(w.findAll("[data-test=isa-programme]")[1].text()).toContain("1 project");
+  });
+
+  it("opens a project, and its studies, under its own programme", async () => {
+    const w = await render();
+    await uploadFile(w, await mine(), RESEARCH);
+    await row(w, "My study plan").find("[data-test=open]").trigger("click");
+    expect(push).toHaveBeenLastCalledWith({ name: "StudyDashboardPrototype", query: { trail: "isa-radiology-research,isa-radiology-research:p-mine" } });
+    await row(w, "My study plan").find("[data-test=isa-study-open]").trigger("click");
+    expect(push.mock.lastCall![0].query.trail.split(",")).toEqual([
+      "isa-radiology-research",
+      "isa-radiology-research:p-mine",
+      "isa-radiology-research:p-mine:i-breast-radiology-report",
+      "isa-radiology-research:p-mine:i-breast-radiology-report:s-breast-pilot",
+    ]);
   });
 
   it("asks before replacing a project that has the same id", async () => {
@@ -164,10 +190,12 @@ describe("IsaProjectHub", () => {
     expect(rows(w)).toHaveLength(1);
   });
 
-  it("offers a second upload, with datasets, for designs whose data isn't on the platform yet", async () => {
+  it("has one upload, for a JSON file or a bundle with datasets", async () => {
     const w = await render();
+    expect(w.findAll("[data-test=upload]")).toHaveLength(1);
+    expect(w.find("input[type=file]").exists()).toBe(false);
     expect(w.findComponent(BundleUploadDialog).props("modelValue")).toBe(false);
-    await w.find("[data-test=upload-bundle]").trigger("click");
+    await w.find("[data-test=upload]").trigger("click");
     expect(w.findComponent(BundleUploadDialog).props("modelValue")).toBe(true);
   });
 

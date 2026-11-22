@@ -124,6 +124,21 @@ describe("readBundle", () => {
     expect((await read(two)).errors).toEqual(["The bundle needs one .json file at its root, the ISA project; it has 2: isa-project.json, notes.json."]);
   });
 
+  it("reads a lone JSON as a bundle with nothing bundled", async () => {
+    const lone = design();
+    lone.investigations[0].studies[0].assays = lone.investigations[0].studies[0].assays.slice(1);
+    const r = await read(files({ "my-plan.json": JSON.stringify(lone) }));
+    expect(r.errors).toEqual([]);
+    expect(r.project?.project.id).toBe("p-new");
+    expect(r.bundled).toEqual({ datasets: [], workflows: [], tools: [] });
+  });
+
+  it("tells a lone JSON how to bring an id the platform doesn't have", async () => {
+    const r = await read(files({ "my-plan.json": JSON.stringify(design()) }));
+    expect(r.errors).toContain(
+      "assay a-seg input scans: unknown dataset ds-scans (not on the platform: upload a folder or .zip with datasets/ds-scans/)");
+  });
+
   it("says which folder a new id is missing", async () => {
     const r = await read(bundle(design({ datasetId: "ds-raw" })));
     expect(r.project).toBeNull();

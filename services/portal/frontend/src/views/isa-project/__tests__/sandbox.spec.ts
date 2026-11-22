@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fixtureSource } from "../adapter/isaProjectSource";
-import { isSandboxId, parseSandboxId, resolveSandboxTrail, SANDBOX_ID, sandboxChildren, sandboxProgramme } from "../sandbox";
+import { isSandboxId, knownProgrammes, parseSandboxId, programmeNamed, resolveSandboxTrail, SANDBOX_ID, sandboxChildren, sandboxProgrammes } from "../sandbox";
 import type { IsaProjectEntry } from "../sandbox";
 
 const entries = async (): Promise<IsaProjectEntry[]> => {
@@ -11,18 +11,56 @@ const entries = async (): Promise<IsaProjectEntry[]> => {
   ];
 };
 
+const RESEARCH = { id: "isa-radiology-research", name: "Radiology research" };
+/** The two entries, plus an upload filed in a programme of its own. */
+const withResearch = async (): Promise<IsaProjectEntry[]> => {
+  const e = await entries();
+  return [...e, { project: { ...e[0].project, project: { id: "p-research", title: "Research plan" } }, source: "upload", programme: RESEARCH }];
+};
+
 describe("sandbox programme", () => {
-  it("is one programme, described by how many projects it holds", async () => {
-    expect(sandboxProgramme(await entries())).toEqual({
+  it("is the built-in programme, described by how many projects it holds", async () => {
+    expect(sandboxProgrammes(await entries())).toEqual([{
       seekId: "te-whatu-ora-radiology-reporting", name: "Te Whatu Ora Radiology Reporting", category: "Programmes",
       description: "2 projects",
-    });
-    expect(sandboxProgramme((await entries()).slice(0, 1)).description).toBe("1 project");
+    }]);
+    expect(sandboxProgrammes((await entries()).slice(0, 1))[0].description).toBe("1 project");
+  });
+
+  it("lists each programme a project was filed in after the built-in one", async () => {
+    expect(sandboxProgrammes(await withResearch()).map(p => [p.seekId, p.name, p.description])).toEqual([
+      ["te-whatu-ora-radiology-reporting", "Te Whatu Ora Radiology Reporting", "2 projects"],
+      ["isa-radiology-research", "Radiology research", "1 project"],
+    ]);
+    expect(knownProgrammes(await withResearch())).toEqual([
+      { id: "te-whatu-ora-radiology-reporting", name: "Te Whatu Ora Radiology Reporting" }, RESEARCH,
+    ]);
+  });
+
+  it("keeps the built-in programme even with no projects in it", () => {
+    expect(sandboxProgrammes([]).map(p => [p.seekId, p.description])).toEqual([["te-whatu-ora-radiology-reporting", "0 projects"]]);
+  });
+
+  it("turns a typed name into a programme, matching one already known by its name", async () => {
+    const e = await withResearch();
+    expect(programmeNamed("  Cardiac  imaging ", e)).toEqual({ id: "isa-cardiac-imaging", name: "Cardiac imaging" });
+    expect(programmeNamed("radiology RESEARCH", e)).toEqual(RESEARCH);
+    expect(programmeNamed("Te Whatu Ora radiology reporting", e)).toEqual({ id: SANDBOX_ID, name: "Te Whatu Ora Radiology Reporting" });
+    expect(programmeNamed("Ōtautahi", e)).toEqual({ id: "isa-otautahi", name: "Ōtautahi" });
+    expect(programmeNamed("???", e)).toEqual({ id: "isa-programme", name: "???" });
+  });
+
+  it("lists only a programme's own projects", async () => {
+    const e = await withResearch();
+    expect(sandboxChildren(SANDBOX_ID, "Programmes", e).map(p => p.name)).toEqual(["Breast", "My study plan"]);
+    expect(sandboxChildren("isa-radiology-research", "Programmes", e).map(p => [p.seekId, p.name]))
+      .toEqual([["isa-radiology-research:p-research", "Research plan"]]);
   });
 
   it("tells sandbox ids from real SEEK ids", () => {
     expect(isSandboxId("te-whatu-ora-radiology-reporting")).toBe(true);
     expect(isSandboxId("te-whatu-ora-radiology-reporting:p-breast:i-breast-radiology-report")).toBe(true);
+    expect(isSandboxId("isa-radiology-research:p-research")).toBe(true);
     expect(isSandboxId("12")).toBe(false);
   });
 
@@ -56,18 +94,30 @@ describe("sandbox programme", () => {
 
   it("parses an id back into its parts", () => {
     expect(parseSandboxId("te-whatu-ora-radiology-reporting:p-breast:i-breast-radiology-report:s-breast-pilot"))
-      .toEqual({ projectId: "p-breast", investigationId: "i-breast-radiology-report", studyId: "s-breast-pilot" });
-    expect(parseSandboxId("te-whatu-ora-radiology-reporting")).toEqual({});
+      .toEqual({ programmeId: SANDBOX_ID, projectId: "p-breast", investigationId: "i-breast-radiology-report", studyId: "s-breast-pilot" });
+    expect(parseSandboxId("te-whatu-ora-radiology-reporting")).toEqual({ programmeId: SANDBOX_ID });
+    expect(parseSandboxId("isa-radiology-research:p-research")).toEqual({ programmeId: "isa-radiology-research", projectId: "p-research" });
     expect(parseSandboxId("12")).toBeNull();
   });
 });
 
 describe("resolveSandboxTrail", () => {
-  it("starts at the one Te Whatu Ora Radiology Reporting programme", async () => {
-    const e = await entries();
+  it("starts at the programmes", async () => {
+    const e = await withResearch();
     expect(resolveSandboxTrail([], e)).toEqual({
-      items: [sandboxProgramme(e)], breadcrumbs: [], currentCategory: "Programmes",
+      items: sandboxProgrammes(e), breadcrumbs: [], currentCategory: "Programmes",
     });
+  });
+
+  it("walks a trail through a named programme", async () => {
+    const r = resolveSandboxTrail(["isa-radiology-research", "isa-radiology-research:p-research"], await withResearch());
+    expect(r.breadcrumbs.map(b => b.name)).toEqual(["Radiology research", "Research plan"]);
+    expect(r.items.map(i => i.seekId)).toEqual(["isa-radiology-research:p-research:i-breast-radiology-report"]);
+  });
+
+  it("doesn't find a project under a programme it isn't in", async () => {
+    const r = resolveSandboxTrail([SANDBOX_ID, `${SANDBOX_ID}:p-research`], await withResearch());
+    expect(r.breadcrumbs).toHaveLength(1);
   });
 
   it("walks a trail down to a study's assays, with named crumbs", async () => {

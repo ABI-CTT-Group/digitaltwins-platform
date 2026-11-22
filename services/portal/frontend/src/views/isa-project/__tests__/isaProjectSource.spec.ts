@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fixtureSource, IsaProjectUploadError } from "../adapter/isaProjectSource";
+import { fixtureSource } from "../adapter/isaProjectSource";
 import { validateIsaProject } from "../model/isaProject";
 
 describe("fixtureSource", () => {
@@ -148,22 +148,5 @@ describe("fixtureSource", () => {
     const first = await fixtureSource.loadExample(id);
     first.project.title = "changed";
     expect((await fixtureSource.loadExample(id)).project.title).not.toBe("changed");
-  });
-
-  it("parses a valid upload", async () => {
-    const [{ id }] = await fixtureSource.listExamples();
-    const text = JSON.stringify(await fixtureSource.loadExample(id));
-    expect(await fixtureSource.parseUpload(text)).toEqual(JSON.parse(text));
-  });
-
-  it("rejects an upload that isn't JSON", async () => {
-    await expect(fixtureSource.parseUpload("{oops")).rejects.toEqual(
-      new IsaProjectUploadError(["The file is not valid JSON."]));
-  });
-
-  it("rejects an upload that doesn't match the draft schema, listing why", async () => {
-    const err = await fixtureSource.parseUpload('{"schemaVersion":"0.1-draft"}').catch(e => e);
-    expect(err).toBeInstanceOf(IsaProjectUploadError);
-    expect(err.errors).toContain("project needs an id and a title");
   });
 });

@@ -2,9 +2,9 @@
 // Kept in this browser's localStorage only; nothing is sent to a server.
 import { defineStore } from "pinia";
 import type { Catalogue, IsaProject, Study } from "./model/types";
-import { EXAMPLE_RELEASE, fixtureSource, IsaProjectUploadError } from "./adapter/isaProjectSource";
+import { EXAMPLE_RELEASE, fixtureSource } from "./adapter/isaProjectSource";
 import { withBundled } from "./adapter/isaBundle";
-import type { IsaProjectEntry } from "./sandbox";
+import type { IsaProjectEntry, Programme } from "./sandbox";
 
 let seeding: Promise<void> | null = null;
 /** Projects whose simulated approval is running in this page. */
@@ -57,20 +57,11 @@ export const useIsaProjectStore = defineStore("isaProjects", {
       return seeding;
     },
 
-    /** Add an uploaded draft-schema JSON; a project with the same id is replaced in place. */
-    async upload(text: string): Promise<{ ok: true; projectId: string } | { ok: false; errors: string[] }> {
-      try {
-        const project = await fixtureSource.parseUpload(text, this.registered);
-        this.put({ project, source: "upload" });
-        return { ok: true, projectId: project.project.id };
-      } catch (e) {
-        return { ok: false, errors: e instanceof IsaProjectUploadError ? e.errors : [String(e)] };
-      }
-    },
-
-    /** Add a project read from a bundle (already checked), with the bundle's new items. */
-    addBundle(project: IsaProject, bundled: Catalogue) {
-      this.put({ project, source: "upload", bundled });
+    /** Add an upload (already checked: a lone JSON or a bundle), with any new items its bundle
+     *  brought, filed in the programme chosen for it. A project with the same id is replaced in place. */
+    addBundle(project: IsaProject, bundled: Catalogue, programme?: Programme) {
+      const brings = bundled.datasets.length + bundled.workflows.length + bundled.tools.length > 0;
+      this.put({ project, source: "upload", ...(brings ? { bundled } : {}), ...(programme ? { programme } : {}) });
     },
 
     /** Add an entry; one with the same project id is replaced in place. */

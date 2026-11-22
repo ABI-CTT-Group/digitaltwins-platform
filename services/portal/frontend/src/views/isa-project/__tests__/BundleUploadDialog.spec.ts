@@ -40,6 +40,24 @@ async function bundle(datasetFolder = "ds-new-scans") {
 }
 
 const body = () => document.body.querySelector("[data-test=bundle-dialog]")!;
+const programme = () => body().querySelector<HTMLSelectElement>("[data-test=bundle-programme]")!;
+const programmeName = () => body().querySelector<HTMLInputElement>("[data-test=bundle-programme-name]");
+const BUILT_IN = { id: "te-whatu-ora-radiology-reporting", name: "Te Whatu Ora Radiology Reporting" };
+
+/** Picks a single JSON file through the dialog's own file input. */
+async function pickJson(text: string) {
+  const input = body().querySelector<HTMLInputElement>("[data-test=bundle-json]")!;
+  const f = Object.assign(new File([text], "plan.json"), { text: async () => text });
+  Object.defineProperty(input, "files", { value: [f], configurable: true });
+  input.dispatchEvent(new Event("change"));
+  await flushPromises();
+}
+
+async function choose(el: HTMLSelectElement | HTMLInputElement, value: string) {
+  el.value = value;
+  el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? "change" : "input"));
+  await flushPromises();
+}
 const addButton = () => body().querySelector<HTMLButtonElement>("[data-test=bundle-add]")!;
 
 async function drop(w: VueWrapper, source: Awaited<ReturnType<typeof bundle>>) {
@@ -48,6 +66,23 @@ async function drop(w: VueWrapper, source: Awaited<ReturnType<typeof bundle>>) {
 }
 
 describe("BundleUploadDialog", () => {
+  it("is the one way to upload an ISA project", async () => {
+    await render();
+    expect(body().querySelector("#bundle-title")!.textContent).toBe("Upload ISA project");
+    expect(body().querySelector("[data-test=bundle-json]")!.getAttribute("accept")).toContain(".json");
+  });
+
+  it("reviews a lone JSON, with nothing bundled", async () => {
+    await render();
+    const p = await fixtureSource.loadExample("example-breast-pilot");
+    await pickJson(JSON.stringify({ ...p, project: { id: "p-json", title: "JSON plan" } }));
+    expect(body().querySelector("[data-test=bundle-review]")!.textContent).toContain("JSON plan");
+    expect(body().querySelectorAll("[data-test=bundle-item]")).toHaveLength(0);
+    expect(body().textContent).not.toContain("Bundled items");
+    expect(body().querySelector("[data-test=bundle-on-platform]")!.textContent).toContain("4 datasets, 8 workflows");
+    expect(addButton().disabled).toBe(false);
+  });
+
   it("shows how to lay out a bundle before one is chosen", async () => {
     await render();
     expect(body().textContent).toContain("datasets/<id>/");
@@ -81,15 +116,48 @@ describe("BundleUploadDialog", () => {
     expect(addButton().disabled).toBe(true);
   });
 
-  it("hands the project and its new items over, and closes", async () => {
+  it("hands the project, its new items and its programme over, and closes", async () => {
     const w = await render();
     await drop(w, await bundle());
     addButton().click();
     await flushPromises();
-    const [[added]] = w.emitted("add") as [[{ project: { project: { id: string } }; bundled: { datasets: { id: string }[] } }]];
+    const [[added]] = w.emitted("add") as [[{ project: { project: { id: string } }; bundled: { datasets: { id: string }[] }; programme: unknown }]];
     expect(added.project.project.id).toBe("p-bundled");
     expect(added.bundled.datasets.map(d => d.id)).toEqual(["ds-new-scans"]);
+    expect(added.programme).toEqual(BUILT_IN);
     expect(w.emitted("update:modelValue")).toEqual([[false]]);
+  });
+
+  it("offers the programmes projects are in, the built-in one first, or a new one", async () => {
+    const { useIsaProjectStore } = await import("../isaProjectStore");
+    const p = await fixtureSource.loadExample("example-breast-pilot");
+    useIsaProjectStore().entries.push({ project: p, source: "upload", programme: { id: "isa-cardiac", name: "Cardiac" } });
+    const w = await render();
+    await drop(w, await bundle());
+    expect(Array.from(programme().options, o => o.textContent!.trim()))
+      .toEqual(["Te Whatu Ora Radiology Reporting", "Cardiac", "New programme…"]);
+    expect(programme().value).toBe(BUILT_IN.id);
+    expect(programmeName()).toBeNull();
+
+    await choose(programme(), "isa-cardiac");
+    addButton().click();
+    await flushPromises();
+    expect((w.emitted("add") as [[{ programme: unknown }]])[0][0].programme).toEqual({ id: "isa-cardiac", name: "Cardiac" });
+  });
+
+  it("files the project in a new programme once it has a name", async () => {
+    const w = await render();
+    await drop(w, await bundle());
+    await choose(programme(), "new");
+    expect(addButton().disabled).toBe(true);
+    await choose(programmeName()!, "   ");
+    expect(addButton().disabled).toBe(true);
+    await choose(programmeName()!, "Radiology research");
+    expect(addButton().disabled).toBe(false);
+    addButton().click();
+    await flushPromises();
+    expect((w.emitted("add") as [[{ programme: unknown }]])[0][0].programme)
+      .toEqual({ id: "isa-radiology-research", name: "Radiology research" });
   });
 
   it("counts an item an approval registered as on the platform", async () => {

@@ -4,6 +4,7 @@ import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
 import { createApp, nextTick } from "vue";
 import { useIsaProjectStore } from "../isaProjectStore";
 import { fixtureSource } from "../adapter/isaProjectSource";
+import { readBundle } from "../adapter/isaBundle";
 import { APPROVE_STEP } from "../isaProjectStore";
 
 // Pinia applies plugins only once it is installed in an app, as main.ts does.
@@ -17,6 +18,11 @@ const upload = async (over: Record<string, unknown> = {}) => {
   const p = await fixtureSource.loadExample("example-breast-pilot");
   return JSON.stringify({ ...p, project: { id: "p-mine", title: "My study plan" }, ...over });
 };
+
+const NOTHING = () => ({ datasets: [], workflows: [], tools: [] });
+const RESEARCH = { id: "isa-radiology-research", name: "Radiology research" };
+/** Adds "p-mine" as an upload with nothing bundled. */
+const addMine = async (store: ReturnType<typeof useIsaProjectStore>) => store.addBundle(JSON.parse(await upload()), NOTHING());
 
 beforeEach(() => {
   localStorage.clear();
@@ -62,14 +68,16 @@ describe("isaProjectStore", () => {
     expect(store.study("p-breast", "s-breast-pilot")!.assays[0].title).toBe("Edited");
   });
 
-  it("adds an uploaded project, and replaces one with the same project id", async () => {
+  it("files an upload in the programme chosen for it, and moves a replaced one to the new choice", async () => {
     const store = useIsaProjectStore();
     await store.ensureExamples();
-    expect(await store.upload(await upload())).toEqual({ ok: true, projectId: "p-mine" });
-    expect(store.has("p-mine")).toBe(true);
-    await store.upload(JSON.stringify({ ...JSON.parse(await upload()), project: { id: "p-mine", title: "Renamed" } }));
-    expect(store.entries.filter(e => e.project.project.id === "p-mine").map(e => [e.source, e.project.project.title]))
-      .toEqual([["upload", "Renamed"]]);
+    const project = JSON.parse(await upload());
+    store.addBundle(project, NOTHING(), RESEARCH);
+    expect(store.entries.find(e => e.project.project.id === "p-mine")!.programme).toEqual(RESEARCH);
+    expect(store.entries.find(e => e.project.project.id === "p-mine")!.bundled).toBeUndefined(); // a lone JSON brings nothing
+    const other = { id: "isa-cardiac", name: "Cardiac" };
+    store.addBundle(project, NOTHING(), other);
+    expect(store.entries.filter(e => e.project.project.id === "p-mine").map(e => e.programme)).toEqual([other]);
   });
 
   it("adds a bundled project with its new items, and replaces one with the same project id", async () => {
@@ -83,19 +91,10 @@ describe("isaProjectStore", () => {
       .toEqual([["upload", "Renamed", bundled]]);
   });
 
-  it("returns the errors of a bad upload and leaves the store as it was", async () => {
-    const store = useIsaProjectStore();
-    await store.ensureExamples();
-    const before = JSON.stringify(store.entries);
-    const r = await store.upload("{oops");
-    expect(r).toEqual({ ok: false, errors: ["The file is not valid JSON."] });
-    expect(JSON.stringify(store.entries)).toBe(before);
-  });
-
   it("removes a project and resets an edited example", async () => {
     const store = useIsaProjectStore();
     await store.ensureExamples();
-    await store.upload(await upload());
+    await addMine(store);
     store.remove("p-mine");
     expect(store.has("p-mine")).toBe(false);
 
@@ -114,7 +113,7 @@ describe("isaProjectStore", () => {
   it("keeps uploads and edits across a page reload (localStorage)", async () => {
     const store = useIsaProjectStore();
     await store.ensureExamples();
-    await store.upload(await upload());
+    await addMine(store);
     store.study("p-breast", "s-breast-pilot")!.assays[0].title = "Edited";
     await nextTick();
 
@@ -164,8 +163,9 @@ describe("isaProjectStore approval (simulated)", () => {
     const done = store.approve("p-mine");
     await vi.runAllTimersAsync();
     await done;
-    const later = { ...entry(store).project, project: { id: "p-later", title: "Later plan" } };
-    expect(await store.upload(JSON.stringify(later))).toEqual({ ok: true, projectId: "p-later" });
+    const later = JSON.stringify({ ...entry(store).project, project: { id: "p-later", title: "Later plan" } });
+    const r = await readBundle([{ path: "later.json", size: later.length, text: async () => later }], await store.platformCatalogue());
+    expect([r.errors, r.project?.project.id]).toEqual([[], "p-later"]);
   });
 
   it("approves only uploads, not the examples", async () => {
