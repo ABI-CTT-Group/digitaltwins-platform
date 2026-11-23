@@ -11,6 +11,10 @@ Plan: [plan.md](plan.md)
 - [x] 6. Close out again: `Status: done`, "Next" rewritten as "Follow-ups"
 - [x] 7. `## Handoff` replaces `## Progress / Next steps` in the template, AGENTS.md, the ADR and this folder (`make docs-check` passes)
 - [x] 8. Close out: `Status: done` in plan.md, remaining tasks ticked, Handoff cleared
+- [x] 9. PR template merged with Summary / Evidence / Merge danger (`make docs-check` passes)
+- [x] 10. Issue templates: secrets warning and labels (`make docs-check` passes)
+- [x] 11. Security-policy gap in `docs/future_refactoring.md` (`make docs-check` passes)
+- [x] 12. Close out: `Status: done` in plan.md, remaining tasks ticked, Handoff cleared
 
 ## Handoff
 

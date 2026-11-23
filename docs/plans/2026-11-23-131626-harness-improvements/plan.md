@@ -81,6 +81,15 @@ This plan makes five changes. A review on 2026-11-23 settled them; see [Decision
      ADRs: Builder (avoid "portal backend") and Plan folder (avoid "artifacts"). Others are added when
      a reviewer catches real drift.
 
+6. **GitHub templates.**
+   - Problem: 13 of the last 15 merged PRs ignored the PR template and used another format
+     (Summary / Evidence / Merge Danger), and the template has no field for the plan folder. Only the
+     bug report warns against pasting secrets, and no issue template applies a label.
+   - Change: the PR template merges both formats (Summary with Related issue, Plan folder, Type and AI
+     use fields; Evidence; Merge danger; Checklist). The feature and document request templates get
+     the secrets warning, and each issue template applies its label.
+   - Not in scope: a security policy. The gap goes in `docs/future_refactoring.md`.
+
 ## Steps
 
 One PR, one commit per step, so each can be reverted on its own.
@@ -123,3 +132,8 @@ Settled in a review on 2026-11-23:
 | 12 | Template review | Blank line between the header lines (one paragraph otherwise). Each step's check lives only in `tasks.md`, as a command and the result that means done. `tasks.md` ends with a fixed close-out item. |
 | 13 | Optional plan sections | Not in the template. One line in the AGENTS.md "Plans" section says when to add Risks (migrations, deploys, live data) and Out of scope (disputed scope). |
 | 14 | Handoff section | `## Handoff` (Stopped at / Blocked on) replaces `## Progress / Next steps`. Done and Next repeated the checklist; only a step left partway and blockers can't be shown by ticks. |
+| 15 | PR template | Merge the existing template with Summary / Evidence / Merge danger. Evidence is proof for this change; the Checklist holds the chores every PR needs, starting with `make test` and `make lint` passing locally (a reminder, even though CI runs the affected suites). |
+| 16 | Plan folder field | A link, or "none": a human change may have no plan. |
+| 17 | AI use field | One line: none, or drafted with a tool and reviewed by a named person. |
+| 18 | Issue templates | The secrets warning on all three; each applies its label (bug, enhancement, documentation). The `v0.5.0` version example stays: it is the latest release tag. |
+| 19 | Security policy | Out of scope; recorded as debt. No AGENTS.md line about the PR template. Lands in this PR, whose description is rewritten in the new template. |
