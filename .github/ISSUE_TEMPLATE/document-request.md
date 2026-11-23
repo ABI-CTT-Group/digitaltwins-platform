@@ -2,10 +2,13 @@
 name: Document request 📖
 about: Suggest documentation that is missing, unclear or out of date
 title: ''
-labels: ''
+labels: 'documentation'
 assignees: ''
 
 ---
+
+> Don't paste passwords, tokens, client secrets or the contents of `.env` /
+> `secrets.env`. Replace them with `<REDACTED>`.
 
 ## What is missing or wrong
 A clear and concise description of the documentation that is missing, unclear or
