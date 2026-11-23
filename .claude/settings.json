@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(make test *)",
+      "Bash(make test-api *)",
+      "Bash(make test-builder *)",
+      "Bash(make test-frontend *)",
+      "Bash(make test-jupyterhub *)",
+      "Bash(make test-util *)",
+      "Bash(make lint *)",
+      "Bash(make docs-check *)",
+      "Bash(make gitleaks *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git worktree list *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr view *)"
+    ]
+  }
+}

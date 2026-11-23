@@ -212,3 +212,6 @@ e2e-creds.txt
 
 # util/lib holds sourced shell helpers (e.g. compose-file.sh), not Python packaging output.
 !util/lib/
+
+# Claude Code personal settings; the shared .claude/settings.json is committed
+.claude/settings.local.json

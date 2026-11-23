@@ -8,9 +8,8 @@
 Each change keeps its design evidence (implementation plan, task checklist, walkthrough) in a dated folder,
 committed with the code for audit. The folder was `docs/artifacts/` and the rules called its contents
 "artifacts", the name Google Antigravity gives these documents. Elsewhere "artifact" means build or CI output
-(GitHub Actions artifacts, Maven artifacts, the builder's "build artifacts" here), and in VeriFlow, which shares
-these rules, it already means an agent's output (`GET /api/v1/orchestrate/{run_id}/artifacts/{agent_name}`).
-An agent told to "sync artifacts" could reach for the wrong thing.
+(GitHub Actions artifacts, Maven artifacts, the builder's "build artifacts" here), and in agent frameworks it
+often means an agent's output. An agent told to "sync artifacts" could reach for the wrong thing.
 
 ## Alternatives Considered
 
@@ -20,7 +19,7 @@ An agent told to "sync artifacts" could reach for the wrong thing.
 
 ### Option B: `docs/plans/`
 - Pros: the name most agent tooling and readers recognise (Claude Code plan mode, superpowers' `docs/plans/`,
-  Spec Kit's `plan.md`); no clash in either repo.
+  Spec Kit's `plan.md`); no clash with other uses here.
 - Cons: a folder also holds a walkthrough, which records what happened rather than a plan.
 
 ### Option C: `specs/` (GitHub Spec Kit, Kiro)
@@ -29,9 +28,8 @@ An agent told to "sync artifacts" could reach for the wrong thing.
 
 ## Decision
 
-Option B, in both digitaltwins-platform and VeriFlow so their rules stay identical. The term changes with the
-folder: a document is a "plan" and one dated folder is a "plan folder". Uses of "artifact" that mean build,
-Docker or pipeline output are unchanged.
+Option B. The term changes with the folder: a document is a "plan" and one dated folder is a
+"plan folder". Uses of "artifact" that mean build, Docker or pipeline output are unchanged.
 
 ## Consequences
 

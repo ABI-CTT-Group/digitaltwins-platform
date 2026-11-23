@@ -2,10 +2,13 @@
 name: Feature request 🛠️
 about: Suggest an idea for the platform
 title: ''
-labels: ''
+labels: 'enhancement'
 assignees: ''
 
 ---
+
+> Don't paste passwords, tokens, client secrets or the contents of `.env` /
+> `secrets.env`. Replace them with `<REDACTED>`.
 
 ## Problem
 A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]

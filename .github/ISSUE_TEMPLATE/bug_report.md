@@ -2,7 +2,7 @@
 name: Bug report 🪲
 about: Report something in the platform that doesn't work as expected
 title: ''
-labels: ''
+labels: 'bug'
 assignees: ''
 
 ---
