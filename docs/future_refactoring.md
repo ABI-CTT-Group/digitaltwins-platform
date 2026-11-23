@@ -93,3 +93,11 @@ Found while making every secret required in the compose files (`docs/plans/2026-
 ### [ ] 1. Keycloak's database password is a public default
 * **Description**: `KEYCLOAK_DB_PASSWORD` is in `secrets.env.template` but not in `.env.template`, so it never reaches `.env`. Every host runs Keycloak on the literal default in `services/keycloak/docker-compose.yml`, which matches the role password in `services/postgres/keycloak_init.sql`, and both are public. To fix: add it to `.env.template`, turn `keycloak_init.sql` into a script that reads it (as `portal_init.sh` does for `BUILDER_DB_PASSWORD`), run `ALTER ROLE keycloak` with the new password on each existing database before deploying, change the compose file to `${KEYCLOAK_DB_PASSWORD:?...}`, and remove the exception in `util/tests/test_secrets_required.sh`.
 * **Why skipped**: It needs a coordinated password change on every host's database; a missed step takes Keycloak, and sign-in, down. Every other secret became required without one.
+
+## Security reporting
+
+Found while reviewing the GitHub templates (`docs/plans/2026-11-23-131626-harness-improvements`).
+
+### [ ] 1. No private route for reporting a vulnerability
+* **Description**: The repository is public, has no `SECURITY.md`, and GitHub's private vulnerability reporting is off, so the bug-report template is the only way to report a problem and a vulnerability would be disclosed in a public issue. Add a `SECURITY.md` (how to report privately, and which versions get fixes), turn on private vulnerability reporting in the repository settings (needs admin), and link it from an `.github/ISSUE_TEMPLATE/config.yml` contact link.
+* **Why skipped**: Kept out of the GitHub template review's scope: it needs a repository setting change by an admin and a decision on who handles reports.
