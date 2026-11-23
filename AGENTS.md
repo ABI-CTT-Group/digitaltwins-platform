@@ -101,6 +101,8 @@ A plan folder is live while its branch is open, and history once the branch merg
 
 - **Start from the template.** Copy [docs/plans/TEMPLATE/](docs/plans/TEMPLATE/) to the new folder.
   - Write the plan straight into its `plan.md`.
+  - Add a section when the change needs it: Risks for migrations, deploys or live data; Out of scope
+    when the scope is disputed.
   - If a tool wrote the plan elsewhere (Claude Code plan mode writes to `~/.claude/plans/`), copy it
     into the folder before asking for review.
 - **Header.** `plan.md` opens with `Status: active` and `Branch: <branch>`.
