@@ -51,9 +51,10 @@ Option B, with these changes:
   - No `proposed` status: nothing merges as proposed.
   - No `Owner:`: the PR author and git log record it.
 - **Fixed names:** new folders use `plan.md` and `tasks.md`, copied from `docs/plans/TEMPLATE/`.
-- **Handoff:** `tasks.md` ends with `## Progress / Next steps` (Done / Next / Open questions). A session
-  updates it before it stops.
-- **Close-out:** in the PR's last commit, "Next" becomes "Follow-ups".
+- **Handoff:** `tasks.md` ends with `## Handoff`, which a session fills in before it stops with what the
+  ticks can't show: a step left partway, and what the work is blocked on.
+- **Close-out:** in the PR's last commit, the Handoff section is cleared. Anything still open goes to
+  `docs/future_refactoring.md` or the PR description.
 - **Sync rule:** stated once and positively. Write the plan into the plan folder, or copy it there before
   asking for review. The per-step sync checklist items are dropped.
 

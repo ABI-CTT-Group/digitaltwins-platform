@@ -111,13 +111,15 @@ A plan folder is live while its branch is open, and history once the branch merg
     means done. `plan.md` says what each step changes; the check lives only in `tasks.md`.
   - Tick each item the moment its check passes, before starting the next step: people follow the
     work's progress from this file. The last item closes the plan (below).
-  - Before a session stops, update the `## Progress / Next steps` section at the end (Done, Next,
-    Open questions). A session that picks up the work reads `tasks.md` first.
+  - Before a session stops, fill in the `## Handoff` section at the end with what the ticks can't
+    show: a step left partway and what's left of it, and what the work is blocked on. Leave it
+    empty when nothing applies. A session that picks up the work reads `tasks.md` first.
 - **Close the plan in the PR's last commit.**
   - Set `Status: done`. Add a note if the outcome differs from the plan, e.g.
     `Status: done (steps 3–4 dropped)`.
   - Tick the remaining tasks.
-  - Rename "Next" to "Follow-ups", listing what moved to `docs/future_refactoring.md`, or "none".
+  - Clear the `## Handoff` section. Anything still open goes to `docs/future_refactoring.md` or the
+    PR description.
   - If review asks for more work, set the status back to `active`.
 - **Finding live work.** Plans on other branches aren't in your checkout, and every plan folder on
   `main` is closed. `gh pr list` shows the team's open work, and `git worktree list` shows your own.
