@@ -121,3 +121,4 @@ Settled in a review on 2026-11-23:
 | 10 | First "Avoid:" terms | Only the renames backed by ADRs: Builder and Plan folder. |
 | 11 | Landing | One PR, one commit per step. |
 | 12 | Template review | Blank line between the header lines (one paragraph otherwise). Each step's check lives only in `tasks.md`, as a command and the result that means done. `tasks.md` ends with a fixed close-out item. |
+| 13 | Optional plan sections | Not in the template. One line in the AGENTS.md "Plans" section says when to add Risks (migrations, deploys, live data) and Out of scope (disputed scope). |

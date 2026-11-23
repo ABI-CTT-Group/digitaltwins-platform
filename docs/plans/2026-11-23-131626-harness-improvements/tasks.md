@@ -7,6 +7,8 @@ Plan: [plan.md](plan.md)
 - [x] 2. Allowlist: `.claude/settings.json` + `.gitignore` (JSON parses; allowlisted command runs without a prompt)
 - [x] 3. Glossary "Avoid:" sentences for Builder and Plan folder (`make docs-check` passes)
 - [x] 4. Close-out: `Status: done`, tasks ticked, "Next" rewritten as "Follow-ups"
+- [x] 5. AGENTS.md "Plans": one line on when to add Risks and Out of scope (`make docs-check` passes)
+- [x] 6. Close out again: `Status: done`, "Next" rewritten as "Follow-ups"
 
 ## Progress / Next steps
 
@@ -27,5 +29,6 @@ Plan: [plan.md](plan.md)
   - ADR 2026-11-12 reworded so it no longer names another repository; `make docs-check` passes.
   - Committed as one commit per step. The plan folder lands with the close-out commit, so the
     earlier commits each hold one change.
+  - Reopened after review: added decision 13 and step 5.
 - Follow-ups: none.
 - Open questions / blockers: none.
