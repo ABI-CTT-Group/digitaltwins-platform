@@ -47,10 +47,10 @@ This plan makes five changes. A review on 2026-11-23 settled them; see [Decision
 2. **A handoff section in `tasks.md`.**
    - Problem: `tasks.md` records ticks, but not where a session stopped or what blocks it. Only 1 of the
      100 folders on main has anything like that.
-   - Change: `tasks.md` ends with `## Progress / Next steps` (Done / Next / Open questions). A session
-     updates it before it stops, and the next session reads `tasks.md` first.
-   - Close-out: in the PR's last commit, "Next" becomes "Follow-ups". It lists the items moved to
-     `docs/future_refactoring.md`, or says "none", so merged history carries no stale next steps.
+   - Change: `tasks.md` ends with `## Handoff` (Stopped at / Blocked on), filled in before a session
+     stops with only what the ticks can't show. The next session reads `tasks.md` first.
+   - Close-out: in the PR's last commit, the Handoff section is cleared. Anything still open goes to
+     `docs/future_refactoring.md` or the PR description, so merged history carries no stale state.
 
 3. **Rephrase the plan-sync rules without the CRITICAL/MUST/NEVER wording.**
    - Keep the substance: plans written by tools outside the repo must land in `docs/plans/<folder>/`,
@@ -101,7 +101,7 @@ One PR, one commit per step, so each can be reverted on its own.
    - Files: "Avoid:" sentences for Builder and Plan folder.
    - Verify: `make docs-check` passes.
 4. **Close-out.**
-   - Set `Status: done`, tick the tasks, and rewrite "Next" as "Follow-ups".
+   - Set `Status: done`, tick the tasks, and clear the Handoff section.
 
 ## Decisions
 
@@ -115,10 +115,11 @@ Settled in a review on 2026-11-23:
 | 4 | Glossary synonyms | An "Avoid:" sentence in the Meaning cell, not a new column. |
 | 5 | Header | `Status: active\|done` (with an optional note) plus `Branch:`. No `proposed`, no `Owner:`. |
 | 6 | File names | `plan.md` and `tasks.md` are required in new folders, copied from templates. |
-| 7 | Handoff at close | "Next" becomes "Follow-ups" (moved to `docs/future_refactoring.md`, or "none"). |
+| 7 | Handoff at close | The Handoff section is cleared; open items go to `docs/future_refactoring.md` or the PR description. Superseded the "Next" → "Follow-ups" rule (see 14). |
 | 8 | Sync rule | One positive sentence. Drop the per-step sync items and Claude Code's `plansDirectory` setting (it writes flat files, which don't fit the folder layout). |
 | 9 | Template location | `docs/plans/TEMPLATE/` |
 | 10 | First "Avoid:" terms | Only the renames backed by ADRs: Builder and Plan folder. |
-| 11 | Landing | One PR, one commit per step. |
+| 11 | Landing | One PR, one commit per step. The plan folder lands with the close-out commit, so its ticks never run ahead of the commits. |
 | 12 | Template review | Blank line between the header lines (one paragraph otherwise). Each step's check lives only in `tasks.md`, as a command and the result that means done. `tasks.md` ends with a fixed close-out item. |
 | 13 | Optional plan sections | Not in the template. One line in the AGENTS.md "Plans" section says when to add Risks (migrations, deploys, live data) and Out of scope (disputed scope). |
+| 14 | Handoff section | `## Handoff` (Stopped at / Blocked on) replaces `## Progress / Next steps`. Done and Next repeated the checklist; only a step left partway and blockers can't be shown by ticks. |
