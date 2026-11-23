@@ -17,7 +17,8 @@ API, a builder, Airflow, JupyterHub, SEEK, MinIO, HAPI FHIR and Orthanc, with Ke
 
 [docs/glossary.md](docs/glossary.md) explains domain terms (SDS, SEEK assay, SOP, tool, workflow, plugin).
 `docs/plans/` is dated design evidence kept for audit. It describes what was true when each change
-was made, so it may be stale: trust the guides, the ADRs and the code over it.
+was made, so it may be stale: trust the guides, the ADRs and the code over it. The exception is the
+plan folder of your own branch, which is the live plan ([Plans](#plans)).
 [docs/future_refactoring.md](docs/future_refactoring.md) lists known debt. Like the plans, its items
 can be stale or wrong: check each one against the code before acting on it.
 
@@ -87,18 +88,41 @@ More couplings, with the mechanism and what breaks, are in [docs/codemap.md](doc
 
 ## Plans
 
-Maintain timestamped folders in `docs/plans/` and immediately sync all agent-generated planning or summary documents (e.g., implementation plans, task checklists, walkthroughs).
-Timestamps should be in the format `YYYY-MM-DD-HHMMSS` and reflect the time of creation or last update. For example, if you create a plan for a feature called "user-auth" on March 15, 2024, at 14:30:00, the folder should be named `docs/plans/2024-03-15-143000-user-auth/`.
+Each change keeps its design evidence in a plan folder:
 
-**CRITICAL REQUIREMENT:** Whenever you generate, modify, or update any planning or summary document, you MUST immediately duplicate or sync the updated version to a time-stamped folder in `docs/plans/<date>-<feature-name>/`. Do not wait until the end of your task to sync them.
+- What it holds: the plan, the task checklist and, optionally, a walkthrough.
+- Where it lives: `docs/plans/YYYY-MM-DD-HHMMSS-<feature>/`. The timestamp is the time of creation or
+  last update; for example, `docs/plans/2024-03-15-143000-user-auth/`.
+- When it is committed: in the same branch and PR as the change it describes. This is a
+  regulated-environment requirement: every change must be traceable to its design.
 
-**COMMIT POLICY:** Plans MUST be committed in the **same branch/PR** as the code changes they relate to. This is a regulated-environment requirement — design evidence must be linked to implementation for audit traceability.
+A plan folder is live while its branch is open, and history once the branch merges
+([ADR](docs/decisions/2026-11-23-plan-folders-live-on-their-branch.md)).
 
-**OPERATIONAL STEPS TO ENFORCE THIS:**
-1. **Task Tracking:** Keep a `tasks.md` checklist next to the plan, one item per plan step. Tick each item the moment its check passes, before starting the next step: people follow the work's progress from this file. Include a checklist item like `[ ] Sync plans to docs/plans/` immediately following any step that modifies a document.
-2. **Immediate Sync:** Every time you use your file-writing capabilities to create or update a plan or summary document, your very next action MUST be executing a terminal command (or equivalent file operation) to copy the updated file into the `docs/plans/` directory.
-3. **Pre-Feedback Check:** NEVER pause your execution to ask the user for review, feedback, or approval without first verifying that all updated plans have been synced to the project directory.
-4. **Secret Redaction:** NEVER include actual passwords, API keys, or sensitive environment variables in implementation plans or walkthroughs. Always use placeholders like `<REDACTED>`. You must actively verify no secrets exist before syncing to `docs/plans/`. A `gitleaks` pre-commit hook enforces this at commit time, but you MUST still redact proactively — do not rely on the hook as the sole control.
+- **Start from the template.** Copy [docs/plans/TEMPLATE/](docs/plans/TEMPLATE/) to the new folder.
+  - Write the plan straight into its `plan.md`.
+  - If a tool wrote the plan elsewhere (Claude Code plan mode writes to `~/.claude/plans/`), copy it
+    into the folder before asking for review.
+- **Header.** `plan.md` opens with `Status: active` and `Branch: <branch>`.
+- **Track progress in `tasks.md`.**
+  - It has one checklist item per plan step, each with its check: a command and the result that
+    means done. `plan.md` says what each step changes; the check lives only in `tasks.md`.
+  - Tick each item the moment its check passes, before starting the next step: people follow the
+    work's progress from this file. The last item closes the plan (below).
+  - Before a session stops, update the `## Progress / Next steps` section at the end (Done, Next,
+    Open questions). A session that picks up the work reads `tasks.md` first.
+- **Close the plan in the PR's last commit.**
+  - Set `Status: done`. Add a note if the outcome differs from the plan, e.g.
+    `Status: done (steps 3–4 dropped)`.
+  - Tick the remaining tasks.
+  - Rename "Next" to "Follow-ups", listing what moved to `docs/future_refactoring.md`, or "none".
+  - If review asks for more work, set the status back to `active`.
+- **Finding live work.** Plans on other branches aren't in your checkout, and every plan folder on
+  `main` is closed. `gh pr list` shows the team's open work, and `git worktree list` shows your own.
+- **Redact.** Plans hold no passwords, keys or tokens. Write `<REDACTED>` and name the variable. The
+  `gitleaks` pre-commit hook backs this up; it doesn't replace it.
+
+Folders created before 2026-11-23 have no header and may use other file names; leave them as they are.
 
 ---
 
