@@ -1,6 +1,6 @@
 # Update LDH to v0.3.8 (SEEK 1.18.5)
 
-Status: active
+Status: done (step 4 moved to #418)
 
 Branch: chore/ldh-v0.3.8
 
