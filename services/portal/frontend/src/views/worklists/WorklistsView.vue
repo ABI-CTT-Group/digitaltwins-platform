@@ -34,7 +34,7 @@
           :batch-pos="batch ? batchPosition(batch) : 0"
           :batch-total="batch?.total ?? 0"
           @decide="decide"
-          @open="toast.info(`The annotator isn't connected yet.`)"
+          @open="openAnnotationApp"
         />
       </div>
     </div>
@@ -53,6 +53,10 @@ import CaseTable from "./components/CaseTable.vue";
 import CaseReviewPanel from "./components/CaseReviewPanel.vue";
 
 const props = defineProps<{ studyId: string }>();
+
+// The GUI tool of SEEK assay 45, the platform assay behind the example's "4. Image annotation" step.
+const ANNOTATION_APP = "/tool-view?assay=45";
+const openAnnotationApp = () => window.open(ANNOTATION_APP, "_blank");
 
 const store = useWorklistStore();
 const study = computed(() => (props.studyId === STUDY.id ? STUDY : null));
@@ -76,6 +80,7 @@ function start() {
   batchSize.value = batch.value.total;
   tab.value = "review";
   selectedId.value = batch.value.ids[0];
+  openAnnotationApp();
 }
 
 /** Choosing a case by hand leaves the batch. */

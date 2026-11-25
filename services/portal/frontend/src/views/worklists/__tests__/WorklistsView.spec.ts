@@ -9,10 +9,14 @@ vi.mock("@/store/auth_store", () => ({ useAuthStore: () => ({ displayName: "Dr A
 
 import WorklistsView from "../WorklistsView.vue";
 
+const openWindow = vi.spyOn(window, "open").mockImplementation(() => null);
+const ANNOTATION_APP = "/tool-view?assay=45";
+
 let wrapper: VueWrapper | undefined;
 afterEach(() => wrapper?.unmount());
 beforeEach(() => {
   localStorage.clear();
+  openWindow.mockClear();
   setActivePinia(createPinia());
   Object.values(toast).forEach(f => f.mockClear());
 });
@@ -45,10 +49,11 @@ describe("WorklistsView", () => {
     expect(w.text()).not.toMatch(/mock-up/i);
   });
 
-  it("says the annotator isn't connected yet", async () => {
+  it("opens the annotation app from a case", async () => {
     const w = await render();
     w.findComponent({ name: "CaseReviewPanel" }).vm.$emit("open");
-    expect(toast.info).toHaveBeenCalledWith("The annotator isn't connected yet.");
+    expect(openWindow).toHaveBeenCalledWith(ANNOTATION_APP, "_blank");
+    expect(toast.info).not.toHaveBeenCalled();
   });
 
   it("says when there is no such study", async () => {
@@ -99,6 +104,24 @@ describe("WorklistsView", () => {
     await flushPromises();
     expect(panel(w).find("h2").text()).toBe("sub-013");
     expect(panel(w).text()).toContain("Case 1 of 10 in this batch");
+  });
+
+  it("opens the annotation app in a new tab when the batch starts", async () => {
+    const w = await render();
+    expect(openWindow).not.toHaveBeenCalled();
+    await w.find("[data-test=batch-form]").trigger("submit");
+    await flushPromises();
+    expect(openWindow).toHaveBeenCalledOnce();
+    expect(openWindow).toHaveBeenCalledWith(ANNOTATION_APP, "_blank");
+  });
+
+  it("opens nothing when the batch size isn't valid", async () => {
+    const w = await render();
+    await w.find("#batch-size").setValue("0");
+    await w.find("[data-test=batch-form]").trigger("submit");
+    await flushPromises();
+    expect(toast.warning).toHaveBeenCalledWith("Enter how many cases to review: 1 or more.");
+    expect(openWindow).not.toHaveBeenCalled();
   });
 
   it("confirms a case and moves to the next one in the batch", async () => {
