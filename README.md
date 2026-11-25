@@ -1,13 +1,12 @@
 # Digital Twins Platform
 
-![License](https://img.shields.io/github/license/ABI-CTT-Group/digitaltwins-platform)
+[![Release](https://img.shields.io/github/v/release/ABI-CTT-Group/digitaltwins-platform?include_prereleases)](https://github.com/ABI-CTT-Group/digitaltwins-platform/releases)
 
+[![CI](https://github.com/ABI-CTT-Group/digitaltwins-platform/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ABI-CTT-Group/digitaltwins-platform/actions/workflows/ci.yml)
 ![Docker](https://img.shields.io/badge/docker-enabled-blue)
-![Python](https://img.shields.io/badge/python-3.11-blue)
-
 ![Contributors](https://img.shields.io/github/contributors/ABI-CTT-Group/digitaltwins-platform?color=brightgreen)
-![GitHub stars](https://img.shields.io/github/stars/ABI-CTT-Group/digitaltwins-platform?style=social)
-![Closed Issues](https://img.shields.io/github/issues-closed/ABI-CTT-Group/digitaltwins-platform)
+
+[![License](https://img.shields.io/badge/license-Apache--2.0%20(non--commercial)%20%2B%20commercial-blue)](LICENSE.md)
 
 ## Table of contents
 * [Introduction](#introduction)
