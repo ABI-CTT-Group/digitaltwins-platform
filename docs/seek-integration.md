@@ -94,7 +94,7 @@ upstreams are involved:
 | | What it is | How we consume it |
 |---|---|---|
 | [FAIRDOM-SEEK](https://github.com/seek4science/seek) (`fairdom/seek` on Docker Hub) | The upstream Rails application | Indirectly, through LDH. We only use FAIRDOM's Solr image, `fairdom/seek-solr:8.11.4`, directly |
-| [nfdi4health/ldh](https://github.com/nfdi4health/ldh) (`ghcr.io/nfdi4health/ldh`) | A downstream distribution of the SEEK codebase with NFDI4Health changes, maintained by SEEK's core developers. We run `v0.3.6`, which reports SEEK `1.18.3` | The `seek` and `seek-worker` image, pinned by `LDH_RELEASE` in `.env` |
+| [nfdi4health/ldh](https://github.com/nfdi4health/ldh) (`ghcr.io/nfdi4health/ldh`) | A downstream distribution of the SEEK codebase with NFDI4Health changes, maintained by SEEK's core developers. We run `v0.3.8`, which reports SEEK `1.18.5` | The `seek` and `seek-worker` image, pinned by `LDH_RELEASE` in `.env` |
 | [nfdi4health/ldh-deployment](https://github.com/nfdi4health/ldh-deployment) | A deployment kit with no application code: a compose file for MySQL, LDH and Solr, plus nginx configs, backup/restore scripts and `.env` templates | Forked to `ABI-CTT-Group/ldh-deployment` and mounted as the submodule `services/seek/ldh-deployment`, tracking the fork's `abi` branch |
 
 Our fork adds the Keycloak integration (`keycloak_jwt_auth.rb`,
