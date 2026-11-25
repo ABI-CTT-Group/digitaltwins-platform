@@ -39,11 +39,10 @@ describe("WorklistsView", () => {
     expect(w.find("main, .main").text()).not.toMatch(/prototype|mock-up|kept in this browser/i);
   });
 
-  it("says the view is a mock-up, as the study list does", async () => {
+  it("shows no mock-up note, as the study list does", async () => {
     const w = await render();
-    const note = w.find("[data-test=mockup-note]");
-    expect(note.attributes("role")).toBe("note");
-    expect(note.text()).toBe("Mock-up. The cases and scans are examples, not real patients, and your decisions stay in this browser.");
+    expect(w.find("[data-test=mockup-note]").exists()).toBe(false);
+    expect(w.text()).not.toMatch(/mock-up/i);
   });
 
   it("says the annotator isn't connected yet", async () => {

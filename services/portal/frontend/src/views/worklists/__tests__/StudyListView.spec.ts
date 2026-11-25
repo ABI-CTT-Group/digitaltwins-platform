@@ -33,11 +33,10 @@ describe("StudyListView", () => {
     expect(row.text()).not.toMatch(/prototype|mock-up|kept in this browser/i);
   });
 
-  it("says the view is a mock-up on example cases", async () => {
+  it("shows no mock-up note", async () => {
     const w = await render();
-    const note = w.find("[data-test=mockup-note]");
-    expect(note.attributes("role")).toBe("note");
-    expect(note.text()).toBe("Mock-up. The cases and scans are examples, not real patients, and your decisions stay in this browser.");
+    expect(w.find("[data-test=mockup-note]").exists()).toBe(false);
+    expect(w.text()).not.toMatch(/mock-up/i);
   });
 
   it("is headed as the study dashboard", async () => {
