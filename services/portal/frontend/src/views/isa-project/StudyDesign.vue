@@ -80,8 +80,8 @@
     </v-dialog>
   </div>
   <div v-else-if="catalogue" class="design design--missing">
-    <p>This study isn't in the ISA projects stored in this browser. It may have been removed.</p>
-    <router-link :to="{ name: 'IsaProjectPrototype' }">Go to your ISA projects</router-link>
+    <p>This study isn't in the study designs stored in this browser. It may have been removed.</p>
+    <router-link :to="{ name: 'IsaProjectPrototype' }">Go to your study designs</router-link>
   </div>
 </template>
 

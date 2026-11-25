@@ -56,6 +56,15 @@ const mine = async () => {
 };
 
 describe("IsaProjectHub", () => {
+  it("calls ISA projects study designs", async () => {
+    const w = await render();
+    expect(w.text()).toContain("Study designs");
+    expect(w.text()).toContain("Upload a study design, then open it in the study dashboard");
+    expect(w.find("[data-test=upload]").text()).toBe("Upload study design");
+    expect(w.find("[data-test=isa-programme]").text()).toContain("2 study designs");
+    expect(w.text()).not.toMatch(/ISA project|\bprojects?\b/i);
+  });
+
   it("lists the example ISA projects with what they hold", async () => {
     const w = await render();
     expect(rows(w)).toHaveLength(1);
@@ -73,25 +82,31 @@ describe("IsaProjectHub", () => {
   it("shows each project's investigations and their studies", async () => {
     const w = await render();
     const investigations = row(w, "Breast").findAll("[data-test=isa-investigation]");
-    expect(investigations.map(i => i.find("[data-test=isa-investigation-open]").text())).toEqual([
+    expect(investigations.map(i => i.find(".node--investigation").text())).toEqual([
       expect.stringContaining("Breast Radiology Report"),
     ]);
     const studies = investigations[0].findAll("[data-test=isa-study]");
-    expect(studies.map(s => s.find("[data-test=isa-study-open]").text())).toEqual([
+    expect(studies.map(s => s.find(".node--study").text())).toEqual([
       expect.stringMatching(/Te Whatu Ora Breast Pilot.*10 assays/),
       expect.stringMatching(/Image pipeline test.*4 assays/),
     ]);
     expect(studies.every(s => s.findComponent(StudyChain).exists())).toBe(true);
   });
 
-  it("opens an investigation in the study dashboard", async () => {
+  it("opens studies only: the project, its investigations and the titles have no Open", async () => {
     const w = await render();
-    await row(w, "Breast").find("[data-test=isa-investigation-open]").trigger("click");
-    expect(push).toHaveBeenCalledWith({ name: "StudyDashboardPrototype", query: { trail: [
-      "te-whatu-ora-radiology-reporting",
-      "te-whatu-ora-radiology-reporting:p-breast",
-      "te-whatu-ora-radiology-reporting:p-breast:i-breast-radiology-report",
-    ].join(",") } });
+    const r = row(w, "Breast");
+    expect(r.find("[data-test=open]").exists()).toBe(false);
+    expect(r.find("[data-test=isa-investigation-open]").exists()).toBe(false);
+    expect(r.find(".node--investigation").element.tagName).not.toBe("BUTTON");
+    expect(r.findAll(".node--study").every(n => n.element.tagName !== "BUTTON")).toBe(true);
+    const buttons = r.findAll("[data-test=isa-study-open]");
+    expect(buttons.map(b => [b.element.tagName, b.text()])).toEqual([
+      ["BUTTON", "Open in study dashboard"], ["BUTTON", "Open in study dashboard"],
+    ]);
+    expect(buttons.map(b => b.attributes("aria-label"))).toEqual([
+      "Open in study dashboard: Te Whatu Ora Breast Pilot", "Open in study dashboard: Image pipeline test",
+    ]);
   });
 
   it("opens a study in the study dashboard", async () => {
@@ -128,12 +143,6 @@ describe("IsaProjectHub", () => {
     expect(w.text()).toContain("open it in the study dashboard");
   });
 
-  it("opens a project in the study dashboard (prototype)", async () => {
-    const w = await render();
-    await row(w, "Breast").find("[data-test=open]").trigger("click");
-    expect(push).toHaveBeenCalledWith({ name: "StudyDashboardPrototype", query: { trail: "te-whatu-ora-radiology-reporting,te-whatu-ora-radiology-reporting:p-breast" } });
-  });
-
   it("adds an uploaded project to the list, with no badge", async () => {
     const w = await render();
     await uploadFile(w, await mine());
@@ -150,14 +159,12 @@ describe("IsaProjectHub", () => {
       { name: "Te Whatu Ora Radiology Reporting", projects: ["Breast"] },
       { name: "Radiology research", projects: ["My study plan"] },
     ]);
-    expect(w.findAll("[data-test=isa-programme]")[1].text()).toContain("1 project");
+    expect(w.findAll("[data-test=isa-programme]")[1].text()).toContain("2 study designs");
   });
 
-  it("opens a project, and its studies, under its own programme", async () => {
+  it("opens a study under its own programme", async () => {
     const w = await render();
     await uploadFile(w, await mine(), RESEARCH);
-    await row(w, "My study plan").find("[data-test=open]").trigger("click");
-    expect(push).toHaveBeenLastCalledWith({ name: "StudyDashboardPrototype", query: { trail: "isa-radiology-research,isa-radiology-research:p-mine" } });
     await row(w, "My study plan").find("[data-test=isa-study-open]").trigger("click");
     expect(push.mock.lastCall![0].query.trail.split(",")).toEqual([
       "isa-radiology-research",
@@ -173,6 +180,7 @@ describe("IsaProjectHub", () => {
     await uploadFile(w, await mine());
     const dialog = w.findComponent({ name: "ConfirmDialog" });
     expect(dialog.props("title")).toBe("Replace My study plan?");
+    expect(dialog.props("text")).toMatch(/^The upload has the same project id\./);
   });
 
   it("offers Remove for uploads and Reset for examples, each after asking", async () => {

@@ -27,9 +27,11 @@ describe("catalogue dashboard", () => {
     expect(push).toHaveBeenCalledWith({ name: "ToolsViewer" });
   });
 
-  it("opens the ISA project page for admins only", async () => {
-    const isa = tile("ISA project");
+  it("opens the study design page for admins only", async () => {
+    const isa = tile("Study designs");
     expect(isa.text()).toContain("admin");
+    expect(isa.text()).toContain("Upload a study design and list the ones you have.");
+    expect(isa.text()).not.toMatch(/ISA project/i);
     expect(isa.text()).toContain("Open one in the study dashboard");
     await isa.trigger("click");
     await flushPromises();

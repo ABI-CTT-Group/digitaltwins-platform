@@ -119,9 +119,9 @@ describe("readBundle", () => {
 
   it("needs exactly one JSON file at the bundle root", async () => {
     const none = bundle().filter(f => f.path !== "isa-project.json");
-    expect((await read(none)).errors).toEqual(["The bundle needs one .json file at its root, the ISA project; it has none."]);
+    expect((await read(none)).errors).toEqual(["The bundle needs one .json file at its root, the project; it has none."]);
     const two = bundle(design(), { "notes.json": "{}" });
-    expect((await read(two)).errors).toEqual(["The bundle needs one .json file at its root, the ISA project; it has 2: isa-project.json, notes.json."]);
+    expect((await read(two)).errors).toEqual(["The bundle needs one .json file at its root, the project; it has 2: isa-project.json, notes.json."]);
   });
 
   it("reads a lone JSON as a bundle with nothing bundled", async () => {

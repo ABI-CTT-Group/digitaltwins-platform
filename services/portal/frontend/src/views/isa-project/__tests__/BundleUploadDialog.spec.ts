@@ -66,9 +66,12 @@ async function drop(w: VueWrapper, source: Awaited<ReturnType<typeof bundle>>) {
 }
 
 describe("BundleUploadDialog", () => {
-  it("is the one way to upload an ISA project", async () => {
+  it("is the one way to upload a study design", async () => {
     await render();
-    expect(body().querySelector("#bundle-title")!.textContent).toBe("Upload ISA project");
+    expect(body().querySelector("#bundle-title")!.textContent).toBe("Upload study design");
+    expect(body().textContent).toContain("Pick the study design JSON on its own");
+    expect(body().textContent).toContain("the Breast project with one bundled dataset");
+    expect(body().textContent).not.toMatch(/ISA project/i);
     expect(body().querySelector("[data-test=bundle-json]")!.getAttribute("accept")).toContain(".json");
   });
 
@@ -119,6 +122,8 @@ describe("BundleUploadDialog", () => {
   it("hands the project, its new items and its programme over, and closes", async () => {
     const w = await render();
     await drop(w, await bundle());
+    expect(addButton().textContent!.trim()).toBe("Add project");
+    expect(body().textContent).toContain("The study dashboard lists the project under it.");
     addButton().click();
     await flushPromises();
     const [[added]] = w.emitted("add") as [[{ project: { project: { id: string } }; bundled: { datasets: { id: string }[] }; programme: unknown }]];

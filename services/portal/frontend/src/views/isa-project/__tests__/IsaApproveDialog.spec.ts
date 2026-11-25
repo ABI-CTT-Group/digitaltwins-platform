@@ -45,6 +45,7 @@ describe("IsaApproveDialog", () => {
     button("Approve").click();
     await flushPromises();
     expect(dialog().textContent).toContain("Creating the SEEK project");
+    expect(dialog().textContent).toContain("the project's row keeps following it");
     await vi.advanceTimersByTimeAsync(APPROVE_STEP);
     expect(dialog().textContent).toContain("Registering ds-new");
     await vi.runAllTimersAsync();

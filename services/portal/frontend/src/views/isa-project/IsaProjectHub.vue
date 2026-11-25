@@ -1,13 +1,13 @@
 <template>
   <HubShell
-    title="ISA projects"
-    subtitle="Upload an ISA project, then open it in the study dashboard to configure all of its assays together."
+    title="Study designs"
+    subtitle="Upload a study design, then open it in the study dashboard to configure all of its assays together."
     accent="#f0b97f"
   >
 
     <div class="upload">
       <button type="button" class="aurora-btn aurora-btn--solid" data-test="upload" @click="bundleOpen = true">
-        <v-icon icon="mdi-upload-outline" size="18" /> Upload ISA project
+        <v-icon icon="mdi-upload-outline" size="18" /> Upload study design
       </button>
       <span class="upload__note">A JSON file, or a folder or .zip with the datasets it needs that aren't on the platform yet.</span>
     </div>
@@ -17,7 +17,7 @@
     <section v-for="g in groups" :key="g.programme.id" class="programme" data-test="isa-programme" :aria-labelledby="`programme-${g.programme.id}`">
       <h2 :id="`programme-${g.programme.id}`" class="programme__head">
         <span class="programme__name" data-test="isa-programme-name">{{ g.programme.name }}</span>
-        <span class="programme__count">{{ plural(g.entries.length, "project") }}</span>
+        <span class="programme__count">{{ plural(studyCount(g.entries), "study design") }}</span>
       </h2>
       <ul class="list">
         <li v-for="e in g.entries" :key="e.project.project.id" class="row" data-test="isa-row" :data-project="e.project.project.id">
@@ -33,9 +33,6 @@
           <div class="row__actions">
             <button v-if="e.source === 'upload' && !e.approval" type="button" class="aurora-btn aurora-btn--solid" data-test="approve" @click="askApprove(e.project.project.id)">
               Approve
-            </button>
-            <button type="button" class="aurora-btn aurora-btn--solid" data-test="open" @click="open(e, [])">
-              Open in study dashboard
             </button>
             <v-menu location="bottom end" :offset="8">
               <template #activator="{ props: act, isActive }">
@@ -62,17 +59,28 @@
           <!-- The ISA tree: solid rails mean "contains"; each study's chain keeps the dashed "flows into". -->
           <ul class="tree" :aria-label="`${e.project.project.title}: investigations and studies`">
             <li v-for="inv in e.project.investigations" :key="inv.id" class="tree__node" data-test="isa-investigation">
-              <button type="button" class="node node--investigation" data-test="isa-investigation-open" @click="open(e, [inv.id])">
+              <p class="node node--investigation">
                 <span class="node__title">{{ inv.title }}</span>
                 <span class="node__level">investigation</span>
-              </button>
+              </p>
               <p v-if="!inv.studies.length" class="tree__empty">No studies yet</p>
               <ul v-else class="tree">
                 <li v-for="s in inv.studies" :key="s.id" class="tree__node" data-test="isa-study">
-                  <button type="button" class="node node--study" data-test="isa-study-open" @click="open(e, [inv.id, s.id])">
-                    <span class="node__title">{{ s.title }}</span>
-                    <span class="node__level">study, {{ plural(s.assays.length, "assay") }}</span>
-                  </button>
+                  <div class="study">
+                    <p class="node node--study">
+                      <span class="node__title">{{ s.title }}</span>
+                      <span class="node__level">study, {{ plural(s.assays.length, "assay") }}</span>
+                    </p>
+                    <button
+                      type="button"
+                      class="aurora-btn aurora-btn--ghost study__open"
+                      data-test="isa-study-open"
+                      :aria-label="`Open in study dashboard: ${s.title}`"
+                      @click="open(e, [inv.id, s.id])"
+                    >
+                      Open in study dashboard
+                    </button>
+                  </div>
                   <StudyChain :study="s" class="tree__chain" />
                 </li>
               </ul>
@@ -120,6 +128,10 @@ const groups = computed(() => knownProgrammes(store.entries)
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
+/** Each study is a study design; a project can hold several. */
+const studyCount = (entries: IsaProjectEntry[]) =>
+  entries.flatMap(e => e.project.investigations.flatMap(i => i.studies)).length;
+
 function summary(p: IsaProject) {
   const studies = p.investigations.flatMap(i => i.studies);
   return [
@@ -151,7 +163,7 @@ function askApprove(projectId: string) {
   approveOpen.value = true;
 }
 
-/** Opens the study dashboard at a project, or deeper at one of its investigations or studies. */
+/** Opens the study dashboard at one of a project's studies. */
 function open(e: IsaProjectEntry, below: string[]) {
   const ids = [programmeOf(e).id, e.project.project.id, ...below];
   const trail = ids.map((_, n) => ids.slice(0, n + 1).join(":"));
@@ -291,18 +303,13 @@ const askReset = (p: IsaProject) => confirm.ask({
   gap: 2px 10px;
   max-width: 100%;
   min-height: 36px;
+  margin: 0;
   padding: 7px 10px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
   color: var(--text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
 }
-.node:hover { background: rgba(255, 255, 255, 0.04); }
-.node:hover .node__title, .node:focus-visible .node__title { color: var(--accent); }
-.node:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+/* A study's line: its title, then the one way to open it, at the card's right edge like the card's actions. */
+.study { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.study__open { margin-left: 10px; padding: 6px 14px; font-size: 0.85rem; } /* lines up with the title when it wraps */
 .node__title { font-size: 0.95rem; }
 .node--investigation .node__title { font-weight: 600; }
 .node--study .node__title { font-weight: 500; }

@@ -1,11 +1,11 @@
 <template>
   <v-dialog v-model="open" max-width="680" scrollable>
     <div class="bundle" data-test="bundle-dialog" role="dialog" aria-labelledby="bundle-title">
-      <h2 id="bundle-title" class="bundle__title">Upload ISA project</h2>
+      <h2 id="bundle-title" class="bundle__title">Upload study design</h2>
 
       <template v-if="!read">
         <p class="bundle__text">
-          Pick the ISA project JSON on its own, or a folder or .zip that also holds an SDS folder for each
+          Pick the study design JSON on its own, or a folder or .zip that also holds an SDS folder for each
           dataset, workflow or tool it uses that isn't on the platform yet, named by the id the design uses:
         </p>
         <pre class="bundle__tree" aria-label="Bundle layout">my-project/

@@ -268,7 +268,7 @@ describe("StudyDesign", () => {
     });
   });
 
-  it("has no study-level upload: ISA projects are uploaded from the catalogue", async () => {
+  it("has no study-level upload: study designs are uploaded from the catalogue", async () => {
     const w = await render();
     expect(w.text()).not.toContain("Load study design");
     expect(w.findAllComponents(RouterLinkStub)).toHaveLength(0);
@@ -276,6 +276,7 @@ describe("StudyDesign", () => {
 
   it("says so when the study isn't in this browser", async () => {
     const w = await render("nope");
-    expect(w.text()).toContain("This study isn't in the ISA projects stored in this browser");
+    expect(w.text()).toContain("This study isn't in the study designs stored in this browser");
+    expect(w.text()).toContain("Go to your study designs");
   });
 });

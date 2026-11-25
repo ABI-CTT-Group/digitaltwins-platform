@@ -89,7 +89,7 @@ export async function readBundle(all: BundleFile[], catalogue: Catalogue): Promi
     .sort((a, b) => a.path.localeCompare(b.path));
   if (roots.length !== 1) {
     const found = roots.length ? `${roots.length}: ${roots.map(f => f.path).join(", ")}` : "none";
-    return fail([`The bundle needs one .json file at its root, the ISA project; it has ${found}.`]);
+    return fail([`The bundle needs one .json file at its root, the project; it has ${found}.`]);
   }
   let json: unknown;
   try {

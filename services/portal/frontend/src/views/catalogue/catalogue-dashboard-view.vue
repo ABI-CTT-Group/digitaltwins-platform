@@ -160,8 +160,8 @@ const actions: CatalogueCard[] = [
     requireRoles: [],
   },
   {
-    title: 'ISA project',
-    description: 'Upload an ISA project and list the ones you have. Open one in the study dashboard to configure all its assays together.',
+    title: 'Study designs',
+    description: 'Upload a study design and list the ones you have. Open one in the study dashboard to configure all its assays together.',
     herf: 'IsaProjectPrototype',
     icon: 'mdi-file-tree-outline',
     cta: 'Open',
